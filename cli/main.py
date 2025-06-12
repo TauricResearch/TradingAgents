@@ -444,20 +444,29 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: Thinking agents
+    # Step 5: OpenAI backend
     console.print(
         create_question_box(
-            "Step 5: Thinking Agents", "Select your thinking agents for analysis"
+            "Step 5: OpenAI backend", "Select which service to talk to"
         )
     )
-    selected_shallow_thinker = select_shallow_thinking_agent()
-    selected_deep_thinker = select_deep_thinking_agent()
+    selected_openai_backend = select_openai_backend()
+    
+    # Step 6: Thinking agents
+    console.print(
+        create_question_box(
+            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
+        )
+    )
+    selected_shallow_thinker = select_shallow_thinking_agent(selected_openai_backend)
+    selected_deep_thinker = select_deep_thinking_agent(selected_openai_backend)
 
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
+        "openai_backend": selected_openai_backend,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
     }
@@ -694,6 +703,7 @@ def run_analysis():
     config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
+    config["openai_backend"] = selections["openai_backend"]
 
     # Initialize the graph
     graph = TradingAgentsGraph(
