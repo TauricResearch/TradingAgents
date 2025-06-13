@@ -23,9 +23,10 @@ class UserRegistrationView(APIView):
     
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
+    
         if serializer.is_valid():
             user = serializer.save()
-            
+            print(f"user: {user}")
             # JWT 토큰 생성
             refresh = RefreshToken.for_user(user)
             
