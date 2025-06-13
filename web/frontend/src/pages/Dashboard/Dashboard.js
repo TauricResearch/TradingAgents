@@ -97,7 +97,7 @@ const Dashboard = () => {
   });
   const [recentAnalyses, setRecentAnalyses] = useState([]);
   const { user } = useAuth();
-  const { connected, analysisProgress } = useWebSocket();
+  const { connected, messages } = useWebSocket();
   const navigate = useNavigate();
 
   useEffect(() => {

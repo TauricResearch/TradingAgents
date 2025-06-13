@@ -41,3 +41,4 @@ chainlit
 rich
 questionary
 langgraph==0.4.8
+daphne

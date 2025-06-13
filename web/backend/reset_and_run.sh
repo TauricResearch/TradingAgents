@@ -2,6 +2,9 @@
 
 echo "🚀 Django 서버 시작 - 데이터베이스 초기화"
 
+# Django 설정 모듈 환경 변수 설정
+export DJANGO_SETTINGS_MODULE=tradingagents_web.settings
+
 # 1. 데이터베이스 초기화
 echo "🔄 데이터베이스 초기화 중..."
 docker exec -i tradingagents_mysql mysql -u root -ppassword -e "
@@ -25,6 +28,6 @@ if not User.objects.filter(email='admin@example.com').exists():
     print('✅ 관리자: admin@example.com / admin123!');
 "
 
-# 4. 서버 시작
+# 4. 서버 시작 (환경 변수와 함께)
 echo "🎉 서버 시작!"
-python manage.py runserver
+daphne -b 0.0.0.0 -p 8000 tradingagents_web.asgi:application

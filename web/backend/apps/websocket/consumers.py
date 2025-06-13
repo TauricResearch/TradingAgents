@@ -1,14 +1,10 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.tokens import UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-from django.contrib.auth import get_user_model
 from django.conf import settings
 import jwt
-
-User = get_user_model()
 
 
 class TradingAnalysisConsumer(AsyncWebsocketConsumer):
@@ -121,6 +117,10 @@ class TradingAnalysisConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_user_from_token(self):
         """JWT 토큰에서 사용자 정보 추출"""
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import AnonymousUser
+        
+        User = get_user_model()
         try:
             # URL에서 토큰 추출 (query parameter 또는 header)
             token = None
@@ -142,13 +142,16 @@ class TradingAnalysisConsumer(AsyncWebsocketConsumer):
             
             # JWT 토큰 검증
             try:
-                UntypedToken(token)  # 토큰 유효성 검사
+                # simplejwt 설정에서 올바른 서명 키와 알고리즘 가져오기
+                from rest_framework_simplejwt.settings import api_settings
+                
+                UntypedToken(token) # 토큰 기본 구조 검증
                 
                 # 토큰에서 사용자 ID 추출
                 decoded_token = jwt.decode(
-                    token, 
-                    settings.SECRET_KEY, 
-                    algorithms=['HS256']
+                    token,
+                    api_settings.SIGNING_KEY, # 올바른 서명 키 사용
+                    algorithms=[api_settings.ALGORITHM] # 올바른 알고리즘 사용
                 )
                 user_id = decoded_token.get('user_id')
                 
@@ -171,6 +174,7 @@ class TradingAnalysisConsumer(AsyncWebsocketConsumer):
     def check_session_ownership(self, session_id):
         """분석 세션 소유권 확인"""
         try:
+            # 지연 import
             from apps.authentication.models import AnalysisSession
             session = AnalysisSession.objects.get(id=session_id, user=self.user)
             return True
