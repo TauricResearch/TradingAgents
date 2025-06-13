@@ -3,21 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@ant-design/icons": "^5.2.6",
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "antd": "^5.10.0",
+    "axios": "^1.5.0",
+    "dayjs": "^1.11.9",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
-    "react-router-dom": "^6.4.0",
-    "axios": "^1.5.0",
-    "antd": "^5.10.0",
-    "@ant-design/icons": "^5.2.6",
-    "styled-components": "^6.0.8",
-    "dayjs": "^1.11.9",
     "react-markdown": "^8.0.7",
-    "websocket": "^1.0.34",
-    "recharts": "^2.8.0"
+    "react-router-dom": "^6.4.0",
+    "react-scripts": "5.0.1",
+    "recharts": "^2.8.0",
+    "remark-gfm": "^4.0.1",
+    "styled-components": "^6.0.8",
+    "websocket": "^1.0.34"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -44,4 +45,4 @@
     ]
   },
   "proxy": "http://localhost:8000"
-} 
+}
