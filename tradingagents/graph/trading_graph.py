@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
+import asyncio
 
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolNode
@@ -31,19 +32,20 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
-        debug=False,
         config: Dict[str, Any] = None,
+        progress_callback=None,
+        debug=False,
     ):
         """Initialize the trading agents graph and components.
 
         Args:
-            selected_analysts: List of analyst types to include
-            debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
+            progress_callback: Async function to send progress updates
+            debug: Whether to run in debug mode
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
+        self.progress_callback = progress_callback
 
         # Update the interface's config
         set_config(self.config)
@@ -95,8 +97,9 @@ class TradingAgentsGraph:
         self.ticker = None
         self.log_states_dict = {}  # date to full state dict
 
-        # Set up the graph
-        self.graph = self.graph_setup.setup_graph(selected_analysts)
+        # Set up the graph with default analysts initially
+        default_analysts = ["market", "social", "news", "fundamentals"]
+        self.graph = self.graph_setup.setup_graph(default_analysts)
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources."""
@@ -143,8 +146,55 @@ class TradingAgentsGraph:
             ),
         }
 
+    def invoke(self, input_data: Dict) -> Dict:
+        """Run the trading agents graph for a web-based request."""
+
+        self.ticker = input_data.get("ticker", "UNKNOWN")
+        trade_date = input_data.get("date", date.today().strftime("%Y-%m-%d"))
+        selected_analysts = input_data.get("selected_analysts", [])
+        
+        self.graph = self.graph_setup.setup_graph(selected_analysts)
+
+        init_agent_state = self.propagator.create_initial_state(
+            self.ticker, trade_date
+        )
+        args = self.propagator.get_graph_args()
+
+        final_report = ""
+        final_state_result = None
+        
+        # 진행률 계산을 위한 변수
+        total_steps = len(self.graph.nodes)
+        step_count = 0
+
+        # Stream the graph execution to get real-time updates
+        for chunk in self.graph.stream(init_agent_state, **args):
+            # 1 청크당 1단계로 간주
+            step_count += 1
+            for node_name, node_output in chunk.items():
+                if self.progress_callback:
+                    agent_name = node_name.replace("_node", "").replace("_", " ").title()
+                    message = f"Step {step_count}/{total_steps}: {agent_name} is working..."
+                    
+                    # 계산된 진행률과 함께 콜백 호출
+                    asyncio.run(self.progress_callback(
+                        "agent_update",
+                        message,
+                        agent_name,
+                        step=step_count,
+                        total=total_steps
+                    ))
+            
+            final_state_result = chunk
+
+        if final_state_result:
+            final_report = self.reflector.generate_final_report(final_state_result)
+            self._log_state(trade_date, final_state_result)
+
+        return {"final_report": final_report}
+
     def propagate(self, company_name, trade_date):
-        """Run the trading agents graph for a company on a specific date."""
+        """Run the trading agents graph for a company on a specific date (CLI)."""
 
         self.ticker = company_name
 

@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from asgiref.sync import sync_to_async
 import asyncio
+import threading
 from datetime import datetime
 
 from apps.authentication.models import AnalysisSession
@@ -56,15 +57,15 @@ class StartAnalysisView(APIView):
     
     def post(self, request):
         """새로운 분석 시작"""
+        print(f"request.data: {request.data}")
         serializer = CreateAnalysisSessionSerializer(data=request.data)
         
         if serializer.is_valid():
-            # 분석 세션 생성
             session = serializer.save(user=request.user)
             
-            # 백그라운드에서 분석 실행
-            # 실제 환경에서는 Celery나 다른 task queue를 사용하는 것이 좋습니다
-            asyncio.create_task(self._start_analysis_async(request.user, session.id))
+            # 별도의 스레드에서 비동기 작업 실행
+            thread = threading.Thread(target=self.run_async_task, args=(self._start_analysis_async(request.user, session.id),))
+            thread.start()
             
             return Response({
                 'message': '분석이 시작되었습니다.',
@@ -74,6 +75,13 @@ class StartAnalysisView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+    def run_async_task(self, coro):
+        """새 이벤트 루프에서 비동기 코루틴 실행"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(coro)
+        loop.close()
+
     async def _start_analysis_async(self, user, session_id):
         """비동기 분석 실행"""
         try:

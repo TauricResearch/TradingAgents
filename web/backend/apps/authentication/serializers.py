@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from .models import User, UserProfile, AnalysisSession
+from datetime import date
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -121,11 +122,17 @@ class CreateAnalysisSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnalysisSession
         fields = (
-            'ticker', 'analysis_date',
+            'ticker',
             'analysts_selected', 'research_depth',
             'shallow_thinker', 'deep_thinker'
         )
-    
+        # analysis_date는 create 시점에 자동 생성되므로 필드에서 제외
+
+    def create(self, validated_data):
+        """오늘 날짜를 추가하여 세션 생성"""
+        validated_data['analysis_date'] = date.today()
+        return super().create(validated_data)
+
     def validate_analysts_selected(self, value):
         """선택된 분석가들 검증"""
         if not isinstance(value, list) or len(value) == 0:
