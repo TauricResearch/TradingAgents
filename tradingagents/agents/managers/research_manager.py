@@ -35,7 +35,9 @@ Here are your past reflections on mistakes:
 
 Here is the debate:
 Debate History:
-{history}"""
+{history}
+
+Please write all responses in Korean."""
         response = llm.invoke(prompt)
 
         new_investment_debate_state = {

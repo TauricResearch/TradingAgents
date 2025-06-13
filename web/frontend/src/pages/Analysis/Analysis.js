@@ -1,7 +1,7 @@
 // web/frontend/src/pages/Analysis/Analysis.js
 
 import React, { useState, useEffect } from 'react';
-import { Card, Divider, Spin, Alert, Typography, message } from 'antd';
+import { Card, Divider, Spin, Alert, Typography } from 'antd';
 import styled from 'styled-components';
 import api from '../../services/api';
 import { useWebSocket } from '../../contexts/WebSocketContext';
@@ -78,20 +78,6 @@ const Analysis = () => {
     clearMessages();
   };
 
-  // 분석 취소 핸들러
-  const handleCancelAnalysis = async () => {
-    if (!currentSessionId) return;
-
-    try {
-      await api.post(`/api/trading/cancel/${currentSessionId}/`);
-      message.success('분석이 성공적으로 중단되었습니다.');
-      handleNewAnalysis(); // 상태를 초기화하고 폼으로 돌아감
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || '분석 취소에 실패했습니다.';
-      setError(errorMessage);
-    }
-  };
-
   const renderContent = () => {
     if (analysisStatus === 'starting') {
         return <div style={{ textAlign: 'center', padding: '50px' }}><Spin size="large" tip="분석을 시작하고 있습니다..." /></div>;
@@ -106,7 +92,6 @@ const Analysis = () => {
           messages={messages.filter(m => m.sessionId === currentSessionId)}
           finalReport={finalReport}
           onNewAnalysis={handleNewAnalysis}
-          onCancelAnalysis={handleCancelAnalysis}
         />
       );
     }
