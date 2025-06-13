@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Card, Progress, Timeline, Button, Result, Typography, Empty, Tag } from 'antd';
 import { FileDoneOutlined, RedoOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
-import ReactMarkdown from 'react-markdown';
+import ReportDisplay from './ReportDisplay';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -10,6 +10,8 @@ const DisplayCard = styled(Card)`
   border-radius: ${props => props.theme.borderRadius.lg};
   box-shadow: ${props => props.theme.shadows.lg};
   margin-top: ${props => props.theme.spacing.lg};
+  border-radius: ${props => props.theme.borderRadius.md};
+  background-color: ${props => props.theme.colors.backgroundSecondary};
 `;
 
 const TimelineContainer = styled.div`
@@ -23,9 +25,6 @@ const TimelineContainer = styled.div`
 
 const ReportContainer = styled.div`
   margin-top: ${props => props.theme.spacing.lg};
-  padding: ${props => props.theme.spacing.lg};
-  background-color: #fafafa;
-  border-radius: ${props => props.theme.borderRadius.md};
 `;
 
 const agentTagColors = {
@@ -101,8 +100,7 @@ const AnalysisDisplay = ({ sessionId, status, progress, messages, finalReport, o
             
             {status === 'completed' && finalReport && (
                 <ReportContainer>
-                    <Title level={3}>최종 분석 보고서</Title>
-                    <ReactMarkdown>{finalReport}</ReactMarkdown>
+                    <ReportDisplay reportData={finalReport} />
                 </ReportContainer>
             )}
         </DisplayCard>
