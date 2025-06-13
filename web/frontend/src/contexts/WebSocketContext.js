@@ -136,9 +136,10 @@ export const WebSocketProvider = ({ children }) => {
           ...prev,
           [data.session_id]: {
             ...prev[data.session_id],
+            status: 'running',
             message: data.content,
             agent: data.agent,
-            progress: prev[data.session_id]?.progress + 10 || 10
+            progress: data.progress,
           }
         }));
         
@@ -160,7 +161,7 @@ export const WebSocketProvider = ({ children }) => {
             status: 'completed',
             message: data.message,
             progress: 100,
-            result: data.result
+            result: data.result,
           }
         }));
         message.success(data.message);

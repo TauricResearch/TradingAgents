@@ -119,3 +119,47 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
             "RISK JUDGE", judge_decision, situation, returns_losses
         )
         risk_manager_memory.add_situations([(situation, result)])
+
+    @staticmethod
+    def generate_final_report(final_state: dict) -> str:
+        """Generate a final, comprehensive report from the final state."""
+        
+        report_parts = []
+        report_parts.append(f"# 최종 분석 보고서: {final_state.get('company_of_interest', 'N/A')}")
+        report_parts.append(f"**분석 기준일:** {final_state.get('trade_date', 'N/A')}")
+        report_parts.append("---")
+
+        # 각 분석가 리포트 추가
+        if final_state.get('market_report'):
+            report_parts.append("## 시장 분석가 리포트")
+            report_parts.append(final_state['market_report'])
+        
+        if final_state.get('sentiment_report'):
+            report_parts.append("## 소셜 미디어 분석가 리포트")
+            report_parts.append(final_state['sentiment_report'])
+
+        if final_state.get('news_report'):
+            report_parts.append("## 뉴스 분석가 리포트")
+            report_parts.append(final_state['news_report'])
+
+        if final_state.get('fundamentals_report'):
+            report_parts.append("## 재무 분석가 리포트")
+            report_parts.append(final_state['fundamentals_report'])
+
+        # 투자 토론 요약 추가
+        if final_state.get('investment_debate_state'):
+            debate = final_state['investment_debate_state']
+            report_parts.append("## 투자 결정 토론 요약")
+            report_parts.append(f"**심사위원 최종 결정:** {debate.get('judge_decision', 'N/A')}")
+
+        # 최종 투자 계획 및 결정 추가
+        if final_state.get('investment_plan'):
+            report_parts.append("## 최종 투자 계획")
+            report_parts.append(final_state['investment_plan'])
+
+        if final_state.get('final_trade_decision'):
+            report_parts.append("## 최종 거래 결정")
+            report_parts.append(final_state['final_trade_decision'])
+
+        report = "\n\n".join(report_parts)
+        return report

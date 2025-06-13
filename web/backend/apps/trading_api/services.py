@@ -3,6 +3,7 @@ import datetime
 from typing import Dict, List, Optional
 from django.conf import settings
 from channels.layers import get_channel_layer
+from channels.db import database_sync_to_async
 from asgiref.sync import async_to_sync
 
 # CLI 모듈 import (경로 조정 필요)
@@ -25,41 +26,50 @@ class TradingAnalysisService:
         self.channel_layer = get_channel_layer()
         self.user_channel_group = f"user_{user.id}"
         
+    @database_sync_to_async
+    def _update_session_status(self, status: str, error_message: Optional[str] = None, final_report: Optional[str] = None):
+        """세션 상태 업데이트 (비동기 안전)"""
+        self.session.status = status
+        now = datetime.datetime.now()
+        if status == 'running':
+            self.session.started_at = now
+        else:
+            self.session.completed_at = now
+        
+        if error_message:
+            self.session.error_message = error_message
+        if final_report:
+            self.session.final_report = final_report
+            
+        self.session.save()
+
+    @database_sync_to_async
+    def _get_user_profile_and_key(self):
+        """사용자 프로필 및 API 키 조회 (비동기 안전)"""
+        profile = self.user.profile
+        return profile.get_effective_openai_api_key()
+
     async def run_analysis(self):
         """분석 실행"""
         try:
-            # 세션 상태 업데이트
-            self.session.status = 'running'
-            self.session.started_at = datetime.datetime.now()
-            self.session.save()
+            await self._update_session_status('running')
             
-            # WebSocket으로 시작 알림
             await self._send_websocket_message({
                 'type': 'analysis_started',
                 'session_id': self.session.id,
                 'message': '분석을 시작합니다...'
             })
             
-            # 사용자 프로필에서 OpenAI API 키 가져오기
-            profile = self.user.profile
-            api_key = profile.get_effective_openai_api_key()
+            api_key = await self._get_user_profile_and_key()
             
             if not api_key:
                 raise Exception("OpenAI API 키가 설정되지 않았습니다.")
             
-            # CLI 설정 준비
             config = self._prepare_analysis_config(api_key)
-            
-            # 분석 실행
             result = await self._execute_trading_analysis(config)
             
-            # 결과 저장
-            self.session.final_report = result
-            self.session.status = 'completed'
-            self.session.completed_at = datetime.datetime.now()
-            self.session.save()
+            await self._update_session_status('completed', final_report=result)
             
-            # WebSocket으로 완료 알림
             await self._send_websocket_message({
                 'type': 'analysis_completed',
                 'session_id': self.session.id,
@@ -70,17 +80,13 @@ class TradingAnalysisService:
             return result
             
         except Exception as e:
-            # 에러 처리
-            self.session.status = 'failed'
-            self.session.error_message = str(e)
-            self.session.completed_at = datetime.datetime.now()
-            self.session.save()
+            error_msg = str(e)
+            await self._update_session_status('failed', error_message=error_msg)
             
-            # WebSocket으로 에러 알림
             await self._send_websocket_message({
                 'type': 'analysis_failed',
                 'session_id': self.session.id,
-                'message': f'분석 중 오류가 발생했습니다: {str(e)}'
+                'message': f'분석 중 오류가 발생했습니다: {error_msg}'
             })
             
             raise e
@@ -115,9 +121,28 @@ class TradingAnalysisService:
                 'deep_thinking_model': config['deep_thinker'],
             })
             
-            # TradingAgentsGraph 초기화
-            trading_graph = TradingAgentsGraph(analysis_config)
-            
+            # 진행 상황 콜백 함수 수정
+            async def progress_callback(message_type: str, content: str, agent: str = None, step: int = 0, total: int = 0):
+                # 백엔드에서 진행률 계산
+                progress_percent = int((step / total) * 99) if total > 0 else 0 # 100%는 완료 시에만
+                await self._send_websocket_message({
+                    'type': 'analysis_progress',
+                    'session_id': self.session.id,
+                    'message_type': message_type,
+                    'content': content,
+                    'agent': agent,
+                    'progress': progress_percent,
+                })
+
+            # TradingAgentsGraph 초기화 (더 상세한 예외 처리)
+            try:
+                trading_graph = TradingAgentsGraph(
+                    config=analysis_config,
+                    progress_callback=progress_callback
+                )
+            except Exception as e:
+                raise Exception(f"TradingAgentsGraph 초기화 실패: {str(e)}")
+
             # 분석 입력 데이터 준비
             input_data = {
                 'ticker': config['ticker'],
@@ -126,50 +151,22 @@ class TradingAnalysisService:
                 'research_depth': config['research_depth'],
             }
             
-            # 진행 상황 콜백 함수
-            async def progress_callback(message_type: str, content: str, agent: str = None):
-                await self._send_websocket_message({
-                    'type': 'analysis_progress',
-                    'session_id': self.session.id,
-                    'message_type': message_type,
-                    'content': content,
-                    'agent': agent
-                })
-            
             # 분석 실행 (실제 CLI 로직 호출)
-            # 여기서는 간단화된 버전으로 구현
-            # 실제로는 trading_graph.invoke(input_data) 형태로 호출
-            
-            # 분석 진행 상황 시뮬레이션
-            analysis_steps = [
-                ("Market Analyst", "시장 데이터 분석 중..."),
-                ("Social Analyst", "소셜 센티멘트 분석 중..."),
-                ("News Analyst", "뉴스 분석 중..."),
-                ("Fundamentals Analyst", "기본 분석 중..."),
-                ("Research Manager", "연구 결과 종합 중..."),
-                ("Trader", "거래 전략 수립 중..."),
-                ("Portfolio Manager", "포트폴리오 최적화 중...")
-            ]
-            
-            final_report_parts = []
-            
-            for agent, message in analysis_steps:
-                await progress_callback("agent_update", message, agent)
-                
-                # 실제 분석 로직 호출 (여기서는 시뮬레이션)
-                await asyncio.sleep(2)  # 실제 분석 시간 시뮬레이션
-                
-                # 각 단계별 결과 생성 (실제로는 trading_graph의 결과)
-                step_result = f"## {agent} 분석 결과\n\n{config['ticker']} 종목에 대한 {agent.lower()} 분석을 완료했습니다.\n"
-                final_report_parts.append(step_result)
-            
-            # 최종 보고서 생성
-            final_report = "\n\n".join(final_report_parts)
-            
-            return final_report
-            
+            try:
+                # 여기서 trading_graph.invoke를 비동기로 실행해야 합니다.
+                # 현재 trading_graph.invoke가 동기 함수라고 가정하고,
+                # asyncio.to_thread를 사용해 비동기 컨텍스트에서 실행합니다.
+                result = await asyncio.to_thread(
+                    trading_graph.invoke,
+                    input_data
+                )
+                return result['final_report'] # 결과 형식에 따라 조정 필요
+            except Exception as e:
+                raise Exception(f"trading_graph.invoke 실행 실패: {str(e)}")
+
         except Exception as e:
-            raise Exception(f"분석 실행 중 오류 발생: {str(e)}")
+            # 에러 메시지를 명확하게 다시 던짐
+            raise Exception(f"분석 실행 중 오류: {str(e)}")
     
     async def _send_websocket_message(self, message: Dict):
         """WebSocket으로 메시지 전송"""
@@ -189,24 +186,15 @@ class TradingAnalysisManager:
     """거래 분석 관리자"""
     
     @staticmethod
-    def create_analysis_session(user, analysis_data: Dict) -> AnalysisSession:
-        """분석 세션 생성"""
-        session = AnalysisSession.objects.create(
-            user=user,
-            ticker=analysis_data['ticker'],
-            analysis_date=analysis_data['analysis_date'],
-            analysts_selected=analysis_data['analysts_selected'],
-            research_depth=analysis_data['research_depth'],
-            shallow_thinker=analysis_data['shallow_thinker'],
-            deep_thinker=analysis_data['deep_thinker'],
-        )
-        return session
-    
+    @database_sync_to_async
+    def _get_session(user, session_id):
+        return AnalysisSession.objects.get(id=session_id, user=user)
+
     @staticmethod
     async def start_analysis(user, session_id: int):
         """분석 시작"""
         try:
-            session = AnalysisSession.objects.get(id=session_id, user=user)
+            session = await TradingAnalysisManager._get_session(user, session_id)
             service = TradingAnalysisService(user, session)
             result = await service.run_analysis()
             return result
@@ -214,11 +202,13 @@ class TradingAnalysisManager:
             raise Exception("분석 세션을 찾을 수 없습니다.")
     
     @staticmethod
+    @database_sync_to_async
     def get_user_analysis_sessions(user) -> List[AnalysisSession]:
         """사용자의 분석 세션 목록 조회"""
-        return AnalysisSession.objects.filter(user=user).order_by('-created_at')
+        return list(AnalysisSession.objects.filter(user=user).order_by('-created_at'))
     
     @staticmethod
+    @database_sync_to_async
     def cancel_analysis(user, session_id: int):
         """분석 취소"""
         try:

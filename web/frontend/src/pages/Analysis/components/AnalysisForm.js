@@ -1,3 +1,5 @@
+// web/frontend/src/pages/Analysis/components/AnalysisForm.js
+
 import React from 'react';
 import { Form, Input, Button, Card, Select, Slider, Checkbox, Row, Col, Typography } from 'antd';
 import { FundOutlined, SendOutlined } from '@ant-design/icons';
@@ -17,6 +19,24 @@ const analystsOptions = [
     { label: '뉴스 분석가 (News)', value: 'news' },
     { label: '재무 분석가 (Fundamentals)', value: 'fundamentals' },
 ];
+
+const shallowThinkerOptions = [
+    { value: 'gpt-4o-mini', label: 'GPT-4o-mini - 빠르고 효율적인 모델' },
+    { value: 'gpt-4.1-nano', label: 'GPT-4.1-nano - 초경량 모델' },
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1-mini - 준수한 성능의 컴팩트 모델' },
+    { value: 'gpt-4o', label: 'GPT-4o - 표준 모델' },
+];
+
+const deepThinkerOptions = [
+    { value: 'gpt-4.1-nano', label: 'GPT-4.1-nano - 초경량 모델' },
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1-mini - 준수한 성능의 컴팩트 모델' },
+    { value: 'gpt-4o', label: 'GPT-4o - 표준 모델' },
+    { value: 'o4-mini', label: 'o4-mini - 특화된 소형 추론 모델' },
+    { value: 'o3-mini', label: 'o3-mini - 경량 고급 추론 모델' },
+    { value: 'o3', label: 'o3 - 전체 고급 추론 모델' },
+    { value: 'o1', label: 'o1 - 최상위 추론 및 문제 해결 모델' },
+];
+
 
 const AnalysisForm = ({ onStartAnalysis, loading }) => {
     const [form] = Form.useForm();
@@ -83,17 +103,22 @@ const AnalysisForm = ({ onStartAnalysis, loading }) => {
                     <Col span={12}>
                         <Form.Item name="shallow_thinker" label="Shallow Thinker 모델">
                             <Select>
-                                <Option value="gpt-4o-mini">GPT-4o Mini</Option>
-                                <Option value="gpt-4o">GPT-4o</Option>
-                                <Option value="gpt-4-turbo">GPT-4 Turbo</Option>
+                                {shallowThinkerOptions.map(option => (
+                                    <Option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </Option>
+                                ))}
                             </Select>
                         </Form.Item>
                     </Col>
                     <Col span={12}>
                         <Form.Item name="deep_thinker" label="Deep Thinker 모델">
                              <Select>
-                                <Option value="gpt-4o">GPT-4o</Option>
-                                <Option value="gpt-4-turbo">GPT-4 Turbo</Option>
+                                {deepThinkerOptions.map(option => (
+                                    <Option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </Option>
+                                ))}
                             </Select>
                         </Form.Item>
                     </Col>
@@ -116,4 +141,4 @@ const AnalysisForm = ({ onStartAnalysis, loading }) => {
     );
 };
 
-export default AnalysisForm; 
+export default AnalysisForm;
