@@ -1,7 +1,7 @@
 // web/frontend/src/pages/Analysis/Analysis.js
 
 import React, { useState, useEffect } from 'react';
-import { Card, Divider, Spin, Alert, Typography } from 'antd';
+import { Card, Divider, Spin, Alert, Typography, Row, Col } from 'antd';
 import styled from 'styled-components';
 import api from '../../services/api';
 import { useWebSocket } from '../../contexts/WebSocketContext';
@@ -11,7 +11,7 @@ import AnalysisDisplay from './components/AnalysisDisplay';
 const { Title, Paragraph } = Typography;
 
 const AnalysisContainer = styled.div`
-  max-width: 900px;
+  max-width: 100%;
   margin: 0 auto;
   padding: ${props => props.theme.spacing.lg};
 `;
@@ -107,7 +107,7 @@ const Analysis = () => {
           관심 있는 종목에 대한 심층 분석을 시작하세요.
         </Paragraph>
       </CustomPageHeader>
-      <Divider />
+      <Divider style={{ margin: '16px 0' }} />
 
       {error && !currentSessionId && ( // Show top-level error only when no session is active
         <Alert

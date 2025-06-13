@@ -47,7 +47,7 @@ const AnalysisForm = ({ onStartAnalysis, loading }) => {
 
     return (
         <FormCard>
-            <Title level={4} style={{ textAlign: 'center', marginBottom: '24px' }}>새 분석 시작</Title>
+            <Title level={4} style={{ textAlign: 'center', marginBottom: '16px' }}>새 분석 시작</Title>
             <Form
                 form={form}
                 layout="vertical"
@@ -124,7 +124,7 @@ const AnalysisForm = ({ onStartAnalysis, loading }) => {
                     </Col>
                 </Row>
 
-                <Form.Item style={{ marginTop: '24px' }}>
+                <Form.Item style={{ marginTop: '16px' }}>
                     <Button
                         type="primary"
                         htmlType="submit"

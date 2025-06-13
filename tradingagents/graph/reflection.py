@@ -2,6 +2,8 @@
 
 from typing import Dict, Any
 from langchain_openai import ChatOpenAI
+import json
+import re
 
 
 class Reflector:
@@ -122,44 +124,56 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
 
     @staticmethod
     def generate_final_report(final_state: dict) -> str:
-        """Generate a final, comprehensive report from the final state."""
-        
-        report_parts = []
-        report_parts.append(f"# 최종 분석 보고서: {final_state.get('company_of_interest', 'N/A')}")
-        report_parts.append(f"**분석 기준일:** {final_state.get('trade_date', 'N/A')}")
-        report_parts.append("---")
+        """
+        Generate a final, comprehensive report from the final state, ensuring
+        all parts are combined into a single, valid JSON object.
+        """
+        final_report_json = {
+            "company_info": {
+                "ticker": final_state.get('company_of_interest', 'N/A'),
+                "analysis_date": final_state.get('trade_date', 'N/A')
+            },
+            "reports": {},
+            "final_decision": {}
+        }
 
-        # 각 분석가 리포트 추가
-        if final_state.get('market_report'):
-            report_parts.append("## 시장 분석가 리포트")
-            report_parts.append(final_state['market_report'])
-        
-        if final_state.get('sentiment_report'):
-            report_parts.append("## 소셜 미디어 분석가 리포트")
-            report_parts.append(final_state['sentiment_report'])
+        def extract_json(text: str) -> dict:
+            """Extracts a JSON object from a string, even if it's embedded in other text."""
+            if not isinstance(text, str):
+                return {} # Return empty dict if not a string
+            
+            # Find the start and end of the JSON object
+            match = re.search(r'\{.*\}', text, re.DOTALL)
+            if match:
+                json_str = match.group(0)
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    return {"error": "Failed to decode JSON", "original_text": json_str}
+            return {"error": "No JSON object found", "original_text": text}
 
-        if final_state.get('news_report'):
-            report_parts.append("## 뉴스 분석가 리포트")
-            report_parts.append(final_state['news_report'])
+        # Process each report
+        report_keys = ['market_report', 'sentiment_report', 'news_report', 'fundamentals_report']
+        for key in report_keys:
+            if final_state.get(key):
+                report_name = key.replace('_report', '')
+                final_report_json['reports'][report_name] = extract_json(final_state[key])
 
-        if final_state.get('fundamentals_report'):
-            report_parts.append("## 재무 분석가 리포트")
-            report_parts.append(final_state['fundamentals_report'])
-
-        # 투자 토론 요약 추가
+        # Add investment debate summary
         if final_state.get('investment_debate_state'):
-            debate = final_state['investment_debate_state']
-            report_parts.append("## 투자 결정 토론 요약")
-            report_parts.append(f"**심사위원 최종 결정:** {debate.get('judge_decision', 'N/A')}")
+            final_report_json['reports']['investment_debate'] = {
+                "summary": final_state['investment_debate_state'].get('judge_decision', 'N/A')
+            }
 
-        # 최종 투자 계획 및 결정 추가
+        # Add final plan and decision
         if final_state.get('investment_plan'):
-            report_parts.append("## 최종 투자 계획")
-            report_parts.append(final_state['investment_plan'])
-
+            final_report_json['final_decision']['investment_plan'] = final_state['investment_plan']
+        
         if final_state.get('final_trade_decision'):
-            report_parts.append("## 최종 거래 결정")
-            report_parts.append(final_state['final_trade_decision'])
+            # Extract the final proposal (BUY/HOLD/SELL)
+            proposal_match = re.search(r'FINAL TRANSACTION PROPOSAL:\s*\*{2}(.*?)\*{2}', final_state['final_trade_decision'])
+            proposal = proposal_match.group(1) if proposal_match else 'N/A'
+            final_report_json['final_decision']['final_proposal'] = proposal
+            final_report_json['final_decision']['full_text'] = final_state['final_trade_decision']
 
-        report = "\n\n".join(report_parts)
-        return report
+        return json.dumps(final_report_json, ensure_ascii=False, indent=4)
