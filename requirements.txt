@@ -1,3 +1,22 @@
+# Backend dependencies - Django
+Django==4.2.7
+django-cors-headers==4.3.1
+django-rest-framework==0.1.0
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.3.0
+python-decouple==3.8
+cryptography==41.0.7
+mysqlclient==2.2.0
+channels==4.0.0
+channels-redis
+
+# Existing CLI dependencies  
+typer
+
+questionary
+pydantic
+# OpenAI and other AI dependencies
+openai
 typing-extensions
 langchain-openai
 langchain-experimental
@@ -7,7 +26,6 @@ praw
 feedparser
 stockstats
 eodhd
-langgraph
 chromadb
 setuptools
 backtrader
@@ -22,3 +40,4 @@ redis
 chainlit
 rich
 questionary
+langgraph==0.4.8
