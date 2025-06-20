@@ -18,4 +18,6 @@ DEFAULT_CONFIG = {
     "max_recur_limit": 100,
     # Tool settings
     "online_tools": True,
+    # Language settings
+    "language": "en",  # 支持 'zh' 或 'en'
 }
