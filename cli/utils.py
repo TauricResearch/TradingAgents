@@ -151,6 +151,8 @@ def select_shallow_thinking_agent(provider) -> str:
         ],
         "ollama": [
             ("llama3.2 local", "llama3.2"),
+            ("qwen3 small local", "qwen3:0.6b"),
+            ("deepseek-r1 local", "deepseek-r1:1.5b"),
         ]
     }
 
@@ -211,7 +213,9 @@ def select_deep_thinking_agent(provider) -> str:
             ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
         ],
         "ollama": [
-            ("qwen3", "qwen3"),
+            ("qwen3 local", "qwen3"),
+            ("qwen3 small local", "qwen3:0.6b"),
+            ("deepseek-r1 local", "deepseek-r1:1.5b"),
         ]
     }
     

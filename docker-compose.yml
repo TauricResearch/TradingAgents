@@ -1,0 +1,28 @@
+version: '3.8' # Specify a version
+
+services:
+  app:
+    build: . # Use the Dockerfile in the current directory
+    volumes:
+      - .:/app # Mount current directory to /app in container for live code changes
+      - ./.ollama:/app/.ollama # Cache Ollama models
+      - ./data:/app/data # Mount data directory for data files
+    #environment:
+    #  - LLM_PROVIDER=ollama
+    #  - LLM_BACKEND_URL=http://localhost:11434/v1
+    #  - LLM_DEEP_THINK_MODEL=qwen3:0.6b
+    #  - LLM_QUICK_THINK_MODEL=qwen3:0.6b
+    #  - LLM_EMBEDDING_MODEL=nomic-embed-text
+    #  - MAX_DEBATE_ROUNDS=1
+    #  - ONLINE_TOOLS=False
+    # The default command in the Dockerfile is `python main.py`.
+    # For running tests with compose, one can use:
+    # docker-compose run --rm app pytest tests/test_main.py
+    # Or, we can set a default command here to run tests:
+    env_file:
+      - .env # Load environment variables from files.env
+    #command: python test_ollama_connection.py # Uncomment to run a specific test script
+    #command: python -m cli.main # Uncomment to run cli interface
+    # For more flexibility, users can override the command when using `docker-compose run`.
+    ports:
+      - "11434:11434" # Expose port 11434 for Ollama  

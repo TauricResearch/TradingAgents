@@ -1,0 +1,33 @@
+# Git specific
+.git
+.gitignore
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.Python
+env/
+venv/
+.env
+
+# IDE/Editor specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ollama cache directory (if it somehow ends up in build context)
+.ollama/
+.cache/
+
+# Docker specific files (should not be part of the image content itself)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# OS specific
+.DS_Store
+Thumbs.db
