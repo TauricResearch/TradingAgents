@@ -150,6 +150,7 @@ def select_shallow_thinking_agent(provider) -> str:
             ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
         ],
         "ollama": [
+            ("llama3.1 local", "llama3.1"),
             ("llama3.2 local", "llama3.2"),
         ]
     }
@@ -211,6 +212,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
         ],
         "ollama": [
+            ("llama3.1 local", "llama3.1"),
             ("qwen3", "qwen3"),
         ]
     }
