@@ -192,10 +192,6 @@ print(decision)
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
 
-## Docker usage and local ollama tests ##
-
-See [Docker Readme](./Docker-readme.md) for details.
-
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
