@@ -1,6 +1,48 @@
+# Environment variables and secrets
+.env
+.env.*
+*.env
+
+# Virtual environment
+venv/
 env/
+ENV/
+
+# Python cache and compiled files
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# API keys and tokens
+*key*
+*token*
+*secret*
+
+# Temporary files
+*.tmp
+*.temp
+
 *.csv
 src/
 eval_results/

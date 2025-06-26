@@ -5,8 +5,14 @@ from openai import OpenAI
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
+        self.config = config
         if config["backend_url"] == "http://localhost:11434/v1":
             self.embedding = "nomic-embed-text"
+            self.client = None
+        elif config["llm_provider"].lower() == "anthropic":
+            # For Anthropic, we'll use a simple fallback or disable embeddings
+            self.embedding = None
+            self.client = None
         else:
             self.embedding = "text-embedding-3-small"
         self.client = OpenAI(base_url=config["backend_url"])
@@ -14,7 +20,19 @@ class FinancialSituationMemory:
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
-        """Get OpenAI embedding for a text"""
+        """Get embedding for a text"""
+        if self.client is None or self.embedding is None:
+            # Fallback: use simple text hash for similarity (basic but functional)
+            import hashlib
+            # Create a simple hash-based embedding as fallback
+            hash_obj = hashlib.md5(text.encode())
+            # Convert hash to a simple embedding vector
+            hash_int = int(hash_obj.hexdigest(), 16)
+            # Create a simple 384-dimensional vector (typical embedding size)
+            embedding = []
+            for i in range(384):
+                embedding.append(((hash_int >> (i % 32)) & 1) * 2 - 1)
+            return embedding
         
         response = self.client.embeddings.create(
             model=self.embedding, input=text
@@ -45,7 +63,7 @@ class FinancialSituationMemory:
         )
 
     def get_memories(self, current_situation, n_matches=1):
-        """Find matching recommendations using OpenAI embeddings"""
+        """Find matching recommendations using embeddings"""
         query_embedding = self.get_embedding(current_situation)
 
         results = self.situation_collection.query(
