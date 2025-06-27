@@ -23,6 +23,14 @@ from .interface import (
     # Market data functions
     get_YFin_data_window,
     get_YFin_data,
+    # Cached API functions
+    get_YFin_data_cached,
+    get_YFin_data_window_cached,
+    get_finnhub_news_cached,
+    get_google_news_cached,
+    get_technical_indicators_cached,
+    get_cache_statistics,
+    clear_cache_data,
 )
 
 __all__ = [
@@ -43,4 +51,12 @@ __all__ = [
     # Market data functions
     "get_YFin_data_window",
     "get_YFin_data",
+    # Cached API functions
+    "get_YFin_data_cached",
+    "get_YFin_data_window_cached",
+    "get_finnhub_news_cached",
+    "get_google_news_cached",
+    "get_technical_indicators_cached",
+    "get_cache_statistics",
+    "clear_cache_data",
 ]

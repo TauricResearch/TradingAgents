@@ -361,6 +361,110 @@ class Toolkit:
 
         return google_news_results
 
+    # CACHED METHODS FOR IMPROVED PERFORMANCE
+    
+    @staticmethod
+    @tool
+    def get_YFin_data_cached(
+        symbol: Annotated[str, "ticker symbol of the company"],
+        start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+        end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    ) -> str:
+        """
+        Retrieve cached stock price data for a given ticker symbol from Yahoo Finance.
+        Uses intelligent caching to minimize API calls and improve performance.
+        Args:
+            symbol (str): Ticker symbol of the company, e.g. AAPL, TSLA
+            start_date (str): Start date in yyyy-mm-dd format
+            end_date (str): End date in yyyy-mm-dd format
+        Returns:
+            str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
+        """
+        result_data = interface.get_YFin_data_cached(symbol, start_date, end_date)
+        return result_data
+
+    @staticmethod
+    @tool
+    def get_YFin_data_window_cached(
+        symbol: Annotated[str, "ticker symbol of the company"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+        look_back_days: Annotated[int, "how many days to look back"],
+    ) -> str:
+        """
+        Retrieve cached stock price data for a window of days with intelligent caching.
+        Significantly faster than regular API calls for repeated queries.
+        Args:
+            symbol (str): Ticker symbol of the company, e.g. AAPL, TSLA
+            curr_date (str): Current date in yyyy-mm-dd format
+            look_back_days (int): How many days to look back
+        Returns:
+            str: A formatted dataframe containing the stock price data for the specified window.
+        """
+        result_data = interface.get_YFin_data_window_cached(symbol, curr_date, look_back_days)
+        return result_data
+
+    @staticmethod
+    @tool
+    def get_stockstats_indicators_cached(
+        symbol: Annotated[str, "ticker symbol of the company"],
+        indicator: Annotated[str, "technical indicator to get the analysis and report of"],
+        curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
+        look_back_days: Annotated[int, "how many days to look back"] = 30,
+    ) -> str:
+        """
+        Retrieve cached technical indicators for a given ticker symbol.
+        Uses intelligent caching for improved performance over repeated analysis.
+        Args:
+            symbol (str): Ticker symbol of the company, e.g. AAPL, TSLA
+            indicator (str): Technical indicator to get the analysis and report of
+            curr_date (str): The current trading date you are trading on, YYYY-mm-dd
+            look_back_days (int): How many days to look back, default is 30
+        Returns:
+            str: A formatted dataframe containing the cached technical indicators.
+        """
+        result_indicators = interface.get_technical_indicators_cached(symbol, indicator, curr_date, look_back_days)
+        return result_indicators
+
+    @staticmethod
+    @tool
+    def get_finnhub_news_cached(
+        ticker: Annotated[str, "ticker symbol for the company"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+        look_back_days: Annotated[int, "how many days to look back"] = 7,
+    ) -> str:
+        """
+        Retrieve cached news about a company from Finnhub.
+        Uses intelligent caching to reduce API calls and improve response time.
+        Args:
+            ticker (str): Ticker symbol for the company
+            curr_date (str): Current date in yyyy-mm-dd format
+            look_back_days (int): How many days to look back, default is 7
+        Returns:
+            str: A formatted string containing cached news about the company.
+        """
+        cached_news = interface.get_finnhub_news_cached(ticker, curr_date, look_back_days)
+        return cached_news
+
+    @staticmethod
+    @tool
+    def get_google_news_cached(
+        query: Annotated[str, "Query to search with"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+        look_back_days: Annotated[int, "how many days to look back"] = 7,
+    ) -> str:
+        """
+        Retrieve cached news from Google News based on a query.
+        Uses intelligent caching to improve performance and reduce API overhead.
+        Args:
+            query (str): Query to search with
+            curr_date (str): Current date in yyyy-mm-dd format
+            look_back_days (int): How many days to look back, default is 7
+        Returns:
+            str: A formatted string containing cached Google News results.
+        """
+        cached_google_news = interface.get_google_news_cached(query, curr_date, look_back_days)
+        return cached_google_news
+
     @staticmethod
     @tool
     def get_stock_news_openai(

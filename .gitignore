@@ -1,6 +1,56 @@
+# Environment variables and secrets
+.env
+.env.*
+*.env
+
+# Virtual environment
+venv/
 env/
+ENV/
+
+# Python cache and compiled files
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# API keys and tokens
+*key*
+*token*
+*secret*
+
+# Time series cache data
+tradingagents/dataflows/data_cache/
+*.db
+*.parquet
+
+# Test results and temporary files
+*.tmp
+*.temp
+*_results_*.json
+test_cache_*.py
+test_finnhub_upgrade.py
+
 *.csv
 src/
 eval_results/

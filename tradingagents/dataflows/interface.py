@@ -805,3 +805,235 @@ def get_fundamentals_openai(ticker, curr_date):
     )
 
     return response.output[1].content[0].text
+
+
+# =====================================================
+# CACHED API FUNCTIONS - Time Series Optimized
+# =====================================================
+
+def get_YFin_data_cached(
+    symbol: Annotated[str, "ticker symbol of the company"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],  
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Get YFinance OHLCV data with intelligent time series caching
+    
+    This function automatically:
+    - Checks if data is already cached for the requested date range
+    - Only fetches missing data from the API
+    - Combines cached and new data seamlessly
+    - Stores data in efficient parquet format for future use
+    
+    Args:
+        symbol: Stock ticker symbol (e.g., 'AAPL', 'TSLA')
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
+    
+    Returns:
+        Formatted string with market data, compatible with existing interface
+    """
+    from .cached_api_wrappers import get_cached_price_data
+    return get_cached_price_data(symbol, start_date, end_date)
+
+
+def get_YFin_data_window_cached(
+    symbol: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "how many days to look back"],
+) -> str:
+    """
+    Get YFinance data for a window of days with intelligent caching
+    
+    Args:
+        symbol: Stock ticker symbol
+        curr_date: Current/end date in YYYY-MM-DD format
+        look_back_days: Number of days to look back from current date
+    
+    Returns:
+        Formatted string with market data for the specified window
+    """
+    from .cached_api_wrappers import fetch_yfinance_window_cached
+    from datetime import datetime, timedelta
+    
+    curr_dt = datetime.strptime(curr_date, '%Y-%m-%d')
+    start_dt = curr_dt - timedelta(days=look_back_days)
+    
+    df = fetch_yfinance_window_cached(symbol, curr_dt, look_back_days)
+    
+    if df.empty:
+        return f"No cached data found for {symbol} from {start_dt.strftime('%Y-%m-%d')} to {curr_date}"
+    
+    # Format similar to existing interface
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', None):
+        df_string = df.to_string(index=False)
+    
+    return f"## Cached Market Data for {symbol} from {start_dt.strftime('%Y-%m-%d')} to {curr_date}:\n\n{df_string}"
+
+
+def get_finnhub_news_cached(
+    ticker: Annotated[str, "ticker symbol for the company"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "how many days to look back"],
+) -> str:
+    """
+    Get Finnhub news with intelligent time series caching
+    
+    Automatically caches news data to avoid redundant API calls and 
+    provides fast access to previously fetched news within date ranges.
+    
+    Args:
+        ticker: Stock ticker symbol
+        curr_date: Current date in YYYY-MM-DD format  
+        look_back_days: Number of days to look back for news
+    
+    Returns:
+        Formatted string with cached news data
+    """
+    from .cached_api_wrappers import get_cached_news_data
+    return get_cached_news_data(ticker, curr_date, look_back_days)
+
+
+def get_google_news_cached(
+    query: Annotated[str, "Query to search with"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "how many days to look back"],
+) -> str:
+    """
+    Get Google News with intelligent caching
+    
+    Args:
+        query: Search query for news
+        curr_date: Current date in YYYY-MM-DD format
+        look_back_days: Number of days to look back
+    
+    Returns:
+        Formatted string with cached Google News data
+    """
+    from .cached_api_wrappers import fetch_google_news_cached
+    from datetime import datetime, timedelta
+    
+    curr_dt = datetime.strptime(curr_date, '%Y-%m-%d')
+    start_dt = curr_dt - timedelta(days=look_back_days)
+    
+    df = fetch_google_news_cached(query, start_dt, curr_dt)
+    
+    if df.empty:
+        return f"No cached news found for query '{query}'"
+    
+    # Format similar to existing interface
+    news_str = ""
+    for _, row in df.iterrows():
+        news_str += f"### {row['title']} (source: {row['source']})\n\n{row['snippet']}\n\n"
+    
+    return f"## {query} Cached Google News, from {start_dt.strftime('%Y-%m-%d')} to {curr_date}:\n\n{news_str}"
+
+
+def get_technical_indicators_cached(
+    symbol: Annotated[str, "ticker symbol of the company"],
+    indicator: Annotated[str, "technical indicator name (e.g., 'rsi', 'macd', 'sma')"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "how many days to look back"],
+) -> str:
+    """
+    Get technical indicators with intelligent caching
+    
+    Caches calculated technical indicators to avoid redundant calculations
+    and provides fast access to historical indicator values.
+    
+    Args:
+        symbol: Stock ticker symbol
+        indicator: Technical indicator name
+        curr_date: Current date in YYYY-MM-DD format
+        look_back_days: Number of days to look back
+    
+    Returns:
+        Formatted string with cached technical indicator data
+    """
+    from .cached_api_wrappers import fetch_technical_indicators_cached
+    from datetime import datetime, timedelta
+    
+    curr_dt = datetime.strptime(curr_date, '%Y-%m-%d')
+    start_dt = curr_dt - timedelta(days=look_back_days)
+    
+    df = fetch_technical_indicators_cached(symbol, indicator, start_dt, curr_dt)
+    
+    if df.empty:
+        return f"No cached indicator data found for {symbol} {indicator}"
+    
+    # Format similar to existing interface
+    indicator_str = ""
+    for _, row in df.iterrows():
+        if row['value'] is not None:
+            indicator_str += f"{row['date'].strftime('%Y-%m-%d')}: {row['value']:.4f}\n"
+    
+    return f"## {indicator} values for {symbol} from {start_dt.strftime('%Y-%m-%d')} to {curr_date}:\n\n{indicator_str}"
+
+
+def get_cache_statistics() -> str:
+    """
+    Get comprehensive cache performance statistics
+    
+    Returns:
+        Formatted string with cache performance metrics
+    """
+    from .cached_api_wrappers import get_cache_summary
+    
+    stats = get_cache_summary()
+    
+    stats_str = f"""
+## Financial Data Cache Statistics
+
+**Cache Performance:**
+- Total Entries: {stats['total_cache_entries']:,}
+- Cache Size: {stats['cache_size_mb']:.2f} MB
+- Hit Ratio: {stats['hit_ratio']:.1%}
+- Cache Hits: {stats['cache_hits']:,}
+- Cache Misses: {stats['cache_misses']:,}
+- API Calls Saved: {stats['api_calls_saved']:,}
+
+**Entries by Data Type:**
+"""
+    
+    for data_type, count in stats['entries_by_type'].items():
+        stats_str += f"- {data_type.title()}: {count:,} entries\n"
+    
+    return stats_str
+
+
+def clear_cache_data(
+    symbol: Annotated[str, "ticker symbol (optional - clears all if not specified)"] = None,
+    older_than_days: Annotated[int, "clear data older than N days (optional)"] = None
+) -> str:
+    """
+    Clear cached financial data based on criteria
+    
+    Args:
+        symbol: Optional - clear data for specific symbol only
+        older_than_days: Optional - clear data older than N days
+    
+    Returns:
+        Summary of cleared data
+    """
+    from .cached_api_wrappers import clear_old_cache_data, clear_symbol_cache
+    
+    if symbol and older_than_days:
+        # Both criteria - need custom logic
+        from .time_series_cache import get_cache, DataType
+        cache = get_cache()
+        total_cleared = 0
+        for data_type in DataType:
+            cleared = cache.clear_cache(symbol=symbol, data_type=data_type, older_than_days=older_than_days)
+            total_cleared += cleared
+        return f"Cleared {total_cleared} cache entries for {symbol} older than {older_than_days} days"
+    
+    elif symbol:
+        cleared = clear_symbol_cache(symbol)
+        return f"Cleared {cleared} cache entries for {symbol}"
+    
+    elif older_than_days:
+        cleared = clear_old_cache_data(older_than_days)
+        return f"Cleared {cleared} cache entries older than {older_than_days} days"
+    
+    else:
+        return "Please specify either symbol and/or older_than_days parameter"

@@ -1,0 +1,1 @@
+# Custom adapters for AI providers when LangChain has compatibility issues 
