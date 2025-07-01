@@ -118,3 +118,13 @@ dmypy.json
 trading_data/
 analysis_results/
 temp_files/
+env/
+__pycache__/
+.DS_Store
+*.csv
+src/
+eval_results/
+eval_data/
+*.egg-info/
+results/
+.env
