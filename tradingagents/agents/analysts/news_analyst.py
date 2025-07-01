@@ -9,7 +9,7 @@ def create_news_analyst(llm, toolkit):
         ticker = state["company_of_interest"]
 
         if toolkit.config["online_tools"]:
-            tools = [toolkit.get_global_news_openai, toolkit.get_google_news]
+            tools = [toolkit.get_global_news, toolkit.get_google_news]
         else:
             tools = [
                 toolkit.get_finnhub_news,
@@ -18,8 +18,8 @@ def create_news_analyst(llm, toolkit):
             ]
 
         system_message = (
-            "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Look at news from EODHD, and finnhub to be comprehensive. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + """ Make sure to append a Makrdown table at the end of the report to organize key points in the report, organized and easy to read. Please write all responses in Korean."""
+            "**IMPORTANT THING** Respond in Korean(한국어로 대답해주세요)\n\nYou are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Look at news from EODHD, and finnhub to be comprehensive. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
+            + """ Make sure to append a Makrdown table at the end of the report to organize key points in the report, organized and easy to read."""
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -47,9 +47,14 @@ def create_news_analyst(llm, toolkit):
         chain = prompt | llm.bind_tools(tools)
         result = chain.invoke(state["messages"])
 
+        report = ""
+
+        if len(result.tool_calls) == 0:
+            report = result.content
+
         return {
             "messages": [result],
-            "news_report": result.content,
+            "news_report": report,
         }
 
     return news_analyst_node

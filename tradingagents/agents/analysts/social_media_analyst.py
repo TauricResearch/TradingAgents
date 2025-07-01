@@ -10,14 +10,14 @@ def create_social_media_analyst(llm, toolkit):
         company_name = state["company_of_interest"]
 
         if toolkit.config["online_tools"]:
-            tools = [toolkit.get_stock_news_openai]
+            tools = [toolkit.get_stock_news]
         else:
             tools = [
                 toolkit.get_reddit_stock_info,
             ]
 
         system_message = (
-            "You are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for a specific company over the past week. You will be given a company's name your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders and investors on this company's current state after looking at social media and what people are saying about that company, analyzing sentiment data of what people feel each day about the company, and looking at recent company news. Try to look at all sources possible from social media to sentiment to news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
+            "**IMPORTANT THING** Respond in Korean(한국어로 대답해주세요)\n\nYou are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for a specific company over the past week. You will be given a company's name your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders and investors on this company's current state after looking at social media and what people are saying about that company, analyzing sentiment data of what people feel each day about the company, and looking at recent company news. Try to look at all sources possible from social media to sentiment to news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
             + """ Make sure to append a Makrdown table at the end of the report to organize key points in the report, organized and easy to read.""",
         )
 
@@ -47,9 +47,14 @@ def create_social_media_analyst(llm, toolkit):
 
         result = chain.invoke(state["messages"])
 
+        report = ""
+
+        if len(result.tool_calls) == 0:
+            report = result.content
+
         return {
             "messages": [result],
-            "sentiment_report": result.content,
+            "sentiment_report": report,
         }
 
     return social_media_analyst_node

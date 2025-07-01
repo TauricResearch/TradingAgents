@@ -2,8 +2,6 @@
 
 from typing import Dict, Any
 from langchain_openai import ChatOpenAI
-import json
-import re
 
 
 class Reflector:
@@ -17,6 +15,8 @@ class Reflector:
     def _get_reflection_prompt(self) -> str:
         """Get the system prompt for reflection."""
         return """
+**IMPORTANT THING** Respond in Korean(한국어로 대답해주세요)
+
 You are an expert financial analyst tasked with reviewing trading decisions/analysis and providing a comprehensive, step-by-step analysis. 
 Your goal is to deliver detailed insights into investment decisions and highlight opportunities for improvement, adhering strictly to the following guidelines:
 
@@ -121,59 +121,3 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
             "RISK JUDGE", judge_decision, situation, returns_losses
         )
         risk_manager_memory.add_situations([(situation, result)])
-
-    @staticmethod
-    def generate_final_report(final_state: dict) -> str:
-        """
-        Generate a final, comprehensive report from the final state, ensuring
-        all parts are combined into a single, valid JSON object.
-        """
-        final_report_json = {
-            "company_info": {
-                "ticker": final_state.get('company_of_interest', 'N/A'),
-                "analysis_date": final_state.get('trade_date', 'N/A')
-            },
-            "reports": {},
-            "final_decision": {}
-        }
-
-        def extract_json(text: str) -> dict:
-            """Extracts a JSON object from a string, even if it's embedded in other text."""
-            if not isinstance(text, str):
-                return {} # Return empty dict if not a string
-            
-            # Find the start and end of the JSON object
-            match = re.search(r'\{.*\}', text, re.DOTALL)
-            if match:
-                json_str = match.group(0)
-                try:
-                    return json.loads(json_str)
-                except json.JSONDecodeError:
-                    return {"error": "Failed to decode JSON", "original_text": json_str}
-            return {"error": "No JSON object found", "original_text": text}
-
-        # Process each report
-        report_keys = ['market_report', 'sentiment_report', 'news_report', 'fundamentals_report']
-        for key in report_keys:
-            if final_state.get(key):
-                report_name = key.replace('_report', '')
-                final_report_json['reports'][report_name] = extract_json(final_state[key])
-
-        # Add investment debate summary
-        if final_state.get('investment_debate_state'):
-            final_report_json['reports']['investment_debate'] = {
-                "summary": final_state['investment_debate_state'].get('judge_decision', 'N/A')
-            }
-
-        # Add final plan and decision
-        if final_state.get('investment_plan'):
-            final_report_json['final_decision']['investment_plan'] = final_state['investment_plan']
-        
-        if final_state.get('final_trade_decision'):
-            # Extract the final proposal (BUY/HOLD/SELL)
-            proposal_match = re.search(r'FINAL TRANSACTION PROPOSAL:\s*\*{2}(.*?)\*{2}', final_state['final_trade_decision'])
-            proposal = proposal_match.group(1) if proposal_match else 'N/A'
-            final_report_json['final_decision']['final_proposal'] = proposal
-            final_report_json['final_decision']['full_text'] = final_state['final_trade_decision']
-
-        return json.dumps(final_report_json, ensure_ascii=False, indent=4)

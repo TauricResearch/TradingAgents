@@ -12,14 +12,22 @@ from dateutil.relativedelta import relativedelta
 from langchain_openai import ChatOpenAI
 import tradingagents.dataflows.interface as interface
 from tradingagents.default_config import DEFAULT_CONFIG
+from langchain_core.messages import HumanMessage
 
 
 def create_msg_delete():
     def delete_messages(state):
-        """To prevent message history from overflowing, regularly clear message history after a stage of the pipeline is done"""
+        """Clear messages and add placeholder for Anthropic compatibility"""
         messages = state["messages"]
-        return {"messages": [RemoveMessage(id=m.id) for m in messages]}
-
+        
+        # Remove all messages
+        removal_operations = [RemoveMessage(id=m.id) for m in messages]
+        
+        # Add a minimal placeholder message
+        placeholder = HumanMessage(content="Continue")
+        
+        return {"messages": removal_operations + [placeholder]}
+    
     return delete_messages
 
 
@@ -116,7 +124,7 @@ class Toolkit:
     def get_YFin_data(
         symbol: Annotated[str, "ticker symbol of the company"],
         start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
-        end_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+        end_date: Annotated[str, "End date in yyyy-mm-dd format"],
     ) -> str:
         """
         Retrieve the stock price data for a given ticker symbol from Yahoo Finance.
@@ -137,7 +145,7 @@ class Toolkit:
     def get_YFin_data_online(
         symbol: Annotated[str, "ticker symbol of the company"],
         start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
-        end_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+        end_date: Annotated[str, "End date in yyyy-mm-dd format"],
     ) -> str:
         """
         Retrieve the stock price data for a given ticker symbol from Yahoo Finance.
@@ -355,12 +363,12 @@ class Toolkit:
 
     @staticmethod
     @tool
-    def get_stock_news_openai(
+    def get_stock_news(
         ticker: Annotated[str, "the company's ticker"],
         curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
     ):
         """
-        Retrieve the latest news about a given stock by using OpenAI's news API.
+        Retrieve the latest news about a given stock by using LLM's web search capabilities.
         Args:
             ticker (str): Ticker of a company. e.g. AAPL, TSM
             curr_date (str): Current date in yyyy-mm-dd format
@@ -368,35 +376,35 @@ class Toolkit:
             str: A formatted string containing the latest news about the company on the given date.
         """
 
-        openai_news_results = interface.get_stock_news_openai(ticker, curr_date)
+        results = interface.get_stock_news(ticker, curr_date)
 
-        return openai_news_results
+        return results
 
     @staticmethod
     @tool
-    def get_global_news_openai(
+    def get_global_news(
         curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
     ):
         """
-        Retrieve the latest macroeconomics news on a given date using OpenAI's macroeconomics news API.
+        Retrieve the latest macroeconomics news on a given date using LLM's web search capabilities.
         Args:
             curr_date (str): Current date in yyyy-mm-dd format
         Returns:
             str: A formatted string containing the latest macroeconomic news on the given date.
         """
 
-        openai_news_results = interface.get_global_news_openai(curr_date)
+        results = interface.get_global_news(curr_date)
 
-        return openai_news_results
+        return results
 
     @staticmethod
     @tool
-    def get_fundamentals_openai(
+    def get_fundamentals(
         ticker: Annotated[str, "the company's ticker"],
         curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
     ):
         """
-        Retrieve the latest fundamental information about a given stock on a given date by using OpenAI's news API.
+        Retrieve the latest fundamental information about a given stock on a given date by using LLM's web search capabilities.
         Args:
             ticker (str): Ticker of a company. e.g. AAPL, TSM
             curr_date (str): Current date in yyyy-mm-dd format
@@ -404,8 +412,8 @@ class Toolkit:
             str: A formatted string containing the latest fundamental information about the company on the given date.
         """
 
-        openai_fundamentals_results = interface.get_fundamentals_openai(
+        results = interface.get_fundamentals(
             ticker, curr_date
         )
 
-        return openai_fundamentals_results
+        return results

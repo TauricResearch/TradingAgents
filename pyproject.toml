@@ -1,0 +1,34 @@
+[project]
+name = "tradingagents"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "akshare>=1.16.98",
+    "backtrader>=1.9.78.123",
+    "chainlit>=2.5.5",
+    "chromadb>=1.0.12",
+    "eodhd>=1.0.32",
+    "feedparser>=6.0.11",
+    "finnhub-python>=2.4.23",
+    "langchain-anthropic>=0.3.15",
+    "langchain-experimental>=0.3.4",
+    "langchain-google-genai>=2.1.5",
+    "langchain-openai>=0.3.23",
+    "langgraph>=0.4.8",
+    "pandas>=2.3.0",
+    "parsel>=1.10.0",
+    "praw>=7.8.1",
+    "pytz>=2025.2",
+    "questionary>=2.1.0",
+    "redis>=6.2.0",
+    "requests>=2.32.4",
+    "rich>=14.0.0",
+    "setuptools>=80.9.0",
+    "stockstats>=0.6.5",
+    "tqdm>=4.67.1",
+    "tushare>=1.4.21",
+    "typing-extensions>=4.14.0",
+    "yfinance>=0.2.63",
+]

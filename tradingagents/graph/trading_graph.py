@@ -5,9 +5,11 @@ from pathlib import Path
 import json
 from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
-import asyncio
 
 from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
+
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
@@ -32,20 +34,19 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        config: Dict[str, Any] = None,
-        progress_callback=None,
+        selected_analysts=["market", "social", "news", "fundamentals"],
         debug=False,
+        config: Dict[str, Any] = None,
     ):
         """Initialize the trading agents graph and components.
 
         Args:
-            config: Configuration dictionary. If None, uses default config
-            progress_callback: Async function to send progress updates
+            selected_analysts: List of analyst types to include
             debug: Whether to run in debug mode
+            config: Configuration dictionary. If None, uses default config
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
-        self.progress_callback = progress_callback
 
         # Update the interface's config
         set_config(self.config)
@@ -57,18 +58,26 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs
-        self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"])
-        self.quick_thinking_llm = ChatOpenAI(
-            model=self.config["quick_think_llm"], temperature=0.1
-        )
+        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
+            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
+            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+        elif self.config["llm_provider"].lower() == "anthropic":
+            self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
+            self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+        elif self.config["llm_provider"].lower() == "google":
+            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
+            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+        else:
+            raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
+        
         self.toolkit = Toolkit(config=self.config)
 
         # Initialize memories
-        self.bull_memory = FinancialSituationMemory("bull_memory")
-        self.bear_memory = FinancialSituationMemory("bear_memory")
-        self.trader_memory = FinancialSituationMemory("trader_memory")
-        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory")
-        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory")
+        self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
+        self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
+        self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
+        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
+        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -97,9 +106,8 @@ class TradingAgentsGraph:
         self.ticker = None
         self.log_states_dict = {}  # date to full state dict
 
-        # Set up the graph with default analysts initially
-        default_analysts = ["market", "social", "news", "fundamentals"]
-        self.graph = self.graph_setup.setup_graph(default_analysts)
+        # Set up the graph
+        self.graph = self.graph_setup.setup_graph(selected_analysts)
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources."""
@@ -117,7 +125,7 @@ class TradingAgentsGraph:
             "social": ToolNode(
                 [
                     # online tools
-                    self.toolkit.get_stock_news_openai,
+                    self.toolkit.get_stock_news,
                     # offline tools
                     self.toolkit.get_reddit_stock_info,
                 ]
@@ -125,7 +133,7 @@ class TradingAgentsGraph:
             "news": ToolNode(
                 [
                     # online tools
-                    self.toolkit.get_global_news_openai,
+                    self.toolkit.get_global_news,
                     self.toolkit.get_google_news,
                     # offline tools
                     self.toolkit.get_finnhub_news,
@@ -135,7 +143,7 @@ class TradingAgentsGraph:
             "fundamentals": ToolNode(
                 [
                     # online tools
-                    self.toolkit.get_fundamentals_openai,
+                    self.toolkit.get_fundamentals,
                     # offline tools
                     self.toolkit.get_finnhub_company_insider_sentiment,
                     self.toolkit.get_finnhub_company_insider_transactions,
@@ -146,55 +154,8 @@ class TradingAgentsGraph:
             ),
         }
 
-    def invoke(self, input_data: Dict) -> Dict:
-        """Run the trading agents graph for a web-based request."""
-
-        self.ticker = input_data.get("ticker", "UNKNOWN")
-        trade_date = input_data.get("date", date.today().strftime("%Y-%m-%d"))
-        selected_analysts = input_data.get("selected_analysts", [])
-        
-        self.graph = self.graph_setup.setup_graph(selected_analysts)
-
-        init_agent_state = self.propagator.create_initial_state(
-            self.ticker, trade_date
-        )
-        args = self.propagator.get_graph_args()
-
-        final_report = ""
-        final_state_result = None
-        
-        # 진행률 계산을 위한 변수
-        total_steps = len(self.graph.nodes)
-        step_count = 0
-
-        # Stream the graph execution to get real-time updates
-        for chunk in self.graph.stream(init_agent_state, **args):
-            # 1 청크당 1단계로 간주
-            step_count += 1
-            for node_name, node_output in chunk.items():
-                if self.progress_callback:
-                    agent_name = node_name.replace("_node", "").replace("_", " ").title()
-                    message = f"Step {step_count}/{total_steps}: {agent_name} is working..."
-                    
-                    # 계산된 진행률과 함께 콜백 호출
-                    asyncio.run(self.progress_callback(
-                        "agent_update",
-                        message,
-                        agent_name,
-                        step=step_count,
-                        total=total_steps
-                    ))
-            
-            final_state_result = chunk
-
-        if final_state_result:
-            final_report = self.reflector.generate_final_report(final_state_result)
-            self._log_state(trade_date, final_state_result)
-
-        return {"final_report": final_report}
-
     def propagate(self, company_name, trade_date):
-        """Run the trading agents graph for a company on a specific date (CLI)."""
+        """Run the trading agents graph for a company on a specific date."""
 
         self.ticker = company_name
 
@@ -209,10 +170,20 @@ class TradingAgentsGraph:
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
                 if len(chunk["messages"]) == 0:
-                    pass
-                else:
-                    chunk["messages"][-1].pretty_print()
-                    trace.append(chunk)
+                    continue
+                
+                message = chunk["messages"][-1]
+                
+                if message.content and message.content.strip():
+                    
+                    if "FINAL TRANSACTION PROPOSAL:" in message.content:
+                        if not hasattr(self, '_final_printed'):
+                            message.pretty_print()
+                            self._final_printed = True
+                    else:
+                        message.pretty_print()
+                
+                trace.append(chunk)
 
             final_state = trace[-1]
         else:

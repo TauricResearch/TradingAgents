@@ -10,7 +10,7 @@ def create_fundamentals_analyst(llm, toolkit):
         company_name = state["company_of_interest"]
 
         if toolkit.config["online_tools"]:
-            tools = [toolkit.get_fundamentals_openai]
+            tools = [toolkit.get_fundamentals]
         else:
             tools = [
                 toolkit.get_finnhub_company_insider_sentiment,
@@ -21,40 +21,8 @@ def create_fundamentals_analyst(llm, toolkit):
             ]
 
         system_message = (
-            """You are a fundamental analyst. Your task is to provide a comprehensive report on a given company by analyzing its financial documents, company profile, financial history, insider sentiment, and transactions.
-
-You must output your findings in a structured JSON format. Do not add any text outside the JSON structure.
-
-The JSON object must contain the following keys:
-1. `company_overview`: A string with a summary of the company's business and market position.
-2. `financial_performance`: An array of objects, each with `metric` and `value` keys (e.g., {"metric": "Earnings Per Share (EPS)", "value": "Increased by 354%"}).
-3. `stock_market_info`: An array of objects, each with `metric` and `value` keys (e.g., {"metric": "Current Stock Price", "value": "$380.58"}).
-4. `analyst_forecasts`: An array of objects, each with `metric` and `value` keys (e.g., {"metric": "Median Price Target", "value": "$538.00"}).
-5. `insider_sentiment`: A string summarizing insider trading activity and sentiment.
-6. `summary`: A string providing a final, overall conclusion based on all the fundamental data.
-
-Here is an example of the expected JSON output format:
-```json
-{
-  "company_overview": "Applovin Corporation (APP)은 모바일 앱 개발 및 수익화에 특화된 기술 회사입니다. 지난 한 해 동안 괄목할 만한 재무 성과를 보여주며 시장에서 강력한 입지를 나타냈습니다.",
-  "financial_performance": [
-    {"metric": "주당 순이익 (EPS)", "value": "지난 1년간 354% 증가"},
-    {"metric": "매출 성장률", "value": "전년 대비 43.44% 성장"}
-  ],
-  "stock_market_info": [
-    {"metric": "현재 주가", "value": "$380.58"},
-    {"metric": "전일 대비 변동", "value": "-0.74% 감소"}
-  ],
-  "analyst_forecasts": [
-    {"metric": "중간 목표 주가", "value": "$538.00 (현재가 대비 약 75.4% 상승 가능성)"}
-  ],
-  "insider_sentiment": "제공된 데이터에서는 구체적인 내부자 거래 내역이 자세히 설명되지 않았지만, 임원 및 이사회 구성원의 신뢰도에 대한 통찰력을 제공할 수 있습니다.",
-  "summary": "전반적인 재무 건전성은 긍정적이나, 주가 변동성을 고려할 때 신중한 접근이 필요합니다."
-}
-```
-
-Please ensure all text content within the JSON is written in Korean.
-"""
+            "**IMPORTANT THING** Respond in Korean(한국어로 대답해주세요)\n\nYou are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, company financial history, insider sentiment and insider transactions to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
+            + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read.",
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -83,9 +51,14 @@ Please ensure all text content within the JSON is written in Korean.
 
         result = chain.invoke(state["messages"])
 
+        report = ""
+
+        if len(result.tool_calls) == 0:
+            report = result.content
+
         return {
             "messages": [result],
-            "fundamentals_report": result.content,
+            "fundamentals_report": report,
         }
 
     return fundamentals_analyst_node

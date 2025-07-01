@@ -1,6 +1,8 @@
 from typing import Optional
 import datetime
 import typer
+from pathlib import Path
+from functools import wraps
 from rich.console import Console
 from rich.panel import Panel
 from rich.spinner import Spinner
@@ -97,7 +99,7 @@ class MessageBuffer:
             if content is not None:
                 latest_section = section
                 latest_content = content
-
+               
         if latest_section and latest_content:
             # Format the current section for display
             section_titles = {
@@ -295,10 +297,27 @@ def update_display(layout, spinner_text=None):
 
     # Add regular messages
     for timestamp, msg_type, content in message_buffer.messages:
+        # Convert content to string if it's not already
+        content_str = content
+        if isinstance(content, list):
+            # Handle list of content blocks (Anthropic format)
+            text_parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    if item.get('type') == 'text':
+                        text_parts.append(item.get('text', ''))
+                    elif item.get('type') == 'tool_use':
+                        text_parts.append(f"[Tool: {item.get('name', 'unknown')}]")
+                else:
+                    text_parts.append(str(item))
+            content_str = ' '.join(text_parts)
+        elif not isinstance(content_str, str):
+            content_str = str(content)
+            
         # Truncate message content if too long
-        if isinstance(content, str) and len(content) > 200:
-            content = content[:197] + "..."
-        all_messages.append((timestamp, msg_type, content))
+        if len(content_str) > 200:
+            content_str = content_str[:197] + "..."
+        all_messages.append((timestamp, msg_type, content_str))
 
     # Sort by timestamp
     all_messages.sort(key=lambda x: x[0])
@@ -444,20 +463,30 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: Thinking agents
+    # Step 5: OpenAI backend
     console.print(
         create_question_box(
-            "Step 5: Thinking Agents", "Select your thinking agents for analysis"
+            "Step 5: OpenAI backend", "Select which service to talk to"
         )
     )
-    selected_shallow_thinker = select_shallow_thinking_agent()
-    selected_deep_thinker = select_deep_thinking_agent()
+    selected_llm_provider, backend_url = select_llm_provider()
+    
+    # Step 6: Thinking agents
+    console.print(
+        create_question_box(
+            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
+        )
+    )
+    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
+    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
+        "llm_provider": selected_llm_provider.lower(),
+        "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
     }
@@ -683,6 +712,24 @@ def update_research_team_status(status):
     for agent in research_team:
         message_buffer.update_agent_status(agent, status)
 
+def extract_content_string(content):
+    """Extract string content from various message formats."""
+    if isinstance(content, str):
+        return content
+    elif isinstance(content, list):
+        # Handle Anthropic's list format
+        text_parts = []
+        for item in content:
+            if isinstance(item, dict):
+                if item.get('type') == 'text':
+                    text_parts.append(item.get('text', ''))
+                elif item.get('type') == 'tool_use':
+                    text_parts.append(f"[Tool: {item.get('name', 'unknown')}]")
+            else:
+                text_parts.append(str(item))
+        return ' '.join(text_parts)
+    else:
+        return str(content)
 
 def run_analysis():
     # First get all user selections
@@ -694,11 +741,60 @@ def run_analysis():
     config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
+    config["backend_url"] = selections["backend_url"]
+    config["llm_provider"] = selections["llm_provider"].lower()
 
     # Initialize the graph
     graph = TradingAgentsGraph(
         [analyst.value for analyst in selections["analysts"]], config=config, debug=True
     )
+
+    # Create result directory
+    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    results_dir.mkdir(parents=True, exist_ok=True)
+    report_dir = results_dir / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    log_file = results_dir / "message_tool.log"
+    log_file.touch(exist_ok=True)
+
+    def save_message_decorator(obj, func_name):
+        func = getattr(obj, func_name)
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            func(*args, **kwargs)
+            timestamp, message_type, content = obj.messages[-1]
+            content = content.replace("\n", " ")  # Replace newlines with spaces
+            with open(log_file, "a") as f:
+                f.write(f"{timestamp} [{message_type}] {content}\n")
+        return wrapper
+    
+    def save_tool_call_decorator(obj, func_name):
+        func = getattr(obj, func_name)
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            func(*args, **kwargs)
+            timestamp, tool_name, args = obj.tool_calls[-1]
+            args_str = ", ".join(f"{k}={v}" for k, v in args.items())
+            with open(log_file, "a") as f:
+                f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
+        return wrapper
+
+    def save_report_section_decorator(obj, func_name):
+        func = getattr(obj, func_name)
+        @wraps(func)
+        def wrapper(section_name, content):
+            func(section_name, content)
+            if section_name in obj.report_sections and obj.report_sections[section_name] is not None:
+                content = obj.report_sections[section_name]
+                if content:
+                    file_name = f"{section_name}.md"
+                    with open(report_dir / file_name, "w") as f:
+                        f.write(content)
+        return wrapper
+
+    message_buffer.add_message = save_message_decorator(message_buffer, "add_message")
+    message_buffer.add_tool_call = save_tool_call_decorator(message_buffer, "add_tool_call")
+    message_buffer.update_report_section = save_report_section_decorator(message_buffer, "update_report_section")
 
     # Now start the display layout
     layout = create_layout()
@@ -754,14 +850,14 @@ def run_analysis():
 
                 # Extract message content and type
                 if hasattr(last_message, "content"):
-                    content = last_message.content
+                    content = extract_content_string(last_message.content)  # Use the helper function
                     msg_type = "Reasoning"
                 else:
                     content = str(last_message)
                     msg_type = "System"
 
                 # Add message to buffer
-                message_buffer.add_message(msg_type, content)
+                message_buffer.add_message(msg_type, content)                
 
                 # If it's a tool call, add it to tool calls
                 if hasattr(last_message, "tool_calls"):
