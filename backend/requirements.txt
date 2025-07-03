@@ -26,13 +26,15 @@ httpcore==1.0.9
 httptools==0.6.4
 httpx==0.28.1
 idna==3.10
-iniconfig==2.1.1
+iniconfig==2.1.0
 Jinja2==3.1.6
 kombu==5.5.4
 markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
 mocker==1.1.1
+mysqlclient==2.2.7
+oracledb==3.2.0
 packaging==25.0
 passlib==1.7.4
 pluggy==1.6.0
