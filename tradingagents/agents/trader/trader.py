@@ -16,8 +16,11 @@ def create_trader(llm, memory):
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if past_memories:
+            for i, rec in enumerate(past_memories, 1):
+                past_memory_str += rec["recommendation"] + "\n\n"
+        else:
+            past_memory_str = "No past memories found."
 
         context = {
             "role": "user",

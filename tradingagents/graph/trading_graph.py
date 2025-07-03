@@ -226,7 +226,7 @@ class TradingAgentsGraph:
         directory.mkdir(parents=True, exist_ok=True)
 
         with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log.json",
+            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
             "w",
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
