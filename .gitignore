@@ -8,3 +8,4 @@ eval_data/
 *.egg-info/
 results/
 .env
+wallet/
