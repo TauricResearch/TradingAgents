@@ -24,3 +24,5 @@ class AnalysisService:
         if not analyses:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
         return analyses
+
+    
