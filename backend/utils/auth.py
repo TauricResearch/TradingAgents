@@ -19,14 +19,14 @@ class Role(StrEnum):
     ADMIN = "ADMIN"
     USER = "USER"
 
-class CurrentUser(BaseModel):
-    id : int
+class CurrentMember(BaseModel):
+    id : str
     role : Role
 
     def __str__(self):
         return f"{self.id}({self.role})"
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/members/login")
 
 
 
@@ -49,21 +49,21 @@ def decode_access_token(token: str):
     
 
 # ✅ 수정된 부분: Annotated 올바른 사용법
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+def get_current_member(token: Annotated[str, Depends(oauth2_scheme)]):
     payload = decode_access_token(token)
-    user_id = payload.get("user_id")
+    member_id = payload.get("member_id")
     role = payload.get("role")
-    if not user_id or not role:
+    if not member_id or not role:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token")
     
-    return CurrentUser(id=user_id, role=Role(role))
+    return CurrentMember(id=member_id, role=Role(role))
 
-def get_admin_user(token: Annotated[str, Depends(oauth2_scheme)]):
+def get_admin_member(token: Annotated[str, Depends(oauth2_scheme)]):
     payload = decode_access_token(token)
-    user_id = payload.get("user_id")
+    member_id = payload.get("member_id")
     role = payload.get("role")
     
     if not role or role != Role.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token")
     
-    return CurrentUser(id=user_id, role=Role(role))
+    return CurrentMember(id=member_id, role=Role(role))

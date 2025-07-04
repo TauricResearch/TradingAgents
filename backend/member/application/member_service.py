@@ -5,8 +5,9 @@ from utils.auth import Role
 from member.domain.member import Member as MemberVO
 from fastapi import HTTPException, status
 from datetime import datetime
-
+from utils.auth import create_access_token
 from ulid import ULID
+from analysis.domain.analysis import Analysis as AnalysisVO
 
 class MemberService:
     def __init__(
@@ -67,3 +68,30 @@ class MemberService:
         if not member:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
         return member
+
+    def login(
+        self,
+        email: str,
+        password: str
+    ):
+        member = self.member_repo.find_by_email(email)
+        if not member:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        
+        if not self.crypto.verify(password, member.password):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+        access_token = create_access_token(
+            payload={"member_id": member.id, "role": member.role},
+            role=member.role,
+        )
+
+        return access_token
+
+    def get_analysis_sessions_by_member(
+        self,
+        member_id: str
+    )->list[AnalysisVO]:
+        analysis_sessions = self.member_repo.find_analysis_sessions_by_member(member_id)
+        return analysis_sessions
+        

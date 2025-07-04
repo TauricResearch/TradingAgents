@@ -1,10 +1,13 @@
 from datetime import datetime
-from typing import Optional
-from sqlmodel import Field, SQLModel
+from typing import Optional, TYPE_CHECKING
+from sqlmodel import Field, SQLModel, Relationship
 from sqlalchemy import Column, UUID, Numeric, VARCHAR  # 필요한 타입들을 sqlalchemy에서 가져옵니다.
 from utils.auth import Role
 import uuid
 
+# TYPE_CHECKING을 사용해서 circular import 방지
+if TYPE_CHECKING:
+    from analysis.infra.db_models.analysis import Analysis
 
 class Member(SQLModel, table=True):
     __tablename__ = "members"
@@ -16,3 +19,6 @@ class Member(SQLModel, table=True):
     created_at : datetime = Field(nullable=False)
     updated_at : datetime = Field(nullable=False)
     role : Role = Field(default=Role.USER, nullable=False)
+
+    # Relationship 설정 - forward reference 사용
+    analyses: list["Analysis"] = Relationship(back_populates="member")

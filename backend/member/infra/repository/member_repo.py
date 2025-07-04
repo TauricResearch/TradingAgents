@@ -5,7 +5,6 @@ from member.infra.db_models.member import Member
 from utils.db_utils import row_to_dict
 from sqlalchemy import func
 
-
 class MemberRepository(IMemberRepository):
     def __init__(self, session: Session):
         self.session = session
