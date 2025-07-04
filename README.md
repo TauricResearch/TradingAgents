@@ -124,6 +124,11 @@ You will need the OpenAI API for all the agents.
 export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
 ```
 
+To help consolidate the variables in an .env file, you can copy the .env.example. The main.py script will pick up from there.
+```bash
+cp .env.example .env
+```
+
 ### CLI Usage
 
 You can also try out the CLI directly by running:
