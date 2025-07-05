@@ -32,3 +32,29 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
 ]
+
+[project.optional-dependencies]
+chinese = [
+    "pytdx",
+    "dashscope",
+]
+database = [
+    "pymongo>=4.0.0",
+]
+visualization = [
+    "streamlit",
+    "plotly",
+]
+development = [
+    "pytest",
+    "black",
+    "flake8",
+]
+all = [
+    "pytdx",
+    "dashscope", 
+    "pymongo>=4.0.0",
+    "streamlit",
+    "plotly",
+]
+

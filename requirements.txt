@@ -24,3 +24,10 @@ rich
 questionary
 langchain_anthropic
 langchain-google-genai
+
+# New dependencies from Chinese version
+dashscope
+streamlit
+plotly
+pytdx  # TongDaXin API for Chinese stock real-time data
+pymongo  # MongoDB database support for token usage storage

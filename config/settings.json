@@ -1,0 +1,13 @@
+{
+  "default_provider": "dashscope",
+  "default_model": "qwen-turbo",
+  "enable_cost_tracking": true,
+  "cost_alert_threshold": 100.0,
+  "currency_preference": "CNY",
+  "auto_save_usage": true,
+  "max_usage_records": 10000,
+  "data_dir": "C:\\Users\\PC\\Documents\\TradingAgents\\data",
+  "cache_dir": "C:\\Users\\PC\\Documents\\TradingAgents\\data\\cache",
+  "results_dir": "C:\\Users\\PC\\Documents\\TradingAgents\\results",
+  "auto_create_dirs": true
+}

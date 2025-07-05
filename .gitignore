@@ -7,3 +7,13 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
+
+# 测试目录（不纳入版本控制）
+tests/
+
+# 中文版本目录（不纳入版本控制）
+TradingAgentsCN/
+
+# 虚拟环境目录（不纳入版本控制）
+test_env/
+.venv/

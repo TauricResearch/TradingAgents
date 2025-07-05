@@ -1,0 +1,11 @@
+{
+  "symbol": "AAPL",
+  "data_type": "string",
+  "start_date": "2024-01-01",
+  "end_date": "2024-01-31",
+  "data_source": "test",
+  "market_type": "us",
+  "cache_time": "2025-07-06T01:51:50.484204",
+  "file_path": "C:\\code\\TradingAgents\\tradingagents\\dataflows\\data_cache\\us_stocks\\AAPL_stock_data_68892ce7b2c5.json",
+  "cache_key": "AAPL_stock_data_68892ce7b2c5"
+}
