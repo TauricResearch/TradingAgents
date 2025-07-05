@@ -127,6 +127,11 @@ def select_shallow_thinking_agent(provider) -> str:
 
     # Define shallow thinking llm engine options with their corresponding model names
     SHALLOW_AGENT_OPTIONS = {
+        "dashscope (alibaba cloud)": [
+            ("Qwen-Turbo - Fast response, suitable for quick tasks", "qwen-turbo"),
+            ("Qwen-Plus - Balanced performance and cost", "qwen-plus"),
+            ("Qwen-Max - Best performance for complex analysis", "qwen-max"),
+        ],
         "openai": [
             ("GPT-4o-mini - Fast and efficient for quick tasks", "gpt-4o-mini"),
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
@@ -185,6 +190,12 @@ def select_deep_thinking_agent(provider) -> str:
 
     # Define deep thinking llm engine options with their corresponding model names
     DEEP_AGENT_OPTIONS = {
+        "dashscope (alibaba cloud)": [
+            ("Qwen-Plus - Balanced performance and cost (Recommended)", "qwen-plus"),
+            ("Qwen-Max - Best performance for complex analysis", "qwen-max"),
+            ("Qwen-Max-LongContext - Ultra-long context support", "qwen-max-longcontext"),
+            ("Qwen-Turbo - Fast response for lighter analysis", "qwen-turbo"),
+        ],
         "openai": [
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
             ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
