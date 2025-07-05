@@ -503,11 +503,6 @@ def get_user_selections():
     }
 
 
-def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
-
-
 def get_analysis_date():
     """Get the analysis date from user input."""
     while True:
