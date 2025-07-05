@@ -4,8 +4,29 @@
 
 This document provides a comprehensive guide for new users to modify configurations and customize prompts in the TradingAgents project. Through this guide, you will learn:
 - How to modify system configuration parameters
+- How to configure multi-market support (US stocks and China A-shares)
+- How to setup database integration (MongoDB and Redis)
+- How to configure multiple LLM providers (DashScope, OpenAI, Google, Anthropic)
 - How to customize prompts for various agents
 - How to add new features and configurations
+
+## 🌟 New Features Overview
+
+### 🇨🇳 China A-Share Market Support
+- **TongDaXin API Integration**: Real-time A-share data access
+- **Market Selection**: Interactive CLI market selection
+- **Exchange Support**: Shanghai, Shenzhen, ChiNext, STAR Market
+- **Intelligent Caching**: Optimized data retrieval and storage
+
+### 🤖 DashScope (Alibaba Cloud) Integration
+- **Qwen Model Series**: qwen-turbo, qwen-plus, qwen-max, qwen-max-longcontext
+- **Embedding Service**: DashScope embeddings for memory system
+- **Intelligent Fallback**: Automatic fallback to OpenAI when unavailable
+
+### 🗄️ Database Integration
+- **MongoDB**: Persistent data storage and analytics
+- **Redis**: High-performance caching
+- **Adaptive Cache**: Intelligent cache management with automatic fallback
 
 ## 🔧 Configuration File Locations and Descriptions
 
@@ -23,10 +44,10 @@ DEFAULT_CONFIG = {
     "data_cache_dir": "Cache directory",
     
     # LLM model configuration
-    "llm_provider": "openai",           # LLM provider: "openai", "google", "anthropic"
-    "deep_think_llm": "o4-mini",        # Deep thinking model
-    "quick_think_llm": "gpt-4o-mini",   # Quick thinking model
-    "backend_url": "https://api.openai.com/v1",  # API backend URL
+    "llm_provider": "dashscope",        # LLM provider: "dashscope", "openai", "google", "anthropic"
+    "deep_think_llm": "qwen-plus",      # Deep thinking model
+    "quick_think_llm": "qwen-turbo",    # Quick thinking model
+    "backend_url": "https://dashscope.aliyuncs.com/api/v1",  # API backend URL
     
     # Debate and discussion settings
     "max_debate_rounds": 1,             # Maximum debate rounds
@@ -76,6 +97,206 @@ set_config({
     "llm_provider": "anthropic",
     "max_debate_rounds": 3
 })
+```
+
+## 🌟 New Features Configuration
+
+### 1. Environment Variables Configuration (`.env`)
+
+#### 📁 `.env` File Setup
+**Purpose**: Configure API keys and database settings
+
+**Required API Keys**:
+
+**For US Stock Analysis**:
+```env
+# Choose one LLM provider
+OPENAI_API_KEY=your_openai_api_key_here
+# OR
+GOOGLE_API_KEY=your_google_api_key_here
+# OR
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# FinnHub - Required for financial data
+FINNHUB_API_KEY=your_finnhub_api_key_here
+```
+
+**For China A-Share Analysis**:
+```env
+# DashScope - Required for Chinese stock analysis
+DASHSCOPE_API_KEY=your_dashscope_api_key_here
+
+# FinnHub - Required for financial data
+FINNHUB_API_KEY=your_finnhub_api_key_here
+```
+
+**For DashScope LLM Provider**:
+```env
+# DashScope - Required for Qwen models
+DASHSCOPE_API_KEY=your_dashscope_api_key_here
+
+# FinnHub - Required for financial data
+FINNHUB_API_KEY=your_finnhub_api_key_here
+```
+
+**Optional API Keys**:
+```env
+# OpenAI - Optional fallback
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Google AI - For Gemini models
+GOOGLE_API_KEY=your_google_api_key_here
+
+# Anthropic - For Claude models
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```
+
+**Database Configuration (Optional)**:
+```env
+# MongoDB - For persistent data storage
+MONGODB_ENABLED=false
+MONGODB_HOST=localhost
+MONGODB_PORT=27018
+MONGODB_USERNAME=admin
+MONGODB_PASSWORD=your_mongodb_password
+MONGODB_DATABASE=tradingagents
+
+# Redis - For high-performance caching
+REDIS_ENABLED=false
+REDIS_HOST=localhost
+REDIS_PORT=6380
+REDIS_PASSWORD=your_redis_password
+REDIS_DB=0
+```
+
+### 2. Market Selection Configuration
+
+#### 📁 CLI Market Selection
+**Purpose**: Configure supported markets and data sources
+
+**Supported Markets**:
+1. **US Stock Market**
+   - Format: 1-5 letter symbols (e.g., AAPL, SPY)
+   - Data Source: Yahoo Finance
+   - Validation: `^[A-Z]{1,5}$`
+
+2. **China A-Share Market**
+   - Format: 6-digit codes (e.g., 000001, 600036)
+   - Data Source: TongDaXin API
+   - Validation: `^\d{6}$`
+   - Exchanges: Shanghai (60xxxx), Shenzhen (00xxxx), ChiNext (30xxxx), STAR (68xxxx)
+
+**Configuration in Code**:
+```python
+# Market-specific configuration
+market_config = {
+    "us_stock": {
+        "data_source": "yahoo_finance",
+        "pattern": r'^[A-Z]{1,5}$'
+    },
+    "china_a_share": {
+        "data_source": "tongdaxin",
+        "pattern": r'^\d{6}$'
+    }
+}
+```
+
+### 3. Database Integration Configuration
+
+#### 📁 MongoDB Configuration
+**Purpose**: Persistent data storage and analytics
+
+**Setup Steps**:
+1. **Start MongoDB**:
+   ```bash
+   docker run -d -p 27017:27017 --name mongodb mongo
+   ```
+
+2. **Enable in .env**:
+   ```env
+   MONGODB_ENABLED=true
+   ```
+
+3. **Configuration Options**:
+   ```python
+   mongodb_config = {
+       "host": "localhost",
+       "port": 27018,
+       "database": "tradingagents",
+       "username": "admin",
+       "password": "your_password"
+   }
+   ```
+
+#### 📁 Redis Configuration
+**Purpose**: High-performance caching
+
+**Setup Steps**:
+1. **Start Redis**:
+   ```bash
+   docker run -d -p 6379:6379 --name redis redis
+   ```
+
+2. **Enable in .env**:
+   ```env
+   REDIS_ENABLED=true
+   ```
+
+3. **Configuration Options**:
+   ```python
+   redis_config = {
+       "host": "localhost",
+       "port": 6380,
+       "password": "your_password",
+       "db": 0
+   }
+   ```
+
+### 4. LLM Provider Configuration
+
+#### 📁 DashScope (Alibaba Cloud) Configuration
+**Purpose**: Chinese-optimized LLM provider
+
+**Supported Models**:
+- `qwen-turbo`: Fast response, suitable for quick tasks
+- `qwen-plus`: Balanced performance and cost (Recommended)
+- `qwen-max`: Best performance for complex analysis
+- `qwen-max-longcontext`: Ultra-long context support
+
+**Configuration Example**:
+```python
+dashscope_config = {
+    "llm_provider": "dashscope",
+    "deep_think_llm": "qwen-plus",
+    "quick_think_llm": "qwen-turbo",
+    "backend_url": "https://dashscope.aliyuncs.com/api/v1"
+}
+```
+
+**API Key Setup**:
+1. Visit: https://dashscope.aliyun.com/
+2. Register Alibaba Cloud account
+3. Enable DashScope service
+4. Get API key
+5. Set in .env: `DASHSCOPE_API_KEY=your_key`
+
+#### 📁 Multi-LLM Fallback Configuration
+**Purpose**: Intelligent fallback between LLM providers
+
+**Fallback Priority**:
+1. Primary: DashScope (if configured)
+2. Secondary: OpenAI (if configured)
+3. Tertiary: Google AI (if configured)
+4. Fallback: Anthropic (if configured)
+
+**Configuration**:
+```python
+fallback_config = {
+    "primary_provider": "dashscope",
+    "fallback_providers": ["openai", "google", "anthropic"],
+    "auto_fallback": True,
+    "retry_attempts": 3
+}
 ```
 
 ## 🤖 Agent Prompt Modification Guide

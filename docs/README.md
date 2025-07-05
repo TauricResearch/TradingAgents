@@ -47,11 +47,17 @@ Navigate to `zh-CN/` directory (local development) for:
 ## 🔧 Key Topics Covered
 
 ### Configuration Management
-- LLM provider settings (OpenAI, Google, Anthropic)
-  - **Google Models**: Full support for Gemini 2.0/2.5 series ⭐ **Currently Configured**
-  - **Current Setup**: Using `gemini-2.0-flash` for both deep and quick thinking
+- LLM provider settings (DashScope, OpenAI, Google, Anthropic)
+  - **DashScope (Alibaba Cloud)**: Full support for Qwen model series ⭐ **Recommended for Chinese users**
+  - **Current Setup**: DashScope as primary option with intelligent fallback
+- Market selection and data sources
+  - **US Stock Market**: Yahoo Finance integration
+  - **China A-Share Market**: TongDaXin API integration ⭐ **New Feature**
+- Database and caching systems
+  - **MongoDB**: Persistent data storage
+  - **Redis**: High-performance caching
+  - **Intelligent Cache**: Automatic fallback mechanisms
 - Debate and discussion parameters
-- Cache and performance settings
 - API configuration and limits
 
 ### Agent Customization
@@ -63,7 +69,11 @@ Navigate to `zh-CN/` directory (local development) for:
 - Reflection system prompts
 
 ### Advanced Features
-- Multi-language support
+- **Multi-market support**: US stocks and China A-shares
+- **Database integration**: MongoDB and Redis for enterprise deployment
+- **Intelligent caching**: Adaptive cache management with fallback
+- **Multi-LLM support**: DashScope, OpenAI, Google, Anthropic
+- **TongDaXin integration**: Real-time A-share data access
 - Risk management templates
 - Performance optimization
 - Custom prompt creation
