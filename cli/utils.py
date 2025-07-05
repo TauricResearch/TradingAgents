@@ -11,24 +11,120 @@ ANALYST_ORDER = [
 ]
 
 
-def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol."""
-    ticker = questionary.text(
-        "Enter the ticker symbol to analyze:",
-        validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
+def select_market():
+    """Select stock market"""
+    markets = {
+        "1": {
+            "name": "US Stock",
+            "default": "SPY",
+            "examples": ["SPY", "AAPL", "TSLA", "NVDA", "MSFT"],
+            "format": "Stock symbol (e.g., AAPL)",
+            "pattern": r'^[A-Z]{1,5}$',
+            "data_source": "yahoo_finance"
+        },
+        "2": {
+            "name": "China A-Share",
+            "default": "600036",
+            "examples": ["000001", "600036", "000858", "300001", "688001"],
+            "format": "6-digit code (e.g., 600036, 000001)",
+            "pattern": r'^\d{6}$',
+            "data_source": "tongdaxin"
+        }
+    }
+
+    choices = []
+    for key, market in markets.items():
+        examples_str = ", ".join(market["examples"][:3])
+        display = f"{market['name']} - Examples: {examples_str}"
+        choices.append(questionary.Choice(display, value=key))
+
+    choice = questionary.select(
+        "Select Stock Market:",
+        choices=choices,
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
-                ("text", "fg:green"),
-                ("highlighted", "noinherit"),
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
             ]
         ),
     ).ask()
 
-    if not ticker:
-        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+    if choice is None:
+        from rich.console import Console
+        console = Console()
+        console.print("\n[red]No market selected. Exiting...[/red]")
         exit(1)
 
-    return ticker.strip().upper()
+    selected_market = markets[choice]
+    from rich.console import Console
+    console = Console()
+    console.print(f"[green]✅ Selected: {selected_market['name']}[/green]")
+    return selected_market
+
+
+def get_ticker(market=None) -> str:
+    """Prompt the user to enter a ticker symbol with market-specific validation."""
+    if market is None:
+        # Fallback to original behavior for backward compatibility
+        ticker = questionary.text(
+            "Enter the ticker symbol to analyze:",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
+            style=questionary.Style(
+                [
+                    ("text", "fg:green"),
+                    ("highlighted", "noinherit"),
+                ]
+            ),
+        ).ask()
+
+        if not ticker:
+            from rich.console import Console
+            console = Console()
+            console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+            exit(1)
+
+        return ticker.strip().upper()
+
+    # Market-specific ticker input with validation
+    from rich.console import Console
+    console = Console()
+
+    console.print(f"\n[dim]Format requirement: {market['format']}[/dim]")
+    console.print(f"[dim]Examples: {', '.join(market['examples'][:3])}[/dim]")
+
+    while True:
+        ticker = questionary.text(
+            f"Enter {market['name']} ticker symbol:",
+            default=market['default'],
+            style=questionary.Style(
+                [
+                    ("text", "fg:green"),
+                    ("highlighted", "noinherit"),
+                ]
+            ),
+        ).ask()
+
+        if not ticker:
+            console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+            exit(1)
+
+        # Validate ticker format
+        import re
+        ticker_to_check = ticker.upper() if market['data_source'] != 'tongdaxin' else ticker
+
+        if re.match(market['pattern'], ticker_to_check):
+            # For A-shares, return pure numeric code
+            if market['data_source'] == 'tongdaxin':
+                console.print(f"[green]✅ Valid A-share code: {ticker} (will use TongDaXin data source)[/green]")
+                return ticker
+            else:
+                console.print(f"[green]✅ Valid ticker: {ticker.upper()}[/green]")
+                return ticker.upper()
+        else:
+            console.print(f"[red]❌ Invalid ticker format[/red]")
+            console.print(f"[yellow]Please use correct format: {market['format']}[/yellow]")
 
 
 def get_analysis_date() -> str:
