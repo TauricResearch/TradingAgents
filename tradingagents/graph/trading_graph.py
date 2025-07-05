@@ -12,7 +12,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Import DashScope adapter if available
 try:
-    from ..llm_adapters.dashscope_adapter import ChatDashScope
+    from tradingagents.llm_adapters.dashscope_adapter import ChatDashScope
     DASHSCOPE_AVAILABLE = True
 except ImportError:
     DASHSCOPE_AVAILABLE = False
