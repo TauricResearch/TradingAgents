@@ -8,9 +8,8 @@ eval_data/
 *.egg-info/
 .env
 
-# 测试和中文文档目录（不纳入版本控制）
+# 测试目录（不纳入版本控制）
 tests/
-docs/zh-CN/
 
 # 中文版本目录（不纳入版本控制）
 TradingAgentsCN/
