@@ -9,6 +9,8 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
+    # Supported providers: "openai", "anthropic", "google", "dashscope", "ollama", "openrouter"
+    # For DashScope: set llm_provider="dashscope", deep_think_llm="qwen-plus", quick_think_llm="qwen-turbo"
     "llm_provider": "openai",
     "deep_think_llm": "o4-mini",
     "quick_think_llm": "gpt-4o-mini",

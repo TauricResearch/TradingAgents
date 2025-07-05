@@ -10,6 +10,14 @@ from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+# Import DashScope adapter if available
+try:
+    from ..llm_adapters.dashscope_adapter import ChatDashScope
+    DASHSCOPE_AVAILABLE = True
+except ImportError:
+    DASHSCOPE_AVAILABLE = False
+    ChatDashScope = None
+
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
@@ -65,8 +73,35 @@ class TradingAgentsGraph:
             self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
         elif self.config["llm_provider"].lower() == "google":
-            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
-            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+            google_api_key = os.getenv('GOOGLE_API_KEY')
+            self.deep_thinking_llm = ChatGoogleGenerativeAI(
+                model=self.config["deep_think_llm"],
+                google_api_key=google_api_key,
+                temperature=0.1,
+                max_tokens=2000
+            )
+            self.quick_thinking_llm = ChatGoogleGenerativeAI(
+                model=self.config["quick_think_llm"],
+                google_api_key=google_api_key,
+                temperature=0.1,
+                max_tokens=2000
+            )
+        elif (self.config["llm_provider"].lower() == "dashscope" or
+              "dashscope" in self.config["llm_provider"].lower() or
+              "alibaba" in self.config["llm_provider"].lower()):
+            if not DASHSCOPE_AVAILABLE:
+                raise ValueError("DashScope adapter not available. Please install dashscope package: pip install dashscope")
+
+            self.deep_thinking_llm = ChatDashScope(
+                model=self.config["deep_think_llm"],
+                temperature=0.1,
+                max_tokens=2000
+            )
+            self.quick_thinking_llm = ChatDashScope(
+                model=self.config["quick_think_llm"],
+                temperature=0.1,
+                max_tokens=2000
+            )
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
         
