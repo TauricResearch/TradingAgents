@@ -1,0 +1,20 @@
+# Optional Dependencies for TradingAgents
+# Install specific groups as needed:
+# pip install -r requirements-optional.txt
+
+# Chinese dependencies
+pytdx  # TongDaXin API for Chinese stock real-time data
+dashscope  # Alibaba Cloud LLM support
+
+# Database dependencies
+pymongo  # MongoDB database support for token usage storage
+
+# Visualization dependencies
+streamlit  # Web app framework
+plotly  # Interactive plotting
+
+# Development dependencies
+pytest  # Testing framework
+black  # Code formatter
+flake8  # Code linter
+

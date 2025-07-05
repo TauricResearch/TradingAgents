@@ -1,0 +1,47 @@
+[
+  {
+    "provider": "dashscope",
+    "model_name": "qwen-turbo",
+    "api_key": "",
+    "base_url": null,
+    "max_tokens": 4000,
+    "temperature": 0.7,
+    "enabled": true
+  },
+  {
+    "provider": "dashscope",
+    "model_name": "qwen-plus-latest",
+    "api_key": "",
+    "base_url": null,
+    "max_tokens": 8000,
+    "temperature": 0.7,
+    "enabled": true
+  },
+  {
+    "provider": "openai",
+    "model_name": "gpt-3.5-turbo",
+    "api_key": "",
+    "base_url": null,
+    "max_tokens": 4000,
+    "temperature": 0.7,
+    "enabled": false
+  },
+  {
+    "provider": "openai",
+    "model_name": "gpt-4",
+    "api_key": "",
+    "base_url": null,
+    "max_tokens": 8000,
+    "temperature": 0.7,
+    "enabled": false
+  },
+  {
+    "provider": "google",
+    "model_name": "gemini-pro",
+    "api_key": "",
+    "base_url": null,
+    "max_tokens": 4000,
+    "temperature": 0.7,
+    "enabled": false
+  }
+]
