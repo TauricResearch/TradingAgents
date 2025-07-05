@@ -435,19 +435,36 @@ class StockDataCache:
 # Global cache instance
 _global_cache = None
 
-def get_cache(cache_dir: str = None) -> StockDataCache:
+def get_cache(cache_dir: str = None):
     """
-    Get global cache instance
+    Get global cache instance with intelligent cache selection
+
+    This function will automatically choose between:
+    1. Integrated cache (with database support) if available
+    2. Traditional file cache as fallback
 
     Args:
         cache_dir: Cache directory path
 
     Returns:
-        StockDataCache instance
+        Cache instance (IntegratedCacheManager or StockDataCache)
     """
     global _global_cache
     if _global_cache is None:
-        _global_cache = StockDataCache(cache_dir)
+        # Try to use integrated cache manager first
+        try:
+            from .integrated_cache import IntegratedCacheManager
+            _global_cache = IntegratedCacheManager(cache_dir)
+            print("🚀 Using integrated cache manager with database support")
+        except ImportError:
+            # Fallback to traditional cache
+            _global_cache = StockDataCache(cache_dir)
+            print("📁 Using traditional file cache")
+        except Exception as e:
+            # If integrated cache fails, fallback to traditional cache
+            print(f"⚠️ Integrated cache initialization failed: {e}")
+            print("📁 Falling back to traditional file cache")
+            _global_cache = StockDataCache(cache_dir)
     return _global_cache
 
 
