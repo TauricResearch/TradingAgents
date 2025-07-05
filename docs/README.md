@@ -13,10 +13,13 @@ Contains comprehensive guides for English-speaking users:
 - **Prompt Templates** (`prompt_templates.md`) - Ready-to-use prompt templates for various agent roles
 
 ### 🇨🇳 Chinese Documentation (`zh-CN/`)
-**Status**: 🚫 Excluded from version control (local development only)
+**Status**: ✅ Included in version control
 
-Contains detailed guides in Chinese for local development and customization:
-- **配置指南** (`configuration_guide.md`) - 详细的配置修改和提示词定制指南
+Contains comprehensive guides in Chinese for Chinese-speaking users:
+- **主文档** (`README.md`) - 中文版系统概览和快速开始
+- **配置指南** (`configuration_guide.md`) - 详细的配置修改和新功能设置指南
+- **架构指南** (`architecture_guide.md`) - 系统架构和技术实现详解
+- **快速开始指南** (`quick_start_guide.md`) - 5分钟快速设置和使用教程
 - **快速参考** (`quick_reference.md`) - 新手友好的快速查找卡片
 - **提示词模板库** (`prompt_templates.md`) - 可直接使用的提示词模板
 
@@ -30,19 +33,25 @@ Navigate to [`en-US/`](en-US/) directory for:
 - Troubleshooting tips
 
 ### For Chinese Users
-Navigate to `zh-CN/` directory (local development) for:
+Navigate to [`zh-CN/`](zh-CN/) directory for:
 - 系统配置说明
+- 中国A股市场功能
+- 百炼(DashScope)集成指南
+- 数据库配置说明
 - 提示词定制指南
-- 模板库
+- 架构技术文档
 - 故障排除技巧
 
 ## 📖 Available Guides
 
 | Guide | English | Chinese | Description |
 |-------|---------|---------|-------------|
-| **Configuration Guide** | [📖 View](en-US/configuration_guide.md) | 📖 View (Local) | Complete guide for modifying configurations and prompts |
-| **Quick Reference** | [🚀 View](en-US/quick_reference.md) | 🚀 View (Local) | Quick lookup for common modifications |
-| **Prompt Templates** | [🎯 View](en-US/prompt_templates.md) | 🎯 View (Local) | Ready-to-use prompt templates |
+| **Main Documentation** | [📖 View](en-US/) | [📖 查看](zh-CN/README.md) | System overview and quick start |
+| **Configuration Guide** | [📖 View](en-US/configuration_guide.md) | [📖 查看](zh-CN/configuration_guide.md) | Complete guide for modifying configurations and new features |
+| **Architecture Guide** | [🏗️ View](en-US/architecture_guide.md) | [🏗️ 查看](zh-CN/architecture_guide.md) | System architecture and technical implementation |
+| **Quick Start Guide** | [🚀 View](en-US/quick_start_guide.md) | [🚀 查看](zh-CN/quick_start_guide.md) | 5-minute setup and usage tutorial |
+| **Quick Reference** | [📋 View](en-US/quick_reference.md) | [📋 查看](zh-CN/quick_reference.md) | Quick lookup for common modifications |
+| **Prompt Templates** | [🎯 View](en-US/prompt_templates.md) | [🎯 查看](zh-CN/prompt_templates.md) | Ready-to-use prompt templates |
 
 ## 🔧 Key Topics Covered
 
@@ -102,17 +111,19 @@ Navigate to `zh-CN/` directory (local development) for:
 
 ### Version Control Policy
 - ✅ **Include**: `en-US/` directory and all English documentation
-- 🚫 **Exclude**: `zh-CN/` directory (configured in `.gitignore`)
+- ✅ **Include**: `zh-CN/` directory and all Chinese documentation
 - ✅ **Include**: This README file for navigation
+- 🎯 **Rationale**: Both language versions provide value to the global community
 
 ## 📝 Contributing
 
 When contributing to documentation:
 
-1. **Update English docs** for features that should be shared with the community
-2. **Keep Chinese docs local** for development and customization purposes
+1. **Update English docs** for features that should be shared with the international community
+2. **Update Chinese docs** for features that benefit Chinese-speaking users
 3. **Maintain consistency** between language versions when possible
 4. **Test all examples** before documenting them
+5. **Consider localization** - some features may be more relevant to specific regions
 
 ## 🔗 Related Resources
 
