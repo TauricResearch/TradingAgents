@@ -1,8 +1,9 @@
-from typing import Optional
+from typing import Optional, List
 import datetime
 import typer
 from pathlib import Path
 from functools import wraps
+import json
 from rich.console import Console
 from rich.panel import Panel
 from rich.spinner import Spinner
@@ -11,19 +12,22 @@ from rich.columns import Columns
 from rich.markdown import Markdown
 from rich.layout import Layout
 from rich.text import Text
-from rich.live import Live
 from rich.table import Table
 from collections import deque
-import time
-from rich.tree import Tree
 from rich import box
 from rich.align import Align
-from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from cli.models import AnalystType
-from cli.utils import *
+from cli.utils import (
+    get_ticker as prompt_ticker,
+    get_analysis_date as prompt_analysis_date,
+    select_analysts,
+    select_research_depth,
+    select_llm_provider,
+    select_shallow_thinking_agent,
+    select_deep_thinking_agent,
+)
 
 console = Console()
 
@@ -31,6 +35,7 @@ app = typer.Typer(
     name="TradingAgents",
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
+    no_args_is_help=False,  # Don't show help when no args provided
 )
 
 
@@ -338,10 +343,10 @@ def update_display(layout, spinner_text=None):
     if spinner_text:
         messages_table.add_row("", "Spinner", spinner_text)
 
-    # Add a footer to indicate if messages were truncated
+    # Add a row to indicate if messages were truncated
     if len(all_messages) > max_messages:
-        messages_table.footer = (
-            f"[dim]Showing last {max_messages} of {len(all_messages)} messages[/dim]"
+        messages_table.add_row(
+            "", "Info", f"[dim]Showing last {max_messages} of {len(all_messages)} messages[/dim]"
         )
 
     layout["messages"].update(
@@ -431,7 +436,7 @@ def get_user_selections():
             "Step 1: Ticker Symbol", "Enter the ticker symbol to analyze", "SPY"
         )
     )
-    selected_ticker = get_ticker()
+    selected_ticker = prompt_ticker()
 
     # Step 2: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -442,7 +447,7 @@ def get_user_selections():
             default_date,
         )
     )
-    analysis_date = get_analysis_date()
+    analysis_date = prompt_analysis_date()
 
     # Step 3: Select analysts
     console.print(
@@ -492,28 +497,6 @@ def get_user_selections():
     }
 
 
-def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
-
-
-def get_analysis_date():
-    """Get the analysis date from user input."""
-    while True:
-        date_str = typer.prompt(
-            "", default=datetime.datetime.now().strftime("%Y-%m-%d")
-        )
-        try:
-            # Validate date format and ensure it's not in the future
-            analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-            if analysis_date.date() > datetime.datetime.now().date():
-                console.print("[red]Error: Analysis date cannot be in the future[/red]")
-                continue
-            return date_str
-        except ValueError:
-            console.print(
-                "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
-            )
 
 
 def display_complete_report(final_state):
@@ -799,7 +782,7 @@ def run_analysis():
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    with Live(layout, refresh_per_second=4):
         # Initial display
         update_display(layout)
 
@@ -1073,9 +1056,9 @@ def run_analysis():
 
             trace.append(chunk)
 
-        # Get final state and decision
+        # Get final state
         final_state = trace[-1]
-        decision = graph.process_signal(final_state["final_trade_decision"])
+        graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
@@ -1096,10 +1079,197 @@ def run_analysis():
         update_display(layout)
 
 
-@app.command()
-def analyze():
-    run_analysis()
+def run_headless_analysis(
+    ticker: str,
+    analysis_date: str,
+    analysts: List[str],
+    research_depth: int,
+    llm_provider: str,
+    backend_url: str,
+    shallow_thinker: str,
+    deep_thinker: str,
+    output_dir: str,
+    quiet: bool = False,
+    config_file: Optional[str] = None,
+):
+    """Run analysis in headless mode without interactive prompts."""
+    
+    # Load config from file if provided
+    if config_file:
+        with open(config_file, 'r') as f:
+            file_config = json.load(f)
+        config = DEFAULT_CONFIG.copy()
+        config.update(file_config)
+    else:
+        config = DEFAULT_CONFIG.copy()
+    
+    # Override config with command line arguments
+    config["max_debate_rounds"] = research_depth
+    config["max_risk_discuss_rounds"] = research_depth
+    config["quick_think_llm"] = shallow_thinker
+    config["deep_think_llm"] = deep_thinker
+    config["backend_url"] = backend_url
+    config["llm_provider"] = llm_provider.lower()
+    config["results_dir"] = output_dir
+
+    # Initialize the graph
+    graph = TradingAgentsGraph(analysts, config=config, debug=not quiet)
+
+    # Create result directory
+    results_dir = Path(output_dir) / ticker / analysis_date
+    results_dir.mkdir(parents=True, exist_ok=True)
+    report_dir = results_dir / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    if not quiet:
+        console.print(f"[green]Starting analysis for {ticker} on {analysis_date}[/green]")
+        console.print(f"[cyan]Analysts: {', '.join(analysts)}[/cyan]")
+        console.print(f"[cyan]Research depth: {research_depth} rounds[/cyan]")
+        console.print(f"[cyan]Output directory: {output_dir}[/cyan]")
+
+    # Initialize state and run analysis
+    init_agent_state = graph.propagator.create_initial_state(ticker, analysis_date)
+    args = graph.propagator.get_graph_args()
+
+    # Stream the analysis
+    final_state = None
+    if not quiet:
+        # Show progress with spinner
+        with console.status("[bold green]Running analysis...") as status:
+            trace = []
+            for chunk in graph.graph.stream(init_agent_state, **args):
+                trace.append(chunk)
+                if chunk.get("current_agent"):
+                    status.update(f"[bold green]Running: {chunk['current_agent']}...")
+            final_state = trace[-1]
+    else:
+        # Run silently
+        trace = list(graph.graph.stream(init_agent_state, **args))
+        final_state = trace[-1]
+
+    # Process the final decision
+    decision = graph.process_signal(final_state["final_trade_decision"])
+
+    # Save reports
+    report_sections = {
+        "market_report": "Market Analysis",
+        "sentiment_report": "Social Sentiment", 
+        "news_report": "News Analysis",
+        "fundamentals_report": "Fundamentals Analysis",
+        "investment_plan": "Research Team Decision",
+        "trader_investment_plan": "Trading Team Plan",
+        "final_trade_decision": "Portfolio Management Decision"
+    }
+
+    # Save individual reports
+    for section, title in report_sections.items():
+        if section in final_state and final_state[section]:
+            report_file = report_dir / f"{section}.md"
+            with open(report_file, 'w') as f:
+                f.write(f"# {title}\n\n{final_state[section]}")
+
+    # Save complete report
+    complete_report = []
+    complete_report.append(f"# Trading Analysis Report: {ticker}")
+    complete_report.append(f"**Date:** {analysis_date}")
+    complete_report.append(f"**Analysts:** {', '.join(analysts)}")
+    complete_report.append(f"**Research Depth:** {research_depth} rounds")
+    complete_report.append("")
+
+    for section, title in report_sections.items():
+        if section in final_state and final_state[section]:
+            complete_report.append(f"## {title}")
+            complete_report.append(final_state[section])
+            complete_report.append("")
+
+    complete_report_file = results_dir / "complete_report.md"
+    with open(complete_report_file, 'w') as f:
+        f.write("\n".join(complete_report))
+
+    # Save decision as JSON
+    decision_file = results_dir / "decision.json"
+    with open(decision_file, 'w') as f:
+        json.dump(decision, f, indent=2)
+
+    if not quiet:
+        console.print("[green]Analysis completed![/green]")
+        console.print(f"[cyan]Reports saved to: {results_dir}[/cyan]")
+        console.print(f"[cyan]Decision: {decision}[/cyan]")
+    else:
+        # In quiet mode, just output the decision
+        print(json.dumps(decision, indent=2))
+
+    return decision
+
+
+def main(
+    ticker: str = typer.Option(None, "--ticker", "-t", help="Stock ticker symbol (e.g., AAPL, TSLA)"),
+    date: str = typer.Option(None, "--date", "-d", help="Analysis date (YYYY-MM-DD)"),
+    analysts: str = typer.Option(None, "--analysts", "-a", help="Comma-separated list of analysts (market,social,news,fundamentals)"),
+    depth: str = typer.Option(None, "--depth", help="Research depth (shallow=1, medium=3, deep=5)"),
+    llm_provider: str = typer.Option(None, "--llm-provider", help="LLM provider (openai, anthropic, google)"),
+    backend_url: str = typer.Option(None, "--backend-url", help="LLM backend URL"),
+    shallow_model: str = typer.Option(None, "--shallow-model", help="Model for shallow thinking"),
+    deep_model: str = typer.Option(None, "--deep-model", help="Model for deep thinking"),
+    output_dir: str = typer.Option("./results", "--output-dir", "-o", help="Output directory for reports"),
+    config_file: Optional[str] = typer.Option(None, "--config", "-c", help="Path to configuration file"),
+    headless: bool = typer.Option(False, "--headless", help="Run in headless mode without interactive prompts"),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress verbose output (only show final results)"),
+):
+    """Run trading analysis with either interactive or headless mode."""
+    
+    if headless:
+        # Headless mode - validate required arguments
+        if not ticker:
+            raise typer.BadParameter("--ticker is required in headless mode")
+        
+        # Set defaults for optional arguments
+        if not date:
+            date = datetime.datetime.now().strftime("%Y-%m-%d")
+        if not analysts:
+            analysts = "market,social,news,fundamentals"
+        if not depth:
+            depth = "medium"
+        if not llm_provider:
+            llm_provider = "openai"
+        if not backend_url:
+            backend_url = "https://api.openai.com/v1"
+        if not shallow_model:
+            shallow_model = "gpt-4o-mini"
+        if not deep_model:
+            deep_model = "o1-mini"
+        
+        # Parse depth to number
+        depth_map = {"shallow": 1, "medium": 3, "deep": 5}
+        research_depth = depth_map.get(depth, 3)
+        
+        # Parse analysts list
+        analyst_list = [a.strip() for a in analysts.split(",")]
+        
+        # Validate analysts
+        valid_analysts = ["market", "social", "news", "fundamentals"]
+        for analyst in analyst_list:
+            if analyst not in valid_analysts:
+                raise typer.BadParameter(f"Invalid analyst: {analyst}. Valid options: {', '.join(valid_analysts)}")
+        
+        # Run headless analysis
+        run_headless_analysis(
+            ticker=ticker,
+            analysis_date=date,
+            analysts=analyst_list,
+            research_depth=research_depth,
+            llm_provider=llm_provider,
+            backend_url=backend_url,
+            shallow_thinker=shallow_model,
+            deep_thinker=deep_model,
+            output_dir=output_dir,
+            quiet=quiet,
+            config_file=config_file,
+        )
+    else:
+        # Interactive mode (original behavior)
+        run_analysis()
 
 
 if __name__ == "__main__":
-    app()
+    typer.run(main)

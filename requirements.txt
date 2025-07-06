@@ -22,5 +22,6 @@ redis
 chainlit
 rich
 questionary
+typer
 langchain_anthropic
 langchain-google-genai
