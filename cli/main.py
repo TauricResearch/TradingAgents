@@ -1,6 +1,7 @@
 from typing import Optional
 import datetime
 import typer
+import json
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
@@ -31,6 +32,7 @@ app = typer.Typer(
     name="TradingAgents",
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
+    invoke_without_command=True,  # Allow running without specifying a command
 )
 
 
@@ -99,7 +101,7 @@ class MessageBuffer:
             if content is not None:
                 latest_section = section
                 latest_content = content
-               
+
         if latest_section and latest_content:
             # Format the current section for display
             section_titles = {
@@ -165,6 +167,111 @@ class MessageBuffer:
             report_parts.append(f"{self.report_sections['final_trade_decision']}")
 
         self.final_report = "\n\n".join(report_parts) if report_parts else None
+
+    def save_final_report(self, report_dir, ticker, analysis_date, format="markdown"):
+        """Save the final consolidated report to a file with comprehensive metadata.
+
+        Args:
+            report_dir: Directory to save the report
+            ticker: Stock ticker symbol
+            analysis_date: Date of analysis
+            format: Output format ("markdown" or "json")
+        """
+        if not self.final_report:
+            return None
+
+        if format.lower() == "json":
+            return self._save_json_report(report_dir, ticker, analysis_date)
+        else:
+            return self._save_markdown_report(report_dir, ticker, analysis_date)
+
+    def _save_markdown_report(self, report_dir, ticker, analysis_date):
+        """Save the final report in Markdown format."""
+        final_report_file = report_dir / "final_report.md"
+
+        # Create comprehensive report with metadata
+        report_content = f"""# Trading Analysis Report
+
+## Analysis Summary
+- **Ticker:** {ticker}
+- **Analysis Date:** {analysis_date}
+- **Generated:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+- **Total Agents:** {len(self.agent_status)}
+- **Completed Agents:** {sum(1 for status in self.agent_status.values() if status == 'completed')}
+
+## Agent Status Summary
+"""
+
+        # Add agent status summary
+        teams = {
+            "Analyst Team": ["Market Analyst", "Social Analyst", "News Analyst", "Fundamentals Analyst"],
+            "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
+            "Trading Team": ["Trader"],
+            "Risk Management": ["Risky Analyst", "Neutral Analyst", "Safe Analyst"],
+            "Portfolio Management": ["Portfolio Manager"],
+        }
+
+        for team, agents in teams.items():
+            report_content += f"\n### {team}\n"
+            for agent in agents:
+                status = self.agent_status.get(agent, "unknown")
+                status_icon = "✅" if status == "completed" else "⏳" if status == "in_progress" else "❌"
+                report_content += f"- {status_icon} {agent}: {status}\n"
+
+        report_content += f"\n---\n\n"
+        report_content += self.final_report
+
+        # Save to file
+        with open(final_report_file, "w", encoding="utf-8") as f:
+            f.write(report_content)
+
+        return final_report_file
+
+    def _save_json_report(self, report_dir, ticker, analysis_date):
+        """Save the final report in JSON format."""
+        final_report_file = report_dir / "final_report.json"
+
+        # Create JSON structure
+        report_data = {
+            "metadata": {
+                "ticker": ticker,
+                "analysis_date": analysis_date,
+                "generated": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "total_agents": len(self.agent_status),
+                "completed_agents": sum(1 for status in self.agent_status.values() if status == 'completed')
+            },
+            "agent_status": self.agent_status,
+            "report_sections": self.report_sections,
+            "final_report": self.final_report,
+            "messages": [
+                {
+                    "timestamp": timestamp,
+                    "type": msg_type,
+                    "content": content
+                }
+                for timestamp, msg_type, content in self.messages
+            ],
+            "tool_calls": [
+                {
+                    "timestamp": timestamp,
+                    "tool_name": tool_name,
+                    "args": args
+                }
+                for timestamp, tool_name, args in self.tool_calls
+            ]
+        }
+
+        # Save to file
+        with open(final_report_file, "w", encoding="utf-8") as f:
+            json.dump(report_data, f, indent=2, ensure_ascii=False)
+
+        return final_report_file
+
+    def save_final_report_both_formats(self, report_dir, ticker, analysis_date):
+        """Save the final report in both Markdown and JSON formats."""
+        markdown_file = self._save_markdown_report(report_dir, ticker, analysis_date)
+        json_file = self._save_json_report(report_dir, ticker, analysis_date)
+        return markdown_file, json_file
 
 
 message_buffer = MessageBuffer()
@@ -313,7 +420,7 @@ def update_display(layout, spinner_text=None):
             content_str = ' '.join(text_parts)
         elif not isinstance(content_str, str):
             content_str = str(content)
-            
+
         # Truncate message content if too long
         if len(content_str) > 200:
             content_str = content_str[:197] + "..."
@@ -470,7 +577,7 @@ def get_user_selections():
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
-    
+
     # Step 6: Thinking agents
     console.print(
         create_question_box(
@@ -731,7 +838,7 @@ def extract_content_string(content):
     else:
         return str(content)
 
-def run_analysis():
+def run_analysis(format="markdown", save_reports=False):
     # First get all user selections
     selections = get_user_selections()
 
@@ -767,7 +874,7 @@ def run_analysis():
             with open(log_file, "a") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
-    
+
     def save_tool_call_decorator(obj, func_name):
         func = getattr(obj, func_name)
         @wraps(func)
@@ -857,7 +964,7 @@ def run_analysis():
                     msg_type = "System"
 
                 # Add message to buffer
-                message_buffer.add_message(msg_type, content)                
+                message_buffer.add_message(msg_type, content)
 
                 # If it's a tool call, add it to tool calls
                 if hasattr(last_message, "tool_calls"):
@@ -1093,12 +1200,105 @@ def run_analysis():
         # Display the complete final report
         display_complete_report(final_state)
 
+        # Save the final consolidated report to a file
+        if save_reports:
+            if format == "both":
+                markdown_file, json_file = message_buffer.save_final_report_both_formats(report_dir, selections["ticker"], selections["analysis_date"])
+                if markdown_file and json_file:
+                    console.print(f"\n[bold green]Final reports saved to:[/bold green]")
+                    console.print(f"  📄 Markdown: {markdown_file}")
+                    console.print(f"  📊 JSON: {json_file}")
+            else:
+                final_report_file = message_buffer.save_final_report(report_dir, selections["ticker"], selections["analysis_date"], format=format)
+                if final_report_file:
+                    console.print(f"\n[bold green]Final report saved to:[/bold green] {final_report_file}")
+
         update_display(layout)
 
 
+# Set analyze as the default command
+def default_command(
+    format: str = typer.Option("both", "--format", "-f", help="Output format: markdown, json, or both"),
+    save_reports: bool = typer.Option(False, "--save-reports", "-s", help="Save final reports to files")
+):
+    """Run trading analysis (default command)."""
+    run_analysis(format=format, save_reports=save_reports)
+
+# Set the default command
+app.callback(invoke_without_command=True)(default_command)
+
+
 @app.command()
-def analyze():
-    run_analysis()
+def analyze(
+    format: str = typer.Option("both", "--format", "-f", help="Output format: markdown, json, or both"),
+    save_reports: bool = typer.Option(False, "--save-reports", "-s", help="Save final reports to files")
+):
+    """Run trading analysis with specified output format."""
+    run_analysis(format=format, save_reports=save_reports)
+
+
+@app.command()
+def save_report(
+    ticker: str = typer.Argument(..., help="Stock ticker symbol"),
+    analysis_date: str = typer.Argument(..., help="Analysis date (YYYY-MM-DD)"),
+    format: str = typer.Option("markdown", "--format", "-f", help="Output format: markdown, json, or both"),
+    results_dir: str = typer.Option("results", "--results-dir", "-r", help="Results directory")
+):
+    """Save final report from existing analysis data."""
+    # Construct the path to the existing analysis
+    analysis_path = Path(results_dir) / ticker / analysis_date
+    report_dir = analysis_path / "reports"
+
+    if not report_dir.exists():
+        console.print(f"[bold red]Error:[/bold red] No analysis found for {ticker} on {analysis_date}")
+        console.print(f"Expected path: {analysis_path}")
+        return
+
+    # Check if individual report files exist
+    required_files = ["market_report.md", "sentiment_report.md", "news_report.md", "fundamentals_report.md"]
+    missing_files = [f for f in required_files if not (report_dir / f).exists()]
+
+    if missing_files:
+        console.print(f"[bold red]Error:[/bold red] Missing required report files: {', '.join(missing_files)}")
+        return
+
+    # Reconstruct the final report from individual files
+    console.print(f"[bold blue]Reconstructing final report for {ticker} ({analysis_date})...[/bold blue]")
+
+    # Read individual report sections
+    report_sections = {}
+    for file_name in required_files:
+        section_name = file_name.replace(".md", "")
+        file_path = report_dir / file_name
+        if file_path.exists():
+            with open(file_path, "r", encoding="utf-8") as f:
+                report_sections[section_name] = f.read()
+
+    # Also try to read other report files
+    additional_files = ["investment_plan.md", "trader_investment_plan.md", "final_trade_decision.md"]
+    for file_name in additional_files:
+        section_name = file_name.replace(".md", "")
+        file_path = report_dir / file_name
+        if file_path.exists():
+            with open(file_path, "r", encoding="utf-8") as f:
+                report_sections[section_name] = f.read()
+
+    # Create a temporary message buffer to generate the final report
+    temp_buffer = MessageBuffer()
+    temp_buffer.report_sections = report_sections
+    temp_buffer._update_final_report()
+
+    # Save the final report
+    if format == "both":
+        markdown_file, json_file = temp_buffer.save_final_report_both_formats(report_dir, ticker, analysis_date)
+        if markdown_file and json_file:
+            console.print(f"\n[bold green]Final reports saved to:[/bold green]")
+            console.print(f"  📄 Markdown: {markdown_file}")
+            console.print(f"  📊 JSON: {json_file}")
+    else:
+        final_report_file = temp_buffer.save_final_report(report_dir, ticker, analysis_date, format=format)
+        if final_report_file:
+            console.print(f"\n[bold green]Final report saved to:[/bold green] {final_report_file}")
 
 
 if __name__ == "__main__":

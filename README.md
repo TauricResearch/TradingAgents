@@ -126,10 +126,16 @@ export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
 
 ### CLI Usage
 
-You can also try out the CLI directly by running:
+You can run the CLI analysis with the following command (recommended, default):
 ```bash
 python -m cli.main
 ```
+
+Or, you can explicitly specify the analyze command (optional, for clarity):
+```bash
+python -m cli.main analyze
+```
+
 You will see a screen where you can select your desired tickers, date, LLMs, research depth, etc.
 
 <p align="center">
@@ -145,6 +151,60 @@ An interface will appear showing results as they load, letting you track the age
 <p align="center">
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
+
+#### Optional Report Output
+
+To save the final consolidated report to files after analysis, use the `--save-reports` flag (works with both default and explicit usage):
+
+```bash
+# Save reports in both Markdown and JSON formats
+python -m cli.main --save-reports --format both
+
+# Save reports only in Markdown format
+python -m cli.main --save-reports --format markdown
+
+# Save reports only in JSON format
+python -m cli.main --save-reports --format json
+```
+
+Or, with the explicit command:
+```bash
+python -m cli.main analyze --save-reports --format both
+```
+
+Reports are saved to:
+```
+results/<TICKER>/<ANALYSIS_DATE>/reports/
+├── final_report.md          # Consolidated Markdown report
+├── final_report.json        # Consolidated JSON report
+├── market_report.md         # Individual analyst reports
+├── sentiment_report.md
+├── news_report.md
+├── fundamentals_report.md
+├── investment_plan.md
+├── trader_investment_plan.md
+└── final_trade_decision.md
+```
+
+#### Generate Reports from Existing Data
+
+If you want to generate the final consolidated report from existing analysis data without rerunning the analysis:
+
+```bash
+# Generate Markdown report (default)
+python -m cli.main save-report GOOG 2025-07-05
+
+# Generate both Markdown and JSON reports
+python -m cli.main save-report GOOG 2025-07-05 --format both
+
+# Generate only JSON report
+python -m cli.main save-report GOOG 2025-07-05 --format json
+```
+
+The final report includes:
+- **Analysis Summary**: Ticker, date, agent status, and completion statistics
+- **Agent Status Summary**: Status of all agents organized by teams
+- **Complete Analysis**: All analyst reports, research decisions, trading plans, and final portfolio decisions
 
 ## TradingAgents Package
 
@@ -163,7 +223,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 
 # forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
+final_state, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```
 
@@ -184,8 +244,52 @@ config["online_tools"] = True # Use online tools or cached data
 ta = TradingAgentsGraph(debug=True, config=config)
 
 # forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
+final_state, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
+```
+
+#### Accessing Analysis Results
+
+The `propagate()` method returns both the final state and the decision. You can access individual reports from the final state:
+
+```python
+final_state, decision = ta.propagate("NVDA", "2024-05-10")
+
+# Access individual analyst reports
+market_report = final_state["market_report"]
+sentiment_report = final_state["sentiment_report"]
+news_report = final_state["news_report"]
+fundamentals_report = final_state["fundamentals_report"]
+
+# Access research team decisions
+investment_plan = final_state["investment_plan"]
+trader_plan = final_state["trader_investment_plan"]
+
+# Access final decision
+final_decision = final_state["final_trade_decision"]
+
+print(f"Decision: {decision}")
+print(f"Market Analysis: {market_report[:200]}...")
+```
+
+#### Saving Reports Programmatically
+
+You can also save the analysis results to files programmatically:
+
+```python
+import json
+from pathlib import Path
+
+# Save individual reports
+results_dir = Path("results/NVDA/2024-05-10/reports")
+results_dir.mkdir(parents=True, exist_ok=True)
+
+with open(results_dir / "market_report.md", "w") as f:
+    f.write(final_state["market_report"])
+
+# Save complete state as JSON
+with open(results_dir / "complete_analysis.json", "w") as f:
+    json.dump(final_state, f, indent=2)
 ```
 
 > For `online_tools`, we recommend enabling them for experimentation, as they provide access to real-time data. The agents' offline tools rely on cached data from our **Tauric TradingDB**, a curated dataset we use for backtesting. We're currently in the process of refining this dataset, and we plan to release it soon alongside our upcoming projects. Stay tuned!
