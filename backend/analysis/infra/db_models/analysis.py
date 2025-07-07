@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from sqlmodel import SQLModel, Field, JSON, Relationship
 import enum
 from sqlalchemy import Column, Text
+from sqlalchemy.dialects.mysql import LONGTEXT
 
 # TYPE_CHECKING을 사용해서 circular import 방지
 if TYPE_CHECKING:
@@ -32,22 +33,22 @@ class Analysis(SQLModel, table=True):
     status: AnalysisStatus = Field(default=AnalysisStatus.PENDING)
     
     # 개별 분석가 리포트들
-    market_report: str | None = Field(default=None, sa_column=Column(Text), description="Market Analyst 리포트")
-    sentiment_report: str | None = Field(default=None, sa_column=Column(Text), description="Social Analyst 리포트")
-    news_report: str | None = Field(default=None, sa_column=Column(Text), description="News Analyst 리포트")
-    fundamentals_report: str | None = Field(default=None, sa_column=Column(Text), description="Fundamentals Analyst 리포트")
+    market_report: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="Market Analyst 리포트")
+    sentiment_report: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="Social Analyst 리포트")
+    news_report: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="News Analyst 리포트")
+    fundamentals_report: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="Fundamentals Analyst 리포트")
     
     # 팀별 의사결정 과정
     investment_debate_state: dict | None = Field(default=None, sa_column=Column(JSON), description="Research Team 토론 과정")
-    trader_investment_plan: str | None = Field(default=None, sa_column=Column(Text), description="Trading Team 계획")
+    trader_investment_plan: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="Trading Team 계획")
     risk_debate_state: dict | None = Field(default=None, sa_column=Column(JSON), description="Risk Management Team 토론 과정")
     
     # 최종 결과물
-    final_trade_decision: str | None = Field(default=None, sa_column=Column(Text), description="최종 거래 결정")
-    final_report: str | None = Field(default=None, sa_column=Column(Text), description="전체 통합 리포트")
+    final_trade_decision: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="최종 거래 결정")
+    final_report: str | None = Field(default=None, sa_column=Column(LONGTEXT), description="전체 통합 리포트")
     
     # 실행 결과 정보
-    error_message: str | None = Field(default=None, sa_column=Column(Text))
+    error_message: str | None = Field(default=None, sa_column=Column(LONGTEXT))
     completed_at: datetime | None = None
     created_at : datetime = Field(nullable=False)
     updated_at : datetime = Field(nullable=False)

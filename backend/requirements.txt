@@ -11,6 +11,7 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 colorama==0.4.6
+colorlog==6.9.0
 cryptography==45.0.4
 dependency-injector==4.48.1
 dnspython==2.7.0

@@ -4,16 +4,16 @@ from typing import List, Dict, Union
 from analysis.infra.db_models.analysis import AnalysisStatus
 
 class Analysis(BaseModel):
-    id: str
+    id: str | None = None
     member_id: str | None = None
     ticker: str | None = None
     analysis_date: date | None = None
     analysts_selected: list[str] = []
-    research_depth: int = 3
-    llm_provider: str = "openai"
-    backend_url: str = "https://api.openai.com/v1"
-    shallow_thinker: str = "gpt-4o"
-    deep_thinker: str = "o3"
+    research_depth: int = 1
+    llm_provider: str = "google"
+    backend_url: str = "https://generativelanguage.googleapis.com/v1"
+    shallow_thinker: str = "gemini-2.5-flash-lite-preview-06-17"
+    deep_thinker: str = "gemini-2.5-flash-lite-preview-06-17"
     status: AnalysisStatus = AnalysisStatus.PENDING
     
     # 개별 분석가 리포트들

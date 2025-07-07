@@ -6,13 +6,16 @@ from analysis.interface.dto import TradingAnalysisRequest
 from utils.db_utils import row_to_dict
 from sqlalchemy.orm import selectinload
 from datetime import datetime, date
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AnalysisRepository(IAnalysisRepository):
     def __init__(self, session: Session):
         self.session = session
 
     def find_by_member_id(self, member_id: str) -> list[AnalysisVO] | None:
-        query = select(Analysis).where(Analysis.member_id == member_id)
+        query = select(Analysis).where(Analysis.member_id == member_id).order_by(Analysis.created_at.desc())
         analyses = self.session.exec(query).all()
         
         if not analyses:
@@ -33,13 +36,14 @@ class AnalysisRepository(IAnalysisRepository):
         
         self.session.add(new_analysis)
         self.session.flush()
-        self.session.refresh(new_analysis)
+        
         
         analysis.id = new_analysis.id
         return analysis
 
     def update(self, analysis_vo: AnalysisVO) -> AnalysisVO | None:
         analysis = self.session.get(Analysis, analysis_vo.id)
+        logger.info(f"🔄 분석 업데이트 - Analysis ID: {analysis_vo.id}")
         if not analysis:
             return None
 

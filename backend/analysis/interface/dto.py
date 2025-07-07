@@ -14,16 +14,18 @@ class TradingAnalysisRequest(BaseModel):
     ticker: str = "NVDA"
     analysis_date: str = "2025-07-07"
     analysts: List[AnalystType] = [AnalystType.MARKET, AnalystType.SOCIAL, AnalystType.NEWS, AnalystType.FUNDAMENTALS]
-    research_depth: int = 3
-    llm_provider: str = "openai"
-    backend_url: str = "https://api.openai.com/v1"
-    shallow_thinker: str = "gpt-4o-mini"
-    deep_thinker: str = "gpt-4o-mini"
+    research_depth: int = 1
+    llm_provider: str = "google"
+    backend_url: str = "https://generativelanguage.googleapis.com/v1"
+    shallow_thinker: str = "gemini-2.5-flash-lite-preview-06-17"
+    deep_thinker: str = "gemini-2.5-flash-lite-preview-06-17"
 
 class AnalysisSessionResponse(BaseModel):
     id : str
     ticker : str
     status : AnalysisStatus
+    shallow_thinker : str
+    deep_thinker : str
 
 class AnalysisProgressUpdate(BaseModel):
     analysis_id: str

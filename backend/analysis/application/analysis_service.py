@@ -17,6 +17,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from analysis.application.websocket_manager import WebSocketManager
 from analysis.infra.db_models.analysis import AnalysisStatus
 
+# 로거 설정 - 모듈명을 명확히 지정
 logger = logging.getLogger(__name__)
 
 class AnalysisService:
@@ -31,6 +32,9 @@ class AnalysisService:
         self.session = session
         self.ulid = ulid
         self.websocket_manager = websocket_manager
+        
+        # 서비스 초기화 로그
+        logger.info("🎯 AnalysisService 초기화 완료")
 
     def get_analysis_list(
         self,
@@ -107,15 +111,18 @@ class AnalysisService:
     async def _run_analysis(self, analysis_id: str):
         """백그라운드에서 실제 분석을 실행하는 메서드"""
         try:
+            logger.info(f"🔄 분석 시작 - Analysis ID: {analysis_id}")
+            logger.info(f"🔍 analysis_id type: {type(analysis_id)}, value: {repr(analysis_id)}")
             analysis = AnalysisVO(
                 id=analysis_id,
                 status=AnalysisStatus.RUNNING,
                 updated_at=datetime.now()
             )
-
+            logger.info(f"🔍 Created AnalysisVO.id: {analysis.id}, type: {type(analysis.id)}")
             analysis = self.analysis_repo.update(analysis)
             if not analysis:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
+            
             
             await self.websocket_manager.send_analysis_update(
                 analysis_id=analysis_id,
@@ -125,13 +132,14 @@ class AnalysisService:
             
             
             
+            
             # TradingAgentsGraph 설정 및 실행
             if analysis:
                 config = self._create_config(analysis)
             
             # 분석 실행 (실제 구현)
             await self._execute_trading_analysis(analysis_id, analysis, config)
-            
+            logger.info(f"🔄 분석 완료 - Analysis ID: {analysis_id}")
             # 완료 상태로 업데이트
             completed_analysis = AnalysisVO(
                 id=analysis_id,
@@ -144,8 +152,10 @@ class AnalysisService:
             
             
         except Exception as e:
+            logger.error(f"🔴 분석 실패 - Analysis ID: {analysis_id}, 오류: {str(e)}")
             now = datetime.now()
             updates = AnalysisVO(
+                id=analysis_id,
                 status=AnalysisStatus.FAILED,
                 error_message=str(e),
                 completed_at = now,
@@ -158,7 +168,7 @@ class AnalysisService:
 
     def _create_config(self, analysis: AnalysisVO) -> dict:
         """분석 설정을 생성하는 메서드"""
-        config = {}
+        config = DEFAULT_CONFIG.copy()
         config.update({
             "max_debate_rounds": analysis.research_depth,
             "max_risk_discuss_rounds": analysis.research_depth,
@@ -172,9 +182,9 @@ class AnalysisService:
     async def _execute_trading_analysis(self, analysis_id: str, analysis: AnalysisVO, config: dict):
         """실제 TradingAgentsGraph를 실행하는 메서드"""
         try:
-            logger.info(f"Starting trading analysis for {analysis_id} with ticker {analysis.ticker}")
-            logger.info(f"Analysts selected: {analysis.analysts_selected}")
-            logger.info(f"Config: {config}")
+            logger.info(f"📊 거래 분석 시작 - ID: {analysis_id}, 티커: {analysis.ticker}")
+            logger.info(f"👥 선택된 분석가들: {analysis.analysts_selected}")
+            logger.info(f"⚙️ 설정: {config}")
             
             # TradingAgentsGraph 초기화
             graph = TradingAgentsGraph(
@@ -182,7 +192,7 @@ class AnalysisService:
                 config=config,
                 debug=True
             )
-            logger.info("TradingAgentsGraph initialized successfully")
+            logger.info("✅ TradingAgentsGraph 초기화 완료")
             
             # 초기 상태 생성
             init_agent_state = graph.propagator.create_initial_state(
@@ -192,12 +202,12 @@ class AnalysisService:
             args = graph.propagator.get_graph_args()
             
             # 분석 실행 및 결과 처리
-            logger.info("Starting graph execution...")
+            logger.info("🚀 그래프 실행 시작...")
             trace = []
             chunk_count = 0
             async for chunk in graph.graph.astream(init_agent_state, **args):
                 chunk_count += 1
-                logger.info(f"Processing chunk {chunk_count}: {list(chunk.keys()) if chunk else 'Empty chunk'}")
+                logger.info(f"📦 청크 처리 중 {chunk_count}: {list(chunk.keys()) if chunk else '빈 청크'}")
                 trace.append(chunk)
                 
                 # 실시간으로 분석 결과 업데이트
@@ -222,8 +232,11 @@ class AnalysisService:
                 self.analysis_repo.update(updates)
                 
                 self.session.commit()
+
+                logger.info(f"🎉 분석 완료 - ID: {analysis_id}")
                 
         except Exception as e:
+            logger.error(f"🔴 분석 실패 - Analysis ID: {analysis_id}, 오류: {str(e)}")
             raise Exception(f"Analysis execution failed: {str(e)}")
 
     async def _process_analysis_chunk(self, analysis_id: str, chunk: dict):

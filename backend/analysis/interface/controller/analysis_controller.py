@@ -27,7 +27,9 @@ def get_analysis_list_for_member(
         AnalysisSessionResponse(
             id=analysis.id,
             ticker=analysis.ticker,
-            status=analysis.status
+            status=analysis.status,
+            shallow_thinker=analysis.shallow_thinker,
+            deep_thinker=analysis.deep_thinker
         ) for analysis in analyses
     ]
 
@@ -46,9 +48,7 @@ def start_analysis_session(
     try:
         new_analysis = analysis_service.create_analysis(current_member.id, request, background_tasks)
         return AnalysisSessionResponse(
-            id=new_analysis.id,
-            ticker=new_analysis.ticker,
-            status=new_analysis.status
+            **new_analysis.model_dump()
         )
     except Exception as e:
         raise HTTPException(
