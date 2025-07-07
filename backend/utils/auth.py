@@ -26,7 +26,7 @@ class CurrentMember(BaseModel):
     def __str__(self):
         return f"{self.id}({self.role})"
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/members/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/members/login")
 
 
 
