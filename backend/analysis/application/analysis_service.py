@@ -241,38 +241,63 @@ class AnalysisService:
 
     async def _process_analysis_chunk(self, analysis_id: str, chunk: dict):
         """분석 중간 결과를 처리하고 저장하는 메서드"""
+        logger.info(f"🔍 청크 키 확인: {list(chunk.keys())}")
         updates = {}
         
         # 개별 분석가 보고서 업데이트
         if "market_report" in chunk and chunk["market_report"]:
+            logger.info("✅ market_report 업데이트")
             updates["market_report"] = chunk["market_report"]
+        elif "market_report" in chunk:
+            logger.info(f"⚠️ market_report 존재하지만 값이 비어있음: {repr(chunk['market_report'])}")
             
         if "sentiment_report" in chunk and chunk["sentiment_report"]:
+            logger.info("✅ sentiment_report 업데이트")
             updates["sentiment_report"] = chunk["sentiment_report"]
+        elif "sentiment_report" in chunk:
+            logger.info(f"⚠️ sentiment_report 존재하지만 값이 비어있음: {repr(chunk['sentiment_report'])}")
             
         if "news_report" in chunk and chunk["news_report"]:
+            logger.info("✅ news_report 업데이트")
             updates["news_report"] = chunk["news_report"]
+        elif "news_report" in chunk:
+            logger.info(f"⚠️ news_report 존재하지만 값이 비어있음: {repr(chunk['news_report'])}")
             
         if "fundamentals_report" in chunk and chunk["fundamentals_report"]:
+            logger.info("✅ fundamentals_report 업데이트")
             updates["fundamentals_report"] = chunk["fundamentals_report"]
+        elif "fundamentals_report" in chunk:
+            logger.info(f"⚠️ fundamentals_report 존재하지만 값이 비어있음: {repr(chunk['fundamentals_report'])}")
             
         # 팀별 의사결정 과정 업데이트
         if "investment_debate_state" in chunk and chunk["investment_debate_state"]:
+            logger.info("✅ investment_debate_state 업데이트")
             updates["investment_debate_state"] = chunk["investment_debate_state"]
+        elif "investment_debate_state" in chunk:
+            logger.info(f"⚠️ investment_debate_state 존재하지만 값이 비어있음: {repr(chunk['investment_debate_state'])}")
             
         if "trader_investment_plan" in chunk and chunk["trader_investment_plan"]:
+            logger.info("✅ trader_investment_plan 업데이트")
             updates["trader_investment_plan"] = chunk["trader_investment_plan"]
+        elif "trader_investment_plan" in chunk:
+            logger.info(f"⚠️ trader_investment_plan 존재하지만 값이 비어있음: {repr(chunk['trader_investment_plan'])}")
             
         if "risk_debate_state" in chunk and chunk["risk_debate_state"]:
+            logger.info("✅ risk_debate_state 업데이트")
             updates["risk_debate_state"] = chunk["risk_debate_state"]
+        elif "risk_debate_state" in chunk:
+            logger.info(f"⚠️ risk_debate_state 존재하지만 값이 비어있음: {repr(chunk['risk_debate_state'])}")
         
         # 업데이트가 있는 경우 저장
         if updates:
+            logger.info(f"💾 업데이트할 필드들: {list(updates.keys())}")
             # analysis_id를 포함한 AnalysisVO 객체 생성
             updates["id"] = analysis_id
             updates_vo = AnalysisVO(**updates)
             self.analysis_repo.update(updates_vo)
             self.session.commit()
+        else:
+            logger.info("❌ 업데이트할 데이터가 없음")
 
     def _generate_final_report(self, final_state: dict) -> str:
         """최종 통합 보고서를 생성하는 메서드"""
