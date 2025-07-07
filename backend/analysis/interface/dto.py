@@ -11,14 +11,14 @@ class AnalystType(str, Enum):
     FUNDAMENTALS = "fundamentals"
 
 class TradingAnalysisRequest(BaseModel):
-    ticker: str
-    analysis_date: str
-    analysts: List[AnalystType]
+    ticker: str = "NVDA"
+    analysis_date: str = "2025-07-07"
+    analysts: List[AnalystType] = [AnalystType.MARKET, AnalystType.SOCIAL, AnalystType.NEWS, AnalystType.FUNDAMENTALS]
     research_depth: int = 3
     llm_provider: str = "openai"
     backend_url: str = "https://api.openai.com/v1"
     shallow_thinker: str = "gpt-4o-mini"
-    deep_thinker: str = "gpt-4o"
+    deep_thinker: str = "gpt-4o-mini"
 
 class AnalysisSessionResponse(BaseModel):
     id : str

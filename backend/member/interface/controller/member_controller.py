@@ -6,6 +6,8 @@ from utils.containers import Container
 from dependency_injector.wiring import inject, Provide
 from fastapi.security import OAuth2PasswordRequestForm
 from utils.auth import get_current_member, CurrentMember, get_admin_member
+from analysis.interface.dto import AnalysisSessionResponse
+from analysis.application.analysis_service import AnalysisService
 
 router = APIRouter(prefix="/members", tags=["members"])
 
@@ -67,12 +69,3 @@ def get_member(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
     return member
 
-# @router.get("/analysis-sessions", response_model=list[AnalysisSessionResponse])
-# @inject
-# def get_member_analysis_sessions(
-#     current_member: Annotated[CurrentMember | None, Depends(get_current_member)] = None,
-#     member_service: Annotated[MemberService | None, Depends(Provide[Container.member_service])] = None
-# ):
-    
-#     result = member_service.get_analysis_sessions_by_member(current_member.id)
-#     return result

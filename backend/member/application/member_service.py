@@ -14,12 +14,12 @@ class MemberService:
         self,
         member_repo: IMemberRepository,
         crypto: Crypto,
-        db_session: Session,
+        session: Session,
         ulid: ULID
     ):
         self.member_repo = member_repo
         self.crypto = crypto
-        self.db_session = db_session
+        self.db_session = session
         self.ulid = ulid
 
     def create_member(

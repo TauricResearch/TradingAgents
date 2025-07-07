@@ -1,3 +1,8 @@
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+
+import logging
 from sqlmodel import Session
 from analysis.domain.repository.analysis_repo import IAnalysisRepository
 from ulid import ULID
@@ -9,19 +14,23 @@ from datetime import datetime
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from analysis.application.websocket_manager import WebSocketManager
+from analysis.infra.db_models.analysis import AnalysisStatus
 
-
+logger = logging.getLogger(__name__)
 
 class AnalysisService:
     def __init__(
         self,
         analysis_repo: IAnalysisRepository,
         session: Session,
-        ulid: ULID
+        ulid: ULID,
+        websocket_manager: WebSocketManager
     ):
         self.analysis_repo = analysis_repo
         self.session = session
         self.ulid = ulid
+        self.websocket_manager = websocket_manager
 
     def get_analysis_list(
         self,
@@ -46,6 +55,15 @@ class AnalysisService:
             
         return analysis
 
+    def get_analysis_sessions_by_member(
+        self,
+        member_id: str
+    ) -> list[AnalysisVO]:
+        analyses = self.analysis_repo.find_by_member_id(member_id)
+        if not analyses:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
+        return analyses
+
     def create_analysis(
         self,
         member_id: str,
@@ -67,13 +85,19 @@ class AnalysisService:
             backend_url=request.backend_url,
             shallow_thinker=request.shallow_thinker,
             deep_thinker=request.deep_thinker,
-            status="pending",
+            status=AnalysisStatus.PENDING,
             created_at=now,
             updated_at=now
         )
         
         saved_analysis = self.analysis_repo.save(analysis_vo)
+        if not saved_analysis:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to save analysis")
+        
         self.session.commit()
+        
+        # Register analysis with websocket manager
+        self.websocket_manager.register_analysis(saved_analysis.id, member_id)
         
         # 백그라운드에서 분석 실행
         background_tasks.add_task(self._run_analysis, saved_analysis.id)
@@ -83,48 +107,58 @@ class AnalysisService:
     async def _run_analysis(self, analysis_id: str):
         """백그라운드에서 실제 분석을 실행하는 메서드"""
         try:
-            # 분석 상태를 RUNNING으로 변경
-            analysis = self.analysis_repo.find_by_id(analysis_id)
-            if analysis:
-                analysis.status = "running"
-                analysis.updated_at = datetime.now()
-                self.analysis_repo.update(analysis)
-                self.session.commit()
-            
-            # 분석 정보 조회
-            analysis = self.analysis_repo.find_by_id(analysis_id)
+            analysis = AnalysisVO(
+                id=analysis_id,
+                status=AnalysisStatus.RUNNING,
+                updated_at=datetime.now()
+            )
+
+            analysis = self.analysis_repo.update(analysis)
             if not analysis:
-                return
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
+            
+            await self.websocket_manager.send_analysis_update(
+                analysis_id=analysis_id,
+                update_type="status_changed",
+                data={"status": "running", "message": "Analysis started"}
+            )
+            
+            
             
             # TradingAgentsGraph 설정 및 실행
-            config = self._create_config(analysis)
+            if analysis:
+                config = self._create_config(analysis)
             
             # 분석 실행 (실제 구현)
             await self._execute_trading_analysis(analysis_id, analysis, config)
             
-            # 분석 완료 상태로 변경
-            analysis = self.analysis_repo.find_by_id(analysis_id)
-            if analysis:
-                analysis.status = "completed"
-                analysis.completed_at = datetime.now()
-                analysis.updated_at = datetime.now()
-                self.analysis_repo.update(analysis)
-                self.session.commit()
+            # 완료 상태로 업데이트
+            completed_analysis = AnalysisVO(
+                id=analysis_id,
+                status=AnalysisStatus.COMPLETED,
+                completed_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            self.analysis_repo.update(completed_analysis)
+            self.session.commit()
+            
             
         except Exception as e:
-            # 에러 발생 시 실패 상태로 변경
-            analysis = self.analysis_repo.find_by_id(analysis_id)
-            if analysis:
-                analysis.status = "failed"
-                analysis.error_message = str(e)
-                analysis.completed_at = datetime.now()
-                analysis.updated_at = datetime.now()
-                self.analysis_repo.update(analysis)
-                self.session.commit()
+            now = datetime.now()
+            updates = AnalysisVO(
+                status=AnalysisStatus.FAILED,
+                error_message=str(e),
+                completed_at = now,
+                updated_at = now
+            )
+
+            self.analysis_repo.update(updates)
+            self.session.commit()
+
 
     def _create_config(self, analysis: AnalysisVO) -> dict:
         """분석 설정을 생성하는 메서드"""
-        config = DEFAULT_CONFIG.copy() if DEFAULT_CONFIG else {}
+        config = {}
         config.update({
             "max_debate_rounds": analysis.research_depth,
             "max_risk_discuss_rounds": analysis.research_depth,
@@ -138,12 +172,17 @@ class AnalysisService:
     async def _execute_trading_analysis(self, analysis_id: str, analysis: AnalysisVO, config: dict):
         """실제 TradingAgentsGraph를 실행하는 메서드"""
         try:
+            logger.info(f"Starting trading analysis for {analysis_id} with ticker {analysis.ticker}")
+            logger.info(f"Analysts selected: {analysis.analysts_selected}")
+            logger.info(f"Config: {config}")
+            
             # TradingAgentsGraph 초기화
             graph = TradingAgentsGraph(
                 analysis.analysts_selected,
                 config=config,
                 debug=True
             )
+            logger.info("TradingAgentsGraph initialized successfully")
             
             # 초기 상태 생성
             init_agent_state = graph.propagator.create_initial_state(
@@ -153,8 +192,12 @@ class AnalysisService:
             args = graph.propagator.get_graph_args()
             
             # 분석 실행 및 결과 처리
+            logger.info("Starting graph execution...")
             trace = []
+            chunk_count = 0
             async for chunk in graph.graph.astream(init_agent_state, **args):
+                chunk_count += 1
+                logger.info(f"Processing chunk {chunk_count}: {list(chunk.keys()) if chunk else 'Empty chunk'}")
                 trace.append(chunk)
                 
                 # 실시간으로 분석 결과 업데이트
@@ -167,12 +210,17 @@ class AnalysisService:
                 
                 # 최종 보고서 생성
                 final_report = self._generate_final_report(final_state)
+                analysis.final_trade_decision = final_decision
+                analysis.final_report = final_report
                 
                 # 최종 결과 저장
-                self.analysis_repo.update(analysis_id, {
-                    "final_trade_decision": final_decision,
-                    "final_report": final_report
-                })
+                updates = AnalysisVO(
+                    id=analysis_id,
+                    final_trade_decision=final_decision,
+                    final_report=final_report
+                )
+                self.analysis_repo.update(updates)
+                
                 self.session.commit()
                 
         except Exception as e:
@@ -207,7 +255,10 @@ class AnalysisService:
         
         # 업데이트가 있는 경우 저장
         if updates:
-            self.analysis_repo.update(analysis_id, updates)
+            # analysis_id를 포함한 AnalysisVO 객체 생성
+            updates["id"] = analysis_id
+            updates_vo = AnalysisVO(**updates)
+            self.analysis_repo.update(updates_vo)
             self.session.commit()
 
     def _generate_final_report(self, final_state: dict) -> str:
@@ -245,3 +296,4 @@ class AnalysisService:
             report_parts.append(f"{final_state['risk_debate_state']['judge_decision']}")
         
         return "\n\n".join(report_parts) if report_parts else "No analysis results available."
+

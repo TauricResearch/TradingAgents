@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, status, WebSocket, WebSocketDisconnect
 from analysis.interface.dto import (
     AnalysisSessionResponse,
     TradingAnalysisRequest,
@@ -9,6 +9,7 @@ from utils.auth import get_current_member, CurrentMember
 from dependency_injector.wiring import inject, Provide
 from analysis.application.analysis_service import AnalysisService
 from utils.containers import Container
+from analysis.application.websocket_manager import WebSocketManager
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
@@ -40,6 +41,7 @@ def start_analysis_session(
 ):
     """
     새로운 분석 세션을 시작합니다.
+    
     """
     try:
         new_analysis = analysis_service.create_analysis(current_member.id, request, background_tasks)
@@ -69,7 +71,7 @@ def get_analysis_result(
     return AnalysisResultResponse(
         id=analysis.id,
         ticker=analysis.ticker,
-        analysis_date=analysis.analysis_date,
+        analysis_date=analysis.analysis_date.isoformat() if hasattr(analysis.analysis_date, 'isoformat') else str(analysis.analysis_date),
         status=analysis.status,
         market_report=analysis.market_report,
         sentiment_report=analysis.sentiment_report,
@@ -106,3 +108,30 @@ def get_analysis_status(
         "updated_at": analysis.updated_at.isoformat(),
         "error_message": analysis.error_message
     }
+
+@router.websocket("/ws")
+@inject
+async def websocket_endpoint(
+    websocket: WebSocket,
+    current_member: Annotated[CurrentMember, Depends(get_current_member)],
+    websocket_manager: Annotated[WebSocketManager, Depends(Provide[Container.websocket_manager])]
+):
+    """
+    WebSocket endpoint for real-time analysis updates
+    """
+    try:
+        # Connect the websocket
+        await websocket_manager.connect(websocket, current_member.id)
+        
+        try:
+            # Keep connection alive
+            while True:
+                # Wait for messages from client (like ping/pong)
+                data = await websocket.receive_text()
+                # Echo back for heartbeat
+                if data == "ping":
+                    await websocket.send_text("pong")
+        except WebSocketDisconnect:
+            websocket_manager.disconnect(websocket, current_member.id)
+    except Exception as e:
+        await websocket.close(code=1011, reason=str(e))

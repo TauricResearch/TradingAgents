@@ -28,30 +28,7 @@ class AnalysisRepository(IAnalysisRepository):
 
     def save(self, analysis: AnalysisVO) -> AnalysisVO:
         new_analysis = Analysis(
-            id=analysis.id,
-            member_id=analysis.member_id,
-            ticker=analysis.ticker,
-            analysis_date=date.fromisoformat(analysis.analysis_date),
-            analysts_selected=analysis.analysts_selected,
-            research_depth=analysis.research_depth,
-            llm_provider=analysis.llm_provider,
-            backend_url=analysis.backend_url,
-            shallow_thinker=analysis.shallow_thinker,
-            deep_thinker=analysis.deep_thinker,
-            status=analysis.status,
-            market_report=analysis.market_report,
-            sentiment_report=analysis.sentiment_report,
-            news_report=analysis.news_report,
-            fundamentals_report=analysis.fundamentals_report,
-            investment_debate_state=analysis.investment_debate_state,
-            trader_investment_plan=analysis.trader_investment_plan,
-            risk_debate_state=analysis.risk_debate_state,
-            final_trade_decision=analysis.final_trade_decision,
-            final_report=analysis.final_report,
-            error_message=analysis.error_message,
-            completed_at=analysis.completed_at,
-            created_at=analysis.created_at,
-            updated_at=analysis.updated_at
+            **analysis.model_dump()
         )
         
         self.session.add(new_analysis)
@@ -67,14 +44,12 @@ class AnalysisRepository(IAnalysisRepository):
             return None
 
         # AnalysisVO의 데이터를 SQLModel 객체에 업데이트
-        vo_data = analysis_vo.sqlmodel_dump(exclude_unset=True)
-        for key, value in vo_data.items():
-            if hasattr(analysis, key) and key != 'id':  # id는 변경하지 않음
-                setattr(analysis, key, value)
+        analysis_data = analysis_vo.model_dump(exclude_unset=True)
         
         analysis.updated_at = datetime.now()
-        self.session.add(analysis)
+        analysis.sqlmodel_update(analysis_data)
+        
         self.session.flush()
-        self.session.refresh(analysis)
+        
 
         return AnalysisVO(**row_to_dict(analysis))
