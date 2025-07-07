@@ -1,3 +1,4 @@
+from tradingagents.agents.utils.safe_bind_tools import safe_bind_tools
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
@@ -72,7 +73,7 @@ Volume-Based Indicators:
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(ticker=ticker)
 
-        chain = prompt | llm.bind_tools(tools)
+        chain = prompt | safe_bind_tools(llm, tools)
 
         result = chain.invoke(state["messages"])
 

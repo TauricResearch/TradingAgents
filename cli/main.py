@@ -479,7 +479,8 @@ def get_user_selections():
     )
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
-
+    selected_embedding_model = select_embedding_agent(selected_llm_provider)
+    
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
@@ -489,6 +490,7 @@ def get_user_selections():
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
+        "embedding_model": selected_embedding_model,
     }
 
 
@@ -741,6 +743,7 @@ def run_analysis():
     config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
+    config["embedding_model"] = selections["embedding_model"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
 

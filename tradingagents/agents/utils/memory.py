@@ -1,24 +1,29 @@
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
-
+from langchain_ollama import OllamaEmbeddings
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
-            self.embedding = "nomic-embed-text"
+        if config["backend_url"] == "http://localhost:11434":
+            self.embedding = OllamaEmbeddings(
+                model=config["embedding_model"],
+                base_url=config["backend_url"],  # Remove trailing slash
+            )
         else:
-            self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+            self.embedding = config["embedding_model"]
+            self.client = OpenAI(base_url=config["backend_url"])
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""
-        
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
+        try:
+            response = self.client.embeddings.create(
+                model=self.embedding, input=text
+            )
+        except AttributeError:
+            return self.embedding.embed_query(text)
         return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):

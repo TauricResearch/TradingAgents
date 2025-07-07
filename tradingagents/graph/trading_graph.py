@@ -9,7 +9,7 @@ from typing import Dict, Any, Tuple, List, Optional
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-
+from langchain_ollama.chat_models import ChatOllama
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
@@ -58,7 +58,19 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
+        if self.config.get("llm_provider") == "ollama":
+            self.deep_thinking_llm = ChatOllama(
+                model=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"],
+                temperature=0.2,
+                gpu_layers=32,          # ← 這裡就能塞 Ollama 特有參數
+            )
+            self.quick_thinking_llm = ChatOllama(
+                model=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"].rstrip("/v1"),  # Remove trailing slash
+                temperature=0.1,
+            )
+        elif self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
             self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
         elif self.config["llm_provider"].lower() == "anthropic":
