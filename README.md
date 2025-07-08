@@ -123,6 +123,9 @@ You will need the OpenAI API for all the agents.
 ```bash
 export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
 ```
+**Optional** Stock Price Data
+
+Since YFinance may not work, you can add alpha vantage api key in default_config.py.
 
 ### CLI Usage
 

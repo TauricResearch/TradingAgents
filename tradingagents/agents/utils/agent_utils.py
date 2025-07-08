@@ -163,6 +163,45 @@ class Toolkit:
 
     @staticmethod
     @tool
+    def get_alpha_vantage_data(
+            symbol: Annotated[str, "ticker symbol of the company"],
+            start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+            end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    ) -> str:
+        """
+        Retrieve the stock price data for a given ticker symbol from Alpha Vantage.
+        Args:
+            symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
+            start_date (str): Start date in yyyy-mm-dd format
+            end_date (str): End date in yyyy-mm-dd format
+        Returns:
+            str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
+        """
+
+        result_data = interface.get_alpha_vantage_data(symbol, start_date, end_date)
+        return result_data
+
+    @staticmethod
+    @tool
+    def get_alpha_vantage_summary_signals(
+            symbol: Annotated[str, "ticker symbol of the company"],
+            start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+            end_date: Annotated[str, "End date in yyyy-mm-dd format"]
+    ) -> str:
+        """
+        Calculate technical indicators and signals based on stock price data from Alpha Vantage.
+        Args:
+            symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
+            start_date (str): Start date in yyyy-mm-dd format
+            end_date (str): End date in yyyy-mm-dd format
+        Returns:
+            str: Formatted technical indicators summary and signals.
+        """
+        result_data = interface.get_alpha_vantage_summary_signals(symbol, start_date, end_date)
+        return result_data
+
+    @staticmethod
+    @tool
     def get_stockstats_indicators_report(
         symbol: Annotated[str, "ticker symbol of the company"],
         indicator: Annotated[
