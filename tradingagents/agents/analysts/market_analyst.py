@@ -14,6 +14,8 @@ def create_market_analyst(llm, toolkit):
             tools = [
                 toolkit.get_YFin_data_online,
                 toolkit.get_stockstats_indicators_report_online,
+                toolkit.get_alpha_vantage_data,
+                toolkit.get_alpha_vantage_summary_signals,
             ]
         else:
             tools = [
