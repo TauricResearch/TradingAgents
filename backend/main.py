@@ -7,6 +7,7 @@ from utils.containers import Container
 from utils.middlewares import RateLimitMiddleware, LoggingMiddleware, SecurityHeadersMiddleware
 from utils.exceptions import BaseAPIException
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from analysis.interface.controller.analysis_controller import router as analysis_router
 from member.interface.controller.member_controller import router as member_router
@@ -114,7 +115,7 @@ async def health_check():
     return {
         "status": "healthy",
         "environment": settings.ENVIRONMENT,
-        "timestamp": "2024-01-01T00:00:00Z"
+        "timestamp": datetime.utcnow().isoformat() + "Z"
     }
 
 @app.get("/")

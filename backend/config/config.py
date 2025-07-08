@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import validator, Field
+from pydantic import field_validator, Field
 import secrets
 import os
 
@@ -42,21 +42,24 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = Field(default="development", description="Environment (development/staging/production)")
     DEBUG: bool = Field(default=True, description="Debug mode")
     
-    @validator('ENVIRONMENT')
+    @field_validator('ENVIRONMENT')
+    @classmethod
     def validate_environment(cls, v):
         allowed_envs = ['development', 'staging', 'production']
         if v not in allowed_envs:
             raise ValueError(f'Environment must be one of {allowed_envs}')
         return v
     
-    @validator('LOG_LEVEL')
+    @field_validator('LOG_LEVEL')
+    @classmethod
     def validate_log_level(cls, v):
         allowed_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
         if v.upper() not in allowed_levels:
             raise ValueError(f'Log level must be one of {allowed_levels}')
         return v.upper()
     
-    @validator('SECRET_KEY')
+    @field_validator('SECRET_KEY')
+    @classmethod
     def validate_secret_key(cls, v):
         if len(v) < 32:
             raise ValueError('SECRET_KEY must be at least 32 characters long')

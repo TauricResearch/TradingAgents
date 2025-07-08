@@ -14,7 +14,7 @@ from tqdm import tqdm
 import yfinance as yf
 from openai import OpenAI
 from .config import get_config, set_config, DATA_DIR
-from .search_provider_factory import SearchProviderFactory
+from .search_provider_factory import SearchProviderFactory, create_search_provider_factory
 
 
 def parse_date_range(curr_date: str, look_back_days: int) -> Tuple[str, str]:
@@ -709,9 +709,13 @@ def get_YFin_data(
     return filtered_data
 
 
+# Enhanced search provider factory instance (singleton)
+_search_factory = create_search_provider_factory()
+
+
 def get_stock_news(ticker, curr_date):
     config = get_config()
-    search_provider = SearchProviderFactory.create_provider(config)
+    search_provider = _search_factory.create_provider(config)
     query = f"Can you search Social Media for {ticker} from 7 days before {curr_date} to {curr_date}? Make sure you only get the data posted during that period."
     return search_provider.search(query)
     
@@ -719,7 +723,7 @@ def get_stock_news(ticker, curr_date):
 
 def get_global_news(curr_date):
     config = get_config()
-    search_provider = SearchProviderFactory.create_provider(config)
+    search_provider = _search_factory.create_provider(config)
     query = f"Search for global macroeconomic news and financial market updates from 7 days before {curr_date} to {curr_date}. Focus on central bank decisions, economic indicators, geopolitical events, and market-moving news that would be important for trading decisions."
     return search_provider.search(query)
     
@@ -727,7 +731,7 @@ def get_global_news(curr_date):
 
 def get_fundamentals(ticker, curr_date):
     config = get_config()
-    search_provider = SearchProviderFactory.create_provider(config)
+    search_provider = _search_factory.create_provider(config)
     query = f"Search for fundamental analysis data and financial metrics for {ticker} stock from the month before {curr_date} to the month of {curr_date}. Look for earnings reports, financial ratios like PE, PS, cash flow, revenue growth, analyst ratings, and any fundamental analysis discussions. Please present key metrics in a structured format."
     return search_provider.search(query)
     

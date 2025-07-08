@@ -9,3 +9,4 @@ eval_data/
 results/
 .env
 tradingagents/dataflows/data_cache/
+CLAUDE.md

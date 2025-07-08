@@ -127,7 +127,7 @@ class TradingAgentsGraph:
                     # online tools
                     self.toolkit.get_stock_news,
                     # offline tools
-                    self.toolkit.get_reddit_stock_info,
+                    # self.toolkit.get_reddit_stock_info,
                 ]
             ),
             "news": ToolNode(
@@ -136,8 +136,8 @@ class TradingAgentsGraph:
                     self.toolkit.get_global_news,
                     self.toolkit.get_google_news,
                     # offline tools
-                    self.toolkit.get_finnhub_news,
-                    self.toolkit.get_reddit_news,
+                    # self.toolkit.get_finnhub_news,
+                    # self.toolkit.get_reddit_news,
                 ]
             ),
             "fundamentals": ToolNode(
@@ -145,11 +145,11 @@ class TradingAgentsGraph:
                     # online tools
                     self.toolkit.get_fundamentals,
                     # offline tools
-                    self.toolkit.get_finnhub_company_insider_sentiment,
-                    self.toolkit.get_finnhub_company_insider_transactions,
-                    self.toolkit.get_simfin_balance_sheet,
-                    self.toolkit.get_simfin_cashflow,
-                    self.toolkit.get_simfin_income_stmt,
+                    # self.toolkit.get_finnhub_company_insider_sentiment,
+                    # self.toolkit.get_finnhub_company_insider_transactions,
+                    # self.toolkit.get_simfin_balance_sheet,
+                    # self.toolkit.get_simfin_cashflow,
+                    # self.toolkit.get_simfin_income_stmt,
                 ]
             ),
         }
