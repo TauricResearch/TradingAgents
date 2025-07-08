@@ -3,7 +3,7 @@ from typing import Dict, Optional
 
 # Use default config but allow it to be overridden
 _config: Optional[Dict] = None
-DATA_DIR: Optional[str] = None
+DATA_DIR: str = ""
 
 
 def initialize_config():

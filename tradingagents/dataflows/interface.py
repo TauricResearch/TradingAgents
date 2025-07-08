@@ -1,4 +1,4 @@
-from typing import Annotated, Dict
+from typing import Annotated, Dict, Tuple
 from .reddit_utils import fetch_top_from_category
 from .yfin_utils import *
 from .stockstats_utils import *
@@ -14,7 +14,24 @@ from tqdm import tqdm
 import yfinance as yf
 from openai import OpenAI
 from .config import get_config, set_config, DATA_DIR
-from .search_provider_factory import SearchProviderFactory
+from .search_provider_factory import SearchProviderFactory, create_search_provider_factory
+
+
+def parse_date_range(curr_date: str, look_back_days: int) -> Tuple[str, str]:
+    """
+    Parse date range and return start and end dates.
+    
+    Args:
+        curr_date: Current date in yyyy-mm-dd format
+        look_back_days: Number of days to look back
+        
+    Returns:
+        Tuple of (start_date, end_date) as strings
+    """
+    end_date = curr_date
+    start_date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
+    before = start_date_obj - relativedelta(days=look_back_days)
+    return before.strftime("%Y-%m-%d"), end_date
 
 
 def get_finnhub_news(
@@ -37,9 +54,7 @@ def get_finnhub_news(
 
     """
 
-    start_date = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = start_date - relativedelta(days=look_back_days)
-    before = before.strftime("%Y-%m-%d")
+    before, _ = parse_date_range(curr_date, look_back_days)
 
     result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
 
@@ -76,9 +91,7 @@ def get_finnhub_company_insider_sentiment(
         str: a report of the sentiment in the past 15 days starting at curr_date
     """
 
-    date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = date_obj - relativedelta(days=look_back_days)
-    before = before.strftime("%Y-%m-%d")
+    before, _ = parse_date_range(curr_date, look_back_days)
 
     data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
 
@@ -117,9 +130,7 @@ def get_finnhub_company_insider_transactions(
         str: a report of the company's insider transaction/trading informtaion in the past 15 days
     """
 
-    date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = date_obj - relativedelta(days=look_back_days)
-    before = before.strftime("%Y-%m-%d")
+    before, _ = parse_date_range(curr_date, look_back_days)
 
     data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
 
@@ -290,9 +301,7 @@ def get_google_news(
 ) -> str:
     query = query.replace(" ", "+")
 
-    start_date = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = start_date - relativedelta(days=look_back_days)
-    before = before.strftime("%Y-%m-%d")
+    before, _ = parse_date_range(curr_date, look_back_days)
 
     news_results = getNewsData(query, before, curr_date)
 
@@ -323,18 +332,17 @@ def get_reddit_global_news(
         str: A formatted dataframe containing the latest news articles posts on reddit and meta information in these columns: "created_utc", "id", "title", "selftext", "score", "num_comments", "url"
     """
 
-    start_date = datetime.strptime(start_date, "%Y-%m-%d")
-    before = start_date - relativedelta(days=look_back_days)
-    before = before.strftime("%Y-%m-%d")
+    before, start_date_str = parse_date_range(start_date, look_back_days)
+    start_date_dt = datetime.strptime(start_date_str, "%Y-%m-%d")
 
     posts = []
     # iterate from start_date to end_date
     curr_date = datetime.strptime(before, "%Y-%m-%d")
 
-    total_iterations = (start_date - curr_date).days + 1
-    pbar = tqdm(desc=f"Getting Global News on {start_date}", total=total_iterations)
+    total_iterations = (start_date_dt - curr_date).days + 1
+    pbar = tqdm(desc=f"Getting Global News on {start_date_dt}", total=total_iterations)
 
-    while curr_date <= start_date:
+    while curr_date <= start_date_dt:
         curr_date_str = curr_date.strftime("%Y-%m-%d")
         fetch_result = fetch_top_from_category(
             "global_news",
@@ -377,21 +385,20 @@ def get_reddit_company_news(
         str: A formatted dataframe containing the latest news articles posts on reddit and meta information in these columns: "created_utc", "id", "title", "selftext", "score", "num_comments", "url"
     """
 
-    start_date = datetime.strptime(start_date, "%Y-%m-%d")
-    before = start_date - relativedelta(days=look_back_days)
-    before = before.strftime("%Y-%m-%d")
+    before, start_date_str = parse_date_range(start_date, look_back_days)
+    start_date_dt = datetime.strptime(start_date_str, "%Y-%m-%d")
 
     posts = []
     # iterate from start_date to end_date
     curr_date = datetime.strptime(before, "%Y-%m-%d")
 
-    total_iterations = (start_date - curr_date).days + 1
+    total_iterations = (start_date_dt - curr_date).days + 1
     pbar = tqdm(
-        desc=f"Getting Company News for {ticker} on {start_date}",
+        desc=f"Getting Company News for {ticker} on {start_date_dt}",
         total=total_iterations,
     )
 
-    while curr_date <= start_date:
+    while curr_date <= start_date_dt:
         curr_date_str = curr_date.strftime("%Y-%m-%d")
         fetch_result = fetch_top_from_category(
             "company_news",
@@ -509,8 +516,9 @@ def get_stock_stats_indicators_window(
         )
 
     end_date = curr_date
-    curr_date = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = curr_date - relativedelta(days=look_back_days)
+    before_str, _ = parse_date_range(curr_date, look_back_days)
+    before_dt = datetime.strptime(before_str, "%Y-%m-%d")
+    curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
 
     if not online:
         # read from YFin data
@@ -524,30 +532,30 @@ def get_stock_stats_indicators_window(
         dates_in_df = data["Date"].astype(str).str[:10]
 
         ind_string = ""
-        while curr_date >= before:
+        while curr_date_dt >= before_dt:
             # only do the trading dates
-            if curr_date.strftime("%Y-%m-%d") in dates_in_df.values:
+            if curr_date_dt.strftime("%Y-%m-%d") in dates_in_df.values:
                 indicator_value = get_stockstats_indicator(
-                    symbol, indicator, curr_date.strftime("%Y-%m-%d"), online
+                    symbol, indicator, curr_date_dt.strftime("%Y-%m-%d"), online
                 )
 
-                ind_string += f"{curr_date.strftime('%Y-%m-%d')}: {indicator_value}\n"
+                ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
 
-            curr_date = curr_date - relativedelta(days=1)
+            curr_date_dt = curr_date_dt - relativedelta(days=1)
     else:
         # online gathering
         ind_string = ""
-        while curr_date >= before:
+        while curr_date_dt >= before_dt:
             indicator_value = get_stockstats_indicator(
-                symbol, indicator, curr_date.strftime("%Y-%m-%d"), online
+                symbol, indicator, curr_date_dt.strftime("%Y-%m-%d"), online
             )
 
-            ind_string += f"{curr_date.strftime('%Y-%m-%d')}: {indicator_value}\n"
+            ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
 
-            curr_date = curr_date - relativedelta(days=1)
+            curr_date_dt = curr_date_dt - relativedelta(days=1)
 
     result_str = (
-        f"## {indicator} values from {before.strftime('%Y-%m-%d')} to {end_date}:\n\n"
+        f"## {indicator} values from {before_dt.strftime('%Y-%m-%d')} to {end_date}:\n\n"
         + ind_string
         + "\n\n"
         + best_ind_params.get(indicator, "No description available.")
@@ -565,20 +573,20 @@ def get_stockstats_indicator(
     online: Annotated[bool, "to fetch data online or offline"],
 ) -> str:
 
-    curr_date = datetime.strptime(curr_date, "%Y-%m-%d")
-    curr_date = curr_date.strftime("%Y-%m-%d")
+    curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    curr_date_str = curr_date_dt.strftime("%Y-%m-%d")
 
     try:
         indicator_value = StockstatsUtils.get_stock_stats(
             symbol,
             indicator,
-            curr_date,
+            curr_date_str,
             os.path.join(DATA_DIR, "market_data", "price_data"),
             online=online,
         )
     except Exception as e:
         print(
-            f"Error getting stockstats indicator data for indicator {indicator} on {curr_date}: {e}"
+            f"Error getting stockstats indicator data for indicator {indicator} on {curr_date_str}: {e}"
         )
         return ""
 
@@ -591,9 +599,7 @@ def get_YFin_data_window(
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
     # calculate past days
-    date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = date_obj - relativedelta(days=look_back_days)
-    start_date = before.strftime("%Y-%m-%d")
+    start_date, _ = parse_date_range(curr_date, look_back_days)
 
     # read in data
     data = pd.read_csv(
@@ -703,9 +709,13 @@ def get_YFin_data(
     return filtered_data
 
 
+# Enhanced search provider factory instance (singleton)
+_search_factory = create_search_provider_factory()
+
+
 def get_stock_news(ticker, curr_date):
     config = get_config()
-    search_provider = SearchProviderFactory.create_provider(config)
+    search_provider = _search_factory.create_provider(config)
     query = f"Can you search Social Media for {ticker} from 7 days before {curr_date} to {curr_date}? Make sure you only get the data posted during that period."
     return search_provider.search(query)
     
@@ -713,7 +723,7 @@ def get_stock_news(ticker, curr_date):
 
 def get_global_news(curr_date):
     config = get_config()
-    search_provider = SearchProviderFactory.create_provider(config)
+    search_provider = _search_factory.create_provider(config)
     query = f"Search for global macroeconomic news and financial market updates from 7 days before {curr_date} to {curr_date}. Focus on central bank decisions, economic indicators, geopolitical events, and market-moving news that would be important for trading decisions."
     return search_provider.search(query)
     
@@ -721,7 +731,7 @@ def get_global_news(curr_date):
 
 def get_fundamentals(ticker, curr_date):
     config = get_config()
-    search_provider = SearchProviderFactory.create_provider(config)
+    search_provider = _search_factory.create_provider(config)
     query = f"Search for fundamental analysis data and financial metrics for {ticker} stock from the month before {curr_date} to the month of {curr_date}. Look for earnings reports, financial ratios like PE, PS, cash flow, revenue growth, analyst ratings, and any fundamental analysis discussions. Please present key metrics in a structured format."
     return search_provider.search(query)
     

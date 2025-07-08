@@ -74,10 +74,14 @@ def getNewsData(query, start_date, end_date):
             for el in results_on_page:
                 try:
                     link = el.find("a")["href"]
-                    title = el.select_one("div.MBeuO").get_text()
-                    snippet = el.select_one(".GI74Re").get_text()
-                    date = el.select_one(".LfVVr").get_text()
-                    source = el.select_one(".NUnG9d span").get_text()
+                    title_el = el.select_one("div.MBeuO")
+                    title = title_el.get_text() if title_el else ""
+                    snippet_el = el.select_one(".GI74Re")
+                    snippet = snippet_el.get_text() if snippet_el else ""
+                    date_el = el.select_one(".LfVVr")
+                    date = date_el.get_text() if date_el else ""
+                    source_el = el.select_one(".NUnG9d span")
+                    source = source_el.get_text() if source_el else ""
                     news_results.append(
                         {
                             "link": link,
