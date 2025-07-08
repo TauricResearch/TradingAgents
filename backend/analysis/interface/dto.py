@@ -13,7 +13,7 @@ class AnalystType(str, Enum):
 class TradingAnalysisRequest(BaseModel):
     ticker: str = "NVDA"
     analysis_date: str = "2025-07-07"
-    analysts: List[AnalystType] = [AnalystType.MARKET, AnalystType.SOCIAL, AnalystType.NEWS, AnalystType.FUNDAMENTALS]
+    analysts: List[AnalystType] = [AnalystType.MARKET, AnalystType.NEWS, AnalystType.FUNDAMENTALS]
     research_depth: int = 1
     llm_provider: str = "google"
     backend_url: str = "https://generativelanguage.googleapis.com/v1"

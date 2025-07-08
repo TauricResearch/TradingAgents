@@ -132,6 +132,8 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
             ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
             ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
+            ("o4-mini - Specialized reasoning model (compact)", "o4-mini"),
+            ("o3 - Full advanced reasoning model", "o3"),
         ],
         "anthropic": [
             ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),

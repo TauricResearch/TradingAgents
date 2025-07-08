@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 
 class SearchProvider(ABC):
     @abstractmethod
-    def search(self, query: str, ticker: str, curr_date: str) -> str:
+    def search(self, query: str) -> str:
         pass
 
 
