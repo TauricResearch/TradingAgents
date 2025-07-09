@@ -6,3 +6,4 @@ src/
 eval_results/
 eval_data/
 *.egg-info/
+.env

@@ -103,7 +103,7 @@ cd TradingAgents
 
 Create a virtual environment in any of your favorite environment managers:
 ```bash
-conda create -n tradingagents python=3.13
+conda create -n tradingagents python=3.11
 conda activate tradingagents
 ```
 
@@ -119,9 +119,9 @@ You will also need the FinnHub API for financial data. All of our code is implem
 export FINNHUB_API_KEY=$YOUR_FINNHUB_API_KEY
 ```
 
-You will need the OpenAI API for all the agents.
+You will need the DeepSeek API for all the agents. By default, TradingAgents uses DeepSeek as the LLM provider.
 ```bash
-export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
+export DEEPSEEK_API_KEY=$YOUR_DEEPSEEK_API_KEY
 ```
 
 ### CLI Usage
@@ -150,7 +150,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. We utilize `o1-preview` and `gpt-4o` as our deep thinking and fast thinking LLMs for our experiments. However, for testing purposes, we recommend you use `o4-mini` and `gpt-4.1-mini` to save on costs as our framework makes **lots of** API calls.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. By default, we utilize `deepseek-chat` as our deep thinking and fast thinking LLMs. You can change the default models in `tradingagents/default_config.py`.
 
 ### Python Usage
 
