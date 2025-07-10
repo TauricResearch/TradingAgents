@@ -27,3 +27,6 @@ config/usage.json
 # 数据缓存目录（不纳入版本控制）
 data_cache/
 tradingagents/dataflows/data_cache/
+
+# PR相关文件（不纳入版本控制）
+PR_DESCRIPTION.md
