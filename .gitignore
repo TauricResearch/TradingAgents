@@ -20,3 +20,10 @@ test_env/
 
 # 分析结果目录（不纳入版本控制）
 results/
+
+# 配置文件（包含使用统计，不纳入版本控制）
+config/usage.json
+
+# 数据缓存目录（不纳入版本控制）
+data_cache/
+tradingagents/dataflows/data_cache/

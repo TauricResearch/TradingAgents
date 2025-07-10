@@ -25,9 +25,15 @@
 
 ---
 
-# TradingAgents: Multi-Agents LLM Financial Trading Framework 
+# TradingAgents: Multi-Agents LLM Financial Trading Framework
 
-> 🎉 **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
+> 🎉 **TradingAgents** with major updates! Complete Chinese A-share market support with professional Tushare API integration and DashScope LLM optimization.
+
+## 🌟 **Latest Major Updates**
+- 🇨🇳 **Complete Chinese A-Share Support**: Professional Tushare API integration replacing unstable TongDaXin
+- 🤖 **DashScope LLM Optimization**: Fixed tool calling with native Function Calling support
+- 🧠 **Smart Data Source Selection**: Automatic stock type detection and intelligent data routing
+- 🏗️ **Enterprise Architecture**: MongoDB + Redis caching, modular design for global markets
 >
 > So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
 

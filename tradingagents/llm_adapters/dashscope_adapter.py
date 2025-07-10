@@ -109,6 +109,10 @@ class ChatDashScope(BaseChatModel):
             "max_tokens": self.max_tokens,
             "top_p": self.top_p,
         }
+
+        # 添加工具支持（如果有绑定的工具）
+        if hasattr(self, '_tools') and self._tools:
+            request_params["tools"] = self._tools
         
         # 添加停止词
         if stop:
@@ -124,7 +128,57 @@ class ChatDashScope(BaseChatModel):
             if response.status_code == 200:
                 # 解析响应
                 output = response.output
-                message_content = output.choices[0].message.content
+                choice = output.choices[0]
+                message = choice.message
+
+                # 检查是否有工具调用
+                tool_calls_found = False
+                try:
+                    # 尝试不同的工具调用属性名称
+                    if hasattr(message, 'tool_calls') and getattr(message, 'tool_calls', None):
+                        tool_calls_data = message.tool_calls
+                        tool_calls_found = True
+                    elif hasattr(message, 'function_call') and getattr(message, 'function_call', None):
+                        # 单个函数调用格式
+                        tool_calls_data = [message.function_call]
+                        tool_calls_found = True
+                    elif isinstance(message, dict) and 'tool_calls' in message:
+                        tool_calls_data = message['tool_calls']
+                        tool_calls_found = True
+                except (KeyError, AttributeError):
+                    tool_calls_found = False
+
+                if tool_calls_found:
+                    # 处理工具调用响应
+                    from langchain_core.messages import AIMessage
+                    from langchain_core.messages.tool import ToolCall
+
+                    tool_calls = []
+                    for tool_call in tool_calls_data:
+                        try:
+                            if hasattr(tool_call, 'function'):
+                                # OpenAI格式
+                                tool_calls.append(ToolCall(
+                                    name=tool_call.function.name,
+                                    args=json.loads(tool_call.function.arguments),
+                                    id=getattr(tool_call, 'id', f"call_{len(tool_calls)}")
+                                ))
+                            elif isinstance(tool_call, dict):
+                                # 字典格式
+                                tool_calls.append(ToolCall(
+                                    name=tool_call.get('name', ''),
+                                    args=tool_call.get('arguments', {}),
+                                    id=tool_call.get('id', f"call_{len(tool_calls)}")
+                                ))
+                        except Exception as tc_error:
+                            print(f"⚠️ 工具调用解析错误: {tc_error}")
+                            continue
+
+                    ai_message = AIMessage(content=getattr(message, 'content', '') or "", tool_calls=tool_calls)
+                    generation = ChatGeneration(message=ai_message)
+                else:
+                    # 普通文本响应
+                    message_content = getattr(message, 'content', '') or str(message)
                 
                 # 提取token使用量信息
                 input_tokens = 0
@@ -166,12 +220,11 @@ class ChatDashScope(BaseChatModel):
                         # 记录失败不应该影响主要功能
                         print(f"Token tracking failed: {track_error}")
                 
-                # 创建 AI 消息
-                ai_message = AIMessage(content=message_content)
-                
-                # 创建生成结果
-                generation = ChatGeneration(message=ai_message)
-                
+                # 如果还没有创建generation（即普通文本响应）
+                if 'generation' not in locals():
+                    ai_message = AIMessage(content=message_content)
+                    generation = ChatGeneration(message=ai_message)
+
                 return ChatResult(generations=[generation])
             else:
                 raise Exception(f"DashScope API error: {response.code} - {response.message}")
@@ -196,25 +249,53 @@ class ChatDashScope(BaseChatModel):
         **kwargs: Any,
     ) -> "ChatDashScope":
         """绑定工具到模型"""
-        # 注意：DashScope 目前不直接支持工具调用
-        # 这里我们返回一个新的实例，但实际上工具调用需要在应用层处理
+        # DashScope 现在支持工具调用（Function Calling）
+        # 需要设置 result_format="message" 并传递 tools 参数
         formatted_tools = []
         for tool in tools:
-            if hasattr(tool, "name") and hasattr(tool, "description"):
-                # 这是一个 BaseTool 实例
-                formatted_tools.append({
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": getattr(tool, "args_schema", {})
-                })
-            elif isinstance(tool, dict):
-                formatted_tools.append(tool)
-            else:
-                # 尝试转换为 OpenAI 工具格式
-                try:
-                    formatted_tools.append(convert_to_openai_tool(tool))
-                except Exception:
-                    pass
+            try:
+                if hasattr(tool, "name") and hasattr(tool, "description"):
+                    # 这是一个 BaseTool 实例
+                    tool_dict = {
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                        }
+                    }
+
+                    # 处理参数schema
+                    if hasattr(tool, "args_schema") and tool.args_schema:
+                        try:
+                            # 获取pydantic模型的schema
+                            if hasattr(tool.args_schema, "model_json_schema"):
+                                schema = tool.args_schema.model_json_schema()
+                            elif hasattr(tool.args_schema, "schema"):
+                                schema = tool.args_schema.schema()
+                            else:
+                                schema = {}
+                            tool_dict["function"]["parameters"] = schema
+                        except Exception:
+                            # 如果schema获取失败，使用空参数
+                            tool_dict["function"]["parameters"] = {"type": "object", "properties": {}}
+                    else:
+                        tool_dict["function"]["parameters"] = {"type": "object", "properties": {}}
+
+                    formatted_tools.append(tool_dict)
+
+                elif isinstance(tool, dict):
+                    formatted_tools.append(tool)
+                else:
+                    # 尝试转换为 OpenAI 工具格式
+                    try:
+                        openai_tool = convert_to_openai_tool(tool)
+                        formatted_tools.append(openai_tool)
+                    except Exception:
+                        # 如果转换失败，跳过这个工具
+                        continue
+            except Exception as e:
+                print(f"⚠️ 跳过工具转换错误: {e}")
+                continue
 
         # 创建新实例，保存工具信息
         new_instance = self.__class__(

@@ -1,0 +1,11 @@
+{
+  "symbol": "600036",
+  "data_type": "string",
+  "start_date": "2024-01-01",
+  "end_date": "2025-07-10",
+  "data_source": "tushare",
+  "market_type": "china",
+  "cache_time": "2025-07-11T02:40:03.517519",
+  "file_path": "C:\\code\\TradingAgents\\tradingagents\\dataflows\\data_cache\\china_stocks\\600036_stock_data_40e21b85642d.json",
+  "cache_key": "600036_stock_data_40e21b85642d"
+}
