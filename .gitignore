@@ -7,3 +7,26 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
+
+# 测试目录（不纳入版本控制）
+tests/
+
+# 中文版本目录（不纳入版本控制）
+TradingAgentsCN/
+
+# 虚拟环境目录（不纳入版本控制）
+test_env/
+.venv/
+
+# 分析结果目录（不纳入版本控制）
+results/
+
+# 配置文件（包含使用统计，不纳入版本控制）
+config/usage.json
+
+# 数据缓存目录（不纳入版本控制）
+data_cache/
+tradingagents/dataflows/data_cache/
+
+# PR相关文件（不纳入版本控制）
+PR_DESCRIPTION.md

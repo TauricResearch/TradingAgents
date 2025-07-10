@@ -3,6 +3,25 @@ from .reddit_utils import fetch_top_from_category
 from .yfin_utils import *
 from .stockstats_utils import *
 from .googlenews_utils import *
+
+# Import Chinese finance utilities if available
+try:
+    from .chinese_finance_utils import get_chinese_social_sentiment
+except ImportError:
+    def get_chinese_social_sentiment(*args, **kwargs):
+        return "Chinese finance utilities not available"
+
+# Import Tushare utilities for Chinese stock data
+try:
+    from .tushare_utils import get_china_stock_data
+    from .optimized_china_data import get_china_stock_data_cached
+    TUSHARE_AVAILABLE = True
+except ImportError:
+    TUSHARE_AVAILABLE = False
+    def get_china_stock_data(*args, **kwargs):
+        return "Tushare utilities not available. Please install tushare: pip install tushare"
+    def get_china_stock_data_cached(*args, **kwargs):
+        return "Tushare utilities not available. Please install tushare: pip install tushare"
 from .finnhub_utils import get_data_in_range
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
@@ -43,7 +62,14 @@ def get_finnhub_news(
     result = get_data_in_range(ticker, before, curr_date, "news_data", DATA_DIR)
 
     if len(result) == 0:
-        return ""
+        error_msg = f"⚠️ Unable to retrieve news data for {ticker} ({before} to {curr_date})\n"
+        error_msg += f"Possible reasons:\n"
+        error_msg += f"1. Data files do not exist or path configuration is incorrect\n"
+        error_msg += f"2. No news data available for the specified date range\n"
+        error_msg += f"3. Need to download or update Finnhub news data first\n"
+        error_msg += f"Suggestion: Check data directory configuration or re-fetch news data"
+        print(f"📰 [DEBUG] {error_msg}")
+        return error_msg
 
     combined_result = ""
     for day, data in result.items():
@@ -805,3 +831,289 @@ def get_fundamentals_openai(ticker, curr_date):
     )
 
     return response.output[1].content[0].text
+
+
+def get_fundamentals_finnhub(ticker, curr_date):
+    """
+    Use Finnhub API to get stock fundamental data as an alternative to OpenAI
+    Args:
+        ticker (str): Stock symbol
+        curr_date (str): Current date in yyyy-mm-dd format
+    Returns:
+        str: Formatted fundamental data report
+    """
+    try:
+        import finnhub
+        import os
+
+        # Try to import cache manager
+        try:
+            from .cache_manager import get_cache
+            cache = get_cache()
+
+            # Check cache first
+            cached_key = cache.find_cached_stock_data(ticker, curr_date, curr_date, "finnhub_fundamentals")
+            if cached_key and cache.is_cache_valid(cached_key, ticker):
+                cached_data = cache.load_stock_data(cached_key)
+                if cached_data:
+                    print(f"💾 [DEBUG] Loading Finnhub fundamental data from cache: {ticker}")
+                    return cached_data
+        except ImportError:
+            cache = None
+            print("⚠️ Cache manager not available, proceeding without cache")
+
+        # Get Finnhub API key
+        api_key = os.getenv('FINNHUB_API_KEY')
+        if not api_key:
+            return "Error: FINNHUB_API_KEY environment variable not configured"
+
+        # Initialize Finnhub client
+        finnhub_client = finnhub.Client(api_key=api_key)
+
+        print(f"📊 [DEBUG] Using Finnhub API to get fundamental data for {ticker}...")
+
+        # Get basic financial data
+        try:
+            basic_financials = finnhub_client.company_basic_financials(ticker, 'all')
+        except Exception as e:
+            print(f"❌ [DEBUG] Failed to get Finnhub basic financials: {str(e)}")
+            basic_financials = None
+
+        # Get company profile
+        try:
+            company_profile = finnhub_client.company_profile2(symbol=ticker)
+        except Exception as e:
+            print(f"❌ [DEBUG] Failed to get Finnhub company profile: {str(e)}")
+            company_profile = None
+
+        # Get earnings data
+        try:
+            earnings = finnhub_client.company_earnings(ticker, limit=4)
+        except Exception as e:
+            print(f"❌ [DEBUG] Failed to get Finnhub earnings data: {str(e)}")
+            earnings = None
+
+        # Format report
+        report = f"# {ticker} Fundamental Analysis Report (Finnhub Data Source)\n\n"
+        report += f"**Data Retrieved**: {curr_date}\n"
+        report += f"**Data Source**: Finnhub API\n\n"
+
+        # Company profile section
+        if company_profile:
+            report += "## Company Profile\n"
+            report += f"- **Company Name**: {company_profile.get('name', 'N/A')}\n"
+            report += f"- **Industry**: {company_profile.get('finnhubIndustry', 'N/A')}\n"
+            report += f"- **Country**: {company_profile.get('country', 'N/A')}\n"
+            report += f"- **Currency**: {company_profile.get('currency', 'N/A')}\n"
+            report += f"- **Market Cap**: {company_profile.get('marketCapitalization', 'N/A')} million USD\n"
+            report += f"- **Shares Outstanding**: {company_profile.get('shareOutstanding', 'N/A')} million shares\n\n"
+
+        # Basic financial metrics
+        if basic_financials and 'metric' in basic_financials:
+            metrics = basic_financials['metric']
+            report += "## Key Financial Metrics\n"
+
+            # Valuation metrics
+            report += "### Valuation Metrics\n"
+            report += f"- **P/E Ratio (TTM)**: {metrics.get('peBasicExclExtraTTM', 'N/A')}\n"
+            report += f"- **P/B Ratio**: {metrics.get('pbAnnual', 'N/A')}\n"
+            report += f"- **P/S Ratio (TTM)**: {metrics.get('psAnnual', 'N/A')}\n"
+            report += f"- **EV/EBITDA (TTM)**: {metrics.get('evEbitdaTTM', 'N/A')}\n\n"
+
+            # Profitability metrics
+            report += "### Profitability Metrics\n"
+            report += f"- **ROE (TTM)**: {metrics.get('roeTTM', 'N/A')}%\n"
+            report += f"- **ROA (TTM)**: {metrics.get('roaTTM', 'N/A')}%\n"
+            report += f"- **Gross Margin (TTM)**: {metrics.get('grossMarginTTM', 'N/A')}%\n"
+            report += f"- **Net Margin (TTM)**: {metrics.get('netProfitMarginTTM', 'N/A')}%\n\n"
+
+            # Growth metrics
+            report += "### Growth Metrics\n"
+            report += f"- **Revenue Growth (5Y)**: {metrics.get('revenueGrowthTTMYoy', 'N/A')}%\n"
+            report += f"- **EPS Growth (5Y)**: {metrics.get('epsGrowthTTMYoy', 'N/A')}%\n\n"
+
+        # Earnings data
+        if earnings and len(earnings) > 0:
+            report += "## Recent Earnings\n"
+            for i, earning in enumerate(earnings[:4]):  # Show last 4 quarters
+                report += f"### Q{i+1} (Period: {earning.get('period', 'N/A')})\n"
+                report += f"- **Actual EPS**: ${earning.get('actual', 'N/A')}\n"
+                report += f"- **Estimated EPS**: ${earning.get('estimate', 'N/A')}\n"
+                if earning.get('actual') and earning.get('estimate'):
+                    surprise = earning['actual'] - earning['estimate']
+                    report += f"- **Surprise**: ${surprise:.2f}\n"
+                report += "\n"
+
+        # Cache the result if cache is available
+        if cache:
+            try:
+                cache.save_stock_data(ticker, report, curr_date, curr_date, "finnhub_fundamentals")
+                print(f"💾 [DEBUG] Cached Finnhub fundamental data for {ticker}")
+            except Exception as e:
+                print(f"⚠️ [DEBUG] Failed to cache data: {e}")
+
+        print(f"✅ [DEBUG] Successfully retrieved Finnhub fundamental data for {ticker}")
+        return report
+
+    except ImportError:
+        return "Error: finnhub-python package not installed. Please install with: pip install finnhub-python"
+    except Exception as e:
+        error_msg = f"Error retrieving Finnhub fundamental data for {ticker}: {str(e)}"
+        print(f"❌ [DEBUG] {error_msg}")
+        return error_msg
+
+
+def is_chinese_stock(ticker: str) -> bool:
+    """
+    判断是否为中国股票代码
+    Args:
+        ticker: 股票代码
+    Returns:
+        bool: True if Chinese stock, False otherwise
+    """
+    # 移除可能的后缀 (.SZ, .SH等)
+    clean_ticker = ticker.split('.')[0]
+
+    # 中国A股代码格式: 6位数字
+    if len(clean_ticker) == 6 and clean_ticker.isdigit():
+        return True
+
+    # 港股代码格式: 4-5位数字
+    if len(clean_ticker) in [4, 5] and clean_ticker.isdigit():
+        return True
+
+    return False
+
+
+def get_smart_stock_data(
+    ticker: Annotated[str, "Stock ticker symbol (e.g., AAPL for US, 000001 for China A-share)"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    智能股票数据获取函数 - 根据股票代码自动选择数据源
+
+    Args:
+        ticker: 股票代码 (美股如AAPL, 中国A股如000001)
+        start_date: 开始日期 yyyy-mm-dd
+        end_date: 结束日期 yyyy-mm-dd
+
+    Returns:
+        str: 格式化的股票数据
+    """
+    print(f"🔍 智能数据源选择: {ticker}")
+
+    # 判断股票类型并选择合适的数据源
+    if is_chinese_stock(ticker):
+        print(f"📊 检测到中国股票代码: {ticker}, 使用Tushare数据源")
+        if TUSHARE_AVAILABLE:
+            try:
+                # 移除可能的后缀，只保留6位数字代码
+                clean_ticker = ticker.split('.')[0]
+                return get_china_stock_data_cached(clean_ticker, start_date, end_date)
+            except Exception as e:
+                print(f"⚠️ Tushare数据获取失败，尝试备用方案: {e}")
+                # 如果Tushare失败，尝试Yahoo Finance (添加.SZ后缀)
+                try:
+                    if not ticker.endswith(('.SZ', '.SH')):
+                        # 根据代码判断交易所
+                        if ticker.startswith('6'):
+                            ticker_with_suffix = f"{ticker}.SH"
+                        else:
+                            ticker_with_suffix = f"{ticker}.SZ"
+                    else:
+                        ticker_with_suffix = ticker
+
+                    return get_YFin_data_online(ticker_with_suffix, start_date, end_date)
+                except Exception as e2:
+                    return f"❌ 所有数据源都失败: Tushare: {e}, Yahoo Finance: {e2}"
+        else:
+            print(f"⚠️ Tushare不可用，尝试Yahoo Finance")
+            # Tushare不可用，尝试Yahoo Finance
+            try:
+                if not ticker.endswith(('.SZ', '.SH')):
+                    # 根据代码判断交易所
+                    if ticker.startswith('6'):
+                        ticker_with_suffix = f"{ticker}.SH"
+                    else:
+                        ticker_with_suffix = f"{ticker}.SZ"
+                else:
+                    ticker_with_suffix = ticker
+
+                return get_YFin_data_online(ticker_with_suffix, start_date, end_date)
+            except Exception as e:
+                return f"❌ Yahoo Finance数据获取失败: {e}"
+    else:
+        print(f"📊 检测到美股代码: {ticker}, 使用Yahoo Finance数据源")
+        # 美股，使用Yahoo Finance
+        try:
+            return get_YFin_data_online(ticker, start_date, end_date)
+        except Exception as e:
+            return f"❌ Yahoo Finance数据获取失败: {e}"
+
+
+def get_smart_stock_data_offline(
+    ticker: Annotated[str, "Stock ticker symbol (e.g., AAPL for US, 000001 for China A-share)"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    智能股票数据获取函数 (离线版本) - 根据股票代码自动选择数据源
+
+    Args:
+        ticker: 股票代码 (美股如AAPL, 中国A股如000001)
+        start_date: 开始日期 yyyy-mm-dd
+        end_date: 结束日期 yyyy-mm-dd
+
+    Returns:
+        str: 格式化的股票数据
+    """
+    print(f"🔍 智能数据源选择 (离线): {ticker}")
+
+    # 判断股票类型并选择合适的数据源
+    if is_chinese_stock(ticker):
+        print(f"📊 检测到中国股票代码: {ticker}, 使用Tushare数据源")
+        if TUSHARE_AVAILABLE:
+            try:
+                # 移除可能的后缀，只保留6位数字代码
+                clean_ticker = ticker.split('.')[0]
+                return get_china_stock_data_cached(clean_ticker, start_date, end_date)
+            except Exception as e:
+                print(f"⚠️ Tushare数据获取失败，尝试离线Yahoo Finance: {e}")
+                # 如果Tushare失败，尝试离线Yahoo Finance
+                try:
+                    if not ticker.endswith(('.SZ', '.SH')):
+                        # 根据代码判断交易所
+                        if ticker.startswith('6'):
+                            ticker_with_suffix = f"{ticker}.SH"
+                        else:
+                            ticker_with_suffix = f"{ticker}.SZ"
+                    else:
+                        ticker_with_suffix = ticker
+
+                    return get_YFin_data(ticker_with_suffix, start_date, end_date)
+                except Exception as e2:
+                    return f"❌ 所有数据源都失败: Tushare: {e}, Yahoo Finance (离线): {e2}"
+        else:
+            print(f"⚠️ Tushare不可用，尝试离线Yahoo Finance")
+            # Tushare不可用，尝试离线Yahoo Finance
+            try:
+                if not ticker.endswith(('.SZ', '.SH')):
+                    # 根据代码判断交易所
+                    if ticker.startswith('6'):
+                        ticker_with_suffix = f"{ticker}.SH"
+                    else:
+                        ticker_with_suffix = f"{ticker}.SZ"
+                else:
+                    ticker_with_suffix = ticker
+
+                return get_YFin_data(ticker_with_suffix, start_date, end_date)
+            except Exception as e:
+                return f"❌ Yahoo Finance (离线)数据获取失败: {e}"
+    else:
+        print(f"📊 检测到美股代码: {ticker}, 使用离线Yahoo Finance数据源")
+        # 美股，使用离线Yahoo Finance
+        try:
+            return get_YFin_data(ticker, start_date, end_date)
+        except Exception as e:
+            return f"❌ Yahoo Finance (离线)数据获取失败: {e}"

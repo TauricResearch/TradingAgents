@@ -1,0 +1,58 @@
+[
+  {
+    "provider": "dashscope",
+    "model_name": "qwen-turbo",
+    "input_price_per_1k": 0.002,
+    "output_price_per_1k": 0.006,
+    "currency": "CNY"
+  },
+  {
+    "provider": "dashscope",
+    "model_name": "qwen-plus-latest",
+    "input_price_per_1k": 0.004,
+    "output_price_per_1k": 0.012,
+    "currency": "CNY"
+  },
+  {
+    "provider": "dashscope",
+    "model_name": "qwen-max",
+    "input_price_per_1k": 0.02,
+    "output_price_per_1k": 0.06,
+    "currency": "CNY"
+  },
+  {
+    "provider": "openai",
+    "model_name": "gpt-3.5-turbo",
+    "input_price_per_1k": 0.0015,
+    "output_price_per_1k": 0.002,
+    "currency": "USD"
+  },
+  {
+    "provider": "openai",
+    "model_name": "gpt-4",
+    "input_price_per_1k": 0.03,
+    "output_price_per_1k": 0.06,
+    "currency": "USD"
+  },
+  {
+    "provider": "openai",
+    "model_name": "gpt-4-turbo",
+    "input_price_per_1k": 0.01,
+    "output_price_per_1k": 0.03,
+    "currency": "USD"
+  },
+  {
+    "provider": "google",
+    "model_name": "gemini-pro",
+    "input_price_per_1k": 0.00025,
+    "output_price_per_1k": 0.0005,
+    "currency": "USD"
+  },
+  {
+    "provider": "google",
+    "model_name": "gemini-pro-vision",
+    "input_price_per_1k": 0.00025,
+    "output_price_per_1k": 0.0005,
+    "currency": "USD"
+  }
+]

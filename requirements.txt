@@ -24,3 +24,10 @@ rich
 questionary
 langchain_anthropic
 langchain-google-genai
+
+# New dependencies from Chinese version
+dashscope
+streamlit
+plotly
+tushare  # Tushare API for Chinese stock data (replaces pytdx)
+pymongo  # MongoDB database support for token usage storage
