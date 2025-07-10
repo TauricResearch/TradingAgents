@@ -23,7 +23,7 @@
 ├─────────────────────────────────────────────────────────────────┤
 │  数据层                                                          │
 │  ├── 美股市场 (Yahoo Finance)                                    │
-│  ├── 中国A股 (通达信API)                                         │
+│  ├── 中国A股 (Tushare API)                                       │
 │  └── 财经新闻 & 社交媒体                                          │
 ├─────────────────────────────────────────────────────────────────┤
 │  缓存与存储层                                                     │
@@ -135,7 +135,7 @@ Yahoo Finance API → 数据验证 → 缓存存储 → 智能体消费
 
 **中国A股市场**:
 ```
-通达信API → 数据优化 → 缓存存储 → 智能体消费
+Tushare API → 数据优化 → 缓存存储 → 智能体消费
 ```
 
 #### 数据流架构
@@ -153,7 +153,7 @@ Yahoo Finance API → 数据验证 → 缓存存储 → 智能体消费
 **关键文件**:
 ```
 tradingagents/dataflows/interface.py              - 数据接口
-tradingagents/dataflows/tdx_utils.py              - 通达信集成
+tradingagents/dataflows/tushare_utils.py          - Tushare集成
 tradingagents/dataflows/optimized_china_data.py   - 中国数据优化
 tradingagents/dataflows/chinese_finance_utils.py  - 中国财经工具
 tradingagents/dataflows/stock_data_service.py     - 统一数据服务

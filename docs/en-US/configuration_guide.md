@@ -13,7 +13,7 @@ This document provides a comprehensive guide for new users to modify configurati
 ## 🌟 New Features Overview
 
 ### 🇨🇳 China A-Share Market Support
-- **TongDaXin API Integration**: Real-time A-share data access
+- **Tushare API Integration**: Real-time A-share data access
 - **Market Selection**: Interactive CLI market selection
 - **Exchange Support**: Shanghai, Shenzhen, ChiNext, STAR Market
 - **Intelligent Caching**: Optimized data retrieval and storage
@@ -182,7 +182,7 @@ REDIS_DB=0
 
 2. **China A-Share Market**
    - Format: 6-digit codes (e.g., 000001, 600036)
-   - Data Source: TongDaXin API
+   - Data Source: Tushare API
    - Validation: `^\d{6}$`
    - Exchanges: Shanghai (60xxxx), Shenzhen (00xxxx), ChiNext (30xxxx), STAR (68xxxx)
 
@@ -195,7 +195,7 @@ market_config = {
         "pattern": r'^[A-Z]{1,5}$'
     },
     "china_a_share": {
-        "data_source": "tongdaxin",
+        "data_source": "tushare",
         "pattern": r'^\d{6}$'
     }
 }

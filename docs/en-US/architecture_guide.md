@@ -23,7 +23,7 @@ This document provides a comprehensive overview of the TradingAgents system arch
 ├─────────────────────────────────────────────────────────────────┤
 │  Data Layer                                                     │
 │  ├── US Market (Yahoo Finance)                                 │
-│  ├── China A-Share (TongDaXin API)                            │
+│  ├── China A-Share (Tushare API)                              │
 │  └── Financial News & Social Media                             │
 ├─────────────────────────────────────────────────────────────────┤
 │  Caching & Storage Layer                                        │
@@ -135,7 +135,7 @@ Yahoo Finance API → Data Validation → Cache Storage → Agent Consumption
 
 **China A-Share Market**:
 ```
-TongDaXin API → Data Optimization → Cache Storage → Agent Consumption
+Tushare API → Data Optimization → Cache Storage → Agent Consumption
 ```
 
 #### Data Flow Architecture
@@ -153,7 +153,7 @@ TongDaXin API → Data Optimization → Cache Storage → Agent Consumption
 **Key Files**:
 ```
 tradingagents/dataflows/interface.py              - Data interface
-tradingagents/dataflows/tdx_utils.py              - TongDaXin integration
+tradingagents/dataflows/tushare_utils.py          - Tushare integration
 tradingagents/dataflows/optimized_china_data.py   - China data optimization
 tradingagents/dataflows/chinese_finance_utils.py  - Chinese finance tools
 tradingagents/dataflows/stock_data_service.py     - Unified data service

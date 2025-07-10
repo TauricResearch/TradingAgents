@@ -225,24 +225,27 @@ def check_service_status() -> Dict[str, Any]:
         except Exception:
             mongodb_status = 'error'
     
-    # 检查通达信API状态
-    tdx_status = 'unavailable'
-    if service.tdx_provider:
-        try:
+    # 检查Tushare API状态
+    tushare_status = 'unavailable'
+    try:
+        from ..dataflows.tushare_utils import get_tushare_provider
+        provider = get_tushare_provider()
+        if provider and provider.is_connected():
             # 尝试获取一个股票名称来测试API
-            test_name = service.tdx_provider._get_stock_name('000001')
+            test_name = provider.get_stock_name('000001')
             if test_name and test_name != '000001':
-                tdx_status = 'available'
+                tushare_status = 'available'
             else:
-                tdx_status = 'limited'
-        except Exception:
-            tdx_status = 'error'
-    
+                tushare_status = 'limited'
+        else:
+            tushare_status = 'disconnected'
+    except Exception:
+        tushare_status = 'error'
+
     return {
         'service_available': True,
         'mongodb_status': mongodb_status,
-        'tdx_api_status': tdx_status,
-        'enhanced_fetcher_available': hasattr(service, '_get_from_tdx_api'),
+        'tushare_api_status': tushare_status,
         'fallback_available': True,
         'checked_at': datetime.now().isoformat()
     }

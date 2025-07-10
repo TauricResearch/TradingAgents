@@ -100,17 +100,17 @@ def check_data_sources() -> Dict[str, Any]:
     Example:
         >>> status = check_data_sources()
         >>> print(f"MongoDB可用: {status['mongodb_available']}")
-        >>> print(f"通达信API可用: {status['tdx_api_available']}")
+        >>> print(f"tushareAPI可用: {status['tdx_api_available']}")
     """
     service = get_stock_data_service()
     
     return {
         'mongodb_available': service.db_manager is not None and service.db_manager.mongodb_db is not None,
-        'tdx_api_available': service.tdx_provider is not None,
-        'enhanced_fetcher_available': True,  # 这个通常都可用
+        'tushare_api_available': True,  # Tushare API通常都可用
+        'enhanced_fetcher_available': True,
         'fallback_mode': service.db_manager is None or service.db_manager.mongodb_db is None,
         'recommendation': (
-            "所有数据源正常" if service.db_manager and service.db_manager.mongodb_db 
-            else "建议配置MongoDB以获得最佳性能，当前使用通达信API降级模式"
+            "所有数据源正常" if service.db_manager and service.db_manager.mongodb_db
+            else "建议配置MongoDB以获得最佳性能，当前使用Tushare API降级模式"
         )
     }

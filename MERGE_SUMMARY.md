@@ -2,7 +2,7 @@
 
 ## 📋 合并概述
 
-本文档详细记录了从TradingAgentsCN项目向主TradingAgents仓库的全面功能合并。此次合并包括百炼(DashScope)大模型集成、通达信API的A股数据支持、高级数据库缓存系统，以及增强的CLI市场选择功能。
+本文档详细记录了从TradingAgentsCN项目向主TradingAgents仓库的全面功能合并。此次合并包括百炼(DashScope)大模型集成、Tushare API的A股数据支持、高级数据库缓存系统，以及增强的CLI市场选择功能。
 
 **合并详情**:
 - **合并时间**: 2025年1月
@@ -56,7 +56,7 @@ DASHSCOPE_API_KEY=your_dashscope_api_key_here
 **状态**: ✅ **完成并测试通过**
 
 **集成内容**:
-- 通达信API集成，获取实时A股数据
+- Tushare API集成，获取专业A股数据
 - 支持所有主要中国证券交易所:
   - 上海证券交易所: 60xxxx (如 600036)
   - 深圳证券交易所: 00xxxx (如 000001)
@@ -68,7 +68,7 @@ DASHSCOPE_API_KEY=your_dashscope_api_key_here
 
 **核心文件**:
 ```
-tradingagents/dataflows/tdx_utils.py              - 通达信数据提供器
+tradingagents/dataflows/tushare_utils.py          - Tushare数据提供器
 tradingagents/dataflows/optimized_china_data.py   - 优化A股数据
 tradingagents/dataflows/chinese_finance_utils.py  - 中国财经工具
 tradingagents/dataflows/stock_data_service.py     - 统一数据服务
@@ -76,13 +76,13 @@ tradingagents/dataflows/stock_data_service.py     - 统一数据服务
 
 **新增依赖**:
 ```
-pytdx>=1.72
+tushare>=1.2.0
 beautifulsoup4>=4.9.0
 ```
 
 **数据流架构**:
 ```
-MongoDB数据库 → 通达信API → 文件缓存 → 错误处理
+MongoDB数据库 → Tushare API → 文件缓存 → 错误处理
 ```
 
 ---
@@ -164,7 +164,7 @@ cli/main.py   - 更新工作流程，包含市场选择步骤
 
 2. **中国A股市场**
    - 格式: 6位数字代码 (如 000001, 600036)
-   - 数据源: 通达信API
+   - 数据源: Tushare API
    - 验证模式: `^\d{6}$`
 
 **移除功能**: 港股支持(按具体要求移除)
@@ -242,7 +242,7 @@ REDIS_ENABLED=true
 ```
 
 ### 3. API频率限制
-**问题**: 通达信API可能有未公开的频率限制
+**问题**: Tushare API可能有频率限制（免费账户）
 **影响**: A股数据获取可能出现延迟
 **缓解措施**: 已实现智能缓存和重试逻辑
 
@@ -252,7 +252,7 @@ REDIS_ENABLED=true
 
 ### 1. 数据源选择UI
 **状态**: ❌ **未实现**
-**描述**: 用户手动选择缓存和通达信API的界面
+**描述**: 用户手动选择缓存和Tushare API的界面
 **当前状态**: 仅有自动回退逻辑
 **未来增强**: 添加CLI数据源偏好选项
 
@@ -284,7 +284,7 @@ REDIS_ENABLED=true
 - 配置健康检查和诊断
 - 自动配置迁移工具
 
-### 5. 高级通达信功能
+### 5. 高级Tushare功能
 **状态**: ❌ **未实现**
 **缺失功能**:
 - 实时tick数据流
@@ -299,7 +299,7 @@ REDIS_ENABLED=true
 
 ### ✅ 已完成并验证
 - **百炼LLM集成**: ✅ 所有模型正常工作
-- **通达信API功能**: ✅ 数据获取正常工作
+- **Tushare API功能**: ✅ 数据获取正常工作
 - **数据库连接**: ✅ MongoDB和Redis连接
 - **缓存系统集成**: ✅ 智能回退正常工作
 - **CLI市场选择**: ✅ 交互式选择正常工作
@@ -310,7 +310,7 @@ REDIS_ENABLED=true
 ### ⚠️ 需要进一步测试
 - 负载下的端到端A股分析工作流
 - 大数据集的数据库性能
-- 频率限制下的通达信API行为
+- 频率限制下的Tushare API行为
 - 多用户并发数据库访问
 - 大缓存数据集的内存使用
 
@@ -386,7 +386,7 @@ REDIS_ENABLED=true
 此次合并代表了TradingAgents的重大增强，成功集成了全面的中国市场支持，同时保持系统稳定性和向后兼容性。集成创建了一个强大、可扩展的全球金融市场分析基础。
 
 ### 🏆 关键成就
-- **🇨🇳 完整的中国A股市场支持**，集成通达信API
+- **🇨🇳 完整的中国A股市场支持**，集成Tushare API
 - **🤖 百炼LLM集成**，支持通义千问模型系列
 - **🗄️ 企业级数据库缓存**，支持MongoDB和Redis
 - **🌍 增强的CLI**，带智能市场选择

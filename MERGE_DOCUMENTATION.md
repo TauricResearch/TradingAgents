@@ -2,7 +2,7 @@
 
 ## 📋 Executive Summary
 
-This document provides a comprehensive overview of the successful merge of Chinese market features from the TradingAgentsCN project into the main TradingAgents repository. The integration includes DashScope (Alibaba Cloud) LLM support, TongDaXin API for A-share data, advanced database caching, and enhanced CLI market selection.
+This document provides a comprehensive overview of the successful merge of Chinese market features from the TradingAgentsCN project into the main TradingAgents repository. The integration includes DashScope (Alibaba Cloud) LLM support, Tushare API for A-share data, advanced database caching, and enhanced CLI market selection.
 
 **Merge Details**:
 - **Date**: January 2025
@@ -48,7 +48,7 @@ DASHSCOPE_API_KEY=your_dashscope_api_key_here
 **Status**: ✅ **COMPLETE AND TESTED**
 
 **What was added**:
-- TongDaXin API integration for real-time A-share data
+- Tushare API integration for real-time A-share data
 - Support for all major Chinese stock exchanges:
   - Shanghai Stock Exchange: 60xxxx (e.g., 600036)
   - Shenzhen Stock Exchange: 00xxxx (e.g., 000001)  
@@ -60,7 +60,7 @@ DASHSCOPE_API_KEY=your_dashscope_api_key_here
 
 **Key Files**:
 ```
-tradingagents/dataflows/tdx_utils.py              - TongDaXin data provider
+tradingagents/dataflows/tushare_utils.py          - Tushare data provider
 tradingagents/dataflows/optimized_china_data.py   - Optimized A-share data
 tradingagents/dataflows/chinese_finance_utils.py  - Chinese finance tools
 tradingagents/dataflows/stock_data_service.py     - Unified data service
@@ -68,13 +68,13 @@ tradingagents/dataflows/stock_data_service.py     - Unified data service
 
 **Dependencies Added**:
 ```
-pytdx>=1.72
+tushare>=1.2.0
 beautifulsoup4>=4.9.0
 ```
 
 **Data Flow Architecture**:
 ```
-MongoDB Database → TongDaXin API → File Cache → Error Handling
+MongoDB Database → Tushare API → File Cache → Error Handling
 ```
 
 ---
@@ -156,7 +156,7 @@ cli/main.py   - Updated workflow with market selection step
 
 2. **China A-Share Market**  
    - Format: 6-digit numeric codes (e.g., 000001, 600036)
-   - Data Source: TongDaXin API
+   - Data Source: Tushare API
    - Validation Pattern: `^\d{6}$`
 
 **Removed**: Hong Kong Stock support (as specifically requested)
@@ -234,7 +234,7 @@ REDIS_ENABLED=true
 ```
 
 ### 3. API Rate Limits
-**Issue**: TongDaXin API may have undocumented rate limiting
+**Issue**: Tushare API may have rate limiting for free accounts
 **Impact**: Potential delays in A-share data retrieval
 **Mitigation**: Intelligent caching and retry logic implemented
 
@@ -244,7 +244,7 @@ REDIS_ENABLED=true
 
 ### 1. Data Source Selection UI
 **Status**: ❌ **NOT IMPLEMENTED**
-**Description**: User interface to manually choose between cache and TongDaXin API
+**Description**: User interface to manually choose between cache and Tushare API
 **Current State**: Automatic fallback logic only
 **Future Enhancement**: Add CLI option for data source preference
 
@@ -276,7 +276,7 @@ REDIS_ENABLED=true
 - Configuration health checks and diagnostics
 - Automatic configuration migration tools
 
-### 5. Advanced TongDaXin Features
+### 5. Advanced Tushare Features
 **Status**: ❌ **NOT IMPLEMENTED**
 **Missing**:
 - Real-time tick data streaming
@@ -291,7 +291,7 @@ REDIS_ENABLED=true
 
 ### ✅ Completed & Verified
 - **DashScope LLM Integration**: ✅ All models working
-- **TongDaXin API Functionality**: ✅ Data retrieval working
+- **Tushare API Functionality**: ✅ Data retrieval working
 - **Database Connectivity**: ✅ MongoDB and Redis connections
 - **Cache System Integration**: ✅ Intelligent fallback working
 - **CLI Market Selection**: ✅ Interactive selection working
@@ -302,7 +302,7 @@ REDIS_ENABLED=true
 ### ⚠️ Needs Further Testing
 - End-to-end A-share analysis workflow under load
 - Database performance with large datasets
-- TongDaXin API behavior under rate limiting
+- Tushare API behavior under rate limiting
 - Multi-user concurrent database access
 - Memory usage with large cache datasets
 
@@ -378,7 +378,7 @@ REDIS_ENABLED=true
 This merge represents a significant enhancement to TradingAgents, successfully integrating comprehensive Chinese market support while maintaining system stability and backward compatibility. The integration creates a robust, scalable foundation for global financial market analysis.
 
 ### 🏆 Key Achievements
-- **🇨🇳 Complete Chinese A-share market support** with TongDaXin API
+- **🇨🇳 Complete Chinese A-share market support** with Tushare API
 - **🤖 DashScope LLM integration** with Qwen model family
 - **🗄️ Enterprise-grade database caching** with MongoDB and Redis
 - **🌍 Enhanced CLI** with intelligent market selection

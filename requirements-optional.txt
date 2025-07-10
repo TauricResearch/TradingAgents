@@ -3,7 +3,7 @@
 # pip install -r requirements-optional.txt
 
 # Chinese dependencies
-pytdx  # TongDaXin API for Chinese stock real-time data
+tushare  # Tushare API for Chinese stock data
 dashscope  # Alibaba Cloud LLM support
 
 # Database dependencies

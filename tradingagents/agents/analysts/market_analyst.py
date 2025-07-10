@@ -10,19 +10,62 @@ def create_market_analyst(llm, toolkit):
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
-        if toolkit.config["online_tools"]:
-            tools = [
-                toolkit.get_YFin_data_online,
-                toolkit.get_stockstats_indicators_report_online,
-            ]
-        else:
-            tools = [
-                toolkit.get_YFin_data,
-                toolkit.get_stockstats_indicators_report,
-            ]
+        # 判断是否为中国股票
+        def is_chinese_stock(ticker):
+            clean_ticker = ticker.split('.')[0]
+            return len(clean_ticker) == 6 and clean_ticker.isdigit()
 
-        system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+        # 根据股票类型选择工具和提示词
+        if is_chinese_stock(ticker):
+            # 中国股票：使用智能数据源
+            if toolkit.config["online_tools"]:
+                tools = [
+                    toolkit.get_smart_stock_data,
+                    toolkit.get_stockstats_indicators_report_online,
+                ]
+            else:
+                tools = [
+                    toolkit.get_smart_stock_data_offline,
+                    toolkit.get_stockstats_indicators_report,
+                ]
+        else:
+            # 美股：保持原有逻辑
+            if toolkit.config["online_tools"]:
+                tools = [
+                    toolkit.get_YFin_data_online,
+                    toolkit.get_stockstats_indicators_report_online,
+                ]
+            else:
+                tools = [
+                    toolkit.get_YFin_data,
+                    toolkit.get_stockstats_indicators_report,
+                ]
+
+        # 根据股票类型设置不同的系统提示词
+        if is_chinese_stock(ticker):
+            # 中国股票专用提示词
+            system_message = (
+                """You are a trading assistant specialized in analyzing Chinese A-share stocks. You are analyzing a Chinese stock with 6-digit code format (e.g., 000001, 600036, 300996).
+
+**IMPORTANT DATA SOURCE**: For Chinese stocks, you MUST use get_smart_stock_data (or get_smart_stock_data_offline) which will automatically route to Tushare API for accurate Chinese market data.
+
+**REQUIRED PARAMETERS**: When calling get_smart_stock_data, you MUST provide all three parameters:
+1. ticker: Stock code (e.g., "000001", "300996")
+2. start_date: Start date in "YYYY-MM-DD" format (e.g., "2024-01-01")
+3. end_date: End date in "YYYY-MM-DD" format (e.g., "2024-12-31")
+
+Example: get_smart_stock_data("300996", "2024-01-01", "2024-12-31")
+
+Your role is to select the **most relevant indicators** for Chinese A-share market analysis from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:"""
+            )
+        else:
+            # 美股原有提示词（保持不变）
+            system_message = (
+                """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:"""
+            )
+
+        # 添加技术指标说明（对所有股票类型通用）
+        system_message += """
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
@@ -46,9 +89,26 @@ Volatility Indicators:
 Volume-Based Indicators:
 - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
 
-- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_YFin_data first to retrieve the CSV that is needed to generate indicators. Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."""
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
-        )
+- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail."""
+
+        # 为不同股票类型添加专门的结尾提示
+        if is_chinese_stock(ticker):
+            system_message += """
+
+**CHINESE STOCK ANALYSIS REQUIREMENTS**:
+1. MUST call get_smart_stock_data with all three parameters: ticker, start_date, end_date
+2. Example: get_smart_stock_data("300996", "2024-01-01", "2024-12-31")
+3. Focus on Chinese A-share market characteristics and trading patterns
+4. Consider Chinese market regulations and trading hours
+5. Analyze in context of Chinese economic policies and market sentiment
+
+Write a comprehensive analysis specifically tailored for Chinese A-share market dynamics."""
+        else:
+            system_message += """
+
+Please make sure to call get_YFin_data first to retrieve the CSV that is needed to generate indicators. Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."""
+
+        system_message += """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
 
         prompt = ChatPromptTemplate.from_messages(
             [

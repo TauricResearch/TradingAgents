@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 优化的A股数据获取工具
-集成缓存策略和通达信API，提高数据获取效率
+集成缓存策略和Tushare API，提高数据获取效率
 """
 
 import os
@@ -14,13 +14,13 @@ from .config import get_config
 
 
 class OptimizedChinaDataProvider:
-    """优化的A股数据提供器 - 集成缓存和通达信API"""
-    
+    """优化的A股数据提供器 - 集成缓存和Tushare API"""
+
     def __init__(self):
         self.cache = get_cache()
         self.config = get_config()
         self.last_api_call = 0
-        self.min_api_interval = 0.5  # 通达信API调用间隔较短
+        self.min_api_interval = 0.5  # Tushare API调用间隔较短
         
         print("📊 优化A股数据提供器初始化完成")
     
@@ -57,7 +57,7 @@ class OptimizedChinaDataProvider:
                 symbol=symbol,
                 start_date=start_date,
                 end_date=end_date,
-                data_source="tdx"
+                data_source="tushare"
             )
             
             if cache_key:
@@ -66,15 +66,15 @@ class OptimizedChinaDataProvider:
                     print(f"⚡ 从缓存加载A股数据: {symbol}")
                     return cached_data
         
-        # 缓存未命中，从通达信API获取
-        print(f"🌐 从通达信API获取数据: {symbol}")
+        # 缓存未命中，从Tushare API获取
+        print(f"🌐 从Tushare API获取数据: {symbol}")
         
         try:
             # API限制处理
             self._wait_for_rate_limit()
             
-            # 调用通达信API
-            from .tdx_utils import get_china_stock_data
+            # 调用Tushare API
+            from .tushare_utils import get_china_stock_data
             
             formatted_data = get_china_stock_data(
                 stock_code=symbol,
@@ -84,15 +84,15 @@ class OptimizedChinaDataProvider:
             
             # 检查是否获取成功
             if "❌" in formatted_data or "错误" in formatted_data:
-                print(f"❌ 通达信API调用失败: {symbol}")
+                print(f"❌ Tushare API调用失败: {symbol}")
                 # 尝试从旧缓存获取数据
                 old_cache = self._try_get_old_cache(symbol, start_date, end_date)
                 if old_cache:
                     print(f"📁 使用过期缓存数据: {symbol}")
                     return old_cache
-                
+
                 # 生成备用数据
-                return self._generate_fallback_data(symbol, start_date, end_date, "通达信API调用失败")
+                return self._generate_fallback_data(symbol, start_date, end_date, "Tushare API调用失败")
             
             # 保存到缓存
             self.cache.save_stock_data(
@@ -100,14 +100,14 @@ class OptimizedChinaDataProvider:
                 data=formatted_data,
                 start_date=start_date,
                 end_date=end_date,
-                data_source="tdx"
+                data_source="tushare"
             )
             
             print(f"✅ A股数据获取成功: {symbol}")
             return formatted_data
             
         except Exception as e:
-            error_msg = f"通达信API调用异常: {str(e)}"
+            error_msg = f"Tushare API调用异常: {str(e)}"
             print(f"❌ {error_msg}")
             
             # 尝试从旧缓存获取数据
@@ -171,7 +171,7 @@ class OptimizedChinaDataProvider:
             self.cache.save_fundamentals_data(
                 symbol=symbol,
                 fundamentals_data=fundamentals_data,
-                data_source="tdx_analysis"
+                data_source="tushare_analysis"
             )
             
             print(f"✅ A股基本面数据生成成功: {symbol}")
@@ -286,7 +286,7 @@ class OptimizedChinaDataProvider:
 ---
 *注：本报告基于公开信息和技术分析生成，仅供参考，不构成投资建议。投资有风险，入市需谨慎。*
 
-数据来源：通达信API + 基本面分析
+数据来源：Tushare API + 基本面分析
 生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 """
         
@@ -332,7 +332,7 @@ class OptimizedChinaDataProvider:
 - 模拟涨跌: {random.uniform(-5, 5):+.2f}%
 
 ## ⚠️ 重要提示
-由于通达信API限制或网络问题，无法获取实时数据。
+由于Tushare API限制或网络问题，无法获取实时数据。
 建议稍后重试或检查网络连接。
 
 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}

@@ -17,7 +17,7 @@ cd TradingAgents
 
 # Install dependencies
 pip install -r requirements.txt
-pip install pytdx beautifulsoup4  # For Chinese market support
+pip install tushare beautifulsoup4  # For Chinese market support
 ```
 
 ### 2. Environment Configuration
@@ -47,15 +47,19 @@ FINNHUB_API_KEY=your_finnhub_api_key_here
 # DashScope (Required for Chinese stocks or Qwen models)
 DASHSCOPE_API_KEY=your_dashscope_api_key_here
 
+# Tushare (Required for Chinese A-share data)
+TUSHARE_TOKEN=your_tushare_token_here
+
 # FinnHub (Required for financial data)
 FINNHUB_API_KEY=your_finnhub_api_key_here
 ```
 
 **Note**:
 - **DashScope API key is only required when**:
-  - Analyzing Chinese A-share stocks (uses TongDaXin data + DashScope embeddings)
+  - Analyzing Chinese A-share stocks (uses Tushare data + DashScope embeddings)
   - Choosing DashScope as your LLM provider (Qwen models)
-- **For US stocks with OpenAI/Google models**: DashScope is not needed
+- **Tushare token is required for Chinese A-share analysis**
+- **For US stocks with OpenAI/Google models**: DashScope and Tushare are not needed
 
 ### 3. First Run
 ```bash
@@ -85,7 +89,7 @@ python -m cli.main
   - Shenzhen (00xxxx): `000001` (Ping An Bank)
   - ChiNext (30xxxx): `300001` (Technology stocks)
   - STAR Market (68xxxx): `688001` (Innovation companies)
-- **Data Source**: TongDaXin API
+- **Data Source**: Tushare API
 - **Format**: 6-digit numeric codes
 
 ### 🤖 Multi-LLM Support
@@ -108,7 +112,7 @@ python -m cli.main
 Format requirement: 6-digit code (e.g., 600036, 000001)
 Examples: 000001, 600036, 300001, 688001
 ? Enter China A-Share ticker symbol: 000001
-✅ Valid A-share code: 000001 (will use TongDaXin data source)
+✅ Valid A-share code: 000001 (will use Tushare data source)
 ```
 
 ### Step 3: Analysis Configuration
@@ -219,7 +223,7 @@ FINNHUB_API_KEY=your_finnhub_key
 - LLM Provider: DashScope
 - Models: qwen-turbo (quick), qwen-plus (deep)
 
-**Note**: DashScope API key is required for Chinese stock analysis (TongDaXin data + embeddings)
+**Note**: DashScope API key is required for Chinese stock analysis (Tushare data + embeddings)
 
 ### Example 4: US Stocks with DashScope LLM (DashScope Required)
 ```env
@@ -264,9 +268,9 @@ Error: Invalid API key
 Solution: Check .env file and ensure correct API key format
 ```
 
-**2. TongDaXin Connection Issues**:
+**2. Tushare Connection Issues**:
 ```
-Error: TongDaXin API unavailable
+Error: Tushare API unavailable
 Solution: System automatically falls back to cached data
 ```
 
@@ -317,7 +321,7 @@ Data Source: Yahoo Finance
 ```
 📈 Analysis Results for 000001 (平安银行)
 Market: Shenzhen Stock Exchange
-Data Source: TongDaXin API
+Data Source: Tushare API
 
 🔍 Technical Analysis:
 - Current Price: ¥12.85 (+1.8%)

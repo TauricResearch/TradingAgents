@@ -149,11 +149,13 @@ class TradingAgentsGraph:
         return {
             "market": ToolNode(
                 [
-                    # online tools
+                    # Smart data source selection tools
+                    self.toolkit.get_smart_stock_data,
+                    self.toolkit.get_smart_stock_data_offline,
+                    # Traditional tools (for backward compatibility)
                     self.toolkit.get_YFin_data_online,
-                    self.toolkit.get_stockstats_indicators_report_online,
-                    # offline tools
                     self.toolkit.get_YFin_data,
+                    self.toolkit.get_stockstats_indicators_report_online,
                     self.toolkit.get_stockstats_indicators_report,
                 ]
             ),

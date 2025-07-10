@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 统一的股票数据获取服务
-实现MongoDB -> 通达信API的完整降级机制
+实现MongoDB -> Tushare API的完整降级机制
 """
 
 import pandas as pd
@@ -17,10 +17,10 @@ except ImportError:
     DATABASE_MANAGER_AVAILABLE = False
 
 try:
-    from .tdx_utils import get_tdx_provider, TongDaXinDataProvider
-    TDX_AVAILABLE = True
+    from .tushare_utils import get_tushare_provider, TushareDataProvider
+    TUSHARE_AVAILABLE = True
 except ImportError:
-    TDX_AVAILABLE = False
+    TUSHARE_AVAILABLE = False
 
 try:
     import sys
@@ -39,12 +39,11 @@ logger = logging.getLogger(__name__)
 class StockDataService:
     """
     统一的股票数据获取服务
-    实现完整的降级机制：MongoDB -> 通达信API -> 缓存 -> 错误处理
+    实现完整的降级机制：MongoDB -> Tushare API -> 缓存 -> 错误处理
     """
-    
+
     def __init__(self):
         self.db_manager = None
-        self.tdx_provider = None
         self._init_services()
     
     def _init_services(self):
@@ -56,19 +55,10 @@ class StockDataService:
                 if self.db_manager.is_mongodb_available():
                     print("✅ MongoDB连接成功")
                 else:
-                    print("⚠️ MongoDB连接失败，将使用通达信API")
+                    print("⚠️ MongoDB连接失败，将使用Tushare API")
             except Exception as e:
                 print(f"⚠️ 数据库管理器初始化失败: {e}")
                 self.db_manager = None
-        
-        # 尝试初始化通达信提供器
-        if TDX_AVAILABLE:
-            try:
-                self.tdx_provider = get_tdx_provider()
-                print("✅ 通达信API初始化成功")
-            except Exception as e:
-                print(f"⚠️ 通达信API初始化失败: {e}")
-                self.tdx_provider = None
     
     def get_stock_basic_info(self, stock_code: str = None) -> Optional[Dict[str, Any]]:
         """
@@ -92,19 +82,30 @@ class StockDataService:
             except Exception as e:
                 print(f"⚠️ MongoDB查询失败: {e}")
         
-        # 2. 降级到通达信API
-        print("🔄 MongoDB不可用，降级到通达信API")
-        if ENHANCED_FETCHER_AVAILABLE:
-            try:
-                result = self._get_from_tdx_api(stock_code)
-                if result:
-                    print(f"✅ 从通达信API获取成功: {len(result) if isinstance(result, list) else 1}条记录")
+        # 2. 降级到Tushare API
+        print("🔄 MongoDB不可用，降级到Tushare API")
+        try:
+            from .tushare_utils import get_tushare_provider
+            provider = get_tushare_provider()
+            if provider and provider.is_connected():
+                # 获取股票基本信息
+                stock_name = provider.get_stock_name(stock_code)
+                if stock_name:
+                    result = {
+                        'code': stock_code,
+                        'name': stock_name,
+                        'market': self._get_market_name(stock_code),
+                        'category': self._get_stock_category(stock_code),
+                        'source': 'tushare_api',
+                        'updated_at': datetime.now().isoformat()
+                    }
+                    print(f"✅ 从Tushare API获取成功: {stock_code}")
                     # 尝试缓存到MongoDB（如果可用）
                     self._cache_to_mongodb(result)
                     return result
-            except Exception as e:
-                print(f"⚠️ 通达信API查询失败: {e}")
-        
+        except Exception as e:
+            print(f"⚠️ Tushare API查询失败: {e}")
+
         # 3. 最后的降级方案
         print("❌ 所有数据源都不可用")
         return self._get_fallback_data(stock_code)
@@ -133,47 +134,7 @@ class StockDataService:
             logger.error(f"MongoDB查询失败: {e}")
             return None
     
-    def _get_from_tdx_api(self, stock_code: str = None) -> Optional[Dict[str, Any]]:
-        """从通达信API获取数据"""
-        try:
-            if stock_code:
-                # 获取单个股票信息
-                if self.tdx_provider:
-                    # 使用现有的股票名称获取方法
-                    stock_name = self.tdx_provider._get_stock_name(stock_code)
-                    return {
-                        'code': stock_code,
-                        'name': stock_name,
-                        'market': self._get_market_name(stock_code),
-                        'category': self._get_stock_category(stock_code),
-                        'source': 'tdx_api',
-                        'updated_at': datetime.now().isoformat()
-                    }
-            else:
-                # 获取所有股票列表
-                stock_df = enhanced_fetch_stock_list(
-                    type_='stock',
-                    enable_server_failover=True,
-                    max_retries=3
-                )
-                
-                if stock_df is not None and not stock_df.empty:
-                    # 转换为字典列表
-                    results = []
-                    for _, row in stock_df.iterrows():
-                        results.append({
-                            'code': row.get('code', ''),
-                            'name': row.get('name', ''),
-                            'market': row.get('market', ''),
-                            'category': row.get('category', ''),
-                            'source': 'tdx_api',
-                            'updated_at': datetime.now().isoformat()
-                        })
-                    return results
-                    
-        except Exception as e:
-            logger.error(f"通达信API查询失败: {e}")
-            return None
+
     
     def _cache_to_mongodb(self, data: Any) -> bool:
         """将数据缓存到MongoDB"""
@@ -222,7 +183,7 @@ class StockDataService:
         else:
             return {
                 'error': '无法获取股票列表，请检查网络连接和数据库配置',
-                'suggestion': '请确保MongoDB已配置或网络连接正常以访问通达信API'
+                'suggestion': '请确保MongoDB已配置或网络连接正常以访问tushareAPI'
             }
     
     def _get_market_name(self, stock_code: str) -> str:
@@ -263,10 +224,10 @@ class StockDataService:
         
         # 调用现有的get_china_stock_data函数
         try:
-            from .tdx_utils import get_china_stock_data
+            from .tushare_utils import get_china_stock_data
             return get_china_stock_data(stock_code, start_date, end_date)
         except Exception as e:
-            return f"❌ 获取股票数据失败: {str(e)}\n\n💡 建议：\n1. 检查网络连接\n2. 确认股票代码格式正确\n3. 检查MongoDB配置"
+            return f"❌ 获取股票数据失败: {str(e)}\n\n💡 建议：\n1. 检查网络连接\n2. 确认股票代码格式正确\n3. 检查Tushare配置\n4. 配置TUSHARE_TOKEN以获得更好的服务"
 
 # 全局服务实例
 _stock_data_service = None

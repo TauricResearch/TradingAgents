@@ -61,7 +61,7 @@ Navigate to [`zh-CN/`](zh-CN/) directory for:
   - **Current Setup**: DashScope as primary option with intelligent fallback
 - Market selection and data sources
   - **US Stock Market**: Yahoo Finance integration
-  - **China A-Share Market**: TongDaXin API integration ⭐ **New Feature**
+  - **China A-Share Market**: Tushare API integration ⭐ **New Feature**
 - Database and caching systems
   - **MongoDB**: Persistent data storage
   - **Redis**: High-performance caching
@@ -82,7 +82,7 @@ Navigate to [`zh-CN/`](zh-CN/) directory for:
 - **Database integration**: MongoDB and Redis for enterprise deployment
 - **Intelligent caching**: Adaptive cache management with fallback
 - **Multi-LLM support**: DashScope, OpenAI, Google, Anthropic
-- **TongDaXin integration**: Real-time A-share data access
+- **Tushare integration**: Real-time A-share data access
 - Risk management templates
 - Performance optimization
 - Custom prompt creation

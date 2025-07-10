@@ -17,7 +17,7 @@ cd TradingAgents
 
 # 安装依赖
 pip install -r requirements.txt
-pip install pytdx beautifulsoup4  # 中国市场支持
+pip install tushare beautifulsoup4  # 中国市场支持
 ```
 
 ### 2. 环境配置
@@ -53,7 +53,7 @@ FINNHUB_API_KEY=your_finnhub_api_key_here
 
 **注意**: 
 - **百炼API密钥仅在以下情况需要**:
-  - 分析中国A股股票 (使用通达信数据 + 百炼embeddings)
+  - 分析中国A股股票 (使用tushare数据 + 百炼embeddings)
   - 选择百炼作为LLM提供商 (通义千问模型)
 - **分析美股使用OpenAI/Google模型时**: 不需要百炼
 
@@ -85,7 +85,7 @@ python -m cli.main
   - 深交所 (00xxxx): `000001` (平安银行)
   - 创业板 (30xxxx): `300001` (科技股)
   - 科创板 (68xxxx): `688001` (创新公司)
-- **数据源**: 通达信API
+- **数据源**: Tushare API
 - **格式**: 6位数字代码
 
 ### 🤖 多LLM支持
@@ -108,7 +108,7 @@ python -m cli.main
 格式要求: 6位数字代码 (如 600036, 000001)
 示例: 000001, 600036, 300001, 688001
 ? Enter China A-Share ticker symbol: 000001
-✅ Valid A-share code: 000001 (will use TongDaXin data source)
+✅ Valid A-share code: 000001 (will use tushare data source)
 ```
 
 ### 步骤3: 分析配置
@@ -216,7 +216,7 @@ FINNHUB_API_KEY=your_finnhub_key
 - LLM提供商: 百炼
 - 模型: qwen-turbo (快速), qwen-plus (深度)
 
-**注意**: 中国股票分析需要百炼API密钥 (通达信数据 + embeddings)
+**注意**: 中国股票分析需要百炼API密钥 (tushare数据 + embeddings)
 
 ### 示例4: 使用百炼LLM分析美股 (需要百炼)
 ```env
@@ -242,9 +242,9 @@ FINNHUB_API_KEY=your_finnhub_key
 解决方案: 检查.env文件并确保API密钥格式正确
 ```
 
-**2. 通达信连接问题**:
+**2. Tushare连接问题**:
 ```
-错误: TongDaXin API unavailable
+错误: Tushare API unavailable
 解决方案: 系统自动回退到缓存数据
 ```
 
@@ -295,7 +295,7 @@ python -m cli.main
 ```
 📈 000001 (平安银行) 分析结果
 市场: 深圳证券交易所
-数据源: 通达信API
+数据源: Tushare API
 
 🔍 技术分析:
 - 当前价格: ¥12.85 (+1.8%)

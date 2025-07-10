@@ -17,3 +17,6 @@ TradingAgentsCN/
 # 虚拟环境目录（不纳入版本控制）
 test_env/
 .venv/
+
+# 分析结果目录（不纳入版本控制）
+results/

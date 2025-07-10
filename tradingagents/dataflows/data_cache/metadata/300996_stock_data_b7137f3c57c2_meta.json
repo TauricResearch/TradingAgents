@@ -1,0 +1,11 @@
+{
+  "symbol": "300996",
+  "data_type": "string",
+  "start_date": "2024-01-01",
+  "end_date": "2024-01-31",
+  "data_source": "tushare",
+  "market_type": "china",
+  "cache_time": "2025-07-10T23:40:59.239222",
+  "file_path": "C:\\code\\TradingAgents\\tradingagents\\dataflows\\data_cache\\china_stocks\\300996_stock_data_b7137f3c57c2.json",
+  "cache_key": "300996_stock_data_b7137f3c57c2"
+}

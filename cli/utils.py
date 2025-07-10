@@ -28,7 +28,7 @@ def select_market():
             "examples": ["000001", "600036", "000858", "300001", "688001"],
             "format": "6-digit code (e.g., 600036, 000001)",
             "pattern": r'^\d{6}$',
-            "data_source": "tongdaxin"
+            "data_source": "tushare"
         }
     }
 
@@ -112,12 +112,12 @@ def get_ticker(market=None) -> str:
 
         # Validate ticker format
         import re
-        ticker_to_check = ticker.upper() if market['data_source'] != 'tongdaxin' else ticker
+        ticker_to_check = ticker.upper() if market['data_source'] != 'tushare' else ticker
 
         if re.match(market['pattern'], ticker_to_check):
             # For A-shares, return pure numeric code
-            if market['data_source'] == 'tongdaxin':
-                console.print(f"[green]✅ Valid A-share code: {ticker} (will use TongDaXin data source)[/green]")
+            if market['data_source'] == 'tushare':
+                console.print(f"[green]✅ Valid A-share code: {ticker} (will use Tushare data source)[/green]")
                 return ticker
             else:
                 console.print(f"[green]✅ Valid ticker: {ticker.upper()}[/green]")

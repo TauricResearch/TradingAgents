@@ -10,6 +10,18 @@ try:
 except ImportError:
     def get_chinese_social_sentiment(*args, **kwargs):
         return "Chinese finance utilities not available"
+
+# Import Tushare utilities for Chinese stock data
+try:
+    from .tushare_utils import get_china_stock_data
+    from .optimized_china_data import get_china_stock_data_cached
+    TUSHARE_AVAILABLE = True
+except ImportError:
+    TUSHARE_AVAILABLE = False
+    def get_china_stock_data(*args, **kwargs):
+        return "Tushare utilities not available. Please install tushare: pip install tushare"
+    def get_china_stock_data_cached(*args, **kwargs):
+        return "Tushare utilities not available. Please install tushare: pip install tushare"
 from .finnhub_utils import get_data_in_range
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
@@ -949,3 +961,159 @@ def get_fundamentals_finnhub(ticker, curr_date):
         error_msg = f"Error retrieving Finnhub fundamental data for {ticker}: {str(e)}"
         print(f"❌ [DEBUG] {error_msg}")
         return error_msg
+
+
+def is_chinese_stock(ticker: str) -> bool:
+    """
+    判断是否为中国股票代码
+    Args:
+        ticker: 股票代码
+    Returns:
+        bool: True if Chinese stock, False otherwise
+    """
+    # 移除可能的后缀 (.SZ, .SH等)
+    clean_ticker = ticker.split('.')[0]
+
+    # 中国A股代码格式: 6位数字
+    if len(clean_ticker) == 6 and clean_ticker.isdigit():
+        return True
+
+    # 港股代码格式: 4-5位数字
+    if len(clean_ticker) in [4, 5] and clean_ticker.isdigit():
+        return True
+
+    return False
+
+
+def get_smart_stock_data(
+    ticker: Annotated[str, "Stock ticker symbol (e.g., AAPL for US, 000001 for China A-share)"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    智能股票数据获取函数 - 根据股票代码自动选择数据源
+
+    Args:
+        ticker: 股票代码 (美股如AAPL, 中国A股如000001)
+        start_date: 开始日期 yyyy-mm-dd
+        end_date: 结束日期 yyyy-mm-dd
+
+    Returns:
+        str: 格式化的股票数据
+    """
+    print(f"🔍 智能数据源选择: {ticker}")
+
+    # 判断股票类型并选择合适的数据源
+    if is_chinese_stock(ticker):
+        print(f"📊 检测到中国股票代码: {ticker}, 使用Tushare数据源")
+        if TUSHARE_AVAILABLE:
+            try:
+                # 移除可能的后缀，只保留6位数字代码
+                clean_ticker = ticker.split('.')[0]
+                return get_china_stock_data_cached(clean_ticker, start_date, end_date)
+            except Exception as e:
+                print(f"⚠️ Tushare数据获取失败，尝试备用方案: {e}")
+                # 如果Tushare失败，尝试Yahoo Finance (添加.SZ后缀)
+                try:
+                    if not ticker.endswith(('.SZ', '.SH')):
+                        # 根据代码判断交易所
+                        if ticker.startswith('6'):
+                            ticker_with_suffix = f"{ticker}.SH"
+                        else:
+                            ticker_with_suffix = f"{ticker}.SZ"
+                    else:
+                        ticker_with_suffix = ticker
+
+                    return get_YFin_data_online(ticker_with_suffix, start_date, end_date)
+                except Exception as e2:
+                    return f"❌ 所有数据源都失败: Tushare: {e}, Yahoo Finance: {e2}"
+        else:
+            print(f"⚠️ Tushare不可用，尝试Yahoo Finance")
+            # Tushare不可用，尝试Yahoo Finance
+            try:
+                if not ticker.endswith(('.SZ', '.SH')):
+                    # 根据代码判断交易所
+                    if ticker.startswith('6'):
+                        ticker_with_suffix = f"{ticker}.SH"
+                    else:
+                        ticker_with_suffix = f"{ticker}.SZ"
+                else:
+                    ticker_with_suffix = ticker
+
+                return get_YFin_data_online(ticker_with_suffix, start_date, end_date)
+            except Exception as e:
+                return f"❌ Yahoo Finance数据获取失败: {e}"
+    else:
+        print(f"📊 检测到美股代码: {ticker}, 使用Yahoo Finance数据源")
+        # 美股，使用Yahoo Finance
+        try:
+            return get_YFin_data_online(ticker, start_date, end_date)
+        except Exception as e:
+            return f"❌ Yahoo Finance数据获取失败: {e}"
+
+
+def get_smart_stock_data_offline(
+    ticker: Annotated[str, "Stock ticker symbol (e.g., AAPL for US, 000001 for China A-share)"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    智能股票数据获取函数 (离线版本) - 根据股票代码自动选择数据源
+
+    Args:
+        ticker: 股票代码 (美股如AAPL, 中国A股如000001)
+        start_date: 开始日期 yyyy-mm-dd
+        end_date: 结束日期 yyyy-mm-dd
+
+    Returns:
+        str: 格式化的股票数据
+    """
+    print(f"🔍 智能数据源选择 (离线): {ticker}")
+
+    # 判断股票类型并选择合适的数据源
+    if is_chinese_stock(ticker):
+        print(f"📊 检测到中国股票代码: {ticker}, 使用Tushare数据源")
+        if TUSHARE_AVAILABLE:
+            try:
+                # 移除可能的后缀，只保留6位数字代码
+                clean_ticker = ticker.split('.')[0]
+                return get_china_stock_data_cached(clean_ticker, start_date, end_date)
+            except Exception as e:
+                print(f"⚠️ Tushare数据获取失败，尝试离线Yahoo Finance: {e}")
+                # 如果Tushare失败，尝试离线Yahoo Finance
+                try:
+                    if not ticker.endswith(('.SZ', '.SH')):
+                        # 根据代码判断交易所
+                        if ticker.startswith('6'):
+                            ticker_with_suffix = f"{ticker}.SH"
+                        else:
+                            ticker_with_suffix = f"{ticker}.SZ"
+                    else:
+                        ticker_with_suffix = ticker
+
+                    return get_YFin_data(ticker_with_suffix, start_date, end_date)
+                except Exception as e2:
+                    return f"❌ 所有数据源都失败: Tushare: {e}, Yahoo Finance (离线): {e2}"
+        else:
+            print(f"⚠️ Tushare不可用，尝试离线Yahoo Finance")
+            # Tushare不可用，尝试离线Yahoo Finance
+            try:
+                if not ticker.endswith(('.SZ', '.SH')):
+                    # 根据代码判断交易所
+                    if ticker.startswith('6'):
+                        ticker_with_suffix = f"{ticker}.SH"
+                    else:
+                        ticker_with_suffix = f"{ticker}.SZ"
+                else:
+                    ticker_with_suffix = ticker
+
+                return get_YFin_data(ticker_with_suffix, start_date, end_date)
+            except Exception as e:
+                return f"❌ Yahoo Finance (离线)数据获取失败: {e}"
+    else:
+        print(f"📊 检测到美股代码: {ticker}, 使用离线Yahoo Finance数据源")
+        # 美股，使用离线Yahoo Finance
+        try:
+            return get_YFin_data(ticker, start_date, end_date)
+        except Exception as e:
+            return f"❌ Yahoo Finance (离线)数据获取失败: {e}"

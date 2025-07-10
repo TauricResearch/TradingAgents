@@ -29,5 +29,5 @@ langchain-google-genai
 dashscope
 streamlit
 plotly
-pytdx  # TongDaXin API for Chinese stock real-time data
+tushare  # Tushare API for Chinese stock data (replaces pytdx)
 pymongo  # MongoDB database support for token usage storage

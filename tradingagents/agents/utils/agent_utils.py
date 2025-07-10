@@ -163,6 +163,48 @@ class Toolkit:
 
     @staticmethod
     @tool
+    def get_smart_stock_data(
+        ticker: Annotated[str, "Stock ticker symbol (e.g., AAPL for US, 000001 for China A-share)"],
+        start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+        end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    ) -> str:
+        """
+        Smart stock data retrieval - automatically selects appropriate data source based on ticker format.
+        For US stocks (e.g., AAPL): Uses Yahoo Finance
+        For Chinese A-share stocks (e.g., 000001): Uses Tushare API
+        Args:
+            ticker (str): Stock ticker symbol (US: AAPL, China: 000001)
+            start_date (str): Start date in yyyy-mm-dd format
+            end_date (str): End date in yyyy-mm-dd format
+        Returns:
+            str: Formatted stock data from the appropriate data source
+        """
+        result_data = interface.get_smart_stock_data(ticker, start_date, end_date)
+        return result_data
+
+    @staticmethod
+    @tool
+    def get_smart_stock_data_offline(
+        ticker: Annotated[str, "Stock ticker symbol (e.g., AAPL for US, 000001 for China A-share)"],
+        start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+        end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    ) -> str:
+        """
+        Smart stock data retrieval (offline version) - automatically selects appropriate data source.
+        For US stocks (e.g., AAPL): Uses offline Yahoo Finance data
+        For Chinese A-share stocks (e.g., 000001): Uses Tushare API with caching
+        Args:
+            ticker (str): Stock ticker symbol (US: AAPL, China: 000001)
+            start_date (str): Start date in yyyy-mm-dd format
+            end_date (str): End date in yyyy-mm-dd format
+        Returns:
+            str: Formatted stock data from the appropriate data source
+        """
+        result_data = interface.get_smart_stock_data_offline(ticker, start_date, end_date)
+        return result_data
+
+    @staticmethod
+    @tool
     def get_stockstats_indicators_report(
         symbol: Annotated[str, "ticker symbol of the company"],
         indicator: Annotated[
