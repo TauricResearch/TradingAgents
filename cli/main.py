@@ -20,6 +20,8 @@ from rich import box
 from rich.align import Align
 from rich.rule import Rule
 
+from dotenv import load_dotenv
+load_dotenv()
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType

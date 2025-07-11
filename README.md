@@ -114,15 +114,15 @@ pip install -r requirements.txt
 
 ### Required APIs
 
-You will also need the FinnHub API for financial data. All of our code is implemented with the free tier.
+You will need API keys from FinnHub and OpenAI. You can provide them by creating a `.env` file in the root of the project. Rename the `.env.sample` file to `.env` and add your API keys:
+
 ```bash
-export FINNHUB_API_KEY=$YOUR_FINNHUB_API_KEY
+# .env
+FINNHUB_API_KEY="YOUR_FINNHUB_API_KEY"
+OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
 ```
 
-You will need the OpenAI API for all the agents.
-```bash
-export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
-```
+The application will automatically load these keys. Alternatively, you can still use environment variables if you prefer.
 
 ### CLI Usage
 

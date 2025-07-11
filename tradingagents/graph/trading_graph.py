@@ -48,6 +48,12 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
 
+        # Override config with environment variables if set
+        self.config["backend_url"] = os.environ.get("BACKEND_URL", self.config.get("backend_url"))
+        self.config["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY", self.config.get("OPENAI_API_KEY"))
+        self.config["deep_think_llm"] = os.environ.get("DEEP_THINK_LLM", self.config.get("deep_think_llm"))
+        self.config["quick_think_llm"] = os.environ.get("QUICK_THINK_LLM", self.config.get("quick_think_llm"))
+
         # Update the interface's config
         set_config(self.config)
 
