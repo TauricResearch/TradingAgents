@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 import json
+import uuid
 from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
 
@@ -37,6 +38,7 @@ class TradingAgentsGraph:
         selected_analysts=["market", "social", "news", "fundamentals"],
         debug=False,
         config: Dict[str, Any] = None,
+        session_id: Optional[str] = None,
     ):
         """Initialize the trading agents graph and components.
 
@@ -44,9 +46,13 @@ class TradingAgentsGraph:
             selected_analysts: List of analyst types to include
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
+            session_id: Optional unique session ID. If None, generates a new one
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
+        
+        # Generate unique session ID
+        self.session_id = session_id or str(uuid.uuid4())
 
         # Update the interface's config
         set_config(self.config)
@@ -72,12 +78,12 @@ class TradingAgentsGraph:
         
         self.toolkit = Toolkit(config=self.config)
 
-        # Initialize memories
-        self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
-        self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
-        self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
-        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
+        # Initialize memories with coordinated session ID
+        self.bull_memory = FinancialSituationMemory("bull_memory", self.config, self.session_id)
+        self.bear_memory = FinancialSituationMemory("bear_memory", self.config, self.session_id)
+        self.trader_memory = FinancialSituationMemory("trader_memory", self.config, self.session_id)
+        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config, self.session_id)
+        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config, self.session_id)
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -192,6 +198,7 @@ class TradingAgentsGraph:
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
         self.log_states_dict[str(trade_date)] = {
+            "session_id": self.session_id,
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
             "market_report": final_state["market_report"],
