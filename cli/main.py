@@ -13,12 +13,14 @@ from rich.layout import Layout
 from rich.text import Text
 from rich.live import Live
 from rich.table import Table
+from rich.markup import escape
 from collections import deque
 import time
 from rich.tree import Tree
 from rich import box
 from rich.align import Align
 from rich.rule import Rule
+import re
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -26,6 +28,32 @@ from cli.models import AnalystType
 from cli.utils import *
 
 console = Console()
+
+def make_links_clickable(text):
+    """Convert URLs and markdown links to clickable Rich links"""
+    # Pattern to match markdown links [text](url)
+    markdown_link_pattern = r'\[([^\]]+)\]\((https?://[^\)]+)\)'
+    
+    def replace_markdown_link(match):
+        text = match.group(1)
+        url = match.group(2)
+        return f'[link={url}]{text}[/link]'
+    
+    # Replace markdown links with Rich clickable links
+    text = re.sub(markdown_link_pattern, replace_markdown_link, text)
+    
+    # Pattern to match standalone URLs
+    url_pattern = r'(https?://[^\s\]]+)'
+    
+    def replace_url(match):
+        url = match.group(1)
+        return f'[link={url}]{url}[/link]'
+    
+    # Replace standalone URLs with clickable links (but not ones already in [link] tags)
+    if '[link=' not in text:
+        text = re.sub(url_pattern, replace_url, text)
+    
+    return text
 
 app = typer.Typer(
     name="TradingAgents",
@@ -191,7 +219,7 @@ def update_display(layout, spinner_text=None):
     layout["header"].update(
         Panel(
             "[bold green]Welcome to TradingAgents CLI[/bold green]\n"
-            "[dim]© [Tauric Research](https://github.com/TauricResearch)[/dim]",
+            "[dim]© [link=https://github.com/TauricResearch]Tauric Research[/link][/dim]",
             title="Welcome to TradingAgents",
             border_style="green",
             padding=(1, 2),
@@ -293,7 +321,10 @@ def update_display(layout, spinner_text=None):
         # Truncate tool call args if too long
         if isinstance(args, str) and len(args) > 100:
             args = args[:97] + "..."
-        all_messages.append((timestamp, "Tool", f"{tool_name}: {args}"))
+        tool_content = f"{tool_name}: {args}"
+        # Make any URLs in tool calls clickable
+        tool_content = make_links_clickable(tool_content)
+        all_messages.append((timestamp, "Tool", tool_content))
 
     # Add regular messages
     for timestamp, msg_type, content in message_buffer.messages:
@@ -314,6 +345,9 @@ def update_display(layout, spinner_text=None):
         elif not isinstance(content_str, str):
             content_str = str(content)
             
+        # Make any URLs in content clickable
+        content_str = make_links_clickable(content_str)
+        
         # Truncate message content if too long
         if len(content_str) > 200:
             content_str = content_str[:197] + "..."
@@ -332,7 +366,7 @@ def update_display(layout, spinner_text=None):
     # Add messages to table
     for timestamp, msg_type, content in recent_messages:
         # Format content with word wrapping
-        wrapped_content = Text(content, overflow="fold")
+        wrapped_content = Text.from_markup(content, overflow="fold")
         messages_table.add_row(timestamp, msg_type, wrapped_content)
 
     if spinner_text:
@@ -355,9 +389,11 @@ def update_display(layout, spinner_text=None):
 
     # Analysis panel showing current report
     if message_buffer.current_report:
+        # Make any URLs in the report clickable
+        report_with_links = make_links_clickable(message_buffer.current_report)
         layout["analysis"].update(
             Panel(
-                Markdown(message_buffer.current_report),
+                Markdown(report_with_links),
                 title="Current Report",
                 border_style="green",
                 padding=(1, 2),
@@ -401,10 +437,8 @@ def get_user_selections():
     welcome_content = f"{welcome_ascii}\n"
     welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
-    welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
-    welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
-    )
+    welcome_content += "I. Analyst Team -> II. Research Team -> III. Trader -> IV. Risk Management -> V. Portfolio Management\n\n"
+    welcome_content += "[dim]Built by [link=https://github.com/TauricResearch]Tauric Research[/link][/dim]"
 
     # Create and center the welcome box
     welcome_box = Panel(
