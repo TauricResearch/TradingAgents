@@ -1,22 +1,43 @@
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
+import uuid
+import time
 
 
 class FinancialSituationMemory:
-    def __init__(self, name, config):
+    def __init__(self, name, config, session_id=None):
         if config["backend_url"] == "http://localhost:11434/v1":
             self.embedding = "nomic-embed-text"
         else:
             self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
-        self.chroma_client = chromadb.Client(Settings(allow_reset=True))
-        self.situation_collection = self.chroma_client.create_collection(name=name)
+        self.openai_client = OpenAI(base_url=config["backend_url"])
+        
+        # Generate session ID if not provided 
+        if session_id is None:
+            session_id = str(uuid.uuid4())
+        self.session_id = session_id
+        self.collection_name = f"{name}_{session_id}"
+        
+        # Initialize ChromaDB client
+        chroma_path = config.get("chroma_db_path", "./chroma_db")
+        settings = Settings(allow_reset=True)
+        self.chroma_client = chromadb.PersistentClient(path=chroma_path, settings=settings)
+        
+        # Get or create collection to avoid conflicts
+        self.situation_collection = self._get_or_create_collection()
+
+    def _get_or_create_collection(self):
+        """Get existing collection or create new one to avoid conflicts"""
+        try:
+            return self.chroma_client.get_collection(name=self.collection_name)
+        except Exception:
+            return self.chroma_client.create_collection(name=self.collection_name)
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""
         
-        response = self.client.embeddings.create(
+        response = self.openai_client.embeddings.create(
             model=self.embedding, input=text
         )
         return response.data[0].embedding
@@ -65,6 +86,16 @@ class FinancialSituationMemory:
             )
 
         return matched_results
+
+    def cleanup(self):
+        """
+        Clean up the collection (optional - for resource management).
+        This method can be called to remove the collection when no longer needed.
+        """
+        try:
+            self.chroma_client.delete_collection(self.collection_name)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
