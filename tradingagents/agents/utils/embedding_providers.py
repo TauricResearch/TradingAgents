@@ -33,7 +33,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
     
 
 class GeminiEmbeddingProvider(EmbeddingProvider):
-    def __init__(self, backend_url: str, embedding_model: str = "gemini-embedding-exp-03-07"):
+    def __init__(self, backend_url: str, embedding_model: str = "gemini-embedding-001"):
         self.client = genai.Client()
         self._embedding_model = embedding_model
 
