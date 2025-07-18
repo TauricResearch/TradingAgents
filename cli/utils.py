@@ -1,4 +1,6 @@
 import questionary
+from rich.console import Console
+console = Console()
 from typing import List, Optional, Tuple, Dict
 
 from cli.models import AnalystType
@@ -237,6 +239,28 @@ def select_deep_thinking_agent(provider) -> str:
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
         exit(1)
 
+    return choice
+
+def select_output_format() -> str:
+    """Prompt the user to choose output format (Markdown or HTML)."""
+    choice = questionary.select(
+        "Select output format:",
+        choices=[
+            questionary.Choice("Markdown", "md"),
+            questionary.Choice("HTML", "html"),
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "noinherit"),
+            ]
+        ),
+    ).ask()
+    if choice is None:
+        console.print("\n[red]No output format selected. Exiting...[/red]")
+        exit(1)
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
