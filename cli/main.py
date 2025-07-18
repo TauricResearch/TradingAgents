@@ -33,9 +33,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <title>{title}</title>
 <style>
-    body {{ font-family: Arial, sans-serif; margin: 40px; }}
-    h1,h2,h3,h4 {{ color: #2c3e50; }}
-    table {{ border-collapse: collapse; width: 100%; margin-bottom: 20px; }}
+    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f5f7; margin: 0; padding: 0; }}
+    header {{ background-color: #2c3e50; padding: 10px 20px; }}
+    header a {{ color: #ffffff; text-decoration: none; font-weight: bold; }}
+    header a:hover {{ text-decoration: underline; }}
+    .container {{ max-width: 800px; margin: 40px auto; background: #ffffff; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }}
+    h1, h2, h3, h4 {{ color: #2c3e50; margin-top: 1.2em; }}
+    p {{ line-height: 1.6; color: #333333; }}
+    table {{ border-collapse: collapse; width: 100%; margin-bottom: 1.5em; }}
     th, td {{ border: 1px solid #ddd; padding: 8px; }}
     th {{ background-color: #f2f2f2; text-align: left; }}
     a {{ color: #3498db; text-decoration: none; }}
@@ -43,7 +48,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </style>
 </head>
 <body>
+<header><a href="index.html">← Back to Index</a></header>
+<div class="container">
 {content}
+</div>
 </body>
 </html>"""
 
