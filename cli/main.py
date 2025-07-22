@@ -68,6 +68,7 @@ class MessageBuffer:
             "fundamentals_report": None,
             "investment_plan": None,
             "trader_investment_plan": None,
+            "risk_debate": None,
             "final_trade_decision": None,
         }
 
@@ -109,6 +110,7 @@ class MessageBuffer:
                 "fundamentals_report": "Fundamentals Analysis",
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
+                "risk_debate": "Risk Management Team Debate",
                 "final_trade_decision": "Portfolio Management Decision",
             }
             self.current_report = (
@@ -158,6 +160,11 @@ class MessageBuffer:
         if self.report_sections["trader_investment_plan"]:
             report_parts.append("## Trading Team Plan")
             report_parts.append(f"{self.report_sections['trader_investment_plan']}")
+        
+        # Risk Management Team Debate 
+        if self.report_sections["risk_debate"]:
+            report_parts.append("## Risk Management Team Debate")
+            report_parts.append(f"{self.report_sections['risk_debate']}")
 
         # Portfolio Management Decision
         if self.report_sections["final_trade_decision"]:
@@ -516,12 +523,16 @@ def get_analysis_date():
             )
 
 
-def display_complete_report(final_state):
-    """Display the complete analysis report with team-based panels."""
+def display_complete_report(final_state, report_dir, selections):
+    """Display the complete analysis report with team-based panels and save to markdown file."""
     console.print("\n[bold green]Complete Analysis Report[/bold green]\n")
+
+    # Create full markdown report content
+    md_content = ["# Complete Analysis Report"]
 
     # I. Analyst Team Reports
     analyst_reports = []
+    md_content.append("## I. Analyst Team Reports")
 
     # Market Analyst Report
     if final_state.get("market_report"):
@@ -533,6 +544,10 @@ def display_complete_report(final_state):
                 padding=(1, 2),
             )
         )
+        md_content.append("### Market Analyst")
+        md_content.append(adjust_markdown_headers(
+            final_state["market_report"]))
+        md_content.append("")  # Empty line for spacing
 
     # Social Analyst Report
     if final_state.get("sentiment_report"):
@@ -544,6 +559,10 @@ def display_complete_report(final_state):
                 padding=(1, 2),
             )
         )
+        md_content.append("### Social Analyst")
+        md_content.append(adjust_markdown_headers(
+            final_state["sentiment_report"]))
+        md_content.append("")  # Empty line for spacing
 
     # News Analyst Report
     if final_state.get("news_report"):
@@ -555,6 +574,9 @@ def display_complete_report(final_state):
                 padding=(1, 2),
             )
         )
+        md_content.append("### News Analyst")
+        md_content.append(adjust_markdown_headers(final_state["news_report"]))
+        md_content.append("")  # Empty line for spacing
 
     # Fundamentals Analyst Report
     if final_state.get("fundamentals_report"):
@@ -566,6 +588,10 @@ def display_complete_report(final_state):
                 padding=(1, 2),
             )
         )
+        md_content.append("### Fundamentals Analyst")
+        md_content.append(adjust_markdown_headers(
+            final_state["fundamentals_report"]))
+        md_content.append("")  # Empty line for spacing
 
     if analyst_reports:
         console.print(
@@ -581,6 +607,7 @@ def display_complete_report(final_state):
     if final_state.get("investment_debate_state"):
         research_reports = []
         debate_state = final_state["investment_debate_state"]
+        md_content.append("## II. Research Team Decision")
 
         # Bull Researcher Analysis
         if debate_state.get("bull_history"):
@@ -592,6 +619,10 @@ def display_complete_report(final_state):
                     padding=(1, 2),
                 )
             )
+            md_content.append("### Bull Researcher")
+            md_content.append(adjust_markdown_headers(
+                debate_state["bull_history"]))
+            md_content.append("")  # Empty line for spacing
 
         # Bear Researcher Analysis
         if debate_state.get("bear_history"):
@@ -603,6 +634,10 @@ def display_complete_report(final_state):
                     padding=(1, 2),
                 )
             )
+            md_content.append("### Bear Researcher")
+            md_content.append(adjust_markdown_headers(
+                debate_state["bear_history"]))
+            md_content.append("")  # Empty line for spacing
 
         # Research Manager Decision
         if debate_state.get("judge_decision"):
@@ -614,6 +649,10 @@ def display_complete_report(final_state):
                     padding=(1, 2),
                 )
             )
+            md_content.append("### Research Manager Decision")
+            md_content.append(adjust_markdown_headers(
+                debate_state["judge_decision"]))
+            md_content.append("")  # Empty line for spacing
 
         if research_reports:
             console.print(
@@ -627,6 +666,12 @@ def display_complete_report(final_state):
 
     # III. Trading Team Reports
     if final_state.get("trader_investment_plan"):
+        md_content.append("## III. Trading Team Plan")
+        md_content.append("### Trader")
+        md_content.append(adjust_markdown_headers(
+            final_state["trader_investment_plan"]))
+        md_content.append("")  # Empty line for spacing
+
         console.print(
             Panel(
                 Panel(
@@ -645,6 +690,7 @@ def display_complete_report(final_state):
     if final_state.get("risk_debate_state"):
         risk_reports = []
         risk_state = final_state["risk_debate_state"]
+        md_content.append("## IV. Risk Management Team Decision")
 
         # Aggressive (Risky) Analyst Analysis
         if risk_state.get("risky_history"):
@@ -656,6 +702,10 @@ def display_complete_report(final_state):
                     padding=(1, 2),
                 )
             )
+            md_content.append("### Aggressive (Risky) Analyst")
+            md_content.append(adjust_markdown_headers(
+                risk_state["risky_history"]))
+            md_content.append("")  # Empty line for spacing
 
         # Conservative (Safe) Analyst Analysis
         if risk_state.get("safe_history"):
@@ -667,6 +717,10 @@ def display_complete_report(final_state):
                     padding=(1, 2),
                 )
             )
+            md_content.append("### Conservative (Safe) Analyst")
+            md_content.append(adjust_markdown_headers(
+                risk_state["safe_history"]))
+            md_content.append("")  # Empty line for spacing
 
         # Neutral Analyst Analysis
         if risk_state.get("neutral_history"):
@@ -678,6 +732,10 @@ def display_complete_report(final_state):
                     padding=(1, 2),
                 )
             )
+            md_content.append("### Neutral Analyst")
+            md_content.append(adjust_markdown_headers(
+                risk_state["neutral_history"]))
+            md_content.append("")  # Empty line for spacing
 
         if risk_reports:
             console.print(
@@ -691,6 +749,11 @@ def display_complete_report(final_state):
 
         # V. Portfolio Manager Decision
         if risk_state.get("judge_decision"):
+            md_content.append("## V. Portfolio Manager Decision")
+            md_content.append("### Portfolio Manager")
+            md_content.append(adjust_markdown_headers(
+                risk_state["judge_decision"]))
+
             console.print(
                 Panel(
                     Panel(
@@ -704,6 +767,12 @@ def display_complete_report(final_state):
                     padding=(1, 2),
                 )
             )
+
+    # Write the full markdown report to file
+    complete_report_filename = f"complete_report_by_{selections.get('shallow_thinker')}__{selections.get('deep_thinker')}.md"
+    complete_report_path = report_dir / complete_report_filename
+    with open(complete_report_path, "w") as f:
+        f.write("\n".join(md_content))
 
 
 def update_research_team_status(status):
@@ -989,6 +1058,7 @@ def run_analysis():
                 # Risk Management Team - Handle Risk Debate State
                 if "risk_debate_state" in chunk and chunk["risk_debate_state"]:
                     risk_state = chunk["risk_debate_state"]
+                    risk_debate_content = ""
 
                     # Update Risky Analyst status and report
                     if (
@@ -1002,10 +1072,11 @@ def run_analysis():
                             "Reasoning",
                             f"Risky Analyst: {risk_state['current_risky_response']}",
                         )
-                        # Update risk report with risky analyst's latest analysis only
+                        # Update risk report with adding risky analyst's latest analysis
+                        risk_debate_content += f"### Risky Analyst Analysis\n{risk_state['current_risky_response']}\n"
                         message_buffer.update_report_section(
-                            "final_trade_decision",
-                            f"### Risky Analyst Analysis\n{risk_state['current_risky_response']}",
+                            "risk_debate",
+                            risk_debate_content,
                         )
 
                     # Update Safe Analyst status and report
@@ -1020,10 +1091,11 @@ def run_analysis():
                             "Reasoning",
                             f"Safe Analyst: {risk_state['current_safe_response']}",
                         )
-                        # Update risk report with safe analyst's latest analysis only
+                        # Update risk report with adding safe analyst's latest analysis
+                        risk_debate_content += f"### Safe Analyst Analysis\n{risk_state['current_safe_response']}\n"
                         message_buffer.update_report_section(
-                            "final_trade_decision",
-                            f"### Safe Analyst Analysis\n{risk_state['current_safe_response']}",
+                            "risk_debate",
+                            risk_debate_content,
                         )
 
                     # Update Neutral Analyst status and report
@@ -1038,10 +1110,11 @@ def run_analysis():
                             "Reasoning",
                             f"Neutral Analyst: {risk_state['current_neutral_response']}",
                         )
-                        # Update risk report with neutral analyst's latest analysis only
+                        # Update risk report with adding neutral analyst's latest analysis
+                        risk_debate_content += f"### Neutral Analyst Analysis\n{risk_state['current_neutral_response']}\n"
                         message_buffer.update_report_section(
-                            "final_trade_decision",
-                            f"### Neutral Analyst Analysis\n{risk_state['current_neutral_response']}",
+                            "risk_debate",
+                            risk_debate_content,
                         )
 
                     # Update Portfolio Manager status and final decision
@@ -1091,7 +1164,7 @@ def run_analysis():
                 message_buffer.update_report_section(section, final_state[section])
 
         # Display the complete final report
-        display_complete_report(final_state)
+        display_complete_report(final_state, report_dir, selections)
 
         update_display(layout)
 

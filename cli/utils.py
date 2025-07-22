@@ -1,6 +1,6 @@
 import questionary
 from typing import List, Optional, Tuple, Dict
-
+import re
 from cli.models import AnalystType
 
 ANALYST_ORDER = [
@@ -274,3 +274,23 @@ def select_llm_provider() -> tuple[str, str]:
     print(f"You selected: {display_name}\tURL: {url}")
     
     return display_name, url
+
+
+def adjust_markdown_headers(markdown_text: str) -> str:
+    def replace_header(match):
+        hashes = match.group(1)
+        header_text = match.group(2)
+        header_level = len(hashes)
+
+        if header_level <= 3:
+            new_hashes = "####"  # Force at least h4
+        else:
+            new_hashes = "#" * (header_level + 1)  # Increase one #
+
+        return f"{new_hashes} {header_text}"
+
+    # Regex to match markdown headers from level 1 to 6
+    adjusted_text = re.sub(
+        r"^(#{1,6})\s+(.*)", replace_header, markdown_text, flags=re.MULTILINE
+    )
+    return adjusted_text
