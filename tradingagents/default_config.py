@@ -19,4 +19,5 @@ DEFAULT_CONFIG = {
     "max_recur_limit": 100,
     # Tool settings
     "online_tools": True,
+    "max_completion_tokens": 500,
 }
