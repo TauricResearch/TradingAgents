@@ -116,12 +116,12 @@ pip install -r requirements.txt
 
 You will also need the FinnHub API for financial data. All of our code is implemented with the free tier.
 ```bash
-export FINNHUB_API_KEY=$YOUR_FINNHUB_API_KEY
+export FINNHUB_API_KEY=your_finnhub_api_key_here
 ```
 
 You will need the OpenAI API for all the agents.
 ```bash
-export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
+export OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 ### CLI Usage
