@@ -287,7 +287,7 @@ def get_google_news(
     curr_date: Annotated[str, "Curr date in yyyy-mm-dd format"],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
-    query = query.replace(" ", "+")
+    # URL encoding is handled inside googlenews_utils.getNewsData
 
     start_date = datetime.strptime(curr_date, "%Y-%m-%d")
     before = start_date - relativedelta(days=look_back_days)

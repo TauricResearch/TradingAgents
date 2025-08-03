@@ -4,6 +4,11 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import time
 import random
+import logging
+from urllib.parse import quote_plus
+
+logger = logging.getLogger(__name__)
+
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -14,20 +19,24 @@ from tenacity import (
 
 
 def is_rate_limited(response):
-    """Check if the response indicates rate limiting (status code 429)"""
-    return response.status_code == 429
+    """Check if the response indicates we should back off (rate-limited or temporarily unavailable)."""
+    return response.status_code in (429, 403, 503)
 
+
+def _add_jitter(retry_state):
+    # Add small random jitter before each retry to avoid detection patterns
+    time.sleep(random.uniform(1, 3))
 
 @retry(
     retry=(retry_if_result(is_rate_limited)),
     wait=wait_exponential(multiplier=1, min=4, max=60),
+    before_sleep=_add_jitter,
     stop=stop_after_attempt(5),
 )
 def make_request(url, headers):
     """Make a request with retry logic for rate limiting"""
-    # Random delay before each request to avoid detection
-    time.sleep(random.uniform(2, 6))
-    response = requests.get(url, headers=headers)
+    # The retry decorator already applies exponential backoff with jitter
+    response = requests.get(url, headers=headers, timeout=(5, 20))
     return response
 
 
@@ -57,8 +66,9 @@ def getNewsData(query, start_date, end_date):
     page = 0
     while True:
         offset = page * 10
+        encoded_query = quote_plus(query)
         url = (
-            f"https://www.google.com/search?q={query}"
+            f"https://www.google.com/search?q={encoded_query}"
             f"&tbs=cdr:1,cd_min:{start_date},cd_max:{end_date}"
             f"&tbm=nws&start={offset}"
         )
@@ -73,24 +83,30 @@ def getNewsData(query, start_date, end_date):
 
             for el in results_on_page:
                 try:
-                    link = el.find("a")["href"]
-                    title = el.select_one("div.MBeuO").get_text()
-                    snippet = el.select_one(".GI74Re").get_text()
-                    date = el.select_one(".LfVVr").get_text()
-                    source = el.select_one(".NUnG9d span").get_text()
+                    link_tag = el.find("a")
+                    title_el = el.select_one("div.MBeuO")
+                    if not link_tag or not title_el:
+                        # Skip if required elements are missing
+                        continue
+                    link = link_tag.get("href")
+                    title = title_el.get_text(strip=True)
+                    snippet_el = el.select_one(".GI74Re")
+                    date_el = el.select_one(".LfVVr")
+                    source_el = el.select_one(".NUnG9d span")
                     news_results.append(
                         {
                             "link": link,
                             "title": title,
-                            "snippet": snippet,
-                            "date": date,
-                            "source": source,
+                            "snippet": snippet_el.get_text(strip=True) if snippet_el else "",
+                            "date": date_el.get_text(strip=True) if date_el else "",
+                            "source": source_el.get_text(strip=True) if source_el else "",
                         }
                     )
                 except Exception as e:
-                    print(f"Error processing result: {e}")
+                    logger.warning("Error processing result: %s", e)
                     # If one of the fields is not found, skip this result
                     continue
+
 
             # Update the progress bar with the current count of results scraped
 
@@ -102,7 +118,7 @@ def getNewsData(query, start_date, end_date):
             page += 1
 
         except Exception as e:
-            print(f"Failed after multiple retries: {e}")
+            logger.error("Failed after multiple retries: %s", e)
             break
 
     return news_results
