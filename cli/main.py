@@ -22,6 +22,7 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.reports import TradingReportPDFGenerator
 from cli.models import AnalystType
 from cli.utils import *
 
@@ -1092,6 +1093,38 @@ def run_analysis():
 
         # Display the complete final report
         display_complete_report(final_state)
+
+        # Generate PDF report if enabled
+        if config.get("pdf_generation", {}).get("auto_generate", True):
+            try:
+                pdf_generator = TradingReportPDFGenerator(config.get("pdf_generation", {}))
+                if pdf_generator.is_available():
+                    # Prepare analysis data for PDF generation
+                    analysis_data = {
+                        "final_report": final_state.get("final_trade_decision", ""),
+                        "report_sections": {
+                            section: content for section, content in message_buffer.report_sections.items()
+                            if content is not None
+                        },
+                        "final_state": final_state  # Pass complete state for structured formatting
+                    }
+                    
+                    pdf_path = pdf_generator.generate_pdf(
+                        analysis_data, 
+                        selections["ticker"], 
+                        selections["analysis_date"]
+                    )
+                    
+                    if pdf_path:
+                        console.print(f"\n📄 [bold green]PDF report generated:[/bold green] {pdf_path}")
+                        console.print(f"📄 [bold green]HTML backup saved:[/bold green] {pdf_path.replace('.pdf', '.html')}")
+                    else:
+                        console.print("\n⚠️  [yellow]PDF generation failed, but analysis completed successfully[/yellow]")
+                else:
+                    console.print("\n⚠️  [yellow]PDF generation not available (dependencies not installed or disabled)[/yellow]")
+            except Exception as e:
+                console.print(f"\n⚠️  [yellow]PDF generation failed: {str(e)}[/yellow]")
+                console.print("Analysis completed successfully, but PDF could not be generated.")
 
         update_display(layout)
 
