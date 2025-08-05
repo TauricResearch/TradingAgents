@@ -112,6 +112,14 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+#### Google Colab / Jupyter Installation ####
+```python
+! git clone https://github.com/TauricResearch/TradingAgents.git
+import os
+os.chdir("TradingAgents")
+! pip install -r requirements.txt
+ ```
+
 ### Required APIs
 
 You will also need the FinnHub API for financial data. All of our code is implemented with the free tier.
