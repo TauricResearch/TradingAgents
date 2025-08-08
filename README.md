@@ -121,3 +121,8 @@ You can view the full list of configurations in [tradingagents/default_config.py
 - Social
 - News
 - Fundamentals
+
+### Conditional Logic
+
+There are strict rules for the number of loops for the conditional logic of the agents, customization is possible by including the human in the loop as part of the system prompt as the Research Manager / Risk Judge.
+

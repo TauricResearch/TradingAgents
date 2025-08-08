@@ -46,6 +46,7 @@ ticker_to_company = {
     "UBER": "Uber",
     "ROKU": "Roku",
     "PINS": "Pinterest",
+    "AVAH": "Aveanna Healthcare"
 }
 
 
