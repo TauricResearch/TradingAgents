@@ -17,7 +17,6 @@ class FinancialSituationMemory:
         except:
             # Collection doesn't exist, create it
             self.situation_collection = self.chroma_client.create_collection(name=name)
-        # self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""
