@@ -380,12 +380,12 @@ const TransformedDataAdapter: React.FC<TransformedDataAdapterProps> = ({ analysi
 
   // Minimalist dashboard that shows ALL main sections of transformed JSON
   const MinimalTransformedDashboard: React.FC<{ data: TransformedAnalysisData }> = ({ data }) => {
-    const md = data?.metadata as any || {};
-    const fd = data?.financial_data as any || {};
-    const ti = data?.technical_indicators as any || {};
-    const istrat = data?.investment_strategy as any || {};
-    const ds = data?.debate_summary as any || {};
-    const txt = data?.text_content as any || {};
+    const md = (data?.metadata as any) || {};
+    const fd = (data?.financial_data as any) || {};
+    const ti = (data?.technical_indicators as any) || {};
+    const istrat = (data?.investment_strategy as any) || {};
+    const ds = React.useMemo(() => ((data?.debate_summary as any) || {}), [data]);
+    const txt = React.useMemo(() => ((data?.text_content as any) || {}), [data]);
 
     const trends = ti?.trend_directions || {};
     const fmt = (v: any, d = 0) => {
@@ -428,12 +428,6 @@ const TransformedDataAdapter: React.FC<TransformedDataAdapterProps> = ({ analysi
       );
     };
 
-    const row = (label: string, value: any, fmtDigits?: number) => (
-      <div className="flex items-center justify-between py-1">
-        <span className="text-sm text-gray-500">{label}</span>
-        <span className="text-sm font-medium">{fmtDigits === undefined ? (value ?? '-') : fmt(value, fmtDigits)}</span>
-      </div>
-    );
     const chip = (label: string, val?: string) => (
       <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs font-medium">{label}: {val ?? '-'}</span>
     );

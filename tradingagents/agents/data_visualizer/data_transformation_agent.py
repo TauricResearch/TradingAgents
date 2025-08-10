@@ -12,8 +12,8 @@ class TransformationConfig:
     """Configuration for the data transformation agent"""
     openai_api_key: str = os.environ.get("OPENAI_API_KEY")
     model: str = "gpt-4o-mini"
-    eval_results_path: str = "scripts/eval_results/AVAH/TradingAgentsStrategy_logs"
-    output_path: str = "scripts/eval_results/AVAH/TradingAgentsStrategy_transformed_logs"
+    eval_results_path: str = "../output_data/AVAH/TradingAgentsStrategy_logs"
+    output_path: str = "../output_data/AVAH/TradingAgentsStrategy_transformed_logs"
     backend_url: str = "https://api.openai.com/v1"
     
 class DataTransformationAgent:
@@ -522,10 +522,10 @@ def main():
     
     parser = argparse.ArgumentParser(description="Transform TradingAgents output to widget-friendly format")
     parser.add_argument("--api-key", help="OpenAI API key")
-    parser.add_argument("--input-file",  default="scripts/eval_results/AVAH/TradingAgentsStrategy_logs/full_states_log_2025-07-26.json", help="Process a single input file")
-    parser.add_argument("--output-file", default="scripts/eval_results/AVAH/TradingAgentsStrategy_transformed_logs/full_states_log_2025-07-26.json", help="Output file path (for single file processing)")
-    parser.add_argument("--eval-results-path", default="scripts/eval_results", help="Path to eval_results directory")
-    parser.add_argument("--output-path", default="scripts/eval_results/AVAH/TradingAgentsStrategy_transformed_logs/", help="Output directory path")
+    parser.add_argument("--input-file",  default="  ../output_data/AVAH/TradingAgentsStrategy_logs/full_states_log_2025-07-26.json", help="Process a single input file")
+    parser.add_argument("--output-file", default="../output_data/AVAH/TradingAgentsStrategy_transformed_logs/full_states_log_2025-07-26.json", help="Output file path (for single file processing)")
+    parser.add_argument("--eval-results-path", default="../output_data/AVAH/TradingAgentsStrategy_logs", help="Path to eval_results directory")
+    parser.add_argument("--output-path", default="../output_data/AVAH/TradingAgentsStrategy_transformed_logs/", help="Output directory path")
     
     args = parser.parse_args()
     

@@ -191,7 +191,7 @@ class TradingAgentsGraph:
 
         # Transform output JSON into widget-friendly format
         data_transformation_agent = DataTransformationAgent(TransformationConfig(
-            eval_results_path=f"scripts/eval_results/{company_name}/TradingAgentsStrategy_transformed_logs/full_states_log_{trade_date}.json"))
+            eval_results_path=f"../output_data/{company_name}/TradingAgentsStrategy_transformed_logs/full_states_log_{trade_date}.json"))
         
         transformed_output = data_transformation_agent.transform_single_file(self._get_state(trade_date))
 
@@ -231,11 +231,11 @@ class TradingAgentsGraph:
         }
 
         # Save to file
-        directory = Path(f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/")
+        directory = Path(f"../output_data/{self.ticker}/TradingAgentsStrategy_logs/")
         directory.mkdir(parents=True, exist_ok=True)
 
         with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
+            f"../output_data/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
             "w",
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)

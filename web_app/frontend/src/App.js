@@ -21,7 +21,6 @@ function App() {
   const [resultDetail, setResultDetail] = useState(null);
   
   // New state for transformed data
-  const [transformedDataFiles, setTransformedDataFiles] = useState([]);
   const [transformedDataSummary, setTransformedDataSummary] = useState(null);
   const [selectedTransformedData, setSelectedTransformedData] = useState(null);
   const [isLoadingTransformedData, setIsLoadingTransformedData] = useState(false);
@@ -200,11 +199,7 @@ function App() {
 
   const loadTransformedDataSummary = async () => {
     try {
-      const [files, summary] = await Promise.all([
-        transformedDataService.getAvailableFiles(),
-        transformedDataService.getDataSummary()
-      ]);
-      setTransformedDataFiles(files);
+      const summary = await transformedDataService.getDataSummary();
       setTransformedDataSummary(summary);
     } catch (error) {
       console.error('Error loading transformed data summary:', error);
@@ -289,11 +284,7 @@ function App() {
     setTransformedCompanyFiles([]);
     try {
       transformedDataService.clearCache();
-      const [files, summary] = await Promise.all([
-        transformedDataService.getAvailableFiles(),
-        transformedDataService.getDataSummary(),
-      ]);
-      setTransformedDataFiles(files);
+      const summary = await transformedDataService.getDataSummary();
       setTransformedDataSummary(summary);
     } catch (e) {
       console.error('Failed to load transformed data on open:', e);
@@ -304,7 +295,7 @@ function App() {
   const runAnalysis = async () => {
     setIsRunningAnalysis(true);
     try {
-      const response = await axios.post('/analysis/start', analysisForm);
+      await axios.post('/analysis/start', analysisForm);
       alert('Analysis completed successfully!');
       setShowAnalysisModal(false);
       setAnalysisForm({ symbol: '', date: '' });
@@ -498,11 +489,7 @@ function App() {
                     onClick={async () => {
                       try {
                         transformedDataService.clearCache();
-                        const [files, summary] = await Promise.all([
-                          transformedDataService.getAvailableFiles(),
-                          transformedDataService.getDataSummary(),
-                        ]);
-                        setTransformedDataFiles(files);
+                        const summary = await transformedDataService.getDataSummary();
                         setTransformedDataSummary(summary);
                         setTransformedDataError(null);
                       } catch (e) {
@@ -800,6 +787,12 @@ function App() {
                                 className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                               >
                                 View Details
+                              </button>
+                              <button
+                                onClick={() => openWidgetsView(result)}
+                                className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                              >
+                                View Dashboard
                               </button>
                             </div>
                           </div>

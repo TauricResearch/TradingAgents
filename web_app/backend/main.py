@@ -17,7 +17,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 app = FastAPI(title="TradingAgents API", version="1.0.0")
 
 # Centralized results directory to avoid repetition
-RESULTS_BASE = "/home/brabus61/Desktop/Github Repos/TradingAgents/scripts/eval_results"
+RESULTS_BASE = os.path.join(os.path.dirname(__file__), "output_data")
 
 # Configure CORS
 app.add_middleware(
@@ -141,7 +141,7 @@ async def get_analysis_status(job_id: str):
 async def get_companies():
     """Get list of companies with analysis results"""
     results_dir = RESULTS_BASE
-    
+    print(results_dir)
     if not os.path.exists(results_dir):
         return {"companies": []}
     
