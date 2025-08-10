@@ -308,7 +308,7 @@ const TransformedDataAdapter: React.FC<TransformedDataAdapterProps> = ({ analysi
       widgets_config: {
         charts_needed: [
           { type: 'price_chart', data_source: 'financial_data.current_price', timeframe: '30_days' },
-          { type: 'technical_indicators', data_source: 'technical_indicators' }
+          { type: 'technical_indicators', data_source: 'technical_indicators', timeframe: '30_days' }
         ],
         text_widgets: [
           { type: 'expandable_report', title: 'Technical Analysis', content_source: 'text_content.market_report' }
@@ -322,64 +322,124 @@ const TransformedDataAdapter: React.FC<TransformedDataAdapterProps> = ({ analysi
     ? analysisData 
     : convertLegacyToTransformed(analysisData);
 
-  // Convert transformed data to the format expected by AnalysisWidgets
-  const convertToWidgetFormat = (data: TransformedAnalysisData) => {
+  // Builds a default widgets_config for transformed analyses when missing
+  const buildTransformedWidgetsConfig = (data: any) => {
+    const confidenceMap: Record<string, number> = { LOW: 33, MEDIUM: 66, HIGH: 90 };
     return {
-      symbol: data.metadata.company_ticker,
-      final_decision: {
-        decision: data.metadata.final_recommendation,
-        reasoning: data.debate_summary.final_decision_rationale
-      },
-      technical_analysis: {
-        current_price: data.financial_data.current_price,
-        rsi: data.technical_indicators.rsi,
-        macd: data.technical_indicators.macd,
-        moving_averages: {
-          ma_50: data.technical_indicators.sma_50,
-          ma_200: data.technical_indicators.sma_200
-        }
-      },
-      fundamental_analysis: {
-        market_cap: data.financial_data.market_cap,
-        ps_ratio: data.financial_data.valuation_ratios.current_ps_ratio,
-        forward_pe: data.financial_data.valuation_ratios.forward_pe,
-        analyst_target: data.financial_data.analyst_data.price_target
-      },
-      bull_arguments: data.debate_summary.bull_key_points,
-      bear_arguments: data.debate_summary.bear_key_points,
-      neutral_perspective: data.debate_summary.neutral_perspective,
-      risk_assessment: {
-        overall_risk: data.investment_strategy.risk_management.stop_loss_percent
-      },
-      sentiment_analysis: {
-        overall_score: data.technical_indicators.rsi / 100 // Approximate sentiment from RSI
-      },
-      ownership_structure: {
-        insider_ownership: data.financial_data.ownership.insider_percent,
-        institutional_ownership: data.financial_data.ownership.institutional_percent,
-        retail_ownership: Math.max(0, 100 - data.financial_data.ownership.insider_percent - data.financial_data.ownership.institutional_percent)
-      },
-      investment_plan: {
-        stop_loss: data.investment_strategy.risk_management.initial_stop_loss,
-        profit_targets: data.investment_strategy.profit_targets.map(target => target.target_price)
-      },
-      earnings_date: data.metadata.analysis_date,
-      
-      // Extended data from new format
-      extended_data: {
-        metadata: data.metadata,
-        financial_data: data.financial_data,
-        technical_indicators: data.technical_indicators,
-        investment_strategy: data.investment_strategy,
-        text_content: data.text_content,
-        widgets_config: data.widgets_config
-      }
+      layout: [
+        ["kpi_recommendation", "kpi_confidence", "kpi_price_change", "kpi_marketcap", "kpi_ev"],
+        ["ownership_donut", "range_bar", "volume_chip"],
+        ["rsi_gauge", "macd_mini", "ma_trends", "atr_chip"],
+        ["strategy_ladder", "position_sizing", "monitoring_points"],
+        ["analyst_target_vs_price"],
+        ["report_technical", "report_sentiment"],
+        ["report_fundamentals", "report_investment_plan"],
+        ["debate_summary"]
+      ],
+      widgets: [
+        { id: "kpi_recommendation", type: "kpi_badge", title: "Recommendation", dataPath: "metadata.final_recommendation", colorMapping: { BUY: "green", HOLD: "yellow", SELL: "red" } },
+        { id: "kpi_confidence", type: "radial_gauge", title: "Confidence", value: confidenceMap[(data?.metadata?.confidence_level || "MEDIUM").toUpperCase()] || 66 },
+        { id: "kpi_price_change", type: "price_kpi", title: "Current Price", valuePath: "financial_data.current_price", deltaPath: "financial_data.price_change_percent", format: { value: "currency", delta: "percent" } },
+        { id: "kpi_marketcap", type: "kpi_text", title: "Market Cap", dataPath: "financial_data.market_cap" },
+        { id: "kpi_ev", type: "kpi_text", title: "Enterprise Value", dataPath: "financial_data.enterprise_value" },
+        { id: "ownership_donut", type: "donut", title: "Ownership", series: [
+          { label: "Insider %", valuePath: "financial_data.ownership.insider_percent" },
+          { label: "Institutional %", valuePath: "financial_data.ownership.institutional_percent" }
+        ], valueFormat: "percent" },
+        { id: "range_bar", type: "range_bar", title: "Trading Range", lowPath: "financial_data.trading_range.low", highPath: "financial_data.trading_range.high", openPath: "financial_data.trading_range.open", currentPath: "financial_data.current_price" },
+        { id: "volume_chip", type: "kpi_text", title: "Volume", dataPath: "financial_data.volume", format: { value: "number_compact" } },
+        { id: "rsi_gauge", type: "linear_gauge", title: "RSI", dataPath: "technical_indicators.rsi", min: 0, max: 100, zones: [ { to: 30, color: "blue", label: "Oversold" }, { from: 70, to: 100, color: "red", label: "Overbought" } ] },
+        { id: "macd_mini", type: "macd_snapshot", title: "MACD", macdPath: "technical_indicators.macd", signalPath: "technical_indicators.macd_signal", histogramCompute: "macd - macd_signal" },
+        { id: "ma_trends", type: "badges", title: "MA & Trend", badges: [
+          { label: "SMA 50", valuePath: "technical_indicators.sma_50", trendPath: "technical_indicators.trend_directions.sma_50" },
+          { label: "SMA 200", valuePath: "technical_indicators.sma_200", trendPath: "technical_indicators.trend_directions.sma_200" },
+          { label: "EMA 10", valuePath: "technical_indicators.ema_10", trendPath: "technical_indicators.trend_directions.ema_10" }
+        ], trendColors: { BULLISH: "green", BEARISH: "red", NEUTRAL: "gray" } },
+        { id: "atr_chip", type: "kpi_text", title: "ATR (Volatility)", dataPath: "technical_indicators.atr" },
+        { id: "strategy_ladder", type: "price_ladder", title: "Entry, Stop, Targets", entryStrategyPath: "investment_strategy.position_sizing.entry_strategy", stopPricePath: "investment_strategy.risk_management.initial_stop_loss", stopPercentPath: "investment_strategy.risk_management.stop_loss_percent", targetsPath: "investment_strategy.profit_targets", targetMapping: { price: "target_price", label: "action" }, currentPricePath: "financial_data.current_price" },
+        { id: "position_sizing", type: "chips", title: "Position Sizing", items: [
+          { label: "Total Allocation", valuePath: "investment_strategy.position_sizing.total_allocation_percent" },
+          { label: "Tranche 1", valuePath: "investment_strategy.position_sizing.tranche_1_percent" },
+          { label: "Tranche 2", valuePath: "investment_strategy.position_sizing.tranche_2_percent" }
+        ] },
+        { id: "monitoring_points", type: "bullet_list", title: "Monitoring Points", itemsPath: "investment_strategy.monitoring_points" },
+        { id: "analyst_target_vs_price", type: "bar_compare", title: "Analyst Target vs Current", series: [ { label: "Current", valuePath: "financial_data.current_price" }, { label: "Target", valuePath: "financial_data.analyst_data.price_target" } ], yFormat: "currency" },
+        { id: "report_technical", type: "expandable_report", titlePath: "text_content.market_report.title", contentPath: "text_content.market_report.content", bulletsPath: "text_content.market_report.key_takeaways" },
+        { id: "report_sentiment", type: "expandable_report", titlePath: "text_content.sentiment_report.title", contentPath: "text_content.sentiment_report.content", bulletsPath: "text_content.sentiment_report.recent_developments" },
+        { id: "report_fundamentals", type: "expandable_report", titlePath: "text_content.fundamentals_report.title", contentPath: "text_content.fundamentals_report.content", bulletsPath: "text_content.fundamentals_report.financial_highlights" },
+        { id: "report_investment_plan", type: "expandable_report", titlePath: "text_content.investment_plan_full.title", contentPath: "text_content.investment_plan_full.content" },
+        { id: "debate_summary", type: "debate_viewer", bullPath: "debate_summary.bull_key_points", bearPath: "debate_summary.bear_key_points", neutralPath: "debate_summary.neutral_perspective", finalPath: "debate_summary.final_decision_rationale" }
+      ]
     };
   };
 
-  const widgetData = convertToWidgetFormat(transformedData);
+  // Ensure we have a widgets_config; if missing, build a sensible default
+  const transformedWithConfig = {
+    ...transformedData,
+    widgets_config: transformedData?.widgets_config || buildTransformedWidgetsConfig(transformedData)
+  };
 
-  return <AnalysisWidgets tradingResult={widgetData} />;
+  // Minimalist Technical Indicators widget (single-card dashboard)
+  const TechnicalIndicatorsOnly: React.FC<{ data: TransformedAnalysisData }> = ({ data }) => {
+    const ti = data?.technical_indicators || {} as any;
+    const trends = ti?.trend_directions || {};
+    const fmt = (v: any, d = 0) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(d) : '—';
+    };
+    const trendChip = (label: string, dir?: string) => {
+      const map: Record<string, string> = { BULLISH: 'bg-green-100 text-green-800', BEARISH: 'bg-red-100 text-red-800', NEUTRAL: 'bg-gray-100 text-gray-700' };
+      const cls = map[String(dir || 'NEUTRAL').toUpperCase()] || map.NEUTRAL;
+      return <span className={`px-2 py-1 rounded text-xs font-medium ${cls}`}>{label}: {dir || 'NEUTRAL'}</span>;
+    };
+    return (
+      <div className="min-h-[200px] p-6">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold mb-4">Technical Indicators</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">RSI</p>
+                <p className="text-lg font-semibold">{fmt(ti?.rsi, 2)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">MACD</p>
+                <p className="text-lg font-semibold">{fmt(ti?.macd, 3)}</p>
+                <p className="text-xs text-gray-500">Signal: {fmt(ti?.macd_signal, 3)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">SMA 50</p>
+                <p className="text-lg font-semibold">{fmt(ti?.sma_50, 2)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">SMA 200</p>
+                <p className="text-lg font-semibold">{fmt(ti?.sma_200, 2)}</p>
+              </div>
+              {ti?.ema_10 !== undefined && (
+                <div>
+                  <p className="text-sm text-gray-500">EMA 10</p>
+                  <p className="text-lg font-semibold">{fmt(ti?.ema_10, 2)}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm text-gray-500">ATR</p>
+                <p className="text-lg font-semibold">{fmt(ti?.atr, 3)}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {trendChip('SMA 50', trends?.sma_50)}
+              {trendChip('SMA 200', trends?.sma_200)}
+              {trends?.ema_10 !== undefined && trendChip('EMA 10', trends?.ema_10)}
+              {trends?.price_action !== undefined && trendChip('Price', trends?.price_action)}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Only render the minimalist Technical Indicators widget for transformed data
+  return <TechnicalIndicatorsOnly data={transformedWithConfig} />;
 };
 
 export default TransformedDataAdapter;

@@ -79,7 +79,7 @@ export interface TransformedData {
     risk_factors: string[];
     catalysts: string[];
   };
-  widget_config: {
+  widgets_config: {
     charts_enabled: string[];
     priority_widgets: string[];
     display_preferences: Record<string, any>;
@@ -213,31 +213,25 @@ class TransformedDataService {
   }
 
   private validateTransformedData(data: any): void {
+    // Core sections that must exist
     const requiredSections = [
       'metadata',
       'financial_data',
       'technical_indicators',
-      'investment_strategy',
-      'debate_summary',
-      'text_content',
-      'widget_config'
+      'investment_strategy'
     ];
-
     for (const section of requiredSections) {
-      if (!data[section]) {
+      if (!(section in data)) {
         throw new Error(`Missing required section: ${section}`);
       }
     }
 
-    const metadata = data.metadata;
-    if (!metadata.company_ticker || !metadata.analysis_date) {
-      throw new Error('Invalid metadata: missing company_ticker or analysis_date');
+    // Normalize legacy singular widget_config to widgets_config, if present
+    if (!('widgets_config' in data) && ('widget_config' in data)) {
+      data.widgets_config = data.widget_config;
     }
 
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(metadata.analysis_date)) {
-      throw new Error('Invalid date format in metadata.analysis_date');
-    }
+    // widgets_config is optional; UI will supply a sensible default if absent
   }
 
   clearCache(): void {
