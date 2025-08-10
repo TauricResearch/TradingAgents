@@ -142,18 +142,34 @@ async def get_companies():
     for company_dir in os.listdir(results_dir):
         company_path = os.path.join(results_dir, company_dir)
         if os.path.isdir(company_path):
-            # Get latest analysis date
+            # Check both regular logs and transformed logs
             logs_dir = os.path.join(company_path, "TradingAgentsStrategy_logs")
+            transformed_logs_dir = os.path.join(company_path, "TradingAgentsStrategy_transformed_logs")
+            
+            total_analyses = 0
+            latest_date = None
+            
+            # Count regular analyses
             if os.path.exists(logs_dir):
                 json_files = glob.glob(os.path.join(logs_dir, "*.json"))
+                total_analyses += len(json_files)
                 if json_files:
                     latest_file = max(json_files, key=os.path.getctime)
                     latest_date = os.path.basename(latest_file).replace("full_states_log_", "").replace(".json", "")
-                    companies.append({
-                        "symbol": company_dir,
-                        "latest_analysis": latest_date,
-                        "total_analyses": len(json_files)
-                    })
+            
+            # Count transformed analyses
+            transformed_count = 0
+            if os.path.exists(transformed_logs_dir):
+                transformed_files = glob.glob(os.path.join(transformed_logs_dir, "*_transformed.json"))
+                transformed_count = len(transformed_files)
+            
+            if total_analyses > 0 or transformed_count > 0:
+                companies.append({
+                    "symbol": company_dir,
+                    "latest_analysis": latest_date,
+                    "total_analyses": total_analyses,
+                    "transformed_analyses": transformed_count
+                })
     
     return {"companies": companies}
 
@@ -195,6 +211,47 @@ async def get_company_results(symbol: str):
     
     return {"symbol": symbol.upper(), "results": results}
 
+@app.get("/transformed-results/{symbol}")
+async def get_transformed_company_results(symbol: str):
+    """Get all transformed analysis results for a specific company"""
+    results_dir = f"/home/brabus61/Desktop/Github Repos/TradingAgents/scripts/eval_results/{symbol.upper()}/TradingAgentsStrategy_transformed_logs"
+    
+    if not os.path.exists(results_dir):
+        raise HTTPException(status_code=404, detail=f"No transformed results found for {symbol}")
+    
+    results = []
+    json_files = glob.glob(os.path.join(results_dir, "*_transformed.json"))
+    
+    for file_path in sorted(json_files, key=os.path.getctime, reverse=True):
+        filename = os.path.basename(file_path)
+        # Extract date from filename like "full_states_log_2025-07-26_transformed.json"
+        analysis_date = filename.replace("full_states_log_", "").replace("_transformed.json", "")
+        
+        try:
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+                
+            results.append({
+                "date": analysis_date,
+                "filename": filename,
+                "file_size": os.path.getsize(file_path),
+                "modified_at": datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
+                "preview": {
+                    "company_ticker": data.get("metadata", {}).get("company_ticker", "N/A"),
+                    "final_recommendation": data.get("metadata", {}).get("final_recommendation", "N/A"),
+                    "confidence_level": data.get("metadata", {}).get("confidence_level", "N/A"),
+                    "current_price": data.get("financial_data", {}).get("current_price", 0)
+                }
+            })
+        except Exception as e:
+            results.append({
+                "date": analysis_date,
+                "filename": filename,
+                "error": f"Could not read file: {str(e)}"
+            })
+    
+    return {"symbol": symbol.upper(), "results": results}
+
 @app.get("/results/{symbol}/{date}")
 async def get_specific_result(symbol: str, date: str):
     """Get specific analysis result"""
@@ -218,6 +275,31 @@ async def get_specific_result(symbol: str, date: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading result: {str(e)}")
+
+@app.get("/transformed-results/{symbol}/{date}")
+async def get_specific_transformed_result(symbol: str, date: str):
+    """Get specific transformed analysis result"""
+    file_path = f"/home/brabus61/Desktop/Github Repos/TradingAgents/scripts/eval_results/{symbol.upper()}/TradingAgentsStrategy_transformed_logs/full_states_log_{date}_transformed.json"
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Transformed result not found for {symbol} on {date}")
+    
+    try:
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        
+        return {
+            "symbol": symbol.upper(),
+            "date": date,
+            "data": data,
+            "file_info": {
+                "filename": os.path.basename(file_path),
+                "file_size": os.path.getsize(file_path),
+                "modified_at": datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat()
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 @app.get("/config")
 async def get_default_config():

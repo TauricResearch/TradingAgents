@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import AnalysisDataAdapter from './components/AnalysisDataAdapter.tsx';
 import TransformedDataAdapter from './components/TransformedDataAdapter.tsx';
@@ -26,10 +26,12 @@ function App() {
   const [selectedTransformedData, setSelectedTransformedData] = useState(null);
   const [isLoadingTransformedData, setIsLoadingTransformedData] = useState(false);
   const [transformedDataError, setTransformedDataError] = useState(null);
+  const [selectedTransformedCompany, setSelectedTransformedCompany] = useState(null);
+  const [transformedCompanyFiles, setTransformedCompanyFiles] = useState([]);
   const [activeDetailTab, setActiveDetailTab] = useState(null);
 
   // Fields to display as pretty cards in the Details modal
-  const detailFields = [
+  const detailFields = useMemo(() => ([
     'market_report',
     'sentiment_report',
     'news_report',
@@ -49,7 +51,7 @@ function App() {
     'risk_debate_state.judge_decision',
     'company_of_interest',
     'trade_date',
-  ];
+  ]), []);
 
   const fieldLabelMap = {
     market_report: 'Market Report',
@@ -169,7 +171,7 @@ function App() {
     } else if (!activeDetailTab || !available.includes(activeDetailTab)) {
       setActiveDetailTab(available[0]);
     }
-  }, [resultDetail, selectedResult]);
+  }, [resultDetail, selectedResult, detailFields, activeDetailTab]);
 
   const checkBackendStatus = async () => {
     try {
@@ -250,7 +252,8 @@ function App() {
     setTransformedDataError(null);
     
     try {
-      const transformedData = await transformedDataService.loadTransformedData(file.filename);
+      // Load by company and date to avoid relying on cached index
+      const transformedData = await transformedDataService.loadByCompanyAndDate(selectedTransformedCompany, file.date);
       setSelectedTransformedData(transformedData);
       setShowWidgetsView(true);
     } catch (error) {
@@ -279,9 +282,23 @@ function App() {
     setCompanyResults([]);
   };
 
-  const handleViewTransformedData = () => {
+  const handleViewTransformedData = async () => {
     setShowTransformedDataModal(true);
     setTransformedDataError(null);
+    setSelectedTransformedCompany(null);
+    setTransformedCompanyFiles([]);
+    try {
+      transformedDataService.clearCache();
+      const [files, summary] = await Promise.all([
+        transformedDataService.getAvailableFiles(),
+        transformedDataService.getDataSummary(),
+      ]);
+      setTransformedDataFiles(files);
+      setTransformedDataSummary(summary);
+    } catch (e) {
+      console.error('Failed to load transformed data on open:', e);
+      setTransformedDataError('Failed to load transformed data');
+    }
   };
 
   const runAnalysis = async () => {
@@ -310,6 +327,17 @@ function App() {
     setResultDetail(null);
     setSelectedTransformedData(null);
     setTransformedDataError(null);
+  };
+
+  const fetchTransformedCompanyFiles = async (symbol) => {
+    try {
+      const response = await axios.get(`/transformed-results/${symbol}`);
+      setTransformedCompanyFiles(response.data.results || []);
+      setSelectedTransformedCompany(symbol);
+    } catch (error) {
+      console.error('Error fetching transformed company files:', error);
+      setTransformedDataError('Error loading transformed company files');
+    }
   };
 
   return (
@@ -424,7 +452,7 @@ function App() {
                 <span className="text-2xl">📈</span>
               </span>
               <div className="text-center">
-                <div className="text-lg font-semibold">View Results</div>
+                <div className="text-lg font-semibold">View Agent Outputs</div>
                 <div className="text-sm opacity-90">Browse analysis results</div>
               </div>
             </button>
@@ -437,7 +465,7 @@ function App() {
                 <span className="text-2xl">🔄</span>
               </span>
               <div className="text-center">
-                <div className="text-lg font-semibold">Transformed Data</div>
+                <div className="text-lg font-semibold">Visualize Output Data</div>
                 <div className="text-sm opacity-90">View enhanced analyses</div>
               </div>
             </button>
@@ -451,16 +479,51 @@ function App() {
           <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Transformed Analysis Data</h3>
-                <button
-                  onClick={closeAllModals}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <span className="sr-only">Close</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <h3 className="text-lg font-medium text-gray-900">
+                  {selectedTransformedCompany ? `${selectedTransformedCompany} Transformed Analyses` : 'Transformed Analysis Data'}
+                </h3>
+                <div className="flex items-center gap-2">
+                  {selectedTransformedCompany && (
+                    <button
+                      onClick={() => {
+                        setSelectedTransformedCompany(null);
+                        setTransformedCompanyFiles([]);
+                      }}
+                      className="text-sm px-3 py-1 rounded-md border text-gray-700 hover:bg-gray-50"
+                    >
+                      Back
+                    </button>
+                  )}
+                  <button
+                    onClick={async () => {
+                      try {
+                        transformedDataService.clearCache();
+                        const [files, summary] = await Promise.all([
+                          transformedDataService.getAvailableFiles(),
+                          transformedDataService.getDataSummary(),
+                        ]);
+                        setTransformedDataFiles(files);
+                        setTransformedDataSummary(summary);
+                        setTransformedDataError(null);
+                      } catch (e) {
+                        console.error('Refresh failed:', e);
+                        setTransformedDataError('Refresh failed');
+                      }
+                    }}
+                    className="text-sm px-3 py-1 rounded-md border text-gray-700 hover:bg-gray-50"
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    onClick={closeAllModals}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {transformedDataError && (
@@ -501,31 +564,57 @@ function App() {
               )}
 
               <div className="max-h-96 overflow-y-auto">
-                {transformedDataFiles.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="text-gray-500 mb-2">No transformed data files found</div>
-                    <div className="text-sm text-gray-400">
-                      Run the data transformation agent to generate transformed analyses
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {transformedDataFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md hover:bg-gray-100">
-                        <div>
-                          <div className="font-medium text-gray-900">{file.displayName}</div>
-                          <div className="text-sm text-gray-500">{file.filename}</div>
-                        </div>
-                        <button
-                          onClick={() => openTransformedWidgetsView(file)}
-                          disabled={isLoadingTransformedData}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                {!selectedTransformedCompany ? (
+                  // Company list view (only companies with transformed analyses)
+                  companies && companies.filter(c => (c.transformed_analyses || 0) > 0).length > 0 ? (
+                    <div className="space-y-2">
+                      {companies.filter(c => (c.transformed_analyses || 0) > 0).map((company) => (
+                        <div 
+                          key={company.symbol} 
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer"
+                          onClick={() => fetchTransformedCompanyFiles(company.symbol)}
                         >
-                          {isLoadingTransformedData ? 'Loading...' : 'View Dashboard'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{company.symbol}</div>
+                            <div className="text-sm text-gray-500">Transformed analyses: {company.transformed_analyses}</div>
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            View Files
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-500 mb-2">No companies with transformed data found</div>
+                      <div className="text-sm text-gray-400">Run the data transformation agent to generate transformed analyses</div>
+                    </div>
+                  )
+                ) : (
+                  // File list for selected transformed company
+                  transformedCompanyFiles.length > 0 ? (
+                    <div className="space-y-2">
+                      {transformedCompanyFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md hover:bg-gray-100">
+                          <div>
+                            <div className="font-medium text-gray-900">{selectedTransformedCompany} - {file.date}</div>
+                            <div className="text-sm text-gray-500">{file.filename}</div>
+                          </div>
+                          <button
+                            onClick={() => openTransformedWidgetsView(file)}
+                            disabled={isLoadingTransformedData}
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                          >
+                            {isLoadingTransformedData ? 'Loading...' : 'View Dashboard'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-500 mb-2">No transformed files found for {selectedTransformedCompany}</div>
+                    </div>
+                  )
                 )}
               </div>
             </div>

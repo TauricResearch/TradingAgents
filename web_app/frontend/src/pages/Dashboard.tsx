@@ -53,7 +53,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center">
             <Database className="h-8 w-8 mr-4" />
             <div>
-              <h3 className="text-xl font-semibold">View Results</h3>
+              <h3 className="text-xl font-semibold">View Agent Outputs</h3>
               <p className="text-success-100">Browse historical analysis results</p>
             </div>
           </div>

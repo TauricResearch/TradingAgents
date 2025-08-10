@@ -8,7 +8,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Run Analysis', href: '/run-analysis', icon: Play },
-    { name: 'View Results', href: '/results', icon: Database },
+    { name: 'View Agent Outputs', href: '/results', icon: Database },
   ];
 
   return (

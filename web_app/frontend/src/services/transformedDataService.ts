@@ -1,126 +1,193 @@
-import { TransformedAnalysisData } from '../components/TransformedDataAdapter.tsx';
+import axios from 'axios';
 
-export interface TransformedDataFile {
+const API_BASE_URL = 'http://localhost:8000';
+
+export interface TransformedAnalysis {
   filename: string;
-  company: string;
   date: string;
+  modified_at: string;
+  file_size: number;
+  preview?: {
+    final_recommendation: string;
+    confidence_level: string;
+    current_price: number;
+  };
+  error?: string;
+  symbol: string;
   displayName: string;
 }
 
-class TransformedDataService {
-  private baseUrl = '/transformed_data';
-  private cachedFiles: TransformedDataFile[] | null = null;
-  private cachedData: Map<string, TransformedAnalysisData> = new Map();
+export interface TransformedData {
+  metadata: {
+    company_ticker: string;
+    analysis_date: string;
+    final_recommendation: string;
+    confidence_level: string;
+    current_price: number;
+    target_price: number;
+    risk_level: string;
+    time_horizon: string;
+  };
+  financial_data: {
+    current_price: number;
+    target_price: number;
+    price_change_1d: number;
+    price_change_1w: number;
+    price_change_1m: number;
+    market_cap: number;
+    volume: number;
+    pe_ratio: number;
+    revenue: number;
+    profit_margin: number;
+    debt_to_equity: number;
+    roe: number;
+    dividend_yield: number;
+  };
+  technical_indicators: {
+    rsi: number;
+    macd: number;
+    moving_avg_20: number;
+    moving_avg_50: number;
+    bollinger_upper: number;
+    bollinger_lower: number;
+    support_level: number;
+    resistance_level: number;
+  };
+  investment_strategy: {
+    position_size: number;
+    entry_price: number;
+    stop_loss: number;
+    take_profit: number;
+    holding_period: string;
+    risk_reward_ratio: number;
+  };
+  debate_summary: {
+    bull_case: {
+      key_points: string[];
+      strength_score: number;
+    };
+    bear_case: {
+      key_points: string[];
+      strength_score: number;
+    };
+    consensus: string;
+  };
+  text_content: {
+    executive_summary: string;
+    key_takeaways: string[];
+    detailed_analysis: string;
+    risk_factors: string[];
+    catalysts: string[];
+  };
+  widget_config: {
+    charts_enabled: string[];
+    priority_widgets: string[];
+    display_preferences: Record<string, any>;
+  };
+}
 
-  /**
-   * Get list of available transformed data files
-   */
-  async getAvailableFiles(): Promise<TransformedDataFile[]> {
+class TransformedDataService {
+  private baseUrl = API_BASE_URL; 
+  private cachedFiles: TransformedAnalysis[] | null = null;
+  private cachedData: Map<string, TransformedData> = new Map();
+
+  async getAvailableFiles(): Promise<TransformedAnalysis[]> {
     if (this.cachedFiles) {
       return this.cachedFiles;
     }
 
     try {
-      // In a real implementation, you might have an API endpoint that lists files
-      // For now, we'll try to load a manifest file or use a predefined list
-      const response = await fetch(`${this.baseUrl}/manifest.json`);
+      const companiesResponse = await axios.get(`${this.baseUrl}/results/companies`);
+      const companiesData = companiesResponse.data;
+      const companies = companiesData.companies || [];
       
-      if (response.ok) {
-        const manifest = await response.json();
-        this.cachedFiles = manifest.files || [];
-      } else {
-        // Fallback: try to load some common files
-        this.cachedFiles = await this.discoverFiles();
+      const files: TransformedAnalysis[] = [];
+      
+      for (const company of companies) {
+        if (company.transformed_analyses > 0) {
+          try {
+            const resultsResponse = await axios.get(`${this.baseUrl}/transformed-results/${company.symbol}`);
+            const resultsData = resultsResponse.data;
+            const results = resultsData.results || [];
+            
+            for (const result of results) {
+              files.push({
+                filename: result.filename,
+                date: result.date,
+                modified_at: result.modified_at,
+                file_size: result.file_size,
+                preview: result.preview,
+                error: result.error,
+                symbol: company.symbol,
+                displayName: `${company.symbol} - ${result.date}`
+              });
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch transformed results for ${company.symbol}:`, error);
+          }
+        }
       }
+      
+      this.cachedFiles = files;
     } catch (error) {
-      console.warn('Could not load transformed data manifest, using fallback discovery:', error);
-      this.cachedFiles = await this.discoverFiles();
+      console.warn('Could not load transformed data files:', error);
+      this.cachedFiles = [];
     }
 
     return this.cachedFiles;
   }
 
-  /**
-   * Discover available files by trying common patterns
-   */
-  private async discoverFiles(): Promise<TransformedDataFile[]> {
-    const companies = ['AVAH', 'PLTR', 'RDDT'];
-    const dates = [
-      '2025-07-26', '2025-08-05', '2025-08-06', '2025-08-07'
-    ];
-    
-    const files: TransformedDataFile[] = [];
-    
-    for (const company of companies) {
-      for (const date of dates) {
-        const filename = `${company}_full_states_log_${date}_transformed.json`;
-        
-        try {
-          const response = await fetch(`${this.baseUrl}/${filename}`, { method: 'HEAD' });
-          if (response.ok) {
-            files.push({
-              filename,
-              company,
-              date,
-              displayName: `${company} - ${date}`
-            });
-          }
-        } catch (error) {
-          // File doesn't exist, skip
-        }
-      }
-    }
-    
-    return files;
-  }
-
-  /**
-   * Load a specific transformed data file
-   */
-  async loadTransformedData(filename: string): Promise<TransformedAnalysisData> {
-    // Check cache first
+  async loadTransformedData(filename: string): Promise<TransformedData> {
     if (this.cachedData.has(filename)) {
       return this.cachedData.get(filename)!;
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/${filename}`);
+      const match = filename.match(/full_states_log_(.+)_transformed\.json/);
+      if (!match) {
+        throw new Error(`Invalid filename format: ${filename}`);
+      }
+      const date = match[1];
       
-      if (!response.ok) {
-        throw new Error(`Failed to load ${filename}: ${response.status} ${response.statusText}`);
+      const files = await this.getAvailableFiles();
+      const fileEntry = files.find(f => f.filename === filename);
+      if (!fileEntry) {
+        throw new Error(`File not found in index: ${filename}`);
       }
       
-      const data: TransformedAnalysisData = await response.json();
+      const response = await axios.get(`${this.baseUrl}/transformed-results/${fileEntry.symbol}/${date}`);
+      const responseData = response.data;
+      const data: TransformedData = responseData.data;
       
-      // Validate the data structure
       this.validateTransformedData(data);
       
-      // Cache the data
       this.cachedData.set(filename, data);
       
       return data;
     } catch (error) {
-      console.error(`Error loading transformed data file ${filename}:`, error);
+      console.error(`Error loading transformed data from ${filename}:`, error);
       throw error;
     }
   }
 
-  /**
-   * Load transformed data by company and date
-   */
-  async loadByCompanyAndDate(company: string, date: string): Promise<TransformedAnalysisData> {
-    const filename = `${company}_full_states_log_${date}_transformed.json`;
-    return this.loadTransformedData(filename);
+  async loadByCompanyAndDate(company: string, date: string): Promise<TransformedData> {
+    const files = await this.getAvailableFiles();
+    const entry = files.find(f => f.symbol === company && f.date === date);
+    if (entry) {
+      return this.loadTransformedData(entry.filename);
+    }
+
+    const response = await axios.get(`${this.baseUrl}/transformed-results/${company}/${date}`);
+    const data: TransformedData = response.data.data;
+    this.validateTransformedData(data);
+    return data;
   }
 
-  /**
-   * Get the most recent analysis for a company
-   */
-  async getLatestForCompany(company: string): Promise<TransformedAnalysisData | null> {
+  async getLatestForCompany(company: string): Promise<TransformedData | null> {
     const files = await this.getAvailableFiles();
     const companyFiles = files
-      .filter(f => f.company === company)
-      .sort((a, b) => b.date.localeCompare(a.date)); // Sort by date descending
+      .filter(f => f.symbol === company)
+      .sort((a, b) => b.date.localeCompare(a.date)); 
     
     if (companyFiles.length === 0) {
       return null;
@@ -129,31 +196,22 @@ class TransformedDataService {
     return this.loadTransformedData(companyFiles[0].filename);
   }
 
-  /**
-   * Get all available companies
-   */
   async getAvailableCompanies(): Promise<string[]> {
     const files = await this.getAvailableFiles();
-    const companies = [...new Set(files.map(f => f.company))];
-    return companies.sort();
+    const companies = [...new Set(files.map(f => f.symbol))].sort();
+    return companies;
   }
 
-  /**
-   * Get available dates for a specific company
-   */
   async getAvailableDatesForCompany(company: string): Promise<string[]> {
     const files = await this.getAvailableFiles();
     const dates = files
-      .filter(f => f.company === company)
+      .filter(f => f.symbol === company)
       .map(f => f.date)
-      .sort((a, b) => b.localeCompare(a)); // Sort by date descending
+      .sort((a, b) => b.localeCompare(a)); 
     
     return dates;
   }
 
-  /**
-   * Validate that the loaded data conforms to the expected structure
-   */
   private validateTransformedData(data: any): void {
     const requiredSections = [
       'metadata',
@@ -162,7 +220,7 @@ class TransformedDataService {
       'investment_strategy',
       'debate_summary',
       'text_content',
-      'widgets_config'
+      'widget_config'
     ];
 
     for (const section of requiredSections) {
@@ -171,49 +229,37 @@ class TransformedDataService {
       }
     }
 
-    // Validate metadata
     const metadata = data.metadata;
     if (!metadata.company_ticker || !metadata.analysis_date) {
       throw new Error('Invalid metadata: missing company_ticker or analysis_date');
     }
 
-    // Validate that dates are in correct format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(metadata.analysis_date)) {
       throw new Error('Invalid date format in metadata.analysis_date');
     }
   }
 
-  /**
-   * Clear all cached data
-   */
   clearCache(): void {
     this.cachedFiles = null;
     this.cachedData.clear();
   }
 
-  /**
-   * Create a manifest file content for available transformed data
-   * This can be used to generate a manifest.json file
-   */
-  async generateManifest(): Promise<{ files: TransformedDataFile[] }> {
-    const files = await this.discoverFiles();
+  async generateManifest(): Promise<{ files: TransformedAnalysis[] }> {
+    const files = await this.getAvailableFiles();
     return { files };
   }
 
-  /**
-   * Search for analyses by various criteria
-   */
   async searchAnalyses(criteria: {
     company?: string;
     dateFrom?: string;
     dateTo?: string;
     recommendation?: 'BUY' | 'SELL' | 'HOLD';
-  }): Promise<TransformedDataFile[]> {
+  }): Promise<TransformedAnalysis[]> {
     const files = await this.getAvailableFiles();
     
     return files.filter(file => {
-      if (criteria.company && file.company !== criteria.company) {
+      if (criteria.company && file.symbol !== criteria.company) {
         return false;
       }
       
@@ -225,16 +271,10 @@ class TransformedDataService {
         return false;
       }
       
-      // For recommendation filtering, we'd need to load the actual data
-      // This is left as a future enhancement
-      
       return true;
     });
   }
 
-  /**
-   * Get summary statistics about available data
-   */
   async getDataSummary(): Promise<{
     totalFiles: number;
     companies: string[];
@@ -243,12 +283,13 @@ class TransformedDataService {
   }> {
     const files = await this.getAvailableFiles();
     
-    const companies = [...new Set(files.map(f => f.company))].sort();
+    const companies = [...new Set(files.map(f => f.symbol))].sort();
     const dates = files.map(f => f.date).sort();
     
     const companyCounts: Record<string, number> = {};
     files.forEach(file => {
-      companyCounts[file.company] = (companyCounts[file.company] || 0) + 1;
+      const company = file.symbol;
+      companyCounts[company] = (companyCounts[company] || 0) + 1;
     });
     
     return {
@@ -263,6 +304,5 @@ class TransformedDataService {
   }
 }
 
-// Export a singleton instance
 export const transformedDataService = new TransformedDataService();
 export default transformedDataService;
