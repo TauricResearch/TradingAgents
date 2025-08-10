@@ -1,12 +1,10 @@
 """Unit tests for TradingAgentsGraph."""
 
+from unittest.mock import Mock, mock_open, patch
+
 import pytest
-import os
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
 
 
 class TestTradingAgentsGraph:
@@ -47,7 +45,7 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_init_with_debug(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
     ):
         """Test initialization with debug mode enabled."""
         sample_config["project_dir"] = temp_data_dir
@@ -65,7 +63,7 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatAnthropic")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_init_with_anthropic(
-        self, mock_toolkit, mock_chat_anthropic, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_anthropic, sample_config, temp_data_dir,
     ):
         """Test initialization with Anthropic LLM provider."""
         sample_config["project_dir"] = temp_data_dir
@@ -77,14 +75,14 @@ class TestTradingAgentsGraph:
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.graph.trading_graph.set_config"):
-                graph = TradingAgentsGraph(config=sample_config)
+                TradingAgentsGraph(config=sample_config)
 
         assert mock_chat_anthropic.call_count == 2
 
     @patch("tradingagents.graph.trading_graph.ChatGoogleGenerativeAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_init_with_google(
-        self, mock_toolkit, mock_chat_google, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_google, sample_config, temp_data_dir,
     ):
         """Test initialization with Google LLM provider."""
         sample_config["project_dir"] = temp_data_dir
@@ -96,13 +94,13 @@ class TestTradingAgentsGraph:
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.graph.trading_graph.set_config"):
-                graph = TradingAgentsGraph(config=sample_config)
+                TradingAgentsGraph(config=sample_config)
 
         assert mock_chat_google.call_count == 2
 
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_init_unsupported_llm_provider(
-        self, mock_toolkit, sample_config, temp_data_dir
+        self, mock_toolkit, sample_config, temp_data_dir,
     ):
         """Test initialization with unsupported LLM provider raises error."""
         sample_config["project_dir"] = temp_data_dir
@@ -117,7 +115,7 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_create_tool_nodes(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
     ):
         """Test creation of tool nodes."""
         sample_config["project_dir"] = temp_data_dir
@@ -145,7 +143,7 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_propagate_basic(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
     ):
         """Test basic propagate functionality."""
         sample_config["project_dir"] = temp_data_dir
@@ -190,15 +188,14 @@ class TestTradingAgentsGraph:
 
                 # Mock the propagator and signal processor
                 graph.propagator.create_initial_state = Mock(
-                    return_value={"test": "state"}
+                    return_value={"test": "state"},
                 )
                 graph.propagator.get_graph_args = Mock(return_value={})
                 graph.signal_processor.process_signal = Mock(return_value="HOLD")
 
         # Execute
-        with patch("builtins.open", create=True):
-            with patch("json.dump"):
-                final_state, decision = graph.propagate("AAPL", "2024-05-10")
+        with patch("builtins.open", create=True), patch("json.dump"):
+            final_state, decision = graph.propagate("AAPL", "2024-05-10")
 
         # Verify
         assert final_state == mock_final_state
@@ -209,7 +206,7 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_propagate_debug_mode(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
     ):
         """Test propagate in debug mode."""
         sample_config["project_dir"] = temp_data_dir
@@ -231,15 +228,14 @@ class TestTradingAgentsGraph:
 
                 # Mock other components
                 graph.propagator.create_initial_state = Mock(
-                    return_value={"test": "state"}
+                    return_value={"test": "state"},
                 )
                 graph.propagator.get_graph_args = Mock(return_value={})
                 graph.signal_processor.process_signal = Mock(return_value="BUY")
 
         # Execute
-        with patch("builtins.open", create=True):
-            with patch("json.dump"):
-                final_state, decision = graph.propagate("TSLA", "2024-05-15")
+        with patch("builtins.open", create=True), patch("json.dump"):
+            final_state, decision = graph.propagate("TSLA", "2024-05-15")
 
         # Verify debug mode was used
         mock_graph.stream.assert_called_once()
@@ -249,7 +245,7 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_log_state(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
     ):
         """Test state logging functionality."""
         sample_config["project_dir"] = temp_data_dir
@@ -291,10 +287,9 @@ class TestTradingAgentsGraph:
         }
 
         # Mock file operations
-        with patch("pathlib.Path.mkdir"):
-            with patch("builtins.open", mock_open()) as mock_file:
-                with patch("json.dump") as mock_json_dump:
-                    graph._log_state("2024-05-20", final_state)
+        with patch("pathlib.Path.mkdir"), patch("builtins.open", mock_open()):
+            with patch("json.dump"):
+                graph._log_state("2024-05-20", final_state)
 
         # Verify logging occurred
         assert "2024-05-20" in graph.log_states_dict
@@ -305,7 +300,7 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_reflect_and_remember(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
     ):
         """Test reflection and memory update functionality."""
         sample_config["project_dir"] = temp_data_dir
@@ -315,20 +310,19 @@ class TestTradingAgentsGraph:
         mock_toolkit.return_value = mock_toolkit_instance
 
         with patch(
-            "tradingagents.graph.trading_graph.FinancialSituationMemory"
-        ) as mock_memory:
-            with patch("tradingagents.graph.trading_graph.set_config"):
-                graph = TradingAgentsGraph(config=sample_config)
+            "tradingagents.graph.trading_graph.FinancialSituationMemory",
+        ), patch("tradingagents.graph.trading_graph.set_config"):
+            graph = TradingAgentsGraph(config=sample_config)
 
-                # Set up current state
-                graph.curr_state = {"test": "state"}
+            # Set up current state
+            graph.curr_state = {"test": "state"}
 
-                # Mock reflector methods
-                graph.reflector.reflect_bull_researcher = Mock()
-                graph.reflector.reflect_bear_researcher = Mock()
-                graph.reflector.reflect_trader = Mock()
-                graph.reflector.reflect_invest_judge = Mock()
-                graph.reflector.reflect_risk_manager = Mock()
+            # Mock reflector methods
+            graph.reflector.reflect_bull_researcher = Mock()
+            graph.reflector.reflect_bear_researcher = Mock()
+            graph.reflector.reflect_trader = Mock()
+            graph.reflector.reflect_invest_judge = Mock()
+            graph.reflector.reflect_risk_manager = Mock()
 
         returns_losses = {"return": 0.05, "loss": -0.02}
 
@@ -345,7 +339,7 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_process_signal(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
     ):
         """Test signal processing functionality."""
         sample_config["project_dir"] = temp_data_dir
@@ -393,8 +387,8 @@ class TestTradingAgentsGraph:
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.graph.trading_graph.set_config"):
-                graph = TradingAgentsGraph(
-                    selected_analysts=selected_analysts, config=sample_config
+                TradingAgentsGraph(
+                    selected_analysts=selected_analysts, config=sample_config,
                 )
 
         # Verify graph was set up with selected analysts
@@ -415,14 +409,14 @@ class TestTradingAgentsGraphErrorHandling:
         # This should still work as the class should use defaults for missing keys
         with patch("tradingagents.graph.trading_graph.set_config"):
             with pytest.raises(
-                KeyError
+                KeyError,
             ):  # Should fail when trying to access missing config keys
                 TradingAgentsGraph(config=invalid_config)
 
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_directory_creation_failure(
-        self, mock_toolkit, mock_chat_openai, sample_config
+        self, mock_toolkit, mock_chat_openai, sample_config,
     ):
         """Test handling when directory creation fails."""
         sample_config["project_dir"] = "/invalid/path/that/cannot/be/created"

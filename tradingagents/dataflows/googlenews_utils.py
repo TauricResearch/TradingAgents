@@ -1,19 +1,19 @@
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime
-import time
-import random
 import logging
+import random
+import time
+from datetime import datetime
 from urllib.parse import quote_plus
 
-logger = logging.getLogger(__name__)
-
+import requests
+from bs4 import BeautifulSoup
 from tenacity import (
     retry,
+    retry_if_result,
     stop_after_attempt,
     wait_exponential,
-    retry_if_result,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def is_rate_limited(response):
@@ -35,8 +35,7 @@ def _add_jitter(retry_state):
 def make_request(url, headers):
     """Make a request with retry logic for rate limiting"""
     # The retry decorator already applies exponential backoff with jitter
-    response = requests.get(url, headers=headers, timeout=(5, 20))
-    return response
+    return requests.get(url, headers=headers, timeout=(5, 20))
 
 
 def getNewsData(query, start_date, end_date):
@@ -58,7 +57,7 @@ def getNewsData(query, start_date, end_date):
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/101.0.4951.54 Safari/537.36"
-        )
+        ),
     }
 
     news_results = []
@@ -103,7 +102,7 @@ def getNewsData(query, start_date, end_date):
                             "source": (
                                 source_el.get_text(strip=True) if source_el else ""
                             ),
-                        }
+                        },
                     )
                 except Exception as e:
                     logger.warning("Error processing result: %s", e)
@@ -120,7 +119,7 @@ def getNewsData(query, start_date, end_date):
             page += 1
 
         except Exception as e:
-            logger.error("Failed after multiple retries: %s", e)
+            logger.exception("Failed after multiple retries: %s", e)
             break
 
     return news_results

@@ -1,11 +1,10 @@
 """Pytest configuration and shared fixtures for TradingAgents tests."""
 
 import os
-import pytest
 import tempfile
-from unittest.mock import Mock, MagicMock
-from datetime import date, datetime
-from typing import Dict, Any
+from unittest.mock import Mock
+
+import pytest
 
 from tradingagents.default_config import DEFAULT_CONFIG
 
@@ -22,7 +21,7 @@ def sample_config():
             "deep_think_llm": "gpt-4o-mini",
             "quick_think_llm": "gpt-4o-mini",
             "project_dir": "/tmp/test_tradingagents",
-        }
+        },
     )
     return config
 
@@ -174,7 +173,7 @@ def mock_memory():
 def pytest_configure(config):
     """Configure pytest with custom markers."""
     config.addinivalue_line(
-        "markers", "integration: mark test as integration test (slow)"
+        "markers", "integration: mark test as integration test (slow)",
     )
     config.addinivalue_line("markers", "unit: mark test as unit test (fast)")
     config.addinivalue_line("markers", "api: mark test as requiring API access")

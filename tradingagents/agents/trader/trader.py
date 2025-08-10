@@ -15,7 +15,7 @@ def create_trader(llm, memory):
 
         past_memory_str = ""
         if past_memories:
-            for i, rec in enumerate(past_memories, 1):
+            for _i, rec in enumerate(past_memories, 1):
                 past_memory_str += rec["recommendation"] + "\n\n"
         else:
             past_memory_str = "No past memories found."

@@ -1,17 +1,18 @@
-from typing import Annotated
-from .reddit_utils import fetch_top_from_category
-from .yfin_utils import *
-from .stockstats_utils import *
-from .googlenews_utils import *
-from .finnhub_utils import get_data_in_range
-from dateutil.relativedelta import relativedelta
-from datetime import datetime
 import os
+from datetime import datetime
+from typing import Annotated
+
 import pandas as pd
-from tqdm import tqdm
 import yfinance as yf
+from dateutil.relativedelta import relativedelta
 from openai import OpenAI
-from .config import get_config, DATA_DIR
+from tqdm import tqdm
+
+from .config import DATA_DIR, get_config
+from .finnhub_utils import get_data_in_range
+from .googlenews_utils import getNewsData
+from .reddit_utils import fetch_top_from_category
+from .stockstats_utils import StockstatsUtils
 
 
 def get_finnhub_news(
@@ -84,7 +85,7 @@ def get_finnhub_company_insider_sentiment(
 
     result_str = ""
     seen_dicts = []
-    for date, senti_list in data.items():
+    for senti_list in data.values():
         for entry in senti_list:
             if entry not in seen_dicts:
                 result_str += f"### {entry['year']}-{entry['month']}:\nChange: {entry['change']}\nMonthly Share Purchase Ratio: {entry['mspr']}\n\n"
@@ -126,7 +127,7 @@ def get_finnhub_company_insider_transactions(
     result_str = ""
 
     seen_dicts = []
-    for date, senti_list in data.items():
+    for senti_list in data.values():
         for entry in senti_list:
             if entry not in seen_dicts:
                 result_str += f"### Filing Date: {entry['filingDate']}, {entry['name']}:\nChange:{entry['change']}\nShares: {entry['share']}\nTransaction Price: {entry['transactionPrice']}\nTransaction Code: {entry['transactionCode']}\n\n"
@@ -170,7 +171,6 @@ def get_simfin_balance_sheet(
 
     # Check if there are any available reports; if not, return a notification
     if filtered_df.empty:
-        print("No balance sheet available before the given current date.")
         return ""
 
     # Get the most recent balance sheet by selecting the row with the latest Publish Date
@@ -217,7 +217,6 @@ def get_simfin_cashflow(
 
     # Check if there are any available reports; if not, return a notification
     if filtered_df.empty:
-        print("No cash flow statement available before the given current date.")
         return ""
 
     # Get the most recent cash flow statement by selecting the row with the latest Publish Date
@@ -264,7 +263,6 @@ def get_simfin_income_statements(
 
     # Check if there are any available reports; if not, return a notification
     if filtered_df.empty:
-        print("No income statement available before the given current date.")
         return ""
 
     # Get the most recent income statement by selecting the row with the latest Publish Date
@@ -421,7 +419,7 @@ def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
     curr_date: Annotated[
-        str, "The current trading date you are trading on, YYYY-mm-dd"
+        str, "The current trading date you are trading on, YYYY-mm-dd",
     ],
     look_back_days: Annotated[int, "how many days to look back"],
     online: Annotated[bool, "to fetch data online or offline"],
@@ -501,8 +499,9 @@ def get_stock_stats_indicators_window(
     }
 
     if indicator not in best_ind_params:
+        msg = f"Indicator {indicator} is not supported. Please choose from: {list(best_ind_params.keys())}"
         raise ValueError(
-            f"Indicator {indicator} is not supported. Please choose from: {list(best_ind_params.keys())}"
+            msg,
         )
 
     end_date = curr_date
@@ -515,7 +514,7 @@ def get_stock_stats_indicators_window(
             os.path.join(
                 DATA_DIR,
                 f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-            )
+            ),
         )
         data["Date"] = pd.to_datetime(data["Date"], utc=True)
         dates_in_df = data["Date"].astype(str).str[:10]
@@ -525,7 +524,7 @@ def get_stock_stats_indicators_window(
             # only do the trading dates
             if curr_date.strftime("%Y-%m-%d") in dates_in_df.values:
                 indicator_value = get_stockstats_indicator(
-                    symbol, indicator, curr_date.strftime("%Y-%m-%d"), online
+                    symbol, indicator, curr_date.strftime("%Y-%m-%d"), online,
                 )
 
                 ind_string += f"{curr_date.strftime('%Y-%m-%d')}: {indicator_value}\n"
@@ -536,28 +535,27 @@ def get_stock_stats_indicators_window(
         ind_string = ""
         while curr_date >= before:
             indicator_value = get_stockstats_indicator(
-                symbol, indicator, curr_date.strftime("%Y-%m-%d"), online
+                symbol, indicator, curr_date.strftime("%Y-%m-%d"), online,
             )
 
             ind_string += f"{curr_date.strftime('%Y-%m-%d')}: {indicator_value}\n"
 
             curr_date = curr_date - relativedelta(days=1)
 
-    result_str = (
+    return (
         f"## {indicator} values from {before.strftime('%Y-%m-%d')} to {end_date}:\n\n"
         + ind_string
         + "\n\n"
         + best_ind_params.get(indicator, "No description available.")
     )
 
-    return result_str
 
 
 def get_stockstats_indicator(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
     curr_date: Annotated[
-        str, "The current trading date you are trading on, YYYY-mm-dd"
+        str, "The current trading date you are trading on, YYYY-mm-dd",
     ],
     online: Annotated[bool, "to fetch data online or offline"],
 ) -> str:
@@ -573,10 +571,7 @@ def get_stockstats_indicator(
             os.path.join(DATA_DIR, "market_data", "price_data"),
             online=online,
         )
-    except Exception as e:
-        print(
-            f"Error getting stockstats indicator data for indicator {indicator} on {curr_date}: {e}"
-        )
+    except Exception:
         return ""
 
     return str(indicator_value)
@@ -597,7 +592,7 @@ def get_YFin_data_window(
         os.path.join(
             DATA_DIR,
             f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-        )
+        ),
     )
 
     # Extract just the date part for comparison
@@ -613,7 +608,7 @@ def get_YFin_data_window(
 
     # Set pandas display options to show the full DataFrame
     with pd.option_context(
-        "display.max_rows", None, "display.max_columns", None, "display.width", None
+        "display.max_rows", None, "display.max_columns", None, "display.width", None,
     ):
         df_string = filtered_data.to_string()
 
@@ -675,12 +670,13 @@ def get_YFin_data(
         os.path.join(
             DATA_DIR,
             f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-        )
+        ),
     )
 
     if end_date > "2025-03-25":
+        msg = f"Get_YFin_Data: {end_date} is outside of the data range of 2015-01-01 to 2025-03-25"
         raise Exception(
-            f"Get_YFin_Data: {end_date} is outside of the data range of 2015-01-01 to 2025-03-25"
+            msg,
         )
 
     # Extract just the date part for comparison
@@ -695,9 +691,8 @@ def get_YFin_data(
     filtered_data = filtered_data.drop("DateOnly", axis=1)
 
     # remove the index from the dataframe
-    filtered_data = filtered_data.reset_index(drop=True)
+    return filtered_data.reset_index(drop=True)
 
-    return filtered_data
 
 
 def get_stock_news_openai(ticker, curr_date):
@@ -713,9 +708,9 @@ def get_stock_news_openai(ticker, curr_date):
                     {
                         "type": "input_text",
                         "text": f"Can you search Social Media for {ticker} from 7 days before {curr_date} to {curr_date}? Make sure you only get the data posted during that period.",
-                    }
+                    },
                 ],
-            }
+            },
         ],
         text={"format": {"type": "text"}},
         reasoning={},
@@ -724,7 +719,7 @@ def get_stock_news_openai(ticker, curr_date):
                 "type": "web_search_preview",
                 "user_location": {"type": "approximate"},
                 "search_context_size": "low",
-            }
+            },
         ],
         temperature=1,
         max_output_tokens=4096,
@@ -748,9 +743,9 @@ def get_global_news_openai(curr_date):
                     {
                         "type": "input_text",
                         "text": f"Can you search global or macroeconomics news from 7 days before {curr_date} to {curr_date} that would be informative for trading purposes? Make sure you only get the data posted during that period.",
-                    }
+                    },
                 ],
-            }
+            },
         ],
         text={"format": {"type": "text"}},
         reasoning={},
@@ -759,7 +754,7 @@ def get_global_news_openai(curr_date):
                 "type": "web_search_preview",
                 "user_location": {"type": "approximate"},
                 "search_context_size": "low",
-            }
+            },
         ],
         temperature=1,
         max_output_tokens=4096,
@@ -783,9 +778,9 @@ def get_fundamentals_openai(ticker, curr_date):
                     {
                         "type": "input_text",
                         "text": f"Can you search Fundamental for discussions on {ticker} during of the month before {curr_date} to the month of {curr_date}. Make sure you only get the data posted during that period. List as a table, with PE/PS/Cash flow/ etc",
-                    }
+                    },
                 ],
-            }
+            },
         ],
         text={"format": {"type": "text"}},
         reasoning={},
@@ -794,7 +789,7 @@ def get_fundamentals_openai(ticker, curr_date):
                 "type": "web_search_preview",
                 "user_location": {"type": "approximate"},
                 "search_context_size": "low",
-            }
+            },
         ],
         temperature=1,
         max_output_tokens=4096,

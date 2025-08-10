@@ -23,11 +23,11 @@ def run_command(cmd, description=""):
             print(f"✅ {description or 'Command completed successfully'}")
             return True
         else:
-            print(f"❌ Command failed:")
+            print("❌ Command failed:")
             print(result.stderr)
             return False
     except subprocess.TimeoutExpired:
-        print(f"⏱️ Command timed out")
+        print("⏱️ Command timed out")
         return False
     except Exception as e:
         print(f"❌ Error running command: {e}")
@@ -73,7 +73,7 @@ def main():
     
     # Summary
     print("\n" + "=" * 50)
-    print(f"📊 Test Setup Verification Results:")
+    print("📊 Test Setup Verification Results:")
     print(f"✅ Successful: {success_count}/{total_tests}")
     print(f"❌ Failed: {total_tests - success_count}/{total_tests}")
     

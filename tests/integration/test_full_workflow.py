@@ -1,13 +1,11 @@
 """Integration tests for the full TradingAgents workflow."""
 
-import pytest
-import os
-import tempfile
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import Mock, patch
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+import pytest
+
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 
 @pytest.mark.integration
@@ -26,14 +24,14 @@ class TestFullWorkflowIntegration:
                 "deep_think_llm": "gpt-4o-mini",
                 "quick_think_llm": "gpt-4o-mini",
                 "project_dir": temp_data_dir,
-            }
+            },
         )
         return config
 
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_end_to_end_trading_workflow(
-        self, mock_toolkit, mock_chat_openai, integration_config
+        self, mock_toolkit, mock_chat_openai, integration_config,
     ):
         """Test complete end-to-end trading workflow."""
         # Setup mocks
@@ -69,15 +67,14 @@ class TestFullWorkflowIntegration:
                         "company_of_interest": "AAPL",
                         "trade_date": "2024-05-10",
                         "messages": [],
-                    }
+                    },
                 )
                 trading_graph.propagator.get_graph_args = Mock(return_value={})
                 trading_graph.signal_processor.process_signal = Mock(return_value="BUY")
 
         # Execute the full workflow
-        with patch("builtins.open", create=True):
-            with patch("json.dump"):
-                final_state, decision = trading_graph.propagate("AAPL", "2024-05-10")
+        with patch("builtins.open", create=True), patch("json.dump"):
+            final_state, decision = trading_graph.propagate("AAPL", "2024-05-10")
 
         # Verify the workflow completed successfully
         assert final_state is not None
@@ -89,7 +86,7 @@ class TestFullWorkflowIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_multiple_analysts_integration(
-        self, mock_toolkit, mock_chat_openai, integration_config
+        self, mock_toolkit, mock_chat_openai, integration_config,
     ):
         """Test integration with different analyst combinations."""
         analyst_combinations = [
@@ -117,7 +114,7 @@ class TestFullWorkflowIntegration:
                 with patch("tradingagents.graph.trading_graph.set_config"):
                     # Test each analyst combination
                     trading_graph = TradingAgentsGraph(
-                        selected_analysts=analysts, config=integration_config
+                        selected_analysts=analysts, config=integration_config,
                     )
                     trading_graph.graph = mock_graph
 
@@ -127,19 +124,18 @@ class TestFullWorkflowIntegration:
                             "company_of_interest": "TSLA",
                             "trade_date": "2024-05-15",
                             "messages": [],
-                        }
+                        },
                     )
                     trading_graph.propagator.get_graph_args = Mock(return_value={})
                     trading_graph.signal_processor.process_signal = Mock(
-                        return_value="HOLD"
+                        return_value="HOLD",
                     )
 
             # Execute
-            with patch("builtins.open", create=True):
-                with patch("json.dump"):
-                    final_state, decision = trading_graph.propagate(
-                        "TSLA", "2024-05-15"
-                    )
+            with patch("builtins.open", create=True), patch("json.dump"):
+                final_state, decision = trading_graph.propagate(
+                    "TSLA", "2024-05-15",
+                )
 
             # Verify
             assert final_state is not None
@@ -148,7 +144,7 @@ class TestFullWorkflowIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_memory_and_reflection_integration(
-        self, mock_toolkit, mock_chat_openai, integration_config
+        self, mock_toolkit, mock_chat_openai, integration_config,
     ):
         """Test integration of memory and reflection components."""
         # Setup
@@ -165,7 +161,7 @@ class TestFullWorkflowIntegration:
         mock_graph.invoke.return_value = mock_final_state
 
         with patch(
-            "tradingagents.graph.trading_graph.FinancialSituationMemory"
+            "tradingagents.graph.trading_graph.FinancialSituationMemory",
         ) as mock_memory:
             mock_memory_instance = Mock()
             mock_memory.return_value = mock_memory_instance
@@ -180,11 +176,11 @@ class TestFullWorkflowIntegration:
                         "company_of_interest": "NVDA",
                         "trade_date": "2024-05-20",
                         "messages": [],
-                    }
+                    },
                 )
                 trading_graph.propagator.get_graph_args = Mock(return_value={})
                 trading_graph.signal_processor.process_signal = Mock(
-                    return_value="SELL"
+                    return_value="SELL",
                 )
 
                 # Mock reflection methods
@@ -195,9 +191,8 @@ class TestFullWorkflowIntegration:
                 trading_graph.reflector.reflect_risk_manager = Mock()
 
         # Execute workflow
-        with patch("builtins.open", create=True):
-            with patch("json.dump"):
-                final_state, decision = trading_graph.propagate("NVDA", "2024-05-20")
+        with patch("builtins.open", create=True), patch("json.dump"):
+            final_state, decision = trading_graph.propagate("NVDA", "2024-05-20")
 
         # Test reflection and memory update
         returns_losses = {"return": -0.03, "loss": -0.08}
@@ -213,7 +208,7 @@ class TestFullWorkflowIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_debug_mode_integration(
-        self, mock_toolkit, mock_chat_openai, integration_config
+        self, mock_toolkit, mock_chat_openai, integration_config,
     ):
         """Test integration in debug mode."""
         # Setup
@@ -233,7 +228,7 @@ class TestFullWorkflowIntegration:
             self._create_mock_final_state(),  # Final chunk
         ]
         for chunk in mock_chunks:
-            if "messages" in chunk and chunk["messages"]:
+            if chunk.get("messages"):
                 for msg in chunk["messages"]:
                     if hasattr(msg, "pretty_print"):
                         msg.pretty_print = Mock()
@@ -245,7 +240,7 @@ class TestFullWorkflowIntegration:
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.graph.trading_graph.set_config"):
                 trading_graph = TradingAgentsGraph(
-                    debug=True, config=integration_config
+                    debug=True, config=integration_config,
                 )
                 trading_graph.graph = mock_graph
 
@@ -255,15 +250,14 @@ class TestFullWorkflowIntegration:
                         "company_of_interest": "AMZN",
                         "trade_date": "2024-05-25",
                         "messages": [],
-                    }
+                    },
                 )
                 trading_graph.propagator.get_graph_args = Mock(return_value={})
                 trading_graph.signal_processor.process_signal = Mock(return_value="BUY")
 
         # Execute in debug mode
-        with patch("builtins.open", create=True):
-            with patch("json.dump"):
-                final_state, decision = trading_graph.propagate("AMZN", "2024-05-25")
+        with patch("builtins.open", create=True), patch("json.dump"):
+            final_state, decision = trading_graph.propagate("AMZN", "2024-05-25")
 
         # Verify debug mode was used
         mock_graph.stream.assert_called_once()
@@ -271,7 +265,7 @@ class TestFullWorkflowIntegration:
         assert decision == "BUY"
 
     @pytest.mark.parametrize(
-        "ticker,date",
+        ("ticker", "date"),
         [
             ("AAPL", "2024-01-15"),
             ("TSLA", "2024-02-20"),
@@ -282,7 +276,7 @@ class TestFullWorkflowIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_multiple_stocks_integration(
-        self, mock_toolkit, mock_chat_openai, ticker, date, integration_config
+        self, mock_toolkit, mock_chat_openai, ticker, date, integration_config,
     ):
         """Test integration with different stocks and dates."""
         # Setup
@@ -309,17 +303,16 @@ class TestFullWorkflowIntegration:
                         "company_of_interest": ticker,
                         "trade_date": date,
                         "messages": [],
-                    }
+                    },
                 )
                 trading_graph.propagator.get_graph_args = Mock(return_value={})
                 trading_graph.signal_processor.process_signal = Mock(
-                    return_value="HOLD"
+                    return_value="HOLD",
                 )
 
         # Execute
-        with patch("builtins.open", create=True):
-            with patch("json.dump"):
-                final_state, decision = trading_graph.propagate(ticker, date)
+        with patch("builtins.open", create=True), patch("json.dump"):
+            final_state, decision = trading_graph.propagate(ticker, date)
 
         # Verify
         assert final_state["company_of_interest"] == ticker
@@ -389,7 +382,7 @@ class TestPerformanceIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_multiple_consecutive_runs(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir
+        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
     ):
         """Test multiple consecutive trading decisions."""
         sample_config["project_dir"] = temp_data_dir
@@ -455,9 +448,8 @@ class TestPerformanceIntegration:
                 mock_final_state["final_trade_decision"]
             )
 
-            with patch("builtins.open", create=True):
-                with patch("json.dump"):
-                    final_state, decision = trading_graph.propagate(ticker, date)
+            with patch("builtins.open", create=True), patch("json.dump"):
+                final_state, decision = trading_graph.propagate(ticker, date)
 
             decisions.append(decision)
 

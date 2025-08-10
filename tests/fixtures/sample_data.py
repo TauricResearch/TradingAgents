@@ -2,14 +2,14 @@
 
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
+from typing import Any
 
 
 class SampleDataFactory:
     """Factory class for creating sample test data."""
 
     @staticmethod
-    def create_market_data(ticker: str = "AAPL", days: int = 30) -> Dict[str, Any]:
+    def create_market_data(ticker: str = "AAPL", days: int = 30) -> dict[str, Any]:
         """Create sample market data for testing."""
         base_date = datetime(2024, 5, 1)
         data = {}
@@ -36,8 +36,8 @@ class SampleDataFactory:
 
     @staticmethod
     def create_finnhub_news_data(
-        ticker: str = "AAPL", count: int = 10
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        ticker: str = "AAPL", count: int = 10,
+    ) -> dict[str, list[dict[str, Any]]]:
         """Create sample FinnHub news data for testing."""
         base_date = datetime(2024, 5, 10)
         data = {}
@@ -93,7 +93,7 @@ class SampleDataFactory:
     @staticmethod
     def create_insider_transactions_data(
         ticker: str = "AAPL",
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """Create sample insider transactions data for testing."""
         base_date = datetime(2024, 5, 5)
         data = {}
@@ -129,15 +129,15 @@ class SampleDataFactory:
                     "transactionValue": transaction["shares"] * transaction["price"],
                     "reportingName": transaction["person"],
                     "typeOfOwner": "officer",
-                }
+                },
             ]
 
         return data
 
     @staticmethod
     def create_financial_statements_data(
-        ticker: str = "AAPL", period: str = "annual"
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        ticker: str = "AAPL", period: str = "annual",
+    ) -> dict[str, list[dict[str, Any]]]:
         """Create sample financial statements data for testing."""
         if period == "annual":
             dates = ["2023-12-31", "2022-12-31", "2021-12-31"]
@@ -174,7 +174,7 @@ class SampleDataFactory:
     @staticmethod
     def create_social_sentiment_data(
         ticker: str = "AAPL",
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """Create sample social media sentiment data for testing."""
         base_date = datetime(2024, 5, 8)
         data = {}
@@ -226,7 +226,7 @@ class SampleDataFactory:
                         "subreddit": "stocks" if j % 2 else "investing",
                         "upvotes": 10 + (j * 5),
                         "comments": 3 + j,
-                    }
+                    },
                 )
 
             data[date_str] = daily_posts
@@ -234,7 +234,7 @@ class SampleDataFactory:
         return data
 
     @staticmethod
-    def create_technical_indicators_data(ticker: str = "AAPL") -> Dict[str, Any]:
+    def create_technical_indicators_data(ticker: str = "AAPL") -> dict[str, Any]:
         """Create sample technical indicators data for testing."""
         return {
             "symbol": ticker,
@@ -262,23 +262,23 @@ class SampleDataFactory:
         }
 
     @staticmethod
-    def create_complete_test_dataset(ticker: str = "AAPL") -> Dict[str, Dict[str, Any]]:
+    def create_complete_test_dataset(ticker: str = "AAPL") -> dict[str, dict[str, Any]]:
         """Create a complete dataset for comprehensive testing."""
         return {
             "market_data": SampleDataFactory.create_market_data(ticker),
             "news_data": SampleDataFactory.create_finnhub_news_data(ticker),
             "insider_transactions": SampleDataFactory.create_insider_transactions_data(
-                ticker
+                ticker,
             ),
             "financial_annual": SampleDataFactory.create_financial_statements_data(
-                ticker, "annual"
+                ticker, "annual",
             ),
             "financial_quarterly": SampleDataFactory.create_financial_statements_data(
-                ticker, "quarterly"
+                ticker, "quarterly",
             ),
             "social_sentiment": SampleDataFactory.create_social_sentiment_data(ticker),
             "technical_indicators": SampleDataFactory.create_technical_indicators_data(
-                ticker
+                ticker,
             ),
         }
 
@@ -343,7 +343,7 @@ def save_sample_data_to_files(base_path: str, ticker: str = "AAPL") -> None:
 
     # Save quarterly data separately
     quarterly_path = os.path.join(
-        finnhub_path, "fin_as_reported", f"{ticker}_quarterly_data_formatted.json"
+        finnhub_path, "fin_as_reported", f"{ticker}_quarterly_data_formatted.json",
     )
     with open(quarterly_path, "w") as f:
         json.dump(dataset["financial_quarterly"], f, indent=2)

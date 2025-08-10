@@ -39,7 +39,7 @@ Engage actively by analyzing both sides critically, addressing weaknesses in the
             "neutral_history": neutral_history + "\n" + argument,
             "latest_speaker": "Neutral",
             "current_risky_response": risk_debate_state.get(
-                "current_risky_response", ""
+                "current_risky_response", "",
             ),
             "current_safe_response": risk_debate_state.get("current_safe_response", ""),
             "current_neutral_response": argument,

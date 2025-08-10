@@ -1,10 +1,7 @@
-import os,sys  # Multiple imports on one line (Ruff will fix)
-from typing import List,Dict  # Multiple imports on one line
 
 def poorly_formatted_function(x,y,z):  # Missing type hints
     """This function has formatting issues."""
     result=x+y*z  # Missing spaces around operators
-    unused_variable = 42  # Unused variable (Ruff will detect)
     if result>100:  # Missing spaces
         print( "Result is large" )  # Extra spaces in parentheses
     return result

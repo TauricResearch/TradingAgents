@@ -1,5 +1,7 @@
+
+import sys
+
 import questionary
-from typing import List
 from rich.console import Console
 
 from cli.models import AnalystType
@@ -23,13 +25,13 @@ def get_ticker() -> str:
             [
                 ("text", "fg:green"),
                 ("highlighted", "noinherit"),
-            ]
+            ],
         ),
     ).ask()
 
     if not ticker:
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
-        exit(1)
+        sys.exit(1)
 
     return ticker.strip().upper()
 
@@ -56,18 +58,18 @@ def get_analysis_date() -> str:
             [
                 ("text", "fg:green"),
                 ("highlighted", "noinherit"),
-            ]
+            ],
         ),
     ).ask()
 
     if not date:
         console.print("\n[red]No date provided. Exiting...[/red]")
-        exit(1)
+        sys.exit(1)
 
     return date.strip()
 
 
-def select_analysts() -> List[AnalystType]:
+def select_analysts() -> list[AnalystType]:
     """Select analysts using an interactive checkbox."""
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
@@ -82,13 +84,13 @@ def select_analysts() -> List[AnalystType]:
                 ("selected", "fg:green noinherit"),
                 ("highlighted", "noinherit"),
                 ("pointer", "noinherit"),
-            ]
+            ],
         ),
     ).ask()
 
     if not choices:
         console.print("\n[red]No analysts selected. Exiting...[/red]")
-        exit(1)
+        sys.exit(1)
 
     return choices
 
@@ -114,13 +116,13 @@ def select_research_depth() -> int:
                 ("selected", "fg:yellow noinherit"),
                 ("highlighted", "fg:yellow noinherit"),
                 ("pointer", "fg:yellow noinherit"),
-            ]
+            ],
         ),
     ).ask()
 
     if choice is None:
         console.print("\n[red]No research depth selected. Exiting...[/red]")
-        exit(1)
+        sys.exit(1)
 
     return choice
 
@@ -200,15 +202,15 @@ def select_shallow_thinking_agent(provider) -> str:
                 ("selected", "fg:magenta noinherit"),
                 ("highlighted", "fg:magenta noinherit"),
                 ("pointer", "fg:magenta noinherit"),
-            ]
+            ],
         ),
     ).ask()
 
     if choice is None:
         console.print(
-            "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
+            "\n[red]No shallow thinking llm engine selected. Exiting...[/red]",
         )
-        exit(1)
+        sys.exit(1)
 
     return choice
 
@@ -292,13 +294,13 @@ def select_deep_thinking_agent(provider) -> str:
                 ("selected", "fg:magenta noinherit"),
                 ("highlighted", "fg:magenta noinherit"),
                 ("pointer", "fg:magenta noinherit"),
-            ]
+            ],
         ),
     ).ask()
 
     if choice is None:
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
-        exit(1)
+        sys.exit(1)
 
     return choice
 
@@ -326,15 +328,14 @@ def select_llm_provider() -> tuple[str, str]:
                 ("selected", "fg:magenta noinherit"),
                 ("highlighted", "fg:magenta noinherit"),
                 ("pointer", "fg:magenta noinherit"),
-            ]
+            ],
         ),
     ).ask()
 
     if choice is None:
         console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
-        exit(1)
+        sys.exit(1)
 
     display_name, url = choice
-    print(f"You selected: {display_name}\tURL: {url}")
 
     return display_name, url

@@ -5,6 +5,7 @@ Loads configuration from environment variables and .env file.
 
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load .env file from project root
@@ -20,10 +21,10 @@ def get_config():
         "project_dir": str(project_root / "tradingagents"),
         "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", "./results"),
         "data_dir": os.getenv(
-            "TRADINGAGENTS_DATA_DIR", "/Users/yluo/Documents/Code/ScAI/FR1-data"
+            "TRADINGAGENTS_DATA_DIR", "/Users/yluo/Documents/Code/ScAI/FR1-data",
         ),
         "data_cache_dir": str(
-            project_root / "tradingagents" / "dataflows" / "data_cache"
+            project_root / "tradingagents" / "dataflows" / "data_cache",
         ),
         # LLM settings
         "llm_provider": os.getenv("LLM_PROVIDER", "openai"),
@@ -47,16 +48,17 @@ def get_config():
 
     # Validate required API keys based on provider
     if config["llm_provider"] == "openai" and not config["openai_api_key"]:
-        raise ValueError("OPENAI_API_KEY is required when using OpenAI provider")
-    elif config["llm_provider"] == "anthropic" and not config["anthropic_api_key"]:
-        raise ValueError("ANTHROPIC_API_KEY is required when using Anthropic provider")
-    elif config["llm_provider"] == "google" and not config["google_api_key"]:
-        raise ValueError("GOOGLE_API_KEY is required when using Google provider")
+        msg = "OPENAI_API_KEY is required when using OpenAI provider"
+        raise ValueError(msg)
+    if config["llm_provider"] == "anthropic" and not config["anthropic_api_key"]:
+        msg = "ANTHROPIC_API_KEY is required when using Anthropic provider"
+        raise ValueError(msg)
+    if config["llm_provider"] == "google" and not config["google_api_key"]:
+        msg = "GOOGLE_API_KEY is required when using Google provider"
+        raise ValueError(msg)
 
     if not config["finnhub_api_key"]:
-        print(
-            "Warning: FINNHUB_API_KEY not set. Some financial data features may be limited."
-        )
+        pass
 
     return config
 

@@ -1,8 +1,9 @@
 """Unit tests for market analyst agent."""
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage
 
 from tradingagents.agents.analysts.market_analyst import create_market_analyst
 
@@ -16,7 +17,7 @@ class TestMarketAnalyst:
         assert callable(analyst_node)
 
     def test_market_analyst_node_basic_execution(
-        self, mock_llm, mock_toolkit, sample_agent_state
+        self, mock_llm, mock_toolkit, sample_agent_state,
     ):
         """Test basic execution of market analyst node."""
         # Setup
@@ -38,7 +39,7 @@ class TestMarketAnalyst:
         assert result["market_report"] == "Market analysis complete"
 
     def test_market_analyst_uses_online_tools_when_configured(
-        self, mock_llm, mock_toolkit, sample_agent_state
+        self, mock_llm, mock_toolkit, sample_agent_state,
     ):
         """Test that analyst uses online tools when configured."""
         # Setup
@@ -54,7 +55,7 @@ class TestMarketAnalyst:
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
 
         # Execute
-        result = analyst_node(sample_agent_state)
+        analyst_node(sample_agent_state)
 
         # Verify tools were bound correctly
         mock_llm.bind_tools.assert_called_once()
@@ -63,7 +64,7 @@ class TestMarketAnalyst:
         assert "get_YFin_data_online" in str(tool_names) or len(bound_tools) == 2
 
     def test_market_analyst_uses_offline_tools_when_configured(
-        self, mock_llm, mock_toolkit, sample_agent_state
+        self, mock_llm, mock_toolkit, sample_agent_state,
     ):
         """Test that analyst uses offline tools when configured."""
         # Setup
@@ -79,7 +80,7 @@ class TestMarketAnalyst:
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
 
         # Execute
-        result = analyst_node(sample_agent_state)
+        analyst_node(sample_agent_state)
 
         # Verify tools were bound correctly
         mock_llm.bind_tools.assert_called_once()
@@ -87,7 +88,7 @@ class TestMarketAnalyst:
         assert len(bound_tools) == 2  # Should have 2 offline tools
 
     def test_market_analyst_processes_state_variables(
-        self, mock_llm, mock_toolkit, sample_agent_state
+        self, mock_llm, mock_toolkit, sample_agent_state,
     ):
         """Test that market analyst correctly processes state variables."""
         # Setup
@@ -111,7 +112,7 @@ class TestMarketAnalyst:
         assert result["market_report"] == "Analysis for AAPL on 2024-05-10"
 
     def test_market_analyst_handles_empty_tool_calls(
-        self, mock_llm, mock_toolkit, sample_agent_state
+        self, mock_llm, mock_toolkit, sample_agent_state,
     ):
         """Test handling when no tool calls are made."""
         # Setup
@@ -131,7 +132,7 @@ class TestMarketAnalyst:
         assert result["messages"] == [mock_result]
 
     def test_market_analyst_with_tool_calls(
-        self, mock_llm, mock_toolkit, sample_agent_state
+        self, mock_llm, mock_toolkit, sample_agent_state,
     ):
         """Test handling when tool calls are present."""
         # Setup
@@ -152,7 +153,7 @@ class TestMarketAnalyst:
 
     @pytest.mark.parametrize("online_tools", [True, False])
     def test_market_analyst_tool_configuration(
-        self, mock_llm, mock_toolkit, sample_agent_state, online_tools
+        self, mock_llm, mock_toolkit, sample_agent_state, online_tools,
     ):
         """Test tool configuration for both online and offline modes."""
         # Setup
@@ -194,15 +195,15 @@ class TestMarketAnalystIntegration:
         mock_result = Mock()
         mock_result.content = """
         # Market Analysis for TSLA (2024-05-15)
-        
+
         ## Technical Analysis
         - RSI: 65 (slightly overbought)
         - MACD: Bullish crossover
         - 50-day SMA: Trending upward
-        
+
         ## Volume Analysis
         - Above average volume suggests strong interest
-        
+
         | Indicator | Value | Signal |
         |-----------|-------|--------|
         | RSI       | 65    | Neutral |

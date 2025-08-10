@@ -1,8 +1,10 @@
+import os
+from typing import Annotated
+
 import pandas as pd
 import yfinance as yf
 from stockstats import wrap
-from typing import Annotated
-import os
+
 from .config import get_config
 
 
@@ -11,10 +13,10 @@ class StockstatsUtils:
     def get_stock_stats(
         symbol: Annotated[str, "ticker symbol for the company"],
         indicator: Annotated[
-            str, "quantitative indicators based off of the stock data for the company"
+            str, "quantitative indicators based off of the stock data for the company",
         ],
         curr_date: Annotated[
-            str, "curr date for retrieving stock price data, YYYY-mm-dd"
+            str, "curr date for retrieving stock price data, YYYY-mm-dd",
         ],
         data_dir: Annotated[
             str,
@@ -34,11 +36,12 @@ class StockstatsUtils:
                     os.path.join(
                         data_dir,
                         f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-                    )
+                    ),
                 )
                 df = wrap(data)
             except FileNotFoundError:
-                raise Exception("Stockstats fail: Yahoo Finance data not fetched yet!")
+                msg = "Stockstats fail: Yahoo Finance data not fetched yet!"
+                raise Exception(msg)
         else:
             # Get today's date as YYYY-mm-dd to add to cache
             today_date = pd.Timestamp.today()
@@ -81,7 +84,5 @@ class StockstatsUtils:
         matching_rows = df[df["Date"].str.startswith(curr_date)]
 
         if not matching_rows.empty:
-            indicator_value = matching_rows[indicator].values[0]
-            return indicator_value
-        else:
-            return "N/A: Not a trading day (weekend or holiday)"
+            return matching_rows[indicator].values[0]
+        return "N/A: Not a trading day (weekend or holiday)"
