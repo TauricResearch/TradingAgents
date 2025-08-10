@@ -13,10 +13,12 @@ class StockstatsUtils:
     def get_stock_stats(
         symbol: Annotated[str, "ticker symbol for the company"],
         indicator: Annotated[
-            str, "quantitative indicators based off of the stock data for the company",
+            str,
+            "quantitative indicators based off of the stock data for the company",
         ],
         curr_date: Annotated[
-            str, "curr date for retrieving stock price data, YYYY-mm-dd",
+            str,
+            "curr date for retrieving stock price data, YYYY-mm-dd",
         ],
         data_dir: Annotated[
             str,

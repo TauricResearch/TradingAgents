@@ -59,7 +59,8 @@ class TradingAgentsGraph:
             or self.config["llm_provider"] == "openrouter"
         ):
             self.deep_thinking_llm = ChatOpenAI(
-                model=self.config["deep_think_llm"], base_url=self.config["backend_url"],
+                model=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"],
             )
             self.quick_thinking_llm = ChatOpenAI(
                 model=self.config["quick_think_llm"],
@@ -67,7 +68,8 @@ class TradingAgentsGraph:
             )
         elif self.config["llm_provider"].lower() == "anthropic":
             self.deep_thinking_llm = ChatAnthropic(
-                model=self.config["deep_think_llm"], base_url=self.config["backend_url"],
+                model=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"],
             )
             self.quick_thinking_llm = ChatAnthropic(
                 model=self.config["quick_think_llm"],
@@ -91,10 +93,12 @@ class TradingAgentsGraph:
         self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
         self.invest_judge_memory = FinancialSituationMemory(
-            "invest_judge_memory", self.config,
+            "invest_judge_memory",
+            self.config,
         )
         self.risk_manager_memory = FinancialSituationMemory(
-            "risk_manager_memory", self.config,
+            "risk_manager_memory",
+            self.config,
         )
 
         # Create tool nodes
@@ -179,7 +183,8 @@ class TradingAgentsGraph:
 
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date,
+            company_name,
+            trade_date,
         )
         args = self.propagator.get_graph_args()
 
@@ -252,19 +257,29 @@ class TradingAgentsGraph:
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
         self.reflector.reflect_bull_researcher(
-            self.curr_state, returns_losses, self.bull_memory,
+            self.curr_state,
+            returns_losses,
+            self.bull_memory,
         )
         self.reflector.reflect_bear_researcher(
-            self.curr_state, returns_losses, self.bear_memory,
+            self.curr_state,
+            returns_losses,
+            self.bear_memory,
         )
         self.reflector.reflect_trader(
-            self.curr_state, returns_losses, self.trader_memory,
+            self.curr_state,
+            returns_losses,
+            self.trader_memory,
         )
         self.reflector.reflect_invest_judge(
-            self.curr_state, returns_losses, self.invest_judge_memory,
+            self.curr_state,
+            returns_losses,
+            self.invest_judge_memory,
         )
         self.reflector.reflect_risk_manager(
-            self.curr_state, returns_losses, self.risk_manager_memory,
+            self.curr_state,
+            returns_losses,
+            self.risk_manager_memory,
         )
 
     def process_signal(self, full_signal):

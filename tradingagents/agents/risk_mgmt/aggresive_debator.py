@@ -41,7 +41,8 @@ Engage actively by addressing any specific concerns raised, refuting the weaknes
             "current_risky_response": argument,
             "current_safe_response": risk_debate_state.get("current_safe_response", ""),
             "current_neutral_response": risk_debate_state.get(
-                "current_neutral_response", "",
+                "current_neutral_response",
+                "",
             ),
             "count": risk_debate_state["count"] + 1,
         }

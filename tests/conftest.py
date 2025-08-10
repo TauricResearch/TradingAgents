@@ -173,7 +173,8 @@ def mock_memory():
 def pytest_configure(config):
     """Configure pytest with custom markers."""
     config.addinivalue_line(
-        "markers", "integration: mark test as integration test (slow)",
+        "markers",
+        "integration: mark test as integration test (slow)",
     )
     config.addinivalue_line("markers", "unit: mark test as unit test (fast)")
     config.addinivalue_line("markers", "api: mark test as requiring API access")

@@ -28,10 +28,12 @@ class YFinanceUtils:
     def get_stock_data(
         self: Annotated[str, "ticker symbol"],
         start_date: Annotated[
-            str, "start date for retrieving stock price data, YYYY-mm-dd",
+            str,
+            "start date for retrieving stock price data, YYYY-mm-dd",
         ],
         end_date: Annotated[
-            str, "end date for retrieving stock price data, YYYY-mm-dd",
+            str,
+            "end date for retrieving stock price data, YYYY-mm-dd",
         ],
         save_path: SavePathType = None,
     ) -> DataFrame:

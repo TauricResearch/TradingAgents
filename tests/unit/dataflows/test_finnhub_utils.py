@@ -190,7 +190,10 @@ class TestFinnhubUtils:
 
         # Test without period
         expected_path_no_period = os.path.join(
-            temp_data_dir, "finnhub_data", data_type, f"{ticker}_data_formatted.json",
+            temp_data_dir,
+            "finnhub_data",
+            data_type,
+            f"{ticker}_data_formatted.json",
         )
 
         # Test with period
@@ -248,7 +251,10 @@ class TestFinnhubUtils:
         ],
     )
     def test_get_data_in_range_various_data_types(
-        self, temp_data_dir, data_type, period,
+        self,
+        temp_data_dir,
+        data_type,
+        period,
     ):
         """Test get_data_in_range with various data types."""
         ticker = "TEST"

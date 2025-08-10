@@ -45,7 +45,11 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_init_with_debug(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        sample_config,
+        temp_data_dir,
     ):
         """Test initialization with debug mode enabled."""
         sample_config["project_dir"] = temp_data_dir
@@ -63,7 +67,11 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatAnthropic")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_init_with_anthropic(
-        self, mock_toolkit, mock_chat_anthropic, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_anthropic,
+        sample_config,
+        temp_data_dir,
     ):
         """Test initialization with Anthropic LLM provider."""
         sample_config["project_dir"] = temp_data_dir
@@ -82,7 +90,11 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatGoogleGenerativeAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_init_with_google(
-        self, mock_toolkit, mock_chat_google, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_google,
+        sample_config,
+        temp_data_dir,
     ):
         """Test initialization with Google LLM provider."""
         sample_config["project_dir"] = temp_data_dir
@@ -100,7 +112,10 @@ class TestTradingAgentsGraph:
 
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_init_unsupported_llm_provider(
-        self, mock_toolkit, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        sample_config,
+        temp_data_dir,
     ):
         """Test initialization with unsupported LLM provider raises error."""
         sample_config["project_dir"] = temp_data_dir
@@ -115,7 +130,11 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_create_tool_nodes(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        sample_config,
+        temp_data_dir,
     ):
         """Test creation of tool nodes."""
         sample_config["project_dir"] = temp_data_dir
@@ -143,7 +162,11 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_propagate_basic(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        sample_config,
+        temp_data_dir,
     ):
         """Test basic propagate functionality."""
         sample_config["project_dir"] = temp_data_dir
@@ -206,7 +229,11 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_propagate_debug_mode(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        sample_config,
+        temp_data_dir,
     ):
         """Test propagate in debug mode."""
         sample_config["project_dir"] = temp_data_dir
@@ -245,7 +272,11 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_log_state(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        sample_config,
+        temp_data_dir,
     ):
         """Test state logging functionality."""
         sample_config["project_dir"] = temp_data_dir
@@ -300,7 +331,11 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_reflect_and_remember(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        sample_config,
+        temp_data_dir,
     ):
         """Test reflection and memory update functionality."""
         sample_config["project_dir"] = temp_data_dir
@@ -309,9 +344,12 @@ class TestTradingAgentsGraph:
         mock_toolkit_instance = Mock()
         mock_toolkit.return_value = mock_toolkit_instance
 
-        with patch(
-            "tradingagents.graph.trading_graph.FinancialSituationMemory",
-        ), patch("tradingagents.graph.trading_graph.set_config"):
+        with (
+            patch(
+                "tradingagents.graph.trading_graph.FinancialSituationMemory",
+            ),
+            patch("tradingagents.graph.trading_graph.set_config"),
+        ):
             graph = TradingAgentsGraph(config=sample_config)
 
             # Set up current state
@@ -339,7 +377,11 @@ class TestTradingAgentsGraph:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_process_signal(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        sample_config,
+        temp_data_dir,
     ):
         """Test signal processing functionality."""
         sample_config["project_dir"] = temp_data_dir
@@ -388,7 +430,8 @@ class TestTradingAgentsGraph:
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.graph.trading_graph.set_config"):
                 TradingAgentsGraph(
-                    selected_analysts=selected_analysts, config=sample_config,
+                    selected_analysts=selected_analysts,
+                    config=sample_config,
                 )
 
         # Verify graph was set up with selected analysts
@@ -416,7 +459,10 @@ class TestTradingAgentsGraphErrorHandling:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_directory_creation_failure(
-        self, mock_toolkit, mock_chat_openai, sample_config,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        sample_config,
     ):
         """Test handling when directory creation fails."""
         sample_config["project_dir"] = "/invalid/path/that/cannot/be/created"

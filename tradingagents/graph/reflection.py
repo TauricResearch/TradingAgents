@@ -57,7 +57,11 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         return f"{curr_market_report}\n\n{curr_sentiment_report}\n\n{curr_news_report}\n\n{curr_fundamentals_report}"
 
     def _reflect_on_component(
-        self, component_type: str, report: str, situation: str, returns_losses,
+        self,
+        component_type: str,
+        report: str,
+        situation: str,
+        returns_losses,
     ) -> str:
         """Generate reflection for a component."""
         messages = [
@@ -76,7 +80,10 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         bull_debate_history = current_state["investment_debate_state"]["bull_history"]
 
         result = self._reflect_on_component(
-            "BULL", bull_debate_history, situation, returns_losses,
+            "BULL",
+            bull_debate_history,
+            situation,
+            returns_losses,
         )
         bull_memory.add_situations([(situation, result)])
 
@@ -86,7 +93,10 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         bear_debate_history = current_state["investment_debate_state"]["bear_history"]
 
         result = self._reflect_on_component(
-            "BEAR", bear_debate_history, situation, returns_losses,
+            "BEAR",
+            bear_debate_history,
+            situation,
+            returns_losses,
         )
         bear_memory.add_situations([(situation, result)])
 
@@ -96,7 +106,10 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         trader_decision = current_state["trader_investment_plan"]
 
         result = self._reflect_on_component(
-            "TRADER", trader_decision, situation, returns_losses,
+            "TRADER",
+            trader_decision,
+            situation,
+            returns_losses,
         )
         trader_memory.add_situations([(situation, result)])
 
@@ -106,7 +119,10 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         judge_decision = current_state["investment_debate_state"]["judge_decision"]
 
         result = self._reflect_on_component(
-            "INVEST JUDGE", judge_decision, situation, returns_losses,
+            "INVEST JUDGE",
+            judge_decision,
+            situation,
+            returns_losses,
         )
         invest_judge_memory.add_situations([(situation, result)])
 
@@ -116,6 +132,9 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         judge_decision = current_state["risk_debate_state"]["judge_decision"]
 
         result = self._reflect_on_component(
-            "RISK JUDGE", judge_decision, situation, returns_losses,
+            "RISK JUDGE",
+            judge_decision,
+            situation,
+            returns_losses,
         )
         risk_manager_memory.add_situations([(situation, result)])

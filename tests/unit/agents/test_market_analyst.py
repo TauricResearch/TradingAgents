@@ -17,7 +17,10 @@ class TestMarketAnalyst:
         assert callable(analyst_node)
 
     def test_market_analyst_node_basic_execution(
-        self, mock_llm, mock_toolkit, sample_agent_state,
+        self,
+        mock_llm,
+        mock_toolkit,
+        sample_agent_state,
     ):
         """Test basic execution of market analyst node."""
         # Setup
@@ -39,7 +42,10 @@ class TestMarketAnalyst:
         assert result["market_report"] == "Market analysis complete"
 
     def test_market_analyst_uses_online_tools_when_configured(
-        self, mock_llm, mock_toolkit, sample_agent_state,
+        self,
+        mock_llm,
+        mock_toolkit,
+        sample_agent_state,
     ):
         """Test that analyst uses online tools when configured."""
         # Setup
@@ -64,7 +70,10 @@ class TestMarketAnalyst:
         assert "get_YFin_data_online" in str(tool_names) or len(bound_tools) == 2
 
     def test_market_analyst_uses_offline_tools_when_configured(
-        self, mock_llm, mock_toolkit, sample_agent_state,
+        self,
+        mock_llm,
+        mock_toolkit,
+        sample_agent_state,
     ):
         """Test that analyst uses offline tools when configured."""
         # Setup
@@ -88,7 +97,10 @@ class TestMarketAnalyst:
         assert len(bound_tools) == 2  # Should have 2 offline tools
 
     def test_market_analyst_processes_state_variables(
-        self, mock_llm, mock_toolkit, sample_agent_state,
+        self,
+        mock_llm,
+        mock_toolkit,
+        sample_agent_state,
     ):
         """Test that market analyst correctly processes state variables."""
         # Setup
@@ -112,7 +124,10 @@ class TestMarketAnalyst:
         assert result["market_report"] == "Analysis for AAPL on 2024-05-10"
 
     def test_market_analyst_handles_empty_tool_calls(
-        self, mock_llm, mock_toolkit, sample_agent_state,
+        self,
+        mock_llm,
+        mock_toolkit,
+        sample_agent_state,
     ):
         """Test handling when no tool calls are made."""
         # Setup
@@ -132,7 +147,10 @@ class TestMarketAnalyst:
         assert result["messages"] == [mock_result]
 
     def test_market_analyst_with_tool_calls(
-        self, mock_llm, mock_toolkit, sample_agent_state,
+        self,
+        mock_llm,
+        mock_toolkit,
+        sample_agent_state,
     ):
         """Test handling when tool calls are present."""
         # Setup
@@ -153,7 +171,11 @@ class TestMarketAnalyst:
 
     @pytest.mark.parametrize("online_tools", [True, False])
     def test_market_analyst_tool_configuration(
-        self, mock_llm, mock_toolkit, sample_agent_state, online_tools,
+        self,
+        mock_llm,
+        mock_toolkit,
+        sample_agent_state,
+        online_tools,
     ):
         """Test tool configuration for both online and offline modes."""
         # Setup

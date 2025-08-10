@@ -36,7 +36,8 @@ class SampleDataFactory:
 
     @staticmethod
     def create_finnhub_news_data(
-        ticker: str = "AAPL", count: int = 10,
+        ticker: str = "AAPL",
+        count: int = 10,
     ) -> dict[str, list[dict[str, Any]]]:
         """Create sample FinnHub news data for testing."""
         base_date = datetime(2024, 5, 10)
@@ -136,7 +137,8 @@ class SampleDataFactory:
 
     @staticmethod
     def create_financial_statements_data(
-        ticker: str = "AAPL", period: str = "annual",
+        ticker: str = "AAPL",
+        period: str = "annual",
     ) -> dict[str, list[dict[str, Any]]]:
         """Create sample financial statements data for testing."""
         if period == "annual":
@@ -271,10 +273,12 @@ class SampleDataFactory:
                 ticker,
             ),
             "financial_annual": SampleDataFactory.create_financial_statements_data(
-                ticker, "annual",
+                ticker,
+                "annual",
             ),
             "financial_quarterly": SampleDataFactory.create_financial_statements_data(
-                ticker, "quarterly",
+                ticker,
+                "quarterly",
             ),
             "social_sentiment": SampleDataFactory.create_social_sentiment_data(ticker),
             "technical_indicators": SampleDataFactory.create_technical_indicators_data(
@@ -343,7 +347,9 @@ def save_sample_data_to_files(base_path: str, ticker: str = "AAPL") -> None:
 
     # Save quarterly data separately
     quarterly_path = os.path.join(
-        finnhub_path, "fin_as_reported", f"{ticker}_quarterly_data_formatted.json",
+        finnhub_path,
+        "fin_as_reported",
+        f"{ticker}_quarterly_data_formatted.json",
     )
     with open(quarterly_path, "w") as f:
         json.dump(dataset["financial_quarterly"], f, indent=2)

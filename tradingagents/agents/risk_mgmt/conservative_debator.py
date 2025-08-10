@@ -39,11 +39,13 @@ Engage by questioning their optimism and emphasizing the potential downsides the
             "neutral_history": risk_debate_state.get("neutral_history", ""),
             "latest_speaker": "Safe",
             "current_risky_response": risk_debate_state.get(
-                "current_risky_response", "",
+                "current_risky_response",
+                "",
             ),
             "current_safe_response": argument,
             "current_neutral_response": risk_debate_state.get(
-                "current_neutral_response", "",
+                "current_neutral_response",
+                "",
             ),
             "count": risk_debate_state["count"] + 1,
         }

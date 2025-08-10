@@ -419,7 +419,8 @@ def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
     curr_date: Annotated[
-        str, "The current trading date you are trading on, YYYY-mm-dd",
+        str,
+        "The current trading date you are trading on, YYYY-mm-dd",
     ],
     look_back_days: Annotated[int, "how many days to look back"],
     online: Annotated[bool, "to fetch data online or offline"],
@@ -524,7 +525,10 @@ def get_stock_stats_indicators_window(
             # only do the trading dates
             if curr_date.strftime("%Y-%m-%d") in dates_in_df.values:
                 indicator_value = get_stockstats_indicator(
-                    symbol, indicator, curr_date.strftime("%Y-%m-%d"), online,
+                    symbol,
+                    indicator,
+                    curr_date.strftime("%Y-%m-%d"),
+                    online,
                 )
 
                 ind_string += f"{curr_date.strftime('%Y-%m-%d')}: {indicator_value}\n"
@@ -535,7 +539,10 @@ def get_stock_stats_indicators_window(
         ind_string = ""
         while curr_date >= before:
             indicator_value = get_stockstats_indicator(
-                symbol, indicator, curr_date.strftime("%Y-%m-%d"), online,
+                symbol,
+                indicator,
+                curr_date.strftime("%Y-%m-%d"),
+                online,
             )
 
             ind_string += f"{curr_date.strftime('%Y-%m-%d')}: {indicator_value}\n"
@@ -550,12 +557,12 @@ def get_stock_stats_indicators_window(
     )
 
 
-
 def get_stockstats_indicator(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
     curr_date: Annotated[
-        str, "The current trading date you are trading on, YYYY-mm-dd",
+        str,
+        "The current trading date you are trading on, YYYY-mm-dd",
     ],
     online: Annotated[bool, "to fetch data online or offline"],
 ) -> str:
@@ -608,7 +615,12 @@ def get_YFin_data_window(
 
     # Set pandas display options to show the full DataFrame
     with pd.option_context(
-        "display.max_rows", None, "display.max_columns", None, "display.width", None,
+        "display.max_rows",
+        None,
+        "display.max_columns",
+        None,
+        "display.width",
+        None,
     ):
         df_string = filtered_data.to_string()
 
@@ -692,7 +704,6 @@ def get_YFin_data(
 
     # remove the index from the dataframe
     return filtered_data.reset_index(drop=True)
-
 
 
 def get_stock_news_openai(ticker, curr_date):

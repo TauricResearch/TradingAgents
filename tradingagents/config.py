@@ -21,7 +21,8 @@ def get_config():
         "project_dir": str(project_root / "tradingagents"),
         "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", "./results"),
         "data_dir": os.getenv(
-            "TRADINGAGENTS_DATA_DIR", "/Users/yluo/Documents/Code/ScAI/FR1-data",
+            "TRADINGAGENTS_DATA_DIR",
+            "/Users/yluo/Documents/Code/ScAI/FR1-data",
         ),
         "data_cache_dir": str(
             project_root / "tradingagents" / "dataflows" / "data_cache",

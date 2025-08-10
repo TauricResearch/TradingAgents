@@ -48,11 +48,14 @@ ticker_to_company = {
 
 def fetch_top_from_category(
     category: Annotated[
-        str, "Category to fetch top post from. Collection of subreddits.",
+        str,
+        "Category to fetch top post from. Collection of subreddits.",
     ],
     date: Annotated[str, "Date to fetch top posts from."],
     max_limit: Annotated[int, "Maximum number of posts to fetch."],
-    query: Annotated[str | None, "Optional query to search for in the subreddit."] = None,
+    query: Annotated[
+        str | None, "Optional query to search for in the subreddit."
+    ] = None,
     data_path: Annotated[
         str,
         "Path to the data folder. Default is 'reddit_data'.",
@@ -107,7 +110,9 @@ def fetch_top_from_category(
                     found = False
                     for term in search_terms:
                         if re.search(
-                            term, parsed_line["title"], re.IGNORECASE,
+                            term,
+                            parsed_line["title"],
+                            re.IGNORECASE,
                         ) or re.search(term, parsed_line["selftext"], re.IGNORECASE):
                             found = True
                             break

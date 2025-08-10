@@ -31,7 +31,10 @@ class TestFullWorkflowIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_end_to_end_trading_workflow(
-        self, mock_toolkit, mock_chat_openai, integration_config,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        integration_config,
     ):
         """Test complete end-to-end trading workflow."""
         # Setup mocks
@@ -86,7 +89,10 @@ class TestFullWorkflowIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_multiple_analysts_integration(
-        self, mock_toolkit, mock_chat_openai, integration_config,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        integration_config,
     ):
         """Test integration with different analyst combinations."""
         analyst_combinations = [
@@ -114,7 +120,8 @@ class TestFullWorkflowIntegration:
                 with patch("tradingagents.graph.trading_graph.set_config"):
                     # Test each analyst combination
                     trading_graph = TradingAgentsGraph(
-                        selected_analysts=analysts, config=integration_config,
+                        selected_analysts=analysts,
+                        config=integration_config,
                     )
                     trading_graph.graph = mock_graph
 
@@ -134,7 +141,8 @@ class TestFullWorkflowIntegration:
             # Execute
             with patch("builtins.open", create=True), patch("json.dump"):
                 final_state, decision = trading_graph.propagate(
-                    "TSLA", "2024-05-15",
+                    "TSLA",
+                    "2024-05-15",
                 )
 
             # Verify
@@ -144,7 +152,10 @@ class TestFullWorkflowIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_memory_and_reflection_integration(
-        self, mock_toolkit, mock_chat_openai, integration_config,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        integration_config,
     ):
         """Test integration of memory and reflection components."""
         # Setup
@@ -208,7 +219,10 @@ class TestFullWorkflowIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_debug_mode_integration(
-        self, mock_toolkit, mock_chat_openai, integration_config,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        integration_config,
     ):
         """Test integration in debug mode."""
         # Setup
@@ -240,7 +254,8 @@ class TestFullWorkflowIntegration:
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.graph.trading_graph.set_config"):
                 trading_graph = TradingAgentsGraph(
-                    debug=True, config=integration_config,
+                    debug=True,
+                    config=integration_config,
                 )
                 trading_graph.graph = mock_graph
 
@@ -276,7 +291,12 @@ class TestFullWorkflowIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_multiple_stocks_integration(
-        self, mock_toolkit, mock_chat_openai, ticker, date, integration_config,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        ticker,
+        date,
+        integration_config,
     ):
         """Test integration with different stocks and dates."""
         # Setup
@@ -382,7 +402,11 @@ class TestPerformanceIntegration:
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_multiple_consecutive_runs(
-        self, mock_toolkit, mock_chat_openai, sample_config, temp_data_dir,
+        self,
+        mock_toolkit,
+        mock_chat_openai,
+        sample_config,
+        temp_data_dir,
     ):
         """Test multiple consecutive trading decisions."""
         sample_config["project_dir"] = temp_data_dir

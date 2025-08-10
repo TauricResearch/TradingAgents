@@ -56,7 +56,6 @@ class Toolkit:
 
         return interface.get_reddit_global_news(curr_date, 7, 5)
 
-
     @staticmethod
     @tool
     def get_finnhub_news(
@@ -84,9 +83,10 @@ class Toolkit:
         look_back_days = (end_date - start_date).days
 
         return interface.get_finnhub_news(
-            ticker, end_date_str, look_back_days,
+            ticker,
+            end_date_str,
+            look_back_days,
         )
-
 
     @staticmethod
     @tool
@@ -108,7 +108,6 @@ class Toolkit:
 
         return interface.get_reddit_company_news(ticker, curr_date, 7, 5)
 
-
     @staticmethod
     @tool
     def get_YFin_data(
@@ -127,7 +126,6 @@ class Toolkit:
         """
 
         return interface.get_YFin_data(symbol, start_date, end_date)
-
 
     @staticmethod
     @tool
@@ -148,16 +146,17 @@ class Toolkit:
 
         return interface.get_YFin_data_online(symbol, start_date, end_date)
 
-
     @staticmethod
     @tool
     def get_stockstats_indicators_report(
         symbol: Annotated[str, "ticker symbol of the company"],
         indicator: Annotated[
-            str, "technical indicator to get the analysis and report of",
+            str,
+            "technical indicator to get the analysis and report of",
         ],
         curr_date: Annotated[
-            str, "The current trading date you are trading on, YYYY-mm-dd",
+            str,
+            "The current trading date you are trading on, YYYY-mm-dd",
         ],
         look_back_days: Annotated[int, "how many days to look back"] = 30,
     ) -> str:
@@ -173,19 +172,24 @@ class Toolkit:
         """
 
         return interface.get_stock_stats_indicators_window(
-            symbol, indicator, curr_date, look_back_days, False,
+            symbol,
+            indicator,
+            curr_date,
+            look_back_days,
+            False,
         )
-
 
     @staticmethod
     @tool
     def get_stockstats_indicators_report_online(
         symbol: Annotated[str, "ticker symbol of the company"],
         indicator: Annotated[
-            str, "technical indicator to get the analysis and report of",
+            str,
+            "technical indicator to get the analysis and report of",
         ],
         curr_date: Annotated[
-            str, "The current trading date you are trading on, YYYY-mm-dd",
+            str,
+            "The current trading date you are trading on, YYYY-mm-dd",
         ],
         look_back_days: Annotated[int, "how many days to look back"] = 30,
     ) -> str:
@@ -201,9 +205,12 @@ class Toolkit:
         """
 
         return interface.get_stock_stats_indicators_window(
-            symbol, indicator, curr_date, look_back_days, True,
+            symbol,
+            indicator,
+            curr_date,
+            look_back_days,
+            True,
         )
-
 
     @staticmethod
     @tool
@@ -224,9 +231,10 @@ class Toolkit:
         """
 
         return interface.get_finnhub_company_insider_sentiment(
-            ticker, curr_date, 30,
+            ticker,
+            curr_date,
+            30,
         )
-
 
     @staticmethod
     @tool
@@ -247,9 +255,10 @@ class Toolkit:
         """
 
         return interface.get_finnhub_company_insider_transactions(
-            ticker, curr_date, 30,
+            ticker,
+            curr_date,
+            30,
         )
-
 
     @staticmethod
     @tool
@@ -273,7 +282,6 @@ class Toolkit:
 
         return interface.get_simfin_balance_sheet(ticker, freq, curr_date)
 
-
     @staticmethod
     @tool
     def get_simfin_cashflow(
@@ -296,7 +304,6 @@ class Toolkit:
 
         return interface.get_simfin_cashflow(ticker, freq, curr_date)
 
-
     @staticmethod
     @tool
     def get_simfin_income_stmt(
@@ -318,9 +325,10 @@ class Toolkit:
         """
 
         return interface.get_simfin_income_statements(
-            ticker, freq, curr_date,
+            ticker,
+            freq,
+            curr_date,
         )
-
 
     @staticmethod
     @tool
@@ -340,7 +348,6 @@ class Toolkit:
 
         return interface.get_google_news(query, curr_date, 7)
 
-
     @staticmethod
     @tool
     def get_stock_news_openai(
@@ -358,7 +365,6 @@ class Toolkit:
 
         return interface.get_stock_news_openai(ticker, curr_date)
 
-
     @staticmethod
     @tool
     def get_global_news_openai(
@@ -373,7 +379,6 @@ class Toolkit:
         """
 
         return interface.get_global_news_openai(curr_date)
-
 
     @staticmethod
     @tool
@@ -391,6 +396,6 @@ class Toolkit:
         """
 
         return interface.get_fundamentals_openai(
-            ticker, curr_date,
+            ticker,
+            curr_date,
         )
-
