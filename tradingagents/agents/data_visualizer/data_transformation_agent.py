@@ -10,20 +10,24 @@ from pathlib import Path
 @dataclass
 class TransformationConfig:
     """Configuration for the data transformation agent"""
-    openai_api_key: str
-    model: str = "gpt-4o"
-    eval_results_path: str = "scripts/eval_results"
-    output_path: str = "web_app/frontend/public/transformed_data"
+    openai_api_key: str = os.environ.get("OPENAI_API_KEY")
+    model: str = "gpt-4o-mini"
+    eval_results_path: str = "scripts/eval_results/AVAH/TradingAgentsStrategy_logs"
+    output_path: str = "scripts/eval_results/AVAH/TradingAgentsStrategy_transformed_logs"
+    backend_url: str = "https://api.openai.com/v1"
     
 class DataTransformationAgent:
     """Agent that transforms TradingAgents output into widget-friendly JSON format"""
     
     def __init__(self, config: TransformationConfig):
         self.config = config
-        self.client = openai.OpenAI(api_key=config.openai_api_key)
+        self.client = openai.OpenAI(
+            api_key=config.openai_api_key,
+            base_url=config.backend_url
+        )
         
         # Ensure output directory exists
-        os.makedirs(config.output_path, exist_ok=True)
+        os.makedirs(self.config.output_path, exist_ok=True)
     
     def get_transformation_prompt(self) -> str:
         """Returns the comprehensive transformation prompt"""
@@ -271,7 +275,7 @@ IMPORTANT: Return ONLY the transformed JSON, no additional text or explanations.
                     {"role": "user", "content": full_prompt}
                 ],
                 temperature=0.1,
-                max_tokens=4000
+                max_tokens=16384
             )
             
             # Parse the response
@@ -288,13 +292,14 @@ IMPORTANT: Return ONLY the transformed JSON, no additional text or explanations.
             # Add fallback values if transformation missed anything
             self._add_fallback_values(transformed_data, input_data)
             
-            return transformed_data
             
         except Exception as e:
             print(f"Error transforming data: {e}")
             # Return a basic fallback structure
-            return self._create_fallback_structure(input_data)
-
+            transformed_data = self._create_fallback_structure(input_data)
+        
+        return transformed_data
+    
     def _add_fallback_values(self, transformed_data: Dict[str, Any], original_data: Dict[str, Any]):
         """Add fallback values for any missing required fields"""
         
@@ -450,35 +455,26 @@ IMPORTANT: Return ONLY the transformed JSON, no additional text or explanations.
         for company_dir in eval_results_path.iterdir():
             if not company_dir.is_dir():
                 continue
-                
+            
             company_ticker = company_dir.name
             logs_dir = company_dir / "TradingAgentsStrategy_logs"
-            
-            if not logs_dir.exists():
-                continue
+            transformed_dir = company_dir / "TradingAgentsStrategy_transformed_logs"
+            transformed_dir.mkdir(parents=True, exist_ok=True)
             
             # Process each JSON file in the logs directory
             for json_file in logs_dir.glob("*.json"):
                 try:
                     print(f"Processing {json_file}")
                     
-                    # Load the original data
-                    with open(json_file, 'r') as f:
-                        original_data = json.load(f)
+                    # Process the file
+                    success = self.process_single_file(str(json_file), str(transformed_dir / json_file.name))
                     
-                    # Transform the data
-                    transformed_data = self.transform_single_file(original_data)
-                    
-                    # Create output filename
-                    output_filename = f"{company_ticker}_{json_file.stem}_transformed.json"
-                    output_path = Path(self.config.output_path) / output_filename
-                    
-                    # Save the transformed data
-                    with open(output_path, 'w') as f:
-                        json.dump(transformed_data, f, indent=2)
-                    
-                    results["success"].append(str(output_path))
-                    print(f"Successfully transformed and saved: {output_path}")
+                    if success:
+                        results["success"].append(str(transformed_dir / json_file.name))
+                        print(f"Successfully transformed and saved: {transformed_dir / json_file.name}")
+                    else:
+                        results["failed"].append(str(json_file))
+                        print(f"Failed to process {json_file}")
                     
                 except Exception as e:
                     print(f"Failed to process {json_file}: {e}")
@@ -525,11 +521,11 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description="Transform TradingAgents output to widget-friendly format")
-    parser.add_argument("--api-key", required=True, help="OpenAI API key")
-    parser.add_argument("--input-file", help="Process a single input file")
-    parser.add_argument("--output-file", help="Output file path (for single file processing)")
+    parser.add_argument("--api-key", help="OpenAI API key")
+    parser.add_argument("--input-file",  default="scripts/eval_results/AVAH/TradingAgentsStrategy_logs/full_states_log_2025-07-26.json", help="Process a single input file")
+    parser.add_argument("--output-file", default="scripts/eval_results/AVAH/TradingAgentsStrategy_transformed_logs/full_states_log_2025-07-26.json", help="Output file path (for single file processing)")
     parser.add_argument("--eval-results-path", default="scripts/eval_results", help="Path to eval_results directory")
-    parser.add_argument("--output-path", default="web_app/frontend/public/transformed_data", help="Output directory path")
+    parser.add_argument("--output-path", default="scripts/eval_results/AVAH/TradingAgentsStrategy_transformed_logs/", help="Output directory path")
     
     args = parser.parse_args()
     
