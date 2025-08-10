@@ -8,6 +8,7 @@ class FinancialSituationMemory:
         if config["backend_url"] == "http://localhost:11434/v1":
             self.embedding = "nomic-embed-text"
         else:
+            # TODO: Replace the following with Voyage Finance-2 embedding
             self.embedding = "text-embedding-3-small"
         self.client = OpenAI(base_url=config["backend_url"])
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
