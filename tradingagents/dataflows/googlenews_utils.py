@@ -1,4 +1,3 @@
-import json
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -13,7 +12,6 @@ from tenacity import (
     retry,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
     retry_if_result,
 )
 
@@ -26,6 +24,7 @@ def is_rate_limited(response):
 def _add_jitter(retry_state):
     # Add small random jitter before each retry to avoid detection patterns
     time.sleep(random.uniform(1, 3))
+
 
 @retry(
     retry=(retry_if_result(is_rate_limited)),
@@ -97,16 +96,19 @@ def getNewsData(query, start_date, end_date):
                         {
                             "link": link,
                             "title": title,
-                            "snippet": snippet_el.get_text(strip=True) if snippet_el else "",
+                            "snippet": (
+                                snippet_el.get_text(strip=True) if snippet_el else ""
+                            ),
                             "date": date_el.get_text(strip=True) if date_el else "",
-                            "source": source_el.get_text(strip=True) if source_el else "",
+                            "source": (
+                                source_el.get_text(strip=True) if source_el else ""
+                            ),
                         }
                     )
                 except Exception as e:
                     logger.warning("Error processing result: %s", e)
                     # If one of the fields is not found, skip this result
                     continue
-
 
             # Update the progress bar with the current count of results scraped
 

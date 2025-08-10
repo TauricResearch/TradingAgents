@@ -60,10 +60,14 @@ _, decision = ta.propagate("NVDA", "2024-05-10")
     - `risk_mgmt/` - リスク評価のディベーターエージェント
   - `dataflows/` - データ取得とキャッシュ管理
   - `graph/` - LangGraphベースのワークフロー実装
+  - `config.py` - 環境変数ベースの設定管理
 - `cli/` - リッチなCLIインターフェース
+- `agents/` - サブエージェント定義（各種ドメイン特化エージェント）
+- `docs/` - 実装チケットとドキュメント
 
 ### 主要な設定ファイル
-- `tradingagents/default_config.py` - デフォルト設定
+- `.env` - 環境変数設定（APIキー、LLM設定など）
+- `tradingagents/config.py` - 設定のロードと管理
   - LLMプロバイダー設定（OpenAI、Anthropic、Google）
   - モデル選択（deep_think_llm、quick_think_llm）
   - 議論ラウンド数の設定
@@ -94,10 +98,54 @@ _, decision = ta.propagate("NVDA", "2024-05-10")
 ### メモリ管理
 各エージェントは独自のメモリ（`FinancialSituationMemory`）を持ち、`results_dir`に保存されます。
 
-### 現在の制限
-- 正式なテストフレームワークが未設定
-- リンターやコード品質ツールが未設定
-- CI/CDパイプラインが未実装
+### 実装チケット管理
+`docs/`ディレクトリに番号付き実装チケット（例：001_TAFlowStrategy_Implementation.md）があり、各機能の実装タスクを管理しています。
+
+### コード品質チェック
+```bash
+# 型チェックの実行（mypyを使用）
+mypy tradingagents/ cli/
+
+# 特定ファイルの型チェック
+mypy path/to/file.py
+```
+
+Claude Codeでのpost-toolフックにより、Pythonファイル編集時に自動的にmypy型チェックが実行されます。
+
+### CI/CDパイプライン
+
+#### GitHub Actions ワークフロー
+- **PR Pipeline** (`.github/workflows/pr.yml`): プルリクエスト時の自動テストと品質チェック
+- **Main Pipeline** (`.github/workflows/main.yml`): メインブランチへのプッシュ時の完全テストスイート
+- **Release Pipeline** (`.github/workflows/release.yml`): タグプッシュ時の自動リリースプロセス
+
+#### テストフレームワーク
+```bash
+# ユニットテストの実行
+pytest tests/unit/ -v
+
+# カバレッジ付きテスト
+pytest tests/ --cov=tradingagents --cov-report=html
+
+# 並列実行
+pytest tests/ -n auto
+
+# 特定のマーカーでテスト
+pytest -m "not slow"
+```
+
+#### コード品質ツール
+- **Black**: コードフォーマッター
+- **Ruff**: 高速リンター
+- **mypy**: 静的型チェッカー
+- **bandit**: セキュリティスキャナー
+- **safety**: 依存関係脆弱性チェック
+
+#### post-toolフック
+`.claude_code/python_tools_check.sh`により、Pythonファイル編集時に自動的に以下が実行されます：
+- Black (自動フォーマット)
+- Ruff (リンティングと自動修正)
+- mypy (型チェック)
 
 ## トラブルシューティング
 

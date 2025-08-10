@@ -1,0 +1,226 @@
+name: Pull Request CI
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened]
+
+env:
+  PYTHON_VERSION: "3.10"
+  CACHE_NUMBER: 0  # Increment to reset cache
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for better analysis
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ env.CACHE_NUMBER }}-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ env.CACHE_NUMBER }}-
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install black ruff mypy
+    
+    - name: Run Black formatter check
+      run: |
+        echo "🎨 Checking code formatting with Black..."
+        black --check --diff tradingagents/ cli/ tests/
+    
+    - name: Run Ruff linter
+      run: |
+        echo "🔍 Running Ruff linter..."
+        ruff check tradingagents/ cli/ tests/
+    
+    - name: Run mypy type checker
+      run: |
+        echo "📝 Running type checking with mypy..."
+        mypy tradingagents/ cli/ --ignore-missing-imports --no-error-summary
+      continue-on-error: true  # Allow PR to proceed with type warnings
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+    
+    - name: Run Bandit security scan
+      run: |
+        echo "🔒 Running security scan with Bandit..."
+        bandit -r tradingagents/ cli/ -f json -o bandit-report.json || true
+        if [ -f bandit-report.json ]; then
+          python -m json.tool bandit-report.json
+        fi
+    
+    - name: Check dependencies for vulnerabilities
+      run: |
+        echo "🛡️ Checking dependencies with Safety..."
+        pip install -r requirements.txt
+        safety check --json || true
+      continue-on-error: true  # Don't block on known vulnerabilities
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ matrix.python-version }}-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-mock pytest-asyncio pytest-timeout
+    
+    - name: Run unit tests with coverage
+      env:
+        FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY || 'test_key' }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'test_key' }}
+      run: |
+        echo "🧪 Running unit tests..."
+        pytest tests/unit/ \
+          --cov=tradingagents \
+          --cov-report=xml \
+          --cov-report=term-missing \
+          --cov-fail-under=60 \
+          -v \
+          --tb=short \
+          --timeout=60
+    
+    - name: Upload coverage reports
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        verbose: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [code-quality, unit-tests]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-integration-${{ hashFiles('requirements.txt') }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-mock pytest-asyncio pytest-timeout
+    
+    - name: Run integration tests
+      env:
+        FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY || 'test_key' }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'test_key' }}
+        CI: true
+      run: |
+        echo "🔗 Running integration tests..."
+        pytest tests/integration/ \
+          -v \
+          --tb=short \
+          --timeout=180 \
+          -m "not slow"
+      continue-on-error: true  # Integration tests may be flaky
+
+  pr-summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [code-quality, security-scan, unit-tests, integration-tests]
+    if: always()
+    
+    steps:
+    - name: Summary
+      run: |
+        echo "## 📊 Pull Request CI Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check job statuses
+        if [[ "${{ needs.code-quality.result }}" == "success" ]]; then
+          echo "✅ Code Quality: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Code Quality: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.security-scan.result }}" == "success" ]]; then
+          echo "✅ Security Scan: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Security Scan: Issues Found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.unit-tests.result }}" == "success" ]]; then
+          echo "✅ Unit Tests: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Unit Tests: Failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [[ "${{ needs.integration-tests.result }}" == "success" ]]; then
+          echo "✅ Integration Tests: Passed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Integration Tests: Issues" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "*Review the individual job logs for detailed information.*" >> $GITHUB_STEP_SUMMARY
