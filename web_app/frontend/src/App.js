@@ -27,6 +27,35 @@ function App() {
   const [isLoadingTransformedData, setIsLoadingTransformedData] = useState(false);
   const [transformedDataError, setTransformedDataError] = useState(null);
 
+  // Close only the topmost open modal on Escape, preserving underlying modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showDetailModal) {
+          setShowDetailModal(false);
+          return;
+        }
+        if (showWidgetsView) {
+          setShowWidgetsView(false);
+          return;
+        }
+        if (showTransformedDataModal) {
+          setShowTransformedDataModal(false);
+          return;
+        }
+        if (showResultsModal) {
+          setShowResultsModal(false);
+          return;
+        }
+        if (showAnalysisModal) {
+          setShowAnalysisModal(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDetailModal, showWidgetsView, showTransformedDataModal, showResultsModal, showAnalysisModal]);
+
   useEffect(() => {
     checkBackendStatus();
     fetchCompanies();
