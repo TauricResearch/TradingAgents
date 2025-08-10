@@ -1,5 +1,4 @@
 import React from 'react';
-import AnalysisWidgets from '../pages/AnalysisWidgets.tsx';
 
 // New interface for the transformed JSON structure
 interface TransformedAnalysisData {
@@ -379,58 +378,226 @@ const TransformedDataAdapter: React.FC<TransformedDataAdapterProps> = ({ analysi
     widgets_config: transformedData?.widgets_config || buildTransformedWidgetsConfig(transformedData)
   };
 
-  // Minimalist Technical Indicators widget (single-card dashboard)
-  const TechnicalIndicatorsOnly: React.FC<{ data: TransformedAnalysisData }> = ({ data }) => {
-    const ti = data?.technical_indicators || {} as any;
+  // Minimalist dashboard that shows ALL main sections of transformed JSON
+  const MinimalTransformedDashboard: React.FC<{ data: TransformedAnalysisData }> = ({ data }) => {
+    const md = data?.metadata as any || {};
+    const fd = data?.financial_data as any || {};
+    const ti = data?.technical_indicators as any || {};
+    const istrat = data?.investment_strategy as any || {};
+    const ds = data?.debate_summary as any || {};
+    const txt = data?.text_content as any || {};
+
     const trends = ti?.trend_directions || {};
     const fmt = (v: any, d = 0) => {
       const n = Number(v);
-      return Number.isFinite(n) ? n.toFixed(d) : '—';
+      if (v === null || v === undefined || Number.isNaN(n)) return '-';
+      return Number.isFinite(n) ? n.toFixed(d) : String(v);
     };
-    const trendChip = (label: string, dir?: string) => {
-      const map: Record<string, string> = { BULLISH: 'bg-green-100 text-green-800', BEARISH: 'bg-red-100 text-red-800', NEUTRAL: 'bg-gray-100 text-gray-700' };
-      const cls = map[String(dir || 'NEUTRAL').toUpperCase()] || map.NEUTRAL;
-      return <span className={`px-2 py-1 rounded text-xs font-medium ${cls}`}>{label}: {dir || 'NEUTRAL'}</span>;
+    const fmtNumber = (v: any, d = 0) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '-';
+      return n.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d });
     };
+    const fmtCurrency = (v: any, d = 2) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '-';
+      return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: d, minimumFractionDigits: d });
+    };
+    const fmtPercent = (v: any, d = 2) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return '-';
+      return `${n.toFixed(d)}%`;
+    };
+    const toneFromNumber = (v: any): 'pos' | 'neg' | 'neutral' => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return 'neutral';
+      if (n > 0) return 'pos';
+      if (n < 0) return 'neg';
+      return 'neutral';
+    };
+    const Stat: React.FC<{ label: string; value: React.ReactNode; sub?: React.ReactNode; tone?: 'pos' | 'neg' | 'neutral' }>
+      = ({ label, value, sub, tone = 'neutral' }) => {
+      const toneCls = tone === 'pos' ? 'text-green-600' : tone === 'neg' ? 'text-red-600' : 'text-gray-900';
+      const ringCls = tone === 'pos' ? 'ring-green-200' : tone === 'neg' ? 'ring-red-200' : 'ring-gray-200';
+      return (
+        <div className={`rounded-lg border border-gray-200 ring-1 ${ringCls} p-4 bg-white shadow-sm`}> 
+          <p className="text-xs text-gray-500">{label}</p>
+          <p className={`text-xl font-semibold ${toneCls}`}>{value}</p>
+          {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+        </div>
+      );
+    };
+
+    const row = (label: string, value: any, fmtDigits?: number) => (
+      <div className="flex items-center justify-between py-1">
+        <span className="text-sm text-gray-500">{label}</span>
+        <span className="text-sm font-medium">{fmtDigits === undefined ? (value ?? '-') : fmt(value, fmtDigits)}</span>
+      </div>
+    );
+    const chip = (label: string, val?: string) => (
+      <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs font-medium">{label}: {val ?? '-'}</span>
+    );
+
+    // Tabs state and memoized content for text-heavy sections
+    const debateTabs = React.useMemo(() => ([
+      { key: 'bull', label: 'Bull', content: Array.isArray(ds?.bull_key_points) ? ds.bull_key_points : [] as any[] },
+      { key: 'bear', label: 'Bear', content: Array.isArray(ds?.bear_key_points) ? ds.bear_key_points : [] as any[] },
+      { key: 'neutral', label: 'Neutral', content: ds?.neutral_perspective ? [ds.neutral_perspective] : [] as any[] },
+      { key: 'final', label: 'Final', content: ds?.final_decision_rationale ? [ds.final_decision_rationale] : [] as any[] },
+    ]), [ds]);
+    const firstDebateWithContent = React.useMemo(
+      () => debateTabs.find(t => (t.content?.length ?? 0) > 0)?.key || 'bull',
+      [debateTabs]
+    );
+    const [activeDebateTab, setActiveDebateTab] = React.useState<string>(firstDebateWithContent);
+    React.useEffect(() => { setActiveDebateTab(firstDebateWithContent); }, [firstDebateWithContent]);
+
+    const reportTabsAll = React.useMemo(() => ([
+      { key: 'market', title: txt?.market_report?.title || 'Market Report', bullets: txt?.market_report?.key_takeaways, content: txt?.market_report?.content },
+      { key: 'sentiment', title: txt?.sentiment_report?.title || 'Sentiment Report', bullets: txt?.sentiment_report?.recent_developments, content: txt?.sentiment_report?.content },
+      { key: 'fundamentals', title: txt?.fundamentals_report?.title || 'Fundamentals Report', bullets: txt?.fundamentals_report?.financial_highlights, content: txt?.fundamentals_report?.content },
+    ]), [txt]);
+    const availableReports = React.useMemo(
+      () => reportTabsAll.filter(t => t.title || (Array.isArray(t.bullets) && t.bullets.length) || t.content),
+      [reportTabsAll]
+    );
+    const [activeReportTab, setActiveReportTab] = React.useState<string>(availableReports[0]?.key || 'market');
+    React.useEffect(() => { setActiveReportTab(availableReports[0]?.key || 'market'); }, [availableReports]);
+
     return (
-      <div className="min-h-[200px] p-6">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Technical Indicators</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="p-6">
+        <div className="mx-auto max-w-6xl space-y-4">
+          {/* Metadata - Full width */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-3">Company Information</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Stat label="Company" value={`${md?.company_name ?? '-'} (${md?.company_ticker ?? '-'})`} />
+              <Stat label="Analysis Date" value={md?.analysis_date ?? '-'} />
+              <Stat label="Final Recommendation" value={md?.final_recommendation ?? '-'} />
+              <Stat label="Confidence" value={md?.confidence_level ?? '-'} />
+            </div>
+          </div>
+
+          {/* Two column layout for remaining sections */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Debate Summary with sub-tabs */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-3">Debate Summary</h2>
               <div>
-                <p className="text-sm text-gray-500">RSI</p>
-                <p className="text-lg font-semibold">{fmt(ti?.rsi, 2)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">MACD</p>
-                <p className="text-lg font-semibold">{fmt(ti?.macd, 3)}</p>
-                <p className="text-xs text-gray-500">Signal: {fmt(ti?.macd_signal, 3)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">SMA 50</p>
-                <p className="text-lg font-semibold">{fmt(ti?.sma_50, 2)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">SMA 200</p>
-                <p className="text-lg font-semibold">{fmt(ti?.sma_200, 2)}</p>
-              </div>
-              {ti?.ema_10 !== undefined && (
-                <div>
-                  <p className="text-sm text-gray-500">EMA 10</p>
-                  <p className="text-lg font-semibold">{fmt(ti?.ema_10, 2)}</p>
+                <div className="flex gap-2 border-b border-gray-200 mb-3">
+                  {debateTabs.map(t => (
+                    <button
+                      key={t.key}
+                      onClick={() => setActiveDebateTab(t.key)}
+                      className={`px-3 py-1.5 text-sm rounded-t ${activeDebateTab === t.key ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                    >{t.label}</button>
+                  ))}
                 </div>
-              )}
-              <div>
-                <p className="text-sm text-gray-500">ATR</p>
-                <p className="text-lg font-semibold">{fmt(ti?.atr, 3)}</p>
+                <div className="text-sm text-gray-800 space-y-2 max-h-64 overflow-auto pr-1">
+                  {debateTabs.find(t => t.key === activeDebateTab)?.content?.length ? (
+                    <ul className="list-disc list-inside">
+                      {(debateTabs.find(t => t.key === activeDebateTab)?.content as any[]).map((c, i) => <li key={i}>{c}</li>)}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500">No content.</p>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {trendChip('SMA 50', trends?.sma_50)}
-              {trendChip('SMA 200', trends?.sma_200)}
-              {trends?.ema_10 !== undefined && trendChip('EMA 10', trends?.ema_10)}
-              {trends?.price_action !== undefined && trendChip('Price', trends?.price_action)}
+
+            {/* Text Content with sub-tabs */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-3">Reports</h2>
+              {!availableReports.length ? (
+                <p className="text-sm text-gray-500">No reports available.</p>
+              ) : (
+                <div>
+                  <div className="flex gap-2 border-b border-gray-200 mb-3">
+                    {availableReports.map(t => (
+                      <button
+                        key={t.key}
+                        onClick={() => setActiveReportTab(t.key)}
+                        className={`px-3 py-1.5 text-sm rounded-t ${activeReportTab === t.key ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                      >{t.title}</button>
+                    ))}
+                  </div>
+                  {(() => {
+                    const activeTab = availableReports.find(t => t.key === activeReportTab);
+                    if (!activeTab) return null;
+                    return (
+                      <div className="space-y-3 max-h-72 overflow-auto pr-1">
+                        {Array.isArray(activeTab.bullets) && activeTab.bullets.length > 0 && (
+                          <ul className="list-disc list-inside text-sm text-gray-700">
+                            {activeTab.bullets.map((k: string, i: number) => <li key={i}>{k}</li>)}
+                          </ul>
+                        )}
+                        {activeTab.content && (
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{activeTab.content}</p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Financial Data */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-3">Financial Data</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Stat label="Current Price" value={fmtCurrency(fd?.current_price)} />
+                <Stat label="Target Price" value={fmtCurrency(fd?.analyst_data?.price_target ?? fd?.target_price)} />
+                <Stat label="Price Change" value={fmtPercent(fd?.price_change)} tone={toneFromNumber(fd?.price_change)} />
+                <Stat label="Price Change %" value={fmtPercent(fd?.price_change_percent)} tone={toneFromNumber(fd?.price_change_percent)} />
+                <Stat label="Market Cap" value={fd?.market_cap ?? '-'} />
+                <Stat label="Enterprise Value" value={fd?.enterprise_value ?? '-'} />
+                <Stat label="Shares Outstanding" value={fd?.shares_outstanding ?? '-'} />
+                <Stat label="Volume" value={fmtNumber(fd?.volume, 0)} />
+                <Stat label="P/E Ratio" value={fmtNumber(fd?.pe_ratio ?? fd?.valuation_ratios?.forward_pe, 2)} />
+                <Stat label="P/S Ratio" value={fmtNumber(fd?.valuation_ratios?.current_ps_ratio, 2)} />
+              </div>
+            </div>
+
+            {/* Technical Indicators */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-3">Technical Indicators</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Stat label="RSI" value={fmtNumber(ti?.rsi, 2)} tone={toneFromNumber((Number(ti?.rsi) - 50))} />
+                <Stat label="MACD" value={fmtNumber(ti?.macd, 3)} />
+                <Stat label="Signal" value={fmtNumber(ti?.macd_signal, 3)} />
+                <Stat label="SMA 50" value={fmtCurrency((ti?.sma_50 ?? ti?.moving_avg_50), 2)} />
+                <Stat label="SMA 200" value={fmtCurrency((ti?.sma_200 ?? ti?.moving_avg_200), 2)} />
+                <Stat label="MA 20" value={fmtCurrency(ti?.moving_avg_20, 2)} />
+                <Stat label="EMA 10" value={fmtCurrency(ti?.ema_10, 2)} />
+                <Stat label="ATR" value={fmtNumber(ti?.atr, 3)} />
+                <Stat label="Bollinger Upper" value={fmtCurrency(ti?.bollinger_upper, 2)} />
+                <Stat label="Bollinger Lower" value={fmtCurrency(ti?.bollinger_lower, 2)} />
+                <Stat label="Support" value={fmtCurrency(ti?.support_level, 2)} />
+                <Stat label="Resistance" value={fmtCurrency(ti?.resistance_level, 2)} />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {chip('Trend SMA 50', trends?.sma_50)}
+                {chip('Trend SMA 200', trends?.sma_200)}
+                {trends?.ema_10 !== undefined && chip('Trend EMA 10', trends?.ema_10)}
+                {trends?.price_action !== undefined && chip('Price', trends?.price_action)}
+              </div>
+            </div>
+
+            {/* Investment Strategy */}
+            <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
+              <h2 className="text-lg font-semibold mb-3">Investment Strategy</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Stat label="Risk Level (SL%)" value={fmtPercent(istrat?.risk_management?.stop_loss_percent ?? md?.risk_level)} />
+                <Stat label="Initial Stop Loss" value={fmtCurrency(istrat?.risk_management?.initial_stop_loss)} />
+                <Stat label="Profit Targets" value={istrat.profit_targets.map((t: any, idx: number) => (
+                          <li key={idx} className="flex gap-4">
+                            <span className="font-semibold">{fmtCurrency(t?.target_price)}</span>
+                            {t?.action && <span className="text-xs text-gray-500">{t.action}</span>}
+                            {t?.rationale && <span className="text-xs text-gray-500">{t.rationale}</span>}
+                            <hr />
+                          </li>
+                    ))} />
+              </div>
             </div>
           </div>
         </div>
@@ -438,8 +605,8 @@ const TransformedDataAdapter: React.FC<TransformedDataAdapterProps> = ({ analysi
     );
   };
 
-  // Only render the minimalist Technical Indicators widget for transformed data
-  return <TechnicalIndicatorsOnly data={transformedWithConfig} />;
+  // Render minimalist dashboard with all keys from the transformed JSON
+  return <MinimalTransformedDashboard data={transformedWithConfig} />;
 };
 
 export default TransformedDataAdapter;

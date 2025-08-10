@@ -101,6 +101,21 @@ class TransformedDataService {
     return `${symbol}|${date}`;
   }
 
+  private buildFileEntry(companySymbol: string, result: any): TransformedAnalysis {
+    const id = this.makeCacheKey(companySymbol, result.date);
+    return {
+      filename: result.filename,
+      date: result.date,
+      modified_at: result.modified_at,
+      file_size: result.file_size,
+      preview: result.preview,
+      error: result.error,
+      symbol: companySymbol,
+      displayName: `${companySymbol} - ${result.date}`,
+      id
+    };
+  }
+
   async getAvailableFiles(): Promise<TransformedAnalysis[]> {
     if (this.cachedFiles) {
       return this.cachedFiles;
@@ -108,38 +123,23 @@ class TransformedDataService {
 
     try {
       const companiesResponse = await axios.get(`${this.baseUrl}/results/companies`);
-      const companiesData = companiesResponse.data;
-      const companies = companiesData.companies || [];
-      
-      const files: TransformedAnalysis[] = [];
-      
-      for (const company of companies) {
-        if (company.transformed_analyses > 0) {
-          try {
-            const resultsResponse = await axios.get(`${this.baseUrl}/transformed-results/${company.symbol}`);
-            const resultsData = resultsResponse.data;
-            const results = resultsData.results || [];
-            
-            for (const result of results) {
-              const id = this.makeCacheKey(company.symbol, result.date);
-              files.push({
-                filename: result.filename,
-                date: result.date,
-                modified_at: result.modified_at,
-                file_size: result.file_size,
-                preview: result.preview,
-                error: result.error,
-                symbol: company.symbol,
-                displayName: `${company.symbol} - ${result.date}`,
-                id
-              });
-            }
-          } catch (error) {
-            console.warn(`Failed to fetch transformed results for ${company.symbol}:`, error);
-          }
+      const companies = (companiesResponse.data?.companies || [])
+        .filter((c: any) => (c?.transformed_analyses ?? 0) > 0);
+
+      // Fetch each company's transformed results in parallel
+      const companyFetches = companies.map(async (company: any) => {
+        try {
+          const resultsResponse = await axios.get(`${this.baseUrl}/transformed-results/${company.symbol}`);
+          const results = resultsResponse.data?.results || [];
+          return results.map((r: any) => this.buildFileEntry(company.symbol, r));
+        } catch (err) {
+          console.warn(`Failed to fetch transformed results for ${company.symbol}:`, err);
+          return [] as TransformedAnalysis[];
         }
-      }
-      
+      });
+
+      const resultsByCompany = await Promise.all(companyFetches);
+      const files = resultsByCompany.flat();
       this.cachedFiles = files;
     } catch (error) {
       console.warn('Could not load transformed data files:', error);
@@ -164,7 +164,12 @@ class TransformedDataService {
       const files = await this.getAvailableFiles();
       const fileEntry = files.find(f => f.symbol === symbol && f.date === date);
       if (!fileEntry) {
-        throw new Error(`File not found in index: ${symbol} ${date}`);
+        // Fallback: fetch directly if not in index
+        const response = await axios.get(`${this.baseUrl}/transformed-results/${symbol}/${date}`);
+        const data: TransformedData = response.data.data;
+        this.validateTransformedData(data);
+        this.cachedData.set(cacheKey, data);
+        return data;
       }
       
       const response = await axios.get(`${this.baseUrl}/transformed-results/${fileEntry.symbol}/${date}`);

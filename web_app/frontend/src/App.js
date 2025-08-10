@@ -304,7 +304,7 @@ function App() {
   const runAnalysis = async () => {
     setIsRunningAnalysis(true);
     try {
-      const response = await axios.post('/run-analysis', analysisForm);
+      const response = await axios.post('/analysis/start', analysisForm);
       alert('Analysis completed successfully!');
       setShowAnalysisModal(false);
       setAnalysisForm({ symbol: '', date: '' });

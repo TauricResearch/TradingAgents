@@ -1,13 +1,11 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 import json
 import os
-import asyncio
-from datetime import datetime, date
+from datetime import datetime
 import glob
-from pathlib import Path
 import uuid
 
 # Import your TradingAgents components
@@ -17,6 +15,9 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 app = FastAPI(title="TradingAgents API", version="1.0.0")
+
+# Centralized results directory to avoid repetition
+RESULTS_BASE = "/home/brabus61/Desktop/Github Repos/TradingAgents/scripts/eval_results"
 
 # Configure CORS
 app.add_middleware(
@@ -69,6 +70,8 @@ async def run_analysis_task(job_id: str, symbol: str, analysis_date: str, config
         
         # Initialize TradingAgents
         jobs[job_id].progress = "Setting up trading graph..."
+
+        # Do not set API keys in code. Use environment variables or a secure secret manager.
         ta = TradingAgentsGraph(debug=True, config=config)
         
         # Run the analysis
@@ -93,33 +96,37 @@ async def run_analysis_task(job_id: str, symbol: str, analysis_date: str, config
 async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundTasks):
     """Start a new trading analysis"""
     job_id = str(uuid.uuid4())
-    
+
+    # Normalize inputs
+    symbol = request.symbol.upper().strip()
+    date = request.date.strip()
+
     # Validate date format
     try:
-        datetime.strptime(request.date, "%Y-%m-%d")
+        datetime.strptime(date, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
-    
+
     # Initialize job
     jobs[job_id] = JobStatus(
         job_id=job_id,
         status="queued",
         progress="Analysis queued"
     )
-    
+
     # Start background task
     background_tasks.add_task(
         run_analysis_task, 
         job_id, 
-        request.symbol.upper(), 
-        request.date,
+        symbol,
+        date,
         request.config_overrides or {}
     )
-    
+
     return AnalysisResponse(
         job_id=job_id,
         status="queued",
-        message=f"Analysis started for {request.symbol} on {request.date}"
+        message=f"Analysis started for {symbol} on {date}"
     )
 
 @app.get("/analysis/status/{job_id}", response_model=JobStatus)
@@ -133,7 +140,7 @@ async def get_analysis_status(job_id: str):
 @app.get("/results/companies")
 async def get_companies():
     """Get list of companies with analysis results"""
-    results_dir = "/home/brabus61/Desktop/Github Repos/TradingAgents/scripts/eval_results"
+    results_dir = RESULTS_BASE
     
     if not os.path.exists(results_dir):
         return {"companies": []}
@@ -176,7 +183,7 @@ async def get_companies():
 @app.get("/results/{symbol}")
 async def get_company_results(symbol: str):
     """Get all analysis results for a specific company"""
-    results_dir = f"/home/brabus61/Desktop/Github Repos/TradingAgents/scripts/eval_results/{symbol.upper()}/TradingAgentsStrategy_logs"
+    results_dir = os.path.join(RESULTS_BASE, symbol.upper(), "TradingAgentsStrategy_logs")
     
     if not os.path.exists(results_dir):
         raise HTTPException(status_code=404, detail=f"No results found for {symbol}")
@@ -214,7 +221,7 @@ async def get_company_results(symbol: str):
 @app.get("/transformed-results/{symbol}")
 async def get_transformed_company_results(symbol: str):
     """Get all transformed analysis results for a specific company"""
-    results_dir = f"/home/brabus61/Desktop/Github Repos/TradingAgents/scripts/eval_results/{symbol.upper()}/TradingAgentsStrategy_transformed_logs"
+    results_dir = os.path.join(RESULTS_BASE, symbol.upper(), "TradingAgentsStrategy_transformed_logs")
     
     if not os.path.exists(results_dir):
         raise HTTPException(status_code=404, detail=f"No transformed results found for {symbol}")
@@ -255,7 +262,12 @@ async def get_transformed_company_results(symbol: str):
 @app.get("/results/{symbol}/{date}")
 async def get_specific_result(symbol: str, date: str):
     """Get specific analysis result"""
-    file_path = f"/home/brabus61/Desktop/Github Repos/TradingAgents/scripts/eval_results/{symbol.upper()}/TradingAgentsStrategy_logs/full_states_log_{date}.json"
+    file_path = os.path.join(
+        RESULTS_BASE,
+        symbol.upper(),
+        "TradingAgentsStrategy_logs",
+        f"full_states_log_{date}.json",
+    )
     
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"No result found for {symbol} on {date}")
@@ -279,7 +291,12 @@ async def get_specific_result(symbol: str, date: str):
 @app.get("/transformed-results/{symbol}/{date}")
 async def get_specific_transformed_result(symbol: str, date: str):
     """Get specific transformed analysis result"""
-    file_path = f"/home/brabus61/Desktop/Github Repos/TradingAgents/scripts/eval_results/{symbol.upper()}/TradingAgentsStrategy_transformed_logs/full_states_log_{date}_transformed.json"
+    file_path = os.path.join(
+        RESULTS_BASE,
+        symbol.upper(),
+        "TradingAgentsStrategy_transformed_logs",
+        f"full_states_log_{date}_transformed.json",
+    )
     
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Transformed result not found for {symbol} on {date}")
