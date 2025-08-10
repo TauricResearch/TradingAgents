@@ -26,6 +26,64 @@ function App() {
   const [selectedTransformedData, setSelectedTransformedData] = useState(null);
   const [isLoadingTransformedData, setIsLoadingTransformedData] = useState(false);
   const [transformedDataError, setTransformedDataError] = useState(null);
+  const [activeDetailTab, setActiveDetailTab] = useState(null);
+
+  // Fields to display as pretty cards in the Details modal
+  const detailFields = [
+    'market_report',
+    'sentiment_report',
+    'news_report',
+    'fundamentals_report',
+    'trader_investment_decision',
+    'investment_plan',
+    'final_trade_decision',
+    'investment_debate_state.bull_history',
+    'investment_debate_state.bear_history',
+    'investment_debate_state.history',
+    'investment_debate_state.current_response',
+    'investment_debate_state.judge_decision',
+    'risk_debate_state.risky_history',
+    'risk_debate_state.safe_history',
+    'risk_debate_state.neutral_history',
+    'risk_debate_state.history',
+    'risk_debate_state.judge_decision',
+    'company_of_interest',
+    'trade_date',
+  ];
+
+  const fieldLabelMap = {
+    market_report: 'Market Report',
+    sentiment_report: 'Sentiment Report',
+    news_report: 'News Report',
+    fundamentals_report: 'Fundamentals Report',
+    trader_investment_decision: 'Trader Investment Decision',
+    investment_plan: 'Investment Plan',
+    final_trade_decision: 'Final Trade Decision',
+    'investment_debate_state.bull_history': 'Investment Debate - Bull History',
+    'investment_debate_state.bear_history': 'Investment Debate - Bear History',
+    'investment_debate_state.history': 'Investment Debate - History',
+    'investment_debate_state.current_response': 'Investment Debate - Current Response',
+    'investment_debate_state.judge_decision': 'Investment Debate - Judge Decision',
+    'risk_debate_state.risky_history': 'Risk Debate - Risky History',
+    'risk_debate_state.safe_history': 'Risk Debate - Safe History',
+    'risk_debate_state.neutral_history': 'Risk Debate - Neutral History',
+    'risk_debate_state.history': 'Risk Debate - History',
+    'risk_debate_state.judge_decision': 'Risk Debate - Judge Decision',
+    company_of_interest: 'Company of Interest',
+    trade_date: 'Trade Date',
+  };
+
+  // Helpers
+  const getNested = (obj, path) => {
+    if (!obj || !path) return undefined;
+    return path.split('.').reduce((acc, key) => (acc != null ? acc[key] : undefined), obj);
+  };
+
+  const prettyValue = (val) => {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'string') return val;
+    try { return JSON.stringify(val, null, 2); } catch { return String(val); }
+  };
 
   // Close only the topmost open modal on Escape, preserving underlying modals
   useEffect(() => {
@@ -61,6 +119,57 @@ function App() {
     fetchCompanies();
     loadTransformedDataSummary();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showDetailModal) {
+          setShowDetailModal(false);
+          return;
+        }
+        if (showWidgetsView) {
+          setShowWidgetsView(false);
+          return;
+        }
+        if (showTransformedDataModal) {
+          setShowTransformedDataModal(false);
+          return;
+        }
+        if (showResultsModal) {
+          setShowResultsModal(false);
+          return;
+        }
+        if (showAnalysisModal) {
+          setShowAnalysisModal(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDetailModal, showWidgetsView, showTransformedDataModal, showResultsModal, showAnalysisModal]);
+
+  // Keep the active details tab in sync with available fields for the selected result
+  useEffect(() => {
+    const baseData = resultDetail?.data?.[selectedResult?.date];
+    if (!baseData) {
+      setActiveDetailTab(null);
+      return;
+    }
+    const available = (detailFields || []).filter((path) => {
+      const val = path.split('.').reduce((acc, k) => (acc != null ? acc[k] : undefined), baseData);
+      if (val === undefined || val === null) return false;
+      if (typeof val === 'object') {
+        if (Array.isArray(val)) return val.length > 0;
+        return Object.keys(val).length > 0;
+      }
+      return true;
+    });
+    if (available.length === 0) {
+      setActiveDetailTab(null);
+    } else if (!activeDetailTab || !available.includes(activeDetailTab)) {
+      setActiveDetailTab(available[0]);
+    }
+  }, [resultDetail, selectedResult]);
 
   const checkBackendStatus = async () => {
     try {
@@ -639,12 +748,48 @@ function App() {
                 </button>
               </div>
               <div className="overflow-y-auto max-h-[calc(100vh-100px)] p-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="font-semibold mb-2">Analysis Data</h3>
-                  <pre className="text-sm overflow-x-auto whitespace-pre-wrap">
-                    {JSON.stringify(resultDetail, null, 2)}
-                  </pre>
-                </div>
+                {/* Dropdown selector */}
+                {(() => {
+                  const baseData = resultDetail?.data?.[selectedResult?.date];
+                  if (!baseData) return null;
+                  const available = detailFields
+                    .map((path) => ({ path, val: getNested(baseData, path) }))
+                    .filter(({ val }) => {
+                      if (val === undefined || val === null) return false;
+                      if (typeof val === 'object') {
+                        if (Array.isArray(val)) return val.length > 0;
+                        return Object.keys(val).length > 0;
+                      }
+                      return true;
+                    });
+                  if (available.length === 0) return null;
+                  const current = available.find(({ path }) => path === activeDetailTab) || available[0];
+                  const activePath = current.path;
+                  const activeVal = current.val;
+                  return (
+                    <div className="mb-6">
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Select section</label>
+                        <select
+                          className="block w-full md:max-w-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                          value={activePath}
+                          onChange={(e) => setActiveDetailTab(e.target.value)}
+                        >
+                          {available.map(({ path }) => (
+                            <option key={path} value={path}>
+                              {fieldLabelMap[path] || path}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* Content */}
+                      <div className="bg-white border rounded-lg p-4 shadow-sm">
+                        <h4 className="font-semibold mb-2 text-gray-900">{fieldLabelMap[activePath] || activePath}</h4>
+                        <pre className="text-sm text-gray-800 whitespace-pre-wrap overflow-x-auto">{prettyValue(activeVal)}</pre>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
