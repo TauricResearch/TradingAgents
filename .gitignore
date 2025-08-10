@@ -7,5 +7,5 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
-trading_agents/*
-node_modules/*
+trading_agents/
+web_app/frontend/node_modules/*
