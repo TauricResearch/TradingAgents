@@ -3,18 +3,24 @@ import axios from 'axios';
 const API_BASE_URL = 'http://localhost:8000';
 
 export interface TransformedAnalysis {
+  // Raw filename on disk (not unique across companies)
   filename: string;
+  // Analysis date (YYYY-MM-DD)
   date: string;
-  modified_at: string;
-  file_size: number;
+  modified_at?: string;
+  file_size?: number;
   preview?: {
     final_recommendation: string;
     confidence_level: string;
     current_price: number;
   };
   error?: string;
+  // Ticker symbol
   symbol: string;
+  // User-facing label
   displayName: string;
+  // Globally unique id to disambiguate duplicates across companies (symbol|date)
+  id: string;
 }
 
 export interface TransformedData {
@@ -91,6 +97,10 @@ class TransformedDataService {
   private cachedFiles: TransformedAnalysis[] | null = null;
   private cachedData: Map<string, TransformedData> = new Map();
 
+  private makeCacheKey(symbol: string, date: string) {
+    return `${symbol}|${date}`;
+  }
+
   async getAvailableFiles(): Promise<TransformedAnalysis[]> {
     if (this.cachedFiles) {
       return this.cachedFiles;
@@ -111,6 +121,7 @@ class TransformedDataService {
             const results = resultsData.results || [];
             
             for (const result of results) {
+              const id = this.makeCacheKey(company.symbol, result.date);
               files.push({
                 filename: result.filename,
                 date: result.date,
@@ -119,7 +130,8 @@ class TransformedDataService {
                 preview: result.preview,
                 error: result.error,
                 symbol: company.symbol,
-                displayName: `${company.symbol} - ${result.date}`
+                displayName: `${company.symbol} - ${result.date}`,
+                id
               });
             }
           } catch (error) {
@@ -137,22 +149,22 @@ class TransformedDataService {
     return this.cachedFiles;
   }
 
-  async loadTransformedData(filename: string): Promise<TransformedData> {
-    if (this.cachedData.has(filename)) {
-      return this.cachedData.get(filename)!;
+  async loadTransformedData(symbol: string, date: string): Promise<TransformedData> {
+    const cacheKey = this.makeCacheKey(symbol, date);
+    if (this.cachedData.has(cacheKey)) {
+      return this.cachedData.get(cacheKey)!;
     }
 
     try {
-      const match = filename.match(/full_states_log_(.+)_transformed\.json/);
+      const match = date.match(/(\d{4}-\d{2}-\d{2})/);
       if (!match) {
-        throw new Error(`Invalid filename format: ${filename}`);
+        throw new Error(`Invalid date format: ${date}`);
       }
-      const date = match[1];
       
       const files = await this.getAvailableFiles();
-      const fileEntry = files.find(f => f.filename === filename);
+      const fileEntry = files.find(f => f.symbol === symbol && f.date === date);
       if (!fileEntry) {
-        throw new Error(`File not found in index: ${filename}`);
+        throw new Error(`File not found in index: ${symbol} ${date}`);
       }
       
       const response = await axios.get(`${this.baseUrl}/transformed-results/${fileEntry.symbol}/${date}`);
@@ -161,11 +173,11 @@ class TransformedDataService {
       
       this.validateTransformedData(data);
       
-      this.cachedData.set(filename, data);
+      this.cachedData.set(cacheKey, data);
       
       return data;
     } catch (error) {
-      console.error(`Error loading transformed data from ${filename}:`, error);
+      console.error(`Error loading transformed data from ${symbol} ${date}:`, error);
       throw error;
     }
   }
@@ -174,7 +186,7 @@ class TransformedDataService {
     const files = await this.getAvailableFiles();
     const entry = files.find(f => f.symbol === company && f.date === date);
     if (entry) {
-      return this.loadTransformedData(entry.filename);
+      return this.loadTransformedData(entry.symbol, entry.date);
     }
 
     const response = await axios.get(`${this.baseUrl}/transformed-results/${company}/${date}`);
@@ -193,7 +205,7 @@ class TransformedDataService {
       return null;
     }
     
-    return this.loadTransformedData(companyFiles[0].filename);
+    return this.loadTransformedData(companyFiles[0].symbol, companyFiles[0].date);
   }
 
   async getAvailableCompanies(): Promise<string[]> {
