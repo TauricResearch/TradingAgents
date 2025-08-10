@@ -222,7 +222,7 @@ Transform the input into a structured JSON with the following sections:
 
 3. **Summarize Debates**: Create concise bullet points from the lengthy bull/bear arguments, focusing on key investment themes
 
-4. **Structure Investment Plan**: Break down the investment strategy into actionable components (sizing, stops, targets)
+4. **Structure Investment Plan**: Break down the investment strategy into actionable components (sizing, entry price,stops, targets, time horizon)
 
 5. **Organize Text Content**: Preserve full text reports while also extracting key highlights for quick reference
 
@@ -467,11 +467,11 @@ IMPORTANT: Return ONLY the transformed JSON, no additional text or explanations.
                     print(f"Processing {json_file}")
                     
                     # Process the file
-                    success = self.process_single_file(str(json_file), str(transformed_dir / json_file.name))
+                    success = self.process_single_file(str(json_file), str(transformed_dir))
                     
                     if success:
-                        results["success"].append(str(transformed_dir / json_file.name))
-                        print(f"Successfully transformed and saved: {transformed_dir / json_file.name}")
+                        results["success"].append(str(json_file.name))
+                        print(f"Successfully transformed and saved: {json_file.name}")
                     else:
                         results["failed"].append(str(json_file))
                         print(f"Failed to process {json_file}")
@@ -502,7 +502,7 @@ IMPORTANT: Return ONLY the transformed JSON, no additional text or explanations.
             if output_file_path is None:
                 output_file_path = Path(self.config.output_path) / f"{input_path.stem}_transformed.json"
             else:
-                output_file_path = Path(output_file_path)
+              output_file_path = Path(output_file_path) / f"{input_path.stem}_transformed.json"
             
             # Save the transformed data
             with open(output_file_path, 'w') as f:

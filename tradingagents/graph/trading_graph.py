@@ -28,6 +28,9 @@ from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
 
+# Import data transformation agent
+from tradingagents.agents.data_visualizer.data_transformation_agent import DataTransformationAgent, TransformationConfig
+
 
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
@@ -186,9 +189,15 @@ class TradingAgentsGraph:
         # Log state
         self._log_state(trade_date, final_state)
 
-        # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        # Transform output JSON into widget-friendly format
+        data_transformation_agent = DataTransformationAgent(TransformationConfig(
+            eval_results_path=f"scripts/eval_results/{company_name}/TradingAgentsStrategy_transformed_logs/full_states_log_{trade_date}.json"))
+        
+        transformed_output = data_transformation_agent.transform_single_file(self._get_state(trade_date))
 
+        # Return decision and processed signal
+        return transformed_output, self.process_signal(final_state["final_trade_decision"])
+    
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
         self.log_states_dict[str(trade_date)] = {
@@ -231,6 +240,9 @@ class TradingAgentsGraph:
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
 
+    def _get_state(self, trade_date):
+        return self.log_states_dict[str(trade_date)]
+    
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
         self.reflector.reflect_bull_researcher(

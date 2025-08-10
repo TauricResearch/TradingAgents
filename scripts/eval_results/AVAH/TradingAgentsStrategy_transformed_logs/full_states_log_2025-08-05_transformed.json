@@ -1,0 +1,166 @@
+{
+  "metadata": {
+    "company_ticker": "AVAH",
+    "company_name": "Aveanna Healthcare Holdings Inc.",
+    "analysis_date": "2025-08-06",
+    "final_recommendation": "HOLD",
+    "confidence_level": "MEDIUM"
+  },
+  "financial_data": {
+    "current_price": 5.81,
+    "price_change": 1.93,
+    "price_change_percent": 49.49,
+    "market_cap": "814.80 million",
+    "enterprise_value": "2.24 billion",
+    "shares_outstanding": "206.28 million",
+    "trading_range": {
+      "high": 6.19,
+      "low": 4.4,
+      "open": 5.35
+    },
+    "volume": 14408713,
+    "valuation_ratios": {
+      "current_ps_ratio": 0.54,
+      "fair_value_ps_ratio": 0.8,
+      "forward_pe": 145.24,
+      "forward_ps": 0.5,
+      "forward_pcf": 49.02,
+      "forward_pocf": 23.39
+    },
+    "ownership": {
+      "insider_percent": 2.74,
+      "institutional_percent": 20.26
+    },
+    "analyst_data": {
+      "consensus_rating": "HOLD",
+      "price_target": 5.25,
+      "forecast_price": 5.0
+    }
+  },
+  "technical_indicators": {
+    "sma_50": 4.61,
+    "sma_200": 4.88,
+    "ema_10": 3.91,
+    "macd": -0.208,
+    "macd_signal": -0.229,
+    "rsi": 38.39,
+    "atr": 0.182,
+    "trend_directions": {
+      "sma_50": "BEARISH",
+      "sma_200": "BEARISH",
+      "ema_10": "BEARISH",
+      "macd": "BEARISH",
+      "rsi_condition": "OVERSOLD"
+    }
+  },
+  "investment_strategy": {
+    "position_sizing": {
+      "total_allocation_percent": "3-5%",
+      "entry_strategy": "Staggered entry around $3.75-$3.80, hold cash until after earnings.",
+      "tranche_1_percent": "50%",
+      "tranche_2_percent": "50%"
+    },
+    "risk_management": {
+      "initial_stop_loss": 3.0,
+      "stop_loss_percent": 20,
+      "breakeven_strategy": "Adjust stop to breakeven after first tranche is filled."
+    },
+    "profit_targets": [
+      {
+        "target_price": 5.0,
+        "action": "Sell 25-50%",
+        "rationale": "Reassess margin trends."
+      },
+      {
+        "target_price": 7.5,
+        "action": "Hold for longer-term gains.",
+        "rationale": "Reflects a move to 0.8x P/S based on projected FY24 revenues."
+      }
+    ],
+    "monitoring_points": [
+      "Earnings call on August 7, focus on government reimbursement rate details.",
+      "Patient census and margin trends.",
+      "Competitive landscape and near-term cost pressures."
+    ]
+  },
+  "debate_summary": {
+    "bull_key_points": [
+      "Strong revenue growth of 16.8% in Q1.",
+      "Favorable demographic trends for home healthcare.",
+      "Potential for recovery indicated by oversold RSI."
+    ],
+    "bear_key_points": [
+      "High debt levels and Altman-Z score indicating bankruptcy risk.",
+      "Negative technical indicators and low social media engagement."
+    ],
+    "neutral_perspective": "A balanced approach is needed, recognizing both growth potential and financial risks.",
+    "final_decision_rationale": "While growth potential exists, financial instability and bearish technicals warrant a cautious hold."
+  },
+  "text_content": {
+    "market_report": {
+      "title": "Technical Analysis Report",
+      "content": "AVAH has seen significant fluctuations in price, with a recent low of $3.74 and peaks above $5. The stock is currently in a bearish trend with key indicators suggesting caution.",
+      "key_takeaways": [
+        "Current price is $5.81 with a 49.49% increase.",
+        "Technical indicators show bearish momentum."
+      ]
+    },
+    "sentiment_report": {
+      "title": "Company Sentiment Analysis",
+      "content": "Aveanna's recent earnings announcement and market reactions indicate mixed sentiment. The upcoming earnings call is crucial for future stock performance.",
+      "recent_developments": [
+        "Analyst price target set at $5.00.",
+        "Recent revenue growth of 14% in Q1."
+      ]
+    },
+    "fundamentals_report": {
+      "title": "Fundamental Analysis",
+      "content": "Aveanna Healthcare shows potential for growth but faces significant financial risks. The Altman-Z score indicates a need for caution.",
+      "financial_highlights": [
+        "P/S ratio of 0.54 suggests potential undervaluation.",
+        "High debt-to-equity ratio raises concerns."
+      ]
+    },
+    "news_report": {
+      "title": "Macroeconomic Context",
+      "content": "Recent macroeconomic trends, including tariff increases and inflation concerns, could impact Aveanna's operational costs and market performance.",
+      "key_developments": [
+        {
+          "date": "2025-08-01",
+          "event": "U.S. tariffs imposed on imports.",
+          "impact": "Potential increase in operational costs."
+        }
+      ]
+    },
+    "investment_plan_full": {
+      "title": "Complete Investment Strategy",
+      "content": "The investment strategy for AVAH includes a cautious approach with a focus on monitoring key financial metrics and market conditions."
+    },
+    "debate_transcripts": {
+      "bull_analysis": "The bull case emphasizes growth potential driven by demographic trends and recent revenue increases.",
+      "bear_analysis": "The bear case highlights financial instability and risks associated with high debt levels.",
+      "neutral_analysis": "A balanced perspective suggests a cautious approach while monitoring for signs of recovery.",
+      "risk_discussion": "The discussion emphasizes the importance of risk management in volatile markets."
+    }
+  },
+  "widgets_config": {
+    "charts_needed": [
+      {
+        "type": "price_chart",
+        "data_source": "financial_data.current_price",
+        "timeframe": "30_days"
+      },
+      {
+        "type": "technical_indicators",
+        "data_source": "technical_indicators"
+      }
+    ],
+    "text_widgets": [
+      {
+        "type": "expandable_report",
+        "title": "Technical Analysis",
+        "content_source": "text_content.market_report"
+      }
+    ]
+  }
+}
