@@ -6,6 +6,13 @@ from unittest.mock import Mock
 
 import pytest
 
+# Set test environment variables before importing DEFAULT_CONFIG
+# This prevents hanging during config loading due to missing API keys
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
+os.environ.setdefault("FINNHUB_API_KEY", "test-key")
+os.environ.setdefault("REDDIT_CLIENT_ID", "test-id")
+os.environ.setdefault("REDDIT_CLIENT_SECRET", "test-secret")
+
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
@@ -26,24 +33,41 @@ def sample_config():
     return config
 
 
+class MockResult:
+    """Mock result that always has proper tool_calls attribute."""
+    def __init__(self, content="Test response", tool_calls=None):
+        self.content = content
+        self.tool_calls = tool_calls if tool_calls is not None else []
+
+
 @pytest.fixture
 def mock_llm():
     """Mock LLM for testing."""
     mock = Mock()
     mock.model_name = "test-model"
 
-    # Create a mock result with tool_calls attribute
-    mock_result = Mock()
-    mock_result.content = "Test response"
-    mock_result.tool_calls = []  # Add tool_calls attribute for len() check
+    # Create a default mock result with proper tool_calls
+    default_result = MockResult()
 
-    # Fix: bind_tools returns a chain, chain.invoke returns the result
-    mock_chain = Mock()
-    mock_chain.invoke.return_value = mock_result
-    mock.bind_tools.return_value = mock_chain
+    # Simple approach: create a mock that will be returned by any chain operation
+    chain_result = Mock()
+    chain_result.return_value = default_result
+    
+    # Mock the bind_tools to return a mock that handles piping
+    bound_mock = Mock()
+    bound_mock.invoke = Mock(return_value=default_result)
+    
+    # Handle the pipe operation by returning a mock that also returns our result
+    def handle_pipe(other):
+        pipe_result = Mock()  
+        pipe_result.invoke = Mock(return_value=default_result)
+        return pipe_result
+    
+    bound_mock.__ror__ = handle_pipe
+    mock.bind_tools.return_value = bound_mock
 
     # Keep direct invoke for backward compatibility
-    mock.invoke.return_value = mock_result
+    mock.invoke.return_value = default_result
     return mock
 
 
@@ -268,14 +292,8 @@ def sample_financial_data():
 
 
 @pytest.fixture(autouse=True)
-def setup_test_environment(monkeypatch, temp_data_dir):
-    """Set up test environment variables and directories."""
-    # Set test environment variables
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    monkeypatch.setenv("FINNHUB_API_KEY", "test-key")
-    monkeypatch.setenv("REDDIT_CLIENT_ID", "test-id")
-    monkeypatch.setenv("REDDIT_CLIENT_SECRET", "test-secret")
-
+def setup_test_environment(temp_data_dir):
+    """Set up test directories."""
     # Create test data directories
     data_cache_dir = os.path.join(temp_data_dir, "dataflows", "data_cache")
     os.makedirs(data_cache_dir, exist_ok=True)

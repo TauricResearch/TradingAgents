@@ -6,6 +6,7 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from tradingagents.agents.analysts.market_analyst import create_market_analyst
+from tests.conftest import MockResult
 
 
 class TestMarketAnalyst:
@@ -25,9 +26,7 @@ class TestMarketAnalyst:
         """Test basic execution of market analyst node."""
         # Setup
         mock_toolkit.config = {"online_tools": False}
-        mock_result = Mock()
-        mock_result.content = "Market analysis complete"
-        mock_result.tool_calls = []
+        mock_result = MockResult(content="Market analysis complete", tool_calls=[])
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
@@ -53,9 +52,7 @@ class TestMarketAnalyst:
         mock_toolkit.get_YFin_data_online = Mock()
         mock_toolkit.get_stockstats_indicators_report_online = Mock()
 
-        mock_result = Mock()
-        mock_result.content = "Online analysis"
-        mock_result.tool_calls = []
+        mock_result = MockResult(content="Online analysis", tool_calls=[])
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
@@ -81,9 +78,7 @@ class TestMarketAnalyst:
         mock_toolkit.get_YFin_data = Mock()
         mock_toolkit.get_stockstats_indicators_report = Mock()
 
-        mock_result = Mock()
-        mock_result.content = "Offline analysis"
-        mock_result.tool_calls = []
+        mock_result = MockResult(content="Offline analysis", tool_calls=[])
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
@@ -105,9 +100,7 @@ class TestMarketAnalyst:
         """Test that market analyst correctly processes state variables."""
         # Setup
         mock_toolkit.config = {"online_tools": False}
-        mock_result = Mock()
-        mock_result.content = "Analysis for AAPL on 2024-05-10"
-        mock_result.tool_calls = []
+        mock_result = MockResult(content="Analysis for AAPL on 2024-05-10", tool_calls=[])
 
         # Mock the chain to capture the invoke call
         mock_chain = Mock()
@@ -132,9 +125,7 @@ class TestMarketAnalyst:
         """Test handling when no tool calls are made."""
         # Setup
         mock_toolkit.config = {"online_tools": False}
-        mock_result = Mock()
-        mock_result.content = "No tools needed"
-        mock_result.tool_calls = []  # Empty tool calls
+        mock_result = MockResult(content="No tools needed", tool_calls=[])  # Empty tool calls
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
@@ -155,9 +146,7 @@ class TestMarketAnalyst:
         """Test handling when tool calls are present."""
         # Setup
         mock_toolkit.config = {"online_tools": False}
-        mock_result = Mock()
-        mock_result.content = "Tool analysis"
-        mock_result.tool_calls = [Mock()]  # Non-empty tool calls
+        mock_result = MockResult(content="Tool analysis", tool_calls=[Mock()])  # Non-empty tool calls
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
@@ -180,11 +169,10 @@ class TestMarketAnalyst:
         """Test tool configuration for both online and offline modes."""
         # Setup
         mock_toolkit.config = {"online_tools": online_tools}
-        mock_result = Mock()
-        mock_result.content = (
-            f"Analysis in {'online' if online_tools else 'offline'} mode"
+        mock_result = MockResult(
+            content=f"Analysis in {'online' if online_tools else 'offline'} mode",
+            tool_calls=[]
         )
-        mock_result.tool_calls = []
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
@@ -214,8 +202,8 @@ class TestMarketAnalystIntegration:
         mock_toolkit.config = {"online_tools": True}
 
         # Setup LLM response
-        mock_result = Mock()
-        mock_result.content = """
+        mock_result = MockResult(
+            content="""
         # Market Analysis for TSLA (2024-05-15)
 
         ## Technical Analysis
@@ -231,8 +219,9 @@ class TestMarketAnalystIntegration:
         | RSI       | 65    | Neutral |
         | MACD      | +0.45 | Buy     |
         | Volume    | High  | Bullish |
-        """
-        mock_result.tool_calls = []
+        """,
+            tool_calls=[]
+        )
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
         # Execute
