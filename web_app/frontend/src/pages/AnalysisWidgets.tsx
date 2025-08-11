@@ -32,13 +32,48 @@ interface AnalysisData {
 interface AnalysisWidgetsProps {
   data: AnalysisData;
   rawData?: any;
+  onBackWidget?: () => void;
+  onRefreshWidget?: () => void;
 }
 
-const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
+const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData, onBackWidget, onRefreshWidget }) => {
   const [activeTab, setActiveTab] = useState('bull');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [positionSize, setPositionSize] = useState(10000);
   const [portfolioAllocation, setPortfolioAllocation] = useState(4);
+
+  const handleBack = () => {
+    if (onBackWidget) return onBackWidget();
+    if (typeof window !== 'undefined' && window.history) window.history.back();
+  };
+  const handleRefresh = () => {
+    if (onRefreshWidget) return onRefreshWidget();
+    if (typeof window !== 'undefined') window.location.reload();
+  };
+
+  const WidgetHeader: React.FC<{ title: string }> = ({ title }) => (
+    <div className="flex items-center justify-between mb-4">
+      <button
+        type="button"
+        onClick={handleBack}
+        className="p-2 rounded hover:bg-gray-100 text-gray-600"
+        aria-label="Back"
+        title="Back"
+      >
+        ←
+      </button>
+      <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+      <button
+        type="button"
+        onClick={handleRefresh}
+        className="p-2 rounded hover:bg-gray-100 text-gray-600"
+        aria-label="Refresh"
+        title="Refresh"
+      >
+        ⟳
+      </button>
+    </div>
+  );
 
   // Mock price data for chart
   const priceData = [
@@ -107,7 +142,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Stock Price Chart */}
           <div className="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Stock Price Chart</h3>
+            <WidgetHeader title="Stock Price Chart" />
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={priceData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -131,7 +166,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
 
           {/* Technical Indicators Dashboard */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Technical Indicators</h3>
+            <WidgetHeader title="Technical Indicators" />
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">RSI</span>
@@ -186,7 +221,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Bull vs Bear Debate Viewer */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Bull vs Bear Debate</h3>
+            <WidgetHeader title="Bull vs Bear Debate" />
             <div className="flex space-x-1 mb-4">
               <button
                 className={`px-4 py-2 rounded-lg text-sm font-medium ${
@@ -242,7 +277,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
 
           {/* Investment Plan Timeline */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Investment Plan Timeline</h3>
+            <WidgetHeader title="Investment Plan Timeline" />
             <div className="space-y-4">
               <div className="flex items-center">
                 <div className="w-4 h-4 bg-blue-500 rounded-full mr-4"></div>
@@ -280,7 +315,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Risk Assessment Gauge */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Risk Assessment</h3>
+            <WidgetHeader title="Risk Assessment" />
             <div className="flex items-center justify-center mb-4">
               <div className="relative w-32 h-32">
                 <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
@@ -314,7 +349,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
 
           {/* Position Calculator */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Position Calculator</h3>
+            <WidgetHeader title="Position Calculator" />
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -350,7 +385,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
 
           {/* Sentiment Thermometer */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Sentiment Thermometer</h3>
+            <WidgetHeader title="Sentiment Thermometer" />
             <div className="flex items-center justify-center mb-4">
               <div className="w-8 h-32 bg-gray-200 rounded-full relative">
                 <div
@@ -376,12 +411,12 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* News Feed Widget */}
           <div className="lg:col-span-1">
-            <NewsFeedWidget symbol={data.symbol} maxItems={8} />
+            <NewsFeedWidget symbol={data.symbol} maxItems={8} onBack={handleBack} onRefresh={handleRefresh} />
           </div>
 
           {/* Earnings Countdown Timer */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Earnings Countdown</h3>
+            <WidgetHeader title="Earnings Countdown" />
             <div className="text-center">
               <p className="text-3xl font-bold text-blue-600 mb-2">{data.earningsDate}</p>
               <p className="text-sm text-gray-600 mb-4">Next Earnings Call</p>
@@ -399,7 +434,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
 
           {/* Ownership Structure Pie Chart */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Ownership Structure</h3>
+            <WidgetHeader title="Ownership Structure" />
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
@@ -422,7 +457,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
 
         {/* Decision History Tracker */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h3 className="text-lg font-semibold mb-4">Decision History Tracker</h3>
+          <WidgetHeader title="Decision History Tracker" />
           <div className="relative">
             <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
             <div className="space-y-6">
@@ -460,7 +495,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
         <div className="space-y-6">
           {/* Executive Summary Box */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Executive Summary</h3>
+            <WidgetHeader title="Executive Summary" />
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
               <p className="text-sm">
                 <strong>Final Recommendation: {data.finalDecision}</strong> - {data.decisionReasoning}
@@ -500,7 +535,7 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData }) => {
         {/* Raw Data Viewer */}
         {rawData && (
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Detailed Analysis Data</h3>
+            <WidgetHeader title="Detailed Analysis Data" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {Object.entries(rawData).map(([key, value]) => (
                 <div key={key} className="space-y-2">

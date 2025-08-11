@@ -13,11 +13,22 @@ interface NewsItem {
 interface NewsFeedWidgetProps {
   symbol: string;
   maxItems?: number;
+  onBack?: () => void;
+  onRefresh?: () => void;
 }
 
-const NewsFeedWidget: React.FC<NewsFeedWidgetProps> = ({ symbol, maxItems = 10 }) => {
+const NewsFeedWidget: React.FC<NewsFeedWidgetProps> = ({ symbol, maxItems = 10, onBack, onRefresh }) => {
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'macro' | 'company' | 'sector'>('all');
+
+  const handleBack = () => {
+    if (onBack) return onBack();
+    if (typeof window !== 'undefined' && window.history) window.history.back();
+  };
+  const handleRefresh = () => {
+    if (onRefresh) return onRefresh();
+    if (typeof window !== 'undefined') window.location.reload();
+  };
 
   // Mock news data - in production, this would come from your backend
   useEffect(() => {
@@ -103,8 +114,31 @@ const NewsFeedWidget: React.FC<NewsFeedWidgetProps> = ({ symbol, maxItems = 10 }
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="flex items-center justify-between mb-4">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="p-2 rounded hover:bg-gray-100 text-gray-600"
+          aria-label="Back"
+          title="Back"
+        >
+          ←
+        </button>
+        <div className="flex-1 flex items-center justify-center">
+          <h3 className="text-lg font-semibold">News Feed</h3>
+        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          className="p-2 rounded hover:bg-gray-100 text-gray-600"
+          aria-label="Refresh"
+          title="Refresh"
+        >
+          ⟳
+        </button>
+      </div>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">News Feed</h3>
+        <div className="flex-1" />
         <div className="flex space-x-2">
           {['all', 'macro', 'company', 'sector'].map((filterOption) => (
             <button
@@ -120,6 +154,7 @@ const NewsFeedWidget: React.FC<NewsFeedWidgetProps> = ({ symbol, maxItems = 10 }
             </button>
           ))}
         </div>
+        <div className="flex-1" />
       </div>
       
       <div className="space-y-3 max-h-96 overflow-y-auto">

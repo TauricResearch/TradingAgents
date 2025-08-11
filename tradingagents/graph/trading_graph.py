@@ -190,11 +190,14 @@ class TradingAgentsGraph:
         # Log state
         self._log_state(trade_date, final_state)
 
+        eval_results_path=f"{RESULTS_BASE}"
+        input_file_path = f"{eval_results_path}/{company_name}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json"
+        output_file_path = f"{eval_results_path}/{company_name}/TradingAgentsStrategy_transformed_logs/"
+
         # Transform output JSON into widget-friendly format
-        data_transformation_agent = DataTransformationAgent(TransformationConfig(
-            eval_results_path=f"{RESULTS_BASE}/{company_name}/TradingAgentsStrategy_transformed_logs/full_states_log_{trade_date}.json"))
+        data_transformation_agent = DataTransformationAgent(TransformationConfig(eval_results_path=eval_results_path))
         
-        transformed_output = data_transformation_agent.transform_single_file(self._get_state(trade_date))
+        transformed_output = data_transformation_agent.process_single_file(input_file_path, output_file_path)
 
         # Return decision and processed signal
         return transformed_output, self.process_signal(final_state["final_trade_decision"])
@@ -232,11 +235,12 @@ class TradingAgentsGraph:
         }
 
         # Save to file
-        directory = Path(f"../output_data/{self.ticker}/TradingAgentsStrategy_logs/")
+        output_directory_path = os.path.join(os.path.dirname(__file__), "..", "..", "output_data",f"{self.ticker}", "TradingAgentsStrategy_logs")
+        directory = Path(output_directory_path)
         directory.mkdir(parents=True, exist_ok=True)
 
         with open(
-            f"../output_data/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
+            f"{output_directory_path}/full_states_log_{trade_date}.json",
             "w",
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)

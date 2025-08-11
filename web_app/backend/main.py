@@ -7,6 +7,17 @@ import os
 from datetime import datetime
 import glob
 import uuid
+from starlette.concurrency import run_in_threadpool
+
+# Load environment variables from .env (if present)
+try:
+    from dotenv import load_dotenv, find_dotenv
+    _dotenv_path = find_dotenv()
+    if _dotenv_path:
+        load_dotenv(_dotenv_path)
+except Exception:
+    # dotenv is optional; ignore if not installed
+    pass
 
 # Import your TradingAgents components
 import sys
@@ -18,6 +29,13 @@ app = FastAPI(title="TradingAgents API", version="1.0.0", debug=True)
 
 # Centralized results directory to avoid repetition
 RESULTS_BASE = os.path.join(os.path.dirname(__file__), "..", "..", "output_data")
+
+# Simple startup check for OPENAI_API_KEY
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    print("[WARN] OPENAI_API_KEY is not set. Set it in your shell or in a .env file.")
+else:
+    print("[INFO] OPENAI_API_KEY detected from environment.")
 
 # Configure CORS
 app.add_middleware(
@@ -58,38 +76,37 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 async def run_analysis_task(job_id: str, symbol: str, analysis_date: str, config_overrides: Dict[str, Any] = None):
-    """Background task to run the trading analysis"""
+    """Background task to run the trading analysis without blocking the event loop"""
     try:
         jobs[job_id].status = "running"
         jobs[job_id].progress = "Initializing TradingAgents..."
-        
-        # Create custom config
+
+        # Prepare config
         config = DEFAULT_CONFIG.copy()
         if config_overrides:
             config.update(config_overrides)
-        
-        # Initialize TradingAgents
+
         jobs[job_id].progress = "Setting up trading graph..."
 
-        # Do not set API keys in code. Use environment variables or a secure secret manager.
-        ta = TradingAgentsGraph(debug=True, config=config)
-        
-        # Run the analysis
-        jobs[job_id].progress = f"Analyzing {symbol} for {analysis_date}..."
-        _, decision = ta.propagate(symbol, analysis_date)
-        
-        print(_)
-        print("Decision: ", decision)
-        
+        # Define blocking work as sync function
+        def _do_work():
+            ta = TradingAgentsGraph(debug=True, config=config)
+            jobs[job_id].progress = f"Analyzing {symbol} for {analysis_date}..."
+            _, decision = ta.propagate(symbol, analysis_date)
+            return decision
+
+        # Run blocking work in threadpool so the event loop stays responsive
+        decision = await run_in_threadpool(_do_work)
+
         jobs[job_id].status = "completed"
         jobs[job_id].result = {
             "symbol": symbol,
             "date": analysis_date,
             "decision": decision,
-            "completed_at": datetime.now().isoformat()
+            "completed_at": datetime.now().isoformat(),
         }
         jobs[job_id].progress = "Analysis completed successfully"
-        
+
     except Exception as e:
         jobs[job_id].status = "failed"
         jobs[job_id].error = str(e)
@@ -320,6 +337,20 @@ async def get_specific_transformed_result(symbol: str, date: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
+@app.get("/jobs")
+async def get_jobs():
+    """Get all jobs"""
+    job_lst = []
+    for job_id, job in jobs.items():
+        job_lst.append({
+            "job_id": job_id,
+            "status": job.status,
+            "progress": job.progress,
+            "result": job.result,
+            "error": job.error
+        })
+    return {"jobs": job_lst}
+
 @app.get("/config")
 async def get_default_config():
     """Get the default configuration"""
@@ -327,4 +358,4 @@ async def get_default_config():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

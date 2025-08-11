@@ -13,6 +13,7 @@ function App() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showWidgetsView, setShowWidgetsView] = useState(false);
   const [showTransformedDataModal, setShowTransformedDataModal] = useState(false);
+  const [showJobsModal, setShowJobsModal] = useState(false);
   const [analysisForm, setAnalysisForm] = useState({ symbol: '', date: '' });
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -28,6 +29,11 @@ function App() {
   const [selectedTransformedCompany, setSelectedTransformedCompany] = useState(null);
   const [transformedCompanyFiles, setTransformedCompanyFiles] = useState([]);
   const [activeDetailTab, setActiveDetailTab] = useState(null);
+
+  // Job management state
+  const [jobs, setJobs] = useState([]);
+  const [jobsStats, setJobsStats] = useState({ total: 0, running: 0, completed: 0, failed: 0 });
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
 
   // Fields to display as pretty cards in the Details modal
   const detailFields = useMemo(() => ([
@@ -106,6 +112,10 @@ function App() {
           setShowResultsModal(false);
           return;
         }
+        if (showJobsModal) {
+          setShowJobsModal(false);
+          return;
+        }
         if (showAnalysisModal) {
           setShowAnalysisModal(false);
         }
@@ -113,7 +123,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showDetailModal, showWidgetsView, showTransformedDataModal, showResultsModal, showAnalysisModal]);
+  }, [showDetailModal, showWidgetsView, showTransformedDataModal, showResultsModal, showJobsModal, showAnalysisModal]);
 
   useEffect(() => {
     checkBackendStatus();
@@ -140,6 +150,10 @@ function App() {
           setShowResultsModal(false);
           return;
         }
+        if (showJobsModal) {
+          setShowJobsModal(false);
+          return;
+        }
         if (showAnalysisModal) {
           setShowAnalysisModal(false);
         }
@@ -147,7 +161,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showDetailModal, showWidgetsView, showTransformedDataModal, showResultsModal, showAnalysisModal]);
+  }, [showDetailModal, showWidgetsView, showTransformedDataModal, showResultsModal, showJobsModal, showAnalysisModal]);
 
   // Keep the active details tab in sync with available fields for the selected result
   useEffect(() => {
@@ -314,6 +328,7 @@ function App() {
     setShowDetailModal(false);
     setShowWidgetsView(false);
     setShowTransformedDataModal(false);
+    setShowJobsModal(false);
     setSelectedResult(null);
     setResultDetail(null);
     setSelectedTransformedData(null);
@@ -329,6 +344,32 @@ function App() {
       console.error('Error fetching transformed company files:', error);
       setTransformedDataError('Error loading transformed company files');
     }
+  };
+
+  const fetchJobs = async () => {
+    setIsLoadingJobs(true);
+    try {
+      const response = await axios.get('/jobs');
+      const jobsData = response.data.jobs || [];
+      setJobs(jobsData);
+      const stats = {
+        total: jobsData.length,
+        running: jobsData.filter((job) => job.status === 'running').length,
+        completed: jobsData.filter((job) => job.status === 'completed').length,
+        failed: jobsData.filter((job) => job.status === 'failed').length,
+      };
+      setJobsStats(stats);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  };
+
+  const handleViewJobResult = (job) => {
+    setSelectedResult(job);
+    setShowJobsModal(false);
+    setShowResultsModal(true);
   };
 
   return (
@@ -421,7 +462,7 @@ function App() {
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <button
               onClick={handleStartAnalysis}
               className="group relative w-full flex justify-center py-8 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out"
@@ -458,6 +499,19 @@ function App() {
               <div className="text-center">
                 <div className="text-lg font-semibold">Visualize Output Data</div>
                 <div className="text-sm opacity-90">View enhanced analyses</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setShowJobsModal(true)}
+              className="group relative w-full flex justify-center py-8 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
+            >
+              <span className="absolute left-0 inset-y-0 flex items-center pl-3">
+                <span className="text-2xl">📊</span>
+              </span>
+              <div className="text-center">
+                <div className="text-lg font-semibold">Job Management</div>
+                <div className="text-sm opacity-90">View and manage jobs</div>
               </div>
             </button>
           </div>
@@ -636,7 +690,7 @@ function App() {
                   <AnalysisDataAdapter tradingResult={resultDetail} />
                 ) : (
                   <div className="p-8 text-center">
-                    <div className="text-gray-500">Loading analysis data...</div>
+                    <div className="text-gray-500 mb-2">Loading analysis data...</div>
                   </div>
                 )}
               </div>
@@ -717,15 +771,25 @@ function App() {
                 <h3 className="text-lg font-medium text-gray-900">
                   {selectedCompany ? `${selectedCompany} Analysis Results` : "Analysis Results"}
                 </h3>
-                <button
-                  onClick={closeAllModals}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <span className="sr-only">Close</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  {selectedCompany && (
+                    <button
+                      onClick={() => { setSelectedCompany(null); setCompanyResults([]); }}
+                      className="text-sm px-3 py-1 rounded-md border text-gray-700 hover:bg-gray-50"
+                    >
+                      Back
+                    </button>
+                  )}
+                  <button
+                    onClick={closeAllModals}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div className="max-h-96 overflow-y-auto">
@@ -759,15 +823,6 @@ function App() {
                   // Company results view
                   <div>
                     <div className="flex items-center mb-4">
-                      <button
-                        onClick={() => {setSelectedCompany(null); setCompanyResults([]);}}
-                        className="flex items-center text-indigo-600 hover:text-indigo-800 mr-4"
-                      >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                        Back
-                      </button>
                       <h4 className="text-lg font-semibold">{selectedCompany} Results</h4>
                     </div>
                     
@@ -800,6 +855,154 @@ function App() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Jobs Modal */}
+      {showJobsModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Job Management</h3>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={fetchJobs}
+                    className="text-sm px-3 py-1 rounded-md border text-gray-700 hover:bg-gray-50"
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    onClick={closeAllModals}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Job Statistics */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="bg-blue-50 p-3 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-blue-600">{jobsStats.total}</div>
+                  <div className="text-sm text-blue-800">Total Jobs</div>
+                </div>
+                <div className="bg-yellow-50 p-3 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-yellow-600">{jobsStats.running}</div>
+                  <div className="text-sm text-yellow-800">Running</div>
+                </div>
+                <div className="bg-green-50 p-3 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-green-600">{jobsStats.completed}</div>
+                  <div className="text-sm text-green-800">Completed</div>
+                </div>
+                <div className="bg-red-50 p-3 rounded-lg text-center">
+                  <div className="text-2xl font-bold text-red-600">{jobsStats.failed}</div>
+                  <div className="text-sm text-red-800">Failed</div>
+                </div>
+              </div>
+
+              {isLoadingJobs ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500 mb-2">Loading jobs...</div>
+                </div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto">
+                  {jobs.length > 0 ? (
+                    <div className="space-y-3">
+                      {jobs.map((job, index) => (
+                        <div key={job.job_id || index} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  job.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                  job.status === 'running' ? 'bg-yellow-100 text-yellow-800' :
+                                  job.status === 'failed' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {job.status === 'running' && '🔄'} 
+                                  {job.status === 'completed' && '✅'} 
+                                  {job.status === 'failed' && '❌'} 
+                                  {job.status}
+                                </span>
+                                <div className="font-medium text-gray-900">
+                                  Job ID: {job.job_id}
+                                </div>
+                              </div>
+                              
+                              {job.result && (
+                                <div className="text-sm text-gray-600 mb-1">
+                                  <span className="font-medium">Symbol:</span> {job.result.symbol} | 
+                                  <span className="font-medium ml-2">Date:</span> {job.result.date}
+                                </div>
+                              )}
+                              
+                              {job.progress && (
+                                <div className="text-sm text-gray-500">
+                                  {job.progress}
+                                </div>
+                              )}
+                              
+                              {job.error && (
+                                <div className="text-sm text-red-600 mt-1">
+                                  Error: {job.error}
+                                </div>
+                              )}
+                              
+                              {job.result && job.result.completed_at && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  Completed: {new Date(job.result.completed_at).toLocaleString()}
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              {job.status === 'completed' && job.result && (
+                                <>
+                                  <button
+                                    onClick={() => handleViewJobResult(job)}
+                                    className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                  >
+                                    📈 View Results
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      const { symbol, date } = job.result;
+                                      try {
+                                        const response = await axios.get(`http://localhost:8000/results/transformed/${symbol}/${date}`);
+                                        setSelectedTransformedData(response.data);
+                                        setShowJobsModal(false);
+                                        setShowTransformedDataModal(true);
+                                      } catch (error) {
+                                        console.error('Error fetching transformed result:', error);
+                                        // Fallback to regular result view
+                                        handleViewJobResult(job);
+                                      }
+                                    }}
+                                    className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                                  >
+                                    🔄 Visualize
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-500 mb-2">No jobs found</div>
+                      <div className="text-sm text-gray-400">Run a new analysis to see jobs here</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
