@@ -1,5 +1,5 @@
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 # Create a custom config
 config = DEFAULT_CONFIG.copy()

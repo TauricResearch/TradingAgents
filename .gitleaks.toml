@@ -1,0 +1,20 @@
+# Gitleaks configuration for TradingAgents
+# https://github.com/gitleaks/gitleaks
+
+[extend]
+# Use default rules
+useDefault = true
+
+[allowlist]
+# Add project-specific allowlist patterns here
+# Example:
+# paths = [
+#   "test/fixtures",
+#   "docs/examples"
+# ]
+
+# Allow specific commits (if needed)
+# commits = ["commit-hash"]
+
+# Allow specific files
+# files = ["file-with-false-positive.txt"]

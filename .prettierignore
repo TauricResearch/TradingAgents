@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+coverage
+.venv
+*.pyc
+__pycache__
+.pytest_cache
+.ruff_cache
+uv.lock
+*.egg-info
