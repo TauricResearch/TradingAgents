@@ -39,19 +39,20 @@ def create_mock_toolkit_with_tools():
 
             mock_func.__name__ = name
             mock_func.__qualname__ = name
+            # Add additional attributes that @tool might check
+            mock_func.__module__ = "__main__"
+            mock_func.__doc__ = f"Mock function for {name}"
             return mock_func
 
         # Create the actual function (not a Mock)
+        # Use the actual function directly without wrapping in Mock
         actual_func = make_mock_func(method_name)
 
-        # Wrap it in Mock for test assertions but keep function properties
-        mock_method = Mock(wraps=actual_func)
-        mock_method.__name__ = method_name
-        mock_method.__qualname__ = method_name
-        mock_method.name = method_name
+        # Add 'name' attribute for tool compatibility
+        actual_func.name = method_name
 
         # Set it on the toolkit
-        setattr(toolkit, method_name, mock_method)
+        setattr(toolkit, method_name, actual_func)
 
     return toolkit
 
