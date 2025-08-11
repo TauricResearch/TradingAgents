@@ -62,10 +62,10 @@ def create_mock_toolkit_with_tools():
 
 def patch_toolkit_in_test(mock_toolkit_class):
     """Configure the mock_toolkit patch to return a properly mocked instance.
-    
+
     Args:
         mock_toolkit_class: The patched Toolkit class
-        
+
     Returns:
         The mock toolkit instance that will be used
     """
