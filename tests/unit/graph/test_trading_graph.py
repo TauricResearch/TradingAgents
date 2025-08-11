@@ -5,6 +5,7 @@ from unittest.mock import Mock, mock_open, patch
 import pytest
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from .mock_toolkit_fix import patch_toolkit_in_test
 
 
 class TestTradingAgentsGraph:
@@ -26,9 +27,8 @@ class TestTradingAgentsGraph:
         sample_config["project_dir"] = temp_data_dir
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
-        mock_toolkit_instance = Mock()
+        mock_toolkit_instance = patch_toolkit_in_test(mock_toolkit)
         mock_toolkit_instance.config = sample_config
-        mock_toolkit.return_value = mock_toolkit_instance
 
         # Execute
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
@@ -56,7 +56,7 @@ class TestTradingAgentsGraph:
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.dataflows.config.set_config"):
@@ -79,7 +79,7 @@ class TestTradingAgentsGraph:
         mock_llm = Mock()
         mock_chat_anthropic.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.dataflows.config.set_config"):
@@ -102,7 +102,7 @@ class TestTradingAgentsGraph:
         mock_llm = Mock()
         mock_chat_google.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.dataflows.config.set_config"):
@@ -121,7 +121,7 @@ class TestTradingAgentsGraph:
         sample_config["project_dir"] = temp_data_dir
         sample_config["llm_provider"] = "unsupported"
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         with pytest.raises(ValueError, match="Unsupported LLM provider"):
             with patch("tradingagents.dataflows.config.set_config"):
@@ -147,7 +147,7 @@ class TestTradingAgentsGraph:
         mock_toolkit_instance.get_YFin_data = Mock()
         mock_toolkit_instance.get_stockstats_indicators_report_online = Mock()
         mock_toolkit_instance.get_stockstats_indicators_report = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.dataflows.config.set_config"):
@@ -173,7 +173,7 @@ class TestTradingAgentsGraph:
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         # Mock the graph and its invoke method
         mock_graph = Mock()
@@ -240,7 +240,7 @@ class TestTradingAgentsGraph:
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         # Mock the graph stream method for debug mode
         mock_graph = Mock()
@@ -283,7 +283,7 @@ class TestTradingAgentsGraph:
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.dataflows.config.set_config"):
@@ -342,7 +342,7 @@ class TestTradingAgentsGraph:
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         with (
             patch(
@@ -388,7 +388,7 @@ class TestTradingAgentsGraph:
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.dataflows.config.set_config"):
@@ -425,7 +425,7 @@ class TestTradingAgentsGraph:
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.dataflows.config.set_config"):
@@ -447,7 +447,7 @@ class TestTradingAgentsGraphErrorHandling:
         """Test handling of invalid configuration."""
         invalid_config = {"invalid_key": "invalid_value"}
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         # This should still work as the class should use defaults for missing keys
         with patch("tradingagents.dataflows.config.set_config"):
@@ -469,7 +469,7 @@ class TestTradingAgentsGraphErrorHandling:
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
         mock_toolkit_instance = Mock()
-        mock_toolkit.return_value = mock_toolkit_instance
+        patch_toolkit_in_test(mock_toolkit)
 
         # Should handle directory creation gracefully or raise appropriate error
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
