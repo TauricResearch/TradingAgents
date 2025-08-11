@@ -28,6 +28,9 @@ def create_mock_toolkit_with_tools():
         "get_simfin_income_stmt",
         "get_simfin_balance_sheet",
         "get_finnhub_basic_financials",
+        "get_fundamentals_openai",
+        "get_finnhub_company_insider_sentiment",
+        "get_finnhub_company_insider_transactions",
     ]
 
     # Create mock for each method with proper __name__ attribute
@@ -57,8 +60,16 @@ def create_mock_toolkit_with_tools():
     return toolkit
 
 
-def patch_toolkit_in_test(mock_toolkit):
-    """Configure the mock_toolkit patch to return a properly mocked instance."""
+def patch_toolkit_in_test(mock_toolkit_class):
+    """Configure the mock_toolkit patch to return a properly mocked instance.
+    
+    Args:
+        mock_toolkit_class: The patched Toolkit class
+        
+    Returns:
+        The mock toolkit instance that will be used
+    """
     mock_instance = create_mock_toolkit_with_tools()
-    mock_toolkit.return_value = mock_instance
+    # Ensure that Toolkit() constructor returns our mock instance
+    mock_toolkit_class.return_value = mock_instance
     return mock_instance
