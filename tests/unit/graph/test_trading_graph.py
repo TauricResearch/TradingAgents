@@ -266,7 +266,10 @@ class TestTradingAgentsGraph:
             "final_trade_decision": "BUY",
         }
         mock_final_chunk["messages"][0].pretty_print = Mock()
-        mock_graph.stream.return_value = [mock_final_chunk, mock_final_chunk]  # Multiple chunks
+        mock_graph.stream.return_value = [
+            mock_final_chunk,
+            mock_final_chunk,
+        ]  # Multiple chunks
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
             with patch("tradingagents.graph.trading_graph.set_config"):
