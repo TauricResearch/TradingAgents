@@ -53,7 +53,7 @@ def mock_llm():
     # Create a chain mock (what prompt | llm.bind_tools(tools) returns)
     chain_mock = Mock()
     chain_mock.invoke = Mock(return_value=default_result)
-    
+
     # Store the chain_mock on the mock_llm so tests can configure it
     mock._chain_mock = chain_mock
 
@@ -64,7 +64,7 @@ def mock_llm():
         bound_mock = Mock()
         bound_mock.__ror__ = lambda self, other: chain_mock
         return bound_mock
-    
+
     mock.bind_tools = mock_bind_tools
 
     # Keep direct invoke for backward compatibility
