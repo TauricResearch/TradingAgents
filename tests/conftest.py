@@ -37,8 +37,13 @@ def mock_llm():
     mock_result.content = "Test response"
     mock_result.tool_calls = []  # Add tool_calls attribute for len() check
 
+    # Fix: bind_tools returns a chain, chain.invoke returns the result
+    mock_chain = Mock()
+    mock_chain.invoke.return_value = mock_result
+    mock.bind_tools.return_value = mock_chain
+
+    # Keep direct invoke for backward compatibility
     mock.invoke.return_value = mock_result
-    mock.bind_tools.return_value = mock
     return mock
 
 
