@@ -31,6 +31,7 @@ from .signal_processing import SignalProcessor
 # Import data transformation agent
 from tradingagents.agents.data_visualizer.data_transformation_agent import DataTransformationAgent, TransformationConfig
 
+RESULTS_BASE = os.path.join(os.path.dirname(__file__), "..", "..", "output_data")
 
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
@@ -191,7 +192,7 @@ class TradingAgentsGraph:
 
         # Transform output JSON into widget-friendly format
         data_transformation_agent = DataTransformationAgent(TransformationConfig(
-            eval_results_path=f"../output_data/{company_name}/TradingAgentsStrategy_transformed_logs/full_states_log_{trade_date}.json"))
+            eval_results_path=f"{RESULTS_BASE}/{company_name}/TradingAgentsStrategy_transformed_logs/full_states_log_{trade_date}.json"))
         
         transformed_output = data_transformation_agent.transform_single_file(self._get_state(trade_date))
 

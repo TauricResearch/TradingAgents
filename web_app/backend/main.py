@@ -14,10 +14,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
-app = FastAPI(title="TradingAgents API", version="1.0.0")
+app = FastAPI(title="TradingAgents API", version="1.0.0", debug=True)
 
 # Centralized results directory to avoid repetition
-RESULTS_BASE = os.path.join(os.path.dirname(__file__), "output_data")
+RESULTS_BASE = os.path.join(os.path.dirname(__file__), "..", "..", "output_data")
 
 # Configure CORS
 app.add_middleware(
@@ -77,6 +77,9 @@ async def run_analysis_task(job_id: str, symbol: str, analysis_date: str, config
         # Run the analysis
         jobs[job_id].progress = f"Analyzing {symbol} for {analysis_date}..."
         _, decision = ta.propagate(symbol, analysis_date)
+        
+        print(_)
+        print("Decision: ", decision)
         
         jobs[job_id].status = "completed"
         jobs[job_id].result = {
@@ -141,7 +144,6 @@ async def get_analysis_status(job_id: str):
 async def get_companies():
     """Get list of companies with analysis results"""
     results_dir = RESULTS_BASE
-    print(results_dir)
     if not os.path.exists(results_dir):
         return {"companies": []}
     
@@ -325,4 +327,4 @@ async def get_default_config():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
