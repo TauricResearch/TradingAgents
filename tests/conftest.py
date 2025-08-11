@@ -50,22 +50,22 @@ def mock_llm():
     # Create a default mock result with proper tool_calls
     default_result = MockResult()
 
-    # Simple approach: create a mock that will be returned by any chain operation
-    chain_result = Mock()
-    chain_result.return_value = default_result
+    # Create a chain mock (what prompt | llm.bind_tools(tools) returns)
+    chain_mock = Mock()
+    chain_mock.invoke = Mock(return_value=default_result)
+    
+    # Store the chain_mock on the mock_llm so tests can configure it
+    mock._chain_mock = chain_mock
 
-    # Mock the bind_tools to return a mock that handles piping
-    bound_mock = Mock()
-    bound_mock.invoke = Mock(return_value=default_result)
-
-    # Handle the pipe operation by returning a mock that also returns our result
-    def handle_pipe(other):
-        pipe_result = Mock()
-        pipe_result.invoke = Mock(return_value=default_result)
-        return pipe_result
-
-    bound_mock.__ror__ = handle_pipe
-    mock.bind_tools.return_value = bound_mock
+    # Mock bind_tools to return the chain_mock directly
+    # This simplifies the pipe operation handling
+    def mock_bind_tools(tools):
+        # Return an object that when piped with prompt, returns chain_mock
+        bound_mock = Mock()
+        bound_mock.__ror__ = lambda self, other: chain_mock
+        return bound_mock
+    
+    mock.bind_tools = mock_bind_tools
 
     # Keep direct invoke for backward compatibility
     mock.invoke.return_value = default_result
