@@ -11,7 +11,7 @@ from .mock_toolkit_fix import patch_toolkit_in_test
 class TestTradingAgentsGraph:
     """Test suite for TradingAgentsGraph class."""
 
-    @patch("tradingagents.dataflows.config.set_config")
+    @patch("tradingagents.graph.trading_graph.set_config")
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.Toolkit")
     def test_init_basic(
@@ -58,7 +58,7 @@ class TestTradingAgentsGraph:
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 graph = TradingAgentsGraph(debug=True, config=sample_config)
 
         assert graph.debug is True
@@ -80,7 +80,7 @@ class TestTradingAgentsGraph:
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 TradingAgentsGraph(config=sample_config)
 
         assert mock_chat_anthropic.call_count == 2
@@ -102,7 +102,7 @@ class TestTradingAgentsGraph:
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 TradingAgentsGraph(config=sample_config)
 
         assert mock_chat_google.call_count == 2
@@ -120,7 +120,7 @@ class TestTradingAgentsGraph:
         patch_toolkit_in_test(mock_toolkit)
 
         with pytest.raises(ValueError, match="Unsupported LLM provider"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 TradingAgentsGraph(config=sample_config)
 
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
@@ -146,7 +146,7 @@ class TestTradingAgentsGraph:
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 graph = TradingAgentsGraph(config=sample_config)
 
         # Verify tool nodes are created
@@ -200,7 +200,7 @@ class TestTradingAgentsGraph:
         mock_graph.invoke.return_value = mock_final_state
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 graph = TradingAgentsGraph(config=sample_config)
                 graph.graph = mock_graph
 
@@ -238,12 +238,38 @@ class TestTradingAgentsGraph:
 
         # Mock the graph stream method for debug mode
         mock_graph = Mock()
-        mock_chunk = {"messages": [Mock()]}
-        mock_chunk["messages"][0].pretty_print = Mock()
-        mock_graph.stream.return_value = [mock_chunk, mock_chunk]  # Multiple chunks
+        # Create a complete mock chunk with all required fields
+        mock_final_chunk = {
+            "messages": [Mock()],
+            "company_of_interest": "TSLA",
+            "trade_date": "2024-05-15",
+            "market_report": "",
+            "sentiment_report": "",
+            "news_report": "",
+            "fundamentals_report": "",
+            "investment_debate_state": {
+                "bull_history": [],
+                "bear_history": [],
+                "history": [],
+                "current_response": "",
+                "judge_decision": "",
+            },
+            "trader_investment_plan": "",
+            "risk_debate_state": {
+                "risky_history": [],
+                "safe_history": [],
+                "neutral_history": [],
+                "history": [],
+                "judge_decision": "",
+            },
+            "investment_plan": "",
+            "final_trade_decision": "BUY",
+        }
+        mock_final_chunk["messages"][0].pretty_print = Mock()
+        mock_graph.stream.return_value = [mock_final_chunk, mock_final_chunk]  # Multiple chunks
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 graph = TradingAgentsGraph(debug=True, config=sample_config)
                 graph.graph = mock_graph
 
@@ -279,7 +305,7 @@ class TestTradingAgentsGraph:
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 graph = TradingAgentsGraph(config=sample_config)
                 graph.ticker = "NVDA"
 
@@ -382,7 +408,7 @@ class TestTradingAgentsGraph:
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 graph = TradingAgentsGraph(config=sample_config)
                 graph.signal_processor.process_signal = Mock(return_value="BUY")
 
@@ -418,7 +444,7 @@ class TestTradingAgentsGraph:
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 TradingAgentsGraph(
                     selected_analysts=selected_analysts,
                     config=sample_config,
@@ -439,7 +465,7 @@ class TestTradingAgentsGraphErrorHandling:
         patch_toolkit_in_test(mock_toolkit)
 
         # This should still work as the class should use defaults for missing keys
-        with patch("tradingagents.dataflows.config.set_config"):
+        with patch("tradingagents.graph.trading_graph.set_config"):
             with pytest.raises(
                 KeyError,
             ):  # Should fail when trying to access missing config keys
@@ -461,7 +487,7 @@ class TestTradingAgentsGraphErrorHandling:
 
         # Should handle directory creation gracefully or raise appropriate error
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
-            with patch("tradingagents.dataflows.config.set_config"):
+            with patch("tradingagents.graph.trading_graph.set_config"):
                 # This might raise PermissionError or similar, depending on implementation
                 try:
                     TradingAgentsGraph(config=sample_config)
