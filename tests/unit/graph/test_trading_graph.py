@@ -55,7 +55,6 @@ class TestTradingAgentsGraph:
         sample_config["project_dir"] = temp_data_dir
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
@@ -78,7 +77,6 @@ class TestTradingAgentsGraph:
         sample_config["llm_provider"] = "anthropic"
         mock_llm = Mock()
         mock_chat_anthropic.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
@@ -101,7 +99,6 @@ class TestTradingAgentsGraph:
         sample_config["llm_provider"] = "google"
         mock_llm = Mock()
         mock_chat_google.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
@@ -120,7 +117,6 @@ class TestTradingAgentsGraph:
         """Test initialization with unsupported LLM provider raises error."""
         sample_config["project_dir"] = temp_data_dir
         sample_config["llm_provider"] = "unsupported"
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         with pytest.raises(ValueError, match="Unsupported LLM provider"):
@@ -172,7 +168,6 @@ class TestTradingAgentsGraph:
         sample_config["project_dir"] = temp_data_dir
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         # Mock the graph and its invoke method
@@ -239,7 +234,6 @@ class TestTradingAgentsGraph:
         sample_config["project_dir"] = temp_data_dir
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         # Mock the graph stream method for debug mode
@@ -282,7 +276,6 @@ class TestTradingAgentsGraph:
         sample_config["project_dir"] = temp_data_dir
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
@@ -341,7 +334,6 @@ class TestTradingAgentsGraph:
         sample_config["project_dir"] = temp_data_dir
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         with (
@@ -387,7 +379,6 @@ class TestTradingAgentsGraph:
         sample_config["project_dir"] = temp_data_dir
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
@@ -424,7 +415,6 @@ class TestTradingAgentsGraph:
         sample_config["project_dir"] = temp_data_dir
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         with patch("tradingagents.graph.trading_graph.FinancialSituationMemory"):
@@ -446,7 +436,6 @@ class TestTradingAgentsGraphErrorHandling:
     def test_invalid_config_handling(self, mock_toolkit):
         """Test handling of invalid configuration."""
         invalid_config = {"invalid_key": "invalid_value"}
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         # This should still work as the class should use defaults for missing keys
@@ -468,7 +457,6 @@ class TestTradingAgentsGraphErrorHandling:
         sample_config["project_dir"] = "/invalid/path/that/cannot/be/created"
         mock_llm = Mock()
         mock_chat_openai.return_value = mock_llm
-        mock_toolkit_instance = Mock()
         patch_toolkit_in_test(mock_toolkit)
 
         # Should handle directory creation gracefully or raise appropriate error
