@@ -31,12 +31,12 @@ def mock_llm():
     """Mock LLM for testing."""
     mock = Mock()
     mock.model_name = "test-model"
-    
+
     # Create a mock result with tool_calls attribute
     mock_result = Mock()
     mock_result.content = "Test response"
     mock_result.tool_calls = []  # Add tool_calls attribute for len() check
-    
+
     mock.invoke.return_value = mock_result
     mock.bind_tools.return_value = mock
     return mock
