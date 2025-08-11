@@ -32,13 +32,22 @@ def create_mock_toolkit_with_tools():
 
     # Create mock for each method with proper __name__ attribute
     for method_name in tool_methods:
-        # Create a function with the right name
-        def mock_func():
-            return f"Mock {method_name} data"
+        # Create a real function to satisfy @tool decorator requirements
+        def make_mock_func(name):
+            def mock_func(*args, **kwargs):
+                return f"Mock {name} data"
 
-        # Create Mock wrapping the function
-        mock_method = Mock(side_effect=mock_func)
+            mock_func.__name__ = name
+            mock_func.__qualname__ = name
+            return mock_func
+
+        # Create the actual function (not a Mock)
+        actual_func = make_mock_func(method_name)
+
+        # Wrap it in Mock for test assertions but keep function properties
+        mock_method = Mock(wraps=actual_func)
         mock_method.__name__ = method_name
+        mock_method.__qualname__ = method_name
         mock_method.name = method_name
 
         # Set it on the toolkit
