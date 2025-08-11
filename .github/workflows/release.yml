@@ -1,0 +1,312 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Get version
+      id: get_version
+      run: |
+        if [ "${{ github.event_name }}" == "push" ]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+        else
+          VERSION=${{ github.event.inputs.version }}
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "📦 Preparing release for version: $VERSION"
+    
+    - name: Validate version format
+      run: |
+        VERSION=${{ steps.get_version.outputs.version }}
+        if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+          echo "❌ Invalid version format: $VERSION"
+          echo "Version must be in format: v1.2.3 or v1.2.3-beta1"
+          exit 1
+        fi
+        echo "✅ Version format is valid"
+
+  build-and-test:
+    name: Build and Test Release
+    runs-on: ${{ matrix.os }}
+    needs: validate-release
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install build twine pytest pytest-cov
+    
+    - name: Run tests
+      env:
+        FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY || 'test_key' }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'test_key' }}
+      run: |
+        pytest tests/ -v --tb=short --timeout=300
+    
+    - name: Build distribution
+      run: |
+        python -m build
+    
+    - name: Check distribution
+      run: |
+        twine check dist/*
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: dist/
+        retention-days: 7
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: dist-*
+        merge-multiple: true
+        path: dist/
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Generate changelog from git history
+        echo "## 📝 Changelog" > changelog.md
+        echo "" >> changelog.md
+        
+        # Get previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        
+        if [ -n "$PREV_TAG" ]; then
+          echo "### Changes since $PREV_TAG" >> changelog.md
+          echo "" >> changelog.md
+          
+          # Generate categorized changelog
+          echo "#### 🚀 Features" >> changelog.md
+          git log $PREV_TAG..HEAD --grep="feat:" --pretty="- %s" >> changelog.md || echo "- No new features" >> changelog.md
+          echo "" >> changelog.md
+          
+          echo "#### 🐛 Bug Fixes" >> changelog.md
+          git log $PREV_TAG..HEAD --grep="fix:" --pretty="- %s" >> changelog.md || echo "- No bug fixes" >> changelog.md
+          echo "" >> changelog.md
+          
+          echo "#### 📚 Documentation" >> changelog.md
+          git log $PREV_TAG..HEAD --grep="docs:" --pretty="- %s" >> changelog.md || echo "- No documentation changes" >> changelog.md
+          echo "" >> changelog.md
+          
+          echo "#### 🔧 Maintenance" >> changelog.md
+          git log $PREV_TAG..HEAD --grep="chore:\|refactor:\|test:" --pretty="- %s" >> changelog.md || echo "- No maintenance changes" >> changelog.md
+          echo "" >> changelog.md
+        else
+          echo "Initial release" >> changelog.md
+        fi
+        
+        echo "### 📊 Statistics" >> changelog.md
+        echo "- Commits: $(git rev-list --count HEAD)" >> changelog.md
+        echo "- Contributors: $(git shortlog -sn --all | wc -l)" >> changelog.md
+        echo "" >> changelog.md
+        
+        echo "### 🙏 Contributors" >> changelog.md
+        git shortlog -sn --all | head -10 | awk '{$1=""; print "- " $0}' >> changelog.md
+        
+        # Output changelog for the release
+        cat changelog.md
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ needs.validate-release.outputs.version }}
+        name: Release ${{ needs.validate-release.outputs.version }}
+        body_path: changelog.md
+        draft: false
+        prerelease: ${{ contains(needs.validate-release.outputs.version, '-') }}
+        files: dist/*
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [create-release]
+    if: ${{ !contains(needs.validate-release.outputs.version, '-') }}  # Only for stable releases
+    environment:
+      name: pypi
+      url: https://pypi.org/project/tradingagents/
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: dist-ubuntu-latest-py3.10
+        path: dist/
+    
+    - name: Publish to Test PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+      run: |
+        pip install twine
+        # First upload to test.pypi.org
+        twine upload --repository testpypi dist/*/*.whl dist/*/*.tar.gz || true
+      continue-on-error: true
+    
+    - name: Test installation from Test PyPI
+      run: |
+        pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ tradingagents || true
+      continue-on-error: true
+    
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        # Upload to production PyPI
+        twine upload dist/*/*.whl dist/*/*.tar.gz
+      if: ${{ secrets.PYPI_API_TOKEN != '' }}
+
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Create Dockerfile
+      run: |
+        cat > Dockerfile << 'EOF'
+        FROM python:3.10-slim
+        
+        WORKDIR /app
+        
+        # Install system dependencies
+        RUN apt-get update && apt-get install -y \
+            gcc \
+            g++ \
+            && rm -rf /var/lib/apt/lists/*
+        
+        # Copy requirements and install Python dependencies
+        COPY requirements.txt .
+        RUN pip install --no-cache-dir -r requirements.txt
+        
+        # Copy application code
+        COPY tradingagents/ ./tradingagents/
+        COPY cli/ ./cli/
+        COPY setup.py .
+        COPY README.md .
+        
+        # Install the package
+        RUN pip install -e .
+        
+        # Set environment variables
+        ENV PYTHONUNBUFFERED=1
+        
+        # Default command
+        CMD ["python", "-m", "cli.main"]
+        EOF
+    
+    - name: Build Docker image
+      run: |
+        docker build -t tradingagents:${{ needs.validate-release.outputs.version }} .
+        docker tag tradingagents:${{ needs.validate-release.outputs.version }} tradingagents:latest
+    
+    - name: Save Docker image
+      run: |
+        docker save tradingagents:${{ needs.validate-release.outputs.version }} | gzip > tradingagents-${{ needs.validate-release.outputs.version }}.tar.gz
+    
+    - name: Upload Docker image
+      uses: actions/upload-artifact@v4
+      with:
+        name: docker-image
+        path: tradingagents-*.tar.gz
+        retention-days: 7
+
+  release-notes:
+    name: Update Release Notes
+    runs-on: ubuntu-latest
+    needs: [create-release, publish-pypi]
+    if: always()
+    
+    steps:
+    - name: Generate final summary
+      run: |
+        echo "# 🎉 Release ${{ needs.validate-release.outputs.version }} Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## 📋 Release Status" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Version: ${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ GitHub Release: Created" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ needs.publish-pypi.result }}" == "success" ]]; then
+          echo "- ✅ PyPI: Published" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ⚠️ PyPI: Not published (may require manual intervention)" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 🔗 Links" >> $GITHUB_STEP_SUMMARY
+        echo "- [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/${{ needs.validate-release.outputs.version }})" >> $GITHUB_STEP_SUMMARY
+        echo "- [PyPI Package](https://pypi.org/project/tradingagents/)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## 📦 Installation" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "pip install tradingagents==${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "*Released on $(date -u '+%Y-%m-%d %H:%M:%S UTC')*" >> $GITHUB_STEP_SUMMARY

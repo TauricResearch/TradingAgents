@@ -32,3 +32,155 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
 ]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-xdist>=3.0.0",  # for parallel testing
+    "hypothesis>=6.70.0",   # property-based testing
+    "factory-boy>=3.2.0",   # test data factories
+    "responses>=0.23.0",    # HTTP request mocking
+    "freezegun>=1.2.0",     # time mocking
+]
+
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-xdist>=3.0.0",
+    "hypothesis>=6.70.0",
+    "factory-boy>=3.2.0",
+    "responses>=0.23.0",
+    "freezegun>=1.2.0",
+    "mypy>=1.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "pre-commit>=3.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--tb=short",
+    "--cov=tradingagents",
+    "--cov=cli",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+]
+markers = [
+    "unit: Fast unit tests",
+    "integration: Integration tests (slower)",
+    "api: Tests requiring API access",
+    "slow: Tests that take a long time",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::UserWarning:langchain.*",
+    "ignore::UserWarning:langgraph.*",
+]
+
+[tool.coverage.run]
+source = ["tradingagents", "cli"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/venv/*",
+    "*/.venv/*",
+    "*/__pycache__/*",
+    "setup.py",
+]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+include = '\.pyi?$'
+extend-exclude = '''
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.mypy_cache
+    | \.pytest_cache
+    | \.venv
+    | venv
+    | build
+    | dist
+  )/
+)
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_any_generics = false
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+files = ["tradingagents/", "cli/", "tests/"]
+exclude = ["venv/", ".venv/", "__pycache__/", ".mypy_cache/"]
+
+[[tool.mypy.overrides]]
+module = [
+    "langchain.*",
+    "langgraph.*",
+    "pandas.*",
+    "yfinance.*",
+    "praw.*",
+    "finnhub.*",
+    "stockstats.*",
+    "backtrader.*",
+    "chromadb.*",
+    "chainlit.*",
+    "redis.*",
+    "questionary.*",
+    "rich.*",
+    "akshare.*",
+    "tushare.*",
+]
+ignore_missing_imports = true

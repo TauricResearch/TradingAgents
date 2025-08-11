@@ -1,15 +1,14 @@
-import os
-import json
-import pandas as pd
-from datetime import date, timedelta, datetime
+from datetime import date, datetime, timedelta
 from typing import Annotated
 
+import pandas as pd
+
 SavePathType = Annotated[str, "File path to save data. If None, data is not saved."]
+
 
 def save_output(data: pd.DataFrame, tag: str, save_path: SavePathType = None) -> None:
     if save_path:
         data.to_csv(save_path)
-        print(f"{tag} saved to {save_path}")
 
 
 def get_current_date():
@@ -33,7 +32,5 @@ def get_next_weekday(date):
 
     if date.weekday() >= 5:
         days_to_add = 7 - date.weekday()
-        next_weekday = date + timedelta(days=days_to_add)
-        return next_weekday
-    else:
-        return date
+        return date + timedelta(days=days_to_add)
+    return date

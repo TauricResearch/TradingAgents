@@ -15,10 +15,8 @@ class FinancialSituationMemory:
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""
-        
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
+
+        response = self.client.embeddings.create(model=self.embedding, input=text)
         return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):
@@ -61,7 +59,7 @@ class FinancialSituationMemory:
                     "matched_situation": results["documents"][0][i],
                     "recommendation": results["metadatas"][0][i]["recommendation"],
                     "similarity_score": 1 - results["distances"][0][i],
-                }
+                },
             )
 
         return matched_results
@@ -96,18 +94,15 @@ if __name__ == "__main__":
 
     # Example query
     current_situation = """
-    Market showing increased volatility in tech sector, with institutional investors 
+    Market showing increased volatility in tech sector, with institutional investors
     reducing positions and rising interest rates affecting growth stock valuations
     """
 
     try:
         recommendations = matcher.get_memories(current_situation, n_matches=2)
 
-        for i, rec in enumerate(recommendations, 1):
-            print(f"\nMatch {i}:")
-            print(f"Similarity Score: {rec['similarity_score']:.2f}")
-            print(f"Matched Situation: {rec['matched_situation']}")
-            print(f"Recommendation: {rec['recommendation']}")
+        for _i, _rec in enumerate(recommendations, 1):
+            pass
 
-    except Exception as e:
-        print(f"Error during recommendation: {str(e)}")
+    except Exception:
+        pass

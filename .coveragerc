@@ -1,0 +1,57 @@
+[run]
+# Source code to analyze
+source = tradingagents, cli
+
+# Files to omit from coverage
+omit = 
+    */venv/*
+    */.venv/*
+    */tests/*
+    */test_*
+    */__pycache__/*
+    */.*
+    setup.py
+    */migrations/*
+    */site-packages/*
+    */lib/python*/*
+
+# Enable branch coverage
+branch = True
+
+# Parallel processing
+parallel = True
+
+# Data file location
+data_file = .coverage
+
+[report]
+# Reporting options
+show_missing = True
+skip_covered = False
+sort = Cover
+exclude_lines = 
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if settings.DEBUG
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if __name__ == .__main__.:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+
+# Minimum coverage percentage for individual files
+fail_under = 70
+
+# Precision for coverage percentages
+precision = 2
+
+[html]
+# HTML report options
+directory = htmlcov
+title = TradingAgents Coverage Report
+
+[xml]
+# XML report options
+output = coverage.xml

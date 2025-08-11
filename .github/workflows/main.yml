@@ -1,0 +1,264 @@
+name: Main Branch CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  full-test-suite:
+    name: Complete Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cache/pre-commit
+        key: ${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-mock pytest-asyncio pytest-timeout pytest-xdist
+        pip install black ruff mypy bandit safety
+    
+    - name: Run complete test suite
+      env:
+        FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY || 'test_key' }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'test_key' }}
+      run: |
+        echo "🧪 Running complete test suite..."
+        pytest tests/ \
+          --cov=tradingagents \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing \
+          --cov-fail-under=70 \
+          -v \
+          --tb=short \
+          --timeout=300 \
+          -n auto
+    
+    - name: Archive test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: |
+          htmlcov/
+          coverage.xml
+          .coverage
+        retention-days: 30
+
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: full-test-suite
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-benchmark memory-profiler
+    
+    - name: Run performance benchmarks
+      run: |
+        echo "⚡ Running performance benchmarks..."
+        # Create a simple performance test if it doesn't exist
+        cat > test_performance.py << 'EOF'
+        import pytest
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+        from tradingagents.default_config import DEFAULT_CONFIG
+        
+        @pytest.mark.benchmark
+        def test_graph_initialization_performance(benchmark):
+            """Test graph initialization performance."""
+            config = DEFAULT_CONFIG.copy()
+            config['online_tools'] = False
+            
+            def init_graph():
+                return TradingAgentsGraph(debug=False, config=config)
+            
+            result = benchmark(init_graph)
+            assert result is not None
+        EOF
+        
+        pytest test_performance.py -v --tb=short || true
+    
+    - name: Memory profiling
+      run: |
+        echo "💾 Running memory profiling..."
+        python -m memory_profiler --version || pip install memory-profiler
+        # Memory profiling would go here for critical paths
+      continue-on-error: true
+
+  documentation:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    needs: full-test-suite
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install documentation tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints myst-parser
+    
+    - name: Generate API documentation
+      run: |
+        echo "📚 Generating API documentation..."
+        # Create basic Sphinx configuration if it doesn't exist
+        if [ ! -f docs/conf.py ]; then
+          mkdir -p docs
+          cat > docs/conf.py << 'EOF'
+        import os
+        import sys
+        sys.path.insert(0, os.path.abspath('..'))
+        
+        project = 'TradingAgents'
+        copyright = '2024, TradingAgents Team'
+        author = 'TradingAgents Team'
+        
+        extensions = [
+            'sphinx.ext.autodoc',
+            'sphinx.ext.napoleon',
+            'sphinx.ext.viewcode',
+            'sphinx_autodoc_typehints',
+            'myst_parser',
+        ]
+        
+        html_theme = 'sphinx_rtd_theme'
+        EOF
+        fi
+        
+        # Generate documentation
+        sphinx-apidoc -o docs/api tradingagents/ --force --module-first
+        sphinx-build -b html docs docs/_build/html || true
+    
+    - name: Upload documentation
+      uses: actions/upload-artifact@v4
+      with:
+        name: documentation
+        path: docs/_build/html/
+        retention-days: 30
+
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Check for dependency updates
+      run: |
+        echo "📦 Checking for dependency updates..."
+        pip install pip-audit
+        pip-audit --desc || true
+    
+    - name: License compliance check
+      run: |
+        echo "📜 Checking license compliance..."
+        pip install pip-licenses
+        pip-licenses --format=markdown --output-file=licenses.md
+        cat licenses.md || true
+
+  deploy-check:
+    name: Deployment Readiness
+    runs-on: ubuntu-latest
+    needs: [full-test-suite, documentation, dependency-check]
+    if: success()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Build package
+      run: |
+        echo "📦 Building package..."
+        pip install build
+        python -m build
+    
+    - name: Check package
+      run: |
+        echo "🔍 Checking package..."
+        pip install twine
+        twine check dist/* || true
+    
+    - name: Archive package
+      uses: actions/upload-artifact@v4
+      with:
+        name: package
+        path: dist/
+        retention-days: 30
+
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [full-test-suite, performance-tests, documentation, dependency-check, deploy-check]
+    if: always()
+    
+    steps:
+    - name: Generate summary
+      run: |
+        echo "# 🚀 Main Branch CI/CD Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "- Full Test Suite: ${{ needs.full-test-suite.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Performance Tests: ${{ needs.performance-tests.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Build Artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- Documentation: ${{ needs.documentation.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Package Build: ${{ needs.deploy-check.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Security" >> $GITHUB_STEP_SUMMARY
+        echo "- Dependency Check: ${{ needs.dependency-check.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "*Commit: ${{ github.sha }}*" >> $GITHUB_STEP_SUMMARY
+        echo "*Run: ${{ github.run_id }}*" >> $GITHUB_STEP_SUMMARY

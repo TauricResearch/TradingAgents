@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "post-tool": {
+      "MultiEdit": "python_tools_check.sh",
+      "Edit": "python_tools_check.sh",
+      "Write": "python_tools_check.sh"
+    }
+  }
+}

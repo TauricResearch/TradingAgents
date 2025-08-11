@@ -1,7 +1,3 @@
-import time
-import json
-
-
 def create_risky_debator(llm):
     def risky_node(state) -> dict:
         risk_debate_state = state["risk_debate_state"]
@@ -45,7 +41,8 @@ Engage actively by addressing any specific concerns raised, refuting the weaknes
             "current_risky_response": argument,
             "current_safe_response": risk_debate_state.get("current_safe_response", ""),
             "current_neutral_response": risk_debate_state.get(
-                "current_neutral_response", ""
+                "current_neutral_response",
+                "",
             ),
             "count": risk_debate_state["count"] + 1,
         }
