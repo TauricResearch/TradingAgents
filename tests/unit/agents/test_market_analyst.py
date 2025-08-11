@@ -17,7 +17,7 @@ class TestMarketAnalyst:
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
         assert callable(analyst_node)
 
-    @patch('tradingagents.agents.analysts.market_analyst.ChatPromptTemplate')
+    @patch("tradingagents.agents.analysts.market_analyst.ChatPromptTemplate")
     def test_market_analyst_node_basic_execution(
         self,
         mock_prompt_template,
@@ -31,7 +31,7 @@ class TestMarketAnalyst:
         mock_prompt.partial = Mock(return_value=mock_prompt)
         mock_prompt.__or__ = Mock(return_value=mock_llm._chain_mock)
         mock_prompt_template.from_messages.return_value = mock_prompt
-        
+
         # Setup
         mock_toolkit.config = {"online_tools": False}
         mock_result = MockResult(content="Market analysis complete", tool_calls=[])
@@ -48,7 +48,7 @@ class TestMarketAnalyst:
         assert result["messages"] == [mock_result]
         assert result["market_report"] == "Market analysis complete"
 
-    @patch('tradingagents.agents.analysts.market_analyst.ChatPromptTemplate')
+    @patch("tradingagents.agents.analysts.market_analyst.ChatPromptTemplate")
     def test_market_analyst_uses_online_tools_when_configured(
         self,
         mock_prompt_template,
@@ -62,7 +62,7 @@ class TestMarketAnalyst:
         mock_prompt.partial = Mock(return_value=mock_prompt)
         mock_prompt.__or__ = Mock(return_value=mock_llm._chain_mock)
         mock_prompt_template.from_messages.return_value = mock_prompt
-        
+
         # Setup
         mock_toolkit.config = {"online_tools": True}
         # Don't override the mocks - they are already configured with proper name attributes
@@ -78,7 +78,7 @@ class TestMarketAnalyst:
         # Verify - just check that the function completes without error
         # bind_tools is a function mock, not a Mock object, so we can't assert calls
 
-    @patch('tradingagents.agents.analysts.market_analyst.ChatPromptTemplate')
+    @patch("tradingagents.agents.analysts.market_analyst.ChatPromptTemplate")
     def test_market_analyst_uses_offline_tools_when_configured(
         self,
         mock_prompt_template,
@@ -92,7 +92,7 @@ class TestMarketAnalyst:
         mock_prompt.partial = Mock(return_value=mock_prompt)
         mock_prompt.__or__ = Mock(return_value=mock_llm._chain_mock)
         mock_prompt_template.from_messages.return_value = mock_prompt
-        
+
         # Setup
         mock_toolkit.config = {"online_tools": False}
         # Don't override the mocks - they are already configured with proper name attributes
@@ -108,7 +108,7 @@ class TestMarketAnalyst:
         # Verify - just check that the function completes without error
         # bind_tools is a function mock, not a Mock object, so we can't assert calls
 
-    @patch('tradingagents.agents.analysts.market_analyst.ChatPromptTemplate')
+    @patch("tradingagents.agents.analysts.market_analyst.ChatPromptTemplate")
     def test_market_analyst_processes_state_variables(
         self,
         mock_prompt_template,
@@ -122,7 +122,7 @@ class TestMarketAnalyst:
         mock_prompt.partial = Mock(return_value=mock_prompt)
         mock_prompt.__or__ = Mock(return_value=mock_llm._chain_mock)
         mock_prompt_template.from_messages.return_value = mock_prompt
-        
+
         # Setup
         mock_toolkit.config = {"online_tools": False}
         mock_result = MockResult(
@@ -138,10 +138,12 @@ class TestMarketAnalyst:
         result = analyst_node(sample_agent_state)
 
         # Verify that invoke was called with the state
-        mock_llm._chain_mock.invoke.assert_called_once_with(sample_agent_state["messages"])
+        mock_llm._chain_mock.invoke.assert_called_once_with(
+            sample_agent_state["messages"]
+        )
         assert result["market_report"] == "Analysis for AAPL on 2024-05-10"
 
-    @patch('tradingagents.agents.analysts.market_analyst.ChatPromptTemplate')
+    @patch("tradingagents.agents.analysts.market_analyst.ChatPromptTemplate")
     def test_market_analyst_handles_empty_tool_calls(
         self,
         mock_prompt_template,
@@ -155,7 +157,7 @@ class TestMarketAnalyst:
         mock_prompt.partial = Mock(return_value=mock_prompt)
         mock_prompt.__or__ = Mock(return_value=mock_llm._chain_mock)
         mock_prompt_template.from_messages.return_value = mock_prompt
-        
+
         # Setup
         mock_toolkit.config = {"online_tools": False}
         mock_result = MockResult(
@@ -172,7 +174,7 @@ class TestMarketAnalyst:
         assert result["market_report"] == "No tools needed"
         assert result["messages"] == [mock_result]
 
-    @patch('tradingagents.agents.analysts.market_analyst.ChatPromptTemplate')
+    @patch("tradingagents.agents.analysts.market_analyst.ChatPromptTemplate")
     def test_market_analyst_with_tool_calls(
         self,
         mock_prompt_template,
@@ -186,7 +188,7 @@ class TestMarketAnalyst:
         mock_prompt.partial = Mock(return_value=mock_llm._chain_mock)
         mock_prompt.__or__ = Mock(return_value=mock_llm._chain_mock)
         mock_prompt_template.from_messages.return_value = mock_prompt
-        
+
         # Setup
         mock_toolkit.config = {"online_tools": False}
         mock_result = MockResult(
@@ -204,7 +206,7 @@ class TestMarketAnalyst:
         assert result["messages"] == [mock_result]
 
     @pytest.mark.parametrize("online_tools", [True, False])
-    @patch('tradingagents.agents.analysts.market_analyst.ChatPromptTemplate')
+    @patch("tradingagents.agents.analysts.market_analyst.ChatPromptTemplate")
     def test_market_analyst_tool_configuration(
         self,
         mock_prompt_template,
@@ -219,7 +221,7 @@ class TestMarketAnalyst:
         mock_prompt.partial = Mock(return_value=mock_prompt)
         mock_prompt.__or__ = Mock(return_value=mock_llm._chain_mock)
         mock_prompt_template.from_messages.return_value = mock_prompt
-        
+
         # Setup
         mock_toolkit.config = {"online_tools": online_tools}
         mock_result = MockResult(
@@ -242,15 +244,17 @@ class TestMarketAnalyst:
 class TestMarketAnalystIntegration:
     """Integration-style tests for market analyst."""
 
-    @patch('tradingagents.agents.analysts.market_analyst.ChatPromptTemplate')
-    def test_market_analyst_full_workflow(self, mock_prompt_template, mock_llm, mock_toolkit):
+    @patch("tradingagents.agents.analysts.market_analyst.ChatPromptTemplate")
+    def test_market_analyst_full_workflow(
+        self, mock_prompt_template, mock_llm, mock_toolkit
+    ):
         """Test a complete workflow simulation."""
         # Setup mock for ChatPromptTemplate
         mock_prompt = Mock()
         mock_prompt.partial = Mock(return_value=mock_prompt)
         mock_prompt.__or__ = Mock(return_value=mock_llm._chain_mock)
         mock_prompt_template.from_messages.return_value = mock_prompt
-        
+
         # Setup state
         state = {
             "company_of_interest": "TSLA",
