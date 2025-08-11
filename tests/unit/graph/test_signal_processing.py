@@ -1,7 +1,6 @@
 """Unit tests for signal processing module."""
 
 from unittest.mock import Mock, patch
-import pytest
 
 
 class TestSignalProcessor:
@@ -9,7 +8,7 @@ class TestSignalProcessor:
 
     def test_signal_processor_initialization(self):
         """Test SignalProcessor initialization."""
-        mock_llm = Mock()
+        # mock_llm would be used here but import is mocked
 
         # Import with mocked dependencies to avoid pandas import
         with patch(

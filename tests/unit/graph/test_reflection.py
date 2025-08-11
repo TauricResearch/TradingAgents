@@ -1,6 +1,6 @@
 """Unit tests for reflection module."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 import pytest
 
 

@@ -1,6 +1,6 @@
 """Extended unit tests for market analyst to improve coverage."""
 
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 import pytest
 
 
