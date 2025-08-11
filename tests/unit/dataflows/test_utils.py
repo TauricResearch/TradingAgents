@@ -1,7 +1,6 @@
 """Unit tests for dataflows utils module."""
 
 
-
 class TestDataflowsUtils:
     """Test suite for dataflows utility functions."""
 

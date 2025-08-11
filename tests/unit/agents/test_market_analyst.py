@@ -100,7 +100,9 @@ class TestMarketAnalyst:
         """Test that market analyst correctly processes state variables."""
         # Setup
         mock_toolkit.config = {"online_tools": False}
-        mock_result = MockResult(content="Analysis for AAPL on 2024-05-10", tool_calls=[])
+        mock_result = MockResult(
+            content="Analysis for AAPL on 2024-05-10", tool_calls=[]
+        )
 
         # Mock the chain to capture the invoke call
         mock_chain = Mock()
@@ -125,7 +127,9 @@ class TestMarketAnalyst:
         """Test handling when no tool calls are made."""
         # Setup
         mock_toolkit.config = {"online_tools": False}
-        mock_result = MockResult(content="No tools needed", tool_calls=[])  # Empty tool calls
+        mock_result = MockResult(
+            content="No tools needed", tool_calls=[]
+        )  # Empty tool calls
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
@@ -146,7 +150,9 @@ class TestMarketAnalyst:
         """Test handling when tool calls are present."""
         # Setup
         mock_toolkit.config = {"online_tools": False}
-        mock_result = MockResult(content="Tool analysis", tool_calls=[Mock()])  # Non-empty tool calls
+        mock_result = MockResult(
+            content="Tool analysis", tool_calls=[Mock()]
+        )  # Non-empty tool calls
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
         analyst_node = create_market_analyst(mock_llm, mock_toolkit)
@@ -171,7 +177,7 @@ class TestMarketAnalyst:
         mock_toolkit.config = {"online_tools": online_tools}
         mock_result = MockResult(
             content=f"Analysis in {'online' if online_tools else 'offline'} mode",
-            tool_calls=[]
+            tool_calls=[],
         )
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 
@@ -220,7 +226,7 @@ class TestMarketAnalystIntegration:
         | MACD      | +0.45 | Buy     |
         | Volume    | High  | Bullish |
         """,
-            tool_calls=[]
+            tool_calls=[],
         )
         mock_llm.bind_tools.return_value.invoke.return_value = mock_result
 

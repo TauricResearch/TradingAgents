@@ -35,6 +35,7 @@ def sample_config():
 
 class MockResult:
     """Mock result that always has proper tool_calls attribute."""
+
     def __init__(self, content="Test response", tool_calls=None):
         self.content = content
         self.tool_calls = tool_calls if tool_calls is not None else []
@@ -52,17 +53,17 @@ def mock_llm():
     # Simple approach: create a mock that will be returned by any chain operation
     chain_result = Mock()
     chain_result.return_value = default_result
-    
+
     # Mock the bind_tools to return a mock that handles piping
     bound_mock = Mock()
     bound_mock.invoke = Mock(return_value=default_result)
-    
+
     # Handle the pipe operation by returning a mock that also returns our result
     def handle_pipe(other):
-        pipe_result = Mock()  
+        pipe_result = Mock()
         pipe_result.invoke = Mock(return_value=default_result)
         return pipe_result
-    
+
     bound_mock.__ror__ = handle_pipe
     mock.bind_tools.return_value = bound_mock
 
