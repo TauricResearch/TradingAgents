@@ -92,23 +92,139 @@ def mock_toolkit():
     toolkit = Mock()
     toolkit.config = {"online_tools": False}
 
-    # Mock data retrieval methods
-    toolkit.get_YFin_data = Mock()
-    toolkit.get_YFin_data_online = Mock()
-    toolkit.get_stockstats_indicators_report = Mock()
-    toolkit.get_stockstats_indicators_report_online = Mock()
-    toolkit.get_reddit_stock_info = Mock()
-    toolkit.get_stock_news_openai = Mock()
-    toolkit.get_finnhub_news = Mock()
-    toolkit.get_reddit_news = Mock()
-    toolkit.get_global_news_openai = Mock()
-    toolkit.get_google_news = Mock()
-    toolkit.get_fundamentals_openai = Mock()
-    toolkit.get_finnhub_company_insider_sentiment = Mock()
-    toolkit.get_finnhub_company_insider_transactions = Mock()
-    toolkit.get_simfin_balance_sheet = Mock()
-    toolkit.get_simfin_cashflow = Mock()
-    toolkit.get_simfin_income_stmt = Mock()
+    # Create mock functions with proper __name__ attributes
+    def mock_get_YFin_data():
+        return "Mock YFin data"
+
+    def mock_get_YFin_data_online():
+        return "Mock YFin data online"
+
+    def mock_get_stockstats_indicators_report():
+        return "Mock stockstats report"
+
+    def mock_get_stockstats_indicators_report_online():
+        return "Mock stockstats report online"
+
+    def mock_get_reddit_stock_info():
+        return "Mock reddit stock info"
+
+    def mock_get_stock_news_openai():
+        return "Mock stock news"
+
+    def mock_get_finnhub_news():
+        return "Mock finnhub news"
+
+    def mock_get_reddit_news():
+        return "Mock reddit news"
+
+    def mock_get_global_news_openai():
+        return "Mock global news"
+
+    def mock_get_google_news():
+        return "Mock google news"
+
+    def mock_get_fundamentals_openai():
+        return "Mock fundamentals"
+
+    def mock_get_finnhub_company_insider_sentiment():
+        return "Mock insider sentiment"
+
+    def mock_get_finnhub_company_insider_transactions():
+        return "Mock insider transactions"
+
+    def mock_get_simfin_balance_sheet():
+        return "Mock balance sheet"
+
+    def mock_get_simfin_cashflow():
+        return "Mock cashflow"
+
+    def mock_get_simfin_income_stmt():
+        return "Mock income statement"
+
+    # Assign the mock functions to the toolkit
+    toolkit.get_YFin_data = Mock(side_effect=mock_get_YFin_data)
+    toolkit.get_YFin_data.name = "get_YFin_data"
+    toolkit.get_YFin_data.__name__ = "get_YFin_data"
+
+    toolkit.get_YFin_data_online = Mock(side_effect=mock_get_YFin_data_online)
+    toolkit.get_YFin_data_online.name = "get_YFin_data_online"
+    toolkit.get_YFin_data_online.__name__ = "get_YFin_data_online"
+
+    toolkit.get_stockstats_indicators_report = Mock(
+        side_effect=mock_get_stockstats_indicators_report
+    )
+    toolkit.get_stockstats_indicators_report.name = "get_stockstats_indicators_report"
+    toolkit.get_stockstats_indicators_report.__name__ = "get_stockstats_indicators_report"
+
+    toolkit.get_stockstats_indicators_report_online = Mock(
+        side_effect=mock_get_stockstats_indicators_report_online
+    )
+    toolkit.get_stockstats_indicators_report_online.name = (
+        "get_stockstats_indicators_report_online"
+    )
+    toolkit.get_stockstats_indicators_report_online.__name__ = (
+        "get_stockstats_indicators_report_online"
+    )
+
+    toolkit.get_reddit_stock_info = Mock(side_effect=mock_get_reddit_stock_info)
+    toolkit.get_reddit_stock_info.name = "get_reddit_stock_info"
+    toolkit.get_reddit_stock_info.__name__ = "get_reddit_stock_info"
+
+    toolkit.get_stock_news_openai = Mock(side_effect=mock_get_stock_news_openai)
+    toolkit.get_stock_news_openai.name = "get_stock_news_openai"
+    toolkit.get_stock_news_openai.__name__ = "get_stock_news_openai"
+
+    toolkit.get_finnhub_news = Mock(side_effect=mock_get_finnhub_news)
+    toolkit.get_finnhub_news.name = "get_finnhub_news"
+    toolkit.get_finnhub_news.__name__ = "get_finnhub_news"
+
+    toolkit.get_reddit_news = Mock(side_effect=mock_get_reddit_news)
+    toolkit.get_reddit_news.name = "get_reddit_news"
+    toolkit.get_reddit_news.__name__ = "get_reddit_news"
+
+    toolkit.get_global_news_openai = Mock(side_effect=mock_get_global_news_openai)
+    toolkit.get_global_news_openai.name = "get_global_news_openai"
+    toolkit.get_global_news_openai.__name__ = "get_global_news_openai"
+
+    toolkit.get_google_news = Mock(side_effect=mock_get_google_news)
+    toolkit.get_google_news.name = "get_google_news"
+    toolkit.get_google_news.__name__ = "get_google_news"
+
+    toolkit.get_fundamentals_openai = Mock(side_effect=mock_get_fundamentals_openai)
+    toolkit.get_fundamentals_openai.name = "get_fundamentals_openai"
+    toolkit.get_fundamentals_openai.__name__ = "get_fundamentals_openai"
+
+    toolkit.get_finnhub_company_insider_sentiment = Mock(
+        side_effect=mock_get_finnhub_company_insider_sentiment
+    )
+    toolkit.get_finnhub_company_insider_sentiment.name = (
+        "get_finnhub_company_insider_sentiment"
+    )
+    toolkit.get_finnhub_company_insider_sentiment.__name__ = (
+        "get_finnhub_company_insider_sentiment"
+    )
+
+    toolkit.get_finnhub_company_insider_transactions = Mock(
+        side_effect=mock_get_finnhub_company_insider_transactions
+    )
+    toolkit.get_finnhub_company_insider_transactions.name = (
+        "get_finnhub_company_insider_transactions"
+    )
+    toolkit.get_finnhub_company_insider_transactions.__name__ = (
+        "get_finnhub_company_insider_transactions"
+    )
+
+    toolkit.get_simfin_balance_sheet = Mock(side_effect=mock_get_simfin_balance_sheet)
+    toolkit.get_simfin_balance_sheet.name = "get_simfin_balance_sheet"
+    toolkit.get_simfin_balance_sheet.__name__ = "get_simfin_balance_sheet"
+
+    toolkit.get_simfin_cashflow = Mock(side_effect=mock_get_simfin_cashflow)
+    toolkit.get_simfin_cashflow.name = "get_simfin_cashflow"
+    toolkit.get_simfin_cashflow.__name__ = "get_simfin_cashflow"
+
+    toolkit.get_simfin_income_stmt = Mock(side_effect=mock_get_simfin_income_stmt)
+    toolkit.get_simfin_income_stmt.name = "get_simfin_income_stmt"
+    toolkit.get_simfin_income_stmt.__name__ = "get_simfin_income_stmt"
 
     return toolkit
 
