@@ -1,12 +1,14 @@
 # gets data/stats
 
-import yfinance as yf
-from typing import Annotated, Callable, Any, Optional
-from pandas import DataFrame
-import pandas as pd
+from collections.abc import Callable
 from functools import wraps
+from typing import Annotated, Any
 
-from .utils import save_output, SavePathType, decorate_all_methods
+import pandas as pd
+import yfinance as yf
+from pandas import DataFrame
+
+from .utils import SavePathType, decorate_all_methods
 
 
 def init_ticker(func: Callable) -> Callable:
@@ -52,7 +54,7 @@ class YFinanceUtils:
 
     def get_company_info(
         symbol: Annotated[str, "ticker symbol"],
-        save_path: Optional[str] = None,
+        save_path: str | None = None,
     ) -> DataFrame:
         """Fetches and returns company information as a DataFrame."""
         ticker = symbol
@@ -72,7 +74,7 @@ class YFinanceUtils:
 
     def get_stock_dividends(
         symbol: Annotated[str, "ticker symbol"],
-        save_path: Optional[str] = None,
+        save_path: str | None = None,
     ) -> DataFrame:
         """Fetches and returns the latest dividends data as a DataFrame."""
         ticker = symbol

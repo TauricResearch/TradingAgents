@@ -1,19 +1,19 @@
-from typing import Annotated, Dict
-from .reddit_utils import fetch_top_from_category
-from .yfin_utils import *
-from .stockstats_utils import *
-from .googlenews_utils import *
-from .finnhub_utils import get_data_in_range
-from dateutil.relativedelta import relativedelta
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
-import json
 import os
+from datetime import datetime
+from typing import Annotated
+
 import pandas as pd
-from tqdm import tqdm
 import yfinance as yf
+from dateutil.relativedelta import relativedelta
 from openai import OpenAI
-from .config import get_config, set_config, DATA_DIR
+from tqdm import tqdm
+
+from .config import DATA_DIR, get_config
+from .finnhub_utils import get_data_in_range
+from .googlenews_utils import *
+from .reddit_utils import fetch_top_from_category
+from .stockstats_utils import *
+from .yfin_utils import *
 
 
 def get_finnhub_news(

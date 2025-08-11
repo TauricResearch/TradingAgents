@@ -1,29 +1,24 @@
-from typing import Optional
 import datetime
-import typer
-from pathlib import Path
-from functools import wraps
-from rich.console import Console
-from rich.panel import Panel
-from rich.spinner import Spinner
-from rich.live import Live
-from rich.columns import Columns
-from rich.markdown import Markdown
-from rich.layout import Layout
-from rich.text import Text
-from rich.live import Live
-from rich.table import Table
 from collections import deque
-import time
-from rich.tree import Tree
+from functools import wraps
+from pathlib import Path
+
+import typer
 from rich import box
 from rich.align import Align
-from rich.rule import Rule
+from rich.columns import Columns
+from rich.console import Console
+from rich.layout import Layout
+from rich.live import Live
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.spinner import Spinner
+from rich.table import Table
+from rich.text import Text
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-from cli.models import AnalystType
 from cli.utils import *
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 console = Console()
 
@@ -394,7 +389,7 @@ def update_display(layout, spinner_text=None):
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    with open("./cli/static/welcome.txt", "r") as f:
+    with open("./cli/static/welcome.txt") as f:
         welcome_ascii = f.read()
 
     # Create welcome box content

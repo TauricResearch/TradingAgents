@@ -1,5 +1,5 @@
+
 import questionary
-from typing import List, Optional, Tuple, Dict
 
 from cli.models import AnalystType
 
@@ -64,7 +64,7 @@ def get_analysis_date() -> str:
     return date.strip()
 
 
-def select_analysts() -> List[AnalystType]:
+def select_analysts() -> list[AnalystType]:
     """Select analysts using an interactive checkbox."""
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",

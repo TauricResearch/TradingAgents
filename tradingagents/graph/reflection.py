@@ -1,6 +1,7 @@
 # TradingAgents/graph/reflection.py
 
-from typing import Dict, Any
+from typing import Any
+
 from langchain_openai import ChatOpenAI
 
 
@@ -46,7 +47,7 @@ Your goal is to deliver detailed insights into investment decisions and highligh
 Adhere strictly to these instructions, and ensure your output is detailed, accurate, and actionable. You will also be given objective descriptions of the market from a price movements, technical indicator, news, and sentiment perspective to provide more context for your analysis.
 """
 
-    def _extract_current_situation(self, current_state: Dict[str, Any]) -> str:
+    def _extract_current_situation(self, current_state: dict[str, Any]) -> str:
         """Extract the current market situation from the state."""
         curr_market_report = current_state["market_report"]
         curr_sentiment_report = current_state["sentiment_report"]

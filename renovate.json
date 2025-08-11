@@ -1,0 +1,17 @@
+{
+  "extends": ["config:recommended", ":enablePreCommit", ":semanticCommits", ":timezone(Asia/Tokyo)"],
+  "labels": ["dependencies"],
+  "schedule": ["after 09:00 on Monday"],
+  "pre-commit": { 
+    "enabled": true 
+  },
+  "python": {
+    "rangeStrategy": "pin"
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["pip_requirements", "pip_setup", "pyproject"],
+      "groupName": "Python dependencies"
+    }
+  ]
+}
