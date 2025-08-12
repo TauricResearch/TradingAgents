@@ -477,7 +477,7 @@ IMPORTANT: Return ONLY the transformed JSON, no additional text or explanations.
                         print(f"Failed to process {json_file}")
                     
                 except Exception as e:
-                    print(f"Failed to process {json_file}: {e}")
+                    print(f" {json_file}: {e}")
                     results["failed"].append(str(json_file))
         
         return results
@@ -504,6 +504,10 @@ IMPORTANT: Return ONLY the transformed JSON, no additional text or explanations.
             else:
               output_file_path = Path(output_file_path) / f"{input_path.stem}_transformed.json"
             
+            # Ensure output directory exists
+            output_dir = Path(output_file_path).parent
+            output_dir.mkdir(parents=True, exist_ok=True)
+
             # Save the transformed data
             with open(output_file_path, 'w') as f:
                 json.dump(transformed_data, f, indent=2)

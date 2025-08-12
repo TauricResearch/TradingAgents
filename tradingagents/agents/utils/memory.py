@@ -9,7 +9,7 @@ class FinancialSituationMemory:
             self.embedding = "nomic-embed-text"
         else:
             # TODO: Replace the following with Voyage Finance-2 embedding
-            self.embedding = "text-embedding-3-small"
+            self.embedding = "text-embedding-3-large"
         self.client = OpenAI(base_url=config["backend_url"])
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         # Check if collection exists
