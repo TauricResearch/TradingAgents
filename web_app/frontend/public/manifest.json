@@ -1,0 +1,12 @@
+{
+  "short_name": "TradingAgents",
+  "name": "TradingAgents - AI-Powered Trading Analysis",
+  "description": "Advanced AI-driven multi-agent systems for trading analysis and market insights",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "categories": ["finance", "business", "productivity"],
+  "lang": "en-US"
+}

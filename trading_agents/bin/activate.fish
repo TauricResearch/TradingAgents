@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/brabus61/.local/share/Trash/files/TradingAgents/trading_agents
+set -gx VIRTUAL_ENV '/home/brabus61/Desktop/Github Repos/TradingAgents/trading_agents'
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

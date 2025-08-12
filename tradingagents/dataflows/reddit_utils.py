@@ -46,7 +46,8 @@ ticker_to_company = {
     "UBER": "Uber",
     "ROKU": "Roku",
     "PINS": "Pinterest",
-    "AVAH": "Aveanna Healthcare"
+    "AVAH": "Aveanna Healthcare",
+    "BTAI": "BioXcel Therapeutics"
 }
 
 
@@ -91,9 +92,7 @@ def fetch_top_from_category(
                 parsed_line = json.loads(line)
 
                 # select only lines that are from the date
-                post_date = datetime.utcfromtimestamp(
-                    parsed_line["created_utc"]
-                ).strftime("%Y-%m-%d")
+                post_date = datetime.fromtimestamp(parsed_line["created_utc"],tz=datetime.timezone.utc).strftime("%Y-%m-%d")
                 if post_date != date:
                     continue
 
