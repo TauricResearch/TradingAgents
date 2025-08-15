@@ -241,13 +241,16 @@ def select_deep_thinking_agent(provider) -> str:
 
 def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
+    import os
     # Define OpenAI api options with their corresponding endpoints
+    # Use custom URL from environment if available, otherwise use default
+    openai_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     BASE_URLS = [
-        ("OpenAI", "https://api.openai.com/v1"),
+        ("OpenAI", openai_url),
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        ("Ollama", "http://localhost:11434/v1"),
     ]
     
     choice = questionary.select(
