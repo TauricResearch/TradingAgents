@@ -10,6 +10,8 @@ from cli.models import AnalystType
 
 console = Console()
 
+CUSTOM_MODEL_IDENTIFIER = "__CUSTOM_MODEL__"
+
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
     ("Social Media Analyst", AnalystType.SOCIAL),
@@ -215,7 +217,7 @@ def _get_all_models_for_custom_provider(model_type: str) -> list:
             all_models.append((labeled_description, model_value))
 
     # Add custom model option at the end
-    all_models.append(("Custom Model - Enter your own model name", "__CUSTOM_MODEL__"))
+    all_models.append(("Custom Model - Enter your own model name", CUSTOM_MODEL_IDENTIFIER))
 
     return all_models
 
@@ -253,7 +255,7 @@ def _select_custom_provider_model(model_type: str, title: str, default_model: st
         raise ValueError(f"No {model_type} thinking model selected")
 
     # Handle custom model input
-    if choice == "__CUSTOM_MODEL__":
+    if choice == CUSTOM_MODEL_IDENTIFIER:
         custom_model = questionary.text(
             f"Enter your custom {model_type} thinking model name:",
             default=default_model,
