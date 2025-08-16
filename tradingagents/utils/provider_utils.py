@@ -3,6 +3,7 @@ Utility functions for LLM provider configuration and API key management.
 """
 
 import os
+import sys
 from openai import OpenAI
 
 def get_api_key_for_provider(config):
@@ -20,7 +21,7 @@ def get_api_key_for_provider(config):
     if provider.startswith("custom"):
         api_key = os.getenv("CUSTOM_API_KEY")
         if not api_key:
-            print("Warning: CUSTOM_API_KEY not found in environment variables")
+            print("Warning: CUSTOM_API_KEY not found in environment variables", file=sys.stderr)
         return api_key
 
     # Map providers to their environment variables
@@ -36,7 +37,7 @@ def get_api_key_for_provider(config):
     api_key = os.getenv(env_var)
 
     if not api_key and provider != "ollama":  # Ollama typically doesn't need API keys
-        print(f"Warning: {env_var} not found in environment variables")
+        print(f"Warning: {env_var} not found in environment variables", file=sys.stderr)
 
     return api_key
 
