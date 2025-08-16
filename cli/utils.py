@@ -270,28 +270,54 @@ def _select_custom_provider_model(model_type: str, title: str, default_model: st
     return choice
 
 
-def select_shallow_thinking_agent(provider) -> str:
-    """Select shallow thinking llm engine using an interactive selection."""
+def _select_thinking_agent(provider: str, model_type: str) -> str:
+    """Unified function to select thinking agents for both shallow and deep models.
+
+    Args:
+        provider: The LLM provider name
+        model_type: Either 'shallow' or 'deep'
+
+    Returns:
+        str: The selected model name
+    """
+    # Configuration for different model types
+    config = {
+        "shallow": {
+            "title": "Select Your [Quick-Thinking LLM Engine]:",
+            "custom_title": "Select Your [Quick-Thinking LLM Engine] (Custom Provider - All Models Available):",
+            "default_model": "gpt-4o-mini",
+            "options": SHALLOW_AGENT_OPTIONS,
+            "error_message": "No shallow thinking llm engine selected. Exiting..."
+        },
+        "deep": {
+            "title": "Select Your [Deep-Thinking LLM Engine]:",
+            "custom_title": "Select Your [Deep-Thinking LLM Engine] (Custom Provider - All Models Available):",
+            "default_model": "o4-mini",
+            "options": DEEP_AGENT_OPTIONS,
+            "error_message": "No deep thinking llm engine selected. Exiting..."
+        }
+    }
+
+    model_config = config[model_type]
 
     # Handle custom provider - use unified model selection
     if provider.lower().startswith("custom"):
         try:
             return _select_custom_provider_model(
-                model_type="shallow",
-                title="Select Your [Quick-Thinking LLM Engine] (Custom Provider - All Models Available):",
-                default_model="gpt-4o-mini"
+                model_type=model_type,
+                title=model_config["custom_title"],
+                default_model=model_config["default_model"]
             )
         except ValueError as e:
             console.print(f"\n[red]Error: {e}[/red]")
             exit(1)
 
-    # Use centralized shallow thinking model definitions
-
+    # Use centralized model definitions
     choice = questionary.select(
-        "Select Your [Quick-Thinking LLM Engine]:",
+        model_config["title"],
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
+            for display, value in model_config["options"][provider.lower()]
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -304,52 +330,20 @@ def select_shallow_thinking_agent(provider) -> str:
     ).ask()
 
     if choice is None:
-        console.print(
-            "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
-        )
+        console.print(f"\n[red]{model_config['error_message']}[/red]")
         exit(1)
 
     return choice
+
+
+def select_shallow_thinking_agent(provider) -> str:
+    """Select shallow thinking llm engine using an interactive selection."""
+    return _select_thinking_agent(provider, "shallow")
 
 
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
-
-    # Handle custom provider - use unified model selection
-    if provider.lower().startswith("custom"):
-        try:
-            return _select_custom_provider_model(
-                model_type="deep",
-                title="Select Your [Deep-Thinking LLM Engine] (Custom Provider - All Models Available):",
-                default_model="o4-mini"
-            )
-        except ValueError as e:
-            console.print(f"\n[red]Error: {e}[/red]")
-            exit(1)
-
-    # Use centralized deep thinking model definitions
-
-    choice = questionary.select(
-        "Select Your [Deep-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
-        ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style(
-            [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
-            ]
-        ),
-    ).ask()
-
-    if choice is None:
-        console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
-        exit(1)
-
-    return choice
+    return _select_thinking_agent(provider, "deep")
 
 def validate_custom_url(url: str) -> str:
     """Validate that a custom URL is properly formatted and has a valid hostname.
