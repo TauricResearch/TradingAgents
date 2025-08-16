@@ -1,5 +1,4 @@
-from typing import Optional
-import datetime
+from datetime import datetime
 import typer
 from pathlib import Path
 from functools import wraps
@@ -14,16 +13,23 @@ from rich.text import Text
 from rich.live import Live
 from rich.table import Table
 from collections import deque
-import time
-from rich.tree import Tree
 from rich import box
 from rich.align import Align
-from rich.rule import Rule
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
-from cli.utils import *
+from cli.utils import (
+    select_analysts,
+    select_research_depth,
+    select_shallow_thinking_agent,
+    select_deep_thinking_agent,
+    select_llm_provider
+)
 
 console = Console()
 
@@ -72,11 +78,11 @@ class MessageBuffer:
         }
 
     def add_message(self, message_type, content):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now().strftime("%H:%M:%S")
         self.messages.append((timestamp, message_type, content))
 
     def add_tool_call(self, tool_name, args):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        timestamp = datetime.now().strftime("%H:%M:%S")
         self.tool_calls.append((timestamp, tool_name, args))
 
     def update_agent_status(self, agent, status):
@@ -434,7 +440,7 @@ def get_user_selections():
     selected_ticker = get_ticker()
 
     # Step 2: Analysis date
-    default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    default_date = datetime.now().strftime("%Y-%m-%d")
     console.print(
         create_question_box(
             "Step 2: Analysis Date",
@@ -501,12 +507,12 @@ def get_analysis_date():
     """Get the analysis date from user input."""
     while True:
         date_str = typer.prompt(
-            "", default=datetime.datetime.now().strftime("%Y-%m-%d")
+            "", default=datetime.now().strftime("%Y-%m-%d")
         )
         try:
             # Validate date format and ensure it's not in the future
-            analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-            if analysis_date.date() > datetime.datetime.now().date():
+            analysis_date = datetime.strptime(date_str, "%Y-%m-%d")
+            if analysis_date.date() > datetime.now().date():
                 console.print("[red]Error: Analysis date cannot be in the future[/red]")
                 continue
             return date_str
