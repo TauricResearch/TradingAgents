@@ -245,10 +245,7 @@ def _select_custom_provider_model(model_type: str, title: str, default_model: st
     ).ask()
 
     if choice is None:
-        from rich.console import Console
-        console = Console()
-        console.print(f"\n[red]No {model_type} thinking model selected. Exiting...[/red]")
-        exit(1)
+        raise ValueError(f"No {model_type} thinking model selected")
 
     # Handle custom model input
     if choice == "__CUSTOM_MODEL__":
@@ -259,10 +256,7 @@ def _select_custom_provider_model(model_type: str, title: str, default_model: st
         ).ask()
 
         if not custom_model:
-            from rich.console import Console
-            console = Console()
-            console.print(f"\n[red]No custom {model_type} model name entered. Exiting...[/red]")
-            exit(1)
+            raise ValueError(f"No custom {model_type} model name entered")
 
         return custom_model
 
@@ -274,11 +268,17 @@ def select_shallow_thinking_agent(provider) -> str:
 
     # Handle custom provider - use unified model selection
     if provider.lower().startswith("custom"):
-        return _select_custom_provider_model(
-            model_type="shallow",
-            title="Select Your [Quick-Thinking LLM Engine] (Custom Provider - All Models Available):",
-            default_model="gpt-4o-mini"
-        )
+        try:
+            return _select_custom_provider_model(
+                model_type="shallow",
+                title="Select Your [Quick-Thinking LLM Engine] (Custom Provider - All Models Available):",
+                default_model="gpt-4o-mini"
+            )
+        except ValueError as e:
+            from rich.console import Console
+            console = Console()
+            console.print(f"\n[red]Error: {e}[/red]")
+            exit(1)
 
     # Use centralized shallow thinking model definitions
 
@@ -314,11 +314,17 @@ def select_deep_thinking_agent(provider) -> str:
 
     # Handle custom provider - use unified model selection
     if provider.lower().startswith("custom"):
-        return _select_custom_provider_model(
-            model_type="deep",
-            title="Select Your [Deep-Thinking LLM Engine] (Custom Provider - All Models Available):",
-            default_model="o4-mini"
-        )
+        try:
+            return _select_custom_provider_model(
+                model_type="deep",
+                title="Select Your [Deep-Thinking LLM Engine] (Custom Provider - All Models Available):",
+                default_model="o4-mini"
+            )
+        except ValueError as e:
+            from rich.console import Console
+            console = Console()
+            console.print(f"\n[red]Error: {e}[/red]")
+            exit(1)
 
     # Use centralized deep thinking model definitions
 
@@ -347,15 +353,22 @@ def select_deep_thinking_agent(provider) -> str:
     return choice
 
 def validate_custom_url(url: str) -> str:
-    """Validate that a custom URL is properly formatted and has a valid hostname."""
+    """Validate that a custom URL is properly formatted and has a valid hostname.
+
+    Args:
+        url: The URL to validate
+
+    Returns:
+        str: The validated URL
+
+    Raises:
+        ValueError: If the URL is invalid or malformed
+    """
     import re
     from urllib.parse import urlparse
-    from rich.console import Console
 
     if not url:
         return ""
-
-    console = Console()
 
     # Basic URL format validation
     url_pattern = re.compile(
@@ -367,35 +380,47 @@ def validate_custom_url(url: str) -> str:
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
     if not url_pattern.match(url):
-        console.print(f"[red]Error: Invalid CUSTOM_BASE_URL format: {url}[/red]")
-        console.print(f"[red]Please provide a valid URL (e.g., https://api.example.com/v1)[/red]")
-        exit(1)
+        raise ValueError(f"Invalid CUSTOM_BASE_URL format: {url}. Please provide a valid URL (e.g., https://api.example.com/v1)")
 
     # Additional validation using urlparse
     try:
         parsed = urlparse(url)
         if not parsed.netloc:
-            raise ValueError("No hostname found")
+            raise ValueError(f"Invalid CUSTOM_BASE_URL: {url}. No hostname found")
         return url
+    except ValueError:
+        # Re-raise ValueError as-is
+        raise
     except Exception as e:
-        console.print(f"[red]Error: Invalid CUSTOM_BASE_URL: {url}[/red]")
-        console.print(f"[red]URL parsing error: {e}[/red]")
-        exit(1)
+        raise ValueError(f"Invalid CUSTOM_BASE_URL: {url}. URL parsing error: {e}")
 
 
 def get_custom_provider_info() -> tuple[str, str] | None:
-    """Get custom provider info if both URL and API key are provided."""
+    """Get custom provider info if both URL and API key are provided.
+
+    Returns:
+        tuple[str, str] | None: (display_name, url) if valid custom provider configured, None otherwise
+
+    Raises:
+        SystemExit: If custom URL is provided but invalid (exits with error message)
+    """
     import os
     from urllib.parse import urlparse
+    from rich.console import Console
 
     custom_url = os.getenv("CUSTOM_BASE_URL")
     custom_api_key = os.getenv("CUSTOM_API_KEY")
 
     if custom_url and custom_api_key:
-        validated_url = validate_custom_url(custom_url)
-        parsed = urlparse(validated_url)
-        hostname = parsed.netloc
-        return f"Custom ({hostname})", validated_url
+        try:
+            validated_url = validate_custom_url(custom_url)
+            parsed = urlparse(validated_url)
+            hostname = parsed.netloc
+            return f"Custom ({hostname})", validated_url
+        except ValueError as e:
+            console = Console()
+            console.print(f"[red]Error: {e}[/red]")
+            exit(1)
 
     return None
 
