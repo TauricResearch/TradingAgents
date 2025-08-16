@@ -1,3 +1,4 @@
+import os
 import questionary
 import re
 from datetime import datetime
@@ -398,8 +399,6 @@ def get_custom_provider_info() -> tuple[str, str] | None:
     Raises:
         SystemExit: If custom URL is provided but invalid (exits with error message)
     """
-    import os
-    from urllib.parse import urlparse
 
     custom_url = os.getenv("CUSTOM_BASE_URL")
     custom_api_key = os.getenv("CUSTOM_API_KEY")
