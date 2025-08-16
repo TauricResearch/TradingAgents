@@ -1,7 +1,13 @@
 import questionary
-from typing import List, Optional, Tuple, Dict
+import re
+from datetime import datetime
+from rich.console import Console
+from typing import List
+from urllib.parse import urlparse
 
 from cli.models import AnalystType
+
+console = Console()
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -33,8 +39,6 @@ def get_ticker() -> str:
 
 def get_analysis_date() -> str:
     """Prompt the user to enter a date in YYYY-MM-DD format."""
-    import re
-    from datetime import datetime
 
     def validate_date(date_str: str) -> bool:
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
@@ -275,8 +279,6 @@ def select_shallow_thinking_agent(provider) -> str:
                 default_model="gpt-4o-mini"
             )
         except ValueError as e:
-            from rich.console import Console
-            console = Console()
             console.print(f"\n[red]Error: {e}[/red]")
             exit(1)
 
@@ -299,8 +301,6 @@ def select_shallow_thinking_agent(provider) -> str:
     ).ask()
 
     if choice is None:
-        from rich.console import Console
-        console = Console()
         console.print(
             "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
         )
@@ -321,8 +321,6 @@ def select_deep_thinking_agent(provider) -> str:
                 default_model="o4-mini"
             )
         except ValueError as e:
-            from rich.console import Console
-            console = Console()
             console.print(f"\n[red]Error: {e}[/red]")
             exit(1)
 
@@ -345,8 +343,6 @@ def select_deep_thinking_agent(provider) -> str:
     ).ask()
 
     if choice is None:
-        from rich.console import Console
-        console = Console()
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
         exit(1)
 
@@ -364,8 +360,6 @@ def validate_custom_url(url: str) -> str:
     Raises:
         ValueError: If the URL is invalid or malformed
     """
-    import re
-    from urllib.parse import urlparse
 
     if not url:
         return ""
@@ -406,7 +400,6 @@ def get_custom_provider_info() -> tuple[str, str] | None:
     """
     import os
     from urllib.parse import urlparse
-    from rich.console import Console
 
     custom_url = os.getenv("CUSTOM_BASE_URL")
     custom_api_key = os.getenv("CUSTOM_API_KEY")
@@ -418,7 +411,6 @@ def get_custom_provider_info() -> tuple[str, str] | None:
             hostname = parsed.netloc
             return f"Custom ({hostname})", validated_url
         except ValueError as e:
-            console = Console()
             console.print(f"[red]Error: {e}[/red]")
             exit(1)
 
@@ -459,8 +451,6 @@ def select_llm_provider() -> tuple[str, str]:
     ).ask()
     
     if choice is None:
-        from rich.console import Console
-        console = Console()
         console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
 
