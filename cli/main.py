@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import typer
 from pathlib import Path
 from functools import wraps
@@ -23,7 +23,13 @@ load_dotenv()
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
-from cli.utils import *
+from cli.utils import (
+    select_analysts,
+    select_research_depth,
+    select_shallow_thinking_agent,
+    select_deep_thinking_agent,
+    select_llm_provider
+)
 
 console = Console()
 
