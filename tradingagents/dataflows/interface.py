@@ -14,6 +14,7 @@ from tqdm import tqdm
 import yfinance as yf
 from .config import get_config, set_config, DATA_DIR
 
+from tradingagents.utils.provider_utils import get_openai_client
 
 def get_finnhub_news(
     ticker: Annotated[
@@ -703,7 +704,6 @@ def get_YFin_data(
 
 def get_stock_news_openai(ticker, curr_date):
     config = get_config()
-    from tradingagents.utils.provider_utils import get_openai_client
     client = get_openai_client(config)
 
     response = client.responses.create(
@@ -739,7 +739,6 @@ def get_stock_news_openai(ticker, curr_date):
 
 def get_global_news_openai(curr_date):
     config = get_config()
-    from tradingagents.utils.provider_utils import get_openai_client
     client = get_openai_client(config)
 
     response = client.responses.create(
@@ -775,7 +774,6 @@ def get_global_news_openai(curr_date):
 
 def get_fundamentals_openai(ticker, curr_date):
     config = get_config()
-    from tradingagents.utils.provider_utils import get_openai_client
     client = get_openai_client(config)
 
     response = client.responses.create(
