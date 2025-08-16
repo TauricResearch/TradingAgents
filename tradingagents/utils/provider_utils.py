@@ -3,7 +3,7 @@ Utility functions for LLM provider configuration and API key management.
 """
 
 import os
-
+from openai import OpenAI
 
 def get_api_key_for_provider(config):
     """Get the appropriate API key based on the provider.
@@ -54,7 +54,6 @@ def get_openai_client(config):
     Returns:
         OpenAI: Configured OpenAI client instance
     """
-    from openai import OpenAI
 
     api_key = get_api_key_for_provider(config)
     backend_url = config.get("backend_url", "https://api.openai.com/v1")
