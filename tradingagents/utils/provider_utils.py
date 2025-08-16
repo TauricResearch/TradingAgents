@@ -16,6 +16,13 @@ def get_api_key_for_provider(config):
     """
     provider = config.get("llm_provider", "openai").lower()
 
+    # Handle custom provider first
+    if provider.startswith("custom"):
+        api_key = os.getenv("CUSTOM_API_KEY")
+        if not api_key:
+            print("Warning: CUSTOM_API_KEY not found in environment variables")
+        return api_key
+
     # Map providers to their environment variables
     api_key_mapping = {
         "openai": "OPENAI_API_KEY",
@@ -32,3 +39,24 @@ def get_api_key_for_provider(config):
         print(f"Warning: {env_var} not found in environment variables")
 
     return api_key
+
+
+def get_openai_client(config):
+    """Get a properly configured OpenAI client based on the provider configuration.
+
+    This function centralizes OpenAI client creation with correct API key resolution
+    for all providers that use OpenAI-compatible interfaces (OpenAI, OpenRouter,
+    Ollama, and custom providers).
+
+    Args:
+        config (dict): Configuration dictionary containing llm_provider and backend_url
+
+    Returns:
+        OpenAI: Configured OpenAI client instance
+    """
+    from openai import OpenAI
+
+    api_key = get_api_key_for_provider(config)
+    backend_url = config.get("backend_url", "https://api.openai.com/v1")
+
+    return OpenAI(base_url=backend_url, api_key=api_key)
