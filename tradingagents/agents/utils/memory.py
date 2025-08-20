@@ -5,8 +5,38 @@ from openai import OpenAI
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
+        if config["llm_provider"] == "ollama":
             self.embedding = "nomic-embed-text"
+        elif config["llm_provider"] == "llamacpp":
+            try:
+                from langchain_community.embeddings.llamacpp import LlamaCppEmbeddings
+            except Exception:
+                LlamaCppEmbeddings = None
+            # path to your local gguf/ggml model file (absolute recommended)
+            self.embedding = config.get(
+                "embedding_model_path", "models/nomic-embed-text-v2-moe.f32.gguf"
+            )
+            if LlamaCppEmbeddings is None:
+                raise RuntimeError(
+                    "LlamaCppEmbeddings not available; install llama-cpp-python and langchain_community."
+                )
+            # instantiate the LlamaCpp embeddings wrapper
+            self.embeddings_model = LlamaCppEmbeddings(
+                model_path=self.embedding,
+                n_ctx=512,
+                n_parts=-1,
+                seed=0,
+                f16_kv=True,
+                logits_all=False,
+                vocab_only=False,
+                use_mlock=False,
+                n_threads=16,
+                n_batch=512,
+                n_gpu_layers=10,
+                verbose=False,
+                device="cuda",
+            )
+            self.client = None
         else:
             self.embedding = "text-embedding-3-small"
         self.client = OpenAI(base_url=config["backend_url"])
@@ -14,12 +44,15 @@ class FinancialSituationMemory:
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
-        """Get OpenAI embedding for a text"""
-        
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
-        return response.data[0].embedding
+        """Get embedding for a text (provider-dependent)"""
+        if self.embeddings_model is not None:
+            # LlamaCppEmbeddings implements embed_documents(list[str]) -> list[list[float]]
+            emb = self.embeddings_model.embed_documents([text])
+            return emb[0]
+        else:
+            # OpenAI/ollama path using OpenAI client
+            response = self.client.embeddings.create(model=self.embedding, input=text)
+            return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):
         """Add financial situations and their corresponding advice. Parameter is a list of tuples (situation, rec)"""
