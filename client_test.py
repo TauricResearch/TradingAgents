@@ -8,7 +8,7 @@ EXAMPLE_REGISTRY_HOST = "47.236.116.81"
 SERVER_NODE_ID = "TA_Agent_News"
 SERVER_NODE_ID = "TA_Agent_Market"
 SERVER_NODE_ID = "TA_Agent_Social"
-# SERVER_NODE_ID = "TA_Agent_Fundamentals"
+SERVER_NODE_ID = "TA_Agent_Fundamentals"
 
 # Create the server node.
 etcd_registry = EtcdRegistry(host=EXAMPLE_REGISTRY_HOST, port=2379)
