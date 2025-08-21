@@ -33,7 +33,7 @@ Guidelines for Decision-Making:
 Deliverables:
 - A clear and actionable recommendation: Buy, Sell, or Hold.
 - Detailed reasoning anchored in the debate and past reflections.
-
+- Make sure to generate less than 500 tokens.
 ---
 
 **Analysts Debate History:**  
