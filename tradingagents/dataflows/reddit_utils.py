@@ -47,7 +47,11 @@ ticker_to_company = {
     "ROKU": "Roku",
     "PINS": "Pinterest",
     "AVAH": "Aveanna Healthcare",
-    "BTAI": "BioXcel Therapeutics"
+    "BTAI": "BioXcel Therapeutics",
+    "UNH": "UnitedHealth Group",
+    "AAL": "American Airlines",
+    "JBLU": "JetBlue Airways",
+    "LCID": "Lucid Group"
 }
 
 
