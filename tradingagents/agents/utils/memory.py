@@ -49,7 +49,12 @@ class FinancialSituationMemory:
             embeddings=embeddings,
             ids=ids,
         )
-
+    
+    def get_latest_situation(self):
+        """Retrieve the latest entry from a situation_collection."""
+        latest_entry = self.situation_collection.query(sort_by="id:descending", limit=1)
+        return latest_entry
+    
     def get_memories(self, current_situation, n_matches=1):
         """Find matching recommendations using OpenAI embeddings"""
         query_embedding = self.get_embedding(current_situation)

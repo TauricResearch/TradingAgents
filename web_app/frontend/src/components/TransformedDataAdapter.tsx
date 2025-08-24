@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 // New interface for the transformed JSON structure
 interface TransformedAnalysisData {
@@ -458,12 +458,77 @@ const TransformedDataAdapter: React.FC<TransformedDataAdapterProps> = ({ analysi
     const [activeReportTab, setActiveReportTab] = React.useState<string>(availableReports[0]?.key || 'market');
     React.useEffect(() => { setActiveReportTab(availableReports[0]?.key || 'market'); }, [availableReports]);
 
+    // Reflection functionality state
+    const [showReflectionModal, setShowReflectionModal] = React.useState(false);
+    const [lossResults, setLossResults] = React.useState('');
+    const [isReflecting, setIsReflecting] = React.useState(false);
+    const [reflectionResults, setReflectionResults] = React.useState(null);
+    const [reflectionError, setReflectionError] = React.useState('');
+
+    // Handle reflection API call
+    const handleReflection = async () => {
+      const symbolToUse = data.metadata.company_ticker;
+      const dateToUse = data.metadata.analysis_date;
+      
+      console.log('Reflection attempt:', { symbolToUse, dateToUse, lossResults });
+
+      if (!lossResults.trim()) {
+        setReflectionError('Please enter your loss results');
+        return;
+      }
+
+      setIsReflecting(true);
+      setReflectionError('');
+
+      try {
+        const response = await fetch(`http://localhost:8000/reflect-on-analysis/${symbolToUse}/${dateToUse}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            returns_losses: lossResults
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Failed to perform reflection');
+        }
+
+        const reflectionData = await response.json();
+        setReflectionResults(reflectionData);
+        setReflectionError('');
+      } catch (error) {
+        console.error('Reflection error:', error);
+        setReflectionError(error.message || 'Failed to perform reflection');
+      } finally {
+        setIsReflecting(false);
+      }
+    };
+
+    const handleModalClose = () => {
+      setShowReflectionModal(false);
+      setLossResults('');
+      setReflectionResults(null);
+      setReflectionError('');
+    };
+
     return (
       <div className="p-6">
         <div className="mx-auto max-w-6xl space-y-4">
           {/* Metadata - Full width */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-3">Company Information</h2>
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-semibold">Company Information</h2>
+              <button
+                onClick={() => setShowReflectionModal(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium"
+                title="Reflect on Analysis"
+              >
+                🤔 Reflect on Analysis
+              </button>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Stat label="Company" value={`${md?.company_name ?? '-'} (${md?.company_ticker ?? '-'})`} />
               <Stat label="Analysis Date" value={md?.analysis_date ?? '-'} />
@@ -595,12 +660,85 @@ const TransformedDataAdapter: React.FC<TransformedDataAdapterProps> = ({ analysi
             </div>
           </div>
         </div>
+        
+        {/* Reflection Modal */}
+        {showReflectionModal && (
+          <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex justify-center items-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md mx-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Reflect on Analysis</h2>
+                <button
+                  onClick={handleModalClose}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <form onSubmit={(e) => { e.preventDefault(); handleReflection(); }}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Loss Results:
+                  </label>
+                  <textarea
+                    value={lossResults}
+                    onChange={(e) => setLossResults(e.target.value)}
+                    placeholder="e.g., Lost 15% due to unexpected earnings miss, market volatility, etc."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={4}
+                  />
+                  {reflectionError && (
+                    <p className="mt-2 text-sm text-red-500">{reflectionError}</p>
+                  )}
+                </div>
+                
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={handleModalClose}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isReflecting}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isReflecting ? 'Reflecting...' : 'Submit Reflection'}
+                  </button>
+                </div>
+              </form>
+              
+              {/* Display reflection results */}
+              {reflectionResults && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Reflection Results:</h4>
+                  <div className="space-y-2">
+                    {Object.entries(reflectionResults.reflections || {}).map(([agentType, reflection]) => (
+                      <div key={agentType} className="text-xs">
+                        <span className="font-medium capitalize">{agentType.replace('_', ' ')}:</span>
+                        <p className="text-gray-600 ml-2">{typeof reflection === 'string' ? reflection : JSON.stringify(reflection)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
 
   // Render minimalist dashboard with all keys from the transformed JSON
-  return <MinimalTransformedDashboard data={transformedWithConfig} />;
+  return (
+    <div>
+      <MinimalTransformedDashboard data={transformedWithConfig} />
+    </div>
+  );
 };
 
 export default TransformedDataAdapter;

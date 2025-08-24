@@ -687,7 +687,13 @@ function App() {
                 {selectedTransformedData ? (
                   <TransformedDataAdapter analysisData={selectedTransformedData} />
                 ) : resultDetail ? (
-                  <AnalysisDataAdapter tradingResult={resultDetail} />
+                  <AnalysisDataAdapter 
+                    tradingResult={{
+                      ...resultDetail,
+                      symbol: selectedResult?.company || resultDetail?.symbol,
+                      date: selectedResult?.date || resultDetail?.date
+                    }} 
+                  />
                 ) : (
                   <div className="p-8 text-center">
                     <div className="text-gray-500 mb-2">Loading analysis data...</div>

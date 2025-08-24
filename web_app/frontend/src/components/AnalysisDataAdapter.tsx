@@ -3,6 +3,7 @@ import AnalysisWidgets from '../pages/AnalysisWidgets.tsx';
 
 interface TradingAgentsResult {
   symbol: string;
+  date?: string;
   final_decision?: {
     decision: string;
     reasoning: string;
@@ -90,7 +91,7 @@ const AnalysisDataAdapter: React.FC<AnalysisDataAdapterProps> = ({ tradingResult
       'Based on comprehensive analysis, the stock shows strong fundamentals with reasonable valuation and positive technical momentum, warranting a buy recommendation with appropriate risk management.'
   };
 
-  return <AnalysisWidgets data={transformedData} rawData={tradingResult} />;
+  return <AnalysisWidgets symbol={tradingResult.symbol} date={tradingResult.date} data={transformedData} rawData={tradingResult} />;
 };
 
 export default AnalysisDataAdapter;

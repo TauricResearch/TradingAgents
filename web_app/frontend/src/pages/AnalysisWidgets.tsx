@@ -34,13 +34,23 @@ interface AnalysisWidgetsProps {
   rawData?: any;
   onBackWidget?: () => void;
   onRefreshWidget?: () => void;
+  symbol?: string;
+  date?: string;
 }
 
-const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData, onBackWidget, onRefreshWidget }) => {
+const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData, onBackWidget, onRefreshWidget, symbol, date }) => {
   const [activeTab, setActiveTab] = useState('bull');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [positionSize, setPositionSize] = useState(10000);
   const [portfolioAllocation, setPortfolioAllocation] = useState(4);
+
+  const [showReflectionModal, setShowReflectionModal] = useState(false);
+  const [lossResults, setLossResults] = useState('');
+  const [isReflecting, setIsReflecting] = useState(false);
+  const [reflectionResults, setReflectionResults] = useState(null);
+  const [reflectionError, setReflectionError] = useState('');
+
+  console.log('AnalysisWidgets props:', { symbol, date, hasRawData: !!rawData });
 
   const handleBack = () => {
     if (onBackWidget) return onBackWidget();
@@ -49,6 +59,47 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData, onBack
   const handleRefresh = () => {
     if (onRefreshWidget) return onRefreshWidget();
     if (typeof window !== 'undefined') window.location.reload();
+  };
+
+  const handleReflection = async () => {
+    const symbolToUse = symbol || data.symbol || 'UNKNOWN';
+    const dateToUse = date || new Date().toISOString().split('T')[0];
+
+    console.log('Reflection attempt:', { symbolToUse, dateToUse, lossResults });
+
+    if (!lossResults.trim()) {
+      setReflectionError('Please enter your loss results');
+      return;
+    }
+
+    setIsReflecting(true);
+    setReflectionError('');
+
+    try {
+      const response = await fetch(`http://localhost:8000/reflect-on-analysis/${symbolToUse}/${dateToUse}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          returns_losses: lossResults
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to perform reflection');
+      }
+
+      const reflectionData = await response.json();
+      setReflectionResults(reflectionData);
+      setReflectionError('');
+    } catch (error) {
+      console.error('Reflection error:', error);
+      setReflectionError(error.message || 'Failed to perform reflection');
+    } finally {
+      setIsReflecting(false);
+    }
   };
 
   const WidgetHeader: React.FC<{ title: string }> = ({ title }) => (
@@ -63,57 +114,33 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData, onBack
         ←
       </button>
       <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-      <button
-        type="button"
-        onClick={handleRefresh}
-        className="p-2 rounded hover:bg-gray-100 text-gray-600"
-        aria-label="Refresh"
-        title="Refresh"
-      >
-        ⟳
-      </button>
+      <div className="flex items-center space-x-2">
+        <button
+          type="button"
+          onClick={() => setShowReflectionModal(true)}
+          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+          title={`Reflect on Analysis (Symbol: ${symbol || data.symbol || 'N/A'}, Date: ${date || 'N/A'})`}
+        >
+          🤔 Reflect
+        </button>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          className="p-2 rounded hover:bg-gray-100 text-gray-600"
+          aria-label="Refresh"
+          title="Refresh"
+        >
+          ⟳
+        </button>
+      </div>
     </div>
   );
 
-  // Mock price data for chart
-  const priceData = [
-    { date: '2024-07-01', price: 4.20, volume: 1200000 },
-    { date: '2024-07-08', price: 4.45, volume: 1500000 },
-    { date: '2024-07-15', price: 4.80, volume: 1800000 },
-    { date: '2024-07-22', price: 5.20, volume: 2100000 },
-    { date: '2024-07-26', price: 5.81, volume: 2500000 },
-  ];
-
-  const ownershipData = [
-    { name: 'Insider', value: data.insiderOwnership, color: '#8884d8' },
-    { name: 'Institutional', value: data.institutionalOwnership, color: '#82ca9d' },
-    { name: 'Retail', value: data.retailOwnership, color: '#ffc658' },
-  ];
-
-  const toggleSection = (section: string) => {
-    const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(section)) {
-      newExpanded.delete(section);
-    } else {
-      newExpanded.add(section);
-    }
-    setExpandedSections(newExpanded);
-  };
-
-  const calculatePosition = () => {
-    const allocation = (portfolioAllocation / 100) * positionSize;
-    const shares = Math.floor(allocation / data.currentPrice);
-    return { allocation, shares };
-  };
-
-  const getRiskColor = (level: number) => {
-    if (level < 30) return 'text-green-600';
-    if (level < 70) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getTrendColor = (current: number, reference: number) => {
-    return current > reference ? 'text-green-600' : 'text-red-600';
+  const handleModalClose = () => {
+    setShowReflectionModal(false);
+    setLossResults('');
+    setReflectionResults(null);
+    setReflectionError('');
   };
 
   return (
@@ -554,6 +581,59 @@ const AnalysisWidgets: React.FC<AnalysisWidgetsProps> = ({ data, rawData, onBack
           </div>
         )}
       </div>
+
+      {/* Reflection Modal */}
+      {showReflectionModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity">
+          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <div className="sm:flex sm:items-start">
+                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-headline">
+                    Reflect on Analysis
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      Please enter your loss results to reflect on the analysis.
+                    </p>
+                    <input
+                      type="text"
+                      value={lossResults}
+                      onChange={(e) => setLossResults(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {reflectionError && (
+                      <p className="text-sm text-red-500">{reflectionError}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <button
+                type="button"
+                onClick={handleReflection}
+                disabled={isReflecting}
+                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+              >
+                {isReflecting ? 'Reflecting...' : 'Reflect'}
+              </button>
+              <button
+                type="button"
+                onClick={handleModalClose}
+                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
