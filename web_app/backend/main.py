@@ -402,9 +402,6 @@ async def reflect_on_analysis(symbol: str, date: str, request: dict):
     if not matching_job:
         raise HTTPException(status_code=404, detail=f"No active job found for {symbol} on {date}")
     
-    if not hasattr(matching_job.trading_agent, 'memory') or not matching_job.trading_agent.memory:
-        raise HTTPException(status_code=404, detail="No memory found for this analysis")
-
     matching_job.trading_agent.reflect_and_remember(returns_losses)
 
     try:

@@ -52,8 +52,9 @@ class FinancialSituationMemory:
     
     def get_latest_situation(self):
         """Retrieve the latest entry from a situation_collection."""
-        latest_entry = self.situation_collection.query(sort_by="id:descending", limit=1)
-        return latest_entry
+        collections = self.situation_collection.get()
+        latest_recommendation = collections["metadatas"][-1]["recommendation"]
+        return latest_recommendation
     
     def get_memories(self, current_situation, n_matches=1):
         """Find matching recommendations using OpenAI embeddings"""
