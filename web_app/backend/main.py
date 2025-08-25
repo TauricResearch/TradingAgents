@@ -382,8 +382,8 @@ async def get_jobs():
     
     return {"jobs": job_lst}
 
-@app.post("/reflect-on-analysis/{symbol}/{date}")
-async def reflect_on_analysis(symbol: str, date: str, request: dict):
+@app.post("/reflect-on-analysis/{symbol}/{date}", response_model=AnalysisResponse)
+async def reflect_on_analysis(symbol: str, date: str, request: dict, background_tasks: BackgroundTasks):
     """Get latest financial situation memory for a specific analysis"""
     returns_losses = request.get("returns_losses")
     if returns_losses is None:
@@ -402,40 +402,15 @@ async def reflect_on_analysis(symbol: str, date: str, request: dict):
     if not matching_job:
         raise HTTPException(status_code=404, detail=f"No active job found for {symbol} on {date}")
     
-    matching_job.trading_agent.reflect_and_remember(returns_losses)
+    background_tasks.add_task(
+        matching_job.trading_agent.reflect_and_remember, returns_losses
+    )
 
-    try:
-        bull_memory = matching_job.trading_agent.bull_memory
-        bear_memory = matching_job.trading_agent.bear_memory
-        trader_memory = matching_job.trading_agent.trader_memory
-        invest_judge_memory = matching_job.trading_agent.invest_judge_memory
-        risk_manager_memory = matching_job.trading_agent.risk_manager_memory
-        
-        reflections = {}
-        
-        latest_entry = bull_memory.get_latest_situation()
-        reflections["bull_memory"] = latest_entry
-        
-        latest_entry = bear_memory.get_latest_situation()
-        reflections["bear_memory"] = latest_entry
-        
-        latest_entry = trader_memory.get_latest_situation()
-        reflections["trader_memory"] = latest_entry
-        
-        latest_entry = invest_judge_memory.get_latest_situation()
-        reflections["invest_judge_memory"] = latest_entry
-        
-        latest_entry = risk_manager_memory.get_latest_situation()
-        reflections["risk_manager_memory"] = latest_entry
-        
-        return {
-            "symbol": symbol.upper(),
-            "date": date,
-            "job_id": matching_job.job_id,
-            "reflections": reflections
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving latest situation: {str(e)}")
+    return AnalysisResponse(
+        job_id=matching_job.job_id,
+        status="reflecting",
+        message=f"Reflecting on analysis for {symbol} on {date}"
+    )
 
 @app.get("/config")
 async def get_default_config():

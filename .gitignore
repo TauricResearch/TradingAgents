@@ -9,3 +9,4 @@ eval_data/
 .env
 trading_agents/
 web_app/frontend/node_modules/*
+*.pdf
