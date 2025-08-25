@@ -3,6 +3,8 @@ __pycache__/
 *.csv
 # src/
 output_data/
+# src/
+output_data/
 eval_data/
 *.egg-info/
 .env
