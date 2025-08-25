@@ -24,14 +24,36 @@ class Propagator:
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
             "investment_debate_state": InvestDebateState(
-                {"history": "", "current_response": "", "count": 0}
+                {
+                    **dict.fromkeys(
+                        [
+                            "history",
+                            "bull_history",
+                            "bear_history",
+                            "current_response",
+                            "judge_decision",
+                        ],
+                        "",
+                    ),
+                    "count": 0,
+                }
             ),
             "risk_debate_state": RiskDebateState(
                 {
-                    "history": "",
-                    "current_risky_response": "",
-                    "current_safe_response": "",
-                    "current_neutral_response": "",
+                    **dict.fromkeys(
+                        [
+                            "history",
+                            "risky_history",
+                            "safe_history",
+                            "neutral_history",
+                            "latest_speaker",
+                            "current_risky_response",
+                            "current_safe_response",
+                            "current_neutral_response",
+                            "judge_decision",
+                        ],
+                        "",
+                    ),
                     "count": 0,
                 }
             ),
