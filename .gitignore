@@ -1,4 +1,3 @@
-env/
 __pycache__/
 .DS_Store
 *.csv
@@ -7,6 +6,6 @@ output_data/
 eval_data/
 *.egg-info/
 .env
-trading_agents/
+trading_agents/*
 web_app/frontend/node_modules/*
 *.pdf
