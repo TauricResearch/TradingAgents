@@ -34,7 +34,9 @@ class StockstatsUtils:
                     os.path.join(
                         data_dir,
                         f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-                    )
+                    ),
+                    on_bad_lines='skip',
+                    engine='python'
                 )
                 df = wrap(data)
             except FileNotFoundError:
@@ -59,8 +61,11 @@ class StockstatsUtils:
             )
 
             if os.path.exists(data_file):
-                data = pd.read_csv(data_file)
-                data["Date"] = pd.to_datetime(data["Date"])
+                data = pd.read_csv(data_file, on_bad_lines='skip', engine='python')
+                # Handle date parsing with error handling for corrupted dates
+                data["Date"] = pd.to_datetime(data["Date"], errors='coerce', format='mixed')
+                # Remove rows with invalid dates
+                data = data.dropna(subset=['Date'])
             else:
                 data = yf.download(
                     symbol,
@@ -77,7 +82,19 @@ class StockstatsUtils:
             df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
             curr_date = curr_date.strftime("%Y-%m-%d")
 
-        df[indicator]  # trigger stockstats to calculate the indicator
+        # Clean data before calculating indicator to avoid NaN masking errors
+        df = df.dropna(subset=['close'])  # Remove rows with NaN close prices
+        
+        try:
+            df[indicator]  # trigger stockstats to calculate the indicator
+        except Exception as e:
+            if "Cannot mask with non-boolean array containing NA / NaN values" in str(e):
+                # Additional cleanup for stubborn NaN values
+                df = df.fillna(method='ffill').fillna(method='bfill')
+                df[indicator]  # retry calculation
+            else:
+                raise e
+        
         matching_rows = df[df["Date"].str.startswith(curr_date)]
 
         if not matching_rows.empty:

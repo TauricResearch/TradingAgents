@@ -517,7 +517,9 @@ def get_stock_stats_indicators_window(
             os.path.join(
                 DATA_DIR,
                 f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-            )
+            ),
+            on_bad_lines='skip',
+            engine='python'
         )
         data["Date"] = pd.to_datetime(data["Date"], utc=True)
         dates_in_df = data["Date"].astype(str).str[:10]
@@ -599,7 +601,9 @@ def get_YFin_data_window(
         os.path.join(
             DATA_DIR,
             f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-        )
+        ),
+        on_bad_lines='skip',
+        engine='python'
     )
 
     # Extract just the date part for comparison
@@ -677,7 +681,9 @@ def get_YFin_data(
         os.path.join(
             DATA_DIR,
             f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-        )
+        ),
+        on_bad_lines='skip',
+        engine='python'
     )
 
     if end_date > "2025-03-25":
