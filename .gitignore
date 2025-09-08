@@ -7,6 +7,6 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
-results
+results/
 results/SPY/2025-09-08/message_tool.log
 results/SPY/2025-09-08/reports/final_trade_decision.md
