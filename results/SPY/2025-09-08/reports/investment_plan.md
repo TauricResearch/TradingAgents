@@ -1,10 +1,3 @@
-### Bull Researcher Analysis
-Let’s keep an eye on those next Fed minutes – if they confirm a rate cut, we’ll see another catalyst for SPY to climb higher. Looking forward to hearing your thoughts!
-
-### Bear Researcher Analysis
-In short, the bullish narrative is built on assumptions that are either already priced in or highly uncertain. The technical picture is neutral at best, and the macro backdrop is turning increasingly risky. Stick with a cautious stance, protect your downside, and keep an eye out for any early warning signs of a market reversal.
-
-### Research Manager Decision
 <think>
 Okay, the user wants me to act as a portfolio manager and debate facilitator to evaluate this SPY (S&P 500 ETF) debate between bull and bear analysts. They need a clear recommendation (Buy, Sell, or Hold) based on the strongest arguments, plus a detailed investment plan. 
 
