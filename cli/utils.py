@@ -132,12 +132,14 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
             ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
             ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
+            ("LMStudio OSS 20b","openai/gpt-oss-20b"),
         ],
         "anthropic": [
             ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
             ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
             ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
             ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
+            ("CCR", "openai/gpt-oss-20b"),
         ],
         "google": [
             ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
@@ -152,6 +154,12 @@ def select_shallow_thinking_agent(provider) -> str:
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("llama3.2 local", "llama3.2"),
+        ],
+        "lmstudio": [
+            ("LMStudio GLM", "glm-4.5-air-mlx"),
+            ("LMStudio OSS 20b","openai/gpt-oss-20b"),
+            ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
+            ("LMStudio Kimi","kimi-dev-72b-dwq"),
         ]
     }
 
@@ -193,6 +201,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("o3-mini - Advanced reasoning model (lightweight)", "o3-mini"),
             ("o3 - Full advanced reasoning model", "o3"),
             ("o1 - Premier reasoning and problem-solving model", "o1"),
+            ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
         ],
         "anthropic": [
             ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
@@ -200,6 +209,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
             ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
             ("Claude Opus 4 - Most powerful Anthropic model", "	claude-opus-4-0"),
+            ("CCR", "LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
         ],
         "google": [
             ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
@@ -214,6 +224,12 @@ def select_deep_thinking_agent(provider) -> str:
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("qwen3", "qwen3"),
+        ],
+        "lmstudio": [
+            ("LMStudio GLM", "glm-4.5-air-mlx"),
+            ("LMStudio OSS 120b","openai/gpt-oss-120b"),
+            ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
+            ("LMStudio Kimi","kimi-dev-72b-dwq"),
         ]
     }
     
@@ -243,11 +259,13 @@ def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
     # Define OpenAI api options with their corresponding endpoints
     BASE_URLS = [
-        ("OpenAI", "https://api.openai.com/v1"),
+        #("OpenAI", "https://api.openai.com/v1"),
+        ("OpenAI", "http://192.168.0.20:1234/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        ("Ollama", "http://localhost:11434/v1"),
+        ("LMStudio", "http://192.168.0.20:1234/v1"),          
     ]
     
     choice = questionary.select(
