@@ -211,3 +211,7 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
+
+## plus
+I don‘t know what to put here, so I will leave it empty for now.
+Because I just come to GitHub to learn how to use git and GitHub.
