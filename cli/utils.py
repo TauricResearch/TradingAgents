@@ -1,7 +1,10 @@
 import questionary
 from typing import List, Optional, Tuple, Dict
+from rich.console import Console
 
 from cli.models import AnalystType
+
+console = Console()
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -14,8 +17,8 @@ ANALYST_ORDER = [
 def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol."""
     ticker = questionary.text(
-        "Enter the ticker symbol to analyze:",
-        validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
+        "📈 请输入要分析的股票代码:",
+        validate=lambda x: len(x.strip()) > 0 or "请输入有效的股票代码。",
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -25,7 +28,7 @@ def get_ticker() -> str:
     ).ask()
 
     if not ticker:
-        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+        console.print("\n[red]❌ 未提供股票代码，退出...[/red]")
         exit(1)
 
     return ticker.strip().upper()
@@ -46,9 +49,9 @@ def get_analysis_date() -> str:
             return False
 
     date = questionary.text(
-        "Enter the analysis date (YYYY-MM-DD):",
+        "📅 请输入分析日期 (YYYY-MM-DD):",
         validate=lambda x: validate_date(x.strip())
-        or "Please enter a valid date in YYYY-MM-DD format.",
+        or "请输入有效的日期格式 (YYYY-MM-DD)。",
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -58,7 +61,7 @@ def get_analysis_date() -> str:
     ).ask()
 
     if not date:
-        console.print("\n[red]No date provided. Exiting...[/red]")
+        console.print("\n[red]❌ 未提供分析日期，退出...[/red]")
         exit(1)
 
     return date.strip()
@@ -67,12 +70,12 @@ def get_analysis_date() -> str:
 def select_analysts() -> List[AnalystType]:
     """Select analysts using an interactive checkbox."""
     choices = questionary.checkbox(
-        "Select Your [Analysts Team]:",
+        "👥 选择分析师团队:",
         choices=[
             questionary.Choice(display, value=value) for display, value in ANALYST_ORDER
         ],
-        instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",
-        validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
+        instruction="\n- 按空格键选择/取消选择分析师\n- 按'a'键全选/取消全选\n- 按Enter确认",
+        validate=lambda x: len(x) > 0 or "必须至少选择一个分析师。",
         style=questionary.Style(
             [
                 ("checkbox-selected", "fg:green"),
@@ -84,7 +87,7 @@ def select_analysts() -> List[AnalystType]:
     ).ask()
 
     if not choices:
-        console.print("\n[red]No analysts selected. Exiting...[/red]")
+        console.print("\n[red]❌ 未选择任何分析师，退出...[/red]")
         exit(1)
 
     return choices
@@ -95,17 +98,17 @@ def select_research_depth() -> int:
 
     # Define research depth options with their corresponding values
     DEPTH_OPTIONS = [
-        ("Shallow - Quick research, few debate and strategy discussion rounds", 1),
-        ("Medium - Middle ground, moderate debate rounds and strategy discussion", 3),
-        ("Deep - Comprehensive research, in depth debate and strategy discussion", 5),
+        ("🔍 浅层 - 快速研究，少量辩论和策略讨论", 1),
+        ("⚖️ 中等 - 平衡研究，适度辩论和策略讨论", 3),
+        ("🔬 深度 - 全面研究，深入辩论和策略讨论", 5),
     ]
 
     choice = questionary.select(
-        "Select Your [Research Depth]:",
+        "📊 选择研究深度:",
         choices=[
             questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS
         ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        instruction="\n- 使用方向键导航\n- 按Enter选择\n- 深度越高，分析越全面但耗时越长",
         style=questionary.Style(
             [
                 ("selected", "fg:yellow noinherit"),
@@ -116,7 +119,7 @@ def select_research_depth() -> int:
     ).ask()
 
     if choice is None:
-        console.print("\n[red]No research depth selected. Exiting...[/red]")
+        console.print("\n[red]❌ 未选择研究深度，退出...[/red]")
         exit(1)
 
     return choice
@@ -127,6 +130,28 @@ def select_shallow_thinking_agent(provider) -> str:
 
     # Define shallow thinking llm engine options with their corresponding model names
     SHALLOW_AGENT_OPTIONS = {
+        # 国内免费大模型
+        "qwen": [
+            ("Qwen-Turbo - 快速响应，适合简单任务", "qwen-turbo"),
+            ("Qwen-Plus - 平衡性能和速度", "qwen-plus"),
+            ("Qwen-Max - 最强性能，适合复杂任务", "qwen-max"),
+        ],
+        "ernie": [
+            ("ERNIE-3.5-8K - 快速响应版本", "ernie-3.5-8k"),
+            ("ERNIE-4.0-8K - 最新版本，性能更强", "ernie-4.0-8k"),
+            ("ERNIE-4.0-128K - 长文本处理版本", "ernie-4.0-128k"),
+        ],
+        "glm": [
+            ("GLM-4 - 智谱AI最新模型", "glm-4"),
+            ("GLM-4-Flash - 快速响应版本", "glm-4-flash"),
+            ("GLM-4V - 多模态版本", "glm-4v"),
+        ],
+        "kimi": [
+            ("Moonshot-v1-8K - 标准版本", "moonshot-v1-8k"),
+            ("Moonshot-v1-32K - 长文本版本", "moonshot-v1-32k"),
+            ("Moonshot-v1-128K - 超长文本版本", "moonshot-v1-128k"),
+        ],
+        # 国外模型
         "openai": [
             ("GPT-4o-mini - Fast and efficient for quick tasks", "gpt-4o-mini"),
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
@@ -156,24 +181,24 @@ def select_shallow_thinking_agent(provider) -> str:
     }
 
     choice = questionary.select(
-        "Select Your [Quick-Thinking LLM Engine]:",
+        "🚀 选择快速思考模型:",
         choices=[
             questionary.Choice(display, value=value)
             for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
         ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        instruction="\n- 使用方向键导航\n- 按Enter选择\n- 快速模型用于简单任务",
         style=questionary.Style(
             [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
             ]
         ),
     ).ask()
 
     if choice is None:
         console.print(
-            "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
+            "\n[red]❌ 未选择快速思考模型，退出...[/red]"
         )
         exit(1)
 
@@ -185,6 +210,28 @@ def select_deep_thinking_agent(provider) -> str:
 
     # Define deep thinking llm engine options with their corresponding model names
     DEEP_AGENT_OPTIONS = {
+        # 国内免费大模型
+        "qwen": [
+            ("Qwen-Plus - 平衡性能，适合复杂分析", "qwen-plus"),
+            ("Qwen-Max - 最强性能，适合深度思考", "qwen-max"),
+            ("Qwen-Turbo - 快速版本，适合一般任务", "qwen-turbo"),
+        ],
+        "ernie": [
+            ("ERNIE-4.0-8K - 最新版本，性能最强", "ernie-4.0-8k"),
+            ("ERNIE-4.0-128K - 长文本处理版本", "ernie-4.0-128k"),
+            ("ERNIE-3.5-8K - 稳定版本", "ernie-3.5-8k"),
+        ],
+        "glm": [
+            ("GLM-4 - 智谱AI最新模型，性能最强", "glm-4"),
+            ("GLM-4-Flash - 快速响应版本", "glm-4-flash"),
+            ("GLM-4V - 多模态版本", "glm-4v"),
+        ],
+        "kimi": [
+            ("Moonshot-v1-32K - 长文本版本，适合深度分析", "moonshot-v1-32k"),
+            ("Moonshot-v1-128K - 超长文本版本", "moonshot-v1-128k"),
+            ("Moonshot-v1-8K - 标准版本", "moonshot-v1-8k"),
+        ],
+        # 国外模型
         "openai": [
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
             ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
@@ -218,59 +265,65 @@ def select_deep_thinking_agent(provider) -> str:
     }
     
     choice = questionary.select(
-        "Select Your [Deep-Thinking LLM Engine]:",
+        "🧠 选择深度思考模型:",
         choices=[
             questionary.Choice(display, value=value)
             for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
         ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        instruction="\n- 使用方向键导航\n- 按Enter选择\n- 深度模型用于复杂分析",
         style=questionary.Style(
             [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
+                ("selected", "fg:yellow noinherit"),
+                ("highlighted", "fg:yellow noinherit"),
+                ("pointer", "fg:yellow noinherit"),
             ]
         ),
     ).ask()
 
     if choice is None:
-        console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
+        console.print("\n[red]❌ 未选择深度思考模型，退出...[/red]")
         exit(1)
 
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """Select the LLM provider using interactive selection."""
+    # Define LLM provider options with their corresponding endpoints
     BASE_URLS = [
-        ("OpenAI", "https://api.openai.com/v1"),
-        ("Anthropic", "https://api.anthropic.com/"),
-        ("Google", "https://generativelanguage.googleapis.com/v1"),
-        ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        # 国内免费大模型（推荐）
+        ("🇨🇳 通义千问 (Qwen) - 金融领域表现优秀", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        ("🇨🇳 文心一言 (ERNIE) - 免费额度最高", "ernie", "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat"),
+        ("🇨🇳 智谱AI (GLM) - 清华大学出品", "glm", "https://open.bigmodel.cn/api/paas/v4"),
+        ("🇨🇳 月之暗面Kimi - 长文本处理强", "kimi", "https://api.moonshot.cn/v1"),
+        # 国外模型
+        ("🌍 OpenAI - GPT系列", "openai", "https://api.openai.com/v1"),
+        ("🌍 Anthropic - Claude系列", "anthropic", "https://api.anthropic.com/"),
+        ("🌍 Google - Gemini系列", "google", "https://generativelanguage.googleapis.com/v1"),
+        ("🌍 OpenRouter - 多模型聚合", "openrouter", "https://openrouter.ai/api/v1"),
+        ("🌍 Ollama - 本地部署", "ollama", "http://localhost:11434/v1"),
     ]
     
     choice = questionary.select(
-        "Select your LLM Provider:",
+        "🤖 选择AI模型提供商:",
         choices=[
-            questionary.Choice(display, value=(display, value))
-            for display, value in BASE_URLS
+            questionary.Choice(display, value=(provider, url))
+            for display, provider, url in BASE_URLS
         ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        instruction="\n- 使用方向键导航\n- 按Enter选择\n- 国内模型推荐用于金融分析",
         style=questionary.Style(
             [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
+                ("selected", "fg:green noinherit"),
+                ("highlighted", "fg:green noinherit"),
+                ("pointer", "fg:green noinherit"),
             ]
         ),
     ).ask()
     
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]❌ 未选择AI模型提供商，退出...[/red]")
         exit(1)
     
-    display_name, url = choice
-    print(f"You selected: {display_name}\tURL: {url}")
+    provider, url = choice
+    print(f"✅ 已选择: {provider}\tURL: {url}")
     
-    return display_name, url
+    return provider, url

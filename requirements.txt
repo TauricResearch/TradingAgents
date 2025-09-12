@@ -1,26 +1,59 @@
-typing-extensions
-langchain-openai
-langchain-experimental
-pandas
-yfinance
-praw
-feedparser
-stockstats
-eodhd
-langgraph
-chromadb
-setuptools
-backtrader
-akshare
-tushare
-finnhub-python
-parsel
-requests
-tqdm
-pytz
-redis
-chainlit
-rich
-questionary
-langchain_anthropic
-langchain-google-genai
+# TradingAgents项目依赖包列表
+# 这个文件列出了运行这个项目所需的所有Python包及其版本
+
+# 基础类型支持
+typing-extensions  # 类型提示扩展，提供更好的代码提示
+
+# AI和语言模型相关
+langchain-openai  # LangChain的OpenAI集成，用于调用OpenAI的AI模型
+langchain-experimental  # LangChain实验性功能
+langchain_anthropic  # LangChain的Anthropic集成，用于调用Claude模型
+langchain-google-genai  # LangChain的Google AI集成，用于调用Gemini模型
+langgraph  # 用于构建AI代理图的框架
+langchain-core  # LangChain核心库，包含BaseChatModel等基础类
+pydantic  # 数据验证和设置管理库，LangChain适配器需要
+
+# 数据处理和分析
+pandas  # 强大的数据分析库，用于处理表格数据
+numpy  # 数值计算库（通过pandas间接依赖）
+
+# 金融数据获取
+yfinance  # Yahoo Finance数据获取库
+finnhub-python  # FinnHub金融数据API
+eodhd  # End of Day Historical Data，历史数据提供商
+akshare  # 中国金融数据接口
+tushare  # 中国金融数据接口
+
+# 技术分析
+stockstats  # 股票技术指标计算库
+backtrader  # 回测框架
+
+# 新闻和社交媒体数据
+praw  # Reddit API包装器，用于获取Reddit数据
+feedparser  # RSS/Atom订阅源解析器
+googlenews  # Google新闻搜索（通过其他包间接依赖）
+
+# 数据存储和缓存
+chromadb  # 向量数据库，用于存储和检索向量数据
+redis  # 内存数据库，用于缓存
+
+# 网络请求和解析
+requests  # HTTP请求库
+parsel  # HTML/XML解析库
+
+# 用户界面和交互
+chainlit  # 用于构建聊天界面的框架
+rich  # 美化终端输出的库
+questionary  # 交互式命令行提示库
+tqdm  # 进度条显示库
+typer  # 命令行界面构建库，用于CLI工具
+
+# 系统工具
+setuptools  # Python包管理工具
+pytz  # 时区处理库
+python-dotenv  # 环境变量管理库，用于加载.env文件
+
+# 注意：
+# 1. 这些包会自动安装，无需手动指定版本号
+# 2. 如果遇到版本冲突，可以使用 pip install -r requirements.txt 安装
+# 3. 建议在虚拟环境中安装这些依赖
