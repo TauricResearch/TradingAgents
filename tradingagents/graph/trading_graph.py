@@ -10,6 +10,9 @@ from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+# 导入国内大模型适配器
+from tradingagents.llm_adapters import QwenAdapter, ErnieAdapter, GLMAdapter, KimiAdapter
+
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
@@ -57,18 +60,76 @@ class TradingAgentsGraph:
             exist_ok=True,
         )
 
-        # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
-        elif self.config["llm_provider"].lower() == "anthropic":
-            self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
-        elif self.config["llm_provider"].lower() == "google":
+        # 初始化AI模型
+        # 支持多种模型提供商，包括国内免费大模型
+        provider = self.config["llm_provider"].lower()
+        
+        if provider in ["openai", "ollama", "openrouter"]:
+            # OpenAI兼容模型
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"], 
+                base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"], 
+                base_url=self.config["backend_url"]
+            )
+        elif provider == "anthropic":
+            # Anthropic Claude模型
+            self.deep_thinking_llm = ChatAnthropic(
+                model=self.config["deep_think_llm"], 
+                base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = ChatAnthropic(
+                model=self.config["quick_think_llm"], 
+                base_url=self.config["backend_url"]
+            )
+        elif provider == "google":
+            # Google Gemini模型
             self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
             self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+        elif provider == "qwen":
+            # 通义千问模型（国内免费）
+            self.deep_thinking_llm = QwenAdapter(
+                model_name=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = QwenAdapter(
+                model_name=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"]
+            )
+        elif provider == "ernie":
+            # 文心一言模型（国内免费）
+            self.deep_thinking_llm = ErnieAdapter(
+                model_name=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = ErnieAdapter(
+                model_name=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"]
+            )
+        elif provider == "glm":
+            # 智谱AI模型（国内免费）
+            self.deep_thinking_llm = GLMAdapter(
+                model_name=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = GLMAdapter(
+                model_name=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"]
+            )
+        elif provider == "kimi":
+            # 月之暗面Kimi模型（国内免费）
+            self.deep_thinking_llm = KimiAdapter(
+                model_name=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = KimiAdapter(
+                model_name=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"]
+            )
         else:
-            raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
+            raise ValueError(f"不支持的AI模型提供商: {self.config['llm_provider']}")
         
         self.toolkit = Toolkit(config=self.config)
 

@@ -1,53 +1,87 @@
+# TradingAgents命令行界面主文件
+# 这个文件提供了用户友好的命令行界面来运行交易代理分析
+
+# 导入类型提示模块
 from typing import Optional
+
+# 导入日期时间处理模块
 import datetime
+
+# 导入命令行界面框架
 import typer
+# 尝试导入dotenv
+from dotenv import load_dotenv
+load_dotenv()  # 加载.env文件中的环境变量
+
+# 导入路径处理模块
 from pathlib import Path
+
+# 导入装饰器工具
 from functools import wraps
-from rich.console import Console
-from rich.panel import Panel
-from rich.spinner import Spinner
-from rich.live import Live
-from rich.columns import Columns
-from rich.markdown import Markdown
-from rich.layout import Layout
-from rich.text import Text
-from rich.live import Live
-from rich.table import Table
+
+# 导入Rich库的各种组件，用于美化终端输出
+from rich.console import Console      # 控制台输出
+from rich.panel import Panel         # 面板显示
+from rich.spinner import Spinner     # 加载动画
+from rich.live import Live           # 实时更新显示
+from rich.columns import Columns     # 列布局
+from rich.markdown import Markdown   # Markdown渲染
+from rich.layout import Layout       # 布局管理
+from rich.text import Text           # 文本处理
+from rich.table import Table         # 表格显示
+from rich.tree import Tree           # 树形结构
+from rich import box                 # 边框样式
+from rich.align import Align         # 对齐
+from rich.rule import Rule           # 分隔线
+
+# 导入集合模块
 from collections import deque
+
+# 导入时间模块
 import time
-from rich.tree import Tree
-from rich import box
-from rich.align import Align
-from rich.rule import Rule
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-from cli.models import AnalystType
-from cli.utils import *
+# 导入TradingAgents核心模块
+from tradingagents.graph.trading_graph import TradingAgentsGraph  # 交易代理图
+from tradingagents.default_config import DEFAULT_CONFIG           # 默认配置
 
+# 导入CLI相关模块
+from cli.models import AnalystType  # 分析师类型枚举
+from cli.utils import *             # CLI工具函数
+
+# 创建控制台对象，用于输出
 console = Console()
 
+# 创建Typer应用，这是命令行界面的主入口
 app = typer.Typer(
-    name="TradingAgents",
-    help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
-    add_completion=True,  # Enable shell completion
+    name="TradingAgents",  # 应用名称
+    help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",  # 帮助信息
+    add_completion=True,   # 启用shell自动补全功能
 )
 
 
-# Create a deque to store recent messages with a maximum length
+# 消息缓冲区类
+# 用于存储最近的消息，限制最大长度以节省内存
 class MessageBuffer:
     def __init__(self, max_length=100):
-        self.messages = deque(maxlen=max_length)
-        self.tool_calls = deque(maxlen=max_length)
-        self.current_report = None
-        self.final_report = None  # Store the complete final report
+        """
+        初始化消息缓冲区
+        
+        参数:
+            max_length (int): 最大消息数量，默认100条
+        """
+        self.messages = deque(maxlen=max_length)      # 存储普通消息的双端队列
+        self.tool_calls = deque(maxlen=max_length)    # 存储工具调用的双端队列
+        self.current_report = None                    # 当前报告
+        self.final_report = None                      # 最终完整报告
+        
+        # 代理状态字典，跟踪各个代理的工作状态
         self.agent_status = {
-            # Analyst Team
-            "Market Analyst": "pending",
-            "Social Analyst": "pending",
-            "News Analyst": "pending",
-            "Fundamentals Analyst": "pending",
-            # Research Team
+            # 分析师团队
+            "Market Analyst": "pending",        # 市场分析师：待处理
+            "Social Analyst": "pending",        # 社交媒体分析师：待处理
+            "News Analyst": "pending",          # 新闻分析师：待处理
+            "Fundamentals Analyst": "pending",  # 基本面分析师：待处理
+            # 研究团队
             "Bull Researcher": "pending",
             "Bear Researcher": "pending",
             "Research Manager": "pending",
@@ -764,7 +798,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
     
@@ -775,7 +809,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
 
@@ -788,7 +822,7 @@ def run_analysis():
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
-                    with open(report_dir / file_name, "w") as f:
+                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(content)
         return wrapper
 
