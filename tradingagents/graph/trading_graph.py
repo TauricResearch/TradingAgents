@@ -126,6 +126,7 @@ class TradingAgentsGraph:
                 [
                     # online tools
                     self.toolkit.get_stock_news_openai,
+                    self.toolkit.get_x_stock_sentiment,
                     # offline tools
                     self.toolkit.get_reddit_stock_info,
                 ]
@@ -135,6 +136,8 @@ class TradingAgentsGraph:
                     # online tools
                     self.toolkit.get_global_news_openai,
                     self.toolkit.get_google_news,
+                    self.toolkit.get_bloomberg_news,
+                    self.toolkit.get_reuters_news,
                     # offline tools
                     self.toolkit.get_finnhub_news,
                     self.toolkit.get_reddit_news,

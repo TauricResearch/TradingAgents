@@ -44,24 +44,46 @@ class ConditionalLogic:
         return "Msg Clear Fundamentals"
 
     def should_continue_debate(self, state: AgentState) -> str:
-        """Determine if debate should continue."""
-
-        if (
-            state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
-        ):  # 3 rounds of back-and-forth between 2 agents
+        """Determine if debate should continue with proper validation."""
+        if not state or "investment_debate_state" not in state:
             return "Research Manager"
-        if state["investment_debate_state"]["current_response"].startswith("Bull"):
-            return "Bear Researcher"
+
+        debate_state = state["investment_debate_state"]
+        count = debate_state.get("count", 0)
+        current_response = debate_state.get("current_response", "")
+
+        if not isinstance(count, int) or count < 0:
+            return "Research Manager"
+
+        if count >= 2 * self.max_debate_rounds:
+            return "Research Manager"
+
+        if isinstance(current_response, str) and current_response.strip():
+            if current_response.upper().startswith("BULL"):
+                return "Bear Researcher"
+
         return "Bull Researcher"
 
     def should_continue_risk_analysis(self, state: AgentState) -> str:
-        """Determine if risk analysis should continue."""
-        if (
-            state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
-        ):  # 3 rounds of back-and-forth between 3 agents
+        """Determine if risk analysis should continue with proper validation."""
+        if not state or "risk_debate_state" not in state:
             return "Risk Judge"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Risky"):
-            return "Safe Analyst"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Safe"):
-            return "Neutral Analyst"
+
+        risk_state = state["risk_debate_state"]
+        count = risk_state.get("count", 0)
+        latest_speaker = risk_state.get("latest_speaker", "")
+
+        if not isinstance(count, int) or count < 0:
+            return "Risk Judge"
+
+        if count >= 3 * self.max_risk_discuss_rounds:
+            return "Risk Judge"
+
+        if isinstance(latest_speaker, str) and latest_speaker.strip():
+            speaker_upper = latest_speaker.upper()
+            if speaker_upper.startswith("RISKY"):
+                return "Safe Analyst"
+            elif speaker_upper.startswith("SAFE"):
+                return "Neutral Analyst"
+
         return "Risky Analyst"

@@ -1,6 +1,4 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
-import json
 
 
 def create_market_analyst(llm, toolkit):
@@ -8,7 +6,6 @@ def create_market_analyst(llm, toolkit):
     def market_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
-        company_name = state["company_of_interest"]
 
         if toolkit.config["online_tools"]:
             tools = [
@@ -76,11 +73,8 @@ Volume-Based Indicators:
 
         result = chain.invoke(state["messages"])
 
-        report = ""
+        report = result.content if result.content else ""
 
-        if len(result.tool_calls) == 0:
-            report = result.content
-       
         return {
             "messages": [result],
             "market_report": report,

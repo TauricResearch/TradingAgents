@@ -417,3 +417,57 @@ class Toolkit:
         )
 
         return openai_fundamentals_results
+
+    @staticmethod
+    @tool
+    def get_x_stock_sentiment(
+        ticker: Annotated[str, "Ticker of a company. e.g. AAPL, TSM"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    ) -> str:
+        """
+        Retrieve X sentiment analysis for a stock ticker.
+        Args:
+            ticker (str): Ticker of a company. e.g. AAPL, TSM
+            curr_date (str): Current date in yyyy-mm-dd format
+        Returns:
+            str: Formatted sentiment analysis from X posts about the stock
+        """
+        from tradingagents.dataflows.x_utils import get_x_stock_sentiment
+
+        return get_x_stock_sentiment(ticker, curr_date)
+
+    @staticmethod
+    @tool
+    def get_bloomberg_news(
+        ticker: Annotated[str, "Ticker of a company. e.g. AAPL, TSM"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    ) -> str:
+        """
+        Retrieve Bloomberg news for a stock ticker.
+        Args:
+            ticker (str): Ticker of a company. e.g. AAPL, TSM
+            curr_date (str): Current date in yyyy-mm-dd format
+        Returns:
+            str: Formatted Bloomberg news about the stock
+        """
+        from tradingagents.dataflows.bloomberg_utils import get_bloomberg_news
+
+        return get_bloomberg_news(ticker, curr_date)
+
+    @staticmethod
+    @tool
+    def get_reuters_news(
+        ticker: Annotated[str, "Ticker of a company. e.g. AAPL, TSM"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    ) -> str:
+        """
+        Retrieve Reuters news for a stock ticker.
+        Args:
+            ticker (str): Ticker of a company. e.g. AAPL, TSM
+            curr_date (str): Current date in yyyy-mm-dd format
+        Returns:
+            str: Formatted Reuters news about the stock
+        """
+        from tradingagents.dataflows.reuters_utils import get_reuters_news
+
+        return get_reuters_news(ticker, curr_date)

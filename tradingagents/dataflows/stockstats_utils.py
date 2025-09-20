@@ -11,7 +11,8 @@ class StockstatsUtils:
     def get_stock_stats(
         symbol: Annotated[str, "ticker symbol for the company"],
         indicator: Annotated[
-            str, "quantitative indicators based off of the stock data for the company"
+            str,
+            "quantitative indicators based off of the stock data for the company"
         ],
         curr_date: Annotated[
             str, "curr date for retrieving stock price data, YYYY-mm-dd"
@@ -22,7 +23,8 @@ class StockstatsUtils:
         ],
         online: Annotated[
             bool,
-            "whether to use online tools to fetch data or offline tools. If True, will use online tools.",
+            "whether to use online tools to fetch data or offline tools. "
+            "If True, will use online tools.",
         ] = False,
     ):
         df = None
@@ -38,7 +40,9 @@ class StockstatsUtils:
                 )
                 df = wrap(data)
             except FileNotFoundError:
-                raise Exception("Stockstats fail: Yahoo Finance data not fetched yet!")
+                raise Exception(
+                    "Stockstats fail: Yahoo Finance data not fetched yet!"
+                )
         else:
             # Get today's date as YYYY-mm-dd to add to cache
             today_date = pd.Timestamp.today()
@@ -77,11 +81,21 @@ class StockstatsUtils:
             df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
             curr_date = curr_date.strftime("%Y-%m-%d")
 
-        df[indicator]  # trigger stockstats to calculate the indicator
-        matching_rows = df[df["Date"].str.startswith(curr_date)]
+        try:
+            df[indicator]  # trigger stockstats to calculate the indicator
+        except (KeyError, ValueError) as e:
+            raise ValueError(f"Invalid indicator '{indicator}': {e}")
+
+        try:
+            matching_rows = df[df["Date"].str.startswith(curr_date)]
+        except (AttributeError, KeyError) as e:
+            raise ValueError(f"Date column formatting error: {e}")
 
         if not matching_rows.empty:
-            indicator_value = matching_rows[indicator].values[0]
-            return indicator_value
+            indicator_value = matching_rows[indicator].iloc[0]
+            # Validate numerical result
+            if pd.isna(indicator_value):
+                return f"N/A: Indicator {indicator} not available for {curr_date}"
+            return float(indicator_value)
         else:
-            return "N/A: Not a trading day (weekend or holiday)"
+            return f"N/A: No data for {curr_date} (weekend/holiday/non-trading day)"
