@@ -1,9 +1,37 @@
-env/
+# Python
 __pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.env
+env/
+.venv
+venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data files
 *.csv
+
+# Project specific
 src/
 eval_results/
 eval_data/
-*.egg-info/
-.env
