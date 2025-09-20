@@ -1,6 +1,4 @@
 import functools
-import time
-import json
 
 
 def create_trader(llm, memory):
@@ -12,15 +10,16 @@ def create_trader(llm, memory):
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        curr_situation = f"Market: {market_research_report}\nSentiment: {sentiment_report}\nNews: {news_report}\nFundamentals: {fundamentals_report}"
+        past_memories = memory.get_memories(curr_situation, n_matches=3, min_similarity=0.8)
 
         past_memory_str = ""
         if past_memories:
             for i, rec in enumerate(past_memories, 1):
-                past_memory_str += rec["recommendation"] + "\n\n"
+                similarity = rec.get("similarity_score", 0)
+                past_memory_str += f"Memory {i} (similarity: {similarity:.3f}): {rec['recommendation']}\n\n"
         else:
-            past_memory_str = "No past memories found."
+            past_memory_str = "No statistically significant past memories found (similarity < 80%)."
 
         context = {
             "role": "user",

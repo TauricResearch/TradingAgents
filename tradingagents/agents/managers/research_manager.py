@@ -1,23 +1,25 @@
-import time
-import json
-
-
 def create_research_manager(llm, memory):
     def research_manager_node(state) -> dict:
-        history = state["investment_debate_state"].get("history", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        if not state or not isinstance(state, dict):
+            raise ValueError("Invalid state provided to research_manager")
 
-        investment_debate_state = state["investment_debate_state"]
+        investment_debate_state = state.get("investment_debate_state", {})
+        history = investment_debate_state.get("history", "")
+        market_research_report = state.get("market_report", "")
+        sentiment_report = state.get("sentiment_report", "")
+        news_report = state.get("news_report", "")
+        fundamentals_report = state.get("fundamentals_report", "")
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        curr_situation = f"Market: {market_research_report}\nSentiment: {sentiment_report}\nNews: {news_report}\nFundamentals: {fundamentals_report}"
+        past_memories = memory.get_memories(curr_situation, n_matches=3, min_similarity=0.8)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if past_memories:
+            for i, rec in enumerate(past_memories, 1):
+                similarity = rec.get("similarity_score", 0)
+                past_memory_str += f"Research Memory {i} (similarity: {similarity:.3f}): {rec['recommendation']}\n\n"
+        else:
+            past_memory_str = "No statistically significant research memories found (similarity < 80%)."
 
         prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
 

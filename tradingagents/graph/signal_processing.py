@@ -20,12 +20,61 @@ class SignalProcessor:
         Returns:
             Extracted decision (BUY, SELL, or HOLD)
         """
-        messages = [
-            (
-                "system",
-                "You are an efficient assistant designed to analyze paragraphs or financial reports provided by a group of analysts. Your task is to extract the investment decision: SELL, BUY, or HOLD. Provide only the extracted decision (SELL, BUY, or HOLD) as your output, without adding any additional text or information.",
-            ),
-            ("human", full_signal),
+        if not full_signal or len(full_signal.strip()) < 10:
+            return "HOLD"
+
+        import re
+
+        signal_upper = full_signal.upper()
+
+        buy_patterns = [
+            r'FINAL\s+TRANSACTION\s+PROPOSAL:\s*\*\*BUY\*\*',
+            r'FINAL\s+DECISION:\s*BUY',
+            r'RECOMMENDATION:\s*BUY',
+            r'DECISION:\s*BUY',
+            r'PROPOSE:\s*BUY',
+            r'\bBUY\b(?=\s*[.!]|\s*$)',
         ]
 
-        return self.quick_thinking_llm.invoke(messages).content
+        sell_patterns = [
+            r'FINAL\s+TRANSACTION\s+PROPOSAL:\s*\*\*SELL\*\*',
+            r'FINAL\s+DECISION:\s*SELL',
+            r'RECOMMENDATION:\s*SELL',
+            r'DECISION:\s*SELL',
+            r'PROPOSE:\s*SELL',
+            r'\bSELL\b(?=\s*[.!]|\s*$)',
+        ]
+
+        hold_patterns = [
+            r'FINAL\s+TRANSACTION\s+PROPOSAL:\s*\*\*HOLD\*\*',
+            r'FINAL\s+DECISION:\s*HOLD',
+            r'RECOMMENDATION:\s*HOLD',
+            r'DECISION:\s*HOLD',
+            r'PROPOSE:\s*HOLD',
+            r'\bHOLD\b(?=\s*[.!]|\s*$)',
+        ]
+
+        for pattern in buy_patterns:
+            if re.search(pattern, signal_upper):
+                return "BUY"
+
+        for pattern in sell_patterns:
+            if re.search(pattern, signal_upper):
+                return "SELL"
+
+        for pattern in hold_patterns:
+            if re.search(pattern, signal_upper):
+                return "HOLD"
+
+        buy_count = len(re.findall(r'\bBUY\b', signal_upper))
+        sell_count = len(re.findall(r'\bSELL\b', signal_upper))
+        hold_count = len(re.findall(r'\bHOLD\b', signal_upper))
+
+        if buy_count > sell_count and buy_count > hold_count:
+            return "BUY"
+        elif sell_count > buy_count and sell_count > hold_count:
+            return "SELL"
+        elif hold_count > 0:
+            return "HOLD"
+
+        return "HOLD"

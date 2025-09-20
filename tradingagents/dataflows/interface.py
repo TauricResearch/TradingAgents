@@ -36,7 +36,14 @@ def get_finnhub_news(
 
     """
 
-    start_date = datetime.strptime(curr_date, "%Y-%m-%d")
+    try:
+        start_date = datetime.strptime(curr_date, "%Y-%m-%d")
+    except ValueError as e:
+        return f"Error: Invalid date format '{curr_date}'. Expected YYYY-MM-DD."
+
+    if look_back_days < 0 or look_back_days > 365:
+        return f"Error: look_back_days must be 0-365, got {look_back_days}"
+
     before = start_date - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 

@@ -1,26 +1,31 @@
-from langchain_core.messages import AIMessage
-import time
-import json
+import functools
 
 
 def create_bull_researcher(llm, memory):
     def bull_node(state) -> dict:
-        investment_debate_state = state["investment_debate_state"]
+        if not state or not isinstance(state, dict):
+            raise ValueError("Invalid state provided to bull_researcher")
+
+        investment_debate_state = state.get("investment_debate_state", {})
         history = investment_debate_state.get("history", "")
         bull_history = investment_debate_state.get("bull_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        market_research_report = state.get("market_report", "")
+        sentiment_report = state.get("sentiment_report", "")
+        news_report = state.get("news_report", "")
+        fundamentals_report = state.get("fundamentals_report", "")
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        curr_situation = f"Market: {market_research_report}\nSentiment: {sentiment_report}\nNews: {news_report}\nFundamentals: {fundamentals_report}"
+        past_memories = memory.get_memories(curr_situation, n_matches=3, min_similarity=0.8)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if past_memories:
+            for i, rec in enumerate(past_memories, 1):
+                similarity = rec.get("similarity_score", 0)
+                past_memory_str += f"Bull Memory {i} (similarity: {similarity:.3f}): {rec['recommendation']}\n\n"
+        else:
+            past_memory_str = "No statistically significant bull memories found (similarity < 80%)."
 
         prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 

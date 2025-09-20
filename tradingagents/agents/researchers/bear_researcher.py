@@ -1,26 +1,31 @@
-from langchain_core.messages import AIMessage
-import time
-import json
+import functools
 
 
 def create_bear_researcher(llm, memory):
     def bear_node(state) -> dict:
-        investment_debate_state = state["investment_debate_state"]
+        if not state or not isinstance(state, dict):
+            raise ValueError("Invalid state provided to bear_researcher")
+
+        investment_debate_state = state.get("investment_debate_state", {})
         history = investment_debate_state.get("history", "")
         bear_history = investment_debate_state.get("bear_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        market_research_report = state.get("market_report", "")
+        sentiment_report = state.get("sentiment_report", "")
+        news_report = state.get("news_report", "")
+        fundamentals_report = state.get("fundamentals_report", "")
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        curr_situation = f"Market: {market_research_report}\nSentiment: {sentiment_report}\nNews: {news_report}\nFundamentals: {fundamentals_report}"
+        past_memories = memory.get_memories(curr_situation, n_matches=3, min_similarity=0.8)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if past_memories:
+            for i, rec in enumerate(past_memories, 1):
+                similarity = rec.get("similarity_score", 0)
+                past_memory_str += f"Bear Memory {i} (similarity: {similarity:.3f}): {rec['recommendation']}\n\n"
+        else:
+            past_memory_str = "No statistically significant bear memories found (similarity < 80%)."
 
         prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
 

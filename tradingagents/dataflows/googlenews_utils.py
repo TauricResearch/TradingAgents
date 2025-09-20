@@ -1,4 +1,3 @@
-import json
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -8,7 +7,6 @@ from tenacity import (
     retry,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
     retry_if_result,
 )
 
@@ -87,7 +85,7 @@ def getNewsData(query, start_date, end_date):
                             "source": source,
                         }
                     )
-                except Exception as e:
+                except (AttributeError, KeyError, TypeError) as e:
                     print(f"Error processing result: {e}")
                     # If one of the fields is not found, skip this result
                     continue
@@ -101,7 +99,7 @@ def getNewsData(query, start_date, end_date):
 
             page += 1
 
-        except Exception as e:
+        except (requests.RequestException, ValueError, AttributeError) as e:
             print(f"Failed after multiple retries: {e}")
             break
 

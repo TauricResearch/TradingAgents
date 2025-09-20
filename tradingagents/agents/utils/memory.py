@@ -44,27 +44,39 @@ class FinancialSituationMemory:
             ids=ids,
         )
 
-    def get_memories(self, current_situation, n_matches=1):
-        """Find matching recommendations using OpenAI embeddings"""
+    def get_memories(self, current_situation, n_matches=5, min_similarity=0.75):
+        """Find statistically significant matching recommendations"""
+        if not current_situation or len(current_situation.strip()) < 50:
+            return []
+
         query_embedding = self.get_embedding(current_situation)
 
+        max_results = max(n_matches, 10)
         results = self.situation_collection.query(
             query_embeddings=[query_embedding],
-            n_results=n_matches,
+            n_results=max_results,
             include=["metadatas", "documents", "distances"],
         )
 
+        if not results["documents"] or not results["documents"][0]:
+            return []
+
         matched_results = []
         for i in range(len(results["documents"][0])):
-            matched_results.append(
-                {
-                    "matched_situation": results["documents"][0][i],
-                    "recommendation": results["metadatas"][0][i]["recommendation"],
-                    "similarity_score": 1 - results["distances"][0][i],
-                }
-            )
+            similarity_score = 1 - results["distances"][0][i]
 
-        return matched_results
+            if similarity_score >= min_similarity:
+                matched_results.append(
+                    {
+                        "matched_situation": results["documents"][0][i],
+                        "recommendation": results["metadatas"][0][i]["recommendation"],
+                        "similarity_score": similarity_score,
+                        "distance": results["distances"][0][i]
+                    }
+                )
+
+        matched_results.sort(key=lambda x: x["similarity_score"], reverse=True)
+        return matched_results[:n_matches]
 
 
 if __name__ == "__main__":
