@@ -9,6 +9,14 @@ config["deep_think_llm"] = "gemini-2.0-flash"  # Use a different model
 config["quick_think_llm"] = "gemini-2.0-flash"  # Use a different model
 config["max_debate_rounds"] = 1  # Increase debate rounds
 
+# Configure data vendors (default uses Alpha Vantage for real-time data)
+config["data_vendors"] = {
+    "core_stock_apis": "alpha_vantage",      # Options: alpha_vantage, yahoo_finance, local
+    "technical_indicators": "alpha_vantage", # Options: alpha_vantage, yahoo_finance, local
+    "fundamental_data": "alpha_vantage",     # Options: alpha_vantage, openai, local
+    "news_data": "alpha_vantage",            # Options: alpha_vantage, openai, google, local
+}
+
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 
