@@ -114,9 +114,9 @@ pip install -r requirements.txt
 
 ### Required APIs
 
-You will also need the FinnHub API for financial data. All of our code is implemented with the free tier.
+You will also need the Alpha Vantage API for financial data. The free tier supports 25 API calls per day.
 ```bash
-export FINNHUB_API_KEY=$YOUR_FINNHUB_API_KEY
+export ALPHA_VANTAGE_API_KEY=$YOUR_ALPHA_VANTAGE_API_KEY
 ```
 
 You will need the OpenAI API for all the agents.

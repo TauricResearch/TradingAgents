@@ -1,10 +1,8 @@
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-import pandas as pd
 import yfinance as yf
 import os
-from .config import DATA_DIR
 from .stockstats_utils import StockstatsUtils
 
 def get_YFin_data_online(
