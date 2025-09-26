@@ -1,6 +1,11 @@
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 # Create a custom config
 config = DEFAULT_CONFIG.copy()
 config["llm_provider"] = "google"  # Use a different model
