@@ -16,15 +16,12 @@ class StockstatsUtils:
         curr_date: Annotated[
             str, "curr date for retrieving stock price data, YYYY-mm-dd"
         ],
-        data_dir: Annotated[
-            str,
-            "directory where the stock data is stored.",
-        ],
-        online: Annotated[
-            bool,
-            "whether to use online tools to fetch data or offline tools. If True, will use online tools.",
-        ] = False,
     ):
+        # Get config and set up data directory path
+        config = get_config()
+        data_dir = os.path.join(config["DATA_DIR"], "market_data", "price_data")
+        online = config["data_vendors"]["technical_indicators"] != "local"
+
         df = None
         data = None
 
@@ -50,7 +47,6 @@ class StockstatsUtils:
             end_date = end_date.strftime("%Y-%m-%d")
 
             # Get config and ensure cache directory exists
-            config = get_config()
             os.makedirs(config["data_cache_dir"], exist_ok=True)
 
             data_file = os.path.join(
