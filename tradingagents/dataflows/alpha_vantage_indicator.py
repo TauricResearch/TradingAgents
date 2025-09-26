@@ -155,26 +155,30 @@ def get_indicator(
             return f"Error: No data returned for {indicator}"
 
         # Parse header and data
-        header = lines[0].split(',')
-        date_col_idx = 0  # Assuming first column is date
-        value_col_idx = 1  # Default to second column
+        header = [col.strip() for col in lines[0].split(',')]
+        try:
+            date_col_idx = header.index('time')
+        except ValueError:
+            return f"Error: 'time' column not found in data for {indicator}. Available columns: {header}"
 
-        # Handle specific indicator column mappings
-        if indicator == "macds":
-            # MACD Signal is typically in the third column
-            value_col_idx = 2 if len(header) > 2 else 1
-        elif indicator == "macdh":
-            # MACD Histogram is typically in the fourth column
-            value_col_idx = 3 if len(header) > 3 else 1
-        elif indicator == "boll_ub":
-            # Bollinger Upper Band is typically in the second column
+        # Map internal indicator names to expected CSV column names from Alpha Vantage
+        col_name_map = {
+            "macd": "MACD", "macds": "MACD_Signal", "macdh": "MACD_Hist",
+            "boll": "Real Middle Band", "boll_ub": "Real Upper Band", "boll_lb": "Real Lower Band",
+            "rsi": "RSI", "atr": "ATR", "close_10_ema": "EMA",
+            "close_50_sma": "SMA", "close_200_sma": "SMA"
+        }
+
+        target_col_name = col_name_map.get(indicator)
+
+        if not target_col_name:
+            # Default to the second column if no specific mapping exists
             value_col_idx = 1
-        elif indicator == "boll":
-            # Bollinger Middle is typically in the third column
-            value_col_idx = 2 if len(header) > 2 else 1
-        elif indicator == "boll_lb":
-            # Bollinger Lower Band is typically in the fourth column
-            value_col_idx = 3 if len(header) > 3 else 1
+        else:
+            try:
+                value_col_idx = header.index(target_col_name)
+            except ValueError:
+                return f"Error: Column '{target_col_name}' not found for indicator '{indicator}'. Available columns: {header}"
 
         result_data = []
         for line in lines[1:]:
