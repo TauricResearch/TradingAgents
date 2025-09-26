@@ -1,6 +1,6 @@
 from langchain_core.tools import tool
 from typing import Annotated
-from tradingagents.dataflows.interface import route_to_vender
+from tradingagents.dataflows.interface import route_to_vendor
 
 @tool
 def get_indicators(
@@ -20,4 +20,4 @@ def get_indicators(
     Returns:
         str: A formatted dataframe containing the technical indicators for the specified ticker symbol and indicator.
     """
-    return route_to_vender("get_indicators", symbol, indicator, curr_date, look_back_days)
+    return route_to_vendor("get_indicators", symbol, indicator, curr_date, look_back_days)
