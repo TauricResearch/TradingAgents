@@ -178,7 +178,6 @@ config = DEFAULT_CONFIG.copy()
 config["deep_think_llm"] = "gpt-4.1-nano"  # Use a different model
 config["quick_think_llm"] = "gpt-4.1-nano"  # Use a different model
 config["max_debate_rounds"] = 1  # Increase debate rounds
-config["online_tools"] = True # Use online tools or cached data
 
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
@@ -188,7 +187,7 @@ _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```
 
-> For `online_tools`, we recommend enabling them for experimentation, as they provide access to real-time data. The agents' offline tools rely on cached data from our **Tauric TradingDB**, a curated dataset we use for backtesting. We're currently in the process of refining this dataset, and we plan to release it soon alongside our upcoming projects. Stay tuned!
+> We recommend enabling them for experimentation, as they provide access to real-time data. The agents' offline tools rely on cached data from our **Tauric TradingDB**, a curated dataset we use for backtesting. We're currently in the process of refining this dataset, and we plan to release it soon alongside our upcoming projects. Stay tuned!
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
 
