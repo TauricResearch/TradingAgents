@@ -3,7 +3,7 @@ import yfinance as yf
 from stockstats import wrap
 from typing import Annotated
 import os
-from .config import get_config
+from .config import get_config, DATA_DIR
 
 
 class StockstatsUtils:
@@ -19,7 +19,6 @@ class StockstatsUtils:
     ):
         # Get config and set up data directory path
         config = get_config()
-        data_dir = os.path.join(config["DATA_DIR"], "market_data", "price_data")
         online = config["data_vendors"]["technical_indicators"] != "local"
 
         df = None
@@ -29,7 +28,7 @@ class StockstatsUtils:
             try:
                 data = pd.read_csv(
                     os.path.join(
-                        data_dir,
+                        DATA_DIR,
                         f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
                     )
                 )
