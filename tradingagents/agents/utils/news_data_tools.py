@@ -4,21 +4,21 @@ from tradingagents.dataflows.interface import route_to_vender
 
 @tool
 def get_news(
-    query: Annotated[str, "Search query or ticker symbol"],
+    ticker: Annotated[str, "Ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
     """
-    Retrieve news data for a given query or ticker symbol.
+    Retrieve news data for a given ticker symbol.
     Uses the configured news_data vendor.
     Args:
-        query (str): Search query or ticker symbol
+        ticker (str): Ticker symbol
         start_date (str): Start date in yyyy-mm-dd format
         end_date (str): End date in yyyy-mm-dd format
     Returns:
         str: A formatted string containing news data
     """
-    return route_to_vender("get_news", query, start_date, end_date)
+    return route_to_vender("get_news", ticker, start_date, end_date)
 
 @tool
 def get_global_news(
