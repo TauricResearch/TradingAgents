@@ -124,6 +124,12 @@ You will need the OpenAI API for all the agents.
 export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
 ```
 
+Alternatively, you can create a `.env` file in the project root with your API keys (see `.env.example` for reference):
+```bash
+cp .env.example .env
+# Edit .env with your actual API keys
+```
+
 ### CLI Usage
 
 You can also try out the CLI directly by running:
