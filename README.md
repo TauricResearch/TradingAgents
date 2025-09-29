@@ -114,7 +114,7 @@ pip install -r requirements.txt
 
 ### Required APIs
 
-You will also need the Alpha Vantage API for financial data. The free tier supports 25 API calls per day.
+You will also need the [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for financial data. The free tier supports 25 API calls per day.
 ```bash
 export ALPHA_VANTAGE_API_KEY=$YOUR_ALPHA_VANTAGE_API_KEY
 ```
