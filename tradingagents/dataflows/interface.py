@@ -2,7 +2,7 @@ from typing import Annotated
 
 # Import from vendor-specific modules
 from .local import get_YFin_data, get_finnhub_news, get_finnhub_company_insider_sentiment, get_finnhub_company_insider_transactions, get_simfin_balance_sheet, get_simfin_cashflow, get_simfin_income_statements, get_reddit_global_news, get_reddit_company_news
-from .yahoo_finance import get_YFin_data_online, get_stock_stats_indicators_window
+from .y_finance import get_YFin_data_online, get_stock_stats_indicators_window
 from .google import get_google_news
 from .openai import get_stock_news_openai, get_global_news_openai, get_fundamentals_openai
 from .alpha_vantage import (
@@ -55,7 +55,7 @@ TOOLS_CATEGORIES = {
 
 VENDOR_LIST = [
     "local",
-    "yahoo_finance",
+    "yfinance",
     "openai",
     "google"
 ]
@@ -65,13 +65,13 @@ VENDOR_METHODS = {
     # core_stock_apis
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
-        "yahoo_finance": get_YFin_data_online,
+        "yfinance": get_YFin_data_online,
         "local": get_YFin_data,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
-        "yahoo_finance": get_stock_stats_indicators_window,
+        "yfinance": get_stock_stats_indicators_window,
         "local": get_stock_stats_indicators_window
     },
     # fundamental_data

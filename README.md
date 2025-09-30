@@ -114,14 +114,11 @@ pip install -r requirements.txt
 
 ### Required APIs
 
-You will also need the [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for financial data. The free tier supports 25 API calls per day.
-```bash
-export ALPHA_VANTAGE_API_KEY=$YOUR_ALPHA_VANTAGE_API_KEY
-```
+You will need the OpenAI API for all the agents, and [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for fundamental and news data (default configuration).
 
-You will need the OpenAI API for all the agents.
 ```bash
 export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
+export ALPHA_VANTAGE_API_KEY=$YOUR_ALPHA_VANTAGE_API_KEY
 ```
 
 Alternatively, you can create a `.env` file in the project root with your API keys (see `.env.example` for reference):
@@ -129,6 +126,8 @@ Alternatively, you can create a `.env` file in the project root with your API ke
 cp .env.example .env
 # Edit .env with your actual API keys
 ```
+
+**Note:** The default configuration uses [Alpha Vantage](https://www.alphavantage.co/) for fundamental and news data. You can get a free API key from their website, or upgrade to [Alpha Vantage Premium](https://www.alphavantage.co/premium/) for higher rate limits and more stable access. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
 
 ### CLI Usage
 
@@ -185,12 +184,12 @@ config["deep_think_llm"] = "gpt-4.1-nano"  # Use a different model
 config["quick_think_llm"] = "gpt-4.1-nano"  # Use a different model
 config["max_debate_rounds"] = 1  # Increase debate rounds
 
-# Configure data vendors (default uses Alpha Vantage for real-time data)
+# Configure data vendors (default uses yfinance and Alpha Vantage)
 config["data_vendors"] = {
-    "core_stock_apis": "alpha_vantage",      # Options: alpha_vantage, yahoo_finance, local
-    "technical_indicators": "alpha_vantage", # Options: alpha_vantage, yahoo_finance, local
-    "fundamental_data": "alpha_vantage",     # Options: alpha_vantage, openai, local
-    "news_data": "alpha_vantage",            # Options: alpha_vantage, openai, google, local
+    "core_stock_apis": "yfinance",           # Options: yfinance, alpha_vantage, local
+    "technical_indicators": "yfinance",      # Options: yfinance, alpha_vantage, local
+    "fundamental_data": "alpha_vantage",     # Options: openai, alpha_vantage, local
+    "news_data": "alpha_vantage",            # Options: openai, alpha_vantage, google, local
 }
 
 # Initialize with custom config
@@ -201,7 +200,7 @@ _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```
 
-> The default configuration now uses Alpha Vantage as the primary data provider, which provides access to real-time market data. For offline experimentation, there's a local data vendor option that uses our **Tauric TradingDB**, a curated dataset for backtesting, though this is still in development. We're currently refining this dataset and plan to release it soon alongside our upcoming projects. Stay tuned!
+> The default configuration uses yfinance for stock price and technical data, and Alpha Vantage for fundamental and news data. For production use or if you encounter rate limits, consider upgrading to [Alpha Vantage Premium](https://www.alphavantage.co/premium/) for more stable and reliable data access. For offline experimentation, there's a local data vendor option that uses our **Tauric TradingDB**, a curated dataset for backtesting, though this is still in development. We're currently refining this dataset and plan to release it soon alongside our upcoming projects. Stay tuned!
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
 
