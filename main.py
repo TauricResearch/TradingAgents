@@ -8,18 +8,16 @@ load_dotenv()
 
 # Create a custom config
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "google"  # Use a different model
-config["backend_url"] = "https://generativelanguage.googleapis.com/v1"  # Use a different backend
-config["deep_think_llm"] = "gemini-2.0-flash"  # Use a different model
-config["quick_think_llm"] = "gemini-2.0-flash"  # Use a different model
+config["deep_think_llm"] = "gpt-4o-mini"  # Use a different model
+config["quick_think_llm"] = "gpt-4o-mini"  # Use a different model
 config["max_debate_rounds"] = 1  # Increase debate rounds
 
-# Configure data vendors (default uses Alpha Vantage for real-time data)
+# Configure data vendors (default uses yfinance and alpha_vantage)
 config["data_vendors"] = {
-    "core_stock_apis": "alpha_vantage",      # Options: alpha_vantage, yahoo_finance, local
-    "technical_indicators": "alpha_vantage", # Options: alpha_vantage, yahoo_finance, local
-    "fundamental_data": "alpha_vantage",     # Options: alpha_vantage, openai, local
-    "news_data": "alpha_vantage",            # Options: alpha_vantage, openai, google, local
+    "core_stock_apis": "yfinance",           # Options: yfinance, alpha_vantage, local
+    "technical_indicators": "yfinance",      # Options: yfinance, alpha_vantage, local
+    "fundamental_data": "alpha_vantage",     # Options: openai, alpha_vantage, local
+    "news_data": "alpha_vantage",            # Options: openai, alpha_vantage, google, local
 }
 
 # Initialize with custom config
