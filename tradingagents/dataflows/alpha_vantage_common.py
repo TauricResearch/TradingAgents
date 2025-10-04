@@ -1,6 +1,7 @@
 import os
 import requests
 import pandas as pd
+import json
 from datetime import datetime
 from io import StringIO
 
@@ -34,9 +35,15 @@ def format_datetime_for_api(date_input) -> str:
     else:
         raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
 
+class AlphaVantageRateLimitError(Exception):
+    """Exception raised when Alpha Vantage API rate limit is exceeded."""
+    pass
+
 def _make_api_request(function_name: str, params: dict) -> dict | str:
     """Helper function to make API requests and handle responses.
     
+    Raises:
+        AlphaVantageRateLimitError: When API rate limit is exceeded
     """
     # Create a copy of params to avoid modifying the original
     api_params = params.copy()
@@ -60,6 +67,18 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
     response.raise_for_status()
 
     response_text = response.text
+    
+    # Check if response is JSON (error responses are typically JSON)
+    try:
+        response_json = json.loads(response_text)
+        # Check for rate limit error
+        if "Information" in response_json:
+            info_message = response_json["Information"]
+            if "rate limit" in info_message.lower() or "api key" in info_message.lower():
+                raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {info_message}")
+    except json.JSONDecodeError:
+        # Response is not JSON (likely CSV data), which is normal
+        pass
 
     return response_text
 
