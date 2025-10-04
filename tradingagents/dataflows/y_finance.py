@@ -182,3 +182,117 @@ def get_stockstats_indicator(
         return ""
 
     return str(indicator_value)
+
+
+def get_balance_sheet(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+):
+    """Get balance sheet data from yfinance."""
+    try:
+        ticker_obj = yf.Ticker(ticker.upper())
+        
+        if freq.lower() == "quarterly":
+            data = ticker_obj.quarterly_balance_sheet
+        else:
+            data = ticker_obj.balance_sheet
+            
+        if data.empty:
+            return f"No balance sheet data found for symbol '{ticker}'"
+            
+        # Convert to CSV string for consistency with other functions
+        csv_string = data.to_csv()
+        
+        # Add header information
+        header = f"# Balance Sheet data for {ticker.upper()} ({freq})\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        return header + csv_string
+        
+    except Exception as e:
+        return f"Error retrieving balance sheet for {ticker}: {str(e)}"
+
+
+def get_cashflow(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+):
+    """Get cash flow data from yfinance."""
+    try:
+        ticker_obj = yf.Ticker(ticker.upper())
+        
+        if freq.lower() == "quarterly":
+            data = ticker_obj.quarterly_cashflow
+        else:
+            data = ticker_obj.cashflow
+            
+        if data.empty:
+            return f"No cash flow data found for symbol '{ticker}'"
+            
+        # Convert to CSV string for consistency with other functions
+        csv_string = data.to_csv()
+        
+        # Add header information
+        header = f"# Cash Flow data for {ticker.upper()} ({freq})\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        return header + csv_string
+        
+    except Exception as e:
+        return f"Error retrieving cash flow for {ticker}: {str(e)}"
+
+
+def get_income_statement(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+):
+    """Get income statement data from yfinance."""
+    try:
+        ticker_obj = yf.Ticker(ticker.upper())
+        
+        if freq.lower() == "quarterly":
+            data = ticker_obj.quarterly_income_stmt
+        else:
+            data = ticker_obj.income_stmt
+            
+        if data.empty:
+            return f"No income statement data found for symbol '{ticker}'"
+            
+        # Convert to CSV string for consistency with other functions
+        csv_string = data.to_csv()
+        
+        # Add header information
+        header = f"# Income Statement data for {ticker.upper()} ({freq})\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        return header + csv_string
+        
+    except Exception as e:
+        return f"Error retrieving income statement for {ticker}: {str(e)}"
+
+
+def get_insider_transactions(
+    ticker: Annotated[str, "ticker symbol of the company"]
+):
+    """Get insider transactions data from yfinance."""
+    try:
+        ticker_obj = yf.Ticker(ticker.upper())
+        data = ticker_obj.insider_transactions
+        
+        if data is None or data.empty:
+            return f"No insider transactions data found for symbol '{ticker}'"
+            
+        # Convert to CSV string for consistency with other functions
+        csv_string = data.to_csv()
+        
+        # Add header information
+        header = f"# Insider Transactions data for {ticker.upper()}\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        return header + csv_string
+        
+    except Exception as e:
+        return f"Error retrieving insider transactions for {ticker}: {str(e)}"
