@@ -11,7 +11,13 @@ class FinancialSituationMemory:
             self.embedding = "text-embedding-3-small"
         self.client = OpenAI(base_url=config["backend_url"])
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
-        self.situation_collection = self.chroma_client.create_collection(name=name)
+        # Try to get existing collection, create if it doesn't exist
+        try:
+            self.situation_collection = self.chroma_client.get_collection(name=name)
+        except Exception:
+            # Collection doesn't exist, create it
+            self.situation_collection = self.chroma_client.create_collection(name=name)
+
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""
