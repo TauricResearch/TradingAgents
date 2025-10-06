@@ -323,29 +323,6 @@ def get_fed_calendar_and_minutes(curr_date: str) -> str:
             
             result += "\n"
     
-    # Fed meeting schedule (approximate - would need real Fed calendar API)
-    result += "### 2025 FOMC Meeting Schedule\n"
-    result += "- **January 28-29**: FOMC Meeting\n"
-    result += "- **March 18-19**: FOMC Meeting\n"
-    result += "- **April 29-30**: FOMC Meeting\n"
-    result += "- **June 10-11**: FOMC Meeting\n"
-    result += "- **July 29-30**: FOMC Meeting\n"
-    result += "- **September 16-17**: FOMC Meeting\n"
-    result += "- **October 28-29**: FOMC Meeting\n"
-    result += "- **December 16-17**: FOMC Meeting\n\n"
-    
-    result += "### Key Policy Considerations\n"
-    result += "- **Dual Mandate**: Maximum employment and price stability\n"
-    result += "- **Inflation Target**: 2% annual PCE inflation\n"
-    result += "- **Balance Sheet**: Quantitative tightening operations\n"
-    result += "- **Forward Guidance**: Communication of future policy intentions\n\n"
-    
-    result += "### Recent Economic Projections Summary\n"
-    result += "- Monitor Fed dot plot for interest rate projections\n"
-    result += "- Watch for changes in economic growth forecasts\n"
-    result += "- Track inflation expectations updates\n"
-    result += "- Observe unemployment rate projections\n\n"
-    
     return result
 
 
@@ -371,27 +348,5 @@ def get_macro_economic_summary(curr_date: str, lookback_days: int = 90) -> str:
     result += indicators_report + "\n"
     result += yield_curve + "\n"
     result += fed_calendar + "\n"
-    
-    # Add trading implications
-    result += "## Trading Implications\n\n"
-    result += "### Interest Rate Environment\n"
-    result += "- **Rising Rates**: Favor financials, pressure growth stocks\n"
-    result += "- **Falling Rates**: Support growth stocks, pressure financials\n"
-    result += "- **Yield Curve**: Inversion signals recession risk\n\n"
-    
-    result += "### Inflation Impact\n"
-    result += "- **High Inflation**: Favor commodities, real assets\n"
-    result += "- **Low Inflation**: Support bonds, growth stocks\n"
-    result += "- **Deflation Risk**: Flight to quality assets\n\n"
-    
-    result += "### Economic Growth\n"
-    result += "- **Strong Growth**: Favor cyclical sectors\n"
-    result += "- **Weak Growth**: Favor defensive sectors\n"
-    result += "- **Recession Risk**: Increase cash, quality focus\n\n"
-    
-    result += "### Market Volatility\n"
-    result += "- **High VIX**: Opportunity for contrarian plays\n"
-    result += "- **Low VIX**: Risk of complacency\n"
-    result += "- **Vol Regime Change**: Adjust position sizing\n\n"
     
     return result
