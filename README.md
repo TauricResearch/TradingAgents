@@ -127,7 +127,7 @@ cp .env.example .env
 # Edit .env with your actual API keys
 ```
 
-**Note:** The default configuration uses [Alpha Vantage](https://www.alphavantage.co/) for fundamental and news data. You can get a free API key from their website, or upgrade to [Alpha Vantage Premium](https://www.alphavantage.co/premium/) for higher rate limits and more stable access. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
+**Note:** The default configuration uses [Alpha Vantage](https://www.alphavantage.co/) for fundamental and news data. You can get a free API key from their website. The free API key is typically sufficient for performing complex tasks with TradingAgents thanks to the provider's open-source support program. If you still encounter rate-limiting behaviors, you may consider upgrading to [Alpha Vantage Premium](https://www.alphavantage.co/premium/) for higher rate limits. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
 
 ### CLI Usage
 
