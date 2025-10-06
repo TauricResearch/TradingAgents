@@ -1,7 +1,7 @@
 # FRED API Macro Data Integration
 
 ## Summary
-Added FRED (Federal Reserve Economic Data) API support to the TradingAgents vendor methods system for macroeconomic analysis.
+Added FRED (Federal Reserve Economic Data) API support to the TradingAgents vendor methods system for macroeconomic analysis, including a new **Macro Analyst** agent.
 
 ## Files Added
 
@@ -24,9 +24,22 @@ New module providing FRED API integration with the following functions:
 - **`get_fed_calendar_and_minutes(curr_date)`** - Federal Reserve meeting calendar and policy updates
 - **`get_macro_economic_summary(curr_date, lookback_days=90)`** - Complete macro economic analysis combining all components
 
+### 2. `tradingagents/agents/analysts/macro_analyst.py`
+New macro analyst agent that uses FRED API tools to analyze economic conditions:
+- Analyzes Federal Reserve policy and economic indicators
+- Evaluates inflation, employment, and growth trends
+- Assesses Treasury yield curve and recession signals
+- Provides market implications and trading considerations
+
+### 3. `tradingagents/agents/utils/macro_data_tools.py`
+Tool wrapper functions for LangChain integration:
+- **`get_economic_indicators(curr_date, lookback_days)`** - Comprehensive economic indicators
+- **`get_yield_curve(curr_date)`** - Treasury yield curve with inversion analysis
+- **`get_fed_calendar(curr_date)`** - Fed meeting calendar and policy updates
+
 ## Files Modified
 
-### 2. `tradingagents/dataflows/interface.py`
+### 4. `tradingagents/dataflows/interface.py`
 Updated vendor routing system to include FRED macro data:
 
 **Added Imports:**
@@ -71,6 +84,76 @@ VENDOR_LIST = [
 },
 ```
 
+### 5. `tradingagents/agents/__init__.py`
+Added macro analyst to exports:
+```python
+from .analysts.macro_analyst import create_macro_analyst
+
+__all__ = [
+    # ... existing exports ...
+    "create_macro_analyst",
+]
+```
+
+### 6. `tradingagents/agents/utils/agent_utils.py`
+Added macro tool imports:
+```python
+from tradingagents.agents.utils.macro_data_tools import (
+    get_economic_indicators,
+    get_yield_curve,
+    get_fed_calendar
+)
+```
+
+### 7. `tradingagents/graph/setup.py`
+Added macro analyst option to graph setup:
+```python
+def setup_graph(
+    self, selected_analysts=["market", "social", "news", "fundamentals"]
+):
+    """Set up and compile the agent workflow graph.
+
+    Args:
+        selected_analysts (list): List of analyst types to include. Options are:
+            - "market": Market analyst
+            - "social": Social media analyst
+            - "news": News analyst
+            - "fundamentals": Fundamentals analyst
+            - "macro": Macro economic analyst  # New!
+    """
+    # ... existing analyst setup ...
+    
+    if "macro" in selected_analysts:
+        analyst_nodes["macro"] = create_macro_analyst(
+            self.quick_thinking_llm
+        )
+        delete_nodes["macro"] = create_msg_delete()
+        tool_nodes["macro"] = self.tool_nodes["macro"]
+```
+
+### 8. `tradingagents/graph/trading_graph.py`
+Added macro tools import and tool node:
+```python
+from tradingagents.agents.utils.agent_utils import (
+    # ... existing imports ...
+    get_economic_indicators,
+    get_yield_curve,
+    get_fed_calendar
+)
+
+def _create_tool_nodes(self) -> Dict[str, ToolNode]:
+    return {
+        # ... existing tool nodes ...
+        "macro": ToolNode(
+            [
+                get_economic_indicators,
+                get_yield_curve,
+                get_fed_calendar,
+            ]
+        ),
+    }
+```
+
 ## Configuration Required
 
 To use FRED API features, set the FRED API key via:
@@ -91,6 +174,22 @@ To use FRED API features, set the FRED API key via:
    - Generate API key under "My Account" → "API Keys"
 
 ## Usage Examples
+
+### Enable Macro Analyst in Graph
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+# Create graph with macro analyst enabled
+graph = TradingAgentsGraph(
+    selected_analysts=["market", "fundamentals", "macro"],  # Include "macro"
+    debug=True,
+    config=your_config
+)
+
+# Run analysis
+result = graph.propagate("AAPL", "2025-10-06")
+```
 
 ### Via Vendor Routing System
 
@@ -165,11 +264,12 @@ All functions return formatted markdown strings suitable for LLM analysis:
 
 Changes were made with minimal modifications to existing code:
 
-1. ✅ **New file only** - `macro_utils.py` is a new addition
-2. ✅ **Additive changes** - Only added new entries to existing dictionaries
+1. ✅ **New files only** - `macro_utils.py`, `macro_analyst.py`, `macro_data_tools.py` are new additions
+2. ✅ **Additive changes** - Only added new entries to existing dictionaries and imports
 3. ✅ **No breaking changes** - Existing functionality unchanged
-4. ✅ **Follows existing patterns** - Uses same vendor routing architecture as other data sources
-5. ✅ **Consistent naming** - Follows existing naming conventions (`get_*` pattern)
+4. ✅ **Follows existing patterns** - Uses same vendor routing and analyst architecture
+5. ✅ **Consistent naming** - Follows existing naming conventions (`get_*`, `create_*_analyst` patterns)
+6. ✅ **Optional feature** - Macro analyst is opt-in via `selected_analysts` parameter
 
 ## Testing
 

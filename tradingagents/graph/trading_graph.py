@@ -33,7 +33,10 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_insider_sentiment,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_economic_indicators,
+    get_yield_curve,
+    get_fed_calendar
 )
 
 from .conditional_logic import ConditionalLogic
@@ -153,6 +156,14 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                ]
+            ),
+            "macro": ToolNode(
+                [
+                    # Macroeconomic analysis tools
+                    get_economic_indicators,
+                    get_yield_curve,
+                    get_fed_calendar,
                 ]
             ),
         }
