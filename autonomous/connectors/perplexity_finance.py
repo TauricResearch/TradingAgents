@@ -94,16 +94,14 @@ class PerplexityFinanceConnector:
     Fixed connector for Perplexity Finance API providing advanced financial analysis.
     """
 
-    # List of valid Perplexity models (as of Jan 2024)
+    # List of valid Perplexity models (current API models)
     VALID_MODELS = [
-        "pplx-7b-online",      # Fast online model
-        "pplx-70b-online",     # Large online model (may require pro)
-        "pplx-7b-chat",        # Fast chat model
-        "pplx-70b-chat",       # Large chat model
-        "sonar-small-online",  # New Sonar models
-        "sonar-medium-online",
-        "sonar-small-chat",
-        "sonar-medium-chat"
+        "sonar",                               # Default sonar model (works!)
+        "sonar-online",                        # Online search model
+        "sonar-chat",                          # Chat-focused model
+        "mixtral-8x7b-instruct",               # Mixtral instruct model
+        "codellama-70b-instruct",              # Code-focused model
+        "llama-3.1-70b-instruct"               # Large Llama model
     ]
 
     def __init__(self,
@@ -140,7 +138,7 @@ class PerplexityFinanceConnector:
             self.finance_model = model
         else:
             # Default to most reliable model
-            self.finance_model = "sonar-small-online"  # Fast and reliable
+            self.finance_model = "sonar"  # Fast and reliable (verified working)
             logger.info(f"Using default model: {self.finance_model}")
 
         # Track rate limiting
