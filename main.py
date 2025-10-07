@@ -23,9 +23,22 @@ config["data_vendors"] = {
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 
-# forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
+# Your IBKR portfolio tickers
+PORTFOLIO_TICKERS = ["AVGO", "MSFT", "MU", "NVDA", "TSM"]  # Excluding SXRV (ETF)
+
+# Analyze your largest position (AVGO - 43 shares)
+print("Analyzing AVGO (Broadcom) - Your largest position...")
+_, decision = ta.propagate("AVGO", "2024-10-01")
+print("\n" + "="*60)
+print("AVGO Analysis Result:")
+print("="*60)
 print(decision)
+
+# Uncomment below to analyze all positions:
+# for ticker in PORTFOLIO_TICKERS:
+#     print(f"\nAnalyzing {ticker}...")
+#     _, decision = ta.propagate(ticker, "2024-10-01")
+#     print(f"{ticker} Decision: {decision[:200]}...")  # First 200 chars
 
 # Memorize mistakes and reflect
 # ta.reflect_and_remember(1000) # parameter is the position returns

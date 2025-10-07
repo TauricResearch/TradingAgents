@@ -1,0 +1,63 @@
+# Autonomous Trading System Requirements
+# Install with: pip install -r requirements_autonomous.txt
+
+# === Core Trading Requirements ===
+# Already in main requirements.txt but listed for clarity
+yfinance>=0.2.63
+pandas>=2.3.0
+numpy>=2.1.0
+
+# === IBKR Connection ===
+ib_insync==0.9.86
+
+# === Database ===
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+alembic==1.13.1
+
+# === Scheduling & Async ===
+APScheduler==3.10.4
+asyncio-throttle==1.0.2
+aiohttp>=3.8.5
+nest-asyncio>=1.5.8
+
+# === Alternative Data Sources ===
+quiverquant==0.1.8          # Congressional trades
+polygon-api-client==1.13.2   # Real-time market data
+newsapi-python==0.2.7        # News aggregation
+alpaca-py==0.28.0           # Alternative market data
+
+# === Notifications ===
+discord.py==2.3.2           # Discord alerts
+python-telegram-bot==20.7   # Telegram alerts
+
+# === Web Dashboard (Optional) ===
+fastapi==0.109.0
+uvicorn[standard]==0.25.0
+jinja2==3.1.3
+websockets>=12.0
+plotly==5.18.0             # Interactive charts
+
+# === Redis (for caching and task queue) ===
+redis==5.0.1
+celery==5.3.4
+
+# === Additional Analysis Tools ===
+ta==0.11.0                 # Technical analysis
+scipy>=1.11.4              # Statistical analysis
+scikit-learn>=1.3.2        # ML for pattern recognition
+
+# === Monitoring & Logging ===
+prometheus-client==0.19.0   # Metrics
+python-json-logger==2.0.7  # Structured logging
+sentry-sdk==1.39.1         # Error tracking (optional)
+
+# === Testing ===
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-mock==3.12.0
+
+# === Development Tools ===
+python-dotenv==1.0.0       # Environment variables
+black==23.12.1             # Code formatting
+pylint==3.0.3             # Code linting
