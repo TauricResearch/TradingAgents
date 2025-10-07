@@ -12,6 +12,7 @@ dependencies = [
     "eodhd>=1.0.32",
     "feedparser>=6.0.11",
     "finnhub-python>=2.4.23",
+    "grip>=4.6.2",
     "langchain-anthropic>=0.3.15",
     "langchain-experimental>=0.3.4",
     "langchain-google-genai>=2.1.5",
