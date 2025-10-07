@@ -137,16 +137,42 @@ def get_stock_stats_indicators_window(
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     before = curr_date_dt - relativedelta(days=look_back_days)
 
-    # online gathering only
-    ind_string = ""
-    while curr_date_dt >= before:
-        indicator_value = get_stockstats_indicator(
-            symbol, indicator, curr_date_dt.strftime("%Y-%m-%d")
-        )
-
-        ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
-
-        curr_date_dt = curr_date_dt - relativedelta(days=1)
+    # Optimized: Get stock data once and calculate indicators for all dates
+    try:
+        indicator_data = _get_stock_stats_bulk(symbol, indicator, curr_date)
+        
+        # Generate the date range we need
+        current_dt = curr_date_dt
+        date_values = []
+        
+        while current_dt >= before:
+            date_str = current_dt.strftime('%Y-%m-%d')
+            
+            # Look up the indicator value for this date
+            if date_str in indicator_data:
+                indicator_value = indicator_data[date_str]
+            else:
+                indicator_value = "N/A: Not a trading day (weekend or holiday)"
+            
+            date_values.append((date_str, indicator_value))
+            current_dt = current_dt - relativedelta(days=1)
+        
+        # Build the result string
+        ind_string = ""
+        for date_str, value in date_values:
+            ind_string += f"{date_str}: {value}\n"
+        
+    except Exception as e:
+        print(f"Error getting bulk stockstats data: {e}")
+        # Fallback to original implementation if bulk method fails
+        ind_string = ""
+        curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+        while curr_date_dt >= before:
+            indicator_value = get_stockstats_indicator(
+                symbol, indicator, curr_date_dt.strftime("%Y-%m-%d")
+            )
+            ind_string += f"{curr_date_dt.strftime('%Y-%m-%d')}: {indicator_value}\n"
+            curr_date_dt = curr_date_dt - relativedelta(days=1)
 
     result_str = (
         f"## {indicator} values from {before.strftime('%Y-%m-%d')} to {end_date}:\n\n"
@@ -156,6 +182,89 @@ def get_stock_stats_indicators_window(
     )
 
     return result_str
+
+
+def _get_stock_stats_bulk(
+    symbol: Annotated[str, "ticker symbol of the company"],
+    indicator: Annotated[str, "technical indicator to calculate"],
+    curr_date: Annotated[str, "current date for reference"]
+) -> dict:
+    """
+    Optimized bulk calculation of stock stats indicators.
+    Fetches data once and calculates indicator for all available dates.
+    Returns dict mapping date strings to indicator values.
+    """
+    from .config import get_config
+    import pandas as pd
+    from stockstats import wrap
+    import os
+    
+    config = get_config()
+    online = config["data_vendors"]["technical_indicators"] != "local"
+    
+    if not online:
+        # Local data path
+        try:
+            data = pd.read_csv(
+                os.path.join(
+                    config.get("data_cache_dir", "data"),
+                    f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
+                )
+            )
+            df = wrap(data)
+        except FileNotFoundError:
+            raise Exception("Stockstats fail: Yahoo Finance data not fetched yet!")
+    else:
+        # Online data fetching with caching
+        today_date = pd.Timestamp.today()
+        curr_date_dt = pd.to_datetime(curr_date)
+        
+        end_date = today_date
+        start_date = today_date - pd.DateOffset(years=15)
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+        
+        os.makedirs(config["data_cache_dir"], exist_ok=True)
+        
+        data_file = os.path.join(
+            config["data_cache_dir"],
+            f"{symbol}-YFin-data-{start_date_str}-{end_date_str}.csv",
+        )
+        
+        if os.path.exists(data_file):
+            data = pd.read_csv(data_file)
+            data["Date"] = pd.to_datetime(data["Date"])
+        else:
+            data = yf.download(
+                symbol,
+                start=start_date_str,
+                end=end_date_str,
+                multi_level_index=False,
+                progress=False,
+                auto_adjust=True,
+            )
+            data = data.reset_index()
+            data.to_csv(data_file, index=False)
+        
+        df = wrap(data)
+        df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
+    
+    # Calculate the indicator for all rows at once
+    df[indicator]  # This triggers stockstats to calculate the indicator
+    
+    # Create a dictionary mapping date strings to indicator values
+    result_dict = {}
+    for _, row in df.iterrows():
+        date_str = row["Date"]
+        indicator_value = row[indicator]
+        
+        # Handle NaN/None values
+        if pd.isna(indicator_value):
+            result_dict[date_str] = "N/A"
+        else:
+            result_dict[date_str] = str(indicator_value)
+    
+    return result_dict
 
 
 def get_stockstats_indicator(
