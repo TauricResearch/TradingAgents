@@ -24,6 +24,8 @@ from .ibkr_connector import IBKRConnector
 from .data_aggregator import DataAggregator
 from .signal_processor import SignalProcessor
 from .alert_engine import AlertEngine, AlertType, AlertPriority
+from .research.ai_research_agent import AIResearchAgent, ResearchQuery, ResearchMode
+from .connectors.perplexity_finance import PerplexityFinanceConnector, AnalysisType
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +55,22 @@ class AutonomousScheduler:
         self.data_agg = DataAggregator(config)
         self.signal_processor = SignalProcessor(self.ibkr, self.data_agg, config)
         self.alert_engine = AlertEngine(config)
+
+        # Initialize AI Research components if API keys are available
+        self.research_agent = None
+        self.perplexity = None
+        if config.get('perplexity_api_key') and config.get('openai_api_key'):
+            try:
+                self.perplexity = PerplexityFinanceConnector(
+                    api_key=config.get('perplexity_api_key')
+                )
+                self.research_agent = AIResearchAgent(
+                    openai_api_key=config.get('openai_api_key'),
+                    perplexity_connector=self.perplexity
+                )
+                logger.info("AI Research Agent initialized")
+            except Exception as e:
+                logger.warning(f"Could not initialize AI Research: {e}")
 
         # Track system state
         self.is_running = False
@@ -170,6 +188,25 @@ class AutonomousScheduler:
             name='Pre-Market Check',
             misfire_grace_time=300
         )
+
+        # AI Research Analysis - every 2 hours during market hours
+        if self.research_agent:
+            self.scheduler.add_job(
+                self.ai_research_analysis,
+                IntervalTrigger(hours=2),
+                id='ai_research',
+                name='AI Research Analysis',
+                misfire_grace_time=300
+            )
+
+            # Weekly opportunity scan - Sunday evening
+            self.scheduler.add_job(
+                self.weekly_opportunity_scan,
+                CronTrigger(day_of_week=6, hour=18),  # Sunday 6 PM
+                id='weekly_scan',
+                name='Weekly Opportunity Scan',
+                misfire_grace_time=600
+            )
 
         logger.info(f"Scheduled {len(self.scheduler.get_jobs())} jobs")
 
@@ -457,6 +494,118 @@ System Status: ✅ All systems operational
             logger.info("Shutting down...")
             await self.stop()
 
+    async def ai_research_analysis(self):
+        """Run AI-powered research analysis on portfolio and opportunities"""
+        if not self.is_running or not self.research_agent:
+            return
+
+        try:
+            logger.info("Running AI research analysis...")
+
+            # Analyze each portfolio position
+            for ticker in self.portfolio_tickers[:3]:  # Limit to avoid rate limits
+                # Get deep analysis using Perplexity
+                analysis = await self.perplexity.analyze_stock(
+                    ticker,
+                    AnalysisType.FUNDAMENTAL,
+                    depth="standard"
+                )
+
+                # Alert if significant opportunity or risk
+                if analysis.rating == "BUY" and analysis.confidence_score > 80:
+                    await self.alert_engine.send_alert(
+                        title=f"🤖 AI Research: Strong Buy - {ticker}",
+                        message=f"Fair Value: ${analysis.fair_value:.2f}\n"
+                               f"Upside: {analysis.upside_potential:.1f}%\n"
+                               f"Confidence: {analysis.confidence_score}%\n\n"
+                               f"{analysis.bull_case[:200]}",
+                        alert_type=AlertType.AI_SIGNAL,
+                        priority=AlertPriority.HIGH,
+                        data={'ticker': ticker, 'analysis': analysis.__dict__}
+                    )
+                elif analysis.rating == "SELL" and analysis.confidence_score > 80:
+                    await self.alert_engine.send_alert(
+                        title=f"⚠️ AI Research: Consider Selling - {ticker}",
+                        message=f"Fair Value: ${analysis.fair_value:.2f}\n"
+                               f"Downside: {analysis.upside_potential:.1f}%\n\n"
+                               f"Risks: {', '.join(analysis.key_risks[:3])}",
+                        alert_type=AlertType.AI_SIGNAL,
+                        priority=AlertPriority.HIGH,
+                        data={'ticker': ticker, 'analysis': analysis.__dict__}
+                    )
+
+                await asyncio.sleep(5)  # Rate limiting
+
+            # Ask AI for market insights
+            market_question = "What are the key market risks and opportunities this week?"
+            market_answer = await self.research_agent.answer_question(market_question)
+
+            if market_answer:
+                await self.alert_engine.send_alert(
+                    title="🧠 AI Market Insights",
+                    message=market_answer[:500],
+                    alert_type=AlertType.MARKET_ANALYSIS,
+                    priority=AlertPriority.MEDIUM
+                )
+
+        except Exception as e:
+            logger.error(f"AI research analysis error: {e}")
+
+    async def weekly_opportunity_scan(self):
+        """Weekly scan for new investment opportunities using AI"""
+        if not self.is_running or not self.research_agent:
+            return
+
+        try:
+            logger.info("Running weekly opportunity scan...")
+
+            # Find undervalued opportunities
+            opportunities = await self.research_agent.find_opportunities(
+                investment_amount=10000,  # Hypothetical amount for analysis
+                risk_tolerance="medium",
+                time_horizon="medium"
+            )
+
+            # Screen for specific opportunities
+            screening_queries = [
+                "Find undervalued tech stocks with P/E under 25 and strong growth",
+                "What dividend stocks are attractive with yields above 3%?",
+                "Find small-cap growth stocks with revenue growth above 20%"
+            ]
+
+            all_recommendations = []
+
+            for query in screening_queries:
+                try:
+                    results = await self.research_agent.screen_stocks(query)
+                    all_recommendations.extend(results[:3])  # Top 3 from each search
+                    await asyncio.sleep(3)  # Rate limiting
+                except Exception as e:
+                    logger.error(f"Screening error for '{query}': {e}")
+
+            # Send weekly summary
+            if all_recommendations:
+                summary = "📊 **Weekly AI Research Report**\n\n"
+                summary += "**Top Opportunities Found:**\n"
+
+                for rec in all_recommendations[:10]:  # Top 10 overall
+                    summary += f"• **{rec.get('ticker', 'N/A')}**: "
+                    summary += f"${rec.get('current_price', 0):.2f}, "
+                    summary += f"Upside: {rec.get('upside_potential', 0):.1f}%\n"
+
+                summary += f"\n**Market Outlook:**\n{opportunities.get('market_conditions', {}).get('key_factors', 'N/A')[:300]}"
+
+                await self.alert_engine.send_alert(
+                    title="🎯 Weekly Investment Opportunities",
+                    message=summary,
+                    alert_type=AlertType.AI_SIGNAL,
+                    priority=AlertPriority.HIGH,
+                    data={'recommendations': all_recommendations}
+                )
+
+        except Exception as e:
+            logger.error(f"Weekly opportunity scan error: {e}")
+
     async def stop(self):
         """Stop the autonomous trading system"""
         logger.info("Stopping Autonomous Trading System...")
@@ -496,6 +645,7 @@ async def main():
         'quiver_api_key': os.getenv('QUIVER_API_KEY'),
         'alpha_vantage_api_key': os.getenv('ALPHA_VANTAGE_API_KEY'),
         'openai_api_key': os.getenv('OPENAI_API_KEY'),
+        'perplexity_api_key': os.getenv('PERPLEXITY_API_KEY'),
 
         # Notification settings
         'discord_webhook_url': os.getenv('DISCORD_WEBHOOK_URL'),

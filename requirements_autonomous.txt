@@ -61,3 +61,22 @@ pytest-mock==3.12.0
 python-dotenv==1.0.0       # Environment variables
 black==23.12.1             # Code formatting
 pylint==3.0.3             # Code linting
+
+# === AI Research & Perplexity Integration ===
+langchain==0.1.0           # LangChain for agent orchestration
+langchain-openai==0.0.5    # OpenAI integration
+langsmith==0.0.69          # LangChain monitoring
+pydantic==2.5.0            # Data validation
+tenacity==8.2.3            # Retry logic
+rich==13.7.0               # Rich CLI interface
+
+# === Additional Data Processing ===
+beautifulsoup4==4.12.2     # Web scraping
+lxml==4.9.4                # XML/HTML processing
+httpx==0.25.2              # Async HTTP client
+aiofiles==23.2.1           # Async file operations
+
+# === Security Enhancements ===
+cryptography==41.0.7       # Encryption
+PyJWT==2.8.0               # JWT tokens
+hashlib                    # Built-in, for HMAC signing
