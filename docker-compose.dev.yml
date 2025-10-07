@@ -1,0 +1,124 @@
+# Development Docker Compose Configuration
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  # === Override main trader service for development ===
+  trader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Development build args
+      args:
+        - BUILD_ENV=development
+    environment:
+      # Development settings
+      ENVIRONMENT: development
+      LOG_LEVEL: DEBUG
+      TRADING_ENABLED: false  # Always false in dev
+      PAPER_TRADING: true     # Always paper in dev
+
+      # Hot reload
+      PYTHONUNBUFFERED: 1
+      FLASK_ENV: development
+      FLASK_DEBUG: 1
+
+    volumes:
+      # Mount source code for hot reload
+      - ./:/app:rw
+      - ./logs:/app/logs:rw
+      - ./data:/app/data:rw
+      # Exclude virtual environment
+      - /app/venv
+      - /app/.venv
+
+    # Override command for development
+    command: >
+      sh -c "
+      echo 'Starting in development mode...'
+      pip install -e .
+      python -m watchdog.auto_restart --directory=. --pattern='*.py' --recursive -- python autonomous_trader.py
+      "
+
+    # No resource limits in development
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+
+  # === Development Database with sample data ===
+  postgres:
+    environment:
+      POSTGRES_DB: trading_dev
+      POSTGRES_USER: dev_trader
+      POSTGRES_PASSWORD: devpass
+    ports:
+      - "5433:5432"  # Different port for dev
+    volumes:
+      - ./dev/sample_data.sql:/docker-entrypoint-initdb.d/02-sample-data.sql:ro
+
+  # === Redis with monitoring ===
+  redis:
+    ports:
+      - "6380:6379"  # Different port for dev
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --loglevel debug
+
+  # === Redis Commander for Redis GUI ===
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: trading_redis_commander
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme}
+    ports:
+      - "8081:8081"
+    networks:
+      - trading_network
+    depends_on:
+      - redis
+
+  # === Adminer for Database GUI ===
+  adminer:
+    image: adminer:latest
+    container_name: trading_adminer
+    ports:
+      - "8082:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    networks:
+      - trading_network
+    depends_on:
+      - postgres
+
+  # === Jupyter Notebook for Research ===
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trading_jupyter
+    command: >
+      jupyter lab
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --allow-root
+      --NotebookApp.token=''
+      --NotebookApp.password=''
+    volumes:
+      - ./:/app:rw
+      - ./notebooks:/app/notebooks:rw
+    ports:
+      - "8888:8888"
+    environment:
+      PYTHONPATH: /app
+    networks:
+      - trading_network
+    profiles:
+      - research

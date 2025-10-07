@@ -1,0 +1,220 @@
+version: '3.8'
+
+services:
+  # === PostgreSQL Database ===
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: trading_postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-trading_db}
+      POSTGRES_USER: ${DB_USER:-trader}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-trader} -d ${DB_NAME:-trading_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trading_network
+    restart: unless-stopped
+
+  # === Redis Cache ===
+  redis:
+    image: redis:7-alpine
+    container_name: trading_redis
+    command: >
+      redis-server
+      --maxmemory 2gb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-changeme}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - trading_network
+    restart: unless-stopped
+
+  # === Main Trading Application ===
+  trader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: autonomous-trader:latest
+    container_name: trading_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-trading_db}
+      DB_USER: ${DB_USER:-trader}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme}
+
+      # IBKR Settings
+      IBKR_HOST: ${IBKR_HOST:-host.docker.internal}  # Use host machine's TWS
+      IBKR_PORT: ${IBKR_PORT:-7497}
+      IBKR_CLIENT_ID: ${IBKR_CLIENT_ID:-1}
+
+      # API Keys (from .env file)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY}
+      QUIVER_API_KEY: ${QUIVER_API_KEY}
+
+      # Notification Settings
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+
+      # Trading Settings
+      TRADING_ENABLED: ${TRADING_ENABLED:-false}
+      PAPER_TRADING: ${PAPER_TRADING:-true}
+
+      # Application Settings
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    ports:
+      - "${APP_PORT:-8000}:8000"  # API/Dashboard
+      - "${METRICS_PORT:-9090}:9090"  # Prometheus metrics
+    networks:
+      - trading_network
+    restart: unless-stopped
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+  # === Monitoring - Prometheus ===
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: trading_prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9091}:9090"
+    networks:
+      - trading_network
+    restart: unless-stopped
+
+  # === Monitoring - Grafana ===
+  grafana:
+    image: grafana/grafana:latest
+    container_name: trading_grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
+      GF_INSTALL_PLUGINS: redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    networks:
+      - trading_network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # === Backup Service (Optional) ===
+  backup:
+    image: postgres:15-alpine
+    container_name: trading_backup
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${DB_NAME:-trading_db}
+      PGUSER: ${DB_USER:-trader}
+      PGPASSWORD: ${DB_PASSWORD:-changeme}
+    volumes:
+      - ./backups:/backups
+    command: >
+      sh -c "
+      while true; do
+        pg_dump -Fc -f /backups/backup_$$(date +%Y%m%d_%H%M%S).dump
+        find /backups -type f -mtime +7 -delete
+        sleep 86400
+      done
+      "
+    networks:
+      - trading_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - backup
+
+  # === Nginx Reverse Proxy (Optional) ===
+  nginx:
+    image: nginx:alpine
+    container_name: trading_nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - trading_network
+    depends_on:
+      - trader
+      - grafana
+    restart: unless-stopped
+    profiles:
+      - production
+
+# === Networks ===
+networks:
+  trading_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# === Volumes ===
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
