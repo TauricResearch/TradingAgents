@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import os
 import json
 import aiohttp
+import pandas as pd
 
 # Import existing TradingAgents data tools
 import sys

@@ -25,7 +25,7 @@ from .data_aggregator import DataAggregator
 from .signal_processor import SignalProcessor
 from .alert_engine import AlertEngine, AlertType, AlertPriority
 from .research.ai_research_agent import AIResearchAgent, ResearchQuery, ResearchMode
-from .connectors.perplexity_finance import PerplexityFinanceConnector, AnalysisType
+from .connectors.perplexity_finance import PerplexityFinanceConnector, AnalysisType, ResearchDepth
 
 logger = logging.getLogger(__name__)
 
@@ -508,7 +508,7 @@ System Status: ✅ All systems operational
                 analysis = await self.perplexity.analyze_stock(
                     ticker,
                     AnalysisType.FUNDAMENTAL,
-                    depth="standard"
+                    ResearchDepth.STANDARD
                 )
 
                 # Alert if significant opportunity or risk
