@@ -28,6 +28,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
+from cli.pdf_generator import generate_pdf_report
 
 console = Console()
 
@@ -1098,6 +1099,23 @@ def run_analysis():
         display_complete_report(final_state)
 
         update_display(layout)
+
+    # Generate PDF report after the Live display context ends
+    try:
+        console.print("\n[bold cyan]Generating PDF report...[/bold cyan]")
+        pdf_path = generate_pdf_report(
+            final_state,
+            selections["ticker"],
+            selections["analysis_date"],
+            results_dir
+        )
+        console.print(f"[bold green]PDF report saved to:[/bold green] {pdf_path}")
+    except ImportError as e:
+        console.print(f"[yellow]Warning: {e}[/yellow]")
+        console.print("[yellow]PDF generation skipped. Install reportlab to enable PDF reports:[/yellow]")
+        console.print("[dim]pip install reportlab[/dim]")
+    except Exception as e:
+        console.print(f"[red]Error generating PDF report: {e}[/red]")
 
 
 @app.command()
