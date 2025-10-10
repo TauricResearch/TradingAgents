@@ -1,0 +1,14 @@
+certifi-2025.10.5.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
+certifi-2025.10.5.dist-info/METADATA,sha256=RzyR4sT6xRN1pNNy24IHVOlZuDJh1BNfaMa04zEadtk,2474
+certifi-2025.10.5.dist-info/RECORD,,
+certifi-2025.10.5.dist-info/WHEEL,sha256=_zCd3N1l69ArxyTb8rzEoP9TpbYXkqRFSNOD5OuxnTs,91
+certifi-2025.10.5.dist-info/licenses/LICENSE,sha256=6TcW2mucDVpKHfYP5pWzcPBpVgPSH2-D8FPkLPwQyvc,989
+certifi-2025.10.5.dist-info/top_level.txt,sha256=KMu4vUCfsjLrkPbSNdgdekS-pVJzBAJFO__nI8NF6-U,8
+certifi/__init__.py,sha256=jWkaYHMk4oIPSSBEK5bLMbO_qrkyNm_cRFx-D16-3Ks,94
+certifi/__main__.py,sha256=xBBoj905TUWBLRGANOcf7oi6e-3dMP4cEoG9OyMs11g,243
+certifi/__pycache__/__init__.cpython-310.pyc,,
+certifi/__pycache__/__main__.cpython-310.pyc,,
+certifi/__pycache__/core.cpython-310.pyc,,
+certifi/cacert.pem,sha256=IIn8WiWDZAH67pn3IkYLAbOTmZdGoPuBeUNmbW7MBFg,291366
+certifi/core.py,sha256=XFXycndG5pf37ayeF8N32HUuDafsyhkVMbO4BAPWHa0,3394
+certifi/py.typed,sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU,0

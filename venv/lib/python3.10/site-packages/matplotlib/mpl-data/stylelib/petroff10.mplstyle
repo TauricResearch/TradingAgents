@@ -1,0 +1,5 @@
+# Color cycle survey palette from Petroff (2021):
+# https://arxiv.org/abs/2107.02270
+# https://github.com/mpetroff/accessible-color-cycles
+axes.prop_cycle: cycler('color', ['3f90da', 'ffa90e', 'bd1f01', '94a4a2', '832db6', 'a96b59', 'e76300', 'b9ac70', '717581', '92dadd'])
+patch.facecolor: 3f90da

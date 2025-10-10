@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="{{ prefix }}/_static/css/page.css" type="text/css">
+    <link rel="stylesheet" href="{{ prefix }}/_static/css/boilerplate.css" type="text/css">
+    <link rel="stylesheet" href="{{ prefix }}/_static/css/fbm.css" type="text/css">
+    <link rel="stylesheet" href="{{ prefix }}/_static/css/mpl.css" type="text/css">
+    <script src="{{ prefix }}/_static/js/mpl_tornado.js"></script>
+    <script src="{{ prefix }}/js/mpl.js"></script>
+
+    <script>
+      function ready(fn) {
+        if (document.readyState != "loading") {
+          fn();
+        } else {
+          document.addEventListener("DOMContentLoaded", fn);
+        }
+      }
+
+      function figure_ready(fig_id) {
+        return function () {
+          var main_div = document.querySelector("div#figures");
+          var figure_div = document.createElement("div");
+          figure_div.id = "figure-div";
+          main_div.appendChild(figure_div);
+          var websocket_type = mpl.get_websocket_type();
+          var uri = "{{ ws_uri }}" + fig_id + "/ws";
+          if (window.location.protocol === "https:") uri = uri.replace('ws:', 'wss:')
+          var websocket = new websocket_type(uri);
+          var fig = new mpl.figure(fig_id, websocket, mpl_ondownload, figure_div);
+
+          fig.focus_on_mouseover = true;
+
+          fig.canvas.setAttribute("tabindex", fig_id);
+        }
+      };
+
+      {% for (fig_id, fig_manager) in figures %}
+        ready(figure_ready({{ str(fig_id) }}));
+      {% end %}
+    </script>
+
+  <title>MPL | WebAgg current figures</title>
+
+  </head>
+  <body>
+    <div id="mpl-warnings" class="mpl-warnings"></div>
+
+    <div id="figures" style="margin: 10px 10px;"></div>
+
+  </body>
+</html>

@@ -1,0 +1,34 @@
+<!-- Within the kernel, we don't know the address of the matplotlib
+     websocket server, so we have to get in client-side and fetch our
+     resources that way. -->
+<script>
+  // We can't proceed until these JavaScript files are fetched, so
+  // we fetch them synchronously
+  $.ajaxSetup({async: false});
+  $.getScript("http://" + window.location.hostname + ":{{ port }}{{prefix}}/_static/js/mpl_tornado.js");
+  $.getScript("http://" + window.location.hostname + ":{{ port }}{{prefix}}/js/mpl.js");
+  $.ajaxSetup({async: true});
+
+  function init_figure{{ fig_id }}(e) {
+    $('div.output').off('resize');
+
+    var output_div = e.target.querySelector('div.output_subarea');
+    var websocket_type = mpl.get_websocket_type();
+    var websocket = new websocket_type(
+        "ws://" + window.location.hostname + ":{{ port }}{{ prefix}}/" +
+        {{ repr(str(fig_id)) }} + "/ws");
+
+    var fig = new mpl.figure(
+        {{repr(str(fig_id))}}, websocket, mpl_ondownload, output_div);
+
+    // Fetch the first image
+    fig.context.drawImage(fig.imageObj, 0, 0);
+
+    fig.focus_on_mouseover = true;
+  }
+
+  // We can't initialize the figure contents until our content
+  // has been added to the DOM.  This is a bit of hack to get an
+  // event for that.
+  $('div.output').resize(init_figure{{ fig_id }});
+</script>

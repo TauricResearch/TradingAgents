@@ -84,12 +84,15 @@ class TradingAgentsGraph:
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
         
-        # Initialize memories
-        self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
-        self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
-        self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
-        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
+        # Initialize memories with optional prefix for parallel execution
+        memory_prefix = self.config.get("memory_prefix", "")
+        prefix = f"{memory_prefix}_" if memory_prefix else ""
+
+        self.bull_memory = FinancialSituationMemory(f"{prefix}bull_memory", self.config)
+        self.bear_memory = FinancialSituationMemory(f"{prefix}bear_memory", self.config)
+        self.trader_memory = FinancialSituationMemory(f"{prefix}trader_memory", self.config)
+        self.invest_judge_memory = FinancialSituationMemory(f"{prefix}invest_judge_memory", self.config)
+        self.risk_manager_memory = FinancialSituationMemory(f"{prefix}risk_manager_memory", self.config)
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()

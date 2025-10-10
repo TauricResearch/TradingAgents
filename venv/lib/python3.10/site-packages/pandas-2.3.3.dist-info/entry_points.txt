@@ -1,0 +1,3 @@
+[pandas_plotting_backends]
+matplotlib = pandas:plotting._matplotlib
+

@@ -1,0 +1,5 @@
+[console_scripts]
+fonttools = fontTools.__main__:main
+pyftmerge = fontTools.merge:main
+pyftsubset = fontTools.subset:main
+ttx = fontTools.ttx:main

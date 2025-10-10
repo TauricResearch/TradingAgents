@@ -1,0 +1,59 @@
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from typing import Any, TypeVar, overload
+from typing_extensions import Self  # < Py 3.11
+
+from numpy.typing import NDArray
+
+from .deprecation import (  # noqa: F401, re-exported API
+    deprecated as deprecated,
+    warn_deprecated as warn_deprecated,
+    rename_parameter as rename_parameter,
+    delete_parameter as delete_parameter,
+    make_keyword_only as make_keyword_only,
+    deprecate_method_override as deprecate_method_override,
+    deprecate_privatize_attribute as deprecate_privatize_attribute,
+    suppress_matplotlib_deprecation_warning as suppress_matplotlib_deprecation_warning,
+    MatplotlibDeprecationWarning as MatplotlibDeprecationWarning,
+)
+
+_T = TypeVar("_T")
+
+class classproperty(Any):
+    def __init__(
+        self,
+        fget: Callable[[_T], Any],
+        fset: None = ...,
+        fdel: None = ...,
+        doc: str | None = None,
+    ): ...
+    @overload
+    def __get__(self, instance: None, owner: None) -> Self: ...
+    @overload
+    def __get__(self, instance: object, owner: type[object]) -> Any: ...
+    @property
+    def fget(self) -> Callable[[_T], Any]: ...
+
+def check_isinstance(
+    types: type | tuple[type | None, ...], /, **kwargs: Any
+) -> None: ...
+def check_in_list(
+    values: Sequence[Any], /, *, _print_supported_values: bool = ..., **kwargs: Any
+) -> None: ...
+def check_shape(shape: tuple[int | None, ...], /, **kwargs: NDArray) -> None: ...
+def check_getitem(mapping: Mapping[Any, Any], /, **kwargs: Any) -> Any: ...
+def caching_module_getattr(cls: type) -> Callable[[str], Any]: ...
+@overload
+def define_aliases(
+    alias_d: dict[str, list[str]], cls: None = ...
+) -> Callable[[type[_T]], type[_T]]: ...
+@overload
+def define_aliases(alias_d: dict[str, list[str]], cls: type[_T]) -> type[_T]: ...
+def select_matching_signature(
+    funcs: list[Callable], *args: Any, **kwargs: Any
+) -> Any: ...
+def nargs_error(name: str, takes: int | str, given: int) -> TypeError: ...
+def kwarg_error(name: str, kw: str | Iterable[str]) -> TypeError: ...
+def recursive_subclasses(cls: type) -> Generator[type, None, None]: ...
+def warn_external(
+    message: str | Warning, category: type[Warning] | None = ...
+) -> None: ...

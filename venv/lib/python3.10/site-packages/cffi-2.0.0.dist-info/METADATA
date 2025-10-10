@@ -1,0 +1,68 @@
+Metadata-Version: 2.4
+Name: cffi
+Version: 2.0.0
+Summary: Foreign Function Interface for Python calling C code.
+Author: Armin Rigo, Maciej Fijalkowski
+Maintainer: Matt Davis, Matt Clay, Matti Picus
+License-Expression: MIT
+Project-URL: Documentation, https://cffi.readthedocs.io/
+Project-URL: Changelog, https://cffi.readthedocs.io/en/latest/whatsnew.html
+Project-URL: Downloads, https://github.com/python-cffi/cffi/releases
+Project-URL: Contact, https://groups.google.com/forum/#!forum/python-cffi
+Project-URL: Source Code, https://github.com/python-cffi/cffi
+Project-URL: Issue Tracker, https://github.com/python-cffi/cffi/issues
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: 3.14
+Classifier: Programming Language :: Python :: Free Threading :: 2 - Beta
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+License-File: LICENSE
+License-File: AUTHORS
+Requires-Dist: pycparser; implementation_name != "PyPy"
+Dynamic: license-file
+
+[![GitHub Actions Status](https://github.com/python-cffi/cffi/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/python-cffi/cffi/actions/workflows/ci.yaml?query=branch%3Amain++)
+[![PyPI version](https://img.shields.io/pypi/v/cffi.svg)](https://pypi.org/project/cffi)
+[![Read the Docs](https://img.shields.io/badge/docs-latest-blue.svg)][Documentation]
+
+
+CFFI
+====
+
+Foreign Function Interface for Python calling C code.
+
+Please see the [Documentation] or uncompiled in the `doc/` subdirectory.
+
+Download
+--------
+
+[Download page](https://github.com/python-cffi/cffi/releases)
+
+Source Code
+-----------
+
+Source code is publicly available on
+[GitHub](https://github.com/python-cffi/cffi).
+
+Contact
+-------
+
+[Mailing list](https://groups.google.com/forum/#!forum/python-cffi)
+
+Testing/development tips
+------------------------
+
+After `git clone` or `wget && tar`, we will get a directory called `cffi` or `cffi-x.x.x`. we call it `repo-directory`. To run tests under CPython, run the following in the `repo-directory`:
+
+    pip install pytest
+    pip install -e .  # editable install of CFFI for local development
+    pytest src/c/ testing/
+
+[Documentation]: http://cffi.readthedocs.org/

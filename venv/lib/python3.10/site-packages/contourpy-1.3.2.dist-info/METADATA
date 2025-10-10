@@ -1,0 +1,94 @@
+Metadata-Version: 2.1
+Name: contourpy
+Version: 1.3.2
+Summary: Python library for calculating contours of 2D quadrilateral grids
+Author-Email: Ian Thomas <ianthomas23@gmail.com>
+License: BSD 3-Clause License
+         
+         Copyright (c) 2021-2025, ContourPy Developers.
+         All rights reserved.
+         
+         Redistribution and use in source and binary forms, with or without
+         modification, are permitted provided that the following conditions are met:
+         
+         1. Redistributions of source code must retain the above copyright notice, this
+            list of conditions and the following disclaimer.
+         
+         2. Redistributions in binary form must reproduce the above copyright notice,
+            this list of conditions and the following disclaimer in the documentation
+            and/or other materials provided with the distribution.
+         
+         3. Neither the name of the copyright holder nor the names of its
+            contributors may be used to endorse or promote products derived from
+            this software without specific prior written permission.
+         
+         THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+         AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+         IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+         DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+         FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+         DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+         SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+         CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+         OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+         OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+         
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Programming Language :: C++
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Topic :: Scientific/Engineering :: Information Analysis
+Classifier: Topic :: Scientific/Engineering :: Mathematics
+Classifier: Topic :: Scientific/Engineering :: Visualization
+Project-URL: Homepage, https://github.com/contourpy/contourpy
+Project-URL: Changelog, https://contourpy.readthedocs.io/en/latest/changelog.html
+Project-URL: Documentation, https://contourpy.readthedocs.io
+Project-URL: Repository, https://github.com/contourpy/contourpy
+Requires-Python: >=3.10
+Requires-Dist: numpy>=1.23
+Provides-Extra: docs
+Requires-Dist: furo; extra == "docs"
+Requires-Dist: sphinx>=7.2; extra == "docs"
+Requires-Dist: sphinx-copybutton; extra == "docs"
+Provides-Extra: bokeh
+Requires-Dist: bokeh; extra == "bokeh"
+Requires-Dist: selenium; extra == "bokeh"
+Provides-Extra: mypy
+Requires-Dist: contourpy[bokeh,docs]; extra == "mypy"
+Requires-Dist: bokeh; extra == "mypy"
+Requires-Dist: docutils-stubs; extra == "mypy"
+Requires-Dist: mypy==1.15.0; extra == "mypy"
+Requires-Dist: types-Pillow; extra == "mypy"
+Provides-Extra: test
+Requires-Dist: contourpy[test-no-images]; extra == "test"
+Requires-Dist: matplotlib; extra == "test"
+Requires-Dist: Pillow; extra == "test"
+Provides-Extra: test-no-images
+Requires-Dist: pytest; extra == "test-no-images"
+Requires-Dist: pytest-cov; extra == "test-no-images"
+Requires-Dist: pytest-rerunfailures; extra == "test-no-images"
+Requires-Dist: pytest-xdist; extra == "test-no-images"
+Requires-Dist: wurlitzer; extra == "test-no-images"
+Description-Content-Type: text/markdown
+
+<img alt="ContourPy" src="https://raw.githubusercontent.com/contourpy/contourpy/main/docs/_static/contourpy_logo_horiz.svg" height="90">
+
+ContourPy is a Python library for calculating contours of 2D quadrilateral grids.  It is written in C++11 and wrapped using pybind11.
+
+It contains the 2005 and 2014 algorithms used in Matplotlib as well as a newer algorithm that includes more features and is available in both serial and multithreaded versions.  It provides an easy way for Python libraries to use contouring algorithms without having to include Matplotlib as a dependency.
+
+  * **Documentation**: https://contourpy.readthedocs.io
+  * **Source code**: https://github.com/contourpy/contourpy
+
+| | |
+| --- | --- |
+| Latest release | [![PyPI version](https://img.shields.io/pypi/v/contourpy.svg?label=pypi&color=fdae61)](https://pypi.python.org/pypi/contourpy) [![conda-forge version](https://img.shields.io/conda/v/conda-forge/contourpy.svg?label=conda-forge&color=a6d96a)](https://anaconda.org/conda-forge/contourpy) |
+| Downloads | [![PyPi downloads](https://img.shields.io/pypi/dm/contourpy?label=pypi&style=flat&color=fdae61)](https://pepy.tech/project/contourpy) |
+| Python version | [![Platforms](https://img.shields.io/pypi/pyversions/contourpy?color=fdae61)](https://pypi.org/project/contourpy/) |
+| Coverage | [![Codecov](https://img.shields.io/codecov/c/gh/contourpy/contourpy?color=fdae61&label=codecov)](https://app.codecov.io/gh/contourpy/contourpy) |

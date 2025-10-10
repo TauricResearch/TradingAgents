@@ -1,0 +1,2 @@
+[console_scripts]
+websockets = websockets.cli:main

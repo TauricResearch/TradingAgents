@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with matplotlib (http://matplotlib.org/) -->
+<svg height="72pt" version="1.1" viewBox="0 0 72 72" width="72pt" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <defs>
+  <style type="text/css">
+*{stroke-linecap:butt;stroke-linejoin:round;}
+  </style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 72 
+L 72 72 
+L 72 0 
+L 0 0 
+z
+" style="fill:none;opacity:0;"/>
+  </g>
+  <g id="text_1">
+   <path d="M 74.855625 61.72875 
+L 2 61.72875 
+L 2 8.295625 
+L -2.855625 8.295625 
+L -2.855625 66.584375 
+L 74.855625 66.584375 
+z
+M 70 14.373125 
+C 70 13.693125 69.46875 13.161875 68.78875 13.161875 
+L 52.2775 13.161875 
+C 51.215 13.161875 50.651875 14.4475 51.44875 15.244375 
+L 56.03875 19.834375 
+L 38.433125 37.44 
+L 29.593125 28.6 
+C 29.09375 28.11125 28.339375 28.11125 27.84 28.6 
+L 5.644375 50.795625 
+L 12.933125 58.084375 
+L 28.71125 42.295625 
+L 37.561875 51.14625 
+C 38.050625 51.635 38.805 51.635 39.304375 51.14625 
+L 63.3275 27.123125 
+L 67.9175 31.713125 
+C 68.714375 32.51 70 31.93625 70 30.87375 
+z
+" style="fill:black;"/>
+  </g>
+ </g>
+</svg>

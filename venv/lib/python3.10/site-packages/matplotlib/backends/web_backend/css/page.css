@@ -1,0 +1,82 @@
+/**
+ * Primary styles
+ *
+ * Author: IPython Development Team
+ */
+
+
+body {
+    background-color: white;
+    /* This makes sure that the body covers the entire window and needs to
+       be in a different element than the display: box in wrapper below */
+    position: absolute;
+    left: 0px;
+    right: 0px;
+    top: 0px;
+    bottom: 0px;
+    overflow: visible;
+}
+
+
+div#header {
+    /* Initially hidden to prevent FLOUC */
+    display: none;
+    position: relative;
+    height: 40px;
+    padding: 5px;
+    margin: 0px;
+    width: 100%;
+}
+
+span#ipython_notebook {
+    position: absolute;
+    padding: 2px 2px 2px 5px;
+}
+
+span#ipython_notebook img {
+    font-family: Verdana, "Helvetica Neue", Arial, Helvetica, Geneva, sans-serif;
+    height: 24px;
+    text-decoration:none;
+    display: inline;
+    color: black;
+}
+
+#site {
+    width: 100%;
+    display: none;
+}
+
+/* We set the fonts by hand here to override the values in the theme */
+.ui-widget {
+    font-family: "Lucinda Grande", "Lucinda Sans Unicode", Helvetica, Arial, Verdana, sans-serif;
+}
+
+.ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button {
+    font-family: "Lucinda Grande", "Lucinda Sans Unicode", Helvetica, Arial, Verdana, sans-serif;
+}
+
+/* Smaller buttons */
+.ui-button .ui-button-text {
+    padding: 0.2em 0.8em;
+    font-size: 77%;
+}
+
+input.ui-button {
+    padding: 0.3em 0.9em;
+}
+
+span#login_widget {
+    float: right;
+}
+
+.border-box-sizing {
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+}
+
+#figure-div {
+    display: inline-block;
+    margin: 10px;
+    vertical-align: top;
+}

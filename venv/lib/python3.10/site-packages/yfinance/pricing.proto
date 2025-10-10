@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+message PricingData {
+    string id = 1;
+    float price = 2;
+    sint64 time = 3;
+    string currency = 4;
+    string exchange = 5;
+    int32 quote_type = 6;
+    int32 market_hours = 7;
+    float change_percent = 8;
+    sint64 day_volume = 9;
+    float day_high = 10;
+    float day_low = 11;
+    float change = 12;
+    string short_name = 13;
+    sint64 expire_date = 14;
+    float open_price = 15;
+    float previous_close = 16;
+    float strike_price = 17;
+    string underlying_symbol = 18;
+    sint64 open_interest = 19;
+    sint64 options_type = 20;
+    sint64 mini_option = 21;
+    sint64 last_size = 22;
+    float bid = 23;
+    sint64 bid_size = 24;
+    float ask = 25;
+    sint64 ask_size = 26;
+    sint64 price_hint = 27;
+    sint64 vol_24hr = 28;
+    sint64 vol_all_currencies = 29;
+    string from_currency = 30;
+    string last_market = 31;
+    double circulating_supply = 32;
+    double market_cap = 33;
+}

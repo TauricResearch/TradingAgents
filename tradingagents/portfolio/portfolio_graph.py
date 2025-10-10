@@ -80,11 +80,28 @@ class PortfolioAnalysisGraph:
         try:
             print(f"\nAnalyzing {ticker}...")
 
+            # Create a custom config for this stock to avoid memory collection conflicts
+            stock_config = self.config.copy()
+
+            # Add a unique memory prefix to avoid ChromaDB collection name conflicts
+            import time
+            unique_id = f"{ticker}_{int(time.time() * 1000000)}"
+            stock_config["memory_prefix"] = unique_id
+
+            # Use ticker-specific data cache directory to avoid conflicts
+            import os
+            stock_data_cache = os.path.join(
+                stock_config["data_cache_dir"],
+                f"portfolio_{ticker}"
+            )
+            stock_config["data_cache_dir"] = stock_data_cache
+            os.makedirs(stock_data_cache, exist_ok=True)
+
             # Create a trading graph for this stock
             ta = TradingAgentsGraph(
                 selected_analysts=self.selected_analysts,
                 debug=self.debug,
-                config=self.config.copy()
+                config=stock_config
             )
 
             # Run the analysis

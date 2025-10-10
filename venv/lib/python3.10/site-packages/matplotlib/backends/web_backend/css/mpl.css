@@ -1,0 +1,84 @@
+/* General styling */
+.ui-helper-clearfix:before,
+.ui-helper-clearfix:after {
+  content: "";
+  display: table;
+  border-collapse: collapse;
+}
+.ui-helper-clearfix:after {
+  clear: both;
+}
+
+/* Header */
+.ui-widget-header {
+  border: 1px solid #dddddd;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  background: #e9e9e9;
+  color: #333333;
+  font-weight: bold;
+}
+
+/* Toolbar and items */
+.mpl-toolbar {
+  width: 100%;
+}
+
+.mpl-toolbar div.mpl-button-group {
+  display: inline-block;
+}
+
+.mpl-button-group + .mpl-button-group {
+  margin-left: 0.5em;
+}
+
+.mpl-widget {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  display: inline-block;
+  cursor: pointer;
+  color: #333;
+  padding: 6px;
+  vertical-align: middle;
+}
+
+.mpl-widget:disabled,
+.mpl-widget[disabled] {
+  background-color: #ddd;
+  border-color: #ddd !important;
+  cursor: not-allowed;
+}
+
+.mpl-widget:disabled img,
+.mpl-widget[disabled] img {
+  /* Convert black to grey */
+  filter: contrast(0%);
+}
+
+.mpl-widget.active img {
+  /* Convert black to tab:blue, approximately */
+  filter: invert(34%) sepia(97%) saturate(468%) hue-rotate(162deg) brightness(96%) contrast(91%);
+}
+
+button.mpl-widget:focus,
+button.mpl-widget:hover {
+  background-color: #ddd;
+  border-color: #aaa;
+}
+
+.mpl-button-group button.mpl-widget {
+  margin-left: -1px;
+}
+.mpl-button-group button.mpl-widget:first-child {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+  margin-left: 0px;
+}
+.mpl-button-group button.mpl-widget:last-child {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+select.mpl-widget {
+  cursor: default;
+}

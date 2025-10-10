@@ -1,0 +1,97 @@
+
+/* Flexible box model classes */
+/* Taken from Alex Russell https://infrequently.org/2009/08/css-3-progress/ */
+
+.hbox {
+	display: -webkit-box;
+	-webkit-box-orient: horizontal;
+	-webkit-box-align: stretch;
+
+	display: -moz-box;
+	-moz-box-orient: horizontal;
+	-moz-box-align: stretch;
+
+	display: box;
+	box-orient: horizontal;
+	box-align: stretch;
+}
+
+.hbox > * {
+	-webkit-box-flex: 0;
+	-moz-box-flex: 0;
+	box-flex: 0;
+}
+
+.vbox {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-box-align: stretch;
+
+	display: -moz-box;
+	-moz-box-orient: vertical;
+	-moz-box-align: stretch;
+
+	display: box;
+	box-orient: vertical;
+	box-align: stretch;
+}
+
+.vbox > * {
+	-webkit-box-flex: 0;
+	-moz-box-flex: 0;
+	box-flex: 0;
+}
+
+.reverse {
+	-webkit-box-direction: reverse;
+	-moz-box-direction: reverse;
+	box-direction: reverse;
+}
+
+.box-flex0 {
+	-webkit-box-flex: 0;
+	-moz-box-flex: 0;
+	box-flex: 0;
+}
+
+.box-flex1, .box-flex {
+	-webkit-box-flex: 1;
+	-moz-box-flex: 1;
+	box-flex: 1;
+}
+
+.box-flex2 {
+	-webkit-box-flex: 2;
+	-moz-box-flex: 2;
+	box-flex: 2;
+}
+
+.box-group1 {
+	-webkit-box-flex-group: 1;
+	-moz-box-flex-group: 1;
+	box-flex-group: 1;
+}
+
+.box-group2 {
+	-webkit-box-flex-group: 2;
+	-moz-box-flex-group: 2;
+	box-flex-group: 2;
+}
+
+.start {
+	-webkit-box-pack: start;
+	-moz-box-pack: start;
+	box-pack: start;
+}
+
+.end {
+	-webkit-box-pack: end;
+	-moz-box-pack: end;
+	box-pack: end;
+}
+
+.center {
+	-webkit-box-pack: center;
+	-moz-box-pack: center;
+	box-pack: center;
+}

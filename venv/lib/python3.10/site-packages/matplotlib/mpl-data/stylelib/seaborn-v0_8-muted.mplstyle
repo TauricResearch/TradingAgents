@@ -1,0 +1,3 @@
+# Seaborn muted palette
+axes.prop_cycle: cycler('color', ['4878CF', '6ACC65', 'D65F5F', 'B47CC7', 'C4AD66', '77BEDB'])
+patch.facecolor: 4878CF
