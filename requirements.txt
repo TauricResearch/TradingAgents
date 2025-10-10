@@ -26,3 +26,4 @@ langchain_anthropic
 langchain-google-genai
 reportlab
 matplotlib
+seaborn

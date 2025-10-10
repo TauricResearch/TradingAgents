@@ -1120,7 +1120,15 @@ def run_analysis():
 
 @app.command()
 def analyze():
+    """Analyze a single stock with the trading agents framework."""
     run_analysis()
+
+
+@app.command()
+def analyze_portfolio():
+    """Analyze a portfolio of multiple stocks."""
+    from cli.portfolio_cli import run_portfolio_analysis
+    run_portfolio_analysis()
 
 
 if __name__ == "__main__":
