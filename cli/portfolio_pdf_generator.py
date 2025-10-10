@@ -1,6 +1,7 @@
 """PDF report generator for portfolio analysis results."""
 import datetime
 import io
+import re
 from pathlib import Path
 from typing import Dict, Any
 
@@ -291,6 +292,25 @@ def generate_portfolio_pdf_report(
     elements.append(t)
     elements.append(Spacer(1, 30))
 
+    # Helper function to clean text for PDF
+    def clean_text(text: str) -> str:
+        """Clean text and properly escape for reportlab."""
+        # Escape special XML/HTML characters first
+        text = text.replace('&', '&amp;')
+        text = text.replace('<', '&lt;')
+        text = text.replace('>', '&gt;')
+
+        # Convert markdown bold (**text**) to HTML bold
+        text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+
+        # Convert markdown italic (*text*) to HTML italic
+        text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', text)
+
+        # Remove markdown headers
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+
+        return text
+
     # Generate charts
     print("Generating portfolio charts...")
     charts = generate_portfolio_charts(result)
@@ -329,7 +349,12 @@ def generate_portfolio_pdf_report(
         elements.append(Spacer(1, 12))
         for line in result.portfolio_recommendation.split('\n'):
             if line.strip():
-                elements.append(Paragraph(line.replace('#', '').replace('**', '<b>').replace('**', '</b>'), styles['CustomBody']))
+                cleaned_line = clean_text(line)
+                try:
+                    elements.append(Paragraph(cleaned_line, styles['CustomBody']))
+                except Exception as e:
+                    print(f"Warning: Could not parse line, adding as plain text: {e}")
+                    elements.append(Paragraph(cleaned_line.replace('<', '&lt;').replace('>', '&gt;'), styles['CustomBody']))
 
     # Risk Assessment
     elements.append(PageBreak())
@@ -338,7 +363,12 @@ def generate_portfolio_pdf_report(
         elements.append(Spacer(1, 12))
         for line in result.risk_assessment.split('\n'):
             if line.strip():
-                elements.append(Paragraph(line.replace('#', '').replace('**', '<b>').replace('**', '</b>'), styles['CustomBody']))
+                cleaned_line = clean_text(line)
+                try:
+                    elements.append(Paragraph(cleaned_line, styles['CustomBody']))
+                except Exception as e:
+                    print(f"Warning: Could not parse line, adding as plain text: {e}")
+                    elements.append(Paragraph(cleaned_line.replace('<', '&lt;').replace('>', '&gt;'), styles['CustomBody']))
 
     # Rebalancing Suggestions
     if result.rebalancing_suggestions:

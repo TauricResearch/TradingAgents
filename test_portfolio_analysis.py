@@ -1,5 +1,11 @@
+#!/usr/bin/env python3
 """Test portfolio analysis functionality."""
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 from tradingagents.portfolio.models import Portfolio, Position
 from tradingagents.portfolio.portfolio_graph import PortfolioAnalysisGraph
 from tradingagents.default_config import DEFAULT_CONFIG
