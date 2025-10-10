@@ -30,15 +30,29 @@ def fetch_historical_prices(
         tickers,
         start=start.strftime('%Y-%m-%d'),
         end=end.strftime('%Y-%m-%d'),
-        progress=False
+        progress=False,
+        auto_adjust=False  # Explicitly set to avoid warning
     )
 
     # Handle single ticker vs multiple tickers
     if len(tickers) == 1:
-        prices = data['Adj Close'].to_frame()
-        prices.columns = tickers
+        if 'Adj Close' in data.columns:
+            prices = data['Adj Close'].to_frame()
+            prices.columns = tickers
+        else:
+            # Fallback to Close if Adj Close not available
+            prices = data['Close'].to_frame()
+            prices.columns = tickers
     else:
-        prices = data['Adj Close']
+        if 'Adj Close' in data.columns:
+            prices = data['Adj Close']
+        else:
+            # For newer yfinance versions, the structure might be different
+            try:
+                prices = data['Adj Close']
+            except KeyError:
+                # Fallback: use Close prices
+                prices = data['Close']
 
     return prices
 
