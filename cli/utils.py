@@ -152,6 +152,7 @@ def select_shallow_thinking_agent(provider) -> str:
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("llama3.2 local", "llama3.2"),
+            ("Custom (enter model name)", "__custom__"),
         ]
     }
 
@@ -176,6 +177,17 @@ def select_shallow_thinking_agent(provider) -> str:
             "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
         )
         exit(1)
+
+    # If custom is selected, prompt for the model name to use with Ollama
+    if choice == "__custom__":
+        custom_model = questionary.text(
+            "Enter your Ollama model name (e.g., mistral-nemo:latest):",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a valid model name.",
+        ).ask()
+        if not custom_model:
+            console.print("\n[red]No model name provided. Exiting...[/red]")
+            exit(1)
+        return custom_model.strip()
 
     return choice
 
@@ -214,6 +226,7 @@ def select_deep_thinking_agent(provider) -> str:
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("qwen3", "qwen3"),
+            ("Custom (enter model name)", "__custom__"),
         ]
     }
     
@@ -236,6 +249,17 @@ def select_deep_thinking_agent(provider) -> str:
     if choice is None:
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
         exit(1)
+
+    # If custom is selected, prompt for the model name to use with Ollama
+    if choice == "__custom__":
+        custom_model = questionary.text(
+            "Enter your Ollama model name (e.g., llama3.1:latest):",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a valid model name.",
+        ).ask()
+        if not custom_model:
+            console.print("\n[red]No model name provided. Exiting...[/red]")
+            exit(1)
+        return custom_model.strip()
 
     return choice
 
