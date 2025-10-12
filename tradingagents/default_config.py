@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Load variables from .env
+load_dotenv()
 
 DEFAULT_CONFIG = {
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
@@ -17,6 +21,11 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # Tool settings
+    "online_tools": True,
+    # API keys from environment
+    "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
+    "finnhub_api_key": os.getenv("FINNHUB_API_KEY", ""),
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {

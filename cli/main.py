@@ -23,6 +23,52 @@ from rich.tree import Tree
 from rich import box
 from rich.align import Align
 from rich.rule import Rule
+from dotenv import load_dotenv
+
+# Load API keys from .env
+load_dotenv()
+
+
+
+# HTML output template and converter
+HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{title}</title>
+<style>
+    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f5f7; margin: 0; padding: 0; }}
+    header {{ background-color: #2c3e50; padding: 10px 20px; }}
+    header a {{ color: #ffffff; text-decoration: none; font-weight: bold; }}
+    header a:hover {{ text-decoration: underline; }}
+    .container {{ max-width: 800px; margin: 40px auto; background: #ffffff; padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }}
+    h1, h2, h3, h4 {{ color: #2c3e50; margin-top: 1.2em; }}
+    p {{ line-height: 1.6; color: #333333; }}
+    table {{ border-collapse: collapse; width: 100%; margin-bottom: 1.5em; }}
+    th, td {{ border: 1px solid #ddd; padding: 8px; }}
+    th {{ background-color: #f2f2f2; text-align: left; }}
+    a {{ color: #3498db; text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+</style>
+</head>
+<body>
+<header><a href="index.html">← Back to Index</a></header>
+<div class="container">
+{content}
+</div>
+</body>
+</html>"""
+
+def md_to_html(md_text: str) -> str:
+    """Convert Markdown text to HTML, dynamically importing markdown."""
+    try:
+        import markdown
+    except ImportError:
+        raise RuntimeError(
+            "HTML output requires the 'markdown' package. Please install it with `pip install markdown`."
+        )
+    return markdown.markdown(md_text, extensions=["tables", "fenced_code"])
+
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -484,6 +530,15 @@ def get_user_selections():
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
+    console.print(
+        create_question_box(
+            "Step 7: Output Format", "Choose output format (Markdown or HTML)", "Markdown"
+        )
+    )
+    selected_output_format = select_output_format()
+    console.print(f"[green]Selected output format:[/green] {selected_output_format.upper()}")
+
+
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
@@ -493,6 +548,7 @@ def get_user_selections():
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
+        "output_format": selected_output_format,
     }
 
 
@@ -738,6 +794,7 @@ def extract_content_string(content):
 def run_analysis():
     # First get all user selections
     selections = get_user_selections()
+    output_format = selections["output_format"]
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
@@ -768,7 +825,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
     
@@ -779,7 +836,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
 
@@ -791,9 +848,15 @@ def run_analysis():
             if section_name in obj.report_sections and obj.report_sections[section_name] is not None:
                 content = obj.report_sections[section_name]
                 if content:
-                    file_name = f"{section_name}.md"
-                    with open(report_dir / file_name, "w") as f:
-                        f.write(content)
+                    if output_format == "md":
+                        file_name = f"{section_name}.md"
+                        with open(report_dir / file_name, "w", encoding="utf-8") as f:
+                            f.write(content)
+                    else:
+                        file_name = f"{section_name}.html"
+                        html_body = md_to_html(content)
+                        with open(report_dir / file_name, "w", encoding="utf-8") as f:
+                            f.write(HTML_TEMPLATE.format(title=section_name.replace('_',' ').title(), content=html_body))
         return wrapper
 
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")
@@ -1098,6 +1161,22 @@ def run_analysis():
         display_complete_report(final_state)
 
         update_display(layout)
+
+        # Generate HTML index if HTML output selected
+        if output_format == "html":
+            # Convert final decision markdown to HTML
+            decision_md = message_buffer.report_sections.get("final_trade_decision", "")
+            decision_html = md_to_html(decision_md)
+            # Build links list
+            links = ""
+            for section, content in message_buffer.report_sections.items():
+                if section != "final_trade_decision" and content:
+                    filename = f"{section}.html"
+                    display_name = section.replace("_", " ").title()
+                    links += f'<li><a href="{filename}">{display_name}</a></li>'
+            index_body = f"{decision_html}<h2>Other Reports</h2><ul>{links}</ul>"
+            with open(report_dir / "index.html", "w", encoding="utf-8") as f:
+                f.write(HTML_TEMPLATE.format(title="TradingAgents Report", content=index_body))
 
 
 @app.command()
