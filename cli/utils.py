@@ -156,8 +156,8 @@ def select_shallow_thinking_agent(provider) -> str:
             ("llama3.2 local", "llama3.2"),
         ],
         "lmstudio": [
-            ("LMStudio GLM", "glm-4.5-air-mlx"),
             ("LMStudio OSS 20b","openai/gpt-oss-20b"),
+            ("LMStudio GLM", "glm-4.5-air-mlx"),
             ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
             ("LMStudio Kimi","kimi-dev-72b-dwq"),
         ]
@@ -226,9 +226,9 @@ def select_deep_thinking_agent(provider) -> str:
             ("qwen3", "qwen3"),
         ],
         "lmstudio": [
+            ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
             ("LMStudio GLM", "glm-4.5-air-mlx"),
             ("LMStudio OSS 120b","openai/gpt-oss-120b"),
-            ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
             ("LMStudio Kimi","kimi-dev-72b-dwq"),
         ]
     }
@@ -259,13 +259,14 @@ def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
     # Define OpenAI api options with their corresponding endpoints
     BASE_URLS = [
-        #("OpenAI", "https://api.openai.com/v1"),
-        ("OpenAI", "http://192.168.0.20:1234/v1"),
+        ("LMStudio", "http://192.168.0.20:1234/v1"),
+        ("OpenAI Local", "http://192.168.0.20:1234/v1"),
+        ("OpenAI", "https://api.openai.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
-        ("LMStudio", "http://192.168.0.20:1234/v1"),          
+                  
     ]
     
     choice = questionary.select(

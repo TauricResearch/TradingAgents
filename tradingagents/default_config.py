@@ -9,10 +9,17 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "o4-mini",
-    "quick_think_llm": "gpt-4o-mini",
-    "backend_url": "https://api.openai.com/v1",
+    #"llm_provider": "openai",
+    #"deep_think_llm": "o4-mini",
+    #"quick_think_llm": "gpt-4o-mini",
+    #"backend_url": "https://api.openai.com/v1",
+    
+    # Default LLM is set to local LMStudio instance
+    "llm_provider": "lmstudio",
+    "deep_think_llm": "qwen/qwen3-4b-thinking-2507",
+    "quick_think_llm": "openai/gpt-oss-20b",
+    "backend_url": "http://192.168.0.20/v1",
+    
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
