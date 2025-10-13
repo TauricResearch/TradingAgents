@@ -112,6 +112,14 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+#### Google Colab / Jupyter Installation ####
+```python
+! git clone https://github.com/TauricResearch/TradingAgents.git
+import os
+os.chdir("TradingAgents")
+! pip install -r requirements.txt
+ ```
+
 ### Required APIs
 
 You will need the OpenAI API for all the agents, and [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for fundamental and news data (default configuration).
