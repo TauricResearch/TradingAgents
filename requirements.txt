@@ -24,3 +24,12 @@ rich
 questionary
 langchain_anthropic
 langchain-google-genai
+
+# Indian Market Dependencies
+click>=8.0.0
+alpha-vantage>=2.3.1
+beautifulsoup4>=4.10.0
+lxml>=4.6.0
+selenium>=4.0.0
+requests-html>=0.10.0
+schedule>=1.2.0
