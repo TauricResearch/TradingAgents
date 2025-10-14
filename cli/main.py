@@ -4,6 +4,10 @@ import typer
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
@@ -24,7 +28,6 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
-
 
 console = Console()
 
@@ -757,8 +760,6 @@ def run_analysis():
     report_dir.mkdir(parents=True, exist_ok=True)
     log_file = results_dir / "message_tool.log"
     log_file.touch(exist_ok=True)
-    
-   
 
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
@@ -767,7 +768,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a", encoding="utf-8") as f:
+            with open(log_file, "a") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
     
@@ -791,7 +792,7 @@ def run_analysis():
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
-                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
+                    with open(report_dir / file_name, "w") as f:
                         f.write(content)
         return wrapper
 
