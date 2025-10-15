@@ -1,0 +1,1602 @@
+[
+  {
+    "timestamp": "2025-10-07T19:57:11.531884",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T19:58:11.722737",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T19:59:11.896109",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:00:12.115414",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:01:12.309640",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:02:12.508822",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:03:12.701691",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:04:12.880181",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:05:13.109688",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:06:13.304271",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:07:13.514082",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:08:13.913879",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:09:14.221154",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:10:14.399341",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:11:14.572772",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:12:14.760535",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:13:14.968228",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:14:15.164126",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:15:15.362288",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:16:15.556962",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:17:15.744756",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:18:15.921845",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:19:16.108033",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:20:16.279437",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:21:16.454733",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:22:16.626441",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:23:17.020044",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:24:17.220392",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:25:17.396948",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:26:17.623774",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:27:17.807670",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:28:18.276309",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:29:18.605799",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:30:18.953714",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:31:19.151153",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:32:19.936519",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:33:20.371730",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:34:20.796323",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:35:21.183478",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:36:21.888984",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:37:22.192357",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:38:22.565020",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:39:23.780884",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:40:24.009022",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:41:24.182942",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:42:24.592415",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:43:24.764213",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:44:24.949581",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:45:25.124883",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:46:25.315489",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:47:25.619086",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:48:25.824163",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:49:26.000073",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:50:26.182853",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:51:26.380041",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:52:26.590085",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:53:26.764587",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:54:27.020427",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:55:27.213467",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:56:27.416898",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:57:27.699599",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:58:27.881517",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T20:59:28.069195",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:00:28.251124",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:01:28.428546",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:02:28.603294",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:03:28.779083",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:04:28.963509",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:05:29.151534",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:06:29.335509",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:07:29.522261",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:08:29.697804",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:09:29.903448",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:10:30.089446",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:11:30.272986",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:12:30.464634",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:13:30.635759",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:14:30.821206",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:15:31.008406",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:16:31.195207",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:17:31.364038",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:18:31.524888",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:19:31.689892",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:20:31.882904",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:21:32.207212",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:22:32.386257",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:23:32.585552",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:24:32.791716",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:25:33.008862",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:26:33.195412",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:27:33.443267",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:28:33.622407",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:29:33.798173",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:30:33.993667",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:31:34.179533",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:32:34.382942",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:33:34.563441",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:34:34.745676",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:35:34.933312",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:36:35.143137",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:37:35.378529",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:38:35.557326",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:39:35.737035",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:40:36.298866",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:41:36.511078",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:42:37.012702",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:43:37.201952",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:44:37.372234",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:45:37.567849",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:46:37.746323",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:47:37.970009",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:48:38.040406",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:49:38.219467",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:50:38.414591",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:51:38.587725",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:52:38.757123",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:53:38.936983",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:54:39.291012",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:55:39.466219",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:56:39.635215",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:57:39.818411",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:58:40.015196",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T21:59:40.192667",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:00:40.368368",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:01:40.553778",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:02:40.733148",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:03:40.929684",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:04:41.157917",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:05:41.387856",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:06:41.558305",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:07:41.854591",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:08:42.088649",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:09:42.312455",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:10:42.515948",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:11:42.694321",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:12:42.885516",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:13:43.099795",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:14:43.279974",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:15:43.480285",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:16:43.743469",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:17:43.934016",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:18:44.126398",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:19:44.296207",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:20:44.488678",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:21:44.683181",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:22:44.894757",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:23:45.178931",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:24:45.346894",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:25:45.518352",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:26:45.688636",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:27:45.872065",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:28:46.074856",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:29:46.287440",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:30:46.451786",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:31:46.731840",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:32:46.972048",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:33:47.202499",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:34:47.383305",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:35:47.551838",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:36:47.739822",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:37:47.913429",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:38:48.086034",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:39:48.273211",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:40:48.543874",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:41:48.842693",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:42:49.072174",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:43:50.121044",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:44:50.335732",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:45:50.550531",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:46:50.722803",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:47:50.903082",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:48:51.079670",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:49:51.292241",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:50:51.470298",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:51:51.697146",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:52:51.875529",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:53:52.051251",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:54:52.235520",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:55:52.422206",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:56:52.606457",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:57:52.881941",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:58:53.053968",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T22:59:53.226067",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:00:53.402161",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:01:53.594246",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:02:53.773670",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:03:53.956889",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:04:54.144984",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:05:54.336320",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:06:54.505265",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:07:54.672024",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:08:54.844462",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:09:55.021787",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:10:55.207367",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:11:55.385326",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:12:55.560468",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:13:55.733903",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:14:55.903130",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:15:56.072077",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  },
+  {
+    "timestamp": "2025-10-07T23:16:56.246532",
+    "portfolio_value": 10000,
+    "cash": 10000,
+    "positions_value": 0,
+    "num_positions": 0,
+    "daily_pnl_pct": 0.0
+  }
+]

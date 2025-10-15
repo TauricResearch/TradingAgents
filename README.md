@@ -204,6 +204,63 @@ print(decision)
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
 
+## Cryptocurrency Trading Module
+
+TradingAgents includes a dedicated cryptocurrency trading module with specialized agents and tools for crypto markets. The crypto module provides:
+
+- **Crypto-Specific Agents**: Technical, fundamental, news, and sentiment analysts adapted for 24/7 crypto markets
+- **Backtesting Framework**: Test strategies against historical crypto data with realistic slippage and fees
+- **Paper Trading Engine**: Real-time simulation with live crypto data from 100+ exchanges via CCXT
+- **On-Chain Analytics**: Integration with Glassnode for blockchain metrics and whale activity
+- **Multi-Exchange Support**: Unified interface for Binance, Coinbase, Kraken, and more
+
+### Quick Start - Crypto
+
+```bash
+# Install crypto dependencies
+pip install ccxt pandas numpy
+
+# Test crypto data integration
+cd crypto_trading
+python tests/test_crypto_data.py
+
+# Run crypto agents
+python tests/test_crypto_agents.py
+
+# Start paper trading
+python scripts/run_paper_trading.py
+```
+
+### Documentation
+
+For complete cryptocurrency trading documentation, see:
+- `crypto_trading/README.md` - Main crypto module documentation
+- `crypto_trading/SETUP.md` - Installation and configuration
+- `crypto_trading/docs/` - Detailed guides for each phase
+
+### Example - Crypto Analysis
+
+```python
+from tradingagents.crypto_config import get_crypto_config
+from tradingagents.dataflows.config import set_config
+from crypto_trading.src.agents.crypto_technical_analyst import create_crypto_technical_analyst
+
+# Configure for crypto markets
+crypto_config = get_crypto_config()
+set_config(crypto_config)
+
+# Use crypto-specific agents
+ta = TradingAgentsGraph(
+    debug=True,
+    config=crypto_config,
+    selected_analysts=["crypto_technical", "crypto_fundamentals"]
+)
+
+# Analyze Bitcoin
+_, decision = ta.propagate("BTC/USDT", "2024-10-07")
+print(decision)
+```
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).

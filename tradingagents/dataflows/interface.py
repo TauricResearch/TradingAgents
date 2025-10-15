@@ -17,13 +17,32 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 
+# Import crypto vendor modules
+from .ccxt_vendor import (
+    get_crypto_ohlcv,
+    get_crypto_ticker,
+    get_crypto_order_book,
+    get_crypto_fundamentals as get_ccxt_fundamentals
+)
+from .glassnode_vendor import (
+    get_onchain_metrics,
+    get_exchange_flow_analysis,
+    get_whale_activity
+)
+from .messari_vendor import (
+    get_crypto_fundamentals_messari,
+    get_crypto_news_messari,
+    get_crypto_market_overview,
+    get_tokenomics_analysis
+)
+
 # Configuration and routing logic
 from .config import get_config
 
 # Tools organized by category
 TOOLS_CATEGORIES = {
     "core_stock_apis": {
-        "description": "OHLCV stock price data",
+        "description": "OHLCV stock/crypto price data",
         "tools": [
             "get_stock_data"
         ]
@@ -35,7 +54,7 @@ TOOLS_CATEGORIES = {
         ]
     },
     "fundamental_data": {
-        "description": "Company fundamentals",
+        "description": "Company/crypto fundamentals",
         "tools": [
             "get_fundamentals",
             "get_balance_sheet",
@@ -51,6 +70,14 @@ TOOLS_CATEGORIES = {
             "get_insider_sentiment",
             "get_insider_transactions",
         ]
+    },
+    "onchain_data": {
+        "description": "On-chain crypto metrics (Glassnode)",
+        "tools": [
+            "get_onchain_metrics",
+            "get_exchange_flows",
+            "get_whale_activity"
+        ]
     }
 }
 
@@ -58,7 +85,10 @@ VENDOR_LIST = [
     "local",
     "yfinance",
     "openai",
-    "google"
+    "google",
+    "ccxt",
+    "glassnode",
+    "messari"
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -68,17 +98,21 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
         "local": get_YFin_data,
+        "ccxt": get_crypto_ohlcv,  # Crypto OHLCV data
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
-        "local": get_stock_stats_indicators_window
+        "local": get_stock_stats_indicators_window,
+        "ccxt": get_crypto_ticker,  # Crypto indicators via ticker
     },
     # fundamental_data
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "openai": get_fundamentals_openai,
+        "messari": get_crypto_fundamentals_messari,  # Crypto fundamentals
+        "ccxt": get_ccxt_fundamentals,  # Exchange-level fundamentals
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
@@ -101,6 +135,7 @@ VENDOR_METHODS = {
         "openai": get_stock_news_openai,
         "google": get_google_news,
         "local": [get_finnhub_news, get_reddit_company_news, get_google_news],
+        "messari": get_crypto_news_messari,  # Crypto news
     },
     "get_global_news": {
         "openai": get_global_news_openai,
@@ -113,6 +148,16 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
         "local": get_finnhub_company_insider_transactions,
+    },
+    # onchain_data (crypto-specific)
+    "get_onchain_metrics": {
+        "glassnode": get_onchain_metrics,
+    },
+    "get_exchange_flows": {
+        "glassnode": get_exchange_flow_analysis,
+    },
+    "get_whale_activity": {
+        "glassnode": get_whale_activity,
     },
 }
 

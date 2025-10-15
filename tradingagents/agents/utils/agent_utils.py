@@ -20,7 +20,54 @@ from tradingagents.agents.utils.news_data_tools import (
     get_global_news
 )
 
+# Import crypto-specific tools
+from tradingagents.agents.utils.crypto_tools import (
+    get_onchain_metrics,
+    get_exchange_flows,
+    get_whale_activity,
+    get_crypto_market_data,
+    get_crypto_ticker,
+    get_crypto_fundamentals,
+    get_crypto_news,
+    get_order_book_analysis,
+    get_tokenomics,
+    get_market_overview
+)
+
+# XAU-specific tools (Gold)
+from tradingagents.dataflows.fred_api import (
+    get_dxy_data,
+    get_real_yields,
+    get_inflation_data,
+    get_fred_series,
+)
+from tradingagents.dataflows.cot_data import (
+    get_cot_positioning,
+    analyze_cot_extremes,
+)
+from tradingagents.dataflows.etf_flows import (
+    get_gold_etf_summary,
+    get_gold_etf_flows,
+    analyze_etf_divergence,
+)
+from tradingagents.dataflows.correlation_tools import (
+    calculate_asset_correlation,
+    analyze_gold_macro_correlations,
+    check_correlation_regime,
+    get_rolling_correlations,
+)
+
+
 def create_msg_delete():
+    """
+    Clear all messages in the provided state and insert a minimal placeholder message for compatibility.
+    
+    Parameters:
+        state (dict): Mutable state containing a "messages" key with an iterable of message objects. Each message object must have an `id` attribute used to build removal operations.
+    
+    Returns:
+        dict: A mapping with the key "messages" whose value is a list consisting of RemoveMessage removal operations for each existing message followed by a single HumanMessage placeholder with content "Continue".
+    """
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""
         messages = state["messages"]

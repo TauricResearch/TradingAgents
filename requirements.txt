@@ -24,3 +24,6 @@ rich
 questionary
 langchain_anthropic
 langchain-google-genai
+ccxt
+glassnode
+python-dotenv
