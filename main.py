@@ -20,6 +20,8 @@ config["data_vendors"] = {
     "news_data": "alpha_vantage",            # Options: openai, alpha_vantage, google, local
 }
 
+config["embeddings"] = "text-embedding-3-small"
+
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 

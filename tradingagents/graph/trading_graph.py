@@ -6,6 +6,8 @@ import json
 from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
 
+import questionary
+
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -72,7 +74,7 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
+        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter" or self.config["llm_provider"] == "vllm":
             self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
         elif self.config["llm_provider"].lower() == "anthropic":
@@ -85,6 +87,19 @@ class TradingAgentsGraph:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
         
         # Initialize memories
+        if self.config["llm_provider"] == "vllm":
+            self.config["embeddings"] = questionary.text(
+                "Please input the vllm embedding model name (default: None):",
+                default="None",
+                validate=lambda x: len(x.strip()) > 0 or "Please enter a valid embedding model name.",
+                style=questionary.Style(
+                    [
+                        ("text", "fg:green"),
+                        ("highlighted", "noinherit"),
+                    ]
+                ),
+            ).ask()
+
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
         self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
