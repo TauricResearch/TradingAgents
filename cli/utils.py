@@ -152,24 +152,43 @@ def select_shallow_thinking_agent(provider) -> str:
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("llama3.2 local", "llama3.2"),
+        ],
+        "vllm": [
+            ("llama3.1 local", "llama3.1"),
+            ("qwen3", "qwen3"),
         ]
     }
 
-    choice = questionary.select(
-        "Select Your [Quick-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
-        ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style(
-            [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
-            ]
-        ),
-    ).ask()
+    if provider == "vllm":
+        choice = questionary.text(
+            "Please input the vllm model name for shallow thinking (default: llama3.1):",
+            default="llama3.1",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a valid model name.",
+            style=questionary.Style(
+                [
+                    ("text", "fg:green"),
+                    ("highlighted", "noinherit"),
+                ]
+            ),
+        ).ask()
+
+    else:
+        # Use questionary to create an interactive selection menu for shallow thinking LLM engines
+        choice = questionary.select(
+            "Select Your [Quick-Thinking LLM Engine]:",
+            choices=[
+                questionary.Choice(display, value=value)
+                for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
+            ],
+            instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+            style=questionary.Style(
+                [
+                    ("selected", "fg:magenta noinherit"),
+                    ("highlighted", "fg:magenta noinherit"),
+                    ("pointer", "fg:magenta noinherit"),
+                ]
+            ),
+        ).ask()
 
     if choice is None:
         console.print(
@@ -214,24 +233,43 @@ def select_deep_thinking_agent(provider) -> str:
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("qwen3", "qwen3"),
+        ],
+        "vllm": [
+            ("llama3.1 local", "llama3.1"),
+            ("qwen3", "qwen3"),
         ]
     }
-    
-    choice = questionary.select(
-        "Select Your [Deep-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
-        ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style(
-            [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
-            ]
-        ),
-    ).ask()
+
+    if provider == "vllm":
+        choice = questionary.text(
+            "Please input the vllm model name for deep thinking (default: llama3.1):",
+            default="llama3.1",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a valid model name.",
+            style=questionary.Style(
+                [
+                    ("text", "fg:green"),
+                    ("highlighted", "noinherit"),
+                ]
+            ),
+        ).ask()
+
+    else:
+        # Use questionary to create an interactive selection menu for deep thinking LLM engines
+        choice = questionary.select(
+            "Select Your [Deep-Thinking LLM Engine]:",
+            choices=[
+                questionary.Choice(display, value=value)
+                for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
+            ],
+            instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+            style=questionary.Style(
+                [
+                    ("selected", "fg:magenta noinherit"),
+                    ("highlighted", "fg:magenta noinherit"),
+                    ("pointer", "fg:magenta noinherit"),
+                ]
+            ),
+        ).ask()
 
     if choice is None:
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
@@ -247,7 +285,8 @@ def select_llm_provider() -> tuple[str, str]:
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        ("Ollama", "http://localhost:11434/v1"), 
+        ("vllm", "http://localhost:8000/v1"), 
     ]
     
     choice = questionary.select(
@@ -271,6 +310,18 @@ def select_llm_provider() -> tuple[str, str]:
         exit(1)
     
     display_name, url = choice
+    if display_name == "vllm":
+        url = questionary.text(
+            "Please input the vllm api url (default: http://localhost:8000/v1):",
+            default="http://localhost:8000/v1",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a valid URL.",
+            style=questionary.Style(
+                [
+                    ("text", "fg:green"),
+                    ("highlighted", "noinherit"),
+                ]
+            ),
+        ).ask()
     print(f"You selected: {display_name}\tURL: {url}")
     
     return display_name, url
