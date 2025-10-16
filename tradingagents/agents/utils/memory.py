@@ -1,7 +1,6 @@
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
-import questionary
 
 
 class FinancialSituationMemory:

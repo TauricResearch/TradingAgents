@@ -88,7 +88,7 @@ class TradingAgentsGraph:
         
         # Initialize memories
         if self.config["llm_provider"] == "vllm":
-            questionary.text(
+            self.config["embeddings"] = questionary.text(
                 "Please input the vllm embedding model name (default: None):",
                 default="None",
                 validate=lambda x: len(x.strip()) > 0 or "Please enter a valid embedding model name.",
