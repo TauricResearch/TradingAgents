@@ -2,7 +2,6 @@ import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
 
-
 class FinancialSituationMemory:
     def __init__(self, name, config):
         if config["backend_url"] == "http://localhost:11434/v1":
@@ -69,7 +68,7 @@ class FinancialSituationMemory:
 
 if __name__ == "__main__":
     # Example usage
-    matcher = FinancialSituationMemory()
+    matcher = FinancialSituationMemory( name="test", config={"backend_url": "https://api.openai.com/v1",})
 
     # Example data
     example_data = [
