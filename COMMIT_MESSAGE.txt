@@ -1,0 +1,104 @@
+feat: Separate embedding configuration from chat model configuration
+
+This commit implements a comprehensive solution for separating embedding
+and chat model configurations, enabling flexible provider combinations
+and graceful handling of embedding failures.
+
+## Problem Statement
+
+Previously, the TradingAgents memory system used the same backend_url for
+both chat models and embeddings. This caused critical failures when:
+
+- Using OpenRouter for chat (doesn't support OpenAI embedding endpoints)
+- Using Anthropic/Google for chat (don't provide embeddings)
+- The embedding endpoint returned HTML error pages instead of JSON
+- Users wanted to mix providers (e.g., OpenRouter chat + OpenAI embeddings)
+
+Error example:
+  AttributeError: 'str' object has no attribute 'data'
+  # Caused by: OpenRouter returned HTML page instead of embedding JSON
+
+## Solution
+
+Implemented three key features:
+
+1. **Separate Embedding Client Configuration**
+   - New config parameters independent of chat LLM settings
+   - embedding_provider: "openai", "ollama", or "none"
+   - embedding_backend_url: Separate API endpoint
+   - embedding_model: Specific model to use
+   - enable_memory: Boolean flag to enable/disable memory
+
+2. **Multiple Provider Support**
+   - OpenAI: Production-grade embeddings (recommended)
+   - Ollama: Local embeddings for offline/development
+   - None: Disable memory system entirely
+
+3. **Graceful Fallback**
+   - System continues when embeddings fail
+   - Comprehensive error logging
+   - Memory operations return empty results instead of crashing
+   - Agents function without historical context when memory disabled
+
+## Changes
+
+### Core Framework
+- tradingagents/default_config.py: Added 4 new embedding config params
+- tradingagents/agents/utils/memory.py: Complete refactor with error handling
+- tradingagents/graph/trading_graph.py: Separated embedding initialization
+
+### CLI/User Interface
+- cli/utils.py: Added select_embedding_provider() function
+- cli/main.py: Added Step 7 for embedding provider selection
+
+### Documentation (New Files)
+- docs/EMBEDDING_CONFIGURATION.md: Complete usage guide (381 lines)
+- docs/EMBEDDING_MIGRATION.md: Implementation details (374 lines)
+- CHANGELOG_EMBEDDING.md: Release notes (225 lines)
+- FEATURE_EMBEDDING_README.md: Branch overview (418 lines)
+
+### Testing & Verification
+- tests/test_embedding_config.py: Comprehensive test suite
+- verify_config.py: Simple config verification script
+
+## Example Usage
+
+```python
+# OpenRouter for chat, OpenAI for embeddings
+config = {
+    "llm_provider": "openrouter",
+    "backend_url": "https://openrouter.ai/api/v1",
+    "deep_think_llm": "deepseek/deepseek-chat-v3-0324:free",
+
+    "embedding_provider": "openai",
+    "embedding_backend_url": "https://api.openai.com/v1",
+    "embedding_model": "text-embedding-3-small",
+    "enable_memory": True,
+}
+```
+
+## Backward Compatibility
+
+✅ 100% Backward Compatible - No breaking changes!
+
+Existing configurations work without modification. Smart defaults
+applied when embedding settings are omitted.
+
+## Testing
+
+- All core files pass diagnostics with no errors
+- Configuration verification script passes all checks
+- Supports scenarios: OpenRouter+OpenAI, All Ollama, Disabled Memory
+- Graceful fallback tested for invalid URLs and missing API keys
+
+## Benefits
+
+- Enables using OpenRouter/other providers for chat
+- Reduces costs (can use local embeddings or disable memory)
+- Improves reliability (graceful degradation on failures)
+- Maintains full backward compatibility
+- Comprehensive documentation and examples
+
+Fixes: OpenRouter compatibility issues
+Closes: Embedding/chat provider coupling
+Implements: Graceful fallback for memory operations

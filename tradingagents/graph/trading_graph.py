@@ -33,7 +33,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_insider_sentiment,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
 )
 
 from .conditional_logic import ConditionalLogic
@@ -71,28 +71,97 @@ class TradingAgentsGraph:
             exist_ok=True,
         )
 
-        # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+        # Initialize LLMs for chat (using chat model backend)
+        if (
+            self.config["llm_provider"].lower() == "openai"
+            or self.config["llm_provider"] == "ollama"
+            or self.config["llm_provider"] == "openrouter"
+        ):
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"], base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"],
+            )
         elif self.config["llm_provider"].lower() == "anthropic":
-            self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+            self.deep_thinking_llm = ChatAnthropic(
+                model=self.config["deep_think_llm"], base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = ChatAnthropic(
+                model=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"],
+            )
         elif self.config["llm_provider"].lower() == "google":
-            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
-            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+            self.deep_thinking_llm = ChatGoogleGenerativeAI(
+                model=self.config["deep_think_llm"]
+            )
+            self.quick_thinking_llm = ChatGoogleGenerativeAI(
+                model=self.config["quick_think_llm"]
+            )
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
-        
-        # Initialize memories
+
+        # Initialize embedding configuration (separate from chat LLM)
+        # This allows using OpenAI for embeddings while using OpenRouter/other providers for chat
+        self._configure_embeddings()
+
+        # Initialize memories (will use separate embedding configuration)
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
         self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
-        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
+        self.invest_judge_memory = FinancialSituationMemory(
+            "invest_judge_memory", self.config
+        )
+        self.risk_manager_memory = FinancialSituationMemory(
+            "risk_manager_memory", self.config
+        )
+
+        # Log memory status
+        if self.config.get("enable_memory", True):
+            print(
+                f"Memory enabled with provider: {self.config.get('embedding_provider', 'openai')}"
+            )
+        else:
+            print("Memory disabled - agents will run without historical context")
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
+
+    def _configure_embeddings(self):
+        """Configure embedding settings, providing smart defaults based on chat LLM provider."""
+        # If embedding settings are not explicitly configured, set intelligent defaults
+        if "embedding_provider" not in self.config:
+            # Default: use OpenAI for embeddings regardless of chat provider
+            # This allows using OpenRouter/Anthropic/etc for chat while still having embeddings
+            self.config["embedding_provider"] = "openai"
+
+        if "embedding_backend_url" not in self.config:
+            # Set backend URL based on embedding provider
+            provider = self.config.get("embedding_provider", "openai").lower()
+            if provider == "openai":
+                self.config["embedding_backend_url"] = "https://api.openai.com/v1"
+            elif provider == "ollama":
+                self.config["embedding_backend_url"] = "http://localhost:11434/v1"
+            else:
+                # For unknown providers or "none", use chat backend
+                self.config["embedding_backend_url"] = self.config.get(
+                    "backend_url", "https://api.openai.com/v1"
+                )
+
+        if "embedding_model" not in self.config:
+            # Set model based on embedding provider
+            provider = self.config.get("embedding_provider", "openai").lower()
+            if provider == "ollama":
+                self.config["embedding_model"] = "nomic-embed-text"
+            elif provider == "openai":
+                self.config["embedding_model"] = "text-embedding-3-small"
+            else:
+                self.config["embedding_model"] = "text-embedding-3-small"
+
+        if "enable_memory" not in self.config:
+            # Enable memory by default
+            self.config["enable_memory"] = True
 
         # Initialize components
         self.conditional_logic = ConditionalLogic()
@@ -236,6 +305,10 @@ class TradingAgentsGraph:
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
+        if not self.config.get("enable_memory", True):
+            print("Memory disabled - skipping reflection and memory updates")
+            return
+
         self.reflector.reflect_bull_researcher(
             self.curr_state, returns_losses, self.bull_memory
         )

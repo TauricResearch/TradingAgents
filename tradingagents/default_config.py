@@ -13,6 +13,11 @@ DEFAULT_CONFIG = {
     "deep_think_llm": "o4-mini",
     "quick_think_llm": "gpt-4o-mini",
     "backend_url": "https://api.openai.com/v1",
+    # Embedding settings (separate from chat LLM)
+    "embedding_provider": "openai",  # Options: openai, ollama, none
+    "embedding_model": "text-embedding-3-small",  # Model to use for embeddings
+    "embedding_backend_url": "https://api.openai.com/v1",  # Separate URL for embeddings
+    "enable_memory": True,  # Set to False to disable memory/embedding features
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
@@ -20,10 +25,10 @@ DEFAULT_CONFIG = {
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: yfinance, alpha_vantage, local
+        "core_stock_apis": "yfinance",  # Options: yfinance, alpha_vantage, local
         "technical_indicators": "yfinance",  # Options: yfinance, alpha_vantage, local
-        "fundamental_data": "alpha_vantage", # Options: openai, alpha_vantage, local
-        "news_data": "alpha_vantage",        # Options: openai, alpha_vantage, google, local
+        "fundamental_data": "alpha_vantage",  # Options: openai, alpha_vantage, local
+        "news_data": "alpha_vantage",  # Options: openai, alpha_vantage, google, local
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
