@@ -26,10 +26,22 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.utils.logging_config import (
+    get_logger,
+    get_api_logger,
+    get_performance_logger,
+    configure_logging,
+)
 from cli.models import AnalystType
 from cli.utils import *
 
 console = Console()
+
+# Initialize comprehensive logging system
+configure_logging(level="INFO", console=True)
+cli_logger = get_logger("tradingagents.cli", component="CLI")
+api_logger = get_api_logger()
+perf_logger = get_performance_logger()
 
 app = typer.Typer(
     name="TradingAgents",
@@ -40,11 +52,14 @@ app = typer.Typer(
 
 # Create a deque to store recent messages with a maximum length
 class MessageBuffer:
+    """Buffer for storing agent messages, tool calls, and reports with integrated logging."""
+
     def __init__(self, max_length=100):
         self.messages = deque(maxlen=max_length)
         self.tool_calls = deque(maxlen=max_length)
         self.current_report = None
         self.final_report = None  # Store the complete final report
+        self.logger = get_logger("tradingagents.cli.buffer", component="BUFFER")
         self.agent_status = {
             # Analyst Team
             "Market Analyst": "pending",
@@ -78,19 +93,49 @@ class MessageBuffer:
     def add_message(self, message_type, content):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.messages.append((timestamp, message_type, content))
+        self.logger.debug(
+            f"Message added: {message_type}",
+            extra={"context": {"type": message_type, "timestamp": timestamp}},
+        )
 
     def add_tool_call(self, tool_name, args):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.tool_calls.append((timestamp, tool_name, args))
+        self.logger.info(
+            f"Tool call registered: {tool_name}",
+            extra={
+                "context": {"tool": tool_name, "args": args, "timestamp": timestamp}
+            },
+        )
 
     def update_agent_status(self, agent, status):
         if agent in self.agent_status:
+            old_status = self.agent_status[agent]
             self.agent_status[agent] = status
             self.current_agent = agent
+            self.logger.info(
+                f"Agent status updated: {agent} -> {status}",
+                extra={
+                    "context": {
+                        "agent": agent,
+                        "old_status": old_status,
+                        "new_status": status,
+                    }
+                },
+            )
 
     def update_report_section(self, section_name, content):
         if section_name in self.report_sections:
             self.report_sections[section_name] = content
+            self.logger.info(
+                f"Report section updated: {section_name}",
+                extra={
+                    "context": {
+                        "section": section_name,
+                        "content_length": len(content) if content else 0,
+                    }
+                },
+            )
             self._update_current_report()
 
     def _update_current_report(self):
@@ -750,8 +795,25 @@ def extract_content_string(content):
 
 
 def run_analysis():
+    """Run comprehensive trading analysis with integrated logging."""
+    start_time = time.time()
+    cli_logger.info("Starting trading analysis session")
+
     # First get all user selections
     selections = get_user_selections()
+
+    cli_logger.info(
+        "User selections received",
+        extra={
+            "context": {
+                "ticker": selections["ticker"],
+                "date": selections["analysis_date"],
+                "analysts": [a.value for a in selections["analysts"]],
+                "research_depth": selections["research_depth"],
+                "llm_provider": selections["llm_provider"],
+            }
+        },
+    )
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
@@ -769,6 +831,7 @@ def run_analysis():
     config["enable_memory"] = selections["embedding_provider"] != "none"
 
     # Initialize the graph
+    cli_logger.info("Initializing TradingAgents graph")
     graph = TradingAgentsGraph(
         [analyst.value for analyst in selections["analysts"]], config=config, debug=True
     )
@@ -783,6 +846,13 @@ def run_analysis():
     log_file = results_dir / "message_tool.log"
     log_file.touch(exist_ok=True)
 
+    cli_logger.info(
+        f"Results directory created: {results_dir}",
+        extra={
+            "context": {"results_dir": str(results_dir), "report_dir": str(report_dir)}
+        },
+    )
+
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
 
@@ -791,6 +861,14 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
+
+            # Log to comprehensive logging system
+            cli_logger.debug(
+                f"Agent message: {message_type}",
+                extra={"context": {"type": message_type, "content": content[:500]}},
+            )
+
+            # Also save to legacy log file
             with open(log_file, "a") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
 
@@ -804,6 +882,14 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
+
+            # Log to comprehensive logging system
+            cli_logger.info(
+                f"Tool call: {tool_name}",
+                extra={"context": {"tool": tool_name, "args": args}},
+            )
+
+            # Also save to legacy log file
             with open(log_file, "a") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
 
@@ -822,7 +908,21 @@ def run_analysis():
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
-                    with open(report_dir / file_name, "w") as f:
+                    file_path = report_dir / file_name
+
+                    # Log to comprehensive logging system
+                    cli_logger.info(
+                        f"Report section generated: {section_name}",
+                        extra={
+                            "context": {
+                                "section": section_name,
+                                "file": str(file_path),
+                                "content_length": len(content),
+                            }
+                        },
+                    )
+
+                    with open(file_path, "w") as f:
                         f.write(content)
 
         return wrapper
@@ -851,6 +951,7 @@ def run_analysis():
             "System",
             f"Selected analysts: {', '.join(analyst.value for analyst in selections['analysts'])}",
         )
+        cli_logger.info("Analysis display initialized")
         update_display(layout)
 
         # Reset agent statuses
@@ -875,12 +976,15 @@ def run_analysis():
         update_display(layout, spinner_text)
 
         # Initialize state and get graph args
+        cli_logger.info("Creating initial agent state")
         init_agent_state = graph.propagator.create_initial_state(
             selections["ticker"], selections["analysis_date"]
         )
         args = graph.propagator.get_graph_args()
 
         # Stream the analysis
+        cli_logger.info("Starting graph stream analysis")
+        analysis_start = time.time()
         trace = []
         for chunk in graph.graph.stream(init_agent_state, **args):
             if len(chunk["messages"]) > 0:
@@ -1115,8 +1219,23 @@ def run_analysis():
             trace.append(chunk)
 
         # Get final state and decision
+        analysis_duration = (time.time() - analysis_start) * 1000  # Convert to ms
+        perf_logger.log_timing("graph_analysis", analysis_duration)
+
         final_state = trace[-1]
         decision = graph.process_signal(final_state["final_trade_decision"])
+
+        cli_logger.info(
+            "Analysis completed successfully",
+            extra={
+                "context": {
+                    "ticker": selections["ticker"],
+                    "date": selections["analysis_date"],
+                    "duration_ms": analysis_duration,
+                    "chunks_processed": len(trace),
+                }
+            },
+        )
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:
@@ -1132,14 +1251,48 @@ def run_analysis():
                 message_buffer.update_report_section(section, final_state[section])
 
         # Display the complete final report
+        cli_logger.info("Displaying final report")
         display_complete_report(final_state)
 
         update_display(layout)
 
+        # Log session summary
+        total_duration = (time.time() - start_time) * 1000
+        perf_logger.log_timing("total_analysis_session", total_duration)
+
+        cli_logger.info(
+            "Trading analysis session completed",
+            extra={
+                "context": {
+                    "total_duration_ms": total_duration,
+                    "results_dir": str(results_dir),
+                }
+            },
+        )
+
+        # Log performance summary
+        perf_logger.log_summary()
+
 
 @app.command()
 def analyze():
-    run_analysis()
+    """Run trading analysis with comprehensive logging."""
+    try:
+        cli_logger.info("=" * 70)
+        cli_logger.info("TradingAgents CLI Analysis Started")
+        cli_logger.info("=" * 70)
+        run_analysis()
+    except KeyboardInterrupt:
+        cli_logger.warning("Analysis interrupted by user")
+        console.print("\n[yellow]Analysis interrupted by user[/yellow]")
+    except Exception as e:
+        cli_logger.error(
+            f"Analysis failed with error: {e}",
+            extra={"context": {"error_type": type(e).__name__}},
+            exc_info=True,
+        )
+        console.print(f"\n[red]Error during analysis: {e}[/red]")
+        raise
 
 
 if __name__ == "__main__":
