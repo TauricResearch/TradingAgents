@@ -128,6 +128,32 @@ class TradingAgentsGraph:
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
 
+        # Initialize components
+        self.conditional_logic = ConditionalLogic()
+        self.graph_setup = GraphSetup(
+            self.quick_thinking_llm,
+            self.deep_thinking_llm,
+            self.tool_nodes,
+            self.bull_memory,
+            self.bear_memory,
+            self.trader_memory,
+            self.invest_judge_memory,
+            self.risk_manager_memory,
+            self.conditional_logic,
+        )
+
+        self.propagator = Propagator()
+        self.reflector = Reflector(self.quick_thinking_llm)
+        self.signal_processor = SignalProcessor(self.quick_thinking_llm)
+
+        # State tracking
+        self.curr_state = None
+        self.ticker = None
+        self.log_states_dict = {}  # date to full state dict
+
+        # Set up the graph
+        self.graph = self.graph_setup.setup_graph(selected_analysts)
+
     def _configure_embeddings(self):
         """Configure embedding settings, providing smart defaults based on chat LLM provider."""
         # If embedding settings are not explicitly configured, set intelligent defaults
@@ -162,32 +188,6 @@ class TradingAgentsGraph:
         if "enable_memory" not in self.config:
             # Enable memory by default
             self.config["enable_memory"] = True
-
-        # Initialize components
-        self.conditional_logic = ConditionalLogic()
-        self.graph_setup = GraphSetup(
-            self.quick_thinking_llm,
-            self.deep_thinking_llm,
-            self.tool_nodes,
-            self.bull_memory,
-            self.bear_memory,
-            self.trader_memory,
-            self.invest_judge_memory,
-            self.risk_manager_memory,
-            self.conditional_logic,
-        )
-
-        self.propagator = Propagator()
-        self.reflector = Reflector(self.quick_thinking_llm)
-        self.signal_processor = SignalProcessor(self.quick_thinking_llm)
-
-        # State tracking
-        self.curr_state = None
-        self.ticker = None
-        self.log_states_dict = {}  # date to full state dict
-
-        # Set up the graph
-        self.graph = self.graph_setup.setup_graph(selected_analysts)
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
