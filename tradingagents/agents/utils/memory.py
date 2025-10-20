@@ -1,10 +1,18 @@
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
-import logging
 from typing import List, Dict, Any, Optional, Tuple
+import time
 
-logger = logging.getLogger(__name__)
+from tradingagents.utils.logging_config import (
+    get_logger,
+    get_api_logger,
+    get_performance_logger,
+)
+
+logger = get_logger("tradingagents.memory", component="MEMORY")
+api_logger = get_api_logger()
+perf_logger = get_performance_logger()
 
 
 class FinancialSituationMemory:
@@ -40,25 +48,47 @@ class FinancialSituationMemory:
         self.client = None
         if self.enabled and self.embedding_provider in ["openai", "ollama"]:
             try:
+                start_time = time.time()
                 self.client = OpenAI(base_url=self.embedding_backend_url)
+                init_duration = (time.time() - start_time) * 1000
+
                 logger.info(
-                    f"Initialized embedding client for provider: {self.embedding_provider}"
+                    f"Initialized embedding client for '{name}'",
+                    extra={
+                        "context": {
+                            "provider": self.embedding_provider,
+                            "backend_url": self.embedding_backend_url,
+                            "model": self.embedding_model,
+                            "init_time_ms": init_duration,
+                        }
+                    },
+                )
+                perf_logger.log_timing(
+                    "embedding_client_init",
+                    init_duration,
+                    {"provider": self.embedding_provider},
                 )
             except Exception as e:
                 logger.warning(
-                    f"Failed to initialize embedding client: {e}. Memory will be disabled."
+                    f"Failed to initialize embedding client for '{name}': {e}. Memory will be disabled.",
+                    extra={
+                        "context": {
+                            "provider": self.embedding_provider,
+                            "error": str(e),
+                        }
+                    },
                 )
                 self.enabled = False
         elif not self.enabled:
-            logger.info(f"Memory disabled for {name}")
+            logger.info(f"Memory disabled for '{name}' (enable_memory=False)")
         elif self.embedding_provider == "none":
             logger.info(
-                f"Embedding provider set to 'none'. Memory will be disabled for {name}."
+                f"Embedding provider set to 'none' for '{name}'. Memory will be disabled."
             )
             self.enabled = False
         else:
             logger.warning(
-                f"Unsupported embedding provider: {self.embedding_provider}. Memory will be disabled."
+                f"Unsupported embedding provider '{self.embedding_provider}' for '{name}'. Memory will be disabled."
             )
             self.enabled = False
 
@@ -67,14 +97,26 @@ class FinancialSituationMemory:
         self.situation_collection = None
         if self.enabled:
             try:
+                start_time = time.time()
                 self.chroma_client = chromadb.Client(Settings(allow_reset=True))
                 self.situation_collection = self.chroma_client.create_collection(
                     name=name
                 )
-                logger.info(f"Initialized ChromaDB collection: {name}")
+                init_duration = (time.time() - start_time) * 1000
+
+                logger.info(
+                    f"Initialized ChromaDB collection '{name}'",
+                    extra={
+                        "context": {"collection": name, "init_time_ms": init_duration}
+                    },
+                )
+                perf_logger.log_timing(
+                    "chromadb_collection_init", init_duration, {"collection": name}
+                )
             except Exception as e:
                 logger.error(
-                    f"Failed to initialize ChromaDB collection: {e}. Memory will be disabled."
+                    f"Failed to initialize ChromaDB collection '{name}': {e}. Memory will be disabled.",
+                    extra={"context": {"collection": name, "error": str(e)}},
                 )
                 self.enabled = False
 
@@ -108,15 +150,63 @@ class FinancialSituationMemory:
             List of floats representing the embedding, or None if embedding fails
         """
         if not self.enabled or not self.client:
+            logger.debug("Embedding skipped (memory disabled or no client)")
             return None
 
         try:
+            start_time = time.time()
             response = self.client.embeddings.create(
                 model=self.embedding_model, input=text
             )
-            return response.data[0].embedding
+            duration = (time.time() - start_time) * 1000
+
+            embedding = response.data[0].embedding
+
+            # Log API call
+            api_logger.log_call(
+                provider=self.embedding_provider,
+                model=self.embedding_model,
+                endpoint="embeddings.create",
+                tokens=len(text.split()),  # Rough estimate
+                duration=duration,
+                status="success",
+            )
+
+            logger.debug(
+                f"Generated embedding for text ({len(text)} chars)",
+                extra={
+                    "context": {
+                        "provider": self.embedding_provider,
+                        "model": self.embedding_model,
+                        "text_length": len(text),
+                        "duration_ms": duration,
+                    }
+                },
+            )
+
+            return embedding
         except Exception as e:
-            logger.error(f"Failed to get embedding: {e}")
+            logger.error(
+                f"Failed to get embedding: {e}",
+                extra={
+                    "context": {
+                        "provider": self.embedding_provider,
+                        "model": self.embedding_model,
+                        "text_length": len(text),
+                        "error": str(e),
+                    }
+                },
+            )
+
+            # Log failed API call
+            api_logger.log_call(
+                provider=self.embedding_provider,
+                model=self.embedding_model,
+                endpoint="embeddings.create",
+                status="error",
+                error=str(e),
+            )
+
             return None
 
     def add_situations(self, situations_and_advice: List[Tuple[str, str]]) -> bool:
@@ -130,10 +220,19 @@ class FinancialSituationMemory:
             bool: True if successful, False otherwise
         """
         if not self.enabled:
-            logger.debug(f"Memory disabled for {self.name}, skipping add_situations")
+            logger.debug(
+                f"Memory disabled for '{self.name}', skipping add_situations",
+                extra={
+                    "context": {
+                        "collection": self.name,
+                        "count": len(situations_and_advice),
+                    }
+                },
+            )
             return False
 
         try:
+            start_time = time.time()
             situations = []
             advice = []
             ids = []
@@ -145,7 +244,14 @@ class FinancialSituationMemory:
                 embedding = self.get_embedding(situation)
                 if embedding is None:
                     logger.warning(
-                        f"Failed to get embedding for situation {i}, skipping"
+                        f"Failed to get embedding for situation {i} in '{self.name}', skipping",
+                        extra={
+                            "context": {
+                                "collection": self.name,
+                                "situation_index": i,
+                                "situation_preview": situation[:100],
+                            }
+                        },
                     )
                     continue
 
@@ -155,7 +261,15 @@ class FinancialSituationMemory:
                 embeddings.append(embedding)
 
             if not situations:
-                logger.warning("No valid situations to add")
+                logger.warning(
+                    f"No valid situations to add to '{self.name}'",
+                    extra={
+                        "context": {
+                            "collection": self.name,
+                            "attempted": len(situations_and_advice),
+                        }
+                    },
+                )
                 return False
 
             self.situation_collection.add(
@@ -164,11 +278,40 @@ class FinancialSituationMemory:
                 embeddings=embeddings,
                 ids=ids,
             )
-            logger.info(f"Added {len(situations)} situations to {self.name}")
+
+            duration = (time.time() - start_time) * 1000
+
+            logger.info(
+                f"Added {len(situations)} situations to '{self.name}'",
+                extra={
+                    "context": {
+                        "collection": self.name,
+                        "count": len(situations),
+                        "total_in_collection": self.situation_collection.count(),
+                        "duration_ms": duration,
+                    }
+                },
+            )
+
+            perf_logger.log_timing(
+                "add_situations",
+                duration,
+                {"collection": self.name, "count": len(situations)},
+            )
+
             return True
 
         except Exception as e:
-            logger.error(f"Failed to add situations: {e}")
+            logger.error(
+                f"Failed to add situations to '{self.name}': {e}",
+                extra={
+                    "context": {
+                        "collection": self.name,
+                        "attempted_count": len(situations_and_advice),
+                        "error": str(e),
+                    }
+                },
+            )
             return False
 
     def get_memories(
@@ -186,14 +329,25 @@ class FinancialSituationMemory:
             Returns empty list if memory is disabled or query fails.
         """
         if not self.enabled:
-            logger.debug(f"Memory disabled for {self.name}, returning empty memories")
+            logger.debug(
+                f"Memory disabled for '{self.name}', returning empty memories",
+                extra={"context": {"collection": self.name}},
+            )
             return []
 
         try:
+            start_time = time.time()
+
             query_embedding = self.get_embedding(current_situation)
             if query_embedding is None:
                 logger.warning(
-                    "Failed to get query embedding, returning empty memories"
+                    f"Failed to get query embedding for '{self.name}', returning empty memories",
+                    extra={
+                        "context": {
+                            "collection": self.name,
+                            "situation_preview": current_situation[:100],
+                        }
+                    },
                 )
                 return []
 
@@ -205,18 +359,51 @@ class FinancialSituationMemory:
 
             matched_results = []
             for i in range(len(results["documents"][0])):
+                similarity = 1 - results["distances"][0][i]
                 matched_results.append(
                     {
                         "matched_situation": results["documents"][0][i],
                         "recommendation": results["metadatas"][0][i]["recommendation"],
-                        "similarity_score": 1 - results["distances"][0][i],
+                        "similarity_score": similarity,
                     }
                 )
+
+            duration = (time.time() - start_time) * 1000
+
+            logger.info(
+                f"Retrieved {len(matched_results)} memories from '{self.name}'",
+                extra={
+                    "context": {
+                        "collection": self.name,
+                        "requested": n_matches,
+                        "returned": len(matched_results),
+                        "top_similarity": matched_results[0]["similarity_score"]
+                        if matched_results
+                        else 0,
+                        "duration_ms": duration,
+                    }
+                },
+            )
+
+            perf_logger.log_timing(
+                "get_memories",
+                duration,
+                {"collection": self.name, "n_matches": n_matches},
+            )
 
             return matched_results
 
         except Exception as e:
-            logger.error(f"Failed to get memories: {e}")
+            logger.error(
+                f"Failed to get memories from '{self.name}': {e}",
+                extra={
+                    "context": {
+                        "collection": self.name,
+                        "n_matches": n_matches,
+                        "error": str(e),
+                    }
+                },
+            )
             return []
 
     def is_enabled(self) -> bool:

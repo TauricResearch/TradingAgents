@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
+import time
 
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
@@ -21,6 +22,10 @@ from tradingagents.agents.utils.agent_states import (
     RiskDebateState,
 )
 from tradingagents.dataflows.config import set_config
+from tradingagents.utils.logging_config import (
+    get_logger,
+    get_performance_logger,
+)
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -62,6 +67,23 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
 
+        # Initialize logging
+        self.logger = get_logger("tradingagents.graph", component="GRAPH")
+        self.perf_logger = get_performance_logger()
+
+        self.logger.info(
+            "Initializing TradingAgentsGraph",
+            extra={
+                "context": {
+                    "selected_analysts": selected_analysts,
+                    "debug": debug,
+                    "llm_provider": self.config.get("llm_provider"),
+                }
+            },
+        )
+
+        start_time = time.time()
+
         # Update the interface's config
         set_config(self.config)
 
@@ -72,6 +94,18 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs for chat (using chat model backend)
+        self.logger.info(
+            f"Initializing chat LLMs with provider: {self.config['llm_provider']}",
+            extra={
+                "context": {
+                    "provider": self.config["llm_provider"],
+                    "backend_url": self.config["backend_url"],
+                    "deep_model": self.config["deep_think_llm"],
+                    "quick_model": self.config["quick_think_llm"],
+                }
+            },
+        )
+
         if (
             self.config["llm_provider"].lower() == "openai"
             or self.config["llm_provider"] == "ollama"
@@ -100,6 +134,9 @@ class TradingAgentsGraph:
                 model=self.config["quick_think_llm"]
             )
         else:
+            self.logger.error(
+                f"Unsupported LLM provider: {self.config['llm_provider']}"
+            )
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
 
         # Initialize embedding configuration (separate from chat LLM)
@@ -119,11 +156,19 @@ class TradingAgentsGraph:
 
         # Log memory status
         if self.config.get("enable_memory", True):
-            print(
-                f"Memory enabled with provider: {self.config.get('embedding_provider', 'openai')}"
+            self.logger.info(
+                f"Memory enabled with provider: {self.config.get('embedding_provider', 'openai')}",
+                extra={
+                    "context": {
+                        "embedding_provider": self.config.get("embedding_provider"),
+                        "embedding_model": self.config.get("embedding_model"),
+                    }
+                },
             )
         else:
-            print("Memory disabled - agents will run without historical context")
+            self.logger.warning(
+                "Memory disabled - agents will run without historical context"
+            )
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -153,6 +198,19 @@ class TradingAgentsGraph:
 
         # Set up the graph
         self.graph = self.graph_setup.setup_graph(selected_analysts)
+
+        init_duration = (time.time() - start_time) * 1000
+        self.logger.info(
+            f"TradingAgentsGraph initialization complete",
+            extra={
+                "context": {
+                    "duration_ms": init_duration,
+                    "analysts": selected_analysts,
+                    "memory_enabled": self.config.get("enable_memory", True),
+                }
+            },
+        )
+        self.perf_logger.log_timing("graph_initialization", init_duration)
 
     def _configure_embeddings(self):
         """Configure embedding settings, providing smart defaults based on chat LLM provider."""
@@ -229,6 +287,17 @@ class TradingAgentsGraph:
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date."""
 
+        self.logger.info(
+            f"Starting propagation for {company_name} on {trade_date}",
+            extra={
+                "context": {
+                    "ticker": company_name,
+                    "date": str(trade_date),
+                }
+            },
+        )
+
+        start_time = time.time()
         self.ticker = company_name
 
         # Initialize state
@@ -237,8 +306,11 @@ class TradingAgentsGraph:
         )
         args = self.propagator.get_graph_args()
 
+        self.logger.debug("Starting graph execution")
+
         if self.debug:
             # Debug mode with tracing
+            self.logger.debug("Running in DEBUG mode with tracing")
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
                 if len(chunk["messages"]) == 0:
@@ -250,6 +322,7 @@ class TradingAgentsGraph:
             final_state = trace[-1]
         else:
             # Standard mode without tracing
+            self.logger.debug("Running in standard mode")
             final_state = self.graph.invoke(init_agent_state, **args)
 
         # Store current state for reflection
@@ -258,11 +331,35 @@ class TradingAgentsGraph:
         # Log state
         self._log_state(trade_date, final_state)
 
+        duration = (time.time() - start_time) * 1000
+
+        decision = self.process_signal(final_state["final_trade_decision"])
+
+        self.logger.info(
+            f"Propagation complete for {company_name}",
+            extra={
+                "context": {
+                    "ticker": company_name,
+                    "date": str(trade_date),
+                    "decision": decision,
+                    "duration_ms": duration,
+                }
+            },
+        )
+
+        self.perf_logger.log_timing(
+            "propagation",
+            duration,
+            {"ticker": company_name, "decision": decision},
+        )
+
         # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        return final_state, decision
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
+        self.logger.debug(f"Logging state for {trade_date}")
+
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -297,17 +394,24 @@ class TradingAgentsGraph:
         directory = Path(f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/")
         directory.mkdir(parents=True, exist_ok=True)
 
-        with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
-            "w",
-        ) as f:
+        log_file = f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json"
+        with open(log_file, "w") as f:
             json.dump(self.log_states_dict, f, indent=4)
+
+        self.logger.debug(f"State saved to {log_file}")
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
         if not self.config.get("enable_memory", True):
-            print("Memory disabled - skipping reflection and memory updates")
+            self.logger.info("Memory disabled - skipping reflection and memory updates")
             return
+
+        self.logger.info(
+            f"Starting reflection and memory updates",
+            extra={"context": {"returns_losses": returns_losses}},
+        )
+
+        start_time = time.time()
 
         self.reflector.reflect_bull_researcher(
             self.curr_state, returns_losses, self.bull_memory
@@ -325,6 +429,16 @@ class TradingAgentsGraph:
             self.curr_state, returns_losses, self.risk_manager_memory
         )
 
+        duration = (time.time() - start_time) * 1000
+        self.logger.info(
+            f"Reflection and memory updates complete",
+            extra={"context": {"duration_ms": duration}},
+        )
+        self.perf_logger.log_timing("reflect_and_remember", duration)
+
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
-        return self.signal_processor.process_signal(full_signal)
+        self.logger.debug("Processing signal")
+        decision = self.signal_processor.process_signal(full_signal)
+        self.logger.debug(f"Processed signal: {decision}")
+        return decision

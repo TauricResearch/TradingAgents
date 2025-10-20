@@ -18,6 +18,11 @@ DEFAULT_CONFIG = {
     "embedding_model": "text-embedding-3-small",  # Model to use for embeddings
     "embedding_backend_url": "https://api.openai.com/v1",  # Separate URL for embeddings
     "enable_memory": True,  # Set to False to disable memory/embedding features
+    # Logging settings
+    "log_level": "INFO",  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+    "log_dir": "logs",  # Directory for log files
+    "log_to_console": True,  # Whether to log to console
+    "log_to_file": True,  # Whether to log to files
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,

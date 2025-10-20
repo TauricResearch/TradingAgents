@@ -1,0 +1,13 @@
+2025-10-20T08:46:44.237227 | ERROR    | tradingagents.test | TEST | This is an error message
+2025-10-20T08:46:44.237334 | ERROR    | tradingagents.api | API | API call failed: Connection timeout
+  Context: {
+  "call_number": 2,
+  "provider": "openrouter",
+  "model": "llama-3",
+  "endpoint": "/v1/chat/completions",
+  "tokens": null,
+  "cost": null,
+  "duration_ms": null,
+  "status": "error",
+  "error": "Connection timeout"
+}

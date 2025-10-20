@@ -1,0 +1,48 @@
+2025-10-20T08:46:44.236932 | DEBUG    | tradingagents.test | TEST | This is a debug message
+2025-10-20T08:46:44.237168 | INFO     | tradingagents.test | TEST | This is an info message
+2025-10-20T08:46:44.237198 | WARNING  | tradingagents.test | TEST | This is a warning message
+2025-10-20T08:46:44.237220 | ERROR    | tradingagents.test | TEST | This is an error message
+2025-10-20T08:46:44.237288 | INFO     | tradingagents.api | API | API call to openai/gpt-4 - success
+  Context: {
+  "call_number": 1,
+  "provider": "openai",
+  "model": "gpt-4",
+  "endpoint": "/v1/chat/completions",
+  "tokens": 150,
+  "cost": 0.003,
+  "duration_ms": 250.5,
+  "status": "success"
+}
+2025-10-20T08:46:44.237322 | ERROR    | tradingagents.api | API | API call failed: Connection timeout
+  Context: {
+  "call_number": 2,
+  "provider": "openrouter",
+  "model": "llama-3",
+  "endpoint": "/v1/chat/completions",
+  "tokens": null,
+  "cost": null,
+  "duration_ms": null,
+  "status": "error",
+  "error": "Connection timeout"
+}
+2025-10-20T08:46:44.237362 | INFO     | tradingagents.performance | PERF | analyst_execution completed in 1234.50ms
+  Context: {
+  "operation": "analyst_execution",
+  "duration_ms": 1234.5,
+  "analyst": "market"
+}
+2025-10-20T08:46:44.237386 | INFO     | tradingagents.performance | PERF | analyst_execution completed in 987.30ms
+  Context: {
+  "operation": "analyst_execution",
+  "duration_ms": 987.3,
+  "analyst": "news"
+}
+2025-10-20T08:46:44.237412 | INFO     | tradingagents.performance | PERF | Performance Summary
+  Context: {
+  "analyst_execution": {
+    "count": 2,
+    "avg_ms": 1110.9,
+    "min_ms": 987.3,
+    "max_ms": 1234.5
+  }
+}
