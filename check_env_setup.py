@@ -6,6 +6,33 @@ Checks if the necessary API keys are configured for your provider combination.
 
 import os
 import sys
+from pathlib import Path
+
+# Try to import dotenv, but provide fallback if not available
+try:
+    from dotenv import load_dotenv
+
+    HAS_DOTENV = True
+except ImportError:
+    HAS_DOTENV = False
+
+    def load_dotenv(path):
+        """Simple fallback .env file parser if python-dotenv is not installed."""
+        if not path.exists():
+            return
+
+        with open(path, "r") as f:
+            for line in f:
+                line = line.strip()
+                # Skip comments and empty lines
+                if not line or line.startswith("#"):
+                    continue
+                # Parse KEY=VALUE
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    value = value.strip().strip('"').strip("'")
+                    os.environ[key] = value
 
 
 def check_api_keys():
@@ -14,7 +41,34 @@ def check_api_keys():
     print("TradingAgents - Environment Setup Checker")
     print("=" * 70)
 
-    # Check for common API keys
+    # Check for .env file
+    env_file = Path(".env")
+    env_example_file = Path(".env.example")
+
+    print("\n0. Environment File Status:")
+    print("-" * 70)
+
+    if env_file.exists():
+        print(f"   ✅ .env file found: {env_file.absolute()}")
+        # Load .env file
+        load_dotenv(env_file)
+        if HAS_DOTENV:
+            print(
+                "      Loaded environment variables from .env file (using python-dotenv)"
+            )
+        else:
+            print(
+                "      Loaded environment variables from .env file (using built-in parser)"
+            )
+    else:
+        print(f"   ⚠️  .env file not found: {env_file.absolute()}")
+        if env_example_file.exists():
+            print(f"      Hint: Copy .env.example to .env and add your API keys")
+            print(f"      Command: cp .env.example .env")
+        else:
+            print(f"      Create a .env file with your API keys")
+
+    # Check for common API keys (after loading .env)
     api_keys = {
         "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
         "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY"),
@@ -81,10 +135,17 @@ def check_api_keys():
     print("""
    For OpenRouter (chat) + OpenAI (embeddings):
 
-   In your terminal or .env file:
+   Option A: Set in terminal (temporary):
 
    export OPENROUTER_API_KEY="sk-or-v1-..."
    export OPENAI_API_KEY="sk-proj-..."
+
+   Option B: Add to .env file (permanent - recommended):
+
+   Create/edit .env file in this directory with:
+
+   OPENROUTER_API_KEY=sk-or-v1-...
+   OPENAI_API_KEY=sk-proj-...
 
    In your config:
 
