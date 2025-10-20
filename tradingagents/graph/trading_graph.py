@@ -106,32 +106,76 @@ class TradingAgentsGraph:
             },
         )
 
+        # Get appropriate API key based on provider
+        api_key = None
+        if self.config["llm_provider"].lower() == "openrouter":
+            api_key = os.getenv("OPENROUTER_API_KEY")
+            if not api_key:
+                self.logger.error(
+                    "OPENROUTER_API_KEY not found in environment variables"
+                )
+                raise ValueError(
+                    "OPENROUTER_API_KEY not found in environment variables. "
+                    "Please set it in your .env file or export it: export OPENROUTER_API_KEY='sk-or-v1-...'"
+                )
+        elif self.config["llm_provider"].lower() == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                self.logger.error("OPENAI_API_KEY not found in environment variables")
+                raise ValueError(
+                    "OPENAI_API_KEY not found in environment variables. "
+                    "Please set it in your .env file or export it: export OPENAI_API_KEY='sk-...'"
+                )
+        # ollama doesn't need an API key
+
         if (
             self.config["llm_provider"].lower() == "openai"
             or self.config["llm_provider"] == "ollama"
             or self.config["llm_provider"] == "openrouter"
         ):
             self.deep_thinking_llm = ChatOpenAI(
-                model=self.config["deep_think_llm"], base_url=self.config["backend_url"]
+                model=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"],
+                api_key=api_key,
             )
             self.quick_thinking_llm = ChatOpenAI(
                 model=self.config["quick_think_llm"],
                 base_url=self.config["backend_url"],
+                api_key=api_key,
             )
         elif self.config["llm_provider"].lower() == "anthropic":
+            anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not anthropic_api_key:
+                self.logger.error(
+                    "ANTHROPIC_API_KEY not found in environment variables"
+                )
+                raise ValueError(
+                    "ANTHROPIC_API_KEY not found in environment variables. "
+                    "Please set it in your .env file or export it: export ANTHROPIC_API_KEY='sk-ant-...'"
+                )
             self.deep_thinking_llm = ChatAnthropic(
-                model=self.config["deep_think_llm"], base_url=self.config["backend_url"]
+                model=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"],
+                api_key=anthropic_api_key,
             )
             self.quick_thinking_llm = ChatAnthropic(
                 model=self.config["quick_think_llm"],
                 base_url=self.config["backend_url"],
+                api_key=anthropic_api_key,
             )
         elif self.config["llm_provider"].lower() == "google":
+            google_api_key = os.getenv("GOOGLE_API_KEY")
+            if not google_api_key:
+                self.logger.error("GOOGLE_API_KEY not found in environment variables")
+                raise ValueError(
+                    "GOOGLE_API_KEY not found in environment variables. "
+                    "Please set it in your .env file or export it: export GOOGLE_API_KEY='...'"
+                )
             self.deep_thinking_llm = ChatGoogleGenerativeAI(
-                model=self.config["deep_think_llm"]
+                model=self.config["deep_think_llm"], api_key=google_api_key
             )
             self.quick_thinking_llm = ChatGoogleGenerativeAI(
-                model=self.config["quick_think_llm"]
+                model=self.config["quick_think_llm"], api_key=google_api_key
             )
         else:
             self.logger.error(
