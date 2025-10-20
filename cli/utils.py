@@ -178,9 +178,14 @@ def select_shallow_thinking_agent(provider) -> str:
                 "meta-llama/llama-3.3-8b-instruct:free",
             ),
             (
-                "google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token",
+                "Google: Gemini 2.0 Flash Exp (free) - Significantly faster time to first token",
                 "google/gemini-2.0-flash-exp:free",
             ),
+            (
+                "Z.AI: GLM 4.5 Air (free) - Fast and efficient general-purpose model",
+                "z-ai/glm-4.5-air:free",
+            ),
+            ("Z.AI: GLM 4.6 - Advanced versatile model", "z-ai/glm-4.6"),
         ],
         "ollama": [
             ("llama3.1 local", "llama3.1"),
@@ -272,6 +277,19 @@ def select_deep_thinking_agent(provider) -> str:
             (
                 "Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.",
                 "deepseek/deepseek-chat-v3-0324:free",
+            ),
+            (
+                "Z.AI: GLM 4.5 Air (free) - Fast and efficient general-purpose model",
+                "z-ai/glm-4.5-air:free",
+            ),
+            ("Z.AI: GLM 4.6 - Advanced versatile model", "z-ai/glm-4.6"),
+            (
+                "TNG: DeepSeek R1T2 Chimera (free) - Advanced reasoning model",
+                "tngtech/deepseek-r1t2-chimera:free",
+            ),
+            (
+                "TNG: DeepSeek R1T2 Chimera - Premium advanced reasoning model",
+                "tngtech/deepseek-r1t2-chimera",
             ),
         ],
         "ollama": [
