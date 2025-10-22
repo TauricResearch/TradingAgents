@@ -11,9 +11,7 @@ class FinancialSituationMemory:
         backend_url = self.config.get("backend_url", "")
         
         # Set embedding model based on backend
-        if "deepseek" in backend_url:
-            self.embedding = "deepseek-embed"
-        elif backend_url == "http://localhost:11434/v1":
+        if backend_url == "http://localhost:11434/v1":
             self.embedding = "nomic-embed-text"
         else:
             self.embedding = "text-embedding-3-small"
@@ -25,17 +23,7 @@ class FinancialSituationMemory:
         """Get embedding for a text from the configured backend"""
         backend_url = self.config.get("backend_url", "")
 
-        if "deepseek" in backend_url:
-            client = OpenAI(
-                api_key=os.environ.get("DEEPSEEK_API_KEY"),
-                base_url=backend_url
-            )
-            response = client.embeddings.create(
-                model=self.embedding, 
-                input=text
-            )
-            return response.data[0].embedding
-        elif os.environ.get("OPENAI_API_KEY") and "openai" in backend_url:
+        if os.environ.get("OPENAI_API_KEY") and "openai" in backend_url:
             client = OpenAI()
             response = client.embeddings.create(
                 model=self.embedding, 
