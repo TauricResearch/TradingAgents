@@ -27,3 +27,4 @@ langchain_deepseek
 langchain_google_genai
 openai
 sentence-transformers
+langchain-google-genai

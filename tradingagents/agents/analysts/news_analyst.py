@@ -1,21 +1,19 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
+from tradingagents.agents.utils.agent_utils import get_news, get_global_news
+from tradingagents.dataflows.config import get_config
 
 
-def create_news_analyst(llm, toolkit):
+def create_news_analyst(llm):
     def news_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
 
-        if toolkit.config["online_tools"]:
-            tools = [toolkit.get_global_news_openai, toolkit.get_google_news]
-        else:
-            tools = [
-                toolkit.get_finnhub_news,
-                toolkit.get_reddit_news,
-                toolkit.get_google_news,
-            ]
+        tools = [
+            get_news,
+            get_global_news,
+        ]
 
         system_message = (
             "你是一名新闻研究员，负责分析过去一周的最新新闻和趋势。请撰写一份关于当前与交易和宏观经济相关的世界状况的综合报告。请综合EODHD和finnhub的新闻。不要简单地陈述趋势好坏参半，提供详细和精细的分析和见解，以帮助交易者做出决策。"
@@ -47,9 +45,14 @@ def create_news_analyst(llm, toolkit):
         chain = prompt | llm.bind_tools(tools)
         result = chain.invoke(state["messages"])
 
+        report = ""
+
+        if len(result.tool_calls) == 0:
+            report = result.content
+
         return {
             "messages": [result],
-            "news_report": result.content,
+            "news_report": report,
         }
 
     return news_analyst_node

@@ -1,25 +1,21 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
+from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators
+from tradingagents.dataflows.config import get_config
 
 
-def create_market_analyst(llm, toolkit):
+def create_market_analyst(llm):
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
-        if toolkit.config["online_tools"]:
-            tools = [
-                toolkit.get_YFin_data_online,
-                toolkit.get_stockstats_indicators_report_online,
-            ]
-        else:
-            tools = [
-                toolkit.get_YFin_data,
-                toolkit.get_stockstats_indicators_report,
-            ]
+        tools = [
+            get_stock_data,
+            get_indicators,
+        ]
 
         system_message = (
             """你是一名负责分析金融市场的交易助理。你的职责是从以下列表中为给定的市场状况或交易策略选择最相关的指标。目标是选择最多8个能够提供互补见解且不冗余的指标。指标类别及各类别指标如下：
@@ -76,9 +72,14 @@ MACD相关：
 
         result = chain.invoke(state["messages"])
 
+        report = ""
+
+        if len(result.tool_calls) == 0:
+            report = result.content
+       
         return {
             "messages": [result],
-            "market_report": result.content,
+            "market_report": report,
         }
 
     return market_analyst_node

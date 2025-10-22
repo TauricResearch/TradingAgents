@@ -1,24 +1,22 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
+from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement, get_insider_sentiment, get_insider_transactions
+from tradingagents.dataflows.config import get_config
 
 
-def create_fundamentals_analyst(llm, toolkit):
+def create_fundamentals_analyst(llm):
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
-        if toolkit.config["online_tools"]:
-            tools = [toolkit.get_fundamentals_openai]
-        else:
-            tools = [
-                toolkit.get_finnhub_company_insider_sentiment,
-                toolkit.get_finnhub_company_insider_transactions,
-                toolkit.get_simfin_balance_sheet,
-                toolkit.get_simfin_cashflow,
-                toolkit.get_simfin_income_stmt,
-            ]
+        tools = [
+            get_fundamentals,
+            get_balance_sheet,
+            get_cashflow,
+            get_income_statement,
+        ]
 
         system_message = (
             "你是一名研究员，负责分析一家公司过去一周的基本面信息。请撰写一份关于该公司基本面信息的综合报告，例如财务文件、公司简介、基本公司财务状况、公司财务历史、内幕情绪和内幕交易，以全面了解该公司的基本面信息，为交易员提供信息。请确保包含尽可能多的细节。不要简单地说趋势好坏参半，要提供详细、细致的分析和见解，以帮助交易员做出决策。"
@@ -51,9 +49,14 @@ def create_fundamentals_analyst(llm, toolkit):
 
         result = chain.invoke(state["messages"])
 
+        report = ""
+
+        if len(result.tool_calls) == 0:
+            report = result.content
+
         return {
             "messages": [result],
-            "fundamentals_report": result.content,
+            "fundamentals_report": report,
         }
 
     return fundamentals_analyst_node
