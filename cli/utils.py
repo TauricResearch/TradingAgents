@@ -148,7 +148,6 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
             ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
             ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
-            ("qwen/qwen3-coder:free - Qwen3-Coder-480B-A35B-Instruct is a Mixture-of-Experts (MoE) code generation model", "qwen/qwen3-coder:free"),
         ],
         "ollama": [
             ("llama3.1 local", "llama3.1"),
