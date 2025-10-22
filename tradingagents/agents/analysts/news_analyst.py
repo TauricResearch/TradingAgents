@@ -18,8 +18,8 @@ def create_news_analyst(llm, toolkit):
             ]
 
         system_message = (
-            "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Look at news from EODHD, and finnhub to be comprehensive. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + """ Make sure to append a Makrdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            "你是一名新闻研究员，负责分析过去一周的最新新闻和趋势。请撰写一份关于当前与交易和宏观经济相关的世界状况的综合报告。请综合EODHD和finnhub的新闻。不要简单地陈述趋势好坏参半，提供详细和精细的分析和见解，以帮助交易者做出决策。"
+            + """确保在报告末尾附加一个Markdown表格，以整理报告中的要点，使其井井有条、易于阅读。"""
         )
 
         prompt = ChatPromptTemplate.from_messages(

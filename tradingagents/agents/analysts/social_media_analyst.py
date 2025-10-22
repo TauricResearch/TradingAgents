@@ -17,8 +17,8 @@ def create_social_media_analyst(llm, toolkit):
             ]
 
         system_message = (
-            "You are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for a specific company over the past week. You will be given a company's name your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders and investors on this company's current state after looking at social media and what people are saying about that company, analyzing sentiment data of what people feel each day about the company, and looking at recent company news. Try to look at all sources possible from social media to sentiment to news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + """ Make sure to append a Makrdown table at the end of the report to organize key points in the report, organized and easy to read.""",
+            "你是一名社交媒体和公司特定新闻研究员/分析师，负责分析过去一周特定公司的社交媒体帖子、近期公司新闻和公众情绪。你将获得公司名称，你的目标是撰写一份全面的长篇报告，详细说明你的分析、见解以及对交易员和投资者关于该公司当前状况的影响，这需要查看社交媒体、人们对该公司的评价、分析人们每天对公司的情绪数据以及近期公司新闻。尽量查看所有可能的来源，从社交媒体到情绪数据再到新闻。不要简单地陈述趋势好坏参半，提供详细和精细的分析和见解，以帮助交易员做出决策。"
+            + """确保在报告末尾附加一个Markdown表格，以整理报告中的要点，使其井井有条、易于阅读。""",
         )
 
         prompt = ChatPromptTemplate.from_messages(
