@@ -9,6 +9,7 @@ from typing import Dict, Any, Tuple, List, Optional
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_xai import ChatXAI
 
 from langgraph.prebuilt import ToolNode
 
@@ -62,6 +63,47 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
 
+        # get the language
+        self.output_language = self.config.get("output_language", "en")
+        self.language_instruction = self.config.get("language_system_prompts", {}).get(
+            self.output_language, ""
+        )
+
+        self._setup_agents()
+        self._setup_graph()
+
+        def _setup_agents(self):
+            """初始化所有 agents，並注入語言指示"""
+            # 為每個 agent 加入語言指示
+            if self.language_instruction:
+                self._inject_language_to_agents()
+        
+        def _inject_language_to_agents(self):
+            """將語言指示注入所有 agents"""
+            # 這個方法會在每個 agent 的 system message 前加入語言指示
+            self.language_system_message = SystemMessage(content=self.language_instruction)
+        
+        def _create_agent_with_language(self, agent_name, agent_prompt, llm):
+            """創建帶有語言指示的 agent"""
+            from langchain.agents import AgentExecutor, create_openai_functions_agent
+            from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+            
+            # 構建包含語言指示的 prompt
+            if self.language_instruction:
+                system_prompt = f"{agent_prompt}{self.language_instruction}"
+            else:
+                system_prompt = agent_prompt
+            
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", system_prompt),
+                MessagesPlaceholder(variable_name="chat_history", optional=True),
+                ("human", "{input}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad"),
+            ])
+            
+            agent = create_openai_functions_agent(llm, tools=[], prompt=prompt)
+            return AgentExecutor(agent=agent, tools=[], verbose=self.debug)
+    
         # Update the interface's config
         set_config(self.config)
 
@@ -81,6 +123,9 @@ class TradingAgentsGraph:
         elif self.config["llm_provider"].lower() == "google":
             self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
             self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+        elif self.config["llm_provider"].lower() == "xai":
+            self.deep_thinking_llm = ChatXAI(model=self.config["deep_think_llm"])
+            self.quick_thinking_llm = ChatXAI(model=self.config["quick_think_llm"])
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
         
