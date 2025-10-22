@@ -8,13 +8,13 @@ class FinancialSituationMemory:
     def __init__(self, name, config):
         self.client = OpenAI(base_url=config["backend_url"], api_key=config.get("api_key"))
         
-        # 根據 backend 決定 embedding 策略
+        # Based on llm_provider to select embeddings
         if config["llm_provider"] == "ollama":
             self.embedding = "nomic-embed-text"
             self.embedding_client = OpenAI(base_url="http://localhost:11434/v1")
             self.use_local_embedding = False
         elif config["llm_provider"] == "xai":
-            # Grok - 使用本地 Hugging Face 模型
+            # Grok - use local Hugging Face model
             self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
             self.use_local_embedding = True
         else:
@@ -29,10 +29,10 @@ class FinancialSituationMemory:
     def get_embedding(self, text):
         """Get embedding for a text"""
         if self.use_local_embedding:
-            # 使用本地 Hugging Face 模型
+            # use local Hugging Face model
             return self.embedding_model.encode(text).tolist()
         else:
-            # 使用 API
+            # use API
             response = self.embedding_client.embeddings.create(
                 model=self.embedding, 
                 input=text
