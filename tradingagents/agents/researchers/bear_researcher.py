@@ -3,7 +3,16 @@ import time
 import json
 
 
-def create_bear_researcher(llm, memory):
+def create_bear_researcher(llm, memory, config):
+    """Create the bear researcher node with language support."""
+    language = config["output_language"]
+    language_prompts = {
+        "en": "",
+        "zh-tw": "Use Traditional Chinese as the output.",
+        "zh-cn": "Use Simplified Chinese as the output.",
+    }
+    language_prompt = language_prompts.get(language, "")
+
     def bear_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
@@ -42,7 +51,8 @@ Conversation history of the debate: {history}
 Last bull argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
-"""
+
+\n***{language_prompt}***"""
 
         response = llm.invoke(prompt)
 

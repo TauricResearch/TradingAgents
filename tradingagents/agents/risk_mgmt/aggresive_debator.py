@@ -2,7 +2,16 @@ import time
 import json
 
 
-def create_risky_debator(llm):
+def create_risky_debator(llm, config):
+    """Create the risky debator node with language support."""
+    language = config["output_language"]
+    language_prompts = {
+        "en": "",
+        "zh-tw": "Use Traditional Chinese as the output.",
+        "zh-cn": "Use Simplified Chinese as the output.",
+    }
+    language_prompt = language_prompts.get(language, "")
+
     def risky_node(state) -> dict:
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state.get("history", "")
@@ -30,7 +39,9 @@ Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
 Here is the current conversation history: {history} Here are the last arguments from the conservative analyst: {current_safe_response} Here are the last arguments from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
 
-Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting."""
+Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting.
+
+\n***{language_prompt}***"""
 
         response = llm.invoke(prompt)
 

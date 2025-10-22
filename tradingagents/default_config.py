@@ -30,4 +30,5 @@ DEFAULT_CONFIG = {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
         # Example: "get_news": "openai",               # Override category default
     },
+    "output_language": "en",
 }

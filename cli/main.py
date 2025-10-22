@@ -429,6 +429,14 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
+    # Step 0: Language Selection
+    console.print(
+        create_question_box(
+            "Step 0: Language Selection", "Choose language for agent outputs"
+        )
+    )
+    selected_language = select_language()
+
     # Step 1: Ticker symbol
     console.print(
         create_question_box(
@@ -493,6 +501,7 @@ def get_user_selections():
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
+        "language": selected_language,
     }
 
 
@@ -741,6 +750,7 @@ def run_analysis():
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
+    config["output_language"] = selections["language"]
     config["max_debate_rounds"] = selections["research_depth"]
     config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]

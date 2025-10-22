@@ -2,7 +2,16 @@ import time
 import json
 
 
-def create_risk_manager(llm, memory):
+def create_risk_manager(llm, memory, config):
+    """Create the risk manager node with language support."""
+    language = config["output_language"]
+    language_prompts = {
+        "en": "",
+        "zh-tw": "Use Traditional Chinese as the output.",
+        "zh-cn": "Use Simplified Chinese as the output.",
+    }
+    language_prompt = language_prompts.get(language, "")
+
     def risk_manager_node(state) -> dict:
 
         company_name = state["company_of_interest"]
@@ -41,7 +50,9 @@ Deliverables:
 
 ---
 
-Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
+Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes.
+
+\n***{language_prompt}***"""
 
         response = llm.invoke(prompt)
 

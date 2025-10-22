@@ -281,3 +281,18 @@ def select_llm_provider() -> tuple[str, str]:
     print(f"You selected: {display_name}\tURL: {url}")
     
     return display_name, url
+
+
+def select_language() -> str:
+    """Select output language for agent responses."""
+    choices = [
+        questionary.Choice("English (default)", "en"),
+        questionary.Choice("Traditional Chinese", "zh-tw"),
+        questionary.Choice("Simplified Chinese", "zh-cn"),
+    ]
+    return questionary.select(
+        "Select Output Language for Agents:",
+        choices=choices,
+        default="en",
+        style=questionary.Style([("selected", "fg:cyan noinherit")])
+    ).ask() or "en"  # Default to 'en' if None

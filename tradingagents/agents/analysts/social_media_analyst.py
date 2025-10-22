@@ -5,7 +5,8 @@ from tradingagents.agents.utils.agent_utils import get_news
 from tradingagents.dataflows.config import get_config
 
 
-def create_social_media_analyst(llm):
+def create_social_media_analyst(llm, config):
+    """Create the social media analyst node with language support."""
     def social_media_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
@@ -15,9 +16,19 @@ def create_social_media_analyst(llm):
             get_news,
         ]
 
+        language = config["output_language"]
+        language = config["output_language"]
+        language_prompts = {
+            "en": "",
+            "zh-tw": "Use Traditional Chinese as the output.",
+            "zh-cn": "Use Simplified Chinese as the output.",
+        }
+        language_prompt = language_prompts.get(language, "")
+
         system_message = (
             "You are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for a specific company over the past week. You will be given a company's name your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders and investors on this company's current state after looking at social media and what people are saying about that company, analyzing sentiment data of what people feel each day about the company, and looking at recent company news. Use the get_news(query, start_date, end_date) tool to search for company-specific news and social media discussions. Try to look at all sources possible from social media to sentiment to news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read.""",
+            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            + "\n***{language_prompt}***"
         )
 
         prompt = ChatPromptTemplate.from_messages(

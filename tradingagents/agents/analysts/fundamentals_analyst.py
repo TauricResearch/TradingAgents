@@ -5,7 +5,8 @@ from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance
 from tradingagents.dataflows.config import get_config
 
 
-def create_fundamentals_analyst(llm):
+def create_fundamentals_analyst(llm, config):
+    """Create the fundamentals analyst node with language support."""
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
@@ -18,10 +19,19 @@ def create_fundamentals_analyst(llm):
             get_income_statement,
         ]
 
+        language = config["output_language"]
+        language_prompts = {
+            "en": "",
+            "zh-tw": "Use Traditional Chinese as the output.",
+            "zh-cn": "Use Simplified Chinese as the output.",
+        }
+        language_prompt = language_prompts.get(language, "")
+
         system_message = (
             "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements.",
+            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
+            + "\n***{language_prompt}***"
         )
 
         prompt = ChatPromptTemplate.from_messages(
