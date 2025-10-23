@@ -16,12 +16,12 @@ def create_neutral_debator(llm, config):
         current_risky_response = risk_debate_state.get("current_risky_response", "")
         current_safe_response = risk_debate_state.get("current_safe_response", "")
 
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        market_research_report = state["market_analysis"]
+        sentiment_analysis = state["sentiment_analysis"]
+        news_analysis = state["news_analysis"]
+        fundamentals_analysis = state["fundamentals_analysis"]
 
-        trader_decision = state["trader_investment_plan"]
+        trader_decision = state["trader_team_plan"]
 
         prompt = f"""
 As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. 
@@ -39,17 +39,17 @@ Market Research Report:
 
 --------------------------------------
 Social Media Sentiment Report: 
-{sentiment_report}
+{sentiment_analysis}
 
 
 --------------------------------------
 Latest World Affairs Report: 
-{news_report}
+{news_analysis}
 
 
 --------------------------------------
 Company Fundamentals Report: 
-{fundamentals_report}
+{fundamentals_analysis}
 
 
 --------------------------------------

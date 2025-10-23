@@ -14,12 +14,12 @@ def create_bear_researcher(llm, memory, config):
         bear_history = investment_debate_state.get("bear_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        market_research_report = state["market_analysis"]
+        sentiment_analysis = state["sentiment_analysis"]
+        news_analysis = state["news_analysis"]
+        fundamentals_analysis = state["fundamentals_analysis"]
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{market_research_report}\n\n{sentiment_analysis}\n\n{news_analysis}\n\n{fundamentals_analysis}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -46,17 +46,17 @@ Market research report:
 
 --------------------------------------
 Social media sentiment report: 
-{sentiment_report}
+{sentiment_analysis}
 
 
 --------------------------------------
 Latest world affairs news: 
-{news_report}
+{news_analysis}
 
 
 --------------------------------------
 Company fundamentals report: 
-{fundamentals_report}
+{fundamentals_analysis}
 
 
 --------------------------------------

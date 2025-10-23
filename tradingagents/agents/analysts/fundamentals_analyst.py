@@ -73,7 +73,7 @@ Output language: ***{language_prompt}***
 
         return {
             "messages": [result],
-            "fundamentals_report": report,
+            "fundamentals_analysis": report,
         }
 
     return fundamentals_analyst_node

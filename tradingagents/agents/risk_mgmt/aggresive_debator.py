@@ -16,12 +16,12 @@ def create_risky_debator(llm, config):
         current_safe_response = risk_debate_state.get("current_safe_response", "")
         current_neutral_response = risk_debate_state.get("current_neutral_response", "")
 
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        market_research_report = state["market_analysis"]
+        sentiment_analysis = state["sentiment_analysis"]
+        news_analysis = state["news_analysis"]
+        fundamentals_analysis = state["fundamentals_analysis"]
 
-        trader_decision = state["trader_investment_plan"]
+        trader_decision = state["trader_team_plan"]
 
         prompt = f"""
 As the Risky Risk Analyst, your role is to actively champion high-reward, high-risk opportunities, emphasizing bold strategies and competitive advantages. 
@@ -42,17 +42,17 @@ Market Research Report:
 
 --------------------------------------
 Social Media Sentiment Report: 
-{sentiment_report}
+{sentiment_analysis}
 
 
 --------------------------------------
 Latest World Affairs Report: 
-{news_report}
+{news_analysis}
 
 
 --------------------------------------
 Company Fundamentals Report: 
-{fundamentals_report}
+{fundamentals_analysis}
 
 
 --------------------------------------

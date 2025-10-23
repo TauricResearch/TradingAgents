@@ -90,7 +90,7 @@ Output language: ***{language_prompt}***
 
         return {
             "messages": [result],
-            "market_report": report,
+            "market_analysis": report,
         }
 
     return market_analyst_node

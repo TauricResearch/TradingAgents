@@ -1,8 +1,8 @@
 # TradingAgents/graph/propagation.py
 
 from typing import Dict, Any
+
 from tradingagents.agents.utils.agent_states import (
-    AgentState,
     InvestDebateState,
     RiskDebateState,
 )
@@ -16,7 +16,7 @@ class Propagator:
         self.max_recur_limit = max_recur_limit
 
     def create_initial_state(
-        self, company_name: str, trade_date: str
+            self, company_name: str, trade_date: str
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
         return {
@@ -35,10 +35,10 @@ class Propagator:
                     "count": 0,
                 }
             ),
-            "market_report": "",
-            "fundamentals_report": "",
-            "sentiment_report": "",
-            "news_report": "",
+            "market_analysis": "",
+            "fundamentals_analysis": "",
+            "sentiment_analysis": "",
+            "news_analysis": "",
         }
 
     def get_graph_args(self) -> Dict[str, Any]:

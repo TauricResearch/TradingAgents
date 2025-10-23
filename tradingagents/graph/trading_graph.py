@@ -190,17 +190,17 @@ class TradingAgentsGraph:
         self._log_state(trade_date, final_state)
 
         # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        return final_state, self.process_signal(final_state["final_portfolio_management_decision"])
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
-            "market_report": final_state["market_report"],
-            "sentiment_report": final_state["sentiment_report"],
-            "news_report": final_state["news_report"],
-            "fundamentals_report": final_state["fundamentals_report"],
+            "market_analysis": final_state["market_analysis"],
+            "sentiment_analysis": final_state["sentiment_analysis"],
+            "news_analysis": final_state["news_analysis"],
+            "fundamentals_analysis": final_state["fundamentals_analysis"],
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
@@ -212,7 +212,7 @@ class TradingAgentsGraph:
                     "judge_decision"
                 ],
             },
-            "trader_investment_decision": final_state["trader_investment_plan"],
+            "trader_investment_decision": final_state["trader_team_plan"],
             "risk_debate_state": {
                 "risky_history": final_state["risk_debate_state"]["risky_history"],
                 "safe_history": final_state["risk_debate_state"]["safe_history"],
@@ -220,8 +220,8 @@ class TradingAgentsGraph:
                 "history": final_state["risk_debate_state"]["history"],
                 "judge_decision": final_state["risk_debate_state"]["judge_decision"],
             },
-            "investment_plan": final_state["investment_plan"],
-            "final_trade_decision": final_state["final_trade_decision"],
+            "research_team_decision": final_state["research_team_decision"],
+            "final_portfolio_management_decision": final_state["final_portfolio_management_decision"],
         }
 
         # Save to file

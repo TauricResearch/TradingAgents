@@ -68,7 +68,7 @@ Output language: ***{language_prompt}***
 
         return {
             "messages": [result],
-            "sentiment_report": report,
+            "sentiment_analysis": report,
         }
 
     return social_media_analyst_node

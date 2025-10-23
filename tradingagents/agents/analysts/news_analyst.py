@@ -67,7 +67,7 @@ Output language: ***{language_prompt}***
 
         return {
             "messages": [result],
-            "news_report": report,
+            "news_analysis": report,
         }
 
     return news_analyst_node

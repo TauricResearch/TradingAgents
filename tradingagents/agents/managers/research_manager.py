@@ -10,14 +10,14 @@ def create_research_manager(llm, memory, config):
 
     def research_manager_node(state) -> dict:
         history = state["investment_debate_state"].get("history", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        market_research_report = state["market_analysis"]
+        sentiment_analysis = state["sentiment_analysis"]
+        news_analysis = state["news_analysis"]
+        fundamentals_analysis = state["fundamentals_analysis"]
 
         investment_debate_state = state["investment_debate_state"]
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{market_research_report}\n\n{sentiment_analysis}\n\n{news_analysis}\n\n{fundamentals_analysis}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -56,7 +56,7 @@ Output language: ***{language_prompt}***
 
         return {
             "investment_debate_state": new_investment_debate_state,
-            "investment_plan": response.content,
+            "research_team_decision": response.content,
         }
 
     return research_manager_node

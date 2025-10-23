@@ -13,13 +13,13 @@ def create_risk_manager(llm, memory, config):
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
-        market_research_report = state["market_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["news_report"]
-        sentiment_report = state["sentiment_report"]
-        trader_plan = state["investment_plan"]
+        market_research_report = state["market_analysis"]
+        news_analysis = state["news_analysis"]
+        fundamentals_analysis = state["news_analysis"]
+        sentiment_analysis = state["sentiment_analysis"]
+        trader_plan = state["research_team_decision"]
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{market_research_report}\n\n{sentiment_analysis}\n\n{news_analysis}\n\n{fundamentals_analysis}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -68,7 +68,7 @@ Output language: ***{language_prompt}***
 
         return {
             "risk_debate_state": new_risk_debate_state,
-            "final_trade_decision": response.content,
+            "final_portfolio_management_decision": response.content,
         }
 
     return risk_manager_node

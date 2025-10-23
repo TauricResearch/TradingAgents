@@ -59,10 +59,10 @@ Output language: ***{self.language_prompt}***
 
     def _extract_current_situation(self, current_state: Dict[str, Any]) -> str:
         """Extract the current market situation from the state."""
-        curr_market_report = current_state["market_report"]
-        curr_sentiment_report = current_state["sentiment_report"]
-        curr_news_report = current_state["news_report"]
-        curr_fundamentals_report = current_state["fundamentals_report"]
+        curr_market_report = current_state["market_analysis"]
+        curr_sentiment_report = current_state["sentiment_analysis"]
+        curr_news_report = current_state["news_analysis"]
+        curr_fundamentals_report = current_state["fundamentals_analysis"]
 
         return f"{curr_market_report}\n\n{curr_sentiment_report}\n\n{curr_news_report}\n\n{curr_fundamentals_report}"
 
@@ -112,7 +112,7 @@ Objective Market Reports for Reference: {situation}
     def reflect_trader(self, current_state, returns_losses, trader_memory):
         """Reflect on trader's decision and update memory."""
         situation = self._extract_current_situation(current_state)
-        trader_decision = current_state["trader_investment_plan"]
+        trader_decision = current_state["trader_team_plan"]
 
         result = self._reflect_on_component(
             "TRADER", trader_decision, situation, returns_losses
