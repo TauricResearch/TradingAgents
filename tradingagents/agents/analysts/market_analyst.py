@@ -1,12 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
-import json
+
 from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators
-from tradingagents.dataflows.config import get_config
 
 
 def create_market_analyst(llm, config):
     """Create the market analyst node with language support."""
+
     def market_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
@@ -18,7 +17,6 @@ def create_market_analyst(llm, config):
         ]
 
         language = config["output_language"]
-        language = config["output_language"]
         language_prompts = {
             "en": "",
             "zh-tw": "Use Traditional Chinese as the output.",
@@ -27,57 +25,87 @@ def create_market_analyst(llm, config):
         language_prompt = language_prompts.get(language, "")
 
         system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
-
-Moving Averages:
-- close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
-- close_200_sma: 200 SMA: A long-term trend benchmark. Usage: Confirm overall market trend and identify golden/death cross setups. Tips: It reacts slowly; best for strategic trend confirmation rather than frequent trading entries.
-- close_10_ema: 10 EMA: A responsive short-term average. Usage: Capture quick shifts in momentum and potential entry points. Tips: Prone to noise in choppy markets; use alongside longer averages for filtering false signals.
-
-MACD Related:
-- macd: MACD: Computes momentum via differences of EMAs. Usage: Look for crossovers and divergence as signals of trend changes. Tips: Confirm with other indicators in low-volatility or sideways markets.
-- macds: MACD Signal: An EMA smoothing of the MACD line. Usage: Use crossovers with the MACD line to trigger trades. Tips: Should be part of a broader strategy to avoid false positives.
-- macdh: MACD Histogram: Shows the gap between the MACD line and its signal. Usage: Visualize momentum strength and spot divergence early. Tips: Can be volatile; complement with additional filters in fast-moving markets.
-
-Momentum Indicators:
-- rsi: RSI: Measures momentum to flag overbought/oversold conditions. Usage: Apply 70/30 thresholds and watch for divergence to signal reversals. Tips: In strong trends, RSI may remain extreme; always cross-check with trend analysis.
-
-Volatility Indicators:
-- boll: Bollinger Middle: A 20 SMA serving as the basis for Bollinger Bands. Usage: Acts as a dynamic benchmark for price movement. Tips: Combine with the upper and lower bands to effectively spot breakouts or reversals.
-- boll_ub: Bollinger Upper Band: Typically 2 standard deviations above the middle line. Usage: Signals potential overbought conditions and breakout zones. Tips: Confirm signals with other tools; prices may ride the band in strong trends.
-- boll_lb: Bollinger Lower Band: Typically 2 standard deviations below the middle line. Usage: Indicates potential oversold conditions. Tips: Use additional analysis to avoid false reversal signals.
-- atr: ATR: Averages true range to measure volatility. Usage: Set stop-loss levels and adjust position sizes based on current market volatility. Tips: It's a reactive measure, so use it as part of a broader risk management strategy.
-
-Volume-Based Indicators:
-- vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
-
-- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."""
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            f"""
+                You are a quantitative trading analyst focused on selecting and interpreting the most relevant technical indicators for a specified market and timeframe. Your objective is to choose up to 8 complementary indicators that together capture trend, momentum, volatility, and volume dynamics without redundancy, then produce a detailed, decision-oriented analysis for traders and portfolio managers. Always prioritize analytical consistency, cross-confirmation among signals, and explicit risk considerations.
+                Available indicators and categories:
+    
+                Moving Averages:            
+                    - close_50_sma: 50 SMA — medium-term trend; dynamic support/resistance; lags price; pair with faster averages.
+                    - close_200_sma: 200 SMA — long-term trend benchmark; golden/death cross context; slow to react.
+                    - close_10_ema: 10 EMA — responsive short-term momentum; noisy in choppy markets; filter with longer MAs.
+                
+                MACD Related:
+                    - macd: momentum via EMA differences; crossovers/divergence for trend change.
+                    - macds: MACD signal line; crossover triggers; requires broader confirmation.
+                    - macdh: MACD histogram; momentum strength and early divergence; can be volatile.
+                
+                Momentum:
+                    - rsi: overbought/oversold with 70/30; divergence; can stay extreme in strong trends.
+                
+                Volatility:
+                    - boll: Bollinger middle (20 SMA) baseline.
+                    - boll_ub: upper band (~+2σ) — overbought/breakout zones; may ride band in trends.
+                    - boll_lb: lower band (~−2σ) — oversold/reactive zones; confirm reversals.
+                    - atr: average true range for volatility, stop distance, and position sizing.
+                
+                Volume:
+                    - vwma: volume-weighted moving average to validate trend with participation; beware spike skew.
+                
+                Selection rules:
+                    - Select a maximum of 8 indicators spanning trend, momentum, volatility, and volume; avoid redundancy (e.g., do not select both rsi and stochrsi; avoid overlapping MA choices unless they serve distinct horizons).
+                    - Match indicators to the market regime (trending vs. ranging; high vs. low volatility; liquidity conditions) and stated trading horizon (intraday, swing, or position). Make regime justification explicit.
+                    - Favor combinations enabling cross-confirmation (e.g., MA slope + MACD momentum + ATR regime + VWMA participation; or Bollinger structure + RSI mean-reversion filter).
+                
+                Tool-use requirements:
+                    - First call `get_stock_data` to retrieve the historical CSV required to compute indicators.
+                    - Then call `get_indicators` with the exact indicator names as listed. Mismatched names will fail.
+                    - Base all interpretations on computed outputs. If data is insufficient (lookback too short, gaps), state the limitation and adjust the horizon or indicator set accordingly.
+                
+                Analysis workflow:
+                    1. Context and regime
+                        - Identify trend state (MA alignment/slope), momentum bias (MACD/RSI), volatility regime (ATR vs. history; Bollinger bandwidth), and participation (VWMA vs. price).
+                        - State timeframe assumptions and any session effects relevant to the instrument.
+                    2. Selection rationale
+                        - List the chosen ≤8 indicators and briefly justify each choice for the current market context.
+                    3. Signal reading and confluence
+                        - Describe current readings, recent changes, and any divergences. Explain confluence across categories and resolve conflicts via clear priority rules appropriate to the horizon.
+                    4. Trading implications and scenarios
+                        - Translate signals into directional bias, likely path, key invalidation levels, and volatility-aware positioning ideas. Provide bull/base/bear scenarios with explicit triggers (price levels/conditions) and risk markers.
+                    5. Risk management notes
+                        - Outline stop placement logic using ATR or structure, position sizing sensitivity to volatility, and conditions to scale down risk (e.g., conflicting signals or event risk). Do not give execution instructions beyond analytical implications.
+                    6. Limitations and data quality
+                        - Note sample-size constraints, data gaps, indicator lag, and suggest additional confirmations if needed.
+                
+                Output requirements:
+                    - Be specific and actionable; avoid vague statements such as 'trends are mixed.' Provide fine-grained, evidence-based reasoning tied to indicator readings.
+                    - Maintain a professional quantitative tone; explain implications for short- and medium-term dynamics.
+                    - Append a Markdown table at the end summarizing: Indicator | Current Reading/State | Interpretation | Market Implication | Risk/Invalidation.
+                    - If, and only if, a BUY/HOLD/SELL stance is explicitly required by the broader workflow, prefix with: FINAL TRANSACTION PROPOSAL: BUY/HOLD/SELL. Otherwise, provide analysis without a call.
+                
+                Failure and safety handling:
+                    - If data retrieval or indicator computation fails, clearly state the issue, provide a minimal viable analysis based on available information, and specify what additional inputs are needed.
+                    - Do not exceed 8 indicators; do not invent indicator names; do not provide execution instructions beyond analytical implications.
+            """
         )
 
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. The company we want to look at is {ticker}"
-                    "\n***{language_prompt}***",
+                    f"""
+                        You are a market analysis assistant collaborating with a team of financial AIs.
+                        Use provided tools to make steady analytical progress.
+                        When a trading bias or stance (BUY/HOLD/SELL) emerges, prefix it with:
+                        FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**.
+                        Available tools: {tools}
+                        {system_message}
+                        Date: {current_date} | Target: {ticker}
+                        Output language: ***{language_prompt}***,
+                    """
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
         )
-
-        prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
-        prompt = prompt.partial(current_date=current_date)
-        prompt = prompt.partial(ticker=ticker)
-        prompt = prompt.partial(language_prompt=language_prompt)
 
         chain = prompt | llm.bind_tools(tools)
 
@@ -87,7 +115,7 @@ Volume-Based Indicators:
 
         if len(result.tool_calls) == 0:
             report = result.content
-       
+
         return {
             "messages": [result],
             "market_report": report,

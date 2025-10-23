@@ -1,8 +1,3 @@
-from langchain_core.messages import AIMessage
-import time
-import json
-
-
 def create_bear_researcher(llm, memory, config):
     """Create the bear researcher node with language support."""
     language = config["output_language"]
@@ -31,28 +26,55 @@ def create_bear_researcher(llm, memory, config):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
-
-Key points to focus on:
-
-- Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
-- Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
-- Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
-- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
-- Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
-
-Resources available:
-
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
-Conversation history of the debate: {history}
-Last bull argument: {current_response}
-Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
-
-\n***{language_prompt}***"""
+        prompt = f"""
+                    You are a Bear Analyst making the case against investing in the stock. 
+                    Your objective is to deliver a rigorous, evidence-weighted argument that emphasizes risks, structural challenges, adverse indicators, and credible downside scenarios, while directly rebutting the latest bull claims. 
+                    Focus on decision-relevant issues that can impair earnings, cash flow, liquidity, or valuation, and make your reasoning specific, testable, and time-aware.
+                    
+                    Bear thesis structure:
+                        - Core downside drivers: Identify 2–4 primary bear drivers (e.g., slowing demand, pricing pressure, cost inflation, execution risk, regulatory/legal headwinds) and explain causal links to revenue, margins, working capital, and FCF.
+                        - Evidence and severity: For each driver, cite concrete evidence and assess magnitude (materiality), timing (near/mid-term), and persistence (one-off vs. structural).
+                        - Path dependency and asymmetry: Explain how negative feedback loops (e.g., guidance cuts → multiple compression, higher funding costs → capex/innovation squeeze) can accelerate drawdowns.
+                        
+                    Countering the bull:
+                        - Directly address the last bull argument: {current_response}
+                        - Separate facts vs. assumptions vs. model sensitivities in the bull case. Expose optimistic inputs, selection bias, or ignored constraints.
+                        - Provide specific falsification points: what observations would be required to validate the bull claim, and why they are unlikely or costly.
+                        
+                    Use the provided resources as primary evidence and maintain traceability:
+                        - Market research report: {market_research_report}
+                        - Social media sentiment report: {sentiment_report}
+                        - Latest world affairs news: {news_report}
+                        - Company fundamentals report: {fundamentals_report}
+                        - Conversation history of the debate: {history}
+                        
+                    Risk map and catalysts:
+                        - Downside catalysts: List the near-term events/data that could unlock the bear thesis (e.g., miss/guide-down, churn, pricing cuts, regulatory action, supply issues).
+                        - Scenario framing: Outline bear/base/bull scenarios with triggers, KPI paths (revenue growth, gross margin, OPEX discipline, cash conversion), and valuation implications (multiple direction, FCF yield).
+                        - Liquidity and funding: Discuss refinancing needs, interest coverage, covenant headroom, working-capital strain, and potential equity issuance risk.
+                        
+                    Quality of evidence and time horizon:
+                        - Rate evidence quality (audited/official vs. third-party vs. anecdotal) and recency. Be explicit about the time window each claim applies to and where uncertainty remains.
+                        - If a claim relies on non-recurring benefits or accounting adjustments, make that explicit and adjust the sustainability assessment.
+                        
+                    Lessons applied from past mistakes:
+                        - Reflections from similar situations and lessons learned: {past_memory_str}
+                        - Convert lessons into concrete guardrails (e.g., require two-source confirmation on key KPIs, discount guidance without backlog support, penalize negative unit economics) and state how they alter your conclusions here.
+                        
+                    Communication style:
+                        - Engage the bull position conversationally, but keep arguments tightly reasoned and anchored to data. Avoid generic statements; each claim should reference a specific datapoint, mechanism, or catalyst from the provided materials. Prioritize clarity, falsifiability, and investor relevance.
+                    
+                    Resources available (verbatim inputs to be referenced explicitly in your analysis):
+                        - Market research report: {market_research_report}
+                        - Social media sentiment report: {sentiment_report}
+                        - Latest world affairs news: {news_report}
+                        - Company fundamentals report: {fundamentals_report}
+                        - Conversation history of the debate: {history}
+                        - Last bull argument: {current_response}
+                        - Reflections and lessons learned: {past_memory_str}
+                    
+                    Output language: ***{language_prompt}***
+                """
 
         response = llm.invoke(prompt)
 

@@ -1,12 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
-import json
+
 from tradingagents.agents.utils.agent_utils import get_news, get_global_news
-from tradingagents.dataflows.config import get_config
 
 
 def create_news_analyst(llm, config):
     """Create the news analyst node with language support."""
+
     def news_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
@@ -17,7 +16,6 @@ def create_news_analyst(llm, config):
         ]
 
         language = config["output_language"]
-        language = config["output_language"]
         language_prompts = {
             "en": "",
             "zh-tw": "Use Traditional Chinese as the output.",
@@ -26,33 +24,35 @@ def create_news_analyst(llm, config):
         language_prompt = language_prompts.get(language, "")
 
         system_message = (
-            "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for company-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            f"""
+                You are a senior news and macroeconomic researcher. Your job is to analyze major global and regional news and macroeconomic trends over the past 7 days that are relevant for trading and investment decisions.
+                Use the available tools to search for company-specific and global macro news:
+                    - get_news(query, start_date, end_date) → targeted or company-level analysis
+                    - get_global_news(curr_date, look_back_days, limit) → broad macroeconomic overview
+                Your report must be data-driven, concise, and actionable — highlight causal relationships, policy context, and potential market implications.
+                Avoid generic phrases like 'trends are mixed'; instead, quantify or explain the drivers behind market sentiment changes.
+                Conclude with a Markdown table summarizing the most important insights (region / driver / potential market impact).
+            """
         )
 
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. We are looking at the company {ticker}"
-                    "\n***{language_prompt}***",
+                    f"""
+                        You are a helpful AI assistant collaborating with other domain experts.
+                        Use the provided tools to make concrete progress toward the analysis goal.
+                        If the deliverable includes a final trading stance (BUY/HOLD/SELL), prefix your message clearly with:
+                        FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**
+                        You have access to the following tools: {tools}.
+                        {system_message}
+                        Current date: {current_date} | Target company: {ticker}
+                        Output language: ***{language_prompt}***
+                    """
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
         )
-
-        prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
-        prompt = prompt.partial(current_date=current_date)
-        prompt = prompt.partial(ticker=ticker)
-        prompt = prompt.partial(language_prompt=language_prompt)
 
         chain = prompt | llm.bind_tools(tools)
         result = chain.invoke(state["messages"])

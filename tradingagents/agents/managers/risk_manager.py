@@ -1,7 +1,3 @@
-import time
-import json
-
-
 def create_risk_manager(llm, memory, config):
     """Create the risk manager node with language support."""
     language = config["output_language"]
@@ -13,7 +9,6 @@ def create_risk_manager(llm, memory, config):
     language_prompt = language_prompts.get(language, "")
 
     def risk_manager_node(state) -> dict:
-
         company_name = state["company_of_interest"]
 
         history = state["risk_debate_state"]["history"]
@@ -31,28 +26,41 @@ def create_risk_manager(llm, memory, config):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
+        prompt = f"""
+                    Acting as the Risk Management Judge and Debate Facilitator, evaluate the debate between the three risk analysts—Risky, Neutral, and Safe/Conservative—and produce a single, decisive recommendation: Buy, Sell, or Hold. 
+                    Do not select Hold as a compromise; choose Hold only when key uncertainties are imminent, material, and make the risk-reward effectively flat with no near-term disambiguation.
+                    
+                    Guidelines for decision-making:
+                        1. Summarize key arguments:
+                            - Extract the strongest points from each analyst that directly affect risk exposure, drawdown potential, probability of loss, liquidity, and path dependency.
+                            - Distinguish facts, assumptions, and model-based inferences. Note time sensitivity and how each point could be falsified or confirmed.
+                        2. Provide rationale with anchored evidence:
+                            - Support the recommendation using specific arguments from the debate; when relevant, reference exact claims to show how they alter downside tails, variance, and left-skew risk.
+                            - Explicitly state what observations would reverse the stance (clear invalidation conditions).
+                        3. Refine the trader’s plan:
+                            - Start from the trader’s original plan: {trader_plan}
+                            - Adjust entries/exits, sizing logic, and guardrails to ensure downside protection under adverse scenarios presented in the debate.
+                        4. Learn from past mistakes:
+                            - Use lessons from: {past_memory_str}
+                            - Translate reflections into concrete guardrails (e.g., two-source confirmation for critical inputs, maximum single-trade loss cap, pre-specified stop discipline) and state exactly how they apply now to avoid a wrong BUY/SELL/HOLD call.
+                            
+                    Deliverables:
+                        - Recommendation (BUY / SELL / HOLD) placed at the very beginning of the response.
+                        - Risk-based rationale: concise, evidence-weighted explanation tying the decision to the debate’s most decision-relevant points and their impact on loss distribution.
+                        - Risk plan adjustments:
+                            - Entry/exit conditions and invalidation levels.
+                            - Position sizing rules linked to volatility or risk budget (e.g., reduce sizing when uncertainty widens or catalysts cluster).
+                            - Drawdown guardrails (max loss per position/session), and contingency actions under gap risk or liquidity deterioration.
+                            - Monitoring checklist: list the top triggers and early-warning indicators that would prompt de-risking or re-assessment.
+                            
+                    Analysts Debate History:
+                    {history}
 
-Guidelines for Decision-Making:
-1. **Summarize Key Arguments**: Extract the strongest points from each analyst, focusing on relevance to the context.
-2. **Provide Rationale**: Support your recommendation with direct quotes and counterarguments from the debate.
-3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights.
-4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments and improve the decision you are making now to make sure you don't make a wrong BUY/SELL/HOLD call that loses money.
+                    Output style:
+                    Focus on actionable risk insights and continuous improvement. Be specific, testable, and time-aware. Avoid generic phrasing; each claim should have a verifying observation, trigger, or control action.
 
-Deliverables:
-- A clear and actionable recommendation: Buy, Sell, or Hold.
-- Detailed reasoning anchored in the debate and past reflections.
-
----
-
-**Analysts Debate History:**  
-{history}
-
----
-
-Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes.
-
-\n***{language_prompt}***"""
+                    Output language: ***{language_prompt}***
+                """
 
         response = llm.invoke(prompt)
 

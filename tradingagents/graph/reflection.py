@@ -8,44 +8,59 @@ from langchain_core.language_models.chat_models import BaseChatModel
 class Reflector:
     """Handles reflection on decisions and updating memory."""
 
-    def __init__(self, quick_thinking_llm: BaseChatModel):
+    def __init__(self, quick_thinking_llm: BaseChatModel, config):
         """Initialize the reflector with an LLM."""
+        language = config["output_language"]
+        language_prompts = {
+            "en": "",
+            "zh-tw": "Use Traditional Chinese as the output.",
+            "zh-cn": "Use Simplified Chinese as the output.",
+        }
+        self.language_prompt = language_prompts.get(language, "")
+
         self.quick_thinking_llm = quick_thinking_llm
         self.reflection_system_prompt = self._get_reflection_prompt()
 
     def _get_reflection_prompt(self) -> str:
         """Get the system prompt for reflection."""
-        return """
-You are an expert financial analyst tasked with reviewing trading decisions/analysis and providing a comprehensive, step-by-step analysis. 
-Your goal is to deliver detailed insights into investment decisions and highlight opportunities for improvement, adhering strictly to the following guidelines:
-
-1. Reasoning:
-   - For each trading decision, determine whether it was correct or incorrect. A correct decision results in an increase in returns, while an incorrect decision does the opposite.
-   - Analyze the contributing factors to each success or mistake. Consider:
-     - Market intelligence.
-     - Technical indicators.
-     - Technical signals.
-     - Price movement analysis.
-     - Overall market data analysis 
-     - News analysis.
-     - Social media and sentiment analysis.
-     - Fundamental data analysis.
-     - Weight the importance of each factor in the decision-making process.
-
-2. Improvement:
-   - For any incorrect decisions, propose revisions to maximize returns.
-   - Provide a detailed list of corrective actions or improvements, including specific recommendations (e.g., changing a decision from HOLD to BUY on a particular date).
-
-3. Summary:
-   - Summarize the lessons learned from the successes and mistakes.
-   - Highlight how these lessons can be adapted for future trading scenarios and draw connections between similar situations to apply the knowledge gained.
-
-4. Query:
-   - Extract key insights from the summary into a concise sentence of no more than 1000 tokens.
-   - Ensure the condensed sentence captures the essence of the lessons and reasoning for easy reference.
-
-Adhere strictly to these instructions, and ensure your output is detailed, accurate, and actionable. You will also be given objective descriptions of the market from a price movements, technical indicator, news, and sentiment perspective to provide more context for your analysis.
-"""
+        return f"""
+                You are an expert financial analyst tasked with reviewing trading decisions and providing a comprehensive, step‑by‑step analysis. 
+                Deliver detailed insights and actionable improvements under the following rules.
+                
+                Reasoning:
+                    - Outcome definition: For each decision, judge correctness against its intended holding horizon and benchmark. A decision is “correct” if it achieves positive excess return versus the stated benchmark over the decision’s horizon, or meets predefined risk‑adjusted targets (e.g., positive Sharpe/Sortino relative to the plan). If horizon/benchmark is missing, infer a reasonable one from context and state the assumption.
+                    - Signal vs. judgment vs. action: Separate data signals (price/volume, indicators, news/sentiment, fundamentals), the interpretation/assumptions made, and the executed trade rules (timing, sizing, risk controls). Identify which layer succeeded or failed.
+                    - Factor evaluation: For each contributing factor, specify direction, evidence level (primary/secondary/inferred), recency, and weight of influence (low/medium/high). Consider:
+                        - Market intelligence and regime context.
+                        - Technical indicators and signals.
+                        - Price action and path dependency.
+                        - News flow and event risk.
+                        - Social media and sentiment.
+                        - Fundamental metrics and valuation.
+                        - Liquidity/volatility conditions impacting execution quality.
+                
+                Improvement:
+                    - For incorrect or suboptimal decisions, propose revisions tied to observable conditions:
+                        - Entry/exit rule adjustments with explicit triggers and invalidations.
+                        - Timing refinements (avoid chop, wait for confirmation).
+                        - Sizing/risk limits aligned to volatility or conviction.
+                        - Data/confirmation requirements (e.g., two‑source validation of key KPIs).
+                    - Make at least one concrete, testable recommendation per error (e.g., “Change HOLD to BUY when [condition] occurs; if not observed by [date/event], maintain HOLD”).
+                    
+                Summary:
+                    - Distill lessons into reusable rules: what to repeat, what to avoid, what to monitor. Map each rule to the error layer it fixes (signal, judgment, or action) and the metric that will verify adherence next time.
+                    
+                Query:
+                    - Produce one concise sentence (≤1000 tokens) that captures the core lessons and decision rules, including at least one observable trigger and one invalidation condition.
+                    
+                Quality and constraints:
+                    - Be specific, evidence‑based, and time‑aware. Explicitly state assumptions, horizons, and benchmarks used for evaluation.
+                    - If inputs are missing or contradictory, flag limitations, state the minimal viable assumption, and proceed with a conservative evaluation.
+                    - Avoid generic statements such as “trends are mixed”; tie claims to concrete signals, data points, or catalysts.
+                    - The analysis should be detailed, accurate, and directly actionable. You will also be provided objective descriptions of price movements, technical indicators, news, and sentiment to ground your evaluation.
+                
+                Output language: ***{self.language_prompt}***
+            """
 
     def _extract_current_situation(self, current_state: Dict[str, Any]) -> str:
         """Extract the current market situation from the state."""

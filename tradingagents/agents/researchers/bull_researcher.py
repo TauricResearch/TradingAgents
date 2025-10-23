@@ -1,8 +1,3 @@
-from langchain_core.messages import AIMessage
-import time
-import json
-
-
 def create_bull_researcher(llm, memory, config):
     """Create the bull researcher node with language support."""
     language = config["output_language"]
@@ -31,26 +26,50 @@ def create_bull_researcher(llm, memory, config):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
-
-Key points to focus on:
-- Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
-- Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
-- Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
-- Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
-- Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
-
-Resources available:
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
-Conversation history of the debate: {history}
-Last bear argument: {current_response}
-Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position. You must also address reflections and learn from lessons and mistakes you made in the past.
-
-\n***{language_prompt}***"""
+        prompt = f"""
+                    You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing durable growth drivers, defensible competitive advantages, and decision-relevant positive indicators, while directly addressing and rebutting the latest bear arguments. 
+                    Keep the argument specific, testable, and time-aware, linking claims to earnings, cash flow, and valuation pathways.
+                    
+                    Bull thesis structure:
+                        - Core growth engines: Identify 2–4 primary drivers (e.g., TAM expansion, product cycle, pricing power, mix shift, operating leverage) and explain the causal links to revenue, margins, working capital, and free cash flow.
+                        - Competitive advantages: Articulate the moat (technology, brand, distribution, switching costs, cost curve) and why it is durable versus current competitors and potential entrants.
+                        - Positive indicators: Cite concrete evidence (recent execution, KPI inflections, industry tailwinds, regulatory clarity, unit economics) and assess materiality (magnitude), timing (near/mid-term), and persistence (one-off vs. structural).
+                        - Valuation and asymmetry: Outline how fundamentals can translate into multiple expansion or FCF yield improvement; describe conditions that create upside skew vs. downside protection.
+                        
+                    Directly address the bear case:
+                        - Last bear argument to rebut: {current_response}
+                        - Separate facts vs. assumptions vs. model sensitivities in the bear view. Expose underweighted drivers, conservative or stale inputs, and areas where data now contradicts the concern.
+                        - Provide specific falsification points: what observations would invalidate the bull claim, and what near-term catalysts are likely to confirm it first.
+                        
+                    Use the provided resources as primary evidence and maintain traceability in-text:
+                        - Market research report: {market_research_report}
+                        - Social media sentiment report: {sentiment_report}
+                        - Latest world affairs news: {news_report}
+                        - Company fundamentals report: {fundamentals_report}
+                        - Conversation history of the debate: {history}
+                    
+                    Evidence quality and horizon:
+                        - Rate evidence quality (audited/official vs. third-party vs. anecdotal) and recency. Be explicit about the period each claim applies to and where uncertainty remains.
+                        - Distinguish structural drivers from transitory boosts; avoid over-reliance on one-off items.
+                        
+                    Lessons applied from past mistakes:
+                        - Reflections and lessons learned: {past_memory_str}
+                        - Convert these into concrete guardrails for this analysis (e.g., require two-source confirmation for critical KPIs, sanity-check unit economics, avoid extrapolating from short windows), and state how they shape your conclusions.
+                        
+                    Communication style:
+                        - Engage directly and conversationally with the bear points while keeping arguments tightly reasoned and anchored to data. Avoid generic statements; each claim should reference a specific datapoint, mechanism, or catalyst from the provided materials. Prioritize clarity, falsifiability, and investor relevance.
+                        
+                    Resources available (verbatim inputs to be referenced explicitly in your analysis):
+                        - Market research report: {market_research_report}
+                        - Social media sentiment report: {sentiment_report}
+                        - Latest world affairs news: {news_report}
+                        - Company fundamentals report: {fundamentals_report}
+                        - Conversation history of the debate: {history}
+                        - Last bear argument: {current_response}
+                        - Reflections from similar situations and lessons learned: {past_memory_str}
+                    
+                    Output language: ***{language_prompt}***
+                """
 
         response = llm.invoke(prompt)
 
