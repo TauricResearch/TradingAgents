@@ -6,8 +6,6 @@ from sentence_transformers import SentenceTransformer
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        self.client = OpenAI(base_url=config["backend_url"], api_key=config.get("api_key"))
-        
         # Based on llm_provider to select embeddings
         if config["llm_provider"] == "ollama":
             self.embedding = "nomic-embed-text"
@@ -18,13 +16,13 @@ class FinancialSituationMemory:
             self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
             self.use_local_embedding = True
         else:
+            self.client = OpenAI(base_url=config["backend_url"], api_key=config.get("api_key"))
             self.embedding = "text-embedding-3-small"
             self.embedding_client = self.client
             self.use_local_embedding = False
-        
+
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
-
 
     def get_embedding(self, text):
         """Get embedding for a text"""
@@ -34,11 +32,10 @@ class FinancialSituationMemory:
         else:
             # use API
             response = self.embedding_client.embeddings.create(
-                model=self.embedding, 
+                model=self.embedding,
                 input=text
             )
             return response.data[0].embedding
-
 
     def add_situations(self, situations_and_advice):
         """Add financial situations and their corresponding advice. Parameter is a list of tuples (situation, rec)"""
