@@ -24,14 +24,14 @@ def create_news_analyst(llm):
             [
                 (
                     "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. We are looking at the company {ticker}",
+                    "你是一个乐于助人的人工智能助手，与其他助手协作。"
+                    " 使用提供的工具来逐步回答问题。"
+                    " 如果你无法完全回答，没关系；另一个拥有不同工具的助手会从你离开的地方继续。"
+                    " 执行你力所能及的操作以取得进展。"
+                    " 如果你或任何其他助手有最终的交易建议：**买入/持有/卖出**或可交付成果，"
+                    " 请在你的回应前加上前缀“最终交易建议：**买入/持有/卖出**”，这样团队就知道可以停止了。"
+                    " 你可以使用以下工具：{tool_names}。\n{system_message}"
+                    "供你参考，当前日期是{current_date}。我们正在关注的公司是{ticker}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
