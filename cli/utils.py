@@ -1,5 +1,6 @@
+from typing import List
+
 import questionary
-from typing import List, Optional, Tuple, Dict
 
 from cli.models import AnalystType
 
@@ -48,7 +49,7 @@ def get_analysis_date() -> str:
     date = questionary.text(
         "Enter the analysis date (YYYY-MM-DD):",
         validate=lambda x: validate_date(x.strip())
-        or "Please enter a valid date in YYYY-MM-DD format.",
+                           or "Please enter a valid date in YYYY-MM-DD format.",
         style=questionary.Style(
             [
                 ("text", "fg:green"),
@@ -146,8 +147,10 @@ def select_shallow_thinking_agent(provider) -> str:
         ],
         "openrouter": [
             ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
-            ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
-            ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
+            ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B",
+             "meta-llama/llama-3.3-8b-instruct:free"),
+            ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token",
+             "google/gemini-2.0-flash-exp:free"),
         ],
         "ollama": [
             ("llama3.1 local", "llama3.1"),
@@ -212,7 +215,8 @@ def select_deep_thinking_agent(provider) -> str:
         ],
         "openrouter": [
             ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
-            ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
+            ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.",
+             "deepseek/deepseek-chat-v3-0324:free"),
         ],
         "ollama": [
             ("llama3.1 local", "llama3.1"),
@@ -222,7 +226,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("grok-4-fast-reasoning", "grok-4-fast-reasoning"),
         ]
     }
-    
+
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
@@ -245,18 +249,19 @@ def select_deep_thinking_agent(provider) -> str:
 
     return choice
 
+
 def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
     # Define OpenAI api options with their corresponding endpoints
     BASE_URLS = [
-        ("XAI", "https://api.x.ai/v1"),       
+        ("XAI", "https://api.x.ai/v1"),
         ("OpenAI", "https://api.openai.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
-    
+
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
@@ -272,27 +277,42 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
         console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
         exit(1)
-    
+
     display_name, url = choice
     print(f"You selected: {display_name}\tURL: {url}")
-    
+
     return display_name, url
 
 
-def select_language() -> str:
+def select_language() -> int:
     """Select output language for agent responses."""
-    choices = [
-        questionary.Choice("English (default)", "en"),
-        questionary.Choice("Traditional Chinese", "zh-tw"),
-        questionary.Choice("Simplified Chinese", "zh-cn"),
+    LANGUAGE_OPTIONS = [
+        ("English", "en"),
+        ("Traditional Chinese", "zh-tw"),
+        ("Simplified Chinese", "zh-cn"),
     ]
-    return questionary.select(
+
+    choice = questionary.select(
         "Select Output Language for Agents:",
-        choices=choices,
-        default="en",
-        style=questionary.Style([("selected", "fg:cyan noinherit")])
-    ).ask() or "en"  # Default to 'en' if None
+        choices=[
+            questionary.Choice(display, value=value) for display, value in LANGUAGE_OPTIONS
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:yellow noinherit"),
+                ("highlighted", "fg:yellow noinherit"),
+                ("pointer", "fg:yellow noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No langauge selected. Exiting...[/red]")
+        exit(1)
+
+    return choice
