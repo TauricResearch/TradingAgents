@@ -1,28 +1,33 @@
-import time
-import json
+def create_risk_manager(llm, memory, config):
+    """Create the risk manager node with language support."""
+    language = config["output_language"]
+    language_prompts = {
+        "en": "",
+        "zh-tw": "Use Traditional Chinese as the output.",
+        "zh-cn": "Use Simplified Chinese as the output.",
+    }
+    language_prompt = language_prompts.get(language, "")
 
-
-def create_risk_manager(llm, memory):
     def risk_manager_node(state) -> dict:
-
         company_name = state["company_of_interest"]
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
-        market_research_report = state["market_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["news_report"]
-        sentiment_report = state["sentiment_report"]
-        trader_plan = state["investment_plan"]
+        market_research_report = state["market_analysis"]
+        news_analysis = state["news_analysis"]
+        fundamentals_analysis = state["news_analysis"]
+        sentiment_analysis = state["sentiment_analysis"]
+        trader_plan = state["research_team_decision"]
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{market_research_report}\n\n{sentiment_analysis}\n\n{news_analysis}\n\n{fundamentals_analysis}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
+        prompt = f"""
+As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
 
 Guidelines for Decision-Making:
 1. **Summarize Key Arguments**: Extract the strongest points from each analyst, focusing on relevance to the context.
@@ -41,7 +46,10 @@ Deliverables:
 
 ---
 
-Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
+Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes.
+
+Output language: ***{language_prompt}***
+"""
 
         response = llm.invoke(prompt)
 
@@ -60,7 +68,7 @@ Focus on actionable insights and continuous improvement. Build on past lessons, 
 
         return {
             "risk_debate_state": new_risk_debate_state,
-            "final_trade_decision": response.content,
+            "final_portfolio_management_decision": response.content,
         }
 
     return risk_manager_node

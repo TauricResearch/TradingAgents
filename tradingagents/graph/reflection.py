@@ -1,20 +1,29 @@
 # TradingAgents/graph/reflection.py
 
 from typing import Dict, Any
-from langchain_openai import ChatOpenAI
+
+from langchain_core.language_models.chat_models import BaseChatModel
 
 
 class Reflector:
     """Handles reflection on decisions and updating memory."""
 
-    def __init__(self, quick_thinking_llm: ChatOpenAI):
+    def __init__(self, quick_thinking_llm: BaseChatModel, config):
         """Initialize the reflector with an LLM."""
+        language = config["output_language"]
+        language_prompts = {
+            "en": "",
+            "zh-tw": "Use Traditional Chinese as the output.",
+            "zh-cn": "Use Simplified Chinese as the output.",
+        }
+        self.language_prompt = language_prompts.get(language, "")
+
         self.quick_thinking_llm = quick_thinking_llm
         self.reflection_system_prompt = self._get_reflection_prompt()
 
     def _get_reflection_prompt(self) -> str:
         """Get the system prompt for reflection."""
-        return """
+        return f"""
 You are an expert financial analyst tasked with reviewing trading decisions/analysis and providing a comprehensive, step-by-step analysis. 
 Your goal is to deliver detailed insights into investment decisions and highlight opportunities for improvement, adhering strictly to the following guidelines:
 
@@ -44,26 +53,36 @@ Your goal is to deliver detailed insights into investment decisions and highligh
    - Ensure the condensed sentence captures the essence of the lessons and reasoning for easy reference.
 
 Adhere strictly to these instructions, and ensure your output is detailed, accurate, and actionable. You will also be given objective descriptions of the market from a price movements, technical indicator, news, and sentiment perspective to provide more context for your analysis.
+
+Output language: ***{self.language_prompt}***
 """
 
     def _extract_current_situation(self, current_state: Dict[str, Any]) -> str:
         """Extract the current market situation from the state."""
-        curr_market_report = current_state["market_report"]
-        curr_sentiment_report = current_state["sentiment_report"]
-        curr_news_report = current_state["news_report"]
-        curr_fundamentals_report = current_state["fundamentals_report"]
+        curr_market_report = current_state["market_analysis"]
+        curr_sentiment_report = current_state["sentiment_analysis"]
+        curr_news_report = current_state["news_analysis"]
+        curr_fundamentals_report = current_state["fundamentals_analysis"]
 
         return f"{curr_market_report}\n\n{curr_sentiment_report}\n\n{curr_news_report}\n\n{curr_fundamentals_report}"
 
     def _reflect_on_component(
-        self, component_type: str, report: str, situation: str, returns_losses
+            self, component_type: str, report: str, situation: str, returns_losses
     ) -> str:
         """Generate reflection for a component."""
         messages = [
             ("system", self.reflection_system_prompt),
             (
                 "human",
-                f"Returns: {returns_losses}\n\nAnalysis/Decision: {report}\n\nObjective Market Reports for Reference: {situation}",
+                f"""
+Returns: {returns_losses}
+
+
+Analysis/Decision: {report}
+
+
+Objective Market Reports for Reference: {situation}
+""",
             ),
         ]
 
@@ -93,7 +112,7 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
     def reflect_trader(self, current_state, returns_losses, trader_memory):
         """Reflect on trader's decision and update memory."""
         situation = self._extract_current_situation(current_state)
-        trader_decision = current_state["trader_investment_plan"]
+        trader_decision = current_state["trader_team_plan"]
 
         result = self._reflect_on_component(
             "TRADER", trader_decision, situation, returns_losses

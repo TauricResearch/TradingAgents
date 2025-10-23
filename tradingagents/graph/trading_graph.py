@@ -1,26 +1,15 @@
 # TradingAgents/graph/trading_graph.py
 
+import json
 import os
 from pathlib import Path
-import json
-from datetime import date
-from typing import Dict, Any, Tuple, List, Optional
+from typing import Dict, Any
 
-from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-
+from langchain_openai import ChatOpenAI
+from langchain_xai import ChatXAI
 from langgraph.prebuilt import ToolNode
-
-from tradingagents.agents import *
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.agents.utils.memory import FinancialSituationMemory
-from tradingagents.agents.utils.agent_states import (
-    AgentState,
-    InvestDebateState,
-    RiskDebateState,
-)
-from tradingagents.dataflows.config import set_config
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -35,11 +24,13 @@ from tradingagents.agents.utils.agent_utils import (
     get_insider_transactions,
     get_global_news
 )
-
+from tradingagents.agents.utils.memory import FinancialSituationMemory
+from tradingagents.dataflows.config import set_config
+from tradingagents.default_config import DEFAULT_CONFIG
 from .conditional_logic import ConditionalLogic
-from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
+from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
 
@@ -47,10 +38,10 @@ class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
     def __init__(
-        self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
-        debug=False,
-        config: Dict[str, Any] = None,
+            self,
+            selected_analysts=["market", "social", "news", "fundamentals"],
+            debug=False,
+            config: Dict[str, Any] = None,
     ):
         """Initialize the trading agents graph and components.
 
@@ -72,18 +63,26 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config[
+            "llm_provider"] == "openrouter":
+            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"],
+                                                base_url=self.config["backend_url"])
+            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"],
+                                                 base_url=self.config["backend_url"])
         elif self.config["llm_provider"].lower() == "anthropic":
-            self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+            self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"],
+                                                   base_url=self.config["backend_url"])
+            self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"],
+                                                    base_url=self.config["backend_url"])
         elif self.config["llm_provider"].lower() == "google":
             self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
             self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+        elif self.config["llm_provider"].lower() == "xai":
+            self.deep_thinking_llm = ChatXAI(model=self.config["deep_think_llm"])
+            self.quick_thinking_llm = ChatXAI(model=self.config["quick_think_llm"])
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
-        
+
         # Initialize memories
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
         self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
@@ -106,11 +105,12 @@ class TradingAgentsGraph:
             self.invest_judge_memory,
             self.risk_manager_memory,
             self.conditional_logic,
+            config=self.config,
         )
 
         self.propagator = Propagator()
-        self.reflector = Reflector(self.quick_thinking_llm)
-        self.signal_processor = SignalProcessor(self.quick_thinking_llm)
+        self.reflector = Reflector(self.quick_thinking_llm, self.config)
+        self.signal_processor = SignalProcessor(self.quick_thinking_llm, self.config)
 
         # State tracking
         self.curr_state = None
@@ -190,17 +190,17 @@ class TradingAgentsGraph:
         self._log_state(trade_date, final_state)
 
         # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        return final_state, self.process_signal(final_state["final_portfolio_management_decision"])
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
-            "market_report": final_state["market_report"],
-            "sentiment_report": final_state["sentiment_report"],
-            "news_report": final_state["news_report"],
-            "fundamentals_report": final_state["fundamentals_report"],
+            "market_analysis": final_state["market_analysis"],
+            "sentiment_analysis": final_state["sentiment_analysis"],
+            "news_analysis": final_state["news_analysis"],
+            "fundamentals_analysis": final_state["fundamentals_analysis"],
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
@@ -212,7 +212,7 @@ class TradingAgentsGraph:
                     "judge_decision"
                 ],
             },
-            "trader_investment_decision": final_state["trader_investment_plan"],
+            "trader_investment_decision": final_state["trader_team_plan"],
             "risk_debate_state": {
                 "risky_history": final_state["risk_debate_state"]["risky_history"],
                 "safe_history": final_state["risk_debate_state"]["safe_history"],
@@ -220,8 +220,8 @@ class TradingAgentsGraph:
                 "history": final_state["risk_debate_state"]["history"],
                 "judge_decision": final_state["risk_debate_state"]["judge_decision"],
             },
-            "investment_plan": final_state["investment_plan"],
-            "final_trade_decision": final_state["final_trade_decision"],
+            "research_team_decision": final_state["research_team_decision"],
+            "final_portfolio_management_decision": final_state["final_portfolio_management_decision"],
         }
 
         # Save to file
@@ -229,8 +229,8 @@ class TradingAgentsGraph:
         directory.mkdir(parents=True, exist_ok=True)
 
         with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
-            "w",
+                f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
+                "w",
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
 
