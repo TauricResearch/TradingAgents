@@ -11,15 +11,15 @@ class FinancialSituationMemory:
             self.embedding = "nomic-embed-text"
             self.embedding_client = OpenAI(base_url="http://localhost:11434/v1")
             self.use_local_embedding = False
-        elif config["llm_provider"] == "xai":
-            # Grok - use local Hugging Face model
-            self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-            self.use_local_embedding = True
-        else:
+        elif config["llm_provider"] == "openai":
             self.client = OpenAI(base_url=config["backend_url"], api_key=config.get("api_key"))
             self.embedding = "text-embedding-3-small"
             self.embedding_client = self.client
             self.use_local_embedding = False
+        else:
+            # use local Hugging Face model
+            self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            self.use_local_embedding = True
 
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
