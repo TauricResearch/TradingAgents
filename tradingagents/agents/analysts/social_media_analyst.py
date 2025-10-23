@@ -16,7 +16,6 @@ def create_social_media_analyst(llm, config):
         ]
 
         language = config["output_language"]
-        language = config["output_language"]
         language_prompts = {
             "en": "",
             "zh-tw": "Use Traditional Chinese as the output.",
