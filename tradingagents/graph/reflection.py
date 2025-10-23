@@ -8,14 +8,22 @@ from langchain_core.language_models.chat_models import BaseChatModel
 class Reflector:
     """Handles reflection on decisions and updating memory."""
 
-    def __init__(self, quick_thinking_llm: BaseChatModel):
+    def __init__(self, quick_thinking_llm: BaseChatModel, config):
         """Initialize the reflector with an LLM."""
+        language = config["output_language"]
+        language_prompts = {
+            "en": "",
+            "zh-tw": "Use Traditional Chinese as the output.",
+            "zh-cn": "Use Simplified Chinese as the output.",
+        }
+        self.language_prompt = language_prompts.get(language, "")
+
         self.quick_thinking_llm = quick_thinking_llm
         self.reflection_system_prompt = self._get_reflection_prompt()
 
     def _get_reflection_prompt(self) -> str:
         """Get the system prompt for reflection."""
-        return """
+        return f"""
 You are an expert financial analyst tasked with reviewing trading decisions/analysis and providing a comprehensive, step-by-step analysis. 
 Your goal is to deliver detailed insights into investment decisions and highlight opportunities for improvement, adhering strictly to the following guidelines:
 
@@ -45,6 +53,8 @@ Your goal is to deliver detailed insights into investment decisions and highligh
    - Ensure the condensed sentence captures the essence of the lessons and reasoning for easy reference.
 
 Adhere strictly to these instructions, and ensure your output is detailed, accurate, and actionable. You will also be given objective descriptions of the market from a price movements, technical indicator, news, and sentiment perspective to provide more context for your analysis.
+
+Output language: ***{self.language_prompt}***
 """
 
     def _extract_current_situation(self, current_state: Dict[str, Any]) -> str:
