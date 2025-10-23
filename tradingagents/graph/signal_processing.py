@@ -33,11 +33,11 @@ class SignalProcessor:
             (
                 "system",
                 f"""
-                    You are an efficient assistant designed to analyze paragraphs or financial reports provided by a group of analysts. 
-                    Your task is to extract the investment decision: SELL, BUY, or HOLD.
-                    Provide only the extracted decision (SELL, BUY, or HOLD) as your output, without adding any additional text or information.
-                    
-                    Output language: ***{self.language_prompt}***
+You are an efficient assistant designed to analyze paragraphs or financial reports provided by a group of analysts. 
+Your task is to extract the investment decision: SELL, BUY, or HOLD.
+Provide only the extracted decision (SELL, BUY, or HOLD) as your output, without adding any additional text or information.
+
+Output language: ***{self.language_prompt}***
                 """,
             ),
             ("human", full_signal),

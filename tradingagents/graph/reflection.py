@@ -74,7 +74,15 @@ Output language: ***{self.language_prompt}***
             ("system", self.reflection_system_prompt),
             (
                 "human",
-                f"Returns: {returns_losses}\n\nAnalysis/Decision: {report}\n\nObjective Market Reports for Reference: {situation}",
+                f"""
+Returns: {returns_losses}
+
+
+Analysis/Decision: {report}
+
+
+Objective Market Reports for Reference: {situation}
+""",
             ),
         ]
 

@@ -1,8 +1,3 @@
-from langchain_core.messages import AIMessage
-import time
-import json
-
-
 def create_bull_researcher(llm, memory, config):
     """Create the bull researcher node with language support."""
     language = config["output_language"]
@@ -31,7 +26,10 @@ def create_bull_researcher(llm, memory, config):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        prompt = f"""
+You are a Bull Analyst advocating for investing in the stock. 
+Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. 
+Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 
 Key points to focus on:
 - Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
@@ -41,16 +39,45 @@ Key points to focus on:
 - Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
 
 Resources available:
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
-Conversation history of the debate: {history}
-Last bear argument: {current_response}
-Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position. You must also address reflections and learn from lessons and mistakes you made in the past.
+Market research report: 
+{market_research_report}
 
-\n***{language_prompt}***"""
+--------------------------------------
+Social media sentiment report: 
+{sentiment_report}
+
+
+--------------------------------------
+Latest world affairs news: 
+{news_report}
+
+
+--------------------------------------
+Company fundamentals report: 
+{fundamentals_report}
+
+
+--------------------------------------
+Conversation history of the debate: 
+{history}
+
+
+--------------------------------------
+Last bear argument: 
+{current_response}
+
+
+--------------------------------------
+Reflections from similar situations and lessons learned: 
+{past_memory_str}
+
+
+--------------------------------------
+Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position.
+You must also address reflections and learn from lessons and mistakes you made in the past.
+
+Output language: ***{language_prompt}***
+"""
 
         response = llm.invoke(prompt)
 

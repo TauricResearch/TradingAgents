@@ -1,6 +1,4 @@
 import functools
-import time
-import json
 
 
 def create_trader(llm, memory, config):
@@ -33,15 +31,36 @@ def create_trader(llm, memory, config):
 
         context = {
             "role": "user",
-            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic decision.",
+            "content": f"""
+Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. 
+This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. 
+Use this plan as a foundation for evaluating your next trading decision.
+
+Proposed Investment Plan: 
+{investment_plan}
+
+
+--------------------------------------
+Leverage these insights to make an informed and strategic decision.
+""",
         }
 
         messages = [
             {
                 "role": "system",
-                "content": f"""You are a trading agent analyzing market data to make investment decisions. Based on your analysis, provide a specific recommendation to buy, sell, or hold. End with a firm decision and always conclude your response with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**' to confirm your recommendation. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situations you traded in and the lessons learned: {past_memory_str}
+                "content": f"""
+You are a trading agent analyzing market data to make investment decisions. 
+Based on your analysis, provide a specific recommendation to buy, sell, or hold. 
+End with a firm decision and always conclude your response with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**' to confirm your recommendation. 
+Do not forget to utilize lessons from past decisions to learn from your mistakes. 
 
-\n***{language_prompt}***""",
+Here is some reflections from similar situations you traded in and the lessons learned: 
+{past_memory_str}
+
+
+--------------------------------------
+Output language: ***{language_prompt}***
+""",
             },
             context,
         ]
