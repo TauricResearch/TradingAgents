@@ -34,7 +34,7 @@ def create_fundamentals_analyst(llm):
                     " 如果你或任何其他助手有最终的交易建议：**买入/持有/卖出**或可交付成果，"
                     " 请在你的回应前加上前缀“最终交易建议：**买入/持有/卖出**”，这样团队就知道可以停止了。"
                     " 你可以使用以下工具：{tool_names}。\n{system_message}"
-                    "供你参考，当前日期是{current_date}。我们想要关注的公司是{ticker}",
+                    "供你参考，当前日期是{current_date}。请确保在你的报告中使用此日期中的年份。我们想要关注的公司是{ticker}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
