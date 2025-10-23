@@ -1,13 +1,13 @@
 # TradingAgents/graph/setup.py
 
 from typing import Dict, Any
-from langchain_openai import ChatOpenAI
+
+from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
-
 from .conditional_logic import ConditionalLogic
 
 
@@ -15,17 +15,17 @@ class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
     def __init__(
-        self,
-        quick_thinking_llm: ChatOpenAI,
-        deep_thinking_llm: ChatOpenAI,
-        tool_nodes: Dict[str, ToolNode],
-        bull_memory,
-        bear_memory,
-        trader_memory,
-        invest_judge_memory,
-        risk_manager_memory,
-        conditional_logic: ConditionalLogic,
-        config: Dict[str, Any],
+            self,
+            quick_thinking_llm: BaseChatModel,
+            deep_thinking_llm: BaseChatModel,
+            tool_nodes: Dict[str, ToolNode],
+            bull_memory,
+            bear_memory,
+            trader_memory,
+            invest_judge_memory,
+            risk_manager_memory,
+            conditional_logic: ConditionalLogic,
+            config: Dict[str, Any],
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -40,7 +40,7 @@ class GraphSetup:
         self.config = config
 
     def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"]
+            self, selected_analysts=["market", "social", "news", "fundamentals"]
     ):
         """Set up and compile the agent workflow graph.
 
@@ -149,7 +149,7 @@ class GraphSetup:
 
             # Connect to next analyst or to Bull Researcher if this is the last analyst
             if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
+                next_analyst = f"{selected_analysts[i + 1].capitalize()} Analyst"
                 workflow.add_edge(current_clear, next_analyst)
             else:
                 workflow.add_edge(current_clear, "Bull Researcher")

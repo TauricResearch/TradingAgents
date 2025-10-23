@@ -1,13 +1,14 @@
 # TradingAgents/graph/reflection.py
 
 from typing import Dict, Any
-from langchain_openai import ChatOpenAI
+
+from langchain_core.language_models.chat_models import BaseChatModel
 
 
 class Reflector:
     """Handles reflection on decisions and updating memory."""
 
-    def __init__(self, quick_thinking_llm: ChatOpenAI):
+    def __init__(self, quick_thinking_llm: BaseChatModel):
         """Initialize the reflector with an LLM."""
         self.quick_thinking_llm = quick_thinking_llm
         self.reflection_system_prompt = self._get_reflection_prompt()
@@ -56,7 +57,7 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         return f"{curr_market_report}\n\n{curr_sentiment_report}\n\n{curr_news_report}\n\n{curr_fundamentals_report}"
 
     def _reflect_on_component(
-        self, component_type: str, report: str, situation: str, returns_losses
+            self, component_type: str, report: str, situation: str, returns_losses
     ) -> str:
         """Generate reflection for a component."""
         messages = [
