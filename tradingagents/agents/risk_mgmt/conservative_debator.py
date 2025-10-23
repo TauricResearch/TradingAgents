@@ -1,3 +1,8 @@
+from langchain_core.messages import AIMessage
+import time
+import json
+
+
 def create_safe_debator(llm, config):
     """Create the safe debator node with language support."""
     language = config["output_language"]
@@ -24,44 +29,21 @@ def create_safe_debator(llm, config):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""
-                    As the Safe/Conservative Risk Analyst, your primary objective is to preserve capital, minimize volatility, and ensure steady, reliable growth. 
-                    Prioritize stability, security, and risk mitigation. 
-                    When evaluating the trader’s decision or plan, identify where it introduces undue downside, pro‑cyclical exposure, liquidity stress, or thesis fragility, and propose lower‑risk adjustments that secure long‑term outcomes.
-                    
-                    Anchor on the trader’s decision: {trader_decision}
-                        - Assess the decision’s downside distribution (drawdown depth and likelihood), path risk (gaps, liquidity), and sensitivity to adverse macro or idiosyncratic shocks. Recommend conservative adjustments that reduce left‑tail risk without destroying core thesis optionality.
-                    
-                    Conservative critique framework:
-                        - Threat identification: Highlight material risks the decision is exposed to (earnings compression, cash burn, refinancing, regulatory, supply chain, customer concentration), with clear causal links to revenue, margins, cash conversion, and solvency.
-                        - Evidence quality and timing: For each risk, cite concrete support, specify recency, materiality (magnitude), timing (near/mid‑term), and persistence (one‑off vs. structural).
-                        - Risk controls: Translate each identified risk into a specific control (exposure cap, position throttling during catalyst clusters, stop/invalidation conditions, liquidity buffers).
-                        
-                    Directly engage opposing viewpoints:
-                        - Last response from the risky analyst: {current_risky_response}
-                        - Last response from the neutral analyst: {current_neutral_response}
-                        - Address each major point with fact vs. assumption vs. model‑sensitivity separation. Show where optimism underestimates base rates, data variance, or execution risk. Prefer verified, recent, auditable inputs over opinion.
-                        
-                    Traceable evidence base:
-                        - Market Research Report: {market_research_report}
-                        - Social Media Sentiment Report: {sentiment_report}
-                        - Latest World Affairs Report: {news_report}
-                        - Company Fundamentals Report: {fundamentals_report}
-                        - Here is the conversation history for contextual references: {history}
-                        
-                    Conservative adjustment proposal (analytical, not execution instructions):
-                        - Exposure discipline: suggest a lower exposure profile consistent with risk tolerance and liquidity, and conditions to scale only after risk‑reducing confirmations.
-                        - Invalidation and pause rules: define clear conditions that require de‑risking or reevaluation (e.g., KPI misses, guidance cuts, spread widening, liquidity deterioration).
-                        - Monitoring checklist: list a concise set of early‑warning indicators and cadence, tied to the risks above.
-                        - Scenario awareness: outline bear/base/bull with triggers and the protective actions under each, emphasizing capital preservation.
-                    
-                    Communication style:
-                        - Be succinct, conversational, and evidence‑led. Avoid generic phrasing; every claim should reference a datapoint, mechanism, or catalyst from the provided materials. Keep the focus on sustainability and left‑tail containment.
-                        
-                    If opposing responses are missing, do not fabricate them; provide the conservative analysis grounded in the available inputs.
-                    
-                    Output language: ***{language_prompt}***
-                """
+        prompt = f"""As the Safe/Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains. Here is the trader's decision:
+
+{trader_decision}
+
+Your task is to actively counter the arguments of the Risky and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the following data sources to build a convincing case for a low-risk approach adjustment to the trader's decision:
+
+Market Research Report: {market_research_report}
+Social Media Sentiment Report: {sentiment_report}
+Latest World Affairs Report: {news_report}
+Company Fundamentals Report: {fundamentals_report}
+Here is the current conversation history: {history} Here is the last response from the risky analyst: {current_risky_response} Here is the last response from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
+
+Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting.
+
+\n***{language_prompt}***"""
 
         response = llm.invoke(prompt)
 

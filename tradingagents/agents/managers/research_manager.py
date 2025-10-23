@@ -24,35 +24,25 @@ def create_research_manager(llm, memory, config):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""
-                    As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented. 
-                    Do not default to Hold as a compromise; choose it only when key uncertainties are imminent, material, and make risk-reward effectively flat.
-                    Summarize the key points from both sides concisely, focusing on the most compelling evidence or reasoning. 
-                    Distinguish facts, assumptions, and model-based inferences, and note data quality and near-term catalysts where relevant. 
-                    Your recommendation—Buy, Sell, or Hold—must be clear, testable, and actionable.
-                    
-                    Decision rules:
-                        - Prefer recent, verifiable, and causally linked evidence over opinions or stale metrics.
-                        - Favor arguments that map directly to earnings, cash flow, liquidity, or competitive position with identifiable triggers.
-                        - State what observations would flip your stance (reversal conditions) and why.
-                        
-                    Your deliverables:
-                        - Your Recommendation: BUY / SELL / HOLD (place this at the very beginning of your response).
-                        - Rationale: A concise explanation tying the stance to the strongest debate arguments and catalysts.
-                        - Strategic Actions: Concrete steps for implementing the recommendation, including entry/timing triggers, scaling rules on confirmation/failure, and clear invalidation conditions.
-                        - Key Uncertainties: The 2–4 most important unknowns that could change the stance, plus how they will be monitored.
-                        
-                    Use your past mistakes to adjust this decision. Extract concrete guardrails from the reflections and state exactly how they are applied here.
+        prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
 
-                    Here are your past reflections on mistakes:
-                    "{past_memory_str}"
+Summarize the key points from both sides concisely, focusing on the most compelling evidence or reasoning. Your recommendation—Buy, Sell, or Hold—must be clear and actionable. Avoid defaulting to Hold simply because both sides have valid points; commit to a stance grounded in the debate's strongest arguments.
 
-                    Here is the debate:
-                    Debate History:
-                    {history}
+Additionally, develop a detailed investment plan for the trader. This should include:
 
-                    Output language: ***{language_prompt}***
-                """
+Your Recommendation: A decisive stance supported by the most convincing arguments.
+Rationale: An explanation of why these arguments lead to your conclusion.
+Strategic Actions: Concrete steps for implementing the recommendation.
+Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting. 
+
+Here are your past reflections on mistakes:
+\"{past_memory_str}\"
+
+Here is the debate:
+Debate History:
+{history}
+
+\n***{language_prompt}***"""
         response = llm.invoke(prompt)
 
         new_investment_debate_state = {

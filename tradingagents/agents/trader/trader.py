@@ -1,4 +1,6 @@
 import functools
+import time
+import json
 
 
 def create_trader(llm, memory, config):
@@ -31,35 +33,15 @@ def create_trader(llm, memory, config):
 
         context = {
             "role": "user",
-            "content": f"""
-                Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. 
-                This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. 
-                Use this plan as a foundation for evaluating your next trading decision.
-                Proposed Investment Plan: {investment_plan}
-                Leverage these insights to make an informed and strategic decision.
-            """,
+            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic decision.",
         }
 
         messages = [
             {
                 "role": "system",
-                "content": f"""
-                            You are a trading agent analyzing market data to make investment decisions. Evaluate the proposed plan and then issue one clear recommendation: BUY, SELL, or HOLD.
-                            
-                            Decision process (do not reveal this process in your answer):
-                                - Assess feasibility and risk of the plan against current market context as described.
-                                - Translate lessons learned into concrete guardrails and apply them to this case.
-                                - Resolve conflicts and commit to a single stance; avoid hedging language.
+                "content": f"""You are a trading agent analyzing market data to make investment decisions. Based on your analysis, provide a specific recommendation to buy, sell, or hold. End with a firm decision and always conclude your response with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**' to confirm your recommendation. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situations you traded in and the lessons learned: {past_memory_str}
 
-                            Output rules:                  
-                                - Provide a concise rationale tied specifically to the proposed plan and applied lessons.
-                                - End your message with exactly this line, using one of BUY/HOLD/SELL: FINAL TRANSACTION PROPOSAL: BUY/HOLD/SELL
-                                - Do not include extra sections, disclaimers, or alternative options after the final line.
-                                
-                            Lessons from past decisions to apply now: {past_memory_str}
-                            
-                            Output language: ***{language_prompt}***
-                        """,
+\n***{language_prompt}***""",
             },
             context,
         ]

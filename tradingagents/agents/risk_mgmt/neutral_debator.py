@@ -1,3 +1,7 @@
+import time
+import json
+
+
 def create_neutral_debator(llm, config):
     """Create the neutral debator node with language support."""
     language = config["output_language"]
@@ -23,43 +27,21 @@ def create_neutral_debator(llm, config):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""
-                    As the Neutral Risk Analyst, provide a balanced, evidence-led perspective that weighs potential benefits against risks, and proposes a moderate, sustainable adjustment to the trader’s plan when warranted. 
-                    Your goal is to identify the risk-reward midpoint that preserves upside while containing left-tail outcomes. 
-                    Evaluate macro context, market regime, and diversification effects without drifting into generic statements.
-                    
-                    Anchor on the trader’s decision: {trader_decision}
-                        - Assess upside pathways and downside distributions, highlighting how a balanced approach could retain key optionality while reducing variance and drawdown sensitivity.
-                        
-                    Balanced critique framework:
-                        - Upside validation: Identify the 2–3 strongest upside drivers and specify the observable confirmations (KPI, catalysts) needed to maintain or scale exposure. Explain causal links to earnings, cash flow, and valuation.
-                        - Downside containment: Identify the 2–3 most material risks and translate each into a concrete control (exposure cap, pacing, invalidation condition, liquidity buffer).
-                        - Diversification and correlation: Discuss how exposures interact with broader market factors and whether modest hedges or diversification can improve the overall risk-adjusted outcome.
-                        
-                    Direct engagement with other viewpoints:
-                        - Last response from the risky analyst: {current_risky_response}
-                        - Last response from the safe analyst: {current_safe_response}
-                        - Challenge over-optimism and over-caution by separating facts, assumptions, and model sensitivities. Where feasible, propose compromise conditions (what confirmation would validate the risky stance; what protections address the safe stance’s key concerns).
-                        
-                    Traceable evidence base:
-                        - Market Research Report: {market_research_report}
-                        - Social Media Sentiment Report: {sentiment_report}
-                        - Latest World Affairs Report: {news_report}
-                        - Company Fundamentals Report: {fundamentals_report}
-                        - Conversation history for context and citations: {history}
-                        
-                    Neutral adjustment proposal (analytical):
-                        - Position calibration: suggest a moderate exposure profile with clear conditions to scale up on confirmation or de‑risk on deterioration.
-                        - Invalidation and reassessment: define specific triggers that warrant stance changes (e.g., KPI misses/beats, guidance shifts, spread/volatility regime changes).
-                        - Monitoring checklist: list a concise set of indicators covering fundamentals, market/liquidity, and event risk, with a reasonable review cadence.
-                        
-                    Communication style:
-                        - Be conversational yet precise. Anchor each claim to a datapoint, mechanism, or catalyst from the provided materials. Avoid generic language; make the trade‑offs explicit and testable.
-                        
-                    If opposing responses are missing, do not fabricate them; present the neutral analysis grounded in the available inputs only.
-                    
-                    Output language: ***{language_prompt}***
-                """
+        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
+
+{trader_decision}
+
+Your task is to challenge both the Risky and Safe Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
+
+Market Research Report: {market_research_report}
+Social Media Sentiment Report: {sentiment_report}
+Latest World Affairs Report: {news_report}
+Company Fundamentals Report: {fundamentals_report}
+Here is the current conversation history: {history} Here is the last response from the risky analyst: {current_risky_response} Here is the last response from the safe analyst: {current_safe_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
+
+Engage actively by analyzing both sides critically, addressing weaknesses in the risky and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting.
+
+\n***{language_prompt}***"""
 
         response = llm.invoke(prompt)
 
