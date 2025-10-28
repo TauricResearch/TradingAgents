@@ -1,0 +1,83 @@
+description = "Execute spec tasks using TDD methodology"
+
+prompt = """
+# Execute Spec Tasks with TDD
+
+Execute implementation tasks from spec using Kent Beck's Test-Driven Development methodology.
+
+## Arguments: {{args}}
+
+## Current Specs
+Available specs: !{bash -c 'ls .kiro/specs/ 2>/dev/null || echo "No specs found"'}
+
+## Instructions
+
+### Help Mode (--help)
+If arguments contain "--help", show usage:
+```
+/kiro:spec-impl [feature-name] <task-numbers>
+
+Examples:
+  /kiro:spec-impl auth-system 1.1            # Execute task 1.1
+  /kiro:spec-impl auth-system 1,2,3          # Execute tasks 1, 2, 3
+  /kiro:spec-impl auth-system --all          # Execute all pending tasks
+```
+
+### Pre-Execution Validation
+Feature name: **{{args}}** (first argument will be parsed as feature name)
+
+Validate required files exist:
+Validate required files exist for feature **[feature-name]**:
+- Requirements: `.kiro/specs/[feature-name]/requirements.md`
+- Design: `.kiro/specs/[feature-name]/design.md`  
+- Tasks: `.kiro/specs/[feature-name]/tasks.md`
+- Metadata: `.kiro/specs/[feature-name]/spec.json`
+
+### Project Context Loading
+**Load all required content before execution:**
+
+**Core Steering:**
+- Structure: @.kiro/steering/structure.md
+- Tech Stack: @.kiro/steering/tech.md  
+- Product: @.kiro/steering/product.md
+
+**Custom Steering:**
+- Additional `*.md` files in `.kiro/steering/` (excluding structure.md, tech.md, product.md)
+
+Core Steering and Custom Steering files will provide overall project context.
+
+**Spec Documents:**
+Feature name directory: **{{args}}** (first argument)
+- Metadata: @.kiro/specs/[feature-name]/spec.json
+- Requirements: `.kiro/specs/[feature-name]/requirements.md`
+- Design: `.kiro/specs/[feature-name]/design.md`
+- Tasks: `.kiro/specs/[feature-name]/tasks.md`
+
+
+### Task Execution
+1. **Parse feature name and task numbers** from arguments
+2. **Load all context** (steering + spec documents)
+3. **Execute selected tasks** using TDD methodology
+
+### TDD Implementation
+For each selected task:
+
+1. **RED**: Write failing tests first
+2. **GREEN**: Write minimal code to pass tests  
+3. **REFACTOR**: Clean up and improve code structure
+4. **Verify**: 
+   - All tests pass
+   - No regressions in existing tests
+   - Code quality and test coverage maintained
+5. **Mark Complete**: Update checkbox from `- [ ]` to `- [x]` in tasks.md
+
+**Note**: Follow Kent Beck's TDD methodology strictly, implementing only the specific task requirements.
+
+## Implementation Notes
+
+- **Feature**: Use `$1` for feature name
+- **Tasks**: Use `$2` for specific task numbers (optional)
+- **Validation**: Check all required spec files exist
+- **TDD Focus**: Always write tests before implementation
+- **Task Tracking**: Update checkboxes in tasks.md as completed
+"""
