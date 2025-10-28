@@ -1,25 +1,33 @@
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 
 class FinancialSituationMemory:
-    def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
-            self.embedding = "nomic-embed-text"
+    def __init__(self, name, config, llm):
+        self.config = config
+        self.llm = llm
+        if self.config["llm_provider"].lower() == "google":
+            self.embedding_model = GoogleGenerativeAIEmbeddings(
+                model="models/embedding-001"
+            )
         else:
-            self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+            if config["backend_url"] == "http://localhost:11434/v1":
+                self.embedding = "nomic-embed-text"
+            else:
+                self.embedding = "text-embedding-3-small"
+            self.client = OpenAI(base_url=config["backend_url"])
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
-        """Get OpenAI embedding for a text"""
-        
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
-        return response.data[0].embedding
+        """Get embedding for a text"""
+        if self.config["llm_provider"].lower() == "google":
+            return self.embedding_model.embed_query(text)
+        else:
+            response = self.client.embeddings.create(model=self.embedding, input=text)
+            return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):
         """Add financial situations and their corresponding advice. Parameter is a list of tuples (situation, rec)"""
@@ -45,8 +53,16 @@ class FinancialSituationMemory:
         )
 
     def get_memories(self, current_situation, n_matches=1):
-        """Find matching recommendations using OpenAI embeddings"""
-        query_embedding = self.get_embedding(current_situation)
+        """Find matching recommendations using embeddings. Summarizes if text is too long."""
+        # Check length and summarize if needed
+        if len(current_situation) > 30000:
+            prompt = f"Please summarize the following financial analysis text into a concise paragraph that captures the key insights and market sentiment. The summary should be suitable for use as a query to find similar past situations in a vector database:\n\n{current_situation}"
+            summary_response = self.llm.invoke(prompt)
+            query_text = summary_response.content
+        else:
+            query_text = current_situation
+
+        query_embedding = self.get_embedding(query_text)
 
         results = self.situation_collection.query(
             query_embeddings=[query_embedding],
@@ -55,14 +71,15 @@ class FinancialSituationMemory:
         )
 
         matched_results = []
-        for i in range(len(results["documents"][0])):
-            matched_results.append(
-                {
-                    "matched_situation": results["documents"][0][i],
-                    "recommendation": results["metadatas"][0][i]["recommendation"],
-                    "similarity_score": 1 - results["distances"][0][i],
-                }
-            )
+        if results.get("documents") and results["documents"][0]:
+            for i in range(len(results["documents"][0])):
+                matched_results.append(
+                    {
+                        "matched_situation": results["documents"][0][i],
+                        "recommendation": results["metadatas"][0][i]["recommendation"],
+                        "similarity_score": 1 - results["distances"][0][i],
+                    }
+                )
 
         return matched_results
 
