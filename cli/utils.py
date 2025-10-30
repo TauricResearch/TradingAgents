@@ -1,7 +1,10 @@
 import questionary
 from typing import List, Optional, Tuple, Dict
+from rich.console import Console
 
 from cli.models import AnalystType
+
+console = Console()
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
