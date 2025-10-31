@@ -1,7 +1,6 @@
 # TradingAgents/graph/setup.py
 
 from typing import Dict, Any
-from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
 
@@ -16,8 +15,8 @@ class GraphSetup:
 
     def __init__(
         self,
-        quick_thinking_llm: ChatOpenAI,
-        deep_thinking_llm: ChatOpenAI,
+        quick_thinking_llm,  # Now accepts any LangChain-compatible LLM
+        deep_thinking_llm,   # Now accepts any LangChain-compatible LLM
         tool_nodes: Dict[str, ToolNode],
         bull_memory,
         bear_memory,

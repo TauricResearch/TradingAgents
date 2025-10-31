@@ -1,25 +1,51 @@
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
+import os
 
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
+        self.provider = config.get("llm_provider", "openai").lower()
+        
+        # Determine embedding model based on provider
+        if self.provider == "ollama":
             self.embedding = "nomic-embed-text"
+            self.use_ollama_embeddings = True
+        elif config.get("backend_url") == "http://localhost:11434/v1":
+            self.embedding = "nomic-embed-text"
+            self.use_ollama_embeddings = True
         else:
             self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+            self.use_ollama_embeddings = False
+        
+        # Only create OpenAI client if we're using OpenAI embeddings
+        if not self.use_ollama_embeddings:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key:
+                self.client = OpenAI(base_url=config.get("backend_url"), api_key=api_key)
+            else:
+                self.client = OpenAI(base_url=config.get("backend_url"))
+        else:
+            self.client = None
+            
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
-        """Get OpenAI embedding for a text"""
+        """Get embedding for text - provider agnostic"""
         
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
-        return response.data[0].embedding
+        if self.use_ollama_embeddings:
+            # For Ollama, use chromadb's built-in embedding function
+            # or return None to let chromadb handle it
+            # ChromaDB will use its default embedding function
+            return None
+        else:
+            # Use OpenAI embeddings
+            response = self.client.embeddings.create(
+                model=self.embedding, input=text
+            )
+            return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):
         """Add financial situations and their corresponding advice. Parameter is a list of tuples (situation, rec)"""
@@ -35,24 +61,39 @@ class FinancialSituationMemory:
             situations.append(situation)
             advice.append(recommendation)
             ids.append(str(offset + i))
-            embeddings.append(self.get_embedding(situation))
+            embedding = self.get_embedding(situation)
+            if embedding is not None:
+                embeddings.append(embedding)
 
-        self.situation_collection.add(
-            documents=situations,
-            metadatas=[{"recommendation": rec} for rec in advice],
-            embeddings=embeddings,
-            ids=ids,
-        )
+        # Add to collection - chromadb will use default embeddings if none provided
+        add_params = {
+            "documents": situations,
+            "metadatas": [{"recommendation": rec} for rec in advice],
+            "ids": ids,
+        }
+        
+        if embeddings:  # Only add embeddings if we have them
+            add_params["embeddings"] = embeddings
+            
+        self.situation_collection.add(**add_params)
 
     def get_memories(self, current_situation, n_matches=1):
-        """Find matching recommendations using OpenAI embeddings"""
+        """Find matching recommendations using embeddings"""
         query_embedding = self.get_embedding(current_situation)
 
-        results = self.situation_collection.query(
-            query_embeddings=[query_embedding],
-            n_results=n_matches,
-            include=["metadatas", "documents", "distances"],
-        )
+        # Build query parameters
+        query_params = {
+            "n_results": n_matches,
+            "include": ["metadatas", "documents", "distances"],
+        }
+        
+        if query_embedding is not None:
+            query_params["query_embeddings"] = [query_embedding]
+        else:
+            # Use text-based search if no embeddings
+            query_params["query_texts"] = [current_situation]
+
+        results = self.situation_collection.query(**query_params)
 
         matched_results = []
         for i in range(len(results["documents"][0])):

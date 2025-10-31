@@ -8,11 +8,21 @@ DEFAULT_CONFIG = {
         os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
         "dataflows/data_cache",
     ),
-    # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "o4-mini",
-    "quick_think_llm": "gpt-4o-mini",
-    "backend_url": "https://api.openai.com/v1",
+    # LLM settings - Now provider-agnostic
+    # Supported providers: openai, ollama, anthropic, google, azure, huggingface, groq, together, openrouter
+    "llm_provider": "openai",  # Change this to switch providers
+    "deep_think_llm": "o4-mini",  # Provider-specific model name
+    "quick_think_llm": "gpt-4o-mini",  # Provider-specific model name
+    "backend_url": "https://api.openai.com/v1",  # API endpoint (optional for some providers)
+    "temperature": 0.7,  # Default temperature for LLM calls
+    "llm_kwargs": {},  # Additional provider-specific parameters
+    # Example configurations for different providers:
+    # OpenAI: {"llm_provider": "openai", "backend_url": "https://api.openai.com/v1"}
+    # Ollama: {"llm_provider": "ollama", "backend_url": "http://localhost:11434", "deep_think_llm": "llama3", "quick_think_llm": "llama3"}
+    # Anthropic: {"llm_provider": "anthropic", "deep_think_llm": "claude-3-opus-20240229", "quick_think_llm": "claude-3-haiku-20240307"}
+    # Google: {"llm_provider": "google", "deep_think_llm": "gemini-pro", "quick_think_llm": "gemini-pro"}
+    # OpenRouter: {"llm_provider": "openrouter", "backend_url": "https://openrouter.ai/api/v1"}
+    # Groq: {"llm_provider": "groq", "deep_think_llm": "mixtral-8x7b-32768", "quick_think_llm": "llama3-8b-8192"}
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
