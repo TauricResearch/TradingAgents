@@ -155,12 +155,22 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. We utilize `o1-preview` and `gpt-4o` as our deep thinking and fast thinking LLMs for our experiments. However, for testing purposes, we recommend you use `o4-mini` and `gpt-4.1-mini` to save on costs as our framework makes **lots of** API calls.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework now supports **multiple LLM providers** through a unified interface, giving you the freedom to choose based on your needs:
+
+- **For Production/Quality**: We recommend `o1-preview` and `gpt-4o` (OpenAI) or `claude-3-opus` (Anthropic)
+- **For Cost-Effective Testing**: Use `o4-mini` and `gpt-4o-mini` (OpenAI) or `gemini-1.5-flash` (Google)
+- **For FREE Local Inference**: Use Ollama with `llama3.2` or `mistral-nemo` models
+- **For Speed**: Use Groq with `mixtral-8x7b-32768` or `llama3-8b-8192`
+
+The framework makes **lots of** API calls, so choosing the right provider for your use case can significantly impact costs and performance.
+
+📚 **See [LLM Provider Guide](docs/LLM_PROVIDER_GUIDE.md)** for detailed recommendations and setup instructions for all providers.
 
 ### Python Usage
 
 To use TradingAgents inside your code, you can import the `tradingagents` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
 
+#### OpenAI (Default - No Changes Needed)
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -172,7 +182,49 @@ _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```
 
-You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
+#### Using Ollama (Free & Local)
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "ollama"
+config["deep_think_llm"] = "llama3.2"
+config["quick_think_llm"] = "llama3.2"
+config["backend_url"] = "http://localhost:11434"
+
+ta = TradingAgentsGraph(debug=True, config=config)
+_, decision = ta.propagate("NVDA", "2024-05-10")
+print(decision)
+```
+
+#### Using Anthropic Claude
+```python
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "anthropic"
+config["deep_think_llm"] = "claude-3-opus-20240229"
+config["quick_think_llm"] = "claude-3-haiku-20240307"
+
+ta = TradingAgentsGraph(debug=True, config=config)
+_, decision = ta.propagate("NVDA", "2024-05-10")
+```
+
+#### Using Google Gemini
+```python
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "google"
+config["deep_think_llm"] = "gemini-1.5-pro"
+config["quick_think_llm"] = "gemini-1.5-flash"
+
+ta = TradingAgentsGraph(debug=True, config=config)
+_, decision = ta.propagate("NVDA", "2024-05-10")
+```
+
+See `examples/llm_provider_configs.py` for more pre-configured provider options!
+
+#### Advanced Configuration
+
+You can adjust the configuration to customize LLM providers, models, debate rounds, and more:
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -180,9 +232,14 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 # Create a custom config
 config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-4.1-nano"  # Use a different model
-config["quick_think_llm"] = "gpt-4.1-nano"  # Use a different model
-config["max_debate_rounds"] = 1  # Increase debate rounds
+
+# LLM Configuration
+config["llm_provider"] = "ollama"           # Provider: openai, ollama, anthropic, google, groq, etc.
+config["deep_think_llm"] = "llama3.2"       # Model for complex reasoning
+config["quick_think_llm"] = "llama3.2"      # Model for quick tasks
+config["backend_url"] = "http://localhost:11434"  # API endpoint (if needed)
+config["temperature"] = 0.7                 # Model temperature
+config["max_debate_rounds"] = 1             # Adjust debate rounds
 
 # Configure data vendors (default uses yfinance and Alpha Vantage)
 config["data_vendors"] = {
@@ -199,6 +256,16 @@ ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```
+
+**Provider Comparison:**
+
+| Provider | Cost/Month | Speed | Quality | Privacy | Setup |
+|----------|-----------|-------|---------|---------|-------|
+| OpenAI | $50-200 | Medium | Excellent | Low | Easy |
+| **Ollama** | **FREE** | **Fast** | **Good** | **Best** | **Medium** |
+| Anthropic | $50-200 | Medium | Excellent | Low | Easy |
+| Google | $20-100 | Fast | Very Good | Low | Easy |
+| Groq | $10-50 | **Fastest** | Good | Low | Easy |
 
 > The default configuration uses yfinance for stock price and technical data, and Alpha Vantage for fundamental and news data. For production use or if you encounter rate limits, consider upgrading to [Alpha Vantage Premium](https://www.alphavantage.co/premium/) for more stable and reliable data access. For offline experimentation, there's a local data vendor option that uses our **Tauric TradingDB**, a curated dataset for backtesting, though this is still in development. We're currently refining this dataset and plan to release it soon alongside our upcoming projects. Stay tuned!
 

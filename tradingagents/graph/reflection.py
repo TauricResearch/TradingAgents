@@ -1,13 +1,12 @@
 # TradingAgents/graph/reflection.py
 
 from typing import Dict, Any
-from langchain_openai import ChatOpenAI
 
 
 class Reflector:
     """Handles reflection on decisions and updating memory."""
 
-    def __init__(self, quick_thinking_llm: ChatOpenAI):
+    def __init__(self, quick_thinking_llm):  # Now accepts any LangChain-compatible LLM
         """Initialize the reflector with an LLM."""
         self.quick_thinking_llm = quick_thinking_llm
         self.reflection_system_prompt = self._get_reflection_prompt()

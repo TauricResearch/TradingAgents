@@ -1,13 +1,33 @@
 typing-extensions
-langchain-openai
+# LangChain core - always required
+langchain-core
 langchain-experimental
+langgraph
+
+# LangChain provider-specific packages (install as needed based on your choice)
+# For OpenAI (including OpenRouter and other OpenAI-compatible APIs)
+langchain-openai
+# For Anthropic Claude
+langchain_anthropic
+# For Google Gemini
+langchain-google-genai
+# For Ollama (local models) - RECOMMENDED
+langchain-ollama
+# For Groq (optional)
+# langchain-groq
+# For Together AI (optional)
+# langchain-together
+
+# Legacy community package (optional, langchain-ollama is preferred)
+# langchain-community
+
+# Data and analysis libraries
 pandas
 yfinance
 praw
 feedparser
 stockstats
 eodhd
-langgraph
 chromadb
 setuptools
 backtrader
@@ -19,8 +39,8 @@ requests
 tqdm
 pytz
 redis
+
+# CLI and UI
 chainlit
 rich
 questionary
-langchain_anthropic
-langchain-google-genai
