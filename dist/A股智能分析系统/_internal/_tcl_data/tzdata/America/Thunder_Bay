@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Toronto)]} {
+    LoadTimeZoneFile America/Toronto
+}
+set TZData(:America/Thunder_Bay) $TZData(:America/Toronto)

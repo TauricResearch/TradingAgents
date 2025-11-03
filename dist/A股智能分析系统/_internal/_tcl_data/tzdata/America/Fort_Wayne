@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Indiana/Indianapolis)]} {
+    LoadTimeZoneFile America/Indiana/Indianapolis
+}
+set TZData(:America/Fort_Wayne) $TZData(:America/Indiana/Indianapolis)

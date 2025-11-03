@@ -1,0 +1,9 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:America/Guyana) {
+    {-9223372036854775808 -13959 0 LMT}
+    {-1843589241 -14400 0 %z}
+    {-1730577600 -13500 0 %z}
+    {176096700 -10800 0 %z}
+    {701841600 -14400 0 %z}
+}

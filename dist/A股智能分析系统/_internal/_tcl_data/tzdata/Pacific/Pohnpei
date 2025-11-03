@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Pacific/Guadalcanal)]} {
+    LoadTimeZoneFile Pacific/Guadalcanal
+}
+set TZData(:Pacific/Pohnpei) $TZData(:Pacific/Guadalcanal)

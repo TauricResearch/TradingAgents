@@ -1,0 +1,7 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Asia/Kathmandu) {
+    {-9223372036854775808 20476 0 LMT}
+    {-1577943676 19800 0 %z}
+    {504901800 20700 0 %z}
+}

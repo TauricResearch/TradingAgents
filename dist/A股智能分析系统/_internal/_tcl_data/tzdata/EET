@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Europe/Athens)]} {
+    LoadTimeZoneFile Europe/Athens
+}
+set TZData(:EET) $TZData(:Europe/Athens)

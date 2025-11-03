@@ -1,0 +1,7 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Fakaofo) {
+    {-9223372036854775808 -41096 0 LMT}
+    {-2177411704 -39600 0 %z}
+    {1325242800 46800 0 %z}
+}

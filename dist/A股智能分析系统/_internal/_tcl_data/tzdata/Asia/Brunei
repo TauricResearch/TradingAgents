@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Asia/Kuching)]} {
+    LoadTimeZoneFile Asia/Kuching
+}
+set TZData(:Asia/Brunei) $TZData(:Asia/Kuching)

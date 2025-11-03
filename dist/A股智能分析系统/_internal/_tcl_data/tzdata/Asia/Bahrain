@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Asia/Qatar)]} {
+    LoadTimeZoneFile Asia/Qatar
+}
+set TZData(:Asia/Bahrain) $TZData(:Asia/Qatar)

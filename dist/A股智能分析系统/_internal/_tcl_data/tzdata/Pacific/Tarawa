@@ -1,0 +1,6 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Tarawa) {
+    {-9223372036854775808 41524 0 LMT}
+    {-2177494324 43200 0 %z}
+}

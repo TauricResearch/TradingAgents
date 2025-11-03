@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/St_Johns)]} {
+    LoadTimeZoneFile America/St_Johns
+}
+set TZData(:Canada/Newfoundland) $TZData(:America/St_Johns)

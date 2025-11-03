@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Pacific/Auckland)]} {
+    LoadTimeZoneFile Pacific/Auckland
+}
+set TZData(:Antarctica/McMurdo) $TZData(:Pacific/Auckland)

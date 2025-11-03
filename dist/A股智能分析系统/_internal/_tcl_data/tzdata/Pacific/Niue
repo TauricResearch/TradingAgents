@@ -1,0 +1,7 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Niue) {
+    {-9223372036854775808 -40780 0 LMT}
+    {-543069620 -40800 0 %z}
+    {-173623200 -39600 0 %z}
+}

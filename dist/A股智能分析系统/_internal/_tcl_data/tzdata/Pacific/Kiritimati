@@ -1,0 +1,8 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Kiritimati) {
+    {-9223372036854775808 -37760 0 LMT}
+    {-2177415040 -38400 0 %z}
+    {307622400 -36000 0 %z}
+    {788868000 50400 0 %z}
+}

@@ -1,0 +1,7 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Indian/Maldives) {
+    {-9223372036854775808 17640 0 LMT}
+    {-2840158440 17640 0 MMT}
+    {-315636840 18000 0 %z}
+}

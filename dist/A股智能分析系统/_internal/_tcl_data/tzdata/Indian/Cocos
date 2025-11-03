@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Asia/Yangon)]} {
+    LoadTimeZoneFile Asia/Yangon
+}
+set TZData(:Indian/Cocos) $TZData(:Asia/Yangon)

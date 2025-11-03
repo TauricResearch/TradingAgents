@@ -1,0 +1,9 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Nauru) {
+    {-9223372036854775808 40060 0 LMT}
+    {-1545131260 41400 0 %z}
+    {-862918200 32400 0 %z}
+    {-767350800 41400 0 %z}
+    {287418600 43200 0 %z}
+}

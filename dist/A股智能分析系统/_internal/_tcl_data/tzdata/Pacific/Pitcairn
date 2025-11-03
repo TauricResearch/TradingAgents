@@ -1,0 +1,7 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Pitcairn) {
+    {-9223372036854775808 -31220 0 LMT}
+    {-2177421580 -30600 0 %z}
+    {893665800 -28800 0 %z}
+}

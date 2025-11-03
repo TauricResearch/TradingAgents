@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Africa/Maputo)]} {
+    LoadTimeZoneFile Africa/Maputo
+}
+set TZData(:Africa/Blantyre) $TZData(:Africa/Maputo)

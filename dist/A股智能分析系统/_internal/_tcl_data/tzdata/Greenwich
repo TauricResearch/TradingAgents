@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Etc/GMT)]} {
+    LoadTimeZoneFile Etc/GMT
+}
+set TZData(:Greenwich) $TZData(:Etc/GMT)

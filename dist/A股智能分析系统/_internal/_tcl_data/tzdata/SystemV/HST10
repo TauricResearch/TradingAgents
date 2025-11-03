@@ -1,0 +1,5 @@
+# created by ../tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Pacific/Honolulu)]} {
+    LoadTimeZoneFile Pacific/Honolulu
+}
+set TZData(:SystemV/HST10) $TZData(:Pacific/Honolulu)

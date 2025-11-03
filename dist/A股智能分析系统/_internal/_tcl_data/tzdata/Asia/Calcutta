@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Asia/Kolkata)]} {
+    LoadTimeZoneFile Asia/Kolkata
+}
+set TZData(:Asia/Calcutta) $TZData(:Asia/Kolkata)

@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Adak)]} {
+    LoadTimeZoneFile America/Adak
+}
+set TZData(:America/Atka) $TZData(:America/Adak)

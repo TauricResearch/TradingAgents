@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Chicago)]} {
+    LoadTimeZoneFile America/Chicago
+}
+set TZData(:US/Central) $TZData(:America/Chicago)

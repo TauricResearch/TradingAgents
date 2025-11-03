@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Indiana/Knox)]} {
+    LoadTimeZoneFile America/Indiana/Knox
+}
+set TZData(:America/Knox_IN) $TZData(:America/Indiana/Knox)

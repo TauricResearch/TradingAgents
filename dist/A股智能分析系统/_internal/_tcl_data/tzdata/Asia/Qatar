@@ -1,0 +1,7 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Asia/Qatar) {
+    {-9223372036854775808 12368 0 LMT}
+    {-1577935568 14400 0 %z}
+    {76190400 10800 0 %z}
+}

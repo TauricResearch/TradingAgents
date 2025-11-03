@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Pacific/Easter)]} {
+    LoadTimeZoneFile Pacific/Easter
+}
+set TZData(:Chile/EasterIsland) $TZData(:Pacific/Easter)

@@ -1,0 +1,7 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Asia/Bangkok) {
+    {-9223372036854775808 24124 0 LMT}
+    {-2840164924 24124 0 BMT}
+    {-1570084924 25200 0 %z}
+}

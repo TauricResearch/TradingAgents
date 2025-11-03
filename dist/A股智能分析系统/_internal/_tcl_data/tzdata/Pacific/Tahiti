@@ -1,0 +1,6 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Tahiti) {
+    {-9223372036854775808 -35896 0 LMT}
+    {-1806674504 -36000 0 %z}
+}

@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Europe/Chisinau)]} {
+    LoadTimeZoneFile Europe/Chisinau
+}
+set TZData(:Europe/Tiraspol) $TZData(:Europe/Chisinau)
