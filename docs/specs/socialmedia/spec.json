@@ -1,0 +1,90 @@
+{
+  "feature": "socialmedia",
+  "user_story": "As a Dagster pipeline, I want to collect Reddit posts from financial subreddits with LLM sentiment analysis and vector embeddings, so that AI Agents can access comprehensive social media context for ticker-specific trading decisions through RAG-powered queries",
+  "acceptance_criteria": [
+    "GIVEN a scheduled Dagster pipeline WHEN it executes daily THEN it collects Reddit posts from configured financial subreddits without manual intervention",
+    "GIVEN Reddit posts are collected WHEN processed THEN they are stored in PostgreSQL with TimescaleDB optimization and vector embeddings for semantic search", 
+    "GIVEN social media posts WHEN processed THEN each post receives OpenRouter LLM sentiment analysis with structured scores (positive/negative/neutral with confidence)",
+    "GIVEN a ticker symbol WHEN AI agents request social context THEN they receive relevant Reddit posts with sentiment scores and vector similarity ranking within 2 seconds",
+    "GIVEN social media data WHEN agents query THEN AgentToolkit provides RAG-enhanced context including post content, sentiment trends, and engagement metrics"
+  ],
+  "business_rules": [
+    "Daily automated collection from configured financial subreddits (wallstreetbets, investing, stocks, SecurityAnalysis)",
+    "OpenRouter LLM sentiment analysis for all posts with confidence scoring",
+    "Vector embeddings generation for semantic similarity search",
+    "Post deduplication by Reddit post ID to prevent duplicates",
+    "Rate limiting compliance with Reddit API terms of service",
+    "Data retention policy: 90 days for social media posts",
+    "Best effort processing: API failures or rate limits don't block other posts"
+  ],
+  "scope": {
+    "included": [
+      "Complete socialmedia domain implementation from stub to production",
+      "PostgreSQL migration from current file-based storage",
+      "Reddit API integration using PRAW (Python Reddit API Wrapper)",
+      "OpenRouter LLM sentiment analysis integration",
+      "Vector embeddings generation and similarity search",
+      "AgentToolkit integration with get_reddit_news and get_reddit_stock_info methods",
+      "Dagster pipeline for scheduled daily collection",
+      "SQLAlchemy entities with TimescaleDB and pgvectorscale support",
+      "Comprehensive test coverage with pytest-vcr for API mocking"
+    ],
+    "excluded": [
+      "Other social media platforms beyond Reddit (Twitter, LinkedIn, etc.)",
+      "Real-time social media streaming (batch processing only)",
+      "Custom sentiment models (use OpenRouter LLMs only)",
+      "Social media influence scoring or user reputation tracking",
+      "Multi-language post support (English only)",
+      "Historical Reddit data backfilling beyond 30 days"
+    ]
+  },
+  "current_implementation_status": "Basic stub implementation - requires complete rebuild",
+  "missing_components": [
+    "PostgreSQL database migration from file storage",
+    "Reddit API client implementation (RedditClient is empty stub)",
+    "SQLAlchemy entity models for social posts with vector fields",
+    "LLM sentiment analysis integration via OpenRouter",
+    "Vector embedding generation and similarity search",
+    "AgentToolkit RAG methods (get_reddit_news, get_reddit_stock_info)",
+    "Dagster pipeline for scheduled data collection",
+    "Comprehensive test suite with domain-specific patterns"
+  ],
+  "existing_stub_components": [
+    "SocialMediaService with empty method stubs",
+    "SocialRepository with file-based JSON storage",
+    "Basic data models: SocialPost, PostData, SocialContext",
+    "Empty RedditClient class requiring full implementation",
+    "Agent references to social methods (not yet implemented)"
+  ],
+  "aligns_with": "Multi-agent trading framework vision - provides social sentiment context for comprehensive market analysis alongside news and market data",
+  "dependencies": [
+    "PRAW (Python Reddit API Wrapper) for Reddit API access",
+    "OpenRouter API for LLM sentiment analysis", 
+    "PostgreSQL with TimescaleDB and pgvectorscale extensions",
+    "Existing database infrastructure from news domain",
+    "OpenRouter configuration in TradingAgentsConfig",
+    "Dagster orchestration framework for scheduled execution"
+  ],
+  "technical_details": {
+    "architecture_pattern": "Router → Service → Repository → Entity → Database (matching news domain)",
+    "database_integration": "PostgreSQL + TimescaleDB + pgvectorscale (consistent with news domain)",
+    "llm_integration": "OpenRouter unified provider with two-tier model strategy",
+    "vector_storage": "1536-dimension embeddings using pgvectorscale (consistent with news)",
+    "api_integration": "PRAW (Python Reddit API Wrapper) with rate limiting and error handling",
+    "testing_strategy": "pytest-vcr for HTTP mocking, real PostgreSQL for repository tests, service mocks for business logic"
+  },
+  "implementation_approach": "Complete domain implementation following successful news domain patterns: database migration → entity models → Reddit client → repository → service → AgentToolkit → Dagster pipeline",
+  "reference_implementations": {
+    "news_domain_patterns": "Follow NewsService, NewsRepository, NewsArticleEntity patterns for consistency",
+    "database_schema": "Mirror NewsArticleEntity vector embedding approach for social posts",
+    "agent_integration": "Follow existing AgentToolkit get_news() pattern for social media methods",
+    "testing_approach": "Apply news domain testing patterns: VCR for API, real DB for repositories"
+  },
+  "success_criteria": {
+    "functionality": "Daily Reddit collection with sentiment analysis and vector search",
+    "performance": "< 2 second social context queries, < 100ms repository operations",
+    "quality": "85%+ test coverage, comprehensive error handling",
+    "integration": "Seamless AgentToolkit RAG integration for AI agents",
+    "consistency": "Architecture and patterns match successful news domain implementation"
+  }
+}

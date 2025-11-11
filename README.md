@@ -1,53 +1,46 @@
-<p align="center">
-  <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
-</p>
+# TradingAgents Project Overview
 
-<div align="center" style="line-height: 1;">
-  <a href="https://arxiv.org/abs/2412.20138" target="_blank"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv"/></a>
-  <a href="https://discord.com/invite/hk9PGKShPK" target="_blank"><img alt="Discord" src="https://img.shields.io/badge/Discord-TradingResearch-7289da?logo=discord&logoColor=white&color=7289da"/></a>
-  <a href="./assets/wechat.png" target="_blank"><img alt="WeChat" src="https://img.shields.io/badge/WeChat-TauricResearch-brightgreen?logo=wechat&logoColor=white"/></a>
-  <a href="https://x.com/TauricResearch" target="_blank"><img alt="X Follow" src="https://img.shields.io/badge/X-TauricResearch-white?logo=x&logoColor=white"/></a>
-  <br>
-  <a href="https://github.com/TauricResearch/" target="_blank"><img alt="Community" src="https://img.shields.io/badge/Join_GitHub_Community-TauricResearch-14C290?logo=discourse"/></a>
-</div>
+## Spec-Driven Development Integration
 
-<div align="center">
-  <!-- Keep these links. Translations will automatically update with the README. -->
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=es">Español</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=fr">français</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ja">日本語</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ko">한국어</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=pt">Português</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ru">Русский</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=zh">中文</a>
-</div>
+TradingAgents integrates with the Spec-Driven Development workflow to accelerate feature development while maintaining architectural consistency. This project uses the specialized agent system described in your global CLAUDE.md for structured specifications and AI-assisted implementation.
+
+### Project Context for AI Agents
+
+**Product Definition**: Multi-agent LLM financial trading framework that mirrors real-world trading firm dynamics for research-based market analysis and trading decisions.
+
+**Target Users**: Single developer/researcher focused on personal trading research and data infrastructure development.
+
+**Core Architecture**: Domain-driven design with three domains (marketdata, news, socialmedia), PostgreSQL + TimescaleDB + pgvectorscale data stack, RAG-powered multi-agent collaboration through LangGraph workflows.
+
+**Key Constraints**: Research-only framework (not production trading), OpenRouter as sole LLM provider, 85%+ test coverage requirement, TDD with pytest.
+
+### Documentation Structure
+
+- **Product Docs**: `/Users/martinrichards/code/TradingAgents/docs/product/` - Business context and roadmap
+- **Feature Specs**: `/Users/martinrichards/code/TradingAgents/docs/spec/` - Implementation specifications
+- **Standards**: `/Users/martinrichards/code/TradingAgents/docs/standards/` - Technical architecture and practices
+
+### Agent Context for Implementation
+
+When implementing features, AI agents should reference:
+- `docs/product/product.md` for business context and user requirements
+- `docs/standards/tech.md` for architectural patterns and technical standards
+- `docs/standards/practices.md` for TDD workflow and development practices
+- `docs/standards/style.md` for code style and naming conventions
+
+Apply the layered architecture pattern: **Router → Service → Repository → Entity → Database** consistently across all domains.
 
 ---
 
-# TradingAgents: Multi-Agents LLM Financial Trading Framework 
+# TradingAgents: Multi-Agents LLM Financial Trading Framework
 
-> 🎉 **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
+> **Personal Fork Notice**: This is a personal fork of the original TradingAgents framework by TauricResearch, originally licensed under Apache 2.0. This fork focuses on individual research and development with significant architectural changes including PostgreSQL + TimescaleDB + pgvectorscale data infrastructure and RAG-powered agents.
 >
-> So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
+> **Original Work**: [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) - [arXiv:2412.20138](https://arxiv.org/abs/2412.20138)
 
-</div>
+---
 
-<div align="center">
-
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 📚 [API Docs](./docs/api-reference.md) | 🔧 [Troubleshooting](./docs/troubleshooting.md) | 👥 [Agent Dev](./docs/agent-development.md) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
-
-</div>
-
-<div align="center">
-<a href="https://www.star-history.com/#TauricResearch/TradingAgents&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" />
-   <img alt="TradingAgents Star History" src="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" style="width: 80%; height: auto;" />
- </picture>
-</a>
-</div>
+🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 📦 [Package Usage](#tradingagents-package) | 📚 [API Docs](./docs/api-reference.md) | 🔧 [Troubleshooting](./docs/troubleshooting.md) | 👥 [Agent Dev](./docs/agent-development.md) | 📄 [Citation](#citation)
 
 ## TradingAgents Framework
 
@@ -57,7 +50,7 @@ TradingAgents is a multi-agent trading framework that mirrors the dynamics of re
   <img src="assets/schema.png" style="width: 100%; height: auto;">
 </p>
 
-> TradingAgents framework is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. [It is not intended as financial, investment, or trading advice.](https://tauric.ai/disclaimer/)
+> TradingAgents framework is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. It is not intended as financial, investment, or trading advice.
 
 Our framework decomposes complex trading tasks into specialized roles. This ensures the system achieves a robust, scalable approach to market analysis and decision-making.
 
@@ -99,53 +92,68 @@ Our framework decomposes complex trading tasks into specialized roles. This ensu
 
 Clone TradingAgents:
 ```bash
-git clone https://github.com/TauricResearch/TradingAgents.git
+git clone https://github.com/martinrichards23/TradingAgents.git
 cd TradingAgents
 ```
 
-Create a virtual environment in any of your favorite environment managers:
+Install development tools (mise manages Python, uv, and other tools):
 ```bash
-conda create -n tradingagents python=3.13
-conda activate tradingagents
+# Install mise if not already installed
+curl https://mise.run | sh
+
+# Install project tools and dependencies
+mise install          # Installs Python, uv, ruff, pyright
+mise run install      # Installs project dependencies with uv
 ```
 
-Install dependencies:
+Alternative manual setup:
 ```bash
-pip install -r requirements.txt
+# Create virtual environment with uv
+uv venv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+
+# Install dependencies
+uv sync
+```
+
+### Database Setup
+
+This fork uses PostgreSQL with TimescaleDB and pgvectorscale extensions:
+
+```bash
+# Using Docker Compose (recommended)
+docker-compose up -d
+
+# Or install PostgreSQL with extensions manually
+# See docs/setup-database.md for detailed instructions
 ```
 
 ### Required APIs
 
-You will also need the FinnHub API for financial data. All of our code is implemented with the free tier.
+OpenRouter API (unified LLM provider):
+```bash
+export OPENROUTER_API_KEY=$YOUR_OPENROUTER_API_KEY
+```
+
+FinnHub API for financial data (optional):
 ```bash
 export FINNHUB_API_KEY=$YOUR_FINNHUB_API_KEY
 ```
 
-You will need the OpenAI API for all the agents.
+Database connection:
 ```bash
-export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
+export DATABASE_URL="postgresql://user:pass@localhost:5432/tradingagents"
 ```
 
 ### CLI Usage
 
-You can also try out the CLI directly by running:
+Run the CLI directly:
 ```bash
-python -m cli.main
+mise run dev  # or python -m cli.main
 ```
-You will see a screen where you can select your desired tickers, date, LLMs, research depth, etc.
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-An interface will appear showing results as they load, letting you track the agent's progress as it runs.
-
-<p align="center">
-  <img src="assets/cli/cli_news.png" width="100%" style="display: inline-block; margin: 0 2%;">
-</p>
-
-<p align="center">
-  <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
 ## Quick Start
@@ -154,8 +162,9 @@ Get up and running with TradingAgents in 3 simple steps:
 
 ### Step 1: Set API Keys
 ```bash
-export OPENAI_API_KEY="your_openai_api_key"
+export OPENROUTER_API_KEY="your_openrouter_api_key"
 export FINNHUB_API_KEY="your_finnhub_api_key"  # Optional for financial data
+export DATABASE_URL="postgresql://user:pass@localhost:5432/tradingagents"
 ```
 
 ### Step 2: Run Your First Analysis
@@ -179,17 +188,20 @@ The analysis returns:
 - **Decision**: `BUY`, `SELL`, or `HOLD`
 - **Result**: Detailed analysis from all agents including market data, news sentiment, and risk assessment
 
-**Next Steps**: Explore the [CLI interface](#cli-usage), check out [usage examples](#multi-llm-provider-examples), or dive into the [API documentation](./docs/api-reference.md).
+**Next Steps**: Explore the [CLI interface](#cli-usage), check out [usage examples](#openrouter-configuration), or dive into the [API documentation](./docs/api-reference.md).
 
 ## TradingAgents Package
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. We utilize `o1-preview` and `gpt-4o` as our deep thinking and fast thinking LLMs for our experiments. However, for testing purposes, we recommend you use `o4-mini` and `gpt-4.1-mini` to save on costs as our framework makes **lots of** API calls.
+This fork is built with:
+- **LangGraph** for agent orchestration
+- **PostgreSQL + TimescaleDB + pgvectorscale** for data storage and vector search
+- **OpenRouter** as the unified LLM provider
+- **RAG** for context-aware agent decision making
+- **Dagster** for data collection orchestration
 
 ### Python Usage
-
-To use TradingAgents inside your code, you can import the `tradingagents` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -198,88 +210,64 @@ from tradingagents.config import TradingAgentsConfig
 config = TradingAgentsConfig.from_env()
 ta = TradingAgentsGraph(debug=True, config=config)
 
-# forward propagate
+# Forward propagate
 _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```
 
-You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
+### Custom Configuration
 
 ```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.config import TradingAgentsConfig
 
 # Create a custom config
 config = TradingAgentsConfig(
-    deep_think_llm="gpt-4.1-nano",  # Use a different model
-    quick_think_llm="gpt-4.1-nano",  # Use a different model
-    max_debate_rounds=3,  # Increase debate rounds
-    online_tools=True  # Use online tools or cached data
+    llm_provider="openrouter",
+    deep_think_llm="anthropic/claude-3.5-sonnet",
+    quick_think_llm="anthropic/claude-3.5-haiku",
+    max_debate_rounds=3,
+    use_rag=True,  # Enable RAG-powered agents
+    database_url="postgresql://user:pass@localhost:5432/tradingagents"
 )
 
-# Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
-
-# forward propagate
 _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```
 
-> For `online_tools`, we recommend enabling them for experimentation, as they provide access to real-time data. The agents' offline tools rely on cached data from our **Tauric TradingDB**, a curated dataset we use for backtesting. We're currently in the process of refining this dataset, and we plan to release it soon alongside our upcoming projects. Stay tuned!
-
-You can view the full list of configurations in `tradingagents/config.py`. 
-
-### Complete Environment Variables Reference
+### Environment Variables Reference
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `LLM_PROVIDER` | LLM provider to use | `openai` | `anthropic` |
-| `DEEP_THINK_LLM` | Model for complex analysis | `o4-mini` | `claude-3-5-sonnet-latest` |
-| `QUICK_THINK_LLM` | Model for fast responses | `gpt-4o-mini` | `gpt-4o-mini` |
-| `BACKEND_URL` | API endpoint | `https://api.openai.com/v1` | `https://api.anthropic.com` |
+| `LLM_PROVIDER` | LLM provider to use | `openrouter` | `openrouter` |
+| `OPENROUTER_API_KEY` | OpenRouter API key | Required | `sk-or-...` |
+| `DEEP_THINK_LLM` | Model for complex analysis | `anthropic/claude-3.5-sonnet` | `openai/gpt-4` |
+| `QUICK_THINK_LLM` | Model for fast responses | `anthropic/claude-3.5-haiku` | `openai/gpt-4o-mini` |
 | `MAX_DEBATE_ROUNDS` | Investment debate rounds | `1` | `3` |
 | `MAX_RISK_DISCUSS_ROUNDS` | Risk discussion rounds | `1` | `2` |
-| `ONLINE_TOOLS` | Use live APIs vs cached data | `true` | `false` |
+| `USE_RAG` | Enable RAG for agents | `true` | `false` |
+| `DATABASE_URL` | PostgreSQL connection string | Required | `postgresql://...` |
 | `DEFAULT_LOOKBACK_DAYS` | Historical data range | `30` | `60` |
 | `TRADINGAGENTS_RESULTS_DIR` | Output directory | `./results` | `./my_results` |
-| `TRADINGAGENTS_DATA_DIR` | Data storage directory | System default | `./data` |
 
-### Multi-LLM Provider Examples
+### OpenRouter Configuration
 
-**Using Anthropic Claude:**
+This fork exclusively uses OpenRouter for unified LLM access:
+
 ```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.config import TradingAgentsConfig
-
 config = TradingAgentsConfig(
-    llm_provider="anthropic",
-    deep_think_llm="claude-3-5-sonnet-latest",
-    quick_think_llm="claude-3-haiku-latest",
+    llm_provider="openrouter",
+    deep_think_llm="anthropic/claude-3.5-sonnet",
+    quick_think_llm="openai/gpt-4o-mini",
     max_debate_rounds=2
 )
-
-ta = TradingAgentsGraph(debug=True, config=config)
-_, decision = ta.propagate("TSLA", "2024-01-15")
 ```
-
-**Using Google Gemini:**
-```python
-config = TradingAgentsConfig(
-    llm_provider="google", 
-    deep_think_llm="gemini-1.5-pro",
-    quick_think_llm="gemini-1.5-flash"
-)
-```
-
-See [docs/api-reference.md](./docs/api-reference.md) for complete API documentation.
 
 ## Development Guide
 
-This section provides comprehensive development guidance for contributors working on the TradingAgents codebase.
-
 ### Common Development Commands
 
-This project uses [mise](https://mise.jdx.dev/) for tool and task management. All development tasks are managed through mise.
+This project uses [mise](https://mise.jdx.dev/) for tool and task management:
 
 #### Essential Commands
 - **CLI Application**: `mise run dev` - Interactive CLI for running trading analysis
@@ -289,9 +277,10 @@ This project uses [mise](https://mise.jdx.dev/) for tool and task management. Al
 - **Type checking**: `mise run typecheck` - Run pyright type checker
 - **Run all tests**: `mise run test` - Run tests with pytest
 
-#### Initial Setup
-- **Install tools**: `mise install` - Install Python, uv, ruff, pyright
-- **Install dependencies**: `mise run install` - Install project dependencies with uv
+#### Database Commands
+- **Start database**: `docker-compose up -d`
+- **Run migrations**: `mise run migrate`
+- **Seed test data**: `mise run seed`
 
 ### Testing Principles
 
@@ -306,54 +295,14 @@ tests/
 │   └── news/
 │       ├── __init__.py  
 │       ├── test_news_service.py   # Mock repo + clients
-│       ├── test_news_repository.py # Docker test DB
+│       ├── test_news_repository.py # PostgreSQL test DB
 │       └── test_google_news_client.py # pytest-vcr
 ```
-
-#### Mocking Strategy by Layer
-- **Services**: Mock Repository + Clients, test real transformations
-- **Repositories**: Real persistence (temp files/Docker), no mocks
-- **Clients**: Real HTTP with pytest-vcr cassettes
 
 #### Quality Standards
 - **85% coverage** minimum
 - **< 100ms** per unit test
 - **Mock boundaries, test behavior**
-
-### Configuration
-
-The TradingAgents framework uses a centralized `TradingAgentsConfig` class for all configuration management.
-
-#### Core Configuration Options
-
-**LLM Settings**:
-- `llm_provider`: OpenAI, Anthropic, Google, Ollama, or OpenRouter (default: "openai")
-- `deep_think_llm`: Model for complex reasoning tasks (default: "o4-mini")
-- `quick_think_llm`: Model for fast responses (default: "gpt-4o-mini")
-
-**Debate Parameters**:
-- `max_debate_rounds`: Maximum rounds in investment debates (default: 1)
-- `max_risk_discuss_rounds`: Maximum rounds in risk discussions (default: 1)
-
-**Data Management**:
-- `online_tools`: Enable/disable live API calls vs cached data (default: True)
-- `default_lookback_days`: Historical data range for analysis (default: 30)
-
-#### Required API Keys
-
-```bash
-# For OpenAI (default)
-export OPENAI_API_KEY="your_openai_api_key"
-
-# For Anthropic Claude
-export ANTHROPIC_API_KEY="your_anthropic_api_key"
-
-# For Google Gemini
-export GOOGLE_API_KEY="your_google_api_key"
-
-# For financial data (optional)
-export FINNHUB_API_KEY="your_finnhub_api_key"
-```
 
 ## Architecture Overview
 
@@ -367,74 +316,69 @@ TradingAgents uses specialized LLM agents that work together in a trading firm s
 #### 1. Domain-Driven Architecture
 Three main domains with clean separation:
 - **Financial Data** (`tradingagents/domains/marketdata/`): Market prices, technical analysis, fundamentals
-- **News** (`tradingagents/domains/news/`): News articles and sentiment analysis  
+- **News** (`tradingagents/domains/news/`): News articles and sentiment analysis (95% complete)
 - **Social Media** (`tradingagents/domains/socialmedia/`): Social sentiment from Reddit/Twitter
 
-#### 2. Repository-First Data Strategy
-- Services read from local repositories (cached data)
-- Separate update operations fetch fresh data from APIs
-- Smart caching with gap detection and deduplication
+#### 2. PostgreSQL + TimescaleDB + pgvectorscale Stack
+- **PostgreSQL**: Primary database for structured data
+- **TimescaleDB**: Time-series optimization for market data
+- **pgvectorscale**: Vector storage for RAG and semantic search
+- **Automated migrations**: Database schema versioning
 
-#### 3. Agent Integration (Anti-Corruption Layer)
-- `AgentToolkit` mediates between agents and domain services
-- Converts rich domain models to structured JSON for LLM consumption
-- Handles parameter validation and error recovery
+#### 3. RAG-Powered Agent Integration
+- `AgentToolkit` with RAG capabilities for contextual decision making
+- Vector search for relevant historical data and patterns
+- Semantic similarity matching for comparable market conditions
+- Context-aware analysis based on historical performance
+
+#### 4. Dagster Data Orchestration
+- Daily/twice-daily data collection pipelines
+- Automated data quality checks and validation
+- Gap detection and backfill capabilities
+- Monitoring and alerting for data pipeline health
 
 ### Key Design Patterns
 
-1. **Debate-Driven Decisions**: Bull/bear researchers debate before trading
-2. **Memory-Augmented Learning**: ChromaDB stores past decisions for context
+1. **RAG-Enhanced Decisions**: Agents use vector similarity search for context
+2. **Time-Series Optimized**: TimescaleDB for efficient market data queries
 3. **Quality-Aware Data**: All contexts include data quality metadata
-4. **Structured Outputs**: Pydantic models replace error-prone string parsing
+4. **Structured Outputs**: Pydantic models with database persistence
 
 ### File Structure
 ```
 tradingagents/
-├── agents/           # Agent implementations
+├── agents/           # Agent implementations with RAG capabilities
 │   └── libs/         # AgentToolkit and utilities
 ├── domains/          # Domain-specific services
 │   ├── marketdata/   # Financial data domain
-│   ├── news/         # News domain  
+│   ├── news/         # News domain (95% complete)
 │   └── socialmedia/  # Social media domain
 ├── graph/            # LangGraph workflow orchestration
+├── data/             # Dagster pipelines and data management
 └── config.py         # Configuration management
 ```
 
 ### Performance Optimization
 
-**Caching Strategy:**
-- Repository-first data access minimizes API calls
-- Smart caching with automatic invalidation
-- Gap detection for missing data ranges
+**Database Strategy:**
+- TimescaleDB hypertables for efficient time-series queries
+- pgvectorscale for fast vector similarity search
+- Materialized views for common aggregations
 
 **Model Selection:**
+- OpenRouter unified interface reduces API complexity
 - `quick_think_llm` for data retrieval and formatting
 - `deep_think_llm` for complex analysis and decisions
 
-**Cost Optimization:**
-```python
-config = TradingAgentsConfig(
-    deep_think_llm="gpt-4o-mini",    # Lower cost
-    max_debate_rounds=1,             # Fewer debates
-    online_tools=False,              # Use cached data
-    default_lookback_days=30         # Limit data range
-)
-```
-
 ## Need Help?
 
-- **Detailed Architecture**: `docs/architecture.md`
 - **API Documentation**: `docs/api-reference.md`
 - **Troubleshooting**: `docs/troubleshooting.md`
 - **Agent Development**: `docs/agent-development.md`
 
-## Contributing
-
-We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
-
 ## Citation
 
-Please reference our work if you find *TradingAgents* provides you with some help :)
+Please reference the original work if you find *TradingAgents* provides you with some help:
 
 ```
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,
@@ -448,12 +392,6 @@ Please reference our work if you find *TradingAgents* provides you with some hel
 }
 ```
 
-# important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+## License
 
-      
-      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.
-- remember what we learnt about testing?
+This personal fork maintains the Apache 2.0 license from the original TauricResearch/TradingAgents project.

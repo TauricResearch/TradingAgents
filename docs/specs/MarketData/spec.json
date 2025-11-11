@@ -1,0 +1,95 @@
+{
+  "feature": "MarketData",
+  "user_story": "As a Dagster pipeline and AI Agent, I want to collect daily OHLC data from yfinance, insider data from FinnHub, and fundamental data from FinnHub with PostgreSQL + TimescaleDB storage, so that agents have high-performance, RAG-enhanced market data access for comprehensive trading analysis",
+  "acceptance_criteria": [
+    "GIVEN the MarketData domain migration WHEN PostgreSQL + TimescaleDB integration is complete THEN all existing MarketDataService APIs remain 100% compatible with 10x performance improvement",
+    "GIVEN daily market data collection WHEN Dagster pipelines execute THEN OHLC data from yfinance and insider/fundamental data from FinnHub are stored in TimescaleDB hypertables",
+    "GIVEN historical market data queries WHEN AI agents request technical analysis THEN responses are delivered within 100ms using TimescaleDB time-series optimization",
+    "GIVEN technical analysis requests WHEN agents query indicators THEN all 20 existing TA-Lib indicators are preserved with PostgreSQL-backed data access",
+    "GIVEN RAG-powered analysis WHEN agents search for historical patterns THEN vector similarity search using pgvectorscale returns relevant market conditions within 200ms",
+    "GIVEN concurrent agent operations WHEN multiple agents access market data THEN PostgreSQL async operations support concurrent reads without file system limitations",
+    "GIVEN data quality requirements WHEN market data is collected THEN comprehensive validation, audit trails, and error handling maintain data integrity with PostgreSQL ACID transactions"
+  ],
+  "business_rules": [
+    "Preserve 100% API compatibility with existing MarketDataService for seamless migration",
+    "Daily automated collection from yfinance (OHLC) and FinnHub (insider + fundamentals) via Dagster pipelines",
+    "FinnHub API rate limiting compliance with proper backoff strategies",
+    "TimescaleDB hypertables for market_data, fundamental_data, and insider_data tables",
+    "Vector embeddings generation for technical analysis patterns using pgvectorscale",
+    "Data retention policy: 10 years for OHLC, 5 years for fundamentals, 3 years for insider data",
+    "Sub-100ms query performance for common market data operations",
+    "Comprehensive audit logging for all data collection and agent queries",
+    "Graceful degradation when external APIs are unavailable"
+  ],
+  "scope": {
+    "included": [
+      "PostgreSQL + TimescaleDB + pgvectorscale migration from CSV storage",
+      "Preserve all existing YFinanceClient and FinnhubClient integrations", 
+      "Maintain complete MarketDataService, FundamentalDataService, InsiderDataService APIs",
+      "Async PostgreSQL repository operations following news domain patterns",
+      "Vector embeddings for RAG-powered historical pattern matching",
+      "TimescaleDB hypertables for time-series optimization",
+      "Batch data ingestion pipeline for daily Dagster collection",
+      "Comprehensive testing with real PostgreSQL database",
+      "Agent integration enhancement with RAG capabilities"
+    ],
+    "excluded": [
+      "Real-time data streaming (daily batch collection only)",
+      "Additional data providers beyond yfinance and FinnHub",
+      "New technical indicators beyond existing 20 TA-Lib indicators",
+      "Custom financial calculations beyond current scope",
+      "Multi-database support (PostgreSQL only)",
+      "GraphQL or REST API endpoints (agent integration only)"
+    ]
+  },
+  "current_implementation_status": "85% complete with file-based CSV storage - migration project to PostgreSQL",
+  "existing_components": [
+    "MarketDataService with 20 TA-Lib technical indicators and trading style presets",
+    "YFinanceClient fully implemented for OHLC, company info, and financials",
+    "FinnhubClient with structured models for insider transactions and sentiment",
+    "FundamentalDataService for balance sheet, income statement, cash flow analysis",
+    "InsiderDataService for SEC transaction data and sentiment scoring",
+    "MarketDataRepository with CSV storage - MIGRATION TARGET",
+    "AgentToolkit integration ready for PostgreSQL-backed RAG enhancement",
+    "Comprehensive testing suite with pytest-vcr for API clients"
+  ],
+  "migration_components": [
+    "MarketDataEntity SQLAlchemy models for PostgreSQL storage",
+    "FundamentalDataEntity for financial statement data",
+    "InsiderDataEntity for SEC transaction records", 
+    "TechnicalIndicatorEntity for calculated indicator values",
+    "Async PostgreSQL repository operations matching news domain patterns",
+    "TimescaleDB hypertable setup for time-series optimization",
+    "Vector embedding generation for technical analysis RAG",
+    "Data migration scripts from CSV to PostgreSQL"
+  ],
+  "aligns_with": "Multi-agent trading framework vision - provides high-performance market data foundation for sophisticated agent analysis with RAG-powered historical context",
+  "dependencies": [
+    "Existing YFinanceClient and FinnhubClient implementations (ready)",
+    "PostgreSQL + TimescaleDB + pgvectorscale database infrastructure (established)",
+    "News domain PostgreSQL patterns for migration consistency (available)",
+    "DatabaseManager async operations and connection management (ready)",
+    "OpenRouter configuration for vector embeddings generation (available)",
+    "Dagster orchestration framework for daily data collection (planned)"
+  ],
+  "technical_details": {
+    "architecture_pattern": "Router → Service → Repository → Entity → Database (preserving existing service interfaces)",
+    "database_integration": "PostgreSQL + TimescaleDB + pgvectorscale migration from CSV storage",
+    "performance_optimization": "TimescaleDB hypertables, proper indexing, connection pooling, async operations",
+    "vector_storage": "pgvectorscale for RAG-powered historical pattern matching in technical analysis",
+    "api_preservation": "100% compatibility with existing MarketDataService, FundamentalDataService, InsiderDataService APIs",
+    "testing_strategy": "Real PostgreSQL for repository tests, preserved pytest-vcr for API clients, service compatibility testing"
+  },
+  "implementation_approach": "PostgreSQL migration project following news domain patterns: create entities → migrate repositories → preserve service APIs → enhance with vector RAG → integrate Dagster pipelines",
+  "reference_implementations": {
+    "news_domain_patterns": "Follow NewsRepository, NewsArticleEntity, DatabaseManager async patterns for consistency",
+    "database_migration": "Use established TimescaleDB hypertable and pgvectorscale vector storage patterns",
+    "testing_approach": "Apply news domain testing strategy: real PostgreSQL for repositories, VCR for API clients"
+  },
+  "success_criteria": {
+    "performance": "10x query performance improvement, sub-100ms market data operations, sub-200ms RAG queries",
+    "compatibility": "100% existing API preservation, seamless migration without agent disruption",
+    "scalability": "Support 500+ tickers with concurrent agent access, efficient bulk data ingestion",
+    "quality": "85%+ test coverage maintained, comprehensive data validation and audit trails"
+  }
+}

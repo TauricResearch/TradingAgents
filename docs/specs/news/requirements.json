@@ -1,0 +1,6 @@
+{
+  "raw_user_story": "a) As a Dagster Job I want to fetch all the google news articles for a ticker, fetch the article, perform sentimate analysis with LLM's and store in in the DB. b) As a News Analyst I want to fetch all relavent news data for a specific ticker and related tickers.",
+  "raw_criteria": "a) the news data is updated on a schedule, daily to start. B) I can update the news for a ticker c) I can get the news for a ticker d) News is stored in DB with embeddings c) News is fetched from DB",
+  "raw_rules": "a) best effort to fetch article, if it is paywalled or blocked, log a waring and continue",
+  "raw_scope": "Included: Only fetch data from google new xml feed, use newspaper4k to fetch article content, use LLM to run sentiment analysis. Excluded: Other news sources beyond Google News XML feed."
+}

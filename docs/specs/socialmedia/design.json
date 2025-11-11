@@ -1,0 +1,567 @@
+{
+  "requirements": {
+    "entities": {
+      "SocialPost": "Core domain entity for Reddit posts with sentiment and engagement data",
+      "SocialMediaPostEntity": "New SQLAlchemy entity for PostgreSQL storage with vector embeddings"
+    },
+    "data_persistence": {
+      "migration_required": "File-based JSON storage to PostgreSQL + TimescaleDB + pgvectorscale",
+      "schema": "social_media_posts table with vector embeddings, sentiment fields, and TimescaleDB optimization",
+      "deduplication": "Reddit post_id unique constraint prevents duplicates"
+    },
+    "api_needed": {
+      "external_apis": [
+        "PRAW (Python Reddit API Wrapper) for Reddit data collection",
+        "OpenRouter API for LLM sentiment analysis and embeddings"
+      ],
+      "internal_apis": [
+        "AgentToolkit methods: get_reddit_news, get_reddit_stock_info",
+        "SocialMediaService orchestration methods",
+        "SocialRepository PostgreSQL operations"
+      ]
+    },
+    "components": {
+      "reddit_client": "Complete PRAW implementation (currently empty stub)",
+      "repository": "PostgreSQL migration from file storage",
+      "service": "Business logic with LLM integration",
+      "agent_toolkit": "RAG methods for AI agents",
+      "dagster_pipeline": "Scheduled daily collection"
+    },
+    "domains": {
+      "primary": "socialmedia (complete greenfield implementation)",
+      "integration": "Follows news domain patterns for consistency"
+    },
+    "business_rules": [
+      "Daily collection from financial subreddits (wallstreetbets, investing, stocks, SecurityAnalysis)",
+      "OpenRouter LLM sentiment analysis with structured scoring",
+      "Vector embeddings for semantic similarity search",
+      "Post deduplication by Reddit post_id",
+      "90-day data retention policy",
+      "Rate limiting compliance with Reddit API",
+      "Best effort processing for API failures"
+    ]
+  },
+  "technical_needs": {
+    "domain_model": {
+      "entities": {
+        "SocialPost": {
+          "purpose": "Domain entity managing business rules and data transformations",
+          "responsibilities": [
+            "fromRequest() - Create from Reddit API response",
+            "toRecord() - Transform for PostgreSQL storage",
+            "toResponse() - Format for agent consumption",
+            "validate() - Business rule validation",
+            "calculateSentiment() - Derived sentiment scoring",
+            "extractTickers() - Ticker symbol detection"
+          ],
+          "fields": [
+            "post_id: str (Reddit unique ID)",
+            "title: str",
+            "content: str",
+            "author: str",
+            "subreddit: str",
+            "created_utc: datetime",
+            "upvotes: int",
+            "downvotes: int",
+            "comments_count: int",
+            "url: str",
+            "sentiment_score: float",
+            "sentiment_label: str",
+            "tickers: List[str]",
+            "embedding: Optional[List[float]]"
+          ]
+        },
+        "SocialMediaPostEntity": {
+          "purpose": "SQLAlchemy entity for PostgreSQL persistence",
+          "table": "social_media_posts",
+          "hypertable": "TimescaleDB partitioned by created_utc",
+          "indexes": [
+            "post_id (unique)",
+            "subreddit, created_utc",
+            "tickers (GIN array)",
+            "embedding (pgvectorscale HNSW)"
+          ]
+        }
+      }
+    },
+    "persistence": {
+      "database_type": "PostgreSQL + TimescaleDB + pgvectorscale",
+      "schema_design": {
+        "table": "social_media_posts",
+        "columns": [
+          "id: UUID PRIMARY KEY",
+          "post_id: VARCHAR(50) UNIQUE NOT NULL",
+          "title: TEXT",
+          "content: TEXT",
+          "author: VARCHAR(100)",
+          "subreddit: VARCHAR(50)",
+          "created_utc: TIMESTAMPTZ (hypertable partition key)",
+          "upvotes: INTEGER",
+          "downvotes: INTEGER",
+          "comments_count: INTEGER",
+          "url: TEXT",
+          "sentiment_score: FLOAT",
+          "sentiment_label: VARCHAR(20)",
+          "tickers: TEXT[] (array)",
+          "embedding: VECTOR(1536) (pgvectorscale)",
+          "inserted_at: TIMESTAMPTZ DEFAULT NOW()",
+          "updated_at: TIMESTAMPTZ DEFAULT NOW()"
+        ],
+        "constraints": [
+          "UNIQUE(post_id)",
+          "CHECK(sentiment_score BETWEEN -1 AND 1)"
+        ]
+      },
+      "access_patterns": [
+        "Ticker-based queries: SELECT * WHERE 'AAPL' = ANY(tickers)",
+        "Time-range filtering: SELECT * WHERE created_utc BETWEEN ? AND ?",
+        "Vector similarity: SELECT * ORDER BY embedding <=> ? LIMIT 10",
+        "Sentiment aggregations: SELECT AVG(sentiment_score) GROUP BY subreddit"
+      ],
+      "data_volume": "~400+ posts daily, 90-day retention = ~36K posts max"
+    },
+    "router": {
+      "type": "AgentToolkit Integration (No HTTP Router)",
+      "methods": [
+        "get_reddit_news(ticker: str, days: int) -> List[SocialPost]",
+        "get_reddit_stock_info(ticker: str) -> Dict",
+        "search_similar_posts(query: str, limit: int) -> List[SocialPost]",
+        "get_subreddit_sentiment(subreddit: str, ticker: str) -> SentimentSummary"
+      ],
+      "dependencies": [
+        "SocialMediaService for business orchestration",
+        "Entity transformations: SocialPost.toResponse()"
+      ]
+    },
+    "events": {
+      "domain_events": [
+        "SocialPostCollected: Published when new posts are scraped",
+        "SentimentAnalyzed: Published after LLM sentiment analysis",
+        "EmbeddingGenerated: Published after vector embedding creation"
+      ],
+      "integration_events": [
+        "MarketDataRequested: Subscribe to ticker validation events",
+        "TradingDecisionMade: Consume for social sentiment correlation"
+      ]
+    },
+    "dependencies": {
+      "external_services": [
+        "Reddit API (PRAW): Post collection and metadata",
+        "OpenRouter API: Sentiment analysis and embeddings",
+        "PostgreSQL: Data persistence and queries",
+        "TimescaleDB: Time-series optimization",
+        "pgvectorscale: Vector similarity search"
+      ],
+      "internal_services": [
+        "None (greenfield implementation)"
+      ],
+      "required_by": [
+        "AI agents: Social sentiment context for trading decisions",
+        "Multi-agent workflows: RAG-powered social media analysis",
+        "Risk management: Social sentiment risk factors"
+      ],
+      "component_order": [
+        "1. SocialMediaPostEntity (database schema)",
+        "2. SocialPost (domain entity with transformations)",
+        "3. RedditClient (PRAW implementation)",
+        "4. SocialRepository (PostgreSQL operations)",
+        "5. SocialMediaService (business orchestration + LLM)",
+        "6. AgentToolkit methods (RAG integration)",
+        "7. Dagster pipeline (scheduled collection)"
+      ]
+    }
+  },
+  "design": {
+    "architecture_overview": {
+      "pattern": "Event-driven microservice with layered internal architecture",
+      "data_flow": "Dagster Pipeline → RedditClient → SocialMediaService → SocialRepository → PostgreSQL + pgvectorscale",
+      "agent_flow": "AgentToolkit → SocialMediaService → SocialRepository → Vector Similarity Search + Sentiment Aggregation",
+      "key_principles": [
+        "Leverage news domain patterns for consistency",
+        "OpenRouter unified LLM provider",
+        "Best-effort processing for API failures",
+        "Vector-enhanced semantic search",
+        "Rate limiting compliance with Reddit API",
+        "Complete greenfield implementation from empty stubs"
+      ]
+    },
+    "domain_model": {
+      "SentimentScore": {
+        "purpose": "Structured sentiment analysis result from OpenRouter LLM",
+        "fields": {
+          "sentiment": "Literal['positive', 'negative', 'neutral']",
+          "confidence": "float (0.0-1.0)",
+          "reasoning": "str (brief explanation)"
+        },
+        "validation": [
+          "confidence >= 0.5 for reliable sentiment",
+          "reasoning must be non-empty"
+        ]
+      },
+      "SocialPost": {
+        "purpose": "Core domain entity with business rules and transformations",
+        "base_fields": {
+          "post_id": "str (Reddit unique ID, e.g., 't3_abc123')",
+          "title": "str",
+          "content": "Optional[str] (selftext for text posts)",
+          "author": "str",
+          "subreddit": "str",
+          "created_utc": "datetime",
+          "upvotes": "int (score)",
+          "downvotes": "int (calculated from score + upvote_ratio)",
+          "comments_count": "int (num_comments)",
+          "url": "str (permalink or external URL)"
+        },
+        "enhanced_fields": {
+          "sentiment_score": "Optional[SentimentScore]",
+          "tickers": "List[str] (extracted ticker symbols)",
+          "title_embedding": "Optional[List[float]] (1536 dimensions)",
+          "content_embedding": "Optional[List[float]] (1536 dimensions)"
+        },
+        "methods": {
+          "from_praw_submission": "Create from PRAW Submission object",
+          "to_entity": "Transform to SocialMediaPostEntity for database storage",
+          "from_entity": "Create from database entity",
+          "validate": "Business rule validation",
+          "extract_tickers": "Extract stock symbols from title and content",
+          "has_reliable_sentiment": "Check if sentiment confidence >= 0.5",
+          "to_response": "Format for agent consumption"
+        },
+        "validation_rules": [
+          "post_id must match Reddit format (starts with 't3_')",
+          "title cannot be empty",
+          "created_utc cannot be in future",
+          "sentiment_score confidence must be 0.0-1.0",
+          "embeddings must be 1536 dimensions if present",
+          "subreddit must be in allowed financial subreddits"
+        ]
+      },
+      "SocialJobConfig": {
+        "purpose": "Configuration for scheduled Reddit collection",
+        "fields": {
+          "subreddits": "List[str] (financial subreddits to monitor)",
+          "schedule_times": "List[str] (cron expressions for collection)",
+          "sentiment_model": "str (OpenRouter model for sentiment)",
+          "embedding_model": "str (OpenRouter model for embeddings)",
+          "max_posts_per_subreddit": "int (limit per collection run)",
+          "lookback_hours": "int (how far back to collect)",
+          "min_score": "int (minimum upvotes threshold)",
+          "rate_limit_delay": "float (seconds between API calls)"
+        },
+        "defaults": {
+          "subreddits": "['wallstreetbets', 'investing', 'stocks', 'SecurityAnalysis']",
+          "schedule_times": "['0 6 * * *', '0 18 * * *']",
+          "sentiment_model": "anthropic/claude-3.5-haiku",
+          "embedding_model": "text-embedding-3-large",
+          "max_posts_per_subreddit": 50,
+          "lookback_hours": 12,
+          "min_score": 10,
+          "rate_limit_delay": 1.0
+        }
+      }
+    },
+    "data_persistence": {
+      "database_schema": {
+        "table_definition": "CREATE TABLE social_media_posts (\n  id UUID PRIMARY KEY DEFAULT uuid7(),\n  post_id VARCHAR(50) UNIQUE NOT NULL,\n  title TEXT NOT NULL,\n  content TEXT,\n  author VARCHAR(100) NOT NULL,\n  subreddit VARCHAR(50) NOT NULL,\n  created_utc TIMESTAMPTZ NOT NULL,\n  upvotes INTEGER NOT NULL DEFAULT 0,\n  downvotes INTEGER NOT NULL DEFAULT 0,\n  comments_count INTEGER NOT NULL DEFAULT 0,\n  url TEXT NOT NULL,\n  sentiment_score JSONB,\n  sentiment_label VARCHAR(20),\n  tickers TEXT[] DEFAULT '{}',\n  title_embedding VECTOR(1536),\n  content_embedding VECTOR(1536),\n  inserted_at TIMESTAMPTZ DEFAULT NOW(),\n  updated_at TIMESTAMPTZ DEFAULT NOW()\n);",
+        "hypertable": "SELECT create_hypertable('social_media_posts', 'created_utc', chunk_time_interval => INTERVAL '1 day');",
+        "indexes": [
+          "CREATE UNIQUE INDEX idx_social_posts_post_id ON social_media_posts (post_id);",
+          "CREATE INDEX idx_social_posts_subreddit_time ON social_media_posts (subreddit, created_utc DESC);",
+          "CREATE INDEX idx_social_posts_tickers_gin ON social_media_posts USING GIN (tickers);",
+          "CREATE INDEX idx_social_posts_title_embedding ON social_media_posts USING vectors (title_embedding vector_cosine_ops);",
+          "CREATE INDEX idx_social_posts_content_embedding ON social_media_posts USING vectors (content_embedding vector_cosine_ops);",
+          "CREATE INDEX idx_social_posts_sentiment ON social_media_posts (((sentiment_score->>'sentiment'))) WHERE sentiment_score IS NOT NULL;"
+        ],
+        "constraints": [
+          "ALTER TABLE social_media_posts ADD CONSTRAINT chk_sentiment_score CHECK (sentiment_score IS NULL OR ((sentiment_score->>'confidence')::float BETWEEN 0 AND 1));",
+          "ALTER TABLE social_media_posts ADD CONSTRAINT chk_created_utc CHECK (created_utc <= NOW());"
+        ]
+      },
+      "repository_methods": {
+        "find_by_ticker": "async def find_by_ticker(self, ticker: str, days: int = 30, limit: int = 50) -> List[SocialPost]",
+        "find_by_subreddit": "async def find_by_subreddit(self, subreddit: str, hours: int = 24, limit: int = 100) -> List[SocialPost]",
+        "find_similar_posts": "async def find_similar_posts(self, query_embedding: List[float], ticker: Optional[str] = None, limit: int = 10) -> List[SocialPost]",
+        "get_sentiment_summary": "async def get_sentiment_summary(self, ticker: str, subreddit: Optional[str] = None, hours: int = 24) -> Dict[str, Any]",
+        "upsert_batch": "async def upsert_batch(self, posts: List[SocialPost]) -> List[SocialPost]",
+        "cleanup_old_posts": "async def cleanup_old_posts(self, days: int = 90) -> int"
+      },
+      "query_optimizations": [
+        "TimescaleDB hypertables for time-based partitioning",
+        "pgvectorscale HNSW indexes for fast vector similarity",
+        "GIN indexes for ticker array queries",
+        "Composite indexes for common access patterns",
+        "Materialized views for sentiment aggregations"
+      ]
+    },
+    "api_specification": {
+      "reddit_client": {
+        "class": "RedditClient",
+        "purpose": "PRAW wrapper with rate limiting and error handling",
+        "configuration": {
+          "client_id": "Reddit app client ID",
+          "client_secret": "Reddit app client secret",
+          "user_agent": "TradingAgents/1.0 by /u/tradingagents",
+          "rate_limit": "1 request per second",
+          "timeout": "30 seconds per request"
+        },
+        "methods": {
+          "fetch_subreddit_posts": "async def fetch_subreddit_posts(self, subreddit: str, limit: int = 50, time_filter: str = 'day') -> List[Dict[str, Any]]",
+          "search_posts": "async def search_posts(self, query: str, subreddit: Optional[str] = None, limit: int = 25) -> List[Dict[str, Any]]",
+          "get_post_details": "async def get_post_details(self, post_id: str) -> Optional[Dict[str, Any]]"
+        },
+        "error_handling": [
+          "Rate limit exceeded: Exponential backoff",
+          "Authentication errors: Log and continue with next subreddit",
+          "Network timeouts: Retry up to 3 times",
+          "Invalid subreddit: Skip and log warning"
+        ]
+      },
+      "openrouter_client": {
+        "reuse": "Leverage existing OpenRouterClient from news domain",
+        "enhancements": [
+          "Social media specific prompts for sentiment analysis",
+          "Batch processing for Reddit post embeddings",
+          "Optimized token usage for short social media text"
+        ],
+        "sentiment_prompt": "Analyze this Reddit post about stocks/finance. Consider the informal language, memes, and community context. Respond with JSON: {\"sentiment\": \"positive|negative|neutral\", \"confidence\": 0.0-1.0, \"reasoning\": \"brief explanation\"}"
+      }
+    },
+    "components": {
+      "RedditClient": {
+        "layer": "External API Integration",
+        "responsibilities": [
+          "Authenticate with Reddit API using PRAW",
+          "Fetch posts from financial subreddits",
+          "Handle rate limiting and API errors",
+          "Transform PRAW responses to standard format"
+        ],
+        "dependencies": [
+          "PRAW library",
+          "Reddit API credentials",
+          "Async HTTP client (httpx)"
+        ],
+        "error_handling": "Best-effort with graceful degradation"
+      },
+      "SocialRepository": {
+        "layer": "Data Access",
+        "responsibilities": [
+          "PostgreSQL + TimescaleDB operations",
+          "Vector similarity searches using pgvectorscale",
+          "Batch upsert operations for performance",
+          "Sentiment aggregation queries"
+        ],
+        "dependencies": [
+          "AsyncSession (SQLAlchemy)",
+          "SocialMediaPostEntity",
+          "Vector similarity functions"
+        ],
+        "performance_targets": [
+          "Batch upsert: <5s for 1000 posts",
+          "Vector similarity: <1s for top 10 results",
+          "Ticker queries: <100ms for 30-day range"
+        ]
+      },
+      "SocialMediaService": {
+        "layer": "Business Logic",
+        "responsibilities": [
+          "Orchestrate Reddit data collection",
+          "Coordinate LLM sentiment analysis",
+          "Generate vector embeddings",
+          "Apply business rules and validation"
+        ],
+        "methods": {
+          "collect_subreddit_posts": "async def collect_subreddit_posts(self, config: SocialJobConfig) -> int",
+          "update_post_sentiment": "async def update_post_sentiment(self, posts: List[SocialPost]) -> List[SocialPost]",
+          "generate_embeddings": "async def generate_embeddings(self, posts: List[SocialPost]) -> List[SocialPost]",
+          "find_trending_tickers": "async def find_trending_tickers(self, hours: int = 24) -> List[Dict[str, Any]]"
+        },
+        "integration_patterns": [
+          "OpenRouter for sentiment and embeddings",
+          "Repository for data persistence",
+          "Event publishing for domain events"
+        ]
+      },
+      "AgentToolkit": {
+        "layer": "Agent Integration",
+        "responsibilities": [
+          "Provide RAG methods for AI agents",
+          "Format social data for agent consumption",
+          "Semantic search for relevant posts",
+          "Sentiment aggregation and analysis"
+        ],
+        "methods": {
+          "get_reddit_sentiment": "async def get_reddit_sentiment(self, ticker: str, days: int = 7) -> Dict[str, Any]",
+          "search_social_posts": "async def search_social_posts(self, query: str, ticker: Optional[str] = None) -> List[Dict[str, Any]]",
+          "get_trending_discussions": "async def get_trending_discussions(self, ticker: str) -> List[Dict[str, Any]]",
+          "get_subreddit_analysis": "async def get_subreddit_analysis(self, subreddit: str, ticker: str) -> Dict[str, Any]"
+        ],
+        "response_format": [
+          "Structured JSON with post content, metadata, and sentiment",
+          "Data quality indicators",
+          "Source attribution and confidence scores"
+        ]
+      }
+    },
+    "events": {
+      "domain_events": {
+        "SocialPostCollected": {
+          "trigger": "New Reddit post successfully stored",
+          "payload": {
+            "post_id": "str",
+            "subreddit": "str",
+            "tickers": "List[str]",
+            "created_utc": "datetime",
+            "collection_timestamp": "datetime"
+          }
+        },
+        "SentimentAnalyzed": {
+          "trigger": "LLM sentiment analysis completed",
+          "payload": {
+            "post_id": "str",
+            "sentiment": "str",
+            "confidence": "float",
+            "processing_time": "float"
+          }
+        },
+        "EmbeddingGenerated": {
+          "trigger": "Vector embedding created and stored",
+          "payload": {
+            "post_id": "str",
+            "embedding_type": "str (title|content)",
+            "dimensions": "int",
+            "model_used": "str"
+          }
+        }
+      },
+      "integration_events": {
+        "MarketDataRequested": {
+          "purpose": "Validate ticker symbols against market data",
+          "consumption": "Subscribe to ensure social posts reference valid tickers"
+        },
+        "TradingDecisionRequested": {
+          "purpose": "Provide social sentiment context for trading decisions",
+          "consumption": "Publish social sentiment summaries when trading decisions are being made"
+        }
+      }
+    },
+    "dependencies": {
+      "external_dependencies": {
+        "Reddit API": {
+          "library": "PRAW (Python Reddit API Wrapper)",
+          "authentication": "OAuth2 with client credentials",
+          "rate_limits": "60 requests per minute per OAuth client",
+          "required_credentials": ["client_id", "client_secret", "user_agent"]
+        },
+        "OpenRouter API": {
+          "reuse": "Existing OpenRouterClient from news domain",
+          "models": {
+            "sentiment": "anthropic/claude-3.5-haiku",
+            "embeddings": "text-embedding-3-large"
+          },
+          "cost_optimization": "Batch requests and token-efficient prompts"
+        },
+        "PostgreSQL Stack": {
+          "database": "PostgreSQL 16+",
+          "extensions": ["TimescaleDB", "pgvectorscale", "uuid-ossp"],
+          "connection": "AsyncSession with asyncpg driver"
+        }
+      },
+      "internal_dependencies": {
+        "news_domain": "Reference implementation patterns for consistency",
+        "config_management": "TradingAgentsConfig for unified configuration",
+        "database_manager": "Shared DatabaseManager and session handling"
+      },
+      "implementation_order": [
+        "1. Database migration: Create social_media_posts table with TimescaleDB and vector support",
+        "2. SocialMediaPostEntity: SQLAlchemy entity with proper field mappings",
+        "3. SocialPost: Domain entity with validation and transformation methods",
+        "4. RedditClient: PRAW integration with rate limiting and error handling",
+        "5. SocialRepository: Database operations with vector similarity search",
+        "6. SocialMediaService: Business logic orchestration with LLM integration",
+        "7. AgentToolkit integration: RAG methods for AI agent consumption",
+        "8. Dagster pipeline: Scheduled collection and processing"
+      ]
+    },
+    "implementation_guidance": {
+      "database_setup": {
+        "migration_script": [
+          "Create social_media_posts table with all columns",
+          "Add TimescaleDB hypertable partitioning on created_utc",
+          "Create all indexes including vector similarity indexes",
+          "Add constraints for data validation",
+          "Set up retention policy for 90-day data cleanup"
+        ],
+        "seed_data": "Optional test data with sample Reddit posts for development"
+      },
+      "reddit_integration": {
+        "praw_setup": [
+          "Create Reddit app at https://www.reddit.com/prefs/apps/",
+          "Configure OAuth2 credentials in environment variables",
+          "Implement rate limiting to respect API limits",
+          "Handle subreddit access and content filtering"
+        ],
+        "data_collection_strategy": [
+          "Focus on financial subreddits: wallstreetbets, investing, stocks, SecurityAnalysis",
+          "Collect hot/trending posts twice daily (6 AM, 6 PM UTC)",
+          "Filter by minimum score threshold (10+ upvotes)",
+          "Extract ticker symbols from post titles and content",
+          "Deduplicate by Reddit post_id"
+        ]
+      },
+      "llm_integration": {
+        "sentiment_analysis": [
+          "Use OpenRouter with anthropic/claude-3.5-haiku for cost efficiency",
+          "Social media-specific prompts accounting for informal language and memes",
+          "Structured JSON output with sentiment, confidence, and reasoning",
+          "Best-effort processing: store posts even if sentiment analysis fails"
+        ],
+        "embeddings": [
+          "Use text-embedding-3-large for 1536-dimension vectors",
+          "Batch process for efficiency",
+          "Generate embeddings for both title and content when available",
+          "Store NULL for failed embedding generation"
+        ]
+      },
+      "testing_strategy": {
+        "unit_tests": [
+          "Entity validation and transformation methods",
+          "Reddit client with mocked PRAW responses",
+          "Repository operations with test database",
+          "Service orchestration with mocked dependencies"
+        ],
+        "integration_tests": [
+          "End-to-end collection pipeline",
+          "Vector similarity search with real pgvectorscale",
+          "LLM integration with pytest-vcr cassettes",
+          "Dagster pipeline execution"
+        ],
+        "performance_tests": [
+          "Vector similarity query performance (<1s for top 10)",
+          "Batch upsert performance (<5s for 1000 posts)",
+          "Memory usage during large collection runs"
+        ]
+      },
+      "monitoring_and_observability": {
+        "metrics": [
+          "Posts collected per subreddit per day",
+          "Sentiment analysis success rate",
+          "Embedding generation success rate",
+          "Vector similarity query performance",
+          "Reddit API rate limit utilization"
+        ],
+        "logging": [
+          "Collection job start/completion with statistics",
+          "API errors and retry attempts",
+          "Data quality issues and validation failures",
+          "Performance metrics for optimization"
+        ],
+        "alerts": [
+          "Collection job failures",
+          "Reddit API authentication issues",
+          "High error rates in LLM processing",
+          "Database connection problems"
+        ]
+      }
+    }
+  }
+}

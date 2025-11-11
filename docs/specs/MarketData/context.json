@@ -1,0 +1,66 @@
+{
+  "product_vision": "Multi-agent LLM financial trading framework with PostgreSQL + TimescaleDB + pgvectorscale architecture for research-based market analysis and trading decisions",
+  "existing_features": [
+    "marketdata_domain_85_complete_file_based",
+    "yfinance_client_fully_implemented",
+    "finnhub_client_with_insider_data",
+    "talib_technical_analysis_integration",
+    "postgresql_timescaledb_foundation",
+    "agent_toolkit_rag_ready",
+    "news_domain_postgresql_patterns",
+    "database_manager_async_operations"
+  ],
+  "architecture": {
+    "layer_pattern": "Router → Service → Repository → Entity → Database",
+    "database": "PostgreSQL + TimescaleDB + pgvectorscale with asyncpg driver", 
+    "llm_provider": "OpenRouter unified interface",
+    "agent_orchestration": "LangGraph workflows with RAG-enhanced AgentToolkit",
+    "data_pipeline": "Dagster planned for daily market data collection",
+    "domain_structure": "news (95% PostgreSQL), marketdata (85% file-based), socialmedia (planned)",
+    "testing_strategy": "Pragmatic TDD: services (mocked), repositories (real PostgreSQL), clients (pytest-vcr)"
+  },
+  "marketdata_implementation_status": {
+    "current_components": {
+      "MarketDataService": "Technical analysis with 20 TA-Lib indicators, trading style presets",
+      "MarketDataRepository": "CSV-based storage - NEEDS PostgreSQL migration",
+      "YFinanceClient": "Historical OHLC, company info, financials - fully implemented",
+      "FinnhubClient": "Insider transactions, sentiment, company profiles - fully implemented",
+      "FundamentalDataService": "Balance sheet, income statement, cash flow analysis",
+      "InsiderDataService": "SEC insider transaction and sentiment analysis"
+    },
+    "current_limitations": {
+      "storage": "CSV files in ./data/market_data/ - not scalable",
+      "query_performance": "File-based lookups instead of indexed database queries",
+      "concurrency": "No concurrent access support",
+      "vector_embeddings": "No RAG capabilities for historical pattern matching"
+    },
+    "migration_needed": [
+      "PostgreSQL entities for OHLC, fundamental, and insider data",
+      "TimescaleDB hypertables for time-series optimization",
+      "Vector embeddings for technical analysis RAG",
+      "Async repository operations matching news domain patterns",
+      "Batch data ingestion for daily collection"
+    ]
+  },
+  "reference_patterns": {
+    "news_domain_success": {
+      "NewsRepository": "Async PostgreSQL with vector embeddings and batch operations",
+      "NewsArticleEntity": "SQLAlchemy model with UUID v7, TimescaleDB optimization",
+      "database_patterns": "Connection pooling, async sessions, proper error handling",
+      "testing_approach": "Real PostgreSQL for repositories, pytest-vcr for API clients"
+    },
+    "agent_integration": "AgentToolkit expects PostgreSQL-backed services for RAG capabilities"
+  },
+  "technical_dependencies": {
+    "external": [
+      "yfinance for daily OHLC data (already implemented)",
+      "FinnHub API for insider and fundamental data (already implemented)", 
+      "PostgreSQL with TimescaleDB and pgvectorscale extensions (ready)"
+    ],
+    "internal": [
+      "DatabaseManager for async PostgreSQL connections (established)",
+      "News domain PostgreSQL patterns for consistency (available)",
+      "AgentToolkit integration for RAG-powered market analysis (ready)"
+    ]
+  }
+}

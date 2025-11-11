@@ -1,0 +1,70 @@
+{
+  "product_vision": "Multi-agent LLM financial trading framework that mirrors real-world trading firm dynamics for research-based market analysis and trading decisions with PostgreSQL + TimescaleDB + pgvectorscale architecture",
+  "existing_features": [
+    "news_domain_95_complete",
+    "social_media_domain_stub_only",
+    "postgresql_timescaledb_stack",
+    "agent_toolkit_rag_integration",
+    "openrouter_llm_provider",
+    "reddit_client_empty_stub",
+    "social_repository_file_based"
+  ],
+  "architecture": {
+    "layer_pattern": "Router → Service → Repository → Entity → Database",
+    "database": "PostgreSQL + TimescaleDB + pgvectorscale",
+    "llm_provider": "OpenRouter unified interface",
+    "agent_orchestration": "LangGraph workflows",
+    "data_pipeline": "APScheduler/Dagster (planned, not implemented)",
+    "domain_structure": "news (95% complete), marketdata (planned), socialmedia (stub only)",
+    "testing_strategy": "Domain-specific: mocks for services, real DB for repositories, pytest-vcr for HTTP"
+  },
+  "socialmedia_implementation_status": {
+    "current_components": {
+      "SocialMediaService": "Stub implementation with empty methods",
+      "SocialRepository": "File-based JSON storage with deduplication",
+      "RedditClient": "Empty stub class - needs full implementation",
+      "Data Models": "Basic SocialPost, PostData, SocialContext models exist"
+    },
+    "missing_components": {
+      "PostgreSQL_migration": "Current file storage needs database migration",
+      "Reddit_API_integration": "RedditClient is empty - needs PRAW implementation",
+      "LLM_sentiment_analysis": "No sentiment analysis for social posts",
+      "Vector_embeddings": "No embedding generation or similarity search",
+      "Agent_toolkit_methods": "get_reddit_news and get_reddit_stock_info missing",
+      "Scheduled_execution": "No daily data collection pipeline"
+    },
+    "implementation_gaps": [
+      "SocialRepository uses file storage instead of PostgreSQL",
+      "No SQLAlchemy entity for social posts with vector support",
+      "RedditClient has no API integration code",
+      "No LLM integration for sentiment analysis",
+      "Agent toolkit missing social media methods",
+      "No scheduled execution framework"
+    ]
+  },
+  "reference_patterns": {
+    "news_domain_success": {
+      "NewsService": "95% complete business logic orchestration",
+      "NewsRepository": "Async PostgreSQL with vector embeddings",
+      "GoogleNewsClient": "RSS feed integration with error handling",
+      "Agent_integration": "RAG-powered context via AgentToolkit"
+    },
+    "database_patterns": "Async PostgreSQL with TimescaleDB optimization and pgvectorscale",
+    "llm_integration": "OpenRouter unified provider with two-tier model strategy",
+    "testing_approach": "pytest-vcr for HTTP, real DB for repositories, mocks for services"
+  },
+  "technical_dependencies": {
+    "external": [
+      "PRAW (Python Reddit API Wrapper) for Reddit data access",
+      "OpenRouter API for LLM sentiment analysis",
+      "PostgreSQL with pgvectorscale for embeddings",
+      "APScheduler or Dagster for scheduled execution"
+    ],
+    "internal": [
+      "Existing database infrastructure from news domain",
+      "OpenRouter configuration in TradingAgentsConfig",
+      "DatabaseManager for connection management",
+      "AgentToolkit patterns for RAG integration"
+    ]
+  }
+}

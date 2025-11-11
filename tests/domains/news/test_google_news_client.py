@@ -14,33 +14,12 @@ from tradingagents.domains.news.google_news_client import (
     GoogleNewsClient,
 )
 
-
-# VCR configuration optimized for minimal cassette size
-def rss_content_filter(response):
-    """Filter RSS content to reduce cassette size while preserving test data."""
-    content_type = response.get("headers", {}).get("content-type", [""])[0]
-    if "xml" in content_type and "string" in response["body"]:
-        content = response["body"]["string"]
-        # For RSS feeds, keep only first 5 items to reduce size
-        if len(content) > 5000:  # Only truncate large RSS feeds
-            # Find closing tag of 5th item
-            item_count = content.count("<item>")
-            if item_count > 5:
-                # Keep RSS structure but limit to 5 items
-                parts = content.split("</item>")
-                if len(parts) > 6:  # 5 items + everything after
-                    response["body"]["string"] = (
-                        "</item>".join(parts[:6]) + "</channel></rss>"
-                    )
-    return response
-
-
+# VCR configuration
 vcr = pytest.mark.vcr(
     cassette_library_dir="tests/fixtures/vcr_cassettes/news",
     record_mode="once",  # Record once, then replay
     match_on=["uri", "method"],
-    filter_headers=["authorization", "cookie", "user-agent", "set-cookie"],
-    before_record_response=rss_content_filter,
+    filter_headers=["authorization", "cookie"],
 )
 
 

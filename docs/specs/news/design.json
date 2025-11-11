@@ -1,0 +1,127 @@
+{
+  "requirements": {
+    "entities": {
+      "NewsArticle": "Existing domain entity, enhance with structured sentiment and vector embedding support",
+      "NewsJobConfig": "New configuration entity for scheduled job parameters (tickers, schedule, model settings)"
+    },
+    "data_persistence": {
+      "news_articles_table": "Existing table with vector embedding columns, enhance sentiment_score JSONB column",
+      "vector_indexes": "pgvectorscale indexes for title_embedding and content_embedding (1536 dimensions)",
+      "data_flows": [
+        "APScheduler → NewsService.update_company_news() → NewsRepository.upsert_batch()",
+        "ArticleData → OpenRouter API → structured sentiment → NewsArticle entity",
+        "Article content → OpenRouter embeddings API → pgvectorscale storage"
+      ]
+    },
+    "api_needed": {
+      "external_apis": [
+        "OpenRouter for LLM sentiment analysis using quick_think_llm",
+        "OpenRouter for embeddings using text-embedding models",
+        "Existing GoogleNewsClient and ArticleScraperClient"
+      ],
+      "internal_apis": [
+        "Enhanced NewsService.update_company_news() method",
+        "New NewsRepository.find_similar_articles() for semantic search",
+        "New ScheduledNewsCollector job orchestration class"
+      ]
+    },
+    "components": {
+      "scheduler": "APScheduler integration for daily news collection",
+      "sentiment_analyzer": "OpenRouter LLM client for structured sentiment analysis",
+      "embedding_generator": "OpenRouter embeddings client for vector generation",
+      "job_orchestrator": "ScheduledNewsCollector class for job coordination"
+    },
+    "domains": {
+      "primary": "news (completing final 5%)",
+      "integration": "Leverages existing Router → Service → Repository → Entity → Database pattern"
+    },
+    "business_rules": [
+      "Best-effort sentiment analysis - LLM failures don't block article storage",
+      "URL-based deduplication using existing NewsRepository patterns", 
+      "Paywall resilience via existing ArticleScraperClient graceful degradation",
+      "Date filtering: articles within last 30 days only",
+      "Sentiment confidence threshold: 0.5 minimum for reliable scores",
+      "Content length limits: 8000 chars for embedding generation",
+      "Embedding generation: Both title and content vectors required"
+    ]
+  },
+  "technical_needs": {
+    "domain_model": {
+      "entities": {
+        "NewsArticle": {
+          "status": "exists_needs_enhancement",
+          "enhancements": [
+            "Structured sentiment JSON format: {sentiment: positive|negative|neutral, confidence: 0.0-1.0, reasoning: string}",
+            "Vector embedding support for title and content (1536 dimensions)",
+            "Enhanced validation for sentiment confidence thresholds"
+          ]
+        },
+        "NewsJobConfig": {
+          "status": "new_entity",
+          "fields": ["tickers: list[str]", "schedule_hour: int", "sentiment_model: str", "embedding_model: str", "max_articles_per_ticker: int"],
+          "validation": "Schedule hour 0-23, max articles 50-500 range"
+        }
+      },
+      "services": {
+        "NewsService": {
+          "status": "exists_needs_enhancement", 
+          "enhancements": [
+            "Integrate LLM sentiment analysis in update methods",
+            "Add vector embedding generation pipeline",
+            "Enhanced error handling for LLM and embedding failures"
+          ]
+        },
+        "ScheduledNewsCollector": {
+          "status": "new_service",
+          "responsibilities": [
+            "Orchestrate daily news collection jobs",
+            "Manage job configuration and scheduling",
+            "Monitor job execution and handle failures",
+            "Integrate with existing NewsService methods"
+          ]
+        }
+      }
+    },
+    "persistence": {
+      "database": "PostgreSQL + TimescaleDB + pgvectorscale",
+      "schema_updates": {
+        "news_articles": {
+          "existing_columns": "headline, url, source, published_date, summary, entities, sentiment_score, author, category, title_embedding, content_embedding",
+          "modifications": [
+            "Enhance sentiment_score JSONB to support structured format",
+            "Add vector similarity indexes for title_embedding and content_embedding",
+            "Add composite index on (symbol, published_date) for News Analyst queries"
+          ]
+        }
+      },
+      "access_patterns": [
+        "Time-based queries: articles for ticker in date range",
+        "Semantic similarity: find similar articles using vector search",
+        "Sentiment filtering: articles by sentiment type and confidence",
+        "Batch operations: efficient upsert of daily collection results"
+      ]
+    },
+    "router": {
+      "status": "not_needed",
+      "reason": "News Analysts access via AgentToolkit anti-corruption layer, no direct REST API required"
+    },
+    "events": {
+      "status": "not_applicable", 
+      "reason": "Scheduled batch processing, no real-time event requirements"
+    },
+    "dependencies": {
+      "external": [
+        "OpenRouter API (existing TradingAgentsConfig integration)",
+        "OpenRouter embeddings models (existing TradingAgentsConfig integration)",
+        "APScheduler (new dependency for job scheduling)"
+      ],
+      "internal": [
+        "Existing NewsService (95% complete)",
+        "Existing NewsRepository with async PostgreSQL patterns",
+        "Existing GoogleNewsClient and ArticleScraperClient",
+        "DatabaseManager for connection management",
+        "TradingAgentsConfig for LLM and API configuration"
+      ]
+    }
+  }
+}

@@ -1,10 +1,10 @@
 services:
   timescaledb:
-    build: .
+    build: ./db
     container_name: tradingagents_timescaledb
     environment:
-      POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: tradingagents
       POSTGRES_DB: tradingagents
     ports:
       - "5432:5432"

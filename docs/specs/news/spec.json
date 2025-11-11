@@ -1,0 +1,68 @@
+{
+  "feature": "news",
+  "user_story": "As a Dagster Job, I want to automatically fetch Google News articles for tracked tickers, extract content, perform LLM sentiment analysis, and store with embeddings in the database, so that News Analysts can access comprehensive, up-to-date news data for trading decisions",
+  "acceptance_criteria": [
+    "GIVEN a scheduled job runs daily WHEN it executes THEN it fetches news for all configured tickers without manual intervention",
+    "GIVEN a news article is found WHEN content extraction fails due to paywall THEN a warning is logged and processing continues with available metadata",
+    "GIVEN a ticker symbol WHEN a News Analyst requests news data THEN they receive articles with sentiment scores and embeddings within 2 seconds",
+    "GIVEN news articles are processed WHEN LLM sentiment analysis runs THEN each article gets a structured sentiment score (positive/negative/neutral with confidence)",
+    "GIVEN news articles are stored WHEN saved to database THEN they include vector embeddings for both title and content for semantic search"
+  ],
+  "business_rules": [
+    "Best effort article fetching - log warnings for paywalled/blocked content but continue processing",
+    "Daily schedule execution with configurable ticker list",
+    "Deduplication by URL to prevent duplicate articles",
+    "Sentiment analysis using OpenRouter LLM integration",
+    "Vector embeddings generated for semantic similarity search",
+    "Graceful error handling for network failures and API limits"
+  ],
+  "scope": {
+    "included": [
+      "Scheduled news collection job using existing NewsService",
+      "LLM-based sentiment analysis replacing current keyword approach", 
+      "Vector embedding generation for articles",
+      "Configuration management for ticker lists and schedules",
+      "Integration with existing GoogleNewsClient and ArticleScraperClient",
+      "Database storage using existing NewsRepository patterns"
+    ],
+    "excluded": [
+      "Other news sources beyond Google News XML feed",
+      "Real-time news streaming (daily batch processing only)",
+      "Custom sentiment models (use OpenRouter LLMs only)",
+      "News source reliability scoring",
+      "Multi-language news support"
+    ]
+  },
+  "current_implementation_status": "95% complete - core components exist",
+  "missing_components": [
+    "Scheduled execution framework (Dagster alternative needed)",
+    "LLM sentiment analysis integration",
+    "Vector embedding generation", 
+    "Configuration management for tickers and schedules",
+    "Pipeline monitoring and status tracking"
+  ],
+  "existing_components": [
+    "NewsService with update_news_for_symbol method",
+    "GoogleNewsClient for RSS feed parsing",
+    "ArticleScraperClient with newspaper4k integration", 
+    "NewsRepository with async PostgreSQL and vector schema",
+    "NewsArticle domain model with validation",
+    "Comprehensive test coverage with pytest-vcr"
+  ],
+  "aligns_with": "Multi-agent trading framework vision - provides news context for agent decision making",
+  "dependencies": [
+    "OpenRouter API for LLM sentiment analysis",
+    "PostgreSQL with pgvectorscale for embeddings",
+    "Existing news domain components (95% complete)",
+    "APScheduler or similar for job scheduling (Dagster not in current dependencies)"
+  ],
+  "technical_details": {
+    "architecture_pattern": "Router → Service → Repository → Entity → Database",
+    "database_integration": "Async PostgreSQL with TimescaleDB optimization",
+    "llm_integration": "OpenRouter unified provider with two-tier model strategy",
+    "vector_storage": "1536-dimension embeddings using pgvectorscale",
+    "error_handling": "Graceful degradation with comprehensive logging",
+    "testing_strategy": "Domain-specific with pytest-vcr for HTTP mocking"
+  },
+  "implementation_approach": "Complete the missing 5% by adding scheduled execution, LLM sentiment analysis, and vector embedding generation to existing NewsService infrastructure"
+}

@@ -1,0 +1,52 @@
+{
+  "requirements": {
+    "entities": {
+      "MarketDataEntity": "SQLAlchemy entity for OHLC price data with TimescaleDB optimization and vector embeddings",
+      "FundamentalDataEntity": "Financial statement data (balance sheet, income statement, cash flow) with PostgreSQL storage",
+      "InsiderDataEntity": "SEC insider transaction records with sentiment analysis and PostgreSQL persistence",
+      "TechnicalIndicatorEntity": "Calculated TA-Lib indicator values with vector embeddings for RAG analysis"
+    },
+    "data_persistence": {
+      "migration_scope": "CSV file storage to PostgreSQL + TimescaleDB + pgvectorscale",
+      "current_storage": "./data/market_data/ CSV files with 85% complete functionality",
+      "target_storage": "PostgreSQL with TimescaleDB hypertables and pgvectorscale vector storage",
+      "performance_goal": "10x improvement with sub-100ms query times",
+      "data_volume": "10 years OHLC, 5 years fundamentals, 3 years insider data for 500+ tickers"
+    },
+    "api_needed": {
+      "preservation_requirement": "100% API compatibility with existing services",
+      "existing_apis": [
+        "MarketDataService with 20 TA-Lib technical indicators and trading style presets",
+        "FundamentalDataService for balance sheet, income statement, cash flow analysis", 
+        "InsiderDataService for SEC transaction data and sentiment scoring"
+      ],
+      "external_apis": [
+        "YFinanceClient (fully implemented) for daily OHLC data",
+        "FinnhubClient (fully implemented) for insider transactions and fundamental data"
+      ]
+    },
+    "components": {
+      "repository_migration": "MarketDataRepository from CSV to async PostgreSQL operations",
+      "entity_models": "SQLAlchemy entities with TimescaleDB and pgvectorscale integration",
+      "service_preservation": "API-compatible service layer with PostgreSQL backend",
+      "vector_embeddings": "RAG enhancement for historical pattern matching",
+      "dagster_integration": "Daily data collection pipeline automation"
+    },
+    "domains": {
+      "primary": "MarketData (PostgreSQL migration from 85% complete CSV system)",
+      "integration": "Follows news domain PostgreSQL patterns for architectural consistency"
+    },
+    "business_rules": [
+      "Preserve 100% API compatibility with existing MarketDataService, FundamentalDataService, InsiderDataService",
+      "Daily automated collection from yfinance (OHLC) and FinnHub (insider + fundamentals)",
+      "TimescaleDB hypertables for market_data, fundamental_data, insider_data tables",
+      "Vector embeddings for technical analysis patterns using pgvectorscale",
+      "Sub-100ms query performance for common market data operations",
+      "Sub-200ms RAG queries for historical pattern matching",
+      "Data retention: 10 years OHLC, 5 years fundamentals, 3 years insider data",
+      "FinnHub API rate limiting compliance with backoff strategies",
+      "Comprehensive audit logging and ACID transaction support",
+      "Concurrent agent access with PostgreSQL async operations"
+    ]
+  }
+}

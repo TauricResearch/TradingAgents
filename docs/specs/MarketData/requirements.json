@@ -1,0 +1,6 @@
+{
+  "raw_user_story": "As a dagster job and AI Agent I want to collect daily OHLC data from yfinance for all my tickers, insider data from FinnHub, and fundamental data from FinnHub so that agents have comprehensive market data for trading decisions",
+  "raw_criteria": "Daily OHLC data from yfinance for configured tickers, insider trading data from FinnHub API, fundamental data from FinnHub API, all data stored in PostgreSQL with TimescaleDB optimization, agents can query market data for analysis",
+  "raw_rules": "Daily automated collection, FinnHub API rate limiting compliance, data quality validation, TimescaleDB for time-series optimization",
+  "raw_scope": "Included: Daily OHLC from yfinance, insider data from FinnHub, fundamental data from FinnHub, PostgreSQL storage, agent integration. Excluded: Real-time data streaming, other data providers beyond yfinance and FinnHub."
+}

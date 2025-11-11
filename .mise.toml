@@ -2,7 +2,6 @@
 python = "3.13"
 uv = "latest"
 ruff = "latest"
-docker = "latest"
 
 [env]
 _.file = ".env"

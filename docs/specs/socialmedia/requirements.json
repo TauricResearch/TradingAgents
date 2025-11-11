@@ -1,0 +1,6 @@
+{
+  "raw_user_story": "a) As a dagster job I want to scrape specific sub reddits from market sentiment b) As an AI Agent I want to get relavent social media data about a specific ticker or market",
+  "raw_criteria": "a) All reddit posts are stored with sentiment analysis in db b) Agents can get RAG data from db",
+  "raw_rules": "updated daily",
+  "raw_scope": "Included: reddit. Excluded: Other social media platforms beyond Reddit."
+}

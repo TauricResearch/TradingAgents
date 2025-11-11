@@ -1,0 +1,47 @@
+{
+  "product_vision": "Multi-agent LLM financial trading framework that mirrors real-world trading firm dynamics for research-based market analysis and trading decisions",
+  "existing_features": [
+    "news_domain_95_complete",
+    "google_news_client", 
+    "article_scraper_client",
+    "news_repository_with_embeddings",
+    "postgresql_timescaledb_stack",
+    "agent_toolkit_rag_integration",
+    "openrouter_llm_provider"
+  ],
+  "architecture": {
+    "layer_pattern": "Router → Service → Repository → Entity → Database",
+    "database": "PostgreSQL + TimescaleDB + pgvectorscale",
+    "llm_provider": "OpenRouter unified interface",
+    "agent_orchestration": "LangGraph workflows",
+    "data_pipeline": "Dagster (planned, not implemented)",
+    "domain_structure": "news (95% complete), marketdata (planned), socialmedia (planned)",
+    "testing_strategy": "Domain-specific: mocks for services, real DB for repositories, pytest-vcr for HTTP"
+  },
+  "news_implementation_status": {
+    "core_components": {
+      "NewsService": "Business logic with company/global news context",
+      "NewsRepository": "Async PostgreSQL with batch upsert, vector embeddings",
+      "GoogleNewsClient": "RSS feed client for live data",
+      "ArticleScraperClient": "newspaper4k with paywall detection"
+    },
+    "data_models": {
+      "NewsArticle": "Domain dataclass with validation",
+      "NewsArticleEntity": "SQLAlchemy model with 1536-dim vector embeddings"
+    },
+    "key_features": [
+      "URL-based deduplication",
+      "Vector embeddings for similarity",
+      "Paywall detection and fallback",
+      "Comprehensive test coverage with pytest-vcr"
+    ]
+  },
+  "dagster_status": "Planned but not implemented - documentation references exist but no pipeline code",
+  "technical_patterns": {
+    "async_operations": "All repository methods async with session management",
+    "batch_operations": "upsert_batch for performance",
+    "error_handling": "Graceful degradation with logging",
+    "vector_search": "Semantic similarity for RAG",
+    "connection_management": "DatabaseManager with asyncpg and pooling"
+  }
+}
