@@ -2,6 +2,7 @@
 results
 env/
 __pycache__/
+.pycache/
 .DS_Store
 *.csv
 src/
@@ -9,3 +10,6 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
+.env.alpaca
+.codex/
+Library/

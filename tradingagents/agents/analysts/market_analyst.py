@@ -1,16 +1,32 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
-import json
 from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators
-from tradingagents.dataflows.config import get_config
+from tradingagents.agents.utils.logging_utils import log_report_preview
+from tradingagents.agents.utils.tool_runner import (
+    extract_text_from_content,
+    run_chain_with_tools,
+)
 
 
 def create_market_analyst(llm):
 
     def market_analyst_node(state):
+        scheduled_list = state.get("scheduled_analysts", []) or []
+        scheduled_plan_list = state.get("scheduled_analysts_plan", []) or []
+        scheduled_plan = {item.lower() for item in scheduled_plan_list}
+        action = state.get("orchestrator_action", "").lower()
+        ticker = state.get("target_ticker") or state["company_of_interest"]
+        if (scheduled_plan and "market" not in scheduled_plan) or action not in ("", "monitor", "escalate", "trade", "execute"):
+            try:
+                print(f"[Market Analyst] Skipping for ticker {ticker} | action={action} | scheduled_plan={scheduled_plan}")
+            except Exception:
+                pass
+            return {
+                "market_report": "Market analyst skipped by orchestrator directive.",
+                "scheduled_analysts": [item for item in scheduled_list if item.lower() != "market"],
+                "scheduled_analysts_plan": scheduled_plan_list,
+            }
         current_date = state["trade_date"]
-        ticker = state["company_of_interest"]
-        company_name = state["company_of_interest"]
+        company_name = ticker
 
         tools = [
             get_stock_data,
@@ -70,16 +86,44 @@ Volume-Based Indicators:
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        try:
+            print(f"[Market Analyst] Running analysis for {ticker} | action={action} | scheduled={scheduled_list}")
+        except Exception:
+            pass
 
-        report = ""
+        try:
+            result, message_history, tool_runs = run_chain_with_tools(
+                chain,
+                tools,
+                state["messages"],
+            )
+        except Exception as exc:
+            report = f"Market analyst failed: {exc}"
+            updated_schedule = [item for item in scheduled_list if item.lower() != "market"]
+            return {
+                "messages": state["messages"],
+                "market_report": report,
+                "scheduled_analysts": updated_schedule,
+                "scheduled_analysts_plan": scheduled_plan_list,
+            }
 
-        if len(result.tool_calls) == 0:
-            report = result.content
-       
-        return {
-            "messages": [result],
+        report = extract_text_from_content(getattr(result, "content", "")) or "Market analyst produced no narrative."
+        updated_schedule = [item for item in scheduled_list if item.lower() != "market"]
+
+        payload = {
+            "messages": message_history,
             "market_report": report,
+            "scheduled_analysts": updated_schedule,
+            "scheduled_analysts_plan": scheduled_plan_list,
         }
+        log_report_preview("Market Analyst", ticker, report)
+        try:
+            print(
+                f"[Market Analyst] Completed step for {ticker} | tool_runs={tool_runs} | report_len={len(report) if report else 0}"
+            )
+        except Exception:
+            pass
+
+        return payload
 
     return market_analyst_node

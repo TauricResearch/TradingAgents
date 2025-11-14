@@ -1,0 +1,27 @@
+services:
+  alpaca-mcp:
+    image: mcp/alpaca:latest
+    container_name: alpaca-mcp
+    env_file:
+      - .env.alpaca
+    command: serve --transport http --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+
+  trading-agents:
+    build: .
+    container_name: trading-agents
+    env_file:
+      - .env
+    environment:
+      ALPACA_MCP_BASE_URL: ${ALPACA_MCP_BASE_URL:-http://alpaca-mcp:8000/mcp}
+      SEQUENTIAL_MCP_ENABLED: ${SEQUENTIAL_MCP_ENABLED:-false}
+      SEQUENTIAL_MCP_TRANSPORT: ${SEQUENTIAL_MCP_TRANSPORT:-http}
+      SEQUENTIAL_MCP_COMMAND: ${SEQUENTIAL_MCP_COMMAND:-}
+      SEQUENTIAL_MCP_HOST: ${SEQUENTIAL_MCP_HOST:-}
+      SEQUENTIAL_MCP_BASE_URL: ${SEQUENTIAL_MCP_BASE_URL:-}
+      SEQUENTIAL_MCP_PORT: ${SEQUENTIAL_MCP_PORT:-8001}
+    depends_on:
+      - alpaca-mcp
+    volumes:
+      - ./results:/app/results

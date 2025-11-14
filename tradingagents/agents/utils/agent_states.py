@@ -1,4 +1,4 @@
-from typing import Annotated, Sequence
+from typing import Annotated, Dict, List, Sequence
 from datetime import date, timedelta, datetime
 from typing_extensions import TypedDict, Optional
 from langchain_openai import ChatOpenAI
@@ -50,6 +50,7 @@ class RiskDebateState(TypedDict):
 class AgentState(MessagesState):
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     trade_date: Annotated[str, "What date we are trading at"]
+    target_ticker: Annotated[str, "Ticker selected by the orchestrator for deep analysis"]
 
     sender: Annotated[str, "Agent that sent this message"]
 
@@ -74,3 +75,22 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+    portfolio_profile: Annotated[Dict[str, object], "Static portfolio configuration"]
+    portfolio_summary: Annotated[str, "Orchestrator briefing for the run"]
+    orchestrator_status: Annotated[str, "Status message produced by the orchestrator"]
+    alpaca_account_text: Annotated[str, "Raw Alpaca account summary text"]
+    alpaca_positions_text: Annotated[str, "Raw Alpaca positions text"]
+    alpaca_orders_text: Annotated[str, "Raw Alpaca recent orders text"]
+    orchestrator_hypotheses: Annotated[List[Dict[str, object]], "List of active hypotheses evaluated by the orchestrator"]
+    active_hypothesis: Annotated[Optional[Dict[str, object]], "The hypothesis currently under deep analysis"]
+    scheduled_analysts: Annotated[List[str], "Analyst roles the orchestrator requested to run for the active hypothesis"]
+    scheduled_analysts_plan: Annotated[List[str], "Full list of orchestrator-requested analysts for this cycle"]
+    orchestrator_action: Annotated[str, "Immediate action directive from the orchestrator for the active hypothesis"]
+    action_queue: Annotated[List[str], "Actions queued by the orchestrator for execution"]
+    next_directive: Annotated[str, "Directive for the scheduler when the queue is empty"]
+    next_node: Annotated[str, "Next node selected by the action scheduler"]
+    portfolio_account_summary: Annotated[Dict[str, object], "Parsed Alpaca account summary used by the orchestrator"]
+    portfolio_positions_summary: Annotated[List[Dict[str, object]], "Parsed Alpaca positions summary used by the orchestrator"]
+    planner_plan: Annotated[Dict[str, object], "Raw plan response produced by the sequential planner"]
+    planner_notes: Annotated[str, "Notes or commentary returned by the sequential planner"]
+    orchestrator_focus_override: Annotated[List[str], "Optional override forcing orchestrator to focus on specific tickers"]

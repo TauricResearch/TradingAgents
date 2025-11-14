@@ -20,6 +20,14 @@ class SignalProcessor:
         Returns:
             Extracted decision (BUY, SELL, or HOLD)
         """
+        if not full_signal:
+            return "HOLD"
+
+        normalized = full_signal.strip().upper()
+        for keyword in ("BUY", "SELL", "HOLD", "TRADE"):
+            if keyword in normalized:
+                return "BUY" if keyword == "TRADE" else keyword
+
         messages = [
             (
                 "system",

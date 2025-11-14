@@ -4,8 +4,16 @@ import json
 
 def create_risk_manager(llm, memory):
     def risk_manager_node(state) -> dict:
+        active = state.get("active_hypothesis")
+        if active:
+            action = (active.get("immediate_action") or active.get("action") or "").lower()
+            if action not in {"escalate", "trade", "execute"}:
+                return {
+                    "risk_debate_state": state.get("risk_debate_state", {}),
+                    "final_trade_decision": state.get("final_trade_decision", "Final decision withheld by orchestrator."),
+                }
 
-        company_name = state["company_of_interest"]
+        company_name = state.get("target_ticker") or state["company_of_interest"]
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]

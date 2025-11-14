@@ -159,45 +159,97 @@ We built TradingAgents with LangGraph to ensure flexibility and modularity. We u
 
 ### Python Usage
 
-To use TradingAgents inside your code, you can import the `tradingagents` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
+Run `python main.py` to launch the interactive CLI. On startup TradingAgents connects to Alpaca MCP, caches the current account snapshot, and presents a menu:
+
+- **Refresh Alpaca snapshot** – pull the latest account/position/order data.
+- **Show account summary / positions / recent orders** – inspect the cached snapshot.
+- **Run auto-trade** – execute the end-to-end workflow (market data fetch → hypothesis generation → sequential deep thinking per ticker) and display the reasoning trace for every ticker.
+
+Each auto-trade run saves a JSON summary to `results/auto_trade_<timestamp>.json`, making it easy to schedule cron jobs or other entrypoints that call the same logic programmatically. The CLI uses the new `AutoTradeService`, so you can reuse it directly:
 
 ```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.services.account import AccountService
+from tradingagents.services.auto_trade import AutoTradeService
 
-ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
+config = DEFAULT_CONFIG.copy()
+account_service = AccountService(config["alpaca_mcp"])
+snapshot = account_service.refresh()
 
-# forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
-print(decision)
+graph = TradingAgentsGraph(config=config, skip_initial_probes=True)
+auto_trader = AutoTradeService(config=config, graph=graph)
+result = auto_trader.run(snapshot)
+
+print(result.summary())
 ```
 
-You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
+#### Responses-driven orchestration (experimental)
+
+Set `AUTO_TRADE_MODE=responses` to let the OpenAI Responses API drive the run. The orchestrator narrates each step, calls the registered tools (snapshot, vendor data, order submission), and finishes with a JSON summary that the CLI renders. Configure the model via `AUTO_TRADE_RESPONSES_MODEL` (for example `gpt-4.1-mini`). If you are using a reasoning-capable model, you can optionally set `AUTO_TRADE_RESPONSES_REASONING=medium`; otherwise leave it blank. The guardrail `AUTO_TRADE_SKIP_WHEN_MARKET_CLOSED` still applies before the session is started, so you will not burn tokens while markets are closed unless you opt in.
+
+To help the LLM build on past context, enable the ticker memory tool (default). After each run the agent stores a short history of decisions per ticker under `AUTO_TRADE_MEMORY_DIR` (default `./results/memory`). On the next run it can call `get_ticker_memory` to recap recent actions. Control retention with `AUTO_TRADE_MEMORY_MAX_ENTRIES`.
+
+The Responses orchestrator can also call the same research agents that power the LangGraph pipeline via tools (`run_market_analyst`, `run_news_analyst`, `run_fundamentals_analyst`). Encourage this by leaving `AUTO_TRADE_MODE=responses` and the prompt will request those tools before making final trade recommendations.
+
+When the sequential-thinking planner promotes a ticker to `trade` or `escalate`, the CLI highlights the exact reasoning steps (confidence, capital checks, escalation path) so every decision is auditable.
+
+#### Resetting autopilot state for testing
+
+The autopilot loop reads hypotheses/memory from `results/`. When you want to start from a clean slate (no ticker memory) but still have a few ready-made hypotheses + triggers to exercise the realtime brokers, run the seeding helper:
+
+```bash
+python scripts/seed_autopilot_state.py --force
+# optional knobs:
+#   --skip-fixture      only wipe existing data
+#   --auto-trade        run a fresh auto-trade after seeding (requires MCP)
+#   --results-dir PATH  override results directory (default ./results)
+#   --memory-dir  PATH  override AUTO_TRADE_MEMORY_DIR
+#   --fixture     PATH  load a custom seed fixture instead of docs/fixtures/autopilot_seed.json
+```
+
+By default the script wipes `results/hypotheses/`, `results/autopilot/`, and the configured `AUTO_TRADE_MEMORY_DIR`, then loads `docs/fixtures/autopilot_seed.json`. The fixture provides three sample hypotheses (NVDA/AAPL/TSLA) with price + news triggers and a couple of seed events, so the realtime price/news brokers immediately subscribe and the heartbeat shows non-zero symbols. After seeding you can launch the CLI in autopilot mode (`python main.py --autopilot`) and watch the worker consume the pre-created history before you generate new hypotheses.
+
+Each auto-trade decision now carries an explicit strategy directive. Configure the presets under `trading_strategies` in `default_config.py` (or via env vars such as `TRADINGAGENTS_DEFAULT_STRATEGY`, `TRADINGAGENTS_DAYTRADE_TARGET`, etc.). Strategies define horizon, target/stop percentages, urgency, and follow-up behavior, ensuring hypotheses always include measurable success/failure metrics and a deadline for reevaluation.
+
+Autopilot is market-aware: when `AUTO_TRADE_SKIP_WHEN_MARKET_CLOSED=true`, the orchestrator will skip baseline runs while the exchange is closed, wake itself up a configurable number of minutes before the next open (`AUTOPILOT_PREMARKET_MINUTES`, default 30) to refresh research, and immediately re-run once the bell rings. Websocket listeners remain active 24/7, so breaking news still triggers focused research runs even outside trading hours, but actual order placement is deferred until the market opens again.
+
+### Portfolio Orchestrator & Alpaca Execution (Optional)
+
+Set `ALPACA_MCP_ENABLED=true` and point the connection variables to your running Alpaca MCP server if you want the auto-trader to pull live account context. Most deployments expose the Model Context Protocol over JSON-RPC at `/mcp`, so in practice you will define:
+
+```env
+ALPACA_MCP_ENABLED=true
+ALPACA_MCP_BASE_URL=http://host.docker.internal:8000/mcp  # from inside Docker
+```
+
+You can omit `ALPACA_MCP_HOST` when a `base_url` is provided. The orchestrator scans its configured universe (`PORTFOLIO_UNIVERSE`), drafts hypotheses, and selectively schedules analysts before escalating to the trader. When `TRADE_EXECUTION_ENABLED=true`, the trader will attempt to place a market order through the MCP server (respecting `TRADE_EXECUTION_DRY_RUN`, `TRADE_EXECUTION_DEFAULT_QTY`, and `TRADE_EXECUTION_TIF`). Leave the flags at their defaults to run analysis-only mode.
+
+
+### Docker Quickstart
+
+1. Build the TradingAgents image:
+   ```bash
+   docker build -t tradingagents:latest .
+   ```
+2. Prepare environment files:
+   - `.env` – TradingAgents config (OpenAI key, portfolio settings, `ALPACA_MCP_BASE_URL=http://host.docker.internal:8000/mcp`, etc.)
+   - `.env.alpaca` – Alpaca MCP credentials if you run the server locally (see `.env.alpaca.example`).
+3. Launch the Alpaca MCP + TradingAgents stack:
+   ```bash
+   docker compose up --build trading-agents
+   ```
+   The orchestrator connects to Alpaca via the `alpaca-mcp` service and uses the configured LLM to produce the sequential plan.
+4. Results are written to `./results` on the host. Toggle `TRADE_EXECUTION_DRY_RUN` when you’re ready for real orders.
+
+You can customise `DEFAULT_CONFIG` the same way as before (choice of LLMs, vendor overrides, trade thresholds). The CLI and `AutoTradeService` honour those settings. For example, to increase the market data window and the trade priority threshold:
 
 ```python
-from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
-# Create a custom config
 config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-4.1-nano"  # Use a different model
-config["quick_think_llm"] = "gpt-4.1-nano"  # Use a different model
-config["max_debate_rounds"] = 1  # Increase debate rounds
-
-# Configure data vendors (default uses yfinance and Alpha Vantage)
-config["data_vendors"] = {
-    "core_stock_apis": "yfinance",           # Options: yfinance, alpha_vantage, local
-    "technical_indicators": "yfinance",      # Options: yfinance, alpha_vantage, local
-    "fundamental_data": "alpha_vantage",     # Options: openai, alpha_vantage, local
-    "news_data": "alpha_vantage",            # Options: openai, alpha_vantage, google, local
-}
-
-# Initialize with custom config
-ta = TradingAgentsGraph(debug=True, config=config)
-
-# forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
-print(decision)
+config["portfolio_orchestrator"]["market_data_lookback_days"] = 90
+config["portfolio_orchestrator"]["trade_activation"]["priority_threshold"] = 0.85
 ```
 
 > The default configuration uses yfinance for stock price and technical data, and Alpha Vantage for fundamental and news data. For production use or if you encounter rate limits, consider upgrading to [Alpha Vantage Premium](https://www.alphavantage.co/premium/) for more stable and reliable data access. For offline experimentation, there's a local data vendor option that uses our **Tauric TradingDB**, a curated dataset for backtesting, though this is still in development. We're currently refining this dataset and plan to release it soon alongside our upcoming projects. Stay tuned!

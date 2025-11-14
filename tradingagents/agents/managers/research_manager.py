@@ -4,7 +4,16 @@ import json
 
 def create_research_manager(llm, memory):
     def research_manager_node(state) -> dict:
+        active = state.get("active_hypothesis")
+        if active:
+            action = (active.get("immediate_action") or active.get("action") or "").lower()
+            if action not in {"escalate", "trade", "execute"}:
+                return {
+                    "investment_debate_state": state.get("investment_debate_state", {}),
+                    "investment_plan": state.get("investment_plan", ""),
+                }
         history = state["investment_debate_state"].get("history", "")
+        _ = state.get("target_ticker") or state.get("company_of_interest")
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]

@@ -1,5 +1,6 @@
 typing-extensions
 langchain-openai
+openai>=1.52.0
 langchain-experimental
 pandas
 yfinance
@@ -8,6 +9,7 @@ feedparser
 stockstats
 eodhd
 langgraph
+mcp[servers]>=1.6.0
 chromadb
 setuptools
 backtrader

@@ -25,6 +25,8 @@ class GraphSetup:
         invest_judge_memory,
         risk_manager_memory,
         conditional_logic: ConditionalLogic,
+        orchestrator_node,
+        action_scheduler_node,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -36,6 +38,8 @@ class GraphSetup:
         self.invest_judge_memory = invest_judge_memory
         self.risk_manager_memory = risk_manager_memory
         self.conditional_logic = conditional_logic
+        self.orchestrator_node = orchestrator_node
+        self.action_scheduler_node = action_scheduler_node
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -116,6 +120,8 @@ class GraphSetup:
             )
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
+        workflow.add_node("Action Scheduler", self.action_scheduler_node)
+
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
@@ -126,13 +132,13 @@ class GraphSetup:
         workflow.add_node("Safe Analyst", safe_analyst)
         workflow.add_node("Risk Judge", risk_manager_node)
 
-        # Define edges
-        # Start with the first analyst
-        first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+        # Define edges controlled by orchestrator + scheduler
+        workflow.add_node("Portfolio Orchestrator", self.orchestrator_node)
+        workflow.add_edge(START, "Portfolio Orchestrator")
+        workflow.add_edge("Portfolio Orchestrator", "Action Scheduler")
 
         # Connect analysts in sequence
-        for i, analyst_type in enumerate(selected_analysts):
+        for analyst_type in selected_analysts:
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
             current_clear = f"Msg Clear {analyst_type.capitalize()}"
@@ -145,12 +151,7 @@ class GraphSetup:
             )
             workflow.add_edge(current_tools, current_analyst)
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
-                workflow.add_edge(current_clear, next_analyst)
-            else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+            workflow.add_edge(current_clear, "Action Scheduler")
 
         # Add remaining edges
         workflow.add_conditional_edges(
@@ -169,8 +170,8 @@ class GraphSetup:
                 "Research Manager": "Research Manager",
             },
         )
-        workflow.add_edge("Research Manager", "Trader")
-        workflow.add_edge("Trader", "Risky Analyst")
+        workflow.add_edge("Research Manager", "Action Scheduler")
+        workflow.add_edge("Trader", "Action Scheduler")
         workflow.add_conditional_edges(
             "Risky Analyst",
             self.conditional_logic.should_continue_risk_analysis,
@@ -196,7 +197,27 @@ class GraphSetup:
             },
         )
 
-        workflow.add_edge("Risk Judge", END)
+        workflow.add_edge("Risk Judge", "Action Scheduler")
+
+        def scheduler_target(state: AgentState) -> str:
+            return state.get("next_node", "end")
+
+        workflow.add_conditional_edges(
+            "Action Scheduler",
+            scheduler_target,
+            {
+                "Market Analyst": "Market Analyst",
+                "Social Analyst": "Social Analyst",
+                "News Analyst": "News Analyst",
+                "Fundamentals Analyst": "Fundamentals Analyst",
+                "Bull Researcher": "Bull Researcher",
+                "Research Manager": "Research Manager",
+                "Trader": "Trader",
+                "Risky Analyst": "Risky Analyst",
+                "Portfolio Orchestrator": "Portfolio Orchestrator",
+                "end": END,
+            },
+        )
 
         # Compile and return
         return workflow.compile()

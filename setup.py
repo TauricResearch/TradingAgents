@@ -17,6 +17,7 @@ setup(
         "langchain-openai>=0.0.2",
         "langchain-experimental>=0.0.40",
         "langgraph>=0.0.20",
+        "mcp>=1.6.0",
         "numpy>=1.24.0",
         "pandas>=2.0.0",
         "praw>=7.7.0",

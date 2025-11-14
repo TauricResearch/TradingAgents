@@ -1,0 +1,208 @@
+{
+  "hypotheses": [
+    {
+      "id": "seed_nvda_trigger",
+      "ticker": "NVDA",
+      "action": "HOLD",
+      "priority": 0.65,
+      "status": "monitoring",
+      "rationale": "Watching for NVDA trim/add levels to fire while earnings jitters persist.",
+      "notes": "Hold core 10 shares. Trim above 195 to lock gains; add below 184.50 to average down.",
+      "plan": [
+        {
+          "id": "nvda_step_1",
+          "description": "Monitor intraday price for >= 195 to trim 5 shares",
+          "status": "pending",
+          "metadata": {
+            "next_decision": "Trim 5 shares if 195 prints"
+          }
+        },
+        {
+          "id": "nvda_step_2",
+          "description": "Monitor intraday price for <= 184.50 to add 5 shares",
+          "status": "pending",
+          "metadata": {
+            "next_decision": "Add 5 shares if 184.50 breaks"
+          }
+        },
+        {
+          "id": "nvda_step_3",
+          "description": "Re-evaluate at close if no triggers fire",
+          "status": "pending",
+          "metadata": {}
+        }
+      ],
+      "strategy": {
+        "name": "swing",
+        "horizon_hours": 72,
+        "target_pct": 0.04,
+        "stop_pct": 0.02,
+        "success_metric": "Gain at least +4.0% within 72h",
+        "failure_metric": "Drawdown beyond -2.0% or catalyst fades",
+        "follow_up": "reassess_every_close",
+        "urgency": "medium",
+        "deadline": "2025-11-16T15:30:00Z",
+        "notes": "Seed swing plan"
+      },
+      "triggers": [
+        "price >= 195",
+        "price <= 184.5",
+        "news:NVDA"
+      ],
+      "created_at": "2025-11-13T15:30:00.000000Z",
+      "updated_at": "2025-11-13T15:30:00.000000Z",
+      "source_snapshot": "2025-11-13T15:20:00"
+    },
+    {
+      "id": "seed_aapl_breakout",
+      "ticker": "AAPL",
+      "action": "WATCH",
+      "priority": 0.45,
+      "status": "monitoring",
+      "rationale": "Breakout trade setup—only add if price clears resistance with volume.",
+      "notes": "Scale in 10 shares in two clips if > 178 with strong breadth.",
+      "plan": [
+        {
+          "id": "aapl_step_1",
+          "description": "Alert on price >= 178 breakout",
+          "status": "pending",
+          "metadata": {
+            "next_decision": "Enter starter position if breakout confirmed"
+          }
+        },
+        {
+          "id": "aapl_step_2",
+          "description": "Watch news sentiment for product-cycle surprises",
+          "status": "pending",
+          "metadata": {
+            "next_decision": "Hold off if negative news arrives"
+          }
+        }
+      ],
+      "strategy": {
+        "name": "swing",
+        "horizon_hours": 72,
+        "target_pct": 0.05,
+        "stop_pct": 0.025,
+        "success_metric": "Breakout extends +5% within horizon",
+        "failure_metric": "Breakout fails or drawdown exceeds -2.5%",
+        "follow_up": "reassess_every_close",
+        "urgency": "medium",
+        "deadline": "2025-11-16T15:31:00Z",
+        "notes": "Breakout ladder plan"
+      },
+      "triggers": [
+        "price >= 178",
+        "news:AAPL"
+      ],
+      "created_at": "2025-11-13T15:31:00.000000Z",
+      "updated_at": "2025-11-13T15:31:00.000000Z",
+      "source_snapshot": "2025-11-13T15:20:00"
+    },
+    {
+      "id": "seed_tsla_breakout",
+      "ticker": "TSLA",
+      "action": "HOLD",
+      "priority": 0.4,
+      "status": "monitoring",
+      "rationale": "No position; wait for 420-435 breakout with positive catalysts before entering.",
+      "notes": "Starter 5-10 shares only if breakout + bullish news lines up.",
+      "plan": [
+        {
+          "id": "tsla_step_1",
+          "description": "Price >= 425 breakout alert",
+          "status": "pending",
+          "metadata": {
+            "next_decision": "Consider starter position"
+          }
+        },
+        {
+          "id": "tsla_step_2",
+          "description": "News sentiment scan for TSLA",
+          "status": "pending",
+          "metadata": {}
+        }
+      ],
+      "strategy": {
+        "name": "position",
+        "horizon_hours": 240,
+        "target_pct": 0.08,
+        "stop_pct": 0.04,
+        "success_metric": "Sustain breakout and gain 8% within horizon",
+        "failure_metric": "Breakout fails or macro turns",
+        "follow_up": "weekly_review",
+        "urgency": "low",
+        "deadline": "2025-11-23T15:32:00Z",
+        "notes": "Wait for confirmation"
+      },
+      "triggers": [
+        "price >= 425",
+        "news:TSLA"
+      ],
+      "created_at": "2025-11-13T15:32:00.000000Z",
+      "updated_at": "2025-11-13T15:32:00.000000Z",
+      "source_snapshot": "2025-11-13T15:20:00"
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_seed_nvda_news",
+      "hypothesis_id": "seed_nvda_trigger",
+      "event_type": "news",
+      "payload": {
+        "T": "n",
+        "headline": "Sample NVDA news",
+        "summary": "Seeded story to verify webhook ingestion.",
+        "symbols": ["NVDA"],
+        "source": "seed"
+      },
+      "created_at": "2025-11-13T16:00:00.000000Z"
+    },
+    {
+      "id": "evt_seed_aapl_price",
+      "hypothesis_id": "seed_aapl_breakout",
+      "event_type": "price_threshold",
+      "payload": {
+        "symbol": "AAPL",
+        "price": 178.12,
+        "operator": ">=",
+        "value": 178
+      },
+      "created_at": "2025-11-13T16:05:00.000000Z"
+    }
+  ],
+  "memory": {
+    "NVDA": [
+      {
+        "timestamp": "2025-11-13T14:55:00Z",
+        "action": "HOLD",
+        "priority": 0.6,
+        "notes": "Holding 10 shares; trimming plan above 195.",
+        "plan_actions": [
+          "monitor intraday price",
+          "trim above 195"
+        ],
+        "raw": {
+          "ticker": "NVDA",
+          "action": "HOLD"
+        }
+      }
+    ],
+    "AAPL": [
+      {
+        "timestamp": "2025-11-13T14:58:00Z",
+        "action": "WATCH",
+        "priority": 0.45,
+        "notes": "Waiting for breakout before adding.",
+        "plan_actions": [
+          "monitor breakout",
+          "ladder entries"
+        ],
+        "raw": {
+          "ticker": "AAPL",
+          "action": "WATCH"
+        }
+      }
+    ]
+  }
+}

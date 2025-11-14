@@ -1,14 +1,26 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
-import json
 from tradingagents.agents.utils.agent_utils import get_news, get_global_news
-from tradingagents.dataflows.config import get_config
+from tradingagents.agents.utils.logging_utils import log_report_preview
+from tradingagents.agents.utils.tool_runner import (
+    extract_text_from_content,
+    run_chain_with_tools,
+)
 
 
 def create_news_analyst(llm):
     def news_analyst_node(state):
+        scheduled_list = state.get("scheduled_analysts", []) or []
+        scheduled_plan_list = state.get("scheduled_analysts_plan", []) or []
+        scheduled_plan = {item.lower() for item in scheduled_plan_list}
+        action = state.get("orchestrator_action", "").lower()
+        ticker = state.get("target_ticker") or state["company_of_interest"]
+        if (scheduled_plan and "news" not in scheduled_plan) or action not in ("", "monitor", "escalate", "trade", "execute"):
+            return {
+                "news_report": "News analyst skipped by orchestrator directive.",
+                "scheduled_analysts": [item for item in scheduled_list if item.lower() != "news"],
+                "scheduled_analysts_plan": scheduled_plan_list,
+            }
         current_date = state["trade_date"]
-        ticker = state["company_of_interest"]
 
         tools = [
             get_news,
@@ -43,16 +55,44 @@ def create_news_analyst(llm):
         prompt = prompt.partial(ticker=ticker)
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"])
+        try:
+            print(f"[News Analyst] Running analysis for {ticker} | scheduled={scheduled_list}")
+        except Exception:
+            pass
 
-        report = ""
+        try:
+            result, message_history, tool_runs = run_chain_with_tools(
+                chain,
+                tools,
+                state["messages"],
+            )
+        except Exception as exc:
+            updated_schedule = [item for item in scheduled_list if item.lower() != "news"]
+            report = f"News analyst failed: {exc}"
+            return {
+                "messages": state["messages"],
+                "news_report": report,
+                "scheduled_analysts": updated_schedule,
+                "scheduled_analysts_plan": scheduled_plan_list,
+            }
 
-        if len(result.tool_calls) == 0:
-            report = result.content
+        report = extract_text_from_content(getattr(result, "content", "")) or "News analyst produced no narrative."
+        updated_schedule = [item for item in scheduled_list if item.lower() != "news"]
 
-        return {
-            "messages": [result],
+        payload = {
+            "messages": message_history,
             "news_report": report,
+            "scheduled_analysts": updated_schedule,
+            "scheduled_analysts_plan": scheduled_plan_list,
         }
+        log_report_preview("News Analyst", ticker, report)
+        try:
+            print(
+                f"[News Analyst] Completed step for {ticker} | tool_runs={tool_runs} | report_len={len(report) if report else 0}"
+            )
+        except Exception:
+            pass
+
+        return payload
 
     return news_analyst_node

@@ -19,10 +19,14 @@ class Propagator:
         self, company_name: str, trade_date: str
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
+        company_value = (company_name or "").strip()
+        trade_value = str(trade_date) if trade_date else ""
+        initial_prompt = company_value or "Portfolio orchestration start"
         return {
-            "messages": [("human", company_name)],
-            "company_of_interest": company_name,
-            "trade_date": str(trade_date),
+            "messages": [("human", initial_prompt)],
+            "company_of_interest": company_value,
+            "trade_date": trade_value,
+            "target_ticker": company_value,
             "investment_debate_state": InvestDebateState(
                 {"history": "", "current_response": "", "count": 0}
             ),
@@ -39,6 +43,33 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "investment_plan": "",
+            "trader_investment_plan": "",
+            "final_trade_decision": "",
+            "portfolio_profile": {},
+            "portfolio_summary": "",
+            "orchestrator_status": "not_started",
+            "alpaca_account_text": "",
+            "alpaca_positions_text": "",
+            "alpaca_orders_text": "",
+            "orchestrator_hypotheses": [],
+            "active_hypothesis": None,
+            "scheduled_analysts": [],
+            "scheduled_analysts_plan": [],
+            "orchestrator_action": "",
+            "action_queue": [],
+            "next_directive": "stop",
+            "next_node": "",
+            "portfolio_account_summary": {},
+            "portfolio_positions_summary": [],
+            "planner_plan": {},
+            "planner_notes": "",
+            "orchestrator_pending_tickers": [],
+            "orchestrator_focus_symbols": [],
+            "orchestrator_quick_signals": {},
+            "orchestrator_market_data": {},
+            "orchestrator_ticker_plans": {},
+            "orchestrator_focus_override": [],
         }
 
     def get_graph_args(self) -> Dict[str, Any]:

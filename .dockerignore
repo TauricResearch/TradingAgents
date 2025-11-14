@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.env.*
+.venv
+__pycache__
+*.pyc
+results
+eval_results
+assets
+.codex

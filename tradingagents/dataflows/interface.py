@@ -138,10 +138,22 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+def _vendor_log(enabled: bool, message: str, level: str = "DEBUG") -> None:
+    if not enabled:
+        return
+    try:
+        print(f"{level}: {message}")
+    except Exception:
+        pass
+
+
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
+    config_snapshot = get_config()
+    vendor_logging_cfg = config_snapshot.get("vendor_logging") or {}
+    log_verbose = bool(vendor_logging_cfg.get("verbose"))
 
     # Handle comma-separated vendors
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
@@ -161,7 +173,7 @@ def route_to_vendor(method: str, *args, **kwargs):
     # Debug: Print fallback ordering
     primary_str = " → ".join(primary_vendors)
     fallback_str = " → ".join(fallback_vendors)
-    print(f"DEBUG: {method} - Primary: [{primary_str}] | Full fallback order: [{fallback_str}]")
+    _vendor_log(log_verbose, f"{method} - Primary: [{primary_str}] | Full fallback order: [{fallback_str}]")
 
     # Track results and execution state
     results = []
@@ -172,7 +184,7 @@ def route_to_vendor(method: str, *args, **kwargs):
     for vendor in fallback_vendors:
         if vendor not in VENDOR_METHODS[method]:
             if vendor in primary_vendors:
-                print(f"INFO: Vendor '{vendor}' not supported for method '{method}', falling back to next vendor")
+                _vendor_log(log_verbose, f"Vendor '{vendor}' not supported for method '{method}', falling back to next vendor", "INFO")
             continue
 
         vendor_impl = VENDOR_METHODS[method][vendor]
@@ -185,12 +197,12 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         # Debug: Print current attempt
         vendor_type = "PRIMARY" if is_primary_vendor else "FALLBACK"
-        print(f"DEBUG: Attempting {vendor_type} vendor '{vendor}' for {method} (attempt #{vendor_attempt_count})")
+        _vendor_log(log_verbose, f"Attempting {vendor_type} vendor '{vendor}' for {method} (attempt #{vendor_attempt_count})")
 
         # Handle list of methods for a vendor
         if isinstance(vendor_impl, list):
             vendor_methods = [(impl, vendor) for impl in vendor_impl]
-            print(f"DEBUG: Vendor '{vendor}' has multiple implementations: {len(vendor_methods)} functions")
+            _vendor_log(log_verbose, f"Vendor '{vendor}' has multiple implementations: {len(vendor_methods)} functions")
         else:
             vendor_methods = [(vendor_impl, vendor)]
 
@@ -198,20 +210,20 @@ def route_to_vendor(method: str, *args, **kwargs):
         vendor_results = []
         for impl_func, vendor_name in vendor_methods:
             try:
-                print(f"DEBUG: Calling {impl_func.__name__} from vendor '{vendor_name}'...")
+                _vendor_log(log_verbose, f"Calling {impl_func.__name__} from vendor '{vendor_name}'...")
                 result = impl_func(*args, **kwargs)
                 vendor_results.append(result)
-                print(f"SUCCESS: {impl_func.__name__} from vendor '{vendor_name}' completed successfully")
+                _vendor_log(log_verbose, f"{impl_func.__name__} from vendor '{vendor_name}' completed successfully", "SUCCESS")
                     
             except AlphaVantageRateLimitError as e:
                 if vendor == "alpha_vantage":
-                    print(f"RATE_LIMIT: Alpha Vantage rate limit exceeded, falling back to next available vendor")
-                    print(f"DEBUG: Rate limit details: {e}")
+                    _vendor_log(log_verbose, "Alpha Vantage rate limit exceeded, falling back to next available vendor", "RATE_LIMIT")
+                    _vendor_log(log_verbose, f"Rate limit details: {e}")
                 # Continue to next vendor for fallback
                 continue
             except Exception as e:
                 # Log error but continue with other implementations
-                print(f"FAILED: {impl_func.__name__} from vendor '{vendor_name}' failed: {e}")
+                _vendor_log(log_verbose, f"{impl_func.__name__} from vendor '{vendor_name}' failed: {e}", "FAILED")
                 continue
 
         # Add this vendor's results
@@ -219,22 +231,22 @@ def route_to_vendor(method: str, *args, **kwargs):
             results.extend(vendor_results)
             successful_vendor = vendor
             result_summary = f"Got {len(vendor_results)} result(s)"
-            print(f"SUCCESS: Vendor '{vendor}' succeeded - {result_summary}")
+            _vendor_log(log_verbose, f"Vendor '{vendor}' succeeded - {result_summary}", "SUCCESS")
             
             # Stopping logic: Stop after first successful vendor for single-vendor configs
             # Multiple vendor configs (comma-separated) may want to collect from multiple sources
             if len(primary_vendors) == 1:
-                print(f"DEBUG: Stopping after successful vendor '{vendor}' (single-vendor config)")
+                _vendor_log(log_verbose, f"Stopping after successful vendor '{vendor}' (single-vendor config)")
                 break
         else:
-            print(f"FAILED: Vendor '{vendor}' produced no results")
+            _vendor_log(log_verbose, f"Vendor '{vendor}' produced no results", "FAILED")
 
     # Final result summary
     if not results:
-        print(f"FAILURE: All {vendor_attempt_count} vendor attempts failed for method '{method}'")
+        _vendor_log(log_verbose, f"All {vendor_attempt_count} vendor attempts failed for method '{method}'", "FAILURE")
         raise RuntimeError(f"All vendor implementations failed for method '{method}'")
     else:
-        print(f"FINAL: Method '{method}' completed with {len(results)} result(s) from {vendor_attempt_count} vendor attempt(s)")
+        _vendor_log(log_verbose, f"Method '{method}' completed with {len(results)} result(s) from {vendor_attempt_count} vendor attempt(s)", "FINAL")
 
     # Return single result if only one, otherwise concatenate as string
     if len(results) == 1:
