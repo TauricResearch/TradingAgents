@@ -1,0 +1,31 @@
+{
+  "initial_capital": "100000.00",
+  "cash": "84985.00000",
+  "commission_rate": "0.001",
+  "positions": {
+    "AAPL": {
+      "ticker": "AAPL",
+      "quantity": "100",
+      "cost_basis": "150.00",
+      "sector": null,
+      "opened_at": "2025-11-14T22:40:02.774802",
+      "last_updated": "2025-11-14T22:40:02.774802",
+      "stop_loss": null,
+      "take_profit": null,
+      "metadata": {}
+    }
+  },
+  "trade_history": [],
+  "equity_curve": [
+    [
+      "2025-11-14T22:40:02.774669",
+      "100000.00"
+    ],
+    [
+      "2025-11-14T22:40:02.774813",
+      "99985.00000"
+    ]
+  ],
+  "peak_value": "100000.00",
+  "timestamp": "2025-11-14T22:40:02.774831"
+}
