@@ -1,0 +1,65 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache
+.mypy_cache
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files (use docker-compose env_file instead)
+.env
+.env.local
+.env.*.local
+
+# Data and results (mount as volumes instead)
+data/
+eval_results/
+portfolio_data/
+*.json
+*.csv
+*.h5
+*.pkl
+
+# Documentation
+*.md
+docs/
+
+# Tests
+tests/
+*.coverage
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Development files
+notebooks/
+examples/
+*.ipynb
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
