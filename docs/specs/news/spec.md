@@ -99,10 +99,10 @@ Complete the final 5% of the news domain by adding scheduled execution, LLM sent
 
 ### Architecture Alignment
 
-Follows established **Router → Service → Repository → Entity → Database** pattern:
+Follows established **Router → Service → Repository → Entity → Database** pattern with Dagster orchestration:
 
 ```
-ScheduledNewsJob → NewsService → NewsRepository → NewsArticle → PostgreSQL+pgvectorscale
+Dagster Schedule → Dagster Job → NewsService → NewsRepository → NewsArticle → PostgreSQL+pgvectorscale
 ```
 
 ### Database Schema Integration
@@ -156,29 +156,70 @@ content_embedding = await embedding_client.create_embedding(
 
 ### Scheduled Execution Framework
 
-Use APScheduler for job orchestration (Dagster not in current dependencies):
+Use Dagster for job orchestration (existing dependency in project):
 
 ```python
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-scheduler = AsyncIOScheduler()
-scheduler.add_job(
-    run_news_collection,
-    'cron',
-    hour=6,  # 6 AM UTC
-    minute=0,
-    timezone=timezone.utc,
-    id='daily_news_collection'
+from dagster import (
+    job, 
+    schedule, 
+    ScheduleDefinition,
+    op,
+    In,
+    Out,
+    AssetMaterialization
 )
+from dagster._core.scheduler import ScheduleExecutionContext
+
+@op
+def fetch_news_for_tickers(context, tickers: list[str]) -> list[dict]:
+    """Fetch news articles for configured tickers"""
+    pass
+
+@op  
+def process_articles_with_sentiment(context, articles: list[dict]) -> list[dict]:
+    """Process articles with LLM sentiment analysis and embeddings"""
+    pass
+
+@op
+def store_articles(context, processed_articles: list[dict]) -> None:
+    """Store articles with sentiment and embeddings in database"""
+    pass
+
+@job
+def daily_news_collection_job():
+    """Daily news collection pipeline"""
+    tickers = ["AAPL", "GOOGL", "MSFT", "TSLA"]  # From config
+    articles = fetch_news_for_tickers(tickers)
+    processed = process_articles_with_sentiment(articles)
+    store_articles(processed)
+
+@schedule(
+    cron_schedule="0 6 * * *",  # Daily at 6 AM UTC
+    job=daily_news_collection_job,
+    execution_timezone="UTC"
+)
+def daily_news_collection_schedule(context: ScheduleExecutionContext):
+    """Schedule for daily news collection"""
+    run_config = {
+        "ops": {
+            "fetch_news_for_tickers": {
+                "inputs": {
+                    "tickers": ["AAPL", "GOOGL", "MSFT", "TSLA"]
+                }
+            }
+        }
+    }
+    return run_config
 ```
 
 ## Implementation Approach
 
-### Phase 1: Scheduled Execution (2-3 hours)
-1. Configure APScheduler for daily news collection
-2. Create job configuration management for ticker lists
-3. Implement job monitoring and status tracking
-4. Add manual execution capability for testing
+### Phase 1: Dagster Scheduling Integration (2-3 hours)
+1. Create Dagster ops for news collection pipeline
+2. Configure daily schedule with cron expression
+3. Set up job configuration management for ticker lists
+4. Add manual job execution capability for testing
+5. Implement job monitoring and asset tracking
 
 ### Phase 2: LLM Sentiment Integration (3-4 hours)
 1. Integrate OpenRouter LLM for sentiment analysis  
@@ -218,11 +259,12 @@ scheduler.add_job(
 - `NewsRepository` with async PostgreSQL operations
 - `NewsArticle` domain model with validation
 - Comprehensive test coverage with pytest-vcr
+- Dagster framework for data orchestration (existing dependency)
 
 ### New Dependencies
-- `apscheduler` for job scheduling
 - Enhanced vector embedding capabilities
 - LLM client integration for sentiment analysis
+- Dagster scheduling integration (existing dependency)
 
 ## Configuration Management
 

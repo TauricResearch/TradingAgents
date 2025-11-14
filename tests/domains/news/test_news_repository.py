@@ -388,6 +388,172 @@ class TestNewsRepository:
         assert result == []
 
 
+class TestNewsArticleSentimentFields:
+    """Test suite for new sentiment fields in NewsArticle."""
+
+    def test_news_article_with_sentiment_fields(self):
+        """Test dataclass instantiation with new sentiment fields."""
+        # Arrange & Act
+        article = NewsArticle(
+            headline="Test Article",
+            url="https://example.com/test",
+            source="Test Source",
+            published_date=date(2024, 1, 15),
+            sentiment_score=0.8,
+            sentiment_confidence=0.95,
+            sentiment_label="positive",
+        )
+
+        # Assert
+        assert article.sentiment_score == 0.8
+        assert article.sentiment_confidence == 0.95
+        assert article.sentiment_label == "positive"
+
+    async def test_news_article_to_entity_includes_sentiment_fields(
+        self, test_db_manager
+    ):
+        """Test to_entity() maps new sentiment fields correctly."""
+        # Arrange
+        article = NewsArticle(
+            headline="Test Article",
+            url="https://example.com/test",
+            source="Test Source",
+            published_date=date(2024, 1, 15),
+            sentiment_score=0.75,
+            sentiment_confidence=0.88,
+            sentiment_label="positive",
+        )
+
+        # Act
+        entity = article.to_entity(symbol="TEST")
+
+        # Assert
+        assert entity.sentiment_score == 0.75
+        assert entity.sentiment_confidence == 0.88
+        assert entity.sentiment_label == "positive"
+
+    async def test_news_article_from_entity_includes_sentiment_fields(self, repository):
+        """Test from_entity() populates new sentiment fields correctly."""
+        # Arrange - Create an article with sentiment fields
+        article = NewsArticle(
+            headline="Test Article",
+            url="https://example.com/test-from-entity",
+            source="Test Source",
+            published_date=date(2024, 1, 15),
+            sentiment_score=0.65,
+            sentiment_confidence=0.92,
+            sentiment_label="negative",
+        )
+
+        # Act - Store and retrieve
+        await repository.upsert(article, symbol="TEST")
+        retrieved_articles = await repository.list("TEST", date(2024, 1, 15))
+
+        # Assert
+        assert len(retrieved_articles) == 1
+        retrieved = retrieved_articles[0]
+        assert retrieved.sentiment_score == 0.65
+        assert retrieved.sentiment_confidence == 0.92
+        assert retrieved.sentiment_label == "negative"
+
+    def test_has_reliable_sentiment_with_valid_confidence(self):
+        """Test has_reliable_sentiment() returns True when confidence >= 0.6."""
+        # Arrange
+        article = NewsArticle(
+            headline="Test Article",
+            url="https://example.com/test",
+            source="Test Source",
+            published_date=date(2024, 1, 15),
+            sentiment_score=0.8,
+            sentiment_confidence=0.6,  # Exactly at threshold
+        )
+
+        # Act & Assert
+        assert article.has_reliable_sentiment() is True
+
+        # Test with higher confidence
+        article.sentiment_confidence = 0.95
+        assert article.has_reliable_sentiment() is True
+
+    def test_has_reliable_sentiment_with_low_confidence(self):
+        """Test has_reliable_sentiment() returns False when confidence < 0.6."""
+        # Arrange
+        article = NewsArticle(
+            headline="Test Article",
+            url="https://example.com/test",
+            source="Test Source",
+            published_date=date(2024, 1, 15),
+            sentiment_score=0.8,
+            sentiment_confidence=0.59,  # Just below threshold
+        )
+
+        # Act & Assert
+        assert article.has_reliable_sentiment() is False
+
+        # Test with very low confidence
+        article.sentiment_confidence = 0.1
+        assert article.has_reliable_sentiment() is False
+
+    def test_has_reliable_sentiment_with_none_values(self):
+        """Test has_reliable_sentiment() returns False when fields are None."""
+        # Arrange - Article with no sentiment data
+        article = NewsArticle(
+            headline="Test Article",
+            url="https://example.com/test",
+            source="Test Source",
+            published_date=date(2024, 1, 15),
+        )
+
+        # Act & Assert
+        assert article.has_reliable_sentiment() is False
+
+        # Test with only sentiment_score
+        article.sentiment_score = 0.8
+        assert article.has_reliable_sentiment() is False
+
+        # Test with only sentiment_confidence
+        article.sentiment_score = None
+        article.sentiment_confidence = 0.9
+        assert article.has_reliable_sentiment() is False
+
+    async def test_news_article_roundtrip_conversion(self, repository):
+        """Test to_entity() → from_entity() preserves all fields including new sentiment fields."""
+        # Arrange - Create article with all fields including new sentiment fields
+        original = NewsArticle(
+            headline="Roundtrip Test Article",
+            url="https://example.com/roundtrip-test",
+            source="Test Source",
+            published_date=date(2024, 1, 15),
+            summary="Test summary",
+            entities=["Entity1", "Entity2"],
+            sentiment_score=0.72,
+            sentiment_confidence=0.87,
+            sentiment_label="neutral",
+            author="Test Author",
+            category="test-category",
+        )
+
+        # Act - Store and retrieve (full roundtrip)
+        await repository.upsert(original, symbol="TEST")
+        retrieved_articles = await repository.list("TEST", date(2024, 1, 15))
+
+        # Assert - All fields preserved
+        assert len(retrieved_articles) == 1
+        retrieved = retrieved_articles[0]
+
+        assert retrieved.headline == original.headline
+        assert retrieved.url == original.url
+        assert retrieved.source == original.source
+        assert retrieved.published_date == original.published_date
+        assert retrieved.summary == original.summary
+        assert retrieved.entities == original.entities
+        assert retrieved.sentiment_score == original.sentiment_score
+        assert retrieved.sentiment_confidence == original.sentiment_confidence
+        assert retrieved.sentiment_label == original.sentiment_label
+        assert retrieved.author == original.author
+        assert retrieved.category == original.category
+
+
 class TestDatabaseConnectionManagement:
     """Test database connection and session management."""
 

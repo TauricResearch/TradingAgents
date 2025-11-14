@@ -16,12 +16,27 @@ RUN echo "deb https://packagecloud.io/timescale/timescaledb/debian/ $(lsb_releas
 # Install TimescaleDB for PostgreSQL 16
 RUN apt-get install -y timescaledb-2-postgresql-17
 
-# Install pgxman
+# Install pgvector manually for PostgreSQL 17
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    postgresql-server-dev-17 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone and build pgvector
+RUN cd /tmp && \
+    git clone --branch v0.7.4 https://github.com/pgvector/pgvector.git && \
+    cd pgvector && \
+    make && \
+    make install && \
+    cd / && \
+    rm -rf /tmp/pgvector
+
+# Install pgxman for pgvectorscale
 RUN curl -sfL https://install.pgx.sh | sh -
 
-# Install pgvector and pgvectorscale using pgxman
-RUN pgxman install pgvector || echo "pgvector install failed" \
-    && pgxman install pgvectorscale || echo "pgvectorscale install failed"
+# Install pgvectorscale using pgxman
+RUN pgxman install pgvectorscale || echo "pgvectorscale install failed"
 
 # Configure PostgreSQL for TimescaleDB (instead of using timescaledb-tune)
 RUN echo "shared_preload_libraries = 'timescaledb'" >> /usr/share/postgresql/postgresql.conf.sample \

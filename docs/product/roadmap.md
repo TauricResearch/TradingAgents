@@ -4,156 +4,183 @@
 
 This roadmap outlines the technical development path for the personal fork of TradingAgents, focusing on building a robust data infrastructure with PostgreSQL + TimescaleDB + pgvectorscale, implementing RAG-powered agents, and establishing automated data collection pipelines with Dagster.
 
-## Current Status: Phase 1 - News Domain (95% Complete)
+**Last Updated**: 2025-11-11
 
-The foundation has been established with core domain architecture, comprehensive testing framework, and the news domain nearly complete.
+### Key Roadmap Changes
+- **Pragmatic Dagster Integration**: Dagster jobs built incrementally per domain (not separate phase)
+- **Accurate Timeline**: 10-14 weeks total (vs original 16-22 weeks) based on actual progress
+- **Incremental Automation**: Each domain gets automated collection as it completes
+- **Earlier Production Readiness**: Automated data collection starts Week 1 (not Month 4)
+
+### Development Velocity
+- **Observed Completion Rate**: News clients 85-90% complete with 600+ lines of quality tests
+- **AI-Assisted Multiplier**: 3-4x faster development with spec-driven workflow
+- **Target Task Velocity**: 15-20 tasks/week with AI assistance
+- **Test Coverage**: Maintained 85%+ with pytest-vcr pattern
+
+## Current Status: Phase 1 - News Domain + Dagster Integration (85% Complete)
+
+The foundation has been established with core domain architecture, comprehensive testing framework, and the news domain clients complete.
 
 ### Completed Infrastructure
 - **Domain Architecture**: Clean separation of news, marketdata, and socialmedia domains
 - **Testing Framework**: Pragmatic TDD with 85%+ coverage, pytest-vcr for HTTP mocking
-- **Repository Pattern**: Efficient data caching and management system
-- **News Domain**: Article scraping, sentiment analysis, and storage (95% complete)
+- **News Clients**: Google News RSS + Article Scraper with comprehensive tests (600+ lines)
+- **Database Stack**: PostgreSQL + TimescaleDB + pgvectorscale ready
 - **Basic Agent System**: Multi-agent trading analysis framework with LangGraph
+
+### Current Priorities (Next 5-7 Days)
+1. **Complete News Domain Foundation** - Repository, Service, Entity layers
+2. **LLM Integration** - OpenRouter sentiment analysis + vector embeddings
+3. **Basic Dagster Job** - Automated daily news collection
+4. **Spec Documentation** - Create status.md and tasks.md for progress tracking
 
 ## Development Phases
 
-### Phase 1: News Domain Completion (Current - 95% Complete)
-**Timeline**: 2-3 weeks  
+### Phase 1: News Domain + Basic Dagster (Current - 85% Complete)
+**Timeline**: 5-7 days remaining
 **Status**: 🔄 In Progress
 
-#### Remaining Work
-- **News Processing Pipeline**: Complete article content processing and deduplication
-- **Sentiment Analysis Optimization**: Fine-tune sentiment scoring algorithms
-- **News Repository**: Finalize PostgreSQL integration for news storage
-- **Testing Coverage**: Achieve 85%+ test coverage for news domain
-- **Performance Optimization**: Optimize news retrieval and search performance
+#### Remaining Work (5-7 days)
+- **News Repository Layer**: PostgreSQL async operations with TimescaleDB (1-2 days)
+- **News Service Layer**: Business logic with LLM integration (1-2 days)
+- **NewsArticle Entity**: Domain models with sentiment and embeddings (1 day)
+- **OpenRouter Integration**: Sentiment analysis via LLM (1-2 days)
+- **Vector Embeddings**: OpenAI embeddings via OpenRouter for semantic search (1 day)
+- **Basic Dagster Job**: Daily news collection automation (1-2 days)
+- **Integration Testing**: End-to-end workflow validation (1 day)
+
+#### Key Deliverables
+- News domain following Router → Service → Repository → Entity → Database pattern
+- OpenRouter LLM sentiment analysis operational
+- pgvectorscale vector embeddings for semantic search
+- Automated Dagster job for daily news collection
+- 85%+ test coverage maintained
 
 #### Success Criteria
-- ✅ All news APIs integrated and tested
-- ✅ Sentiment analysis producing consistent scores
-- ✅ News data properly stored in PostgreSQL
-- ✅ Comprehensive test suite covering edge cases
-- ✅ News domain ready for RAG integration
+- ✅ Complete layered architecture implemented
+- ✅ LLM sentiment scores with confidence ratings
+- ✅ Vector embeddings enabling semantic search
+- ✅ Dagster job running daily news collection
+- ✅ Query performance < 2 seconds
+- ✅ News domain ready for agent integration
 
-### Phase 2: Market Data Domain + PostgreSQL Migration (Next Priority)
-**Timeline**: 4-6 weeks  
+### Phase 2: Market Data Domain + Dagster Integration (Next Priority)
+**Timeline**: 4-5 weeks
 **Status**: 📋 Planned
 
 #### Core Objectives
-- **TimescaleDB Integration**: Implement hypertables for efficient time-series storage
-- **Market Data Collection**: Complete price, volume, and technical indicator collection
-- **PostgreSQL Migration**: Move all data persistence from file-based to PostgreSQL
-- **Technical Analysis**: Implement MACD, RSI, and other technical indicators
-- **Database Schema**: Design optimized schema for market data with proper indexing
+- **TimescaleDB Hypertables**: Efficient time-series storage for price/volume data
+- **Market Data Collection**: FinnHub/yfinance integration with retry logic
+- **PostgreSQL Migration**: Move from file-based to database storage
+- **Technical Indicators**: MACD, RSI, Bollinger Bands calculations
+- **Dagster Market Data Job**: Twice-daily price data collection automation
+- **Performance Optimization**: Sub-100ms queries with proper indexing
 
 #### Key Deliverables
-- Market data repository with TimescaleDB optimization
-- Real-time and historical price data collection
-- Technical analysis calculation engine
-- Migration scripts for moving existing data
+- MarketDataRepository with TimescaleDB optimization
+- MarketDataService with technical analysis calculations
+- MarketData entities (Price, OHLCV, TechnicalIndicators)
+- Dagster job for automated twice-daily collection
+- pytest-vcr tests for API clients
 - Performance benchmarks for time-series queries
 
 #### Success Criteria
-- ✅ Market data efficiently stored in TimescaleDB hypertables
-- ✅ Sub-100ms queries for common market data retrievals
-- ✅ All technical indicators calculating accurately
+- ✅ TimescaleDB hypertables storing historical price data
+- ✅ Sub-100ms queries for price lookups and indicators
+- ✅ Technical indicators calculating accurately
+- ✅ Dagster job running twice daily (market open/close)
 - ✅ Complete migration from file-based storage
 - ✅ Market data domain ready for agent integration
 
-### Phase 3: Social Media Domain (Following Phase 2)
-**Timeline**: 3-4 weeks  
+### Phase 3: Social Media Domain + Dagster Integration
+**Timeline**: 2-3 weeks
 **Status**: 📋 Planned
 
 #### Core Objectives
-- **Reddit Integration**: Implement Reddit API for financial subreddits
-- **Twitter/X Integration**: Add social sentiment from Twitter feeds
-- **Social Sentiment Analysis**: Aggregate sentiment scoring across platforms
+- **Reddit Integration**: PRAW library for financial subreddits (r/wallstreetbets, r/stocks)
+- **Twitter/X Alternative**: Evaluate Reddit-only approach or alternative sources
+- **Social Sentiment Analysis**: OpenRouter LLM sentiment across posts
 - **Cross-Domain Relations**: Link social sentiment to market data and news
-- **pgvectorscale Preparation**: Prepare social data for vector search
+- **Dagster Social Media Job**: Daily social sentiment collection
+- **Vector Embeddings**: Semantic search across social discussions
 
 #### Key Deliverables
-- Reddit and Twitter data collection clients
-- Social sentiment aggregation algorithms
-- Social media data repository with PostgreSQL storage
-- Cross-domain correlation analysis tools
-- Foundation for RAG implementation
+- RedditClient with pytest-vcr tests
+- SocialMediaRepository with PostgreSQL + pgvectorscale
+- SocialMediaService with sentiment aggregation
+- Dagster job for daily Reddit data collection
+- Cross-domain correlation queries (social ↔ news ↔ price)
+- Vector embeddings for semantic post search
 
 #### Success Criteria
-- ✅ Social media data collected from multiple sources
+- ✅ Reddit data collected daily from financial subreddits
 - ✅ Sentiment scores integrated with market events
-- ✅ Cross-domain relationships established in database
-- ✅ Social media domain ready for RAG enhancement
+- ✅ Cross-domain relationships queryable in database
+- ✅ Dagster job running daily social collection
+- ✅ Vector embeddings enabling semantic social search
 - ✅ Three-domain architecture complete
 
-### Phase 4: Dagster Data Collection Orchestration
-**Timeline**: 3-4 weeks  
+#### Blockers to Resolve
+- **Reddit API Access**: Obtain REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET
+- **Twitter/X Alternative**: Evaluate API costs or alternative data sources
+
+### Phase 4: RAG Enhancement + Advanced Orchestration
+**Timeline**: 3-4 weeks
 **Status**: 📋 Planned
 
 #### Core Objectives
-- **Pipeline Architecture**: Design daily/twice-daily data collection workflows
-- **Data Quality Monitoring**: Implement validation and gap detection
-- **Automated Backfill**: Handle missing data and API failures gracefully
-- **Performance Monitoring**: Track pipeline health and data freshness
-- **Alerting System**: Notify on pipeline failures or data quality issues
+- **RAG Agent Enhancement**: All agents use vector similarity search for context
+- **Historical Pattern Matching**: Semantic search for comparable market scenarios
+- **Cross-Domain RAG**: Agents query across news, price, and social data
+- **Advanced Dagster Features**: Data quality monitoring, gap detection, backfill
+- **Performance Optimization**: Vector query tuning, database optimization
+- **Monitoring & Alerting**: Pipeline health tracking and failure notifications
 
 #### Key Deliverables
-- Dagster asset definitions for all data domains
-- Automated data quality checks and validation
-- Gap detection and backfill capabilities
+- RAG-enhanced agents with similarity-based context retrieval
+- Cross-domain vector search (find similar market conditions)
+- Dagster data quality checks and validation
+- Automated backfill for missing historical data
 - Monitoring dashboard for pipeline health
-- Comprehensive logging and error handling
-
-#### Success Criteria
-- ✅ Fully automated data collection running daily
-- ✅ Data quality monitoring with automated alerts
-- ✅ Zero-downtime pipeline updates and maintenance
-- ✅ Historical data gaps automatically detected and filled
-- ✅ Pipeline performance metrics tracked and optimized
-
-### Phase 5: RAG Implementation + OpenRouter Migration
-**Timeline**: 4-5 weeks  
-**Status**: 📋 Planned
-
-#### Core Objectives
-- **pgvectorscale Integration**: Implement vector storage for historical patterns
-- **RAG Agent Enhancement**: Agents use similarity search for context
-- **OpenRouter Migration**: Complete migration to unified LLM provider
-- **Historical Context**: Agents reference past decisions and market conditions
-- **Pattern Recognition**: Semantic similarity for comparable market scenarios
-
-#### Key Deliverables
-- pgvectorscale extension configured and optimized
-- Vector embeddings for all historical data
-- RAG-enhanced agent decision making
-- OpenRouter integration replacing all LLM providers
-- Similarity search for historical pattern matching
+- Performance benchmarks for vector queries (< 50ms target)
 
 #### Success Criteria
 - ✅ All agents using RAG for contextual decisions
-- ✅ Vector search performing sub-50ms similarity queries
-- ✅ OpenRouter as sole LLM provider across all agents
-- ✅ Agents demonstrating improved decision accuracy
-- ✅ Historical pattern matching enhancing trading analysis
+- ✅ Vector similarity search < 50ms across all domains
+- ✅ Cross-domain queries enabling holistic analysis
+- ✅ Dagster monitoring with automated alerts
+- ✅ Data quality metrics tracked and reported
+- ✅ Historical gaps detected and auto-filled
+- ✅ Production-ready data infrastructure complete
 
 ## Technical Milestones
 
+### Revised Timeline: 10-14 weeks (vs original 16-22 weeks)
+
+**Phase Breakdown:**
+- Phase 1 (News + Dagster): 5-7 days
+- Phase 2 (Market Data + Dagster): 4-5 weeks
+- Phase 3 (Social Media + Dagster): 2-3 weeks
+- Phase 4 (RAG + Advanced Orchestration): 3-4 weeks
+
 ### Database Architecture
-- **Month 1**: Complete PostgreSQL foundation with news domain
-- **Month 2**: TimescaleDB hypertables optimized for market data
-- **Month 3**: pgvectorscale configured for RAG implementation
-- **Month 4**: Full database optimization and performance tuning
+- **Week 1**: PostgreSQL + TimescaleDB + pgvectorscale operational (News domain)
+- **Week 6**: TimescaleDB hypertables optimized for market data time-series
+- **Week 9**: Three-domain database architecture complete with vector embeddings
+- **Week 12**: Full RAG implementation with cross-domain similarity search
 
 ### Agent Capabilities
-- **Month 1**: Basic multi-agent framework operational
-- **Month 2**: Agents using PostgreSQL for all data access
-- **Month 3**: Cross-domain agent collaboration established
-- **Month 4**: RAG-powered agents with historical context
+- **Week 1**: News Analysts accessing news with LLM sentiment
+- **Week 6**: Technical Analysts using market data with indicators
+- **Week 9**: Sentiment Analysts using social media data
+- **Week 12**: All agents RAG-enhanced with historical context
 
-### Data Pipeline Maturity
-- **Month 1**: Manual data collection with basic automation
-- **Month 2**: Automated collection for market data
-- **Month 3**: Full three-domain automated collection
-- **Month 4**: Production-grade pipeline with monitoring and alerting
+### Data Pipeline Maturity (Incremental Dagster)
+- **Week 1**: Daily news collection automated via Dagster
+- **Week 6**: Twice-daily market data collection automated
+- **Week 9**: Daily social media collection automated
+- **Week 12**: Production-grade orchestration with monitoring, backfill, and alerting
 
 ## Success Metrics
 

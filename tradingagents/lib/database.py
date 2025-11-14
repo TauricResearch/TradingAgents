@@ -156,8 +156,10 @@ class DatabaseManager:
 
 def create_test_database_manager() -> DatabaseManager:
     """Create a test database manager for tests."""
-    # Use a test database URL with credentials
-    test_db_url = "postgresql://postgres:postgres@localhost:5432/tradingagents_test"
+    # Use a test database URL with credentials matching docker setup
+    test_db_url = (
+        "postgresql://postgres:tradingagents@localhost:5432/tradingagents_test"
+    )
 
     # Create a test-specific database manager with NullPool
     db_manager = DatabaseManager(test_db_url)

@@ -46,6 +46,13 @@ class TradingAgentsConfig:
     default_lookback_days: int = 30
     default_ta_lookback_days: int = 30
 
+    # Database settings
+    database_url: str = field(
+        default_factory=lambda: os.getenv(
+            "DATABASE_URL", "postgresql://localhost:5432/tradingagents"
+        )
+    )
+
     def __post_init__(self):
         """Set computed fields after initialization."""
         self.data_cache_dir = os.path.join(self.project_dir, "dataflows/data_cache")
@@ -85,6 +92,9 @@ class TradingAgentsConfig:
             online_tools=os.getenv("ONLINE_TOOLS", "true").lower() == "true",
             default_lookback_days=int(os.getenv("DEFAULT_LOOKBACK_DAYS", "30")),
             default_ta_lookback_days=int(os.getenv("DEFAULT_TA_LOOKBACK_DAYS", "30")),
+            database_url=os.getenv(
+                "DATABASE_URL", "postgresql://localhost:5432/tradingagents"
+            ),
         )
 
     def to_dict(self) -> dict:
@@ -104,6 +114,7 @@ class TradingAgentsConfig:
             "online_tools": self.online_tools,
             "default_lookback_days": self.default_lookback_days,
             "default_ta_lookback_days": self.default_ta_lookback_days,
+            "database_url": self.database_url,
         }
 
     def copy(self) -> "TradingAgentsConfig":
@@ -122,6 +133,7 @@ class TradingAgentsConfig:
             online_tools=self.online_tools,
             default_lookback_days=self.default_lookback_days,
             default_ta_lookback_days=self.default_ta_lookback_days,
+            database_url=self.database_url,
         )
 
 

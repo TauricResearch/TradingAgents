@@ -1,6 +1,6 @@
 services:
   timescaledb:
-    build: ./db
+    build: ./docker/db
     container_name: tradingagents_timescaledb
     environment:
       POSTGRES_USER: postgres

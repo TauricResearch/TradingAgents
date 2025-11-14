@@ -42,6 +42,8 @@ dependencies = [
     "alembic>=1.13.0",
     "pgvector>=0.4.1",
     "uuid-utils>=0.11.0",
+    "dagster>=1.8.0",
+    "dagster-postgres>=0.24.0",
 ]
 
 [project.optional-dependencies]
@@ -59,6 +61,10 @@ tradingagents = "cli.main:app"
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["tradingagents*", "cli*"]
+exclude = ["docker*", "assets*", "alembic*", "docs*", "tests*"]
 
 [tool.ruff]
 line-length = 88

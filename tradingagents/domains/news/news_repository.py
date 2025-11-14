@@ -46,6 +46,8 @@ class NewsArticle:
     summary: str | None = None
     entities: list[str] = field(default_factory=list)
     sentiment_score: float | None = None
+    sentiment_confidence: float | None = None  # New field
+    sentiment_label: str | None = None  # New field
     author: str | None = None
     category: str | None = None
 
@@ -59,6 +61,8 @@ class NewsArticle:
             summary=self.summary,
             entities=self.entities if self.entities else None,
             sentiment_score=self.sentiment_score,
+            sentiment_confidence=self.sentiment_confidence,
+            sentiment_label=self.sentiment_label,
             author=self.author,
             category=self.category,
             symbol=symbol,
@@ -77,8 +81,26 @@ class NewsArticle:
             summary=cast("str | None", entity.summary),
             entities=cast("list[str] | None", entity.entities) or [],
             sentiment_score=cast("float | None", entity.sentiment_score),
+            sentiment_confidence=cast("float | None", entity.sentiment_confidence),
+            sentiment_label=cast("str | None", entity.sentiment_label),
             author=cast("str | None", entity.author),
             category=cast("str | None", entity.category),
+        )
+
+    def has_reliable_sentiment(self) -> bool:
+        """
+        Check if the article has reliable sentiment data.
+
+        Returns True when sentiment_score is not None AND sentiment_confidence is not None
+        AND sentiment_confidence >= 0.6
+
+        Returns:
+            bool: True if sentiment data is reliable, False otherwise
+        """
+        return bool(
+            self.sentiment_score is not None
+            and self.sentiment_confidence is not None
+            and self.sentiment_confidence >= 0.6
         )
 
 
@@ -113,6 +135,12 @@ class NewsArticleEntity(Base):
         JSON, nullable=True
     )  # Store list[str] as JSON array
     sentiment_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sentiment_confidence: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )  # New field
+    sentiment_label: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )  # New field
     author: Mapped[str | None] = mapped_column(String(255), nullable=True)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
@@ -227,6 +255,8 @@ class NewsRepository:
                     "summary": article.summary,
                     "entities": article.entities if article.entities else None,
                     "sentiment_score": article.sentiment_score,
+                    "sentiment_confidence": article.sentiment_confidence,
+                    "sentiment_label": article.sentiment_label,
                     "author": article.author,
                     "category": article.category,
                     "symbol": symbol,
@@ -243,6 +273,8 @@ class NewsRepository:
                         "summary": stmt.excluded.summary,
                         "entities": stmt.excluded.entities,
                         "sentiment_score": stmt.excluded.sentiment_score,
+                        "sentiment_confidence": stmt.excluded.sentiment_confidence,
+                        "sentiment_label": stmt.excluded.sentiment_label,
                         "author": stmt.excluded.author,
                         "category": stmt.excluded.category,
                         "symbol": stmt.excluded.symbol,
@@ -370,6 +402,8 @@ class NewsRepository:
                         "summary": article.summary,
                         "entities": article.entities if article.entities else None,
                         "sentiment_score": article.sentiment_score,
+                        "sentiment_confidence": article.sentiment_confidence,
+                        "sentiment_label": article.sentiment_label,
                         "author": article.author,
                         "category": article.category,
                         "symbol": symbol,
@@ -388,6 +422,8 @@ class NewsRepository:
                         "summary": stmt.excluded.summary,
                         "entities": stmt.excluded.entities,
                         "sentiment_score": stmt.excluded.sentiment_score,
+                        "sentiment_confidence": stmt.excluded.sentiment_confidence,
+                        "sentiment_label": stmt.excluded.sentiment_label,
                         "author": stmt.excluded.author,
                         "category": stmt.excluded.category,
                         "symbol": stmt.excluded.symbol,

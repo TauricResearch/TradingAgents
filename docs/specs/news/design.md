@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document details the technical design for completing the final 5% of the News domain implementation. The existing infrastructure is 95% complete with Google News collection, article scraping, and basic storage implemented. The remaining work focuses on **scheduled execution**, **LLM-powered sentiment analysis**, and **vector embeddings** using OpenRouter as the unified LLM provider.
+This document details the technical design for completing the final 5% of the News domain implementation. The existing infrastructure is 95% complete with Google News collection, article scraping, and basic storage implemented. The remaining work focuses on **Dagster-orchestrated scheduled execution**, **LLM-powered sentiment analysis**, and **vector embeddings** using OpenRouter as the unified LLM provider.
 
 ## Architecture Overview
 
@@ -10,33 +10,38 @@ This document details the technical design for completing the final 5% of the Ne
 
 ```mermaid
 graph TD
-    A[APScheduler] --> B[ScheduledNewsCollector]
-    B --> C[NewsService]
-    C --> D[GoogleNewsClient]
-    C --> E[ArticleScraperClient]
-    C --> F[OpenRouter LLM Client]
-    C --> G[OpenRouter Embeddings Client]
-    C --> H[NewsRepository]
-    H --> I[PostgreSQL + TimescaleDB + pgvectorscale]
-    
-    J[News Analysts] --> K[AgentToolkit]
-    K --> C
-    K --> H
+    A[Dagster Scheduler] --> B[Dagster Job: news_collection_daily]
+    B --> C[Dagster Op: collect_news_for_symbol]
+    C --> D[NewsService]
+    D --> E[GoogleNewsClient]
+    D --> F[ArticleScraperClient]
+    D --> G[OpenRouter Sentiment Client]
+    D --> H[OpenRouter Embeddings Client]
+    D --> I[NewsRepository]
+    I --> J[PostgreSQL + TimescaleDB + pgvectorscale]
+
+    K[News Analysts] --> L[AgentToolkit]
+    L --> D
+    L --> I
 ```
 
 ### Data Flow Architecture
 
-1. **Scheduled Collection Flow**
+1. **Scheduled Collection Flow (Dagster)**
    ```
-   APScheduler → ScheduledNewsCollector → NewsService.update_company_news()
-   → GoogleNewsClient → ArticleScraperClient → OpenRouter (sentiment + embeddings)
+   Dagster Schedule → Dagster Job → Dagster Op (per symbol)
+   → NewsService.update_company_news()
+   → GoogleNewsClient (RSS) → ArticleScraperClient (content)
+   → OpenRouter (sentiment + embeddings)
    → NewsRepository.upsert_batch() → PostgreSQL
    ```
 
-2. **Agent Query Flow**
+2. **Agent Query Flow (RAG)**
    ```
-   News Analyst → AgentToolkit → NewsService.find_relevant_articles()
-   → NewsRepository (semantic search) → pgvectorscale vector similarity
+   News Analyst → AgentToolkit → NewsService.find_similar_news()
+   → NewsRepository.find_similar_articles()
+   → pgvectorscale vector similarity (cosine distance)
+   → Return ranked results with sentiment
    ```
 
 ### Key Design Principles
@@ -44,903 +49,1065 @@ graph TD
 - **Leverage Existing 95%**: Build on proven GoogleNewsClient and ArticleScraperClient infrastructure
 - **OpenRouter Unified**: Single API for both sentiment analysis and embeddings
 - **Best-Effort Processing**: LLM failures don't block article storage
-- **Vector-Enhanced Search**: Semantic similarity for News Analysts
-- **Fault-Tolerant Scheduling**: Robust error handling and monitoring
+- **Vector-Enhanced Search**: Semantic similarity for News Analysts via RAG
+- **Dagster Orchestration**: Fault-tolerant scheduling with built-in monitoring and alerting
+- **Layered Architecture**: Entity → Repository → Service → Dagster Op → Dagster Job
 
 ## Domain Model
 
-### Enhanced NewsArticle Entity
+### Enhanced NewsArticle Dataclass
 
-The existing `NewsArticle` entity requires enhancements for structured sentiment and vector support:
+The existing `NewsArticle` dataclass requires enhancements for LLM sentiment and vector support:
 
 ```python
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field, validator
-import datetime
+from dataclasses import dataclass, field
+from datetime import date
+from typing import Optional, List
 
-class SentimentScore(BaseModel):
-    """Structured sentiment analysis result"""
-    sentiment: Literal["positive", "negative", "neutral"]
-    confidence: float = Field(ge=0.0, le=1.0)
-    reasoning: str
-    
-    @validator('confidence')
-    def validate_confidence(cls, v):
-        if v < 0.5:
-            raise ValueError("Confidence must be >= 0.5 for reliable sentiment")
-        return v
+@dataclass
+class NewsArticle:
+    """Represents a news article with sentiment and embeddings."""
 
-class NewsArticle(BaseModel):
-    """Enhanced NewsArticle entity with sentiment and vector support"""
     # Existing fields (95% complete)
     headline: str
-    url: str = Field(..., regex=r'^https?://')
-    source: str
-    published_date: datetime.datetime
+    url: str  # Unique identifier for deduplication
+    source: str  # "Google News", "Finnhub", etc.
+    published_date: date
+
+    # Optional existing fields
     summary: Optional[str] = None
-    entities: List[str] = Field(default_factory=list)
+    entities: List[str] = field(default_factory=list)
     author: Optional[str] = None
     category: Optional[str] = None
-    
-    # Enhanced fields (final 5%)
-    sentiment_score: Optional[SentimentScore] = None
-    title_embedding: Optional[List[float]] = Field(None, min_items=1536, max_items=1536)
-    content_embedding: Optional[List[float]] = Field(None, min_items=1536, max_items=1536)
-    
-    # Metadata
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    updated_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
-    
-    @validator('content_embedding', 'title_embedding')
-    def validate_embeddings(cls, v):
-        if v and len(v) != 1536:
-            raise ValueError("Embeddings must be 1536 dimensions for OpenRouter compatibility")
-        return v
-        
+
+    # Enhanced fields (final 5% - LLM sentiment)
+    sentiment_score: Optional[float] = None  # -1.0 to 1.0
+    sentiment_confidence: Optional[float] = None  # 0.0 to 1.0
+    sentiment_label: Optional[str] = None  # "positive", "negative", "neutral"
+
+    # Enhanced fields (final 5% - vector embeddings)
+    title_embedding: Optional[List[float]] = None  # 1536 dimensions
+    content_embedding: Optional[List[float]] = None  # 1536 dimensions
+
+    def to_entity(self, symbol: Optional[str] = None) -> NewsArticleEntity:
+        """Convert NewsArticle dataclass to NewsArticleEntity SQLAlchemy model."""
+        return NewsArticleEntity(
+            headline=self.headline,
+            url=self.url,
+            source=self.source,
+            published_date=self.published_date,
+            summary=self.summary,
+            entities=self.entities if self.entities else None,
+            sentiment_score=self.sentiment_score,
+            sentiment_confidence=self.sentiment_confidence,
+            sentiment_label=self.sentiment_label,
+            author=self.author,
+            category=self.category,
+            symbol=symbol,
+            title_embedding=self.title_embedding,
+            content_embedding=self.content_embedding,
+        )
+
+    @staticmethod
+    def from_entity(entity: NewsArticleEntity) -> 'NewsArticle':
+        """Convert NewsArticleEntity SQLAlchemy model to NewsArticle dataclass."""
+        return NewsArticle(
+            headline=entity.headline,
+            url=entity.url,
+            source=entity.source,
+            published_date=entity.published_date,
+            summary=entity.summary,
+            entities=entity.entities or [],
+            sentiment_score=entity.sentiment_score,
+            sentiment_confidence=entity.sentiment_confidence,
+            sentiment_label=entity.sentiment_label,
+            author=entity.author,
+            category=entity.category,
+            title_embedding=entity.title_embedding,
+            content_embedding=entity.content_embedding,
+        )
+
     def has_reliable_sentiment(self) -> bool:
-        """Check if sentiment analysis is reliable (confidence >= 0.5)"""
-        return bool(self.sentiment_score and self.sentiment_score.confidence >= 0.5)
-        
-    def to_record(self) -> Dict[str, Any]:
-        """Convert to database record format"""
-        record = self.dict()
-        # Convert sentiment to JSONB format
-        if self.sentiment_score:
-            record['sentiment_score'] = self.sentiment_score.dict()
-        return record
-    
-    @classmethod
-    def from_record(cls, record: Dict[str, Any]) -> 'NewsArticle':
-        """Create entity from database record"""
-        if record.get('sentiment_score'):
-            record['sentiment_score'] = SentimentScore(**record['sentiment_score'])
-        return cls(**record)
+        """Check if sentiment analysis is reliable (confidence >= 0.6)."""
+        return bool(
+            self.sentiment_score is not None
+            and self.sentiment_confidence is not None
+            and self.sentiment_confidence >= 0.6
+        )
 ```
 
-### New NewsJobConfig Entity
+### NewsArticleEntity SQLAlchemy Model
 
-Configuration entity for scheduled news collection:
+The existing SQLAlchemy model already has vector embedding columns. We need to add sentiment fields:
 
 ```python
-from pydantic import BaseModel, Field, validator
-from typing import List
+from sqlalchemy import Float, String, Text, DateTime, Date, JSON, Index, func
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import Mapped, mapped_column
+from pgvector.sqlalchemy import Vector
+import uuid
+from datetime import datetime, date
 
-class NewsJobConfig(BaseModel):
-    """Configuration for scheduled news collection jobs"""
-    tickers: List[str] = Field(..., min_items=1, max_items=50)
-    schedule_hour: int = Field(..., ge=0, le=23)
-    sentiment_model: str = Field(default="anthropic/claude-3.5-haiku")
-    embedding_model: str = Field(default="text-embedding-3-large") 
-    max_articles_per_ticker: int = Field(default=20, ge=5, le=100)
-    lookback_days: int = Field(default=7, ge=1, le=30)
-    
-    @validator('tickers')
-    def validate_tickers(cls, v):
-        # Ensure uppercase stock symbols
-        return [ticker.upper().strip() for ticker in v]
-    
-    @validator('sentiment_model')
-    def validate_sentiment_model(cls, v):
-        # Ensure OpenRouter model format
-        if '/' not in v:
-            raise ValueError("Model must be in OpenRouter format (provider/model)")
-        return v
-    
-    def to_cron_expression(self) -> str:
-        """Convert to cron expression for APScheduler"""
-        return f"0 {self.schedule_hour} * * *"  # Daily at specified hour
+class NewsArticleEntity(Base):
+    """SQLAlchemy model for news articles with vector embedding support."""
+
+    __tablename__ = "news_articles"
+    __table_args__ = (
+        Index("idx_symbol_date", "symbol", "published_date"),
+        Index("idx_published_date", "published_date"),
+        Index("idx_url_unique", "url", unique=True),
+        # Vector index for pgvectorscale similarity search
+        Index("idx_title_embedding_vector", "title_embedding", postgresql_using="ivfflat"),
+    )
+
+    # Primary key
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid7)
+
+    # Core article fields
+    headline: Mapped[str] = mapped_column(Text, nullable=False)
+    url: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    source: Mapped[str] = mapped_column(String(100), nullable=False)
+    published_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+
+    # Optional fields
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    entities: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    symbol: Mapped[Optional[str]] = mapped_column(String(20), index=True, nullable=True)
+
+    # LLM sentiment fields (NEW)
+    sentiment_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    sentiment_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    sentiment_label: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+
+    # Vector embeddings (EXISTING - already in 95% complete infrastructure)
+    title_embedding: Mapped[Optional[List[float]]] = mapped_column(Vector(1536), nullable=True)
+    content_embedding: Mapped[Optional[List[float]]] = mapped_column(Vector(1536), nullable=True)
+
+    # Audit timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 ```
 
-## Database Design
+## Data Access Layer
 
-### Schema Enhancements
+### NewsRepository Enhancements
 
-The existing `news_articles` table requires minimal modifications to support the final 5%:
-
-```sql
--- Existing table structure (95% complete)
-CREATE TABLE IF NOT EXISTS news_articles (
-    id SERIAL PRIMARY KEY,
-    headline TEXT NOT NULL,
-    url TEXT UNIQUE NOT NULL,
-    source TEXT NOT NULL,
-    published_date TIMESTAMPTZ NOT NULL,
-    summary TEXT,
-    entities TEXT[] DEFAULT '{}',
-    sentiment_score JSONB,  -- Enhanced for structured format
-    author TEXT,
-    category TEXT,
-    title_embedding vector(1536),     -- New: pgvectorscale vector type
-    content_embedding vector(1536),   -- New: pgvectorscale vector type
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- New indexes for final 5% performance
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_news_articles_symbol_date 
-    ON news_articles (((entities)), published_date DESC);
-
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_news_articles_title_embedding 
-    ON news_articles USING vectors (title_embedding vector_cosine_ops);
-
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_news_articles_content_embedding 
-    ON news_articles USING vectors (content_embedding vector_cosine_ops);
-
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_news_articles_sentiment 
-    ON news_articles (((sentiment_score->>'sentiment'))) 
-    WHERE sentiment_score IS NOT NULL;
-```
-
-### Query Patterns
-
-**Time-based News Queries (News Analysts)**
-```sql
--- Optimized for Agent queries: recent news for specific ticker
-SELECT headline, summary, sentiment_score, published_date
-FROM news_articles 
-WHERE entities @> ARRAY[$1::text] 
-  AND published_date >= NOW() - INTERVAL '30 days'
-ORDER BY published_date DESC 
-LIMIT 20;
-```
-
-**Semantic Similarity Queries (Vector Search)**
-```sql
--- Find similar articles using pgvectorscale
-SELECT headline, url, summary, 
-       1 - (title_embedding <=> $1::vector) AS similarity_score
-FROM news_articles 
-WHERE entities @> ARRAY[$2::text]
-  AND title_embedding IS NOT NULL
-ORDER BY title_embedding <=> $1::vector 
-LIMIT 10;
-```
-
-**Batch Upsert Operations (Daily Collection)**
-```sql
--- Efficient upsert for daily news collection
-INSERT INTO news_articles (headline, url, source, published_date, summary, entities, sentiment_score, title_embedding, content_embedding)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-ON CONFLICT (url) DO UPDATE SET
-    headline = EXCLUDED.headline,
-    summary = EXCLUDED.summary,
-    entities = EXCLUDED.entities,
-    sentiment_score = EXCLUDED.sentiment_score,
-    title_embedding = EXCLUDED.title_embedding,
-    content_embedding = EXCLUDED.content_embedding,
-    updated_at = NOW();
-```
-
-## API Integration
-
-### OpenRouter Unified Client
-
-Single OpenRouter integration for both sentiment analysis and embeddings:
+Add RAG-powered vector similarity search methods to the existing repository:
 
 ```python
-from typing import List, Optional, Dict, Any
-import httpx
+class NewsRepository:
+    """Repository for news articles with vector similarity search."""
+
+    def __init__(self, database_manager: DatabaseManager):
+        self.db_manager = database_manager
+
+    # ... existing methods (list, get, upsert, delete, list_by_date_range, upsert_batch) ...
+
+    async def find_similar_articles(
+        self,
+        embedding: List[float],
+        limit: int = 10,
+        threshold: float = 0.7,
+        symbol: Optional[str] = None
+    ) -> List[NewsArticle]:
+        """
+        Find articles similar to given embedding using pgvectorscale cosine distance.
+
+        Args:
+            embedding: Query embedding vector (1536 dimensions)
+            limit: Maximum number of results to return
+            threshold: Minimum similarity score (0.0-1.0)
+            symbol: Optional symbol filter
+
+        Returns:
+            List of NewsArticle objects ranked by similarity
+        """
+        async with self.db_manager.get_session() as session:
+            # Cosine similarity: 1 - cosine_distance
+            # pgvectorscale operator: <=> for cosine distance
+            query = select(
+                NewsArticleEntity,
+                (1 - NewsArticleEntity.title_embedding.cosine_distance(embedding)).label('similarity')
+            ).filter(
+                NewsArticleEntity.title_embedding.is_not(None)
+            )
+
+            # Optional symbol filter
+            if symbol:
+                query = query.filter(NewsArticleEntity.symbol == symbol)
+
+            # Filter by similarity threshold and order by similarity desc
+            query = query.filter(
+                (1 - NewsArticleEntity.title_embedding.cosine_distance(embedding)) >= threshold
+            ).order_by(
+                NewsArticleEntity.title_embedding.cosine_distance(embedding)
+            ).limit(limit)
+
+            result = await session.execute(query)
+            rows = result.all()
+
+            # Convert to NewsArticle dataclass
+            articles = [NewsArticle.from_entity(row[0]) for row in rows]
+
+            logger.info(f"Found {len(articles)} similar articles (threshold={threshold})")
+            return articles
+
+    async def batch_update_embeddings(
+        self,
+        article_embeddings: List[Tuple[uuid.UUID, List[float], List[float]]]
+    ) -> int:
+        """
+        Efficiently batch update embeddings for multiple articles.
+
+        Args:
+            article_embeddings: List of (article_id, title_embedding, content_embedding) tuples
+
+        Returns:
+            Number of articles updated
+        """
+        if not article_embeddings:
+            return 0
+
+        async with self.db_manager.get_session() as session:
+            # Use bulk update with PostgreSQL
+            stmt = update(NewsArticleEntity).where(
+                NewsArticleEntity.id == bindparam('article_id')
+            ).values(
+                title_embedding=bindparam('title_emb'),
+                content_embedding=bindparam('content_emb'),
+                updated_at=func.now()
+            )
+
+            # Prepare batch data
+            batch_data = [
+                {
+                    'article_id': article_id,
+                    'title_emb': title_emb,
+                    'content_emb': content_emb
+                }
+                for article_id, title_emb, content_emb in article_embeddings
+            ]
+
+            await session.execute(stmt, batch_data)
+
+            logger.info(f"Batch updated embeddings for {len(article_embeddings)} articles")
+            return len(article_embeddings)
+```
+
+## Service Layer
+
+### OpenRouter LLM Clients
+
+#### Sentiment Analysis Client
+
+```python
+from typing import Optional, Dict, Any
+import aiohttp
+import asyncio
 from tradingagents.config import TradingAgentsConfig
 
-class OpenRouterClient:
-    """Unified OpenRouter client for sentiment analysis and embeddings"""
-    
+@dataclass
+class SentimentResult:
+    """Result from sentiment analysis."""
+    score: float  # -1.0 to 1.0
+    confidence: float  # 0.0 to 1.0
+    label: str  # "positive", "negative", "neutral"
+    reasoning: str
+
+class OpenRouterSentimentClient:
+    """Client for sentiment analysis via OpenRouter."""
+
     def __init__(self, config: TradingAgentsConfig):
-        self.config = config
-        self.base_url = "https://openrouter.ai/api/v1"
-        self.headers = {
-            "Authorization": f"Bearer {config.openrouter_api_key}",
+        self.api_key = config.openrouter_api_key
+        self.model = config.quick_think_llm  # claude-3.5-haiku
+        self.base_url = "https://openrouter.ai/api/v1/chat/completions"
+
+    async def analyze_sentiment(
+        self,
+        title: str,
+        content: str
+    ) -> SentimentResult:
+        """
+        Analyze sentiment of news article using OpenRouter LLM.
+
+        Args:
+            title: Article headline
+            content: Article content/summary
+
+        Returns:
+            SentimentResult with score, confidence, label, and reasoning
+        """
+        try:
+            prompt = self._build_sentiment_prompt(title, content)
+            response = await self._call_openrouter(prompt)
+            return self._parse_sentiment_response(response)
+
+        except Exception as e:
+            logger.warning(f"OpenRouter sentiment analysis failed: {e}, using keyword fallback")
+            return self._fallback_sentiment(title, content)
+
+    def _build_sentiment_prompt(self, title: str, content: str) -> str:
+        """Build structured prompt for sentiment analysis."""
+        return f"""Analyze the financial sentiment of this news article.
+
+Title: {title}
+Content: {content[:1000]}...
+
+Provide sentiment analysis as JSON:
+{{
+    "score": <float between -1.0 (very negative) and 1.0 (very positive)>,
+    "confidence": <float between 0.0 and 1.0>,
+    "label": "<positive|negative|neutral>",
+    "reasoning": "<brief 1-2 sentence explanation>"
+}}
+
+Focus on financial market implications."""
+
+    async def _call_openrouter(self, prompt: str) -> Dict[str, Any]:
+        """Call OpenRouter API with retry logic."""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
-    
-    async def analyze_sentiment(self, text: str, model: Optional[str] = None) -> SentimentScore:
-        """Generate structured sentiment analysis using LLM"""
-        model = model or self.config.quick_think_llm
-        
-        prompt = f"""Analyze the sentiment of this news article text and respond with ONLY a JSON object:
 
-Article: {text[:2000]}  # Truncate for token limits
-
-Required JSON format:
-{{
-    "sentiment": "positive|negative|neutral",
-    "confidence": 0.0-1.0,
-    "reasoning": "brief explanation"
-}}"""
-        
         payload = {
-            "model": model,
+            "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.1,  # Low temperature for consistent structured output
-            "max_tokens": 200
+            "response_format": {"type": "json_object"}
         }
-        
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=self.headers,
-                    json=payload,
-                    timeout=30.0
-                )
-                response.raise_for_status()
-                
-                result = response.json()
-                content = result["choices"][0]["message"]["content"].strip()
-                
-                # Parse JSON response
-                import json
-                sentiment_data = json.loads(content)
-                return SentimentScore(**sentiment_data)
-                
-            except Exception as e:
-                # Best-effort: return neutral sentiment on failure
-                return SentimentScore(
-                    sentiment="neutral",
-                    confidence=0.3,  # Below reliability threshold
-                    reasoning=f"Analysis failed: {str(e)[:100]}"
-                )
-    
-    async def generate_embeddings(self, texts: List[str], model: Optional[str] = None) -> List[List[float]]:
-        """Generate embeddings for multiple texts"""
-        model = model or "text-embedding-3-large"
-        
-        # Truncate texts to avoid token limits
-        truncated_texts = [text[:8000] for text in texts]
-        
-        payload = {
-            "model": model,
-            "input": truncated_texts
-        }
-        
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(
-                    f"{self.base_url}/embeddings",
-                    headers=self.headers,
-                    json=payload,
-                    timeout=60.0
-                )
-                response.raise_for_status()
-                
-                result = response.json()
-                return [item["embedding"] for item in result["data"]]
-                
-            except Exception as e:
-                # Return None embeddings on failure (stored as NULL in DB)
-                return [None] * len(texts)
+
+        async with aiohttp.ClientSession() as session:
+            for attempt in range(3):  # Retry up to 3 times
+                try:
+                    async with session.post(
+                        self.base_url,
+                        headers=headers,
+                        json=payload,
+                        timeout=aiohttp.ClientTimeout(total=30)
+                    ) as response:
+                        response.raise_for_status()
+                        data = await response.json()
+                        return json.loads(data['choices'][0]['message']['content'])
+
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    if attempt == 2:  # Last attempt
+                        raise
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+
+    def _parse_sentiment_response(self, response: Dict[str, Any]) -> SentimentResult:
+        """Parse OpenRouter JSON response into SentimentResult."""
+        return SentimentResult(
+            score=float(response['score']),
+            confidence=float(response['confidence']),
+            label=response['label'],
+            reasoning=response.get('reasoning', '')
+        )
+
+    def _fallback_sentiment(self, title: str, content: str) -> SentimentResult:
+        """Keyword-based fallback sentiment analysis."""
+        text = f"{title} {content}".lower()
+
+        positive_keywords = ['gain', 'up', 'rise', 'growth', 'profit', 'beat', 'success']
+        negative_keywords = ['loss', 'down', 'fall', 'decline', 'miss', 'failure', 'concern']
+
+        pos_count = sum(1 for keyword in positive_keywords if keyword in text)
+        neg_count = sum(1 for keyword in negative_keywords if keyword in text)
+
+        if pos_count > neg_count:
+            return SentimentResult(score=0.3, confidence=0.5, label="positive", reasoning="Keyword-based fallback")
+        elif neg_count > pos_count:
+            return SentimentResult(score=-0.3, confidence=0.5, label="negative", reasoning="Keyword-based fallback")
+        else:
+            return SentimentResult(score=0.0, confidence=0.5, label="neutral", reasoning="Keyword-based fallback")
 ```
 
-### Enhanced NewsService Integration
+#### Embeddings Client
 
-Update existing NewsService to integrate LLM capabilities:
+```python
+class OpenRouterEmbeddingsClient:
+    """Client for generating embeddings via OpenRouter."""
+
+    def __init__(self, config: TradingAgentsConfig):
+        self.api_key = config.openrouter_api_key
+        self.model = "openai/text-embedding-ada-002"  # Via OpenRouter
+        self.base_url = "https://openrouter.ai/api/v1/embeddings"
+
+    async def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """
+        Generate embeddings for multiple texts.
+
+        Args:
+            texts: List of text strings to embed
+
+        Returns:
+            List of 1536-dimensional embedding vectors
+        """
+        if not texts:
+            return []
+
+        try:
+            # Preprocess texts
+            processed_texts = [self._preprocess_text(text) for text in texts]
+
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "model": self.model,
+                "input": processed_texts
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    self.base_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=60)
+                ) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+
+                    # Extract embeddings
+                    embeddings = [item['embedding'] for item in data['data']]
+
+                    # Validate dimensions
+                    for i, emb in enumerate(embeddings):
+                        if len(emb) != 1536:
+                            raise ValueError(f"Invalid embedding dimension at index {i}: {len(emb)}")
+
+                    return embeddings
+
+        except Exception as e:
+            logger.error(f"Embeddings generation failed: {e}, using zero vectors")
+            # Return zero vectors as fallback
+            return [[0.0] * 1536 for _ in texts]
+
+    async def generate_article_embeddings(
+        self,
+        article: NewsArticle
+    ) -> Tuple[List[float], List[float]]:
+        """
+        Generate embeddings for article title and content.
+
+        Args:
+            article: NewsArticle to generate embeddings for
+
+        Returns:
+            Tuple of (title_embedding, content_embedding)
+        """
+        texts = []
+
+        if article.headline:
+            texts.append(article.headline)
+
+        if article.summary:
+            # Combine title and summary for comprehensive content embedding
+            combined = f"{article.headline} {article.summary}"
+            texts.append(combined)
+
+        if not texts:
+            return [0.0] * 1536, [0.0] * 1536
+
+        embeddings = await self.generate_embeddings(texts)
+
+        title_embedding = embeddings[0] if len(embeddings) > 0 else [0.0] * 1536
+        content_embedding = embeddings[1] if len(embeddings) > 1 else [0.0] * 1536
+
+        return title_embedding, content_embedding
+
+    def _preprocess_text(self, text: str) -> str:
+        """Preprocess text for optimal embedding generation."""
+        # Remove extra whitespace
+        cleaned = " ".join(text.split())
+        # Limit to 8000 characters (OpenAI embedding limit)
+        return cleaned[:8000]
+```
+
+### Enhanced NewsService
+
+Integrate LLM clients into the existing NewsService:
 
 ```python
 class NewsService:
-    """Enhanced NewsService with LLM sentiment and embeddings (final 5%)"""
-    
-    def __init__(self, 
-                 repository: NewsRepository, 
-                 google_client: GoogleNewsClient,
-                 scraper_client: ArticleScraperClient,
-                 openrouter_client: OpenRouterClient):
-        self.repository = repository
+    """Service for news data, sentiment analysis, and vector embeddings."""
+
+    def __init__(
+        self,
+        google_client: GoogleNewsClient,
+        repository: NewsRepository,
+        article_scraper: ArticleScraperClient,
+        sentiment_client: OpenRouterSentimentClient,
+        embeddings_client: OpenRouterEmbeddingsClient,
+    ):
         self.google_client = google_client
-        self.scraper_client = scraper_client
-        self.openrouter_client = openrouter_client
-    
-    async def update_company_news(self, 
-                                symbol: str, 
-                                lookback_days: int = 7,
-                                max_articles: int = 20,
-                                include_sentiment: bool = True,
-                                include_embeddings: bool = True) -> List[NewsArticle]:
-        """Enhanced method with LLM sentiment analysis and embeddings"""
-        
-        # Step 1: Use existing 95% infrastructure for collection
-        cutoff_date = datetime.datetime.now() - datetime.timedelta(days=lookback_days)
-        
-        # Fetch from Google News (existing)
-        google_results = await self.google_client.fetch_company_news(symbol, max_articles)
-        
-        articles = []
-        for result in google_results:
-            if result.published_date < cutoff_date:
-                continue
-                
-            # Scrape full content (existing)
-            scraped_content = await self.scraper_client.scrape_article(result.url)
-            
-            # Create base article (existing pattern)
-            article = NewsArticle(
-                headline=result.title,
-                url=result.url,
-                source=result.source,
-                published_date=result.published_date,
-                summary=scraped_content.summary if scraped_content else result.description,
-                entities=[symbol],
-                author=scraped_content.author if scraped_content else None
-            )
-            
-            # Step 2: NEW - Add LLM sentiment analysis
-            if include_sentiment and scraped_content and scraped_content.content:
-                article.sentiment_score = await self.openrouter_client.analyze_sentiment(
-                    scraped_content.content
-                )
-            
-            articles.append(article)
-        
-        # Step 3: NEW - Batch generate embeddings
-        if include_embeddings and articles:
-            titles = [a.headline for a in articles]
-            contents = [a.summary or a.headline for a in articles]
-            
-            title_embeddings = await self.openrouter_client.generate_embeddings(titles)
-            content_embeddings = await self.openrouter_client.generate_embeddings(contents)
-            
-            for i, article in enumerate(articles):
-                if i < len(title_embeddings) and title_embeddings[i]:
-                    article.title_embedding = title_embeddings[i]
-                if i < len(content_embeddings) and content_embeddings[i]:
-                    article.content_embedding = content_embeddings[i]
-        
-        # Step 4: Batch persist (existing pattern)
-        await self.repository.upsert_batch(articles)
-        return articles
-    
-    async def find_similar_articles(self, 
-                                  query_text: str, 
-                                  symbol: Optional[str] = None,
-                                  limit: int = 10) -> List[NewsArticle]:
-        """NEW: Semantic similarity search for News Analysts"""
-        
-        # Generate query embedding
-        query_embeddings = await self.openrouter_client.generate_embeddings([query_text])
-        if not query_embeddings[0]:
-            # Fallback to text search
-            return await self.repository.find_by_text_search(query_text, symbol, limit)
-            
-        return await self.repository.find_similar_articles(
-            query_embeddings[0], symbol, limit
-        )
-```
+        self.repository = repository
+        self.article_scraper = article_scraper
+        self.sentiment_client = sentiment_client
+        self.embeddings_client = embeddings_client
 
-## Job Scheduling Architecture
+    async def update_company_news(self, symbol: str) -> NewsUpdateResult:
+        """
+        Update company news with full LLM enrichment pipeline.
 
-### APScheduler Integration
+        Flow:
+        1. Fetch RSS feed from Google News
+        2. Scrape article content
+        3. Generate LLM sentiment analysis
+        4. Generate vector embeddings
+        5. Store in PostgreSQL with embeddings
 
-Robust scheduled execution using APScheduler:
+        Args:
+            symbol: Stock ticker symbol
 
-```python
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.jobstores.redis import RedisJobStore  # Optional: persistent job store
-from apscheduler.executors.asyncio import AsyncIOExecutor
-import logging
-
-class ScheduledNewsCollector:
-    """Orchestrates scheduled news collection jobs"""
-    
-    def __init__(self, 
-                 news_service: NewsService,
-                 config: TradingAgentsConfig,
-                 job_config: NewsJobConfig):
-        self.news_service = news_service
-        self.config = config
-        self.job_config = job_config
-        
-        # Configure APScheduler
-        jobstores = {
-            'default': {'type': 'memory'}  # Use Redis for production
-        }
-        executors = {
-            'default': AsyncIOExecutor(),
-        }
-        job_defaults = {
-            'coalesce': False,  # Don't combine missed jobs
-            'max_instances': 1,  # One job per ticker at a time
-            'misfire_grace_time': 300  # 5 minute grace period
-        }
-        
-        self.scheduler = AsyncIOScheduler(
-            jobstores=jobstores,
-            executors=executors,
-            job_defaults=job_defaults,
-            timezone='UTC'
-        )
-    
-    async def start(self):
-        """Start the scheduler and register jobs"""
-        
-        for ticker in self.job_config.tickers:
-            # Schedule daily collection for each ticker
-            self.scheduler.add_job(
-                func=self._collect_ticker_news,
-                trigger='cron',
-                hour=self.job_config.schedule_hour,
-                minute=0,
-                args=[ticker],
-                id=f"news_collection_{ticker}",
-                replace_existing=True,
-                max_instances=1
-            )
-            
-        self.scheduler.start()
-        logging.info(f"Started news collection scheduler for {len(self.job_config.tickers)} tickers")
-    
-    async def stop(self):
-        """Gracefully stop the scheduler"""
-        if self.scheduler.running:
-            self.scheduler.shutdown(wait=True)
-    
-    async def _collect_ticker_news(self, ticker: str):
-        """Execute news collection for a single ticker"""
-        
-        start_time = datetime.datetime.now()
-        
+        Returns:
+            NewsUpdateResult with statistics
+        """
         try:
-            logging.info(f"Starting news collection for {ticker}")
-            
-            articles = await self.news_service.update_company_news(
-                symbol=ticker,
-                lookback_days=self.job_config.lookback_days,
-                max_articles=self.job_config.max_articles_per_ticker,
-                include_sentiment=True,
-                include_embeddings=True
+            logger.info(f"Updating company news for {symbol}")
+
+            # 1. Get RSS feed data
+            google_articles = self.google_client.get_company_news(symbol)
+
+            if not google_articles:
+                logger.warning(f"No articles found for {symbol}")
+                return NewsUpdateResult(
+                    status="completed",
+                    articles_found=0,
+                    articles_scraped=0,
+                    articles_failed=0,
+                    symbol=symbol,
+                )
+
+            # 2. Scrape article content
+            scraped_articles = await self._scrape_articles(google_articles)
+
+            # 3. Enrich with LLM sentiment and embeddings
+            enriched_articles = await self._enrich_articles(scraped_articles)
+
+            # 4. Store in repository
+            stored_articles = await self.repository.upsert_batch(enriched_articles, symbol)
+
+            logger.info(f"Completed news update for {symbol}: {len(stored_articles)} articles stored")
+
+            return NewsUpdateResult(
+                status="completed",
+                articles_found=len(google_articles),
+                articles_scraped=len(scraped_articles),
+                articles_failed=len(google_articles) - len(scraped_articles),
+                symbol=symbol,
             )
-            
-            # Log metrics
-            sentiment_count = sum(1 for a in articles if a.has_reliable_sentiment())
-            embedding_count = sum(1 for a in articles if a.title_embedding)
-            
-            duration = (datetime.datetime.now() - start_time).total_seconds()
-            
-            logging.info(
-                f"Completed news collection for {ticker}: "
-                f"{len(articles)} articles, {sentiment_count} with sentiment, "
-                f"{embedding_count} with embeddings in {duration:.1f}s"
-            )
-            
+
         except Exception as e:
-            logging.error(f"News collection failed for {ticker}: {str(e)}")
-            # Don't raise - let scheduler continue with other tickers
-    
-    def get_job_status(self) -> Dict[str, Any]:
-        """Get status of all scheduled jobs"""
-        jobs = self.scheduler.get_jobs()
-        return {
-            "scheduler_running": self.scheduler.running,
-            "job_count": len(jobs),
-            "jobs": [
-                {
-                    "id": job.id,
-                    "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
-                    "trigger": str(job.trigger)
-                }
-                for job in jobs
-            ]
-        }
+            logger.error(f"Error updating company news for {symbol}: {e}")
+            raise
+
+    async def _scrape_articles(
+        self,
+        google_articles: List[GoogleNewsArticle]
+    ) -> List[NewsArticle]:
+        """Scrape content for Google News RSS articles."""
+        scraped = []
+
+        for article in google_articles:
+            if not article.link:
+                continue
+
+            scrape_result = self.article_scraper.scrape_article(article.link)
+
+            if scrape_result.status in ["SUCCESS", "ARCHIVE_SUCCESS"]:
+                news_article = NewsArticle(
+                    headline=scrape_result.title or article.title,
+                    url=article.link,
+                    source=article.source,
+                    published_date=date.fromisoformat(
+                        scrape_result.publish_date or article.published.strftime("%Y-%m-%d")
+                    ),
+                    summary=scrape_result.content,
+                    author=scrape_result.author,
+                )
+                scraped.append(news_article)
+
+        return scraped
+
+    async def _enrich_articles(
+        self,
+        articles: List[NewsArticle]
+    ) -> List[NewsArticle]:
+        """Enrich articles with LLM sentiment and vector embeddings."""
+        enriched = []
+
+        for article in articles:
+            try:
+                # Generate sentiment
+                sentiment_result = await self.sentiment_client.analyze_sentiment(
+                    article.headline,
+                    article.summary or ""
+                )
+
+                article.sentiment_score = sentiment_result.score
+                article.sentiment_confidence = sentiment_result.confidence
+                article.sentiment_label = sentiment_result.label
+
+                # Generate embeddings
+                title_emb, content_emb = await self.embeddings_client.generate_article_embeddings(article)
+                article.title_embedding = title_emb
+                article.content_embedding = content_emb
+
+                enriched.append(article)
+
+            except Exception as e:
+                logger.warning(f"Failed to enrich article {article.url}: {e}, storing without enrichment")
+                enriched.append(article)
+
+        return enriched
+
+    async def find_similar_news(
+        self,
+        query_text: str,
+        symbol: Optional[str] = None,
+        limit: int = 5
+    ) -> List[NewsArticle]:
+        """
+        Find news articles similar to query text using RAG vector search.
+
+        Args:
+            query_text: Text to search for similar articles
+            symbol: Optional symbol filter
+            limit: Maximum number of results
+
+        Returns:
+            List of similar NewsArticle objects
+        """
+        # Generate embedding for query text
+        query_embeddings = await self.embeddings_client.generate_embeddings([query_text])
+        query_embedding = query_embeddings[0]
+
+        # Search for similar articles
+        similar_articles = await self.repository.find_similar_articles(
+            embedding=query_embedding,
+            limit=limit,
+            threshold=0.7,
+            symbol=symbol
+        )
+
+        return similar_articles
 ```
 
-### Error Handling and Monitoring
+## Dagster Orchestration Layer
 
-Comprehensive error handling for production reliability:
+### Directory Structure
+
+```
+tradingagents/data/
+├── __init__.py
+├── jobs/
+│   ├── __init__.py
+│   └── news_collection.py
+├── ops/
+│   ├── __init__.py
+│   └── news_ops.py
+├── schedules/
+│   ├── __init__.py
+│   └── news_schedules.py
+└── sensors/
+    ├── __init__.py
+    └── news_sensors.py
+```
+
+### Dagster Ops (Operations)
 
 ```python
-class NewsCollectionMonitor:
-    """Monitor and handle news collection job failures"""
-    
-    def __init__(self, collector: ScheduledNewsCollector):
-        self.collector = collector
-        self.failure_counts = defaultdict(int)
-        self.max_failures = 3
-    
-    async def handle_job_failure(self, ticker: str, error: Exception):
-        """Handle job failure with exponential backoff"""
-        
-        self.failure_counts[ticker] += 1
-        
-        if self.failure_counts[ticker] >= self.max_failures:
-            logging.error(f"Max failures reached for {ticker}, disabling job")
-            self.collector.scheduler.remove_job(f"news_collection_{ticker}")
-            # Could send alert here
-        else:
-            # Schedule retry with exponential backoff
-            delay_minutes = 2 ** self.failure_counts[ticker]
-            retry_time = datetime.datetime.now() + datetime.timedelta(minutes=delay_minutes)
-            
-            self.collector.scheduler.add_job(
-                func=self.collector._collect_ticker_news,
-                trigger='date',
-                run_date=retry_time,
-                args=[ticker],
-                id=f"news_retry_{ticker}_{int(retry_time.timestamp())}",
-                max_instances=1
-            )
-    
-    def reset_failure_count(self, ticker: str):
-        """Reset failure count on successful job"""
-        if ticker in self.failure_counts:
-            del self.failure_counts[ticker]
+# tradingagents/data/ops/news_ops.py
+from dagster import op, OpExecutionContext, Out, Output, DagsterEventType
+from tradingagents.domains.news.news_service import NewsService
+from tradingagents.config import TradingAgentsConfig
+from tradingagents.lib.database import DatabaseManager
+
+@op(
+    required_resource_keys={"database_manager"},
+    out=Out(dict),
+    tags={"kind": "news", "domain": "news"},
+)
+def collect_news_for_symbol(context: OpExecutionContext, symbol: str) -> dict:
+    """
+    Collect and process news for a single stock symbol.
+
+    Args:
+        symbol: Stock ticker symbol
+
+    Returns:
+        Dictionary with collection statistics
+    """
+    context.log.info(f"Starting news collection for {symbol}")
+
+    try:
+        # Build NewsService with dependencies
+        config = TradingAgentsConfig.from_env()
+        db_manager = context.resources.database_manager
+        news_service = NewsService.build(db_manager, config)
+
+        # Execute news update
+        result = await news_service.update_company_news(symbol)
+
+        context.log.info(
+            f"Completed news collection for {symbol}: "
+            f"{result.articles_found} found, {result.articles_scraped} scraped"
+        )
+
+        return {
+            "symbol": symbol,
+            "articles_found": result.articles_found,
+            "articles_scraped": result.articles_scraped,
+            "articles_failed": result.articles_failed,
+            "status": result.status,
+        }
+
+    except Exception as e:
+        context.log.error(f"News collection failed for {symbol}: {e}")
+        raise
 ```
 
-## Implementation Strategy
+### Dagster Jobs
 
-### Phase 1: Entity and Database Enhancements (Week 1)
+```python
+# tradingagents/data/jobs/news_collection.py
+from dagster import job, DynamicOut, DynamicOutput, OpExecutionContext, op
+from tradingagents.data.ops.news_ops import collect_news_for_symbol
 
-**Deliverables:**
-- [ ] Enhanced `NewsArticle` entity with `SentimentScore` and vector support
-- [ ] New `NewsJobConfig` entity with validation
-- [ ] Database migration for vector indexes and sentiment_score JSONB enhancement
-- [ ] Repository method `find_similar_articles()` with pgvectorscale integration
+@op(out=DynamicOut())
+def get_symbols_to_collect(context: OpExecutionContext) -> Generator[DynamicOutput, None, None]:
+    """
+    Get list of symbols to collect news for.
 
-**Testing Focus:**
-- Unit tests for entity validation and serialization
-- Repository integration tests with vector similarity queries
-- Database migration verification
+    Yields:
+        DynamicOutput for each symbol
+    """
+    # This could be loaded from Dagster config, database, or external source
+    symbols = context.op_config.get("symbols", ["AAPL", "GOOGL", "MSFT", "TSLA"])
 
-### Phase 2: OpenRouter Integration (Week 2)
+    context.log.info(f"Collecting news for {len(symbols)} symbols: {symbols}")
 
-**Deliverables:**
-- [ ] `OpenRouterClient` with sentiment analysis and embeddings
-- [ ] Enhanced `NewsService.update_company_news()` with LLM integration
-- [ ] Error handling for LLM failures (best-effort approach)
-- [ ] Integration tests with OpenRouter API (using pytest-vcr)
+    for symbol in symbols:
+        yield DynamicOutput(symbol, mapping_key=symbol)
 
-**Testing Focus:**
-- Mock OpenRouter responses for consistent testing
-- Error handling scenarios (API failures, malformed responses)
-- Embedding dimension validation
+@job(
+    tags={"dagster/priority": "high", "domain": "news"},
+)
+def news_collection_daily():
+    """
+    Daily news collection job for all configured symbols.
 
-### Phase 3: Job Scheduling System (Week 3)
+    Workflow:
+    1. Get symbols to collect
+    2. Fan out: collect news for each symbol in parallel
+    3. Aggregate results
+    """
+    get_symbols_to_collect().map(collect_news_for_symbol)
+```
 
-**Deliverables:**
-- [ ] `ScheduledNewsCollector` with APScheduler integration
-- [ ] `NewsCollectionMonitor` for error handling and retries
-- [ ] Configuration management for job scheduling
-- [ ] Graceful startup and shutdown procedures
+### Dagster Schedules
 
-**Testing Focus:**
-- Scheduler lifecycle testing
-- Job execution and failure handling
-- Configuration validation
+```python
+# tradingagents/data/schedules/news_schedules.py
+from dagster import schedule, ScheduleEvaluationContext, RunRequest
+from tradingagents.data.jobs.news_collection import news_collection_daily
 
-### Phase 4: Testing and Performance Optimization (Week 4)
+@schedule(
+    job=news_collection_daily,
+    cron_schedule="0 6 * * *",  # Daily at 6 AM UTC
+    execution_timezone="UTC",
+)
+def news_collection_daily_schedule(context: ScheduleEvaluationContext):
+    """
+    Schedule for daily news collection at 6 AM UTC.
 
-**Deliverables:**
-- [ ] Complete test coverage maintaining >85% threshold
-- [ ] Performance optimization for vector queries
-- [ ] Documentation and deployment guides
-- [ ] Integration with existing News Analyst AgentToolkit
+    Returns:
+        RunRequest with job configuration
+    """
+    return RunRequest(
+        run_key=f"news_collection_{context.scheduled_execution_time.isoformat()}",
+        run_config={
+            "ops": {
+                "get_symbols_to_collect": {
+                    "config": {
+                        "symbols": ["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN", "META", "NVDA"]
+                    }
+                }
+            }
+        },
+        tags={
+            "scheduled_time": context.scheduled_execution_time.isoformat(),
+            "job_type": "news_collection",
+        },
+    )
+```
 
-**Testing Focus:**
-- End-to-end integration tests
-- Performance benchmarks for vector similarity queries
-- Load testing for scheduled job execution
+### Dagster Sensors (Failure Alerting)
+
+```python
+# tradingagents/data/sensors/news_sensors.py
+from dagster import sensor, SensorEvaluationContext, DagsterEventType, RunFailureSensorContext
+from dagster import run_failure_sensor
+
+@run_failure_sensor(
+    name="news_collection_failure_sensor",
+    monitored_jobs=[news_collection_daily],
+)
+def news_collection_failure_alert(context: RunFailureSensorContext):
+    """
+    Alert when news collection job fails.
+
+    This could send notifications via Slack, PagerDuty, email, etc.
+    """
+    context.log.error(
+        f"News collection job failed!\n"
+        f"Run ID: {context.dagster_run.run_id}\n"
+        f"Failure info: {context.failure_event.event_specific_data}"
+    )
+
+    # TODO: Implement alerting (Slack, PagerDuty, email)
+    # send_slack_alert(...)
+```
+
+## Database Schema Changes
+
+### Migration Script (Alembic)
+
+```python
+# alembic/versions/20250111_add_sentiment_fields.py
+"""Add sentiment fields to news_articles
+
+Revision ID: add_sentiment_fields
+Revises: previous_revision
+Create Date: 2025-01-11
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+# revision identifiers
+revision = 'add_sentiment_fields'
+down_revision = 'previous_revision'
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    # Add sentiment analysis fields
+    op.add_column('news_articles', sa.Column('sentiment_confidence', sa.Float(), nullable=True))
+    op.add_column('news_articles', sa.Column('sentiment_label', sa.String(20), nullable=True))
+
+    # Vector columns already exist from 95% complete infrastructure:
+    # - title_embedding vector(1536)
+    # - content_embedding vector(1536)
+    # - sentiment_score float
+
+    # Add index on sentiment_label for filtering
+    op.create_index('idx_news_sentiment_label', 'news_articles', ['sentiment_label'])
+
+def downgrade():
+    op.drop_index('idx_news_sentiment_label', table_name='news_articles')
+    op.drop_column('news_articles', 'sentiment_label')
+    op.drop_column('news_articles', 'sentiment_confidence')
+```
 
 ## Testing Strategy
 
-### Test Architecture
+### Unit Tests (Mock Boundaries)
 
-Following the existing pragmatic TDD approach with mock boundaries:
-
-```
-tests/domains/news/
-├── __init__.py
-├── test_news_entities.py          # Entity validation and serialization
-├── test_news_service.py           # Mock repository and OpenRouter client  
-├── test_news_repository.py        # PostgreSQL test database
-├── test_openrouter_client.py      # pytest-vcr for API responses
-├── test_scheduled_collector.py    # Mock APScheduler and services
-└── integration/
-    ├── test_sentiment_pipeline.py    # End-to-end sentiment analysis
-    ├── test_embedding_pipeline.py    # End-to-end embedding generation
-    └── test_scheduled_execution.py   # Full job execution cycle
-```
-
-### Key Test Categories
-
-**Entity Tests (Fast Unit Tests)**
 ```python
-def test_news_article_sentiment_validation():
-    """Test sentiment score validation and reliability checks"""
-    
-    # Valid sentiment
-    sentiment = SentimentScore(
-        sentiment="positive",
-        confidence=0.8,
-        reasoning="Strong positive language"
-    )
-    
-    article = NewsArticle(
-        headline="Test headline",
-        url="https://example.com",
-        source="Test Source",
-        published_date=datetime.datetime.now(),
-        sentiment_score=sentiment
-    )
-    
-    assert article.has_reliable_sentiment() == True
-    
-    # Low confidence sentiment
-    low_confidence = SentimentScore(
-        sentiment="neutral",
-        confidence=0.3,
-        reasoning="Ambiguous language"
-    )
-    
-    article.sentiment_score = low_confidence
-    assert article.has_reliable_sentiment() == False
+# tests/domains/news/test_news_service_llm.py
+import pytest
+from unittest.mock import AsyncMock
+from tradingagents.domains.news.news_service import NewsService
+from tradingagents.domains.news.openrouter_sentiment_client import SentimentResult
 
-def test_news_article_vector_validation():
-    """Test vector embedding validation"""
-    
-    # Valid 1536-dimension embedding
-    valid_embedding = [0.1] * 1536
-    article = NewsArticle(
-        headline="Test",
-        url="https://example.com", 
-        source="Test",
-        published_date=datetime.datetime.now(),
-        title_embedding=valid_embedding
-    )
-    
-    assert len(article.title_embedding) == 1536
-    
-    # Invalid dimension should raise ValidationError
-    with pytest.raises(ValidationError):
-        NewsArticle(
-            headline="Test",
-            url="https://example.com",
-            source="Test", 
-            published_date=datetime.datetime.now(),
-            title_embedding=[0.1] * 512  # Wrong dimension
-        )
-```
+@pytest.fixture
+def mock_sentiment_client():
+    return AsyncMock()
 
-**Service Integration Tests (Mock Boundaries)**
-```python
-@pytest.mark.asyncio
-async def test_news_service_with_sentiment_analysis(mock_openrouter_client, mock_repository):
-    """Test NewsService integration with mocked LLM client"""
-    
-    # Mock successful sentiment analysis
-    mock_sentiment = SentimentScore(
-        sentiment="positive",
-        confidence=0.9,
-        reasoning="Optimistic financial outlook"
+@pytest.fixture
+def mock_embeddings_client():
+    return AsyncMock()
+
+async def test_enrich_articles_handles_llm_failures_gracefully(
+    mock_sentiment_client,
+    mock_embeddings_client
+):
+    """Test that LLM failures don't block article storage."""
+    # Mock sentiment failure
+    mock_sentiment_client.analyze_sentiment.side_effect = Exception("API Error")
+
+    # Mock embeddings success
+    mock_embeddings_client.generate_article_embeddings.return_value = (
+        [0.1] * 1536, [0.2] * 1536
     )
-    mock_openrouter_client.analyze_sentiment.return_value = mock_sentiment
-    
-    # Mock embeddings
-    mock_openrouter_client.generate_embeddings.return_value = [
-        [0.1] * 1536,  # title embedding
-        [0.2] * 1536   # content embedding
-    ]
-    
+
     service = NewsService(
-        repository=mock_repository,
-        google_client=mock_google_client,
-        scraper_client=mock_scraper_client,
-        openrouter_client=mock_openrouter_client
+        google_client=AsyncMock(),
+        repository=AsyncMock(),
+        article_scraper=AsyncMock(),
+        sentiment_client=mock_sentiment_client,
+        embeddings_client=mock_embeddings_client,
     )
-    
-    articles = await service.update_company_news("AAPL", include_sentiment=True)
-    
-    # Verify LLM integration
+
+    articles = [create_test_article()]
+    enriched = await service._enrich_articles(articles)
+
+    # Article should still be returned even though sentiment failed
+    assert len(enriched) == 1
+    assert enriched[0].url == articles[0].url
+```
+
+### Integration Tests (Real Database)
+
+```python
+# tests/domains/news/integration/test_news_workflow.py
+import pytest
+from tradingagents.lib.database import create_test_database_manager
+from tradingagents.domains.news.news_service import NewsService
+
+@pytest.mark.asyncio
+async def test_complete_news_pipeline_end_to_end(test_db_manager):
+    """Test complete pipeline: RSS → Scrape → LLM → Vector → Store."""
+    config = TradingAgentsConfig.from_test_env()
+    service = NewsService.build(test_db_manager, config)
+
+    # Execute full pipeline
+    result = await service.update_company_news("AAPL")
+
+    # Verify results
+    assert result.status == "completed"
+    assert result.articles_scraped > 0
+
+    # Verify database storage
+    articles = await service.repository.list_by_date_range(
+        symbol="AAPL",
+        start_date=date.today(),
+        end_date=date.today()
+    )
+
     assert len(articles) > 0
-    assert articles[0].sentiment_score == mock_sentiment
-    assert articles[0].title_embedding == [0.1] * 1536
-    assert mock_openrouter_client.analyze_sentiment.called
-    assert mock_openrouter_client.generate_embeddings.called
+
+    # Verify LLM enrichment
+    for article in articles:
+        assert article.sentiment_score is not None
+        assert article.title_embedding is not None
+        assert len(article.title_embedding) == 1536
 ```
 
-**Repository Integration Tests (Real Database)**
+### Dagster Tests
+
 ```python
-@pytest.mark.asyncio 
-async def test_repository_vector_similarity_search(test_db):
-    """Test vector similarity search with real pgvectorscale"""
-    
-    repository = NewsRepository(test_db)
-    
-    # Insert articles with embeddings
-    article1 = NewsArticle(
-        headline="Apple reports strong iPhone sales",
-        url="https://example.com/1",
-        source="TechNews",
-        published_date=datetime.datetime.now(),
-        entities=["AAPL"],
-        title_embedding=[0.1, 0.2] + [0.0] * 1534  # Similar to query
+# tests/data/jobs/test_news_collection.py
+from dagster import build_op_context
+from tradingagents.data.ops.news_ops import collect_news_for_symbol
+
+def test_collect_news_for_symbol_op():
+    """Test Dagster op for news collection."""
+    context = build_op_context(
+        resources={"database_manager": mock_database_manager}
     )
-    
-    article2 = NewsArticle(
-        headline="Microsoft launches new Azure features", 
-        url="https://example.com/2",
-        source="CloudNews",
-        published_date=datetime.datetime.now(),
-        entities=["MSFT"],
-        title_embedding=[0.9, 0.8] + [0.0] * 1534  # Different from query
+
+    result = collect_news_for_symbol(context, "AAPL")
+
+    assert result["symbol"] == "AAPL"
+    assert result["status"] == "completed"
+    assert result["articles_found"] >= 0
+```
+
+## Performance Optimization
+
+### Query Performance Targets
+
+- **News retrieval**: < 2 seconds for 30-day lookback
+- **Vector similarity search**: < 1 second for top-10 results
+- **Batch insertion**: < 5 seconds for 50 articles
+
+### Optimization Strategies
+
+1. **Vector Indexes**: Use pgvectorscale IVFFlat indexes for similarity search
+2. **Batch Operations**: Use `executemany()` for bulk inserts and updates
+3. **Connection Pooling**: Configure asyncpg connection pool (min=5, max=20)
+4. **Async Operations**: All I/O operations are async (HTTP, database)
+5. **Caching**: Dagster asset materialization for computed aggregates
+
+## Monitoring and Observability
+
+### Dagster UI Monitoring
+
+- **Job runs**: View execution history and status
+- **Asset lineage**: Track data dependencies
+- **Performance metrics**: Execution time, success rate
+- **Logs**: Structured logging with context
+
+### Custom Metrics
+
+```python
+from dagster import Output, MetadataValue
+
+def collect_news_for_symbol(context, symbol):
+    # ... collection logic ...
+
+    yield Output(
+        result,
+        metadata={
+            "articles_found": MetadataValue.int(result["articles_found"]),
+            "articles_scraped": MetadataValue.int(result["articles_scraped"]),
+            "success_rate": MetadataValue.float(
+                result["articles_scraped"] / result["articles_found"]
+            ),
+            "execution_time": MetadataValue.float(execution_time_seconds),
+        }
     )
-    
-    await repository.upsert_batch([article1, article2])
-    
-    # Query with similar embedding
-    query_embedding = [0.15, 0.25] + [0.0] * 1534
-    similar_articles = await repository.find_similar_articles(
-        query_embedding, symbol="AAPL", limit=1
+```
+
+## Error Handling and Resilience
+
+### LLM Failure Strategies
+
+1. **Sentiment Analysis Failures**: Fall back to keyword-based sentiment
+2. **Embedding Failures**: Use zero vectors, log for manual review
+3. **API Rate Limits**: Exponential backoff with jitter
+4. **Timeout Handling**: 30s timeout for sentiment, 60s for embeddings
+
+### Dagster Retry Policies
+
+```python
+from dagster import RetryPolicy
+
+@op(
+    retry_policy=RetryPolicy(
+        max_retries=3,
+        delay=10,  # seconds
+        backoff=BackoffPolicy.EXPONENTIAL,
     )
-    
-    assert len(similar_articles) == 1
-    assert similar_articles[0].headline == "Apple reports strong iPhone sales"
-```
-
-**API Integration Tests (pytest-vcr)**
-```python
-@pytest.mark.vcr
-@pytest.mark.asyncio
-async def test_openrouter_sentiment_analysis():
-    """Test real OpenRouter API calls with VCR cassettes"""
-    
-    config = TradingAgentsConfig.from_env()
-    client = OpenRouterClient(config)
-    
-    test_text = "Apple's quarterly earnings exceeded expectations with strong iPhone sales."
-    
-    sentiment = await client.analyze_sentiment(test_text)
-    
-    assert isinstance(sentiment, SentimentScore)
-    assert sentiment.sentiment in ["positive", "negative", "neutral"]
-    assert 0.0 <= sentiment.confidence <= 1.0
-    assert len(sentiment.reasoning) > 0
-
-@pytest.mark.vcr
-@pytest.mark.asyncio
-async def test_openrouter_embeddings_generation():
-    """Test real OpenRouter embeddings API with VCR"""
-    
-    config = TradingAgentsConfig.from_env()
-    client = OpenRouterClient(config)
-    
-    texts = ["Apple stock rises", "Market volatility increases"]
-    
-    embeddings = await client.generate_embeddings(texts)
-    
-    assert len(embeddings) == 2
-    assert all(len(emb) == 1536 for emb in embeddings)
-    assert all(isinstance(val, float) for emb in embeddings for val in emb)
-```
-
-### Coverage Requirements
-
-Maintain existing >85% coverage with new components:
-
-- **Entity Layer**: 95% coverage (comprehensive validation testing)
-- **Service Layer**: 90% coverage (mock external dependencies)  
-- **Repository Layer**: 85% coverage (real database integration tests)
-- **Client Layer**: 80% coverage (pytest-vcr for API calls)
-- **Integration Tests**: End-to-end scenarios covering complete workflows
-
-### Performance Testing
-
-```python
-@pytest.mark.performance
-@pytest.mark.asyncio
-async def test_vector_similarity_performance():
-    """Ensure vector similarity queries perform under 100ms"""
-    
-    repository = NewsRepository(test_db)
-    
-    # Insert 1000 articles with embeddings
-    articles = [create_test_article_with_embedding() for _ in range(1000)]
-    await repository.upsert_batch(articles)
-    
-    query_embedding = [random.random() for _ in range(1536)]
-    
-    start_time = time.time()
-    results = await repository.find_similar_articles(query_embedding, limit=10)
-    duration = time.time() - start_time
-    
-    assert duration < 0.1  # Under 100ms
-    assert len(results) == 10
-```
-
-## Integration Points
-
-### News Analyst AgentToolkit Integration
-
-The completed News domain integrates seamlessly with existing News Analyst agents:
-
-```python
-class NewsAnalystToolkit:
-    """Enhanced toolkit with semantic search capabilities"""
-    
-    def __init__(self, news_service: NewsService):
-        self.news_service = news_service
-    
-    async def get_relevant_news(self, 
-                              ticker: str, 
-                              query: Optional[str] = None,
-                              days_back: int = 30) -> List[Dict[str, Any]]:
-        """Get news with optional semantic search"""
-        
-        if query:
-            # Use semantic similarity search
-            articles = await self.news_service.find_similar_articles(
-                query_text=query,
-                symbol=ticker,
-                limit=20
-            )
-        else:
-            # Use time-based search (existing)
-            articles = await self.news_service.find_recent_news(
-                symbol=ticker,
-                days_back=days_back
-            )
-        
-        return [
-            {
-                "headline": article.headline,
-                "summary": article.summary,
-                "published_date": article.published_date.isoformat(),
-                "sentiment": article.sentiment_score.sentiment if article.sentiment_score else "unknown",
-                "confidence": article.sentiment_score.confidence if article.sentiment_score else 0.0,
-                "source": article.source,
-                "url": article.url
-            }
-            for article in articles
-        ]
-```
-
-### Configuration Integration
-
-Seamless integration with existing `TradingAgentsConfig`:
-
-```python
-# Enhanced configuration for news domain completion
-config = TradingAgentsConfig(
-    # Existing LLM configuration
-    llm_provider="openrouter",
-    openrouter_api_key=os.getenv("OPENROUTER_API_KEY"),
-    quick_think_llm="anthropic/claude-3.5-haiku",  # For sentiment analysis
-    
-    # New news-specific settings
-    news_collection_enabled=True,
-    news_schedule_hour=6,  # UTC
-    news_sentiment_enabled=True,
-    news_embeddings_enabled=True,
-    news_max_articles_per_ticker=20,
-    
-    # Database (existing)
-    database_url=os.getenv("DATABASE_URL"),
 )
-
-# Job configuration
-news_job_config = NewsJobConfig(
-    tickers=["AAPL", "GOOGL", "MSFT", "TSLA", "NVDA"],
-    schedule_hour=6,  # 6 AM UTC daily collection
-    sentiment_model=config.quick_think_llm,
-    embedding_model="text-embedding-3-large",
-    max_articles_per_ticker=20
-)
+def collect_news_for_symbol(context, symbol):
+    # ... implementation ...
 ```
 
-This design completes the final 5% of the News domain while leveraging the existing 95% infrastructure, maintaining architectural consistency, and providing the robust scheduled execution, LLM-powered sentiment analysis, and vector embeddings needed for advanced News Analyst capabilities.
+## Success Criteria
+
+✅ **Layered Architecture**: Entity → Repository → Service → Dagster Op → Dagster Job
+✅ **LLM Sentiment**: OpenRouter structured sentiment with confidence and fallback
+✅ **Vector RAG**: pgvectorscale semantic search operational with <1s query time
+✅ **Dagster Orchestration**: Daily automated collection via Dagster schedules
+✅ **Test Coverage**: >85% maintained with pytest-vcr for HTTP mocking
+✅ **Performance**: Query < 2s, vector search < 1s, batch insert < 5s
+✅ **Error Resilience**: Graceful fallbacks for all LLM and API failures
+✅ **Monitoring**: Dagster UI provides complete observability and alerting
+
+## Timeline
+
+**Phase 1**: Entity + Migration (2-3h)
+**Phase 2**: Repository RAG methods (2-3h)
+**Phase 3**: LLM Clients (4-5h)
+**Phase 4**: Service Enhancement (2-3h)
+**Phase 5**: Dagster Orchestration (3-4h)
+**Phase 6**: Testing & Documentation (2-3h)
+
+**Total: 15-20 hours with AI assistance**

@@ -37,6 +37,11 @@ description = "Run tests with pytest (with database)"
 depends = ["docker"]
 run = "uv run pytest"
 
+[tasks.coverage]
+description = "Run tests with coverage report"
+depends = ["docker"]
+run = "uv run pytest --cov=tradingagents --cov-report=html --cov-report=term-missing"
+
 [tasks.lint]
 description = "Run ruff linting"
 run = "ruff check ."
@@ -56,6 +61,11 @@ run = "ruff check --fix ."
 [tasks.all]
 description = "Run format, lint, and typecheck"
 run = ["ruff format .", "ruff check .", "uv run pyrefly check ."]
+
+[tasks.quality]
+description = "Run complete quality check (format, lint, typecheck, test, coverage)"
+depends = ["docker"]
+run = ["ruff format .", "ruff check .", "uv run pyrefly check .", "uv run pytest --cov=tradingagents --cov-report=term-missing"]
 
 [tasks.clean]
 description = "Clean up cache and build artifacts"
