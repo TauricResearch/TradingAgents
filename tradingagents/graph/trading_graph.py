@@ -75,6 +75,17 @@ class TradingAgentsGraph:
         if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
             self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+        elif self.config["llm_provider"].lower() == "openai_compatible":
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"],
+                api_key=os.environ.get("OPENAI_COMPATIBLE_API_KEY"),
+                base_url=os.environ.get("OPENAI_COMPATIBLE_BASE_URL"),
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"],
+                api_key=os.environ.get("OPENAI_COMPATIBLE_API_KEY"),
+                base_url=os.environ.get("OPENAI_COMPATIBLE_BASE_URL"),
+            )
         elif self.config["llm_provider"].lower() == "anthropic":
             self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])

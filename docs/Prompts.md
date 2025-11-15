@@ -1,0 +1,3 @@
+Review this entire codebase in tradingAgents project. Review both the code and documents such as readme.md. Understand the approach, and design aspects, the capabilities, data flow, connectivities with other sus-systems and APIs, any specific agentic framework that is used, telemetry and observation methodologies if any, and any specific design patterns used. 
+Once you have a comprehensive knowledge and grasp on this project, we will start working on a few major enhancements. 
+No real code changes needed just yet, till I ask you for it. But list your understanding on this project in as much details as possible here so I benefit from it. Also list your observations in terms of upgrades and refactor that seems obvious.

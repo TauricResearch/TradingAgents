@@ -144,6 +144,9 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
             ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
         ],
+        "openai_compatible": [
+            ("Gemini Pro", "gemini-pro"),
+        ],
         "openrouter": [
             ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
             ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
@@ -207,6 +210,9 @@ def select_deep_thinking_agent(provider) -> str:
             ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
             ("Gemini 2.5 Pro", "gemini-2.5-pro-preview-06-05"),
         ],
+        "openai_compatible": [
+            ("Gemini Pro", "gemini-pro"),
+        ],
         "openrouter": [
             ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
             ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
@@ -246,6 +252,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("OpenAI", "https://api.openai.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
+        ("OpenAI Compatible", "http://127.0.0.1:8080/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),        
     ]

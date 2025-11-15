@@ -114,11 +114,15 @@ pip install -r requirements.txt
 
 ### Required APIs
 
-You will need the OpenAI API for all the agents, and [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for fundamental and news data (default configuration).
+You will need the OpenAI API for all the agents, and [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for fundamental and news data (default configuration). You can also use any OpenAI-compatible API endpoint, such as a local LLM server or Google Vertex AI.
 
 ```bash
 export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
 export ALPHA_VANTAGE_API_KEY=$YOUR_ALPHA_VANTAGE_API_KEY
+
+# For OpenAI-compatible endpoints (e.g., Vertex AI)
+export OPENAI_COMPATIBLE_API_KEY=$YOUR_API_KEY
+export OPENAI_COMPATIBLE_BASE_URL=$YOUR_API_BASE_URL
 ```
 
 Alternatively, you can create a `.env` file in the project root with your API keys (see `.env.example` for reference):

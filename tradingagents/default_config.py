@@ -9,10 +9,11 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "o4-mini",
-    "quick_think_llm": "gpt-4o-mini",
-    "backend_url": "https://api.openai.com/v1",
+    "llm_provider": "openai_compatible",
+    "deep_think_llm": "gemini-pro",
+    "quick_think_llm": "gemini-pro",
+    "openai_compatible_api_key": os.getenv("OPENAI_COMPATIBLE_API_KEY"),
+    "openai_compatible_base_url": os.getenv("OPENAI_COMPATIBLE_BASE_URL"),
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
