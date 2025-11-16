@@ -50,6 +50,10 @@ class NewsArticle:
     sentiment_label: str | None = None  # New field
     author: str | None = None
     category: str | None = None
+    
+    # Vector embeddings for semantic similarity
+    title_embedding: list[float] | None = None
+    content_embedding: list[float] | None = None
 
     def to_entity(self, symbol: str | None = None) -> NewsArticleEntity:
         """Convert NewsArticle dataclass to NewsArticleEntity SQLAlchemy model."""
@@ -66,6 +70,8 @@ class NewsArticle:
             author=self.author,
             category=self.category,
             symbol=symbol,
+            title_embedding=self.title_embedding,
+            content_embedding=self.content_embedding,
         )
 
     @staticmethod
@@ -85,6 +91,8 @@ class NewsArticle:
             sentiment_label=cast("str | None", entity.sentiment_label),
             author=cast("str | None", entity.author),
             category=cast("str | None", entity.category),
+            title_embedding=cast("list[float] | None", entity.title_embedding),
+            content_embedding=cast("list[float] | None", entity.content_embedding),
         )
 
     def has_reliable_sentiment(self) -> bool:

@@ -11,6 +11,7 @@ from dagster import (
     AssetMaterialization,
     OpExecutionContext,
     op,
+    MetadataValue,
 )
 
 from tradingagents.config import TradingAgentsConfig
@@ -96,11 +97,11 @@ def fetch_google_news_articles(
             AssetMaterialization(
                 asset_key=f"google_news_articles_{ticker}",
                 description=f"Fetched {len(article_list)} articles for {ticker}",
-                metadata={
-                    "ticker": ticker,
-                    "total_articles": len(article_list),
-                    "sources": {article["source"] for article in article_list},
-                    "fetched_at": datetime.now(timezone.utc).isoformat(),
+metadata={
+                    "ticker": MetadataValue.text(ticker),
+                    "total_articles": MetadataValue.int(len(article_list)),
+                    "sources": MetadataValue.text(", ".join({article["source"] for article in article_list})),
+                    "fetched_at": MetadataValue.text(datetime.now(timezone.utc).isoformat()),
                 },
             )
         )
@@ -172,26 +173,53 @@ def fetch_and_process_article(
 
         # Step 2: LLM Sentiment Analysis
         context.log.info("Step 2: Analyzing sentiment...")
-        sentiment_result = {
-            "sentiment": "positive",  # TODO: Implement OpenRouter LLM
-            "confidence": 0.75,  # TODO: Implement OpenRouter LLM
-            "reasoning": "LLM analysis placeholder",
-        }
-        context.log.info(
-            f"Sentiment: {sentiment_result['sentiment']} (confidence: {sentiment_result['confidence']})"
-        )
+        try:
+            # Use real OpenRouter sentiment analysis
+            openrouter_client = news_service._openrouter_client
+            sentiment_llm_result = openrouter_client.analyze_sentiment(f"{title} {content}")
+            
+            sentiment_result = {
+                "sentiment": sentiment_llm_result.sentiment,
+                "confidence": sentiment_llm_result.confidence,
+                "reasoning": sentiment_llm_result.reasoning or "LLM analysis complete",
+            }
+            context.log.info(
+                f"Sentiment: {sentiment_result['sentiment']} (confidence: {sentiment_result['confidence']})"
+            )
+        except Exception as e:
+            context.log.warning(f"OpenRouter sentiment analysis failed: {e}, using fallback")
+            sentiment_result = {
+                "sentiment": "neutral",
+                "confidence": 0.0,
+                "reasoning": f"Analysis failed: {str(e)}",
+            }
 
         # Step 3: Vector Embeddings
         context.log.info("Step 3: Generating embeddings...")
-        vector_result = {
-            "title_embedding": [0.0] * 1536,  # TODO: Implement OpenAI embeddings
-            "content_embedding": [0.0] * 1536,  # TODO: Implement OpenAI embeddings
-            "embedding_model": "text-embedding-3-small",
-            "embedding_dimensions": 1536,
-        }
-        context.log.info(
-            f"Generated {len(vector_result['title_embedding'])}-dim embeddings"
-        )
+        try:
+            # Use real OpenRouter embeddings
+            openrouter_client = news_service._openrouter_client
+            title_embedding = openrouter_client.create_embedding(title)
+            content_embedding = openrouter_client.create_embedding(content)
+            
+            vector_result = {
+                "title_embedding": title_embedding,
+                "content_embedding": content_embedding,
+                "embedding_model": "text-embedding-3-small",
+                "embedding_dimensions": len(title_embedding),
+            }
+            context.log.info(
+                f"Generated {len(vector_result['title_embedding'])}-dim embeddings"
+            )
+        except Exception as e:
+            context.log.warning(f"OpenRouter embedding generation failed: {e}, using zero vectors")
+            vector_result = {
+                "title_embedding": [0.0] * 1536,
+                "content_embedding": [0.0] * 1536,
+                "embedding_model": "text-embedding-3-small",
+                "embedding_dimensions": 1536,
+                "error": str(e),
+            }
 
         # Step 4: Store in database
         context.log.info("Step 4: Storing in database...")
@@ -200,6 +228,18 @@ def fetch_and_process_article(
             from datetime import date
 
             from tradingagents.domains.news.news_repository import NewsArticle
+
+            # Convert sentiment result to database format
+            sentiment_score = None
+            sentiment_confidence = sentiment_result.get("confidence", 0.0)
+            sentiment_label = sentiment_result.get("sentiment", "neutral")
+            
+            if sentiment_label == "positive":
+                sentiment_score = sentiment_confidence
+            elif sentiment_label == "negative":
+                sentiment_score = -sentiment_confidence
+            else:
+                sentiment_score = 0.0
 
             news_article = NewsArticle(
                 headline=title,
@@ -210,6 +250,11 @@ def fetch_and_process_article(
                 ),
                 summary=content,
                 author=author,
+                sentiment_score=sentiment_score,
+                sentiment_confidence=sentiment_confidence,
+                sentiment_label=sentiment_label,
+                title_embedding=vector_result.get("title_embedding"),
+                content_embedding=vector_result.get("content_embedding"),
             )
 
             repository = news_service.repository
@@ -242,13 +287,13 @@ def fetch_and_process_article(
                 asset_key=f"processed_article_{ticker}_{article_data['index']}",
                 description=f"Completely processed article: {title[:50]}...",
                 metadata={
-                    "ticker": ticker,
-                    "url": url,
-                    "scrape_status": scrape_result.status,
-                    "sentiment": sentiment_result["sentiment"],
-                    "content_length": len(content),
-                    "storage_status": storage_status,
-                    "processed_at": datetime.now(timezone.utc).isoformat(),
+                    "ticker": MetadataValue.text(ticker),
+                    "url": MetadataValue.text(url),
+                    "scrape_status": MetadataValue.text(scrape_result.status),
+                    "sentiment": MetadataValue.text(sentiment_result["sentiment"]),
+                    "content_length": MetadataValue.int(len(content)),
+                    "storage_status": MetadataValue.text(storage_status),
+                    "processed_at": MetadataValue.text(datetime.now(timezone.utc).isoformat()),
                 },
             )
         )
@@ -337,7 +382,14 @@ def collect_ticker_results(
             AssetMaterialization(
                 asset_key=f"ticker_results_{ticker}",
                 description=f"Completed news processing for {ticker}",
-                metadata=results,
+                metadata={
+                    "ticker": MetadataValue.text(results.get("ticker", "")),
+                    "status": MetadataValue.text(results.get("status", "")),
+                    "total_processed": MetadataValue.int(results.get("total_processed", 0)),
+                    "successful_scrapes": MetadataValue.int(results.get("successful_scrapes", 0)),
+                    "successful_storage": MetadataValue.int(results.get("successful_storage", 0)),
+                    "completion_time": MetadataValue.text(results.get("completion_time", "")),
+                },
             )
         )
 
@@ -409,7 +461,14 @@ def collect_all_results(
             AssetMaterialization(
                 asset_key="daily_news_collection_summary",
                 description="Completed daily news collection for all tickers",
-                metadata=results,
+                metadata={
+                    "status": MetadataValue.text(results.get("status", "")),
+                    "total_tickers": MetadataValue.int(results.get("total_tickers", 0)),
+                    "successful_tickers": MetadataValue.int(results.get("successful_tickers", 0)),
+                    "total_articles": MetadataValue.int(results.get("total_articles", 0)),
+                    "total_stored": MetadataValue.int(results.get("total_stored", 0)),
+                    "completion_time": MetadataValue.text(results.get("completion_time", "")),
+                },
             )
         )
 
