@@ -24,6 +24,7 @@ from tradingagents.domains.news.news_repository import (
     NewsArticle,
     NewsRepository,
 )
+from tradingagents.domains.news.openrouter_client import OpenRouterClient
 
 
 @pytest.fixture
@@ -42,6 +43,12 @@ def mock_article_scraper():
 def mock_repository():
     """Mock NewsRepository for testing I/O boundary."""
     return Mock(spec=NewsRepository)
+
+
+@pytest.fixture
+def mock_openrouter_client():
+    """Mock OpenRouterClient for testing I/O boundary."""
+    return Mock(spec=OpenRouterClient)
 
 
 @pytest.fixture

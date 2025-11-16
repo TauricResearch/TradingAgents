@@ -452,3 +452,52 @@ class NewsRepository:
                 await session.rollback()
                 logger.error(f"Error during batch upsert for {symbol}: {e}")
                 raise
+
+    async def update_article_sentiment(
+        self,
+        url: str,
+        sentiment_score: float,
+        sentiment_confidence: float,
+        sentiment_label: str,
+    ) -> bool:
+        """
+        Update sentiment analysis for a specific article by URL.
+
+        Args:
+            url: Article URL (unique identifier)
+            sentiment_score: Sentiment score (-1.0 to 1.0)
+            sentiment_confidence: Confidence level (0.0 to 1.0)
+            sentiment_label: Sentiment label ("positive", "negative", "neutral")
+
+        Returns:
+            bool: True if updated successfully, False if article not found
+        """
+        async with self.db_manager.get_session() as session:
+            try:
+                # Find the article by URL
+                result = await session.execute(
+                    select(NewsArticleEntity).filter(NewsArticleEntity.url == url)
+                )
+                db_article = result.scalar_one_or_none()
+
+                if not db_article:
+                    logger.debug(f"Article not found for sentiment update: {url}")
+                    return False
+
+                # Update sentiment fields
+                db_article.sentiment_score = sentiment_score
+                db_article.sentiment_confidence = sentiment_confidence
+                db_article.sentiment_label = sentiment_label
+
+                # Commit the changes
+                await session.commit()
+
+                logger.debug(
+                    f"Updated sentiment for article {url}: {sentiment_label} (score: {sentiment_score:.3f})"
+                )
+                return True
+
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"Failed to update sentiment for article {url}: {e}")
+                raise

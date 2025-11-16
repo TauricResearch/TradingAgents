@@ -32,6 +32,8 @@ class TradingAgentsConfig:
     )
     deep_think_llm: str = "o4-mini"
     quick_think_llm: str = "gpt-4o-mini"
+    news_sentiment_llm: str = "openai/gpt-oss-120b"
+    news_embedding_llm: str = "qwen/qwen3-embedding-8b"
     backend_url: str = "https://api.openai.com/v1"
 
     # Debate and discussion settings
@@ -85,6 +87,10 @@ class TradingAgentsConfig:
             llm_provider=cls._get_llm_provider(),
             deep_think_llm=os.getenv("DEEP_THINK_LLM", "o4-mini"),
             quick_think_llm=os.getenv("QUICK_THINK_LLM", "gpt-4o-mini"),
+            news_sentiment_llm=os.getenv("NEWS_SENTIMENT_LLM", "openai/gpt-oss-120b"),
+            news_embedding_llm=os.getenv(
+                "NEWS_EMBEDDING_LLM", "qwen/qwen3-embedding-8b"
+            ),
             backend_url=os.getenv("BACKEND_URL", "https://api.openai.com/v1"),
             max_debate_rounds=int(os.getenv("MAX_DEBATE_ROUNDS", "1")),
             max_risk_discuss_rounds=int(os.getenv("MAX_RISK_DISCUSS_ROUNDS", "1")),
@@ -107,6 +113,8 @@ class TradingAgentsConfig:
             "llm_provider": self.llm_provider,
             "deep_think_llm": self.deep_think_llm,
             "quick_think_llm": self.quick_think_llm,
+            "news_sentiment_llm": self.news_sentiment_llm,
+            "news_embedding_llm": self.news_embedding_llm,
             "backend_url": self.backend_url,
             "max_debate_rounds": self.max_debate_rounds,
             "max_risk_discuss_rounds": self.max_risk_discuss_rounds,
@@ -126,6 +134,8 @@ class TradingAgentsConfig:
             llm_provider=self.llm_provider,
             deep_think_llm=self.deep_think_llm,
             quick_think_llm=self.quick_think_llm,
+            news_sentiment_llm=self.news_sentiment_llm,
+            news_embedding_llm=self.news_embedding_llm,
             backend_url=self.backend_url,
             max_debate_rounds=self.max_debate_rounds,
             max_risk_discuss_rounds=self.max_risk_discuss_rounds,

@@ -67,6 +67,31 @@ description = "Run complete quality check (format, lint, typecheck, test, covera
 depends = ["docker"]
 run = ["ruff format .", "ruff check .", "uv run pyrefly check .", "uv run pytest --cov=tradingagents --cov-report=term-missing"]
 
+[tasks.ui]
+    description = "Start Dagster UI webserver for workflow monitoring"
+    depends = ["docker"]
+    run = "uv run dagster dev -h 0.0.0.0 -p 3000"
+
+[tasks.dagster-webserver]
+    description = "Start Dagster webserver UI for workflow monitoring"
+    depends = ["docker"]
+    run = "uv run dagster dev -h 0.0.0.0 -p 3000"
+
+[tasks.dagster-daemon]
+    description = "Start Dagster daemon for background job execution"
+    depends = ["docker"]
+    run = "uv run dagster dev -h 0.0.0.0 -p 3000 --daemon"
+
+[tasks.dagster-list]
+description = "List all available Dagster jobs and ops"
+depends = ["docker"]
+run = "uv run dagster job list"
+
+[tasks.dagster-run]
+description = "Run a specific Dagster job (usage: mise run dagster-run -- <job_name>)"
+depends = ["docker"]
+run = "uv run dagster job run"
+
 [tasks.clean]
 description = "Clean up cache and build artifacts"
 run = [

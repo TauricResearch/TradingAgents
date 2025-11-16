@@ -32,11 +32,16 @@ RUN cd /tmp && \
     cd / && \
     rm -rf /tmp/pgvector
 
-# Install pgxman for pgvectorscale
-RUN curl -sfL https://install.pgx.sh | sh -
+# Install pgxman for pgvectorscale (optional)
+RUN curl -sfL https://install.pgx.sh | sh || echo "pgxman installation failed"
 
-# Install pgvectorscale using pgxman
-RUN pgxman install pgvectorscale || echo "pgvectorscale install failed"
+# Set PostgreSQL path for pgxman
+ENV PATH="/usr/lib/postgresql/17/bin:$PATH"
+ENV PG_CONFIG="/usr/lib/postgresql/17/bin/pg_config"
+
+# Try to install pgvectorscale - it's optional for basic functionality
+RUN cd /tmp && \
+    pgxman install pgvectorscale || echo "pgvectorscale not installed - will use basic vector operations"
 
 # Configure PostgreSQL for TimescaleDB (instead of using timescaledb-tune)
 RUN echo "shared_preload_libraries = 'timescaledb'" >> /usr/share/postgresql/postgresql.conf.sample \
@@ -54,9 +59,15 @@ RUN echo "shared_preload_libraries = 'timescaledb'" >> /usr/share/postgresql/pos
 RUN cat > /docker-entrypoint-initdb.d/00-init.sql <<'EOF'
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
+-- vectorscale extension - try to install but don't fail if not available
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'vectorscale extension not available, continuing without it';
+END $$;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-SELECT extname, extversion FROM pg_extension;
+SELECT extname, extversion FROM pg_extension WHERE extname IN ('timescaledb', 'vector', 'uuid-ossp');
 EOF
 
 EXPOSE 5432

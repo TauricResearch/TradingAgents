@@ -3,6 +3,7 @@ News service that provides structured news context.
 """
 
 import logging
+import os
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -13,6 +14,11 @@ from tradingagents.domains.news.google_news_client import GoogleNewsClient
 from tradingagents.domains.news.news_repository import NewsArticle, NewsRepository
 
 from .article_scraper_client import ArticleScraperClient
+
+try:
+    from .openrouter_client import OpenRouterClient
+except ImportError:
+    OpenRouterClient = None
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +102,7 @@ class NewsService:
         google_client: GoogleNewsClient,
         repository: NewsRepository,
         article_scraper: ArticleScraperClient,
+        openrouter_client,
     ):
         """
         Initialize news service.
@@ -104,17 +111,35 @@ class NewsService:
             google_client: Client for Google News data
             repository: Repository for cached news data
             article_scraper: Client for scraping article content
+            openrouter_client: Client for LLM sentiment analysis (required)
         """
         self.google_client = google_client
         self.repository = repository
         self.article_scraper = article_scraper
+        self._openrouter_client = openrouter_client  # Private readonly
 
     @staticmethod
     def build(database_manager, _config: TradingAgentsConfig):
         google_client = GoogleNewsClient()
         repository = NewsRepository(database_manager)
         article_scraper = ArticleScraperClient("")
-        return NewsService(google_client, repository, article_scraper)
+
+        # Initialize OpenRouter client (required)
+        if not os.getenv("OPENROUTER_API_KEY"):
+            raise ValueError("OPENROUTER_API_KEY environment variable is required")
+
+        if not OpenRouterClient:
+            raise ImportError("OpenRouterClient not available - check imports")
+
+        try:
+            openrouter_client = OpenRouterClient(_config)
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenRouter client: {e}")
+            raise
+
+        return NewsService(
+            google_client, repository, article_scraper, openrouter_client
+        )
 
     async def get_company_news_context(
         self, symbol: str, start_date: str, end_date: str
@@ -171,7 +196,7 @@ class NewsService:
                     articles = []
 
             # Calculate sentiment summary from articles
-            sentiment_summary = self._calculate_sentiment_summary(articles)
+            sentiment_summary = await self._calculate_sentiment_summary(articles)
 
             # Extract unique sources
             sources = list(
@@ -278,7 +303,7 @@ class NewsService:
                     articles = []
 
             # Calculate sentiment summary from articles
-            sentiment_summary = self._calculate_sentiment_summary(articles)
+            sentiment_summary = await self._calculate_sentiment_summary(articles)
 
             # Extract unique sources
             sources = list(
@@ -557,11 +582,11 @@ class NewsService:
             logger.error(f"Error updating global news: {e}")
             raise
 
-    def _calculate_sentiment_summary(
+    async def _calculate_sentiment_summary(
         self, articles: list[ArticleData]
     ) -> SentimentScore:
         """
-        Calculate aggregate sentiment from article list.
+        Calculate aggregate sentiment from article list using LLM analysis with keyword fallback.
 
         Args:
             articles: List of ArticleData objects
@@ -572,57 +597,107 @@ class NewsService:
         if not articles:
             return SentimentScore(score=0.0, confidence=0.0, label="neutral")
 
-        # Simple keyword-based sentiment analysis
-        positive_words = {
-            "good",
-            "great",
-            "excellent",
-            "positive",
-            "up",
-            "rise",
-            "gain",
-            "profit",
-            "growth",
-            "success",
-            "strong",
-            "bullish",
-            "optimistic",
-            "boost",
-            "surge",
-        }
-        negative_words = {
-            "bad",
-            "terrible",
-            "negative",
-            "down",
-            "fall",
-            "loss",
-            "decline",
-            "weak",
-            "bearish",
-            "pessimistic",
-            "crash",
-            "drop",
-            "plunge",
-            "concern",
-        }
+        # Try LLM sentiment analysis first
+        if self._openrouter_client and OpenRouterClient:
+            try:
+                return await self._calculate_llm_sentiment(articles)
+            except Exception as e:
+                logger.warning(
+                    f"LLM sentiment analysis failed, falling back to keyword analysis: {e}"
+                )
+
+        # Fallback to keyword analysis
+        return self._calculate_keyword_sentiment(articles)
+
+    async def _calculate_llm_sentiment(
+        self, articles: list[ArticleData]
+    ) -> SentimentScore:
+        """
+        Calculate sentiment using OpenRouter LLM analysis.
+
+        Args:
+            articles: List of ArticleData objects
+
+        Returns:
+            SentimentScore: Aggregate sentiment score from LLM analysis
+        """
+        if not self._openrouter_client:
+            raise ValueError(
+                "OpenRouter client not available for LLM sentiment analysis"
+            )
 
         total_score = 0.0
         scored_articles = 0
+        sentiment_labels = []
 
         for article in articles:
             if not hasattr(article, "content") or not article.content:
                 continue
 
-            content_lower = article.content.lower()
-            words = content_lower.split()
+            try:
+                # Use LLM for sentiment analysis
+                llm_result = self._openrouter_client.analyze_sentiment(article.content)
 
-            positive_count = sum(1 for word in words if word in positive_words)
-            negative_count = sum(1 for word in words if word in negative_words)
+                # Convert LLM result to our format
+                if llm_result.sentiment == "positive":
+                    article_score = llm_result.confidence
+                elif llm_result.sentiment == "negative":
+                    article_score = -llm_result.confidence
+                else:
+                    article_score = 0.0
 
-            if positive_count + negative_count > 0:
-                article_score = (positive_count - negative_count) / len(words)
                 total_score += article_score
+                scored_articles += 1
+                sentiment_labels.append(llm_result.sentiment)
+
+                # Update article with LLM sentiment (if repository available)
+                if self.repository and hasattr(article, "url"):
+                    await self._update_article_sentiment(article.url, llm_result)
+
+            except Exception as e:
+                logger.error(f"LLM sentiment analysis failed for article: {e}")
+                # Skip articles that fail LLM analysis - no keyword fallback
+                continue
+
+        if scored_articles == 0:
+            logger.warning("No articles could be processed with LLM sentiment analysis")
+            return SentimentScore(score=0.0, confidence=0.0, label="neutral")
+
+        avg_score = total_score / scored_articles
+        confidence = min(scored_articles / len(articles), 1.0)
+
+        # Determine label from average score
+        if avg_score > 0.1:
+            label = "positive"
+        elif avg_score < -0.1:
+            label = "negative"
+        else:
+            label = "neutral"
+
+        return SentimentScore(score=avg_score, confidence=confidence, label=label)
+
+    def _calculate_keyword_sentiment(
+        self, articles: list[ArticleData]
+    ) -> SentimentScore:
+        """
+        Calculate sentiment using keyword-based analysis.
+
+        Args:
+            articles: List of ArticleData objects
+
+        Returns:
+            SentimentScore: Aggregate sentiment score from keyword analysis
+        """
+        if not articles:
+            return SentimentScore(score=0.0, confidence=0.0, label="neutral")
+
+        total_score = 0.0
+        scored_articles = 0
+
+        for article in articles:
+            score = self._get_article_keyword_score(article)
+            if score is not None:
+                total_score += score
                 scored_articles += 1
 
         if scored_articles == 0:
@@ -631,20 +706,138 @@ class NewsService:
         avg_score = total_score / scored_articles
         confidence = min(scored_articles / len(articles), 1.0)
 
-        # Normalize score to -1.0 to 1.0 range
-        normalized_score = max(-1.0, min(1.0, avg_score * 10))
-
-        # Determine label
-        if normalized_score > 0.1:
+        # Determine label from average score
+        if avg_score > 0.1:
             label = "positive"
-        elif normalized_score < -0.1:
+        elif avg_score < -0.1:
             label = "negative"
         else:
             label = "neutral"
 
-        return SentimentScore(
-            score=normalized_score, confidence=confidence, label=label
+        return SentimentScore(score=avg_score, confidence=confidence, label=label)
+
+    def _get_article_keyword_score(self, article: ArticleData) -> float | None:
+        """
+        Calculate sentiment score for a single article using keyword analysis.
+
+        Args:
+            article: ArticleData object
+
+        Returns:
+            float: Sentiment score from -1.0 to 1.0, or None if no content
+        """
+        if not hasattr(article, "content") or not article.content:
+            return None
+
+        # Simple keyword-based sentiment analysis
+        positive_words = {
+            "good",
+            "great",
+            "excellent",
+            "strong",
+            "positive",
+            "growth",
+            "success",
+            "profit",
+            "gain",
+            "rise",
+            "increase",
+            "boom",
+            "bullish",
+            "optimistic",
+            "outperform",
+            "beat",
+            "exceed",
+            "surge",
+            "rally",
+            "up",
+            "higher",
+        }
+
+        negative_words = {
+            "bad",
+            "terrible",
+            "poor",
+            "weak",
+            "negative",
+            "decline",
+            "loss",
+            "fall",
+            "decrease",
+            "crash",
+            "bearish",
+            "pessimistic",
+            "fail",
+            "miss",
+            "drop",
+            "slump",
+            "down",
+            "lower",
+            "worse",
+            "disappoint",
+            "struggle",
+        }
+
+        content_lower = article.content.lower()
+        title_lower = (
+            article.title.lower() if hasattr(article, "title") and article.title else ""
         )
+
+        # Count positive and negative words
+        positive_count = 0
+        negative_count = 0
+
+        for word in positive_words:
+            positive_count += content_lower.count(word) + title_lower.count(word)
+
+        for word in negative_words:
+            negative_count += content_lower.count(word) + title_lower.count(word)
+
+        if positive_count == 0 and negative_count == 0:
+            return None
+
+        # Calculate normalized score
+        total_words = positive_count + negative_count
+        if total_words == 0:
+            return None
+
+        score = (positive_count - negative_count) / total_words
+        return max(-1.0, min(1.0, score))  # Clamp between -1.0 and 1.0
+
+    async def _update_article_sentiment(self, article_url: str, llm_result) -> None:
+        """
+        Update article sentiment in repository with LLM results.
+
+        Args:
+            article_url: URL of the article to update
+            llm_result: SentimentResult from OpenRouter analysis
+        """
+        try:
+            if not self.repository:
+                logger.warning("No repository available for sentiment update")
+                return
+
+            # Convert LLM result to database format
+            score = (
+                llm_result.confidence
+                if llm_result.sentiment == "positive"
+                else -llm_result.confidence
+            )
+
+            # Update the article in database
+            await self.repository.update_article_sentiment(
+                url=article_url,
+                sentiment_score=score,
+                sentiment_confidence=llm_result.confidence,
+                sentiment_label=llm_result.sentiment,
+            )
+
+            logger.debug(
+                f"Updated sentiment for article {article_url}: {llm_result.sentiment} (confidence: {llm_result.confidence})"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to update article sentiment: {e}")
 
     def _extract_trending_topics(self, articles: list[ArticleData]) -> list[str]:
         """
@@ -709,3 +902,24 @@ class NewsService:
         # Get top trending words
         trending = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
         return [word for word, count in trending if count > 1]
+
+    def generate_article_embeddings(
+        self, title: str, content: str
+    ) -> tuple[list[float], list[float]]:
+        """
+        Generate vector embeddings for article title and content.
+
+        Args:
+            title: Article title
+            content: Article content
+
+        Returns:
+            Tuple of (title_embedding, content_embedding)
+        """
+        try:
+            title_embedding = self._openrouter_client.create_embedding(title)
+            content_embedding = self._openrouter_client.create_embedding(content)
+            return title_embedding, content_embedding
+        except Exception as e:
+            logger.error(f"Failed to generate embeddings: {e}")
+            raise

@@ -4,7 +4,13 @@
 -- First, create extensions in the default postgres database
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
+-- vectorscale extension - try to install but don't fail if not available
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'vectorscale extension not available, continuing without it';
+END $$;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create test database (main database 'tradingagents' is created by POSTGRES_DB env var)
@@ -16,11 +22,17 @@ CREATE DATABASE tradingagents_test;
 -- Install extensions
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
+-- vectorscale extension - try to install but don't fail if not available
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'vectorscale extension not available, continuing without it';
+END $$;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Verify extensions are installed
-SELECT extname FROM pg_extension WHERE extname IN ('timescaledb', 'vector', 'vectorscale', 'uuid-ossp');
+SELECT extname FROM pg_extension WHERE extname IN ('timescaledb', 'vector', 'uuid-ossp');
 
 -- Setup extensions in test database
 \c tradingagents_test
@@ -28,12 +40,18 @@ SELECT extname FROM pg_extension WHERE extname IN ('timescaledb', 'vector', 'vec
 -- Same extensions in test database
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
+-- vectorscale extension - try to install but don't fail if not available
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'vectorscale extension not available, continuing without it';
+END $$;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Verify extensions are installed in test database
-SELECT extname FROM pg_extension WHERE extname IN ('timescaledb', 'vector', 'vectorscale', 'uuid-ossp');
+SELECT extname FROM pg_extension WHERE extname IN ('timescaledb', 'vector', 'uuid-ossp');
 
 -- Output confirmation message
 \c tradingagents
-SELECT 'TradingAgents TimescaleDB setup complete with vectorscale, TimescaleDB, and test database' AS status;
+SELECT 'TradingAgents TimescaleDB setup complete with TimescaleDB, vector, and test database' AS status;

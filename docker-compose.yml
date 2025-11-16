@@ -9,7 +9,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
+      - ./docker/db/seed.sql:/docker-entrypoint-initdb.d/seed.sql
       - timescale_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:

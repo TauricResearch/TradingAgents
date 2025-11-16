@@ -1,0 +1,8 @@
+# Dagster workspace configuration
+# This tells Dagster where to find your code repositories
+
+load_from:
+  - python_package:
+      package_name: "tradingagents"
+      # Optional: specify which modules contain Dagster definitions
+      attribute: "define_tradingagents_workspace"

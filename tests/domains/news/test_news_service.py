@@ -27,13 +27,22 @@ class TestNewsServiceCollaboratorInteractions:
 
     @pytest.mark.asyncio
     async def test_get_company_news_context_calls_repository_with_correct_params(
-        self, mock_repository, mock_google_client, mock_article_scraper
+        self,
+        mock_repository,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
     ):
         """Test that get_company_news_context calls repository with correct parameters."""
         # Arrange - Mock the I/O boundary
         mock_repository.list_by_date_range.return_value = []
 
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act - Call the service method
         result = await service.get_company_news_context(
@@ -55,13 +64,22 @@ class TestNewsServiceCollaboratorInteractions:
 
     @pytest.mark.asyncio
     async def test_get_global_news_context_calls_repository_for_each_category(
-        self, mock_repository, mock_google_client, mock_article_scraper
+        self,
+        mock_repository,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
     ):
         """Test that get_global_news_context calls repository for each category."""
         # Arrange - Mock the I/O boundary
         mock_repository.list_by_date_range.return_value = []
 
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
         categories = ["business", "politics", "technology"]
 
         # Act
@@ -82,14 +100,23 @@ class TestNewsServiceCollaboratorInteractions:
 
     @pytest.mark.asyncio
     async def test_update_company_news_calls_google_client(
-        self, mock_repository, mock_google_client, mock_article_scraper
+        self,
+        mock_repository,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
     ):
         """Test that update_company_news calls GoogleNewsClient correctly."""
         # Arrange - Mock the I/O boundary
         mock_google_client.get_company_news.return_value = []
         mock_repository.upsert_batch.return_value = []
 
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act
         result = await service.update_company_news("AAPL")
@@ -106,6 +133,7 @@ class TestNewsServiceCollaboratorInteractions:
         mock_repository,
         mock_google_client,
         mock_article_scraper,
+        mock_openrouter_client,
         sample_google_articles,
     ):
         """Test that update_company_news calls scraper for each article URL."""
@@ -120,7 +148,12 @@ class TestNewsServiceCollaboratorInteractions:
         )
         mock_repository.upsert_batch.return_value = []
 
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act
         result = await service.update_company_news("AAPL")
@@ -141,7 +174,11 @@ class TestNewsServiceCollaboratorInteractions:
 
     @pytest.mark.asyncio
     async def test_repository_failure_returns_empty_context_gracefully(
-        self, mock_repository, mock_google_client, mock_article_scraper
+        self,
+        mock_repository,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
     ):
         """Test that repository failure is handled gracefully."""
         # Arrange - Mock repository failure (I/O boundary)
@@ -149,7 +186,12 @@ class TestNewsServiceCollaboratorInteractions:
             "Database connection failed"
         )
 
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act
         result = await service.get_company_news_context(
@@ -169,14 +211,20 @@ class TestNewsServiceDataTransformations:
 
     @pytest.mark.asyncio
     async def test_converts_repository_articles_to_article_data(
-        self, mock_google_client, mock_article_scraper, sample_news_articles
+        self,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
+        sample_news_articles,
     ):
         """Test conversion of NewsRepository.NewsArticle to ArticleData."""
         # Arrange - Create real repository with sample data
         mock_repo = AsyncMock()
         mock_repo.list_by_date_range.return_value = sample_news_articles
 
-        service = NewsService(mock_google_client, mock_repo, mock_article_scraper)
+        service = NewsService(
+            mock_google_client, mock_repo, mock_article_scraper, mock_openrouter_client
+        )
 
         # Act - Test real data transformation logic
         result = await service.get_company_news_context(
@@ -195,7 +243,11 @@ class TestNewsServiceDataTransformations:
         assert result.articles[0].url == "https://example.com/apple-earnings"
 
     def test_calculates_sentiment_summary_from_articles(
-        self, mock_repository, mock_google_client, mock_article_scraper
+        self,
+        mock_repository,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
     ):
         """Test sentiment summary calculation from article list."""
         # Arrange - Create articles with sentiment-bearing content (real objects)
@@ -218,10 +270,17 @@ class TestNewsServiceDataTransformations:
             ),
         ]
 
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act - Test real sentiment calculation logic (private method)
-        sentiment = service._calculate_sentiment_summary(articles)
+        import asyncio
+
+        sentiment = asyncio.run(service._calculate_sentiment_summary(articles))
 
         # Assert - Real sentiment calculation
         assert isinstance(sentiment, SentimentScore)
@@ -230,7 +289,11 @@ class TestNewsServiceDataTransformations:
         assert sentiment.label in ["positive", "negative", "neutral"]
 
     def test_extracts_trending_topics_from_articles(
-        self, mock_repository, mock_google_client, mock_article_scraper
+        self,
+        mock_repository,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
     ):
         """Test trending topic extraction."""
         # Arrange - Create articles with repeated keywords (real objects)
@@ -261,7 +324,12 @@ class TestNewsServiceDataTransformations:
             ),
         ]
 
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act - Test real trending topic extraction logic
         topics = service._extract_trending_topics(articles)
@@ -277,7 +345,11 @@ class TestNewsServiceErrorScenarios:
 
     @pytest.mark.asyncio
     async def test_handles_google_client_failure(
-        self, mock_repository, mock_google_client, mock_article_scraper
+        self,
+        mock_repository,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
     ):
         """Test handling of GoogleNewsClient failure."""
         # Arrange - Mock client failure (I/O boundary)
@@ -285,7 +357,12 @@ class TestNewsServiceErrorScenarios:
             "API rate limit exceeded"
         )
 
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act & Assert - Should raise the exception
         with pytest.raises(Exception, match="API rate limit exceeded"):
@@ -297,6 +374,7 @@ class TestNewsServiceErrorScenarios:
         mock_repository,
         mock_google_client,
         mock_article_scraper,
+        mock_openrouter_client,
         sample_google_articles,
     ):
         """Test handling of article scraper failure."""
@@ -307,7 +385,12 @@ class TestNewsServiceErrorScenarios:
         )
         mock_repository.upsert_batch.return_value = []
 
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act
         result = await service.update_company_news("AAPL")
@@ -319,10 +402,19 @@ class TestNewsServiceErrorScenarios:
 
     @pytest.mark.asyncio
     async def test_handles_invalid_date_formats(
-        self, mock_repository, mock_google_client, mock_article_scraper
+        self,
+        mock_repository,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
     ):
         """Test validation of date formats."""
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act - Invalid date format should be handled gracefully
         result = await service.get_company_news_context(
@@ -335,13 +427,24 @@ class TestNewsServiceErrorScenarios:
         assert result.article_count == 0
 
     def test_handles_empty_articles_gracefully(
-        self, mock_repository, mock_google_client, mock_article_scraper
+        self,
+        mock_repository,
+        mock_google_client,
+        mock_article_scraper,
+        mock_openrouter_client,
     ):
         """Test handling of empty article list."""
-        service = NewsService(mock_google_client, mock_repository, mock_article_scraper)
+        service = NewsService(
+            mock_google_client,
+            mock_repository,
+            mock_article_scraper,
+            mock_openrouter_client,
+        )
 
         # Act - Test sentiment calculation with empty list
-        sentiment = service._calculate_sentiment_summary([])
+        import asyncio
+
+        sentiment = asyncio.run(service._calculate_sentiment_summary([]))
 
         # Assert - Should return neutral sentiment
         assert sentiment.score == 0.0

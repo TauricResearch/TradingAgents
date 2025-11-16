@@ -638,6 +638,22 @@ wheels = [
 ]
 
 [[package]]
+name = "dagster-graphql"
+version = "1.12.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dagster" },
+    { name = "gql", extra = ["requests"] },
+    { name = "graphene" },
+    { name = "requests" },
+    { name = "starlette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/3f/ea973dfefbc6573e351d173740b7868208b4f65cd308cf9b20034b1f7a88/dagster_graphql-1.12.2.tar.gz", hash = "sha256:c8a97a588f47e5702a5ef665a7eabdde723c800fe31071d4818136ade991638e", size = 157960, upload-time = "2025-11-13T20:37:55.591Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9a/cb/9d207c01d67dcec6cba8962f0a4bd6add898e56b401b18790d1d31983b47/dagster_graphql-1.12.2-py3-none-any.whl", hash = "sha256:332b6e577dc1344598102239db831f8d9ae52c7e4cb7d3c87d8ee5a073cd53da", size = 205130, upload-time = "2025-11-13T20:37:53.496Z" },
+]
+
+[[package]]
 name = "dagster-pipes"
 version = "1.12.2"
 source = { registry = "https://pypi.org/simple" }
@@ -674,6 +690,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/db/1f/280c461ecc8a6664d92533a567e9f8fad1d1dd6b7da59f80efb88ecb662b/dagster_shared-1.12.2.tar.gz", hash = "sha256:4e20354bc15df717a7546a7561f36dd6e954bd1262010ccef2dabefcec4db908", size = 77846, upload-time = "2025-11-13T20:40:49.195Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/03/88/6da6fbbc81c0e9afe835eff60964ef516219f08b390c0424f731b7a677a7/dagster_shared-1.12.2-py3-none-any.whl", hash = "sha256:b006e78adc4be46818e5c05e9401203172a984f4921770c4a22b5cdcd8d61e45", size = 91000, upload-time = "2025-11-13T20:40:47.83Z" },
+]
+
+[[package]]
+name = "dagster-webserver"
+version = "1.12.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "dagster" },
+    { name = "dagster-graphql" },
+    { name = "starlette" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bf/5c/56e8b81079a94256559b6bb67da4954b07cbaaf96a7e2a817fa6ceacd60b/dagster_webserver-1.12.2.tar.gz", hash = "sha256:cedcc0f420b30b0caeb2b584ba99f0ea2e2afaf16c0f063d2585247682ba9e95", size = 12207661, upload-time = "2025-11-13T20:40:43.344Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0f/13/174bf57b4c9fd476466b5ed44c7b412393b05906eea33ff0732df3ba8857/dagster_webserver-1.12.2-py3-none-any.whl", hash = "sha256:b17b1ff5f37c1ddc403b83620c5dfff0b457f57603641f88328fdb4be4a23293", size = 12548067, upload-time = "2025-11-13T20:40:41.069Z" },
 ]
 
 [[package]]
@@ -966,6 +998,63 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9f/99/d01ae4a3aa30e4d75e7ab6832cb44d79b298a2083b7776f3c8b8830b0aba/googlenewsdecoder-0.1.7.tar.gz", hash = "sha256:0fcd8fa2aa6a145f84798921aeef0ec45d40bcf5ceebb467742f0efd068d3902", size = 12591, upload-time = "2025-01-18T20:05:11.741Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c5/82/0ff6da895449c6703d24129c4319c5cc2545b0c2c39893f95156b1d841ae/googlenewsdecoder-0.1.7-py3-none-any.whl", hash = "sha256:a8be897bb41864a82d81da6e05777d8c795989cf65f14b41e8e772b3f5a8354d", size = 16520, upload-time = "2025-01-18T20:05:09.778Z" },
+]
+
+[[package]]
+name = "gql"
+version = "3.5.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "backoff" },
+    { name = "graphql-core" },
+    { name = "yarl" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/34/ed/44ffd30b06b3afc8274ee2f38c3c1b61fe4740bf03d92083e43d2c17ac77/gql-3.5.3.tar.gz", hash = "sha256:393b8c049d58e0d2f5461b9d738a2b5f904186a40395500b4a84dd092d56e42b", size = 180504, upload-time = "2025-05-20T12:34:08.954Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cb/50/2f4e99b216821ac921dbebf91c644ba95818f5d07857acadee17220221f3/gql-3.5.3-py2.py3-none-any.whl", hash = "sha256:e1fcbde2893fcafdd28114ece87ff47f1cc339a31db271fc4e1d528f5a1d4fbc", size = 74348, upload-time = "2025-05-20T12:34:07.687Z" },
+]
+
+[package.optional-dependencies]
+requests = [
+    { name = "requests" },
+    { name = "requests-toolbelt" },
+]
+
+[[package]]
+name = "graphene"
+version = "3.4.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "graphql-core" },
+    { name = "graphql-relay" },
+    { name = "python-dateutil" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cc/f6/bf62ff950c317ed03e77f3f6ddd7e34aaa98fe89d79ebd660c55343d8054/graphene-3.4.3.tar.gz", hash = "sha256:2a3786948ce75fe7e078443d37f609cbe5bb36ad8d6b828740ad3b95ed1a0aaa", size = 44739, upload-time = "2024-11-09T20:44:25.757Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/66/e0/61d8e98007182e6b2aca7cf65904721fb2e4bce0192272ab9cb6f69d8812/graphene-3.4.3-py2.py3-none-any.whl", hash = "sha256:820db6289754c181007a150db1f7fff544b94142b556d12e3ebc777a7bf36c71", size = 114894, upload-time = "2024-11-09T20:44:23.851Z" },
+]
+
+[[package]]
+name = "graphql-core"
+version = "3.2.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c4/16/7574029da84834349b60ed71614d66ca3afe46e9bf9c7b9562102acb7d4f/graphql_core-3.2.6.tar.gz", hash = "sha256:c08eec22f9e40f0bd61d805907e3b3b1b9a320bc606e23dc145eebca07c8fbab", size = 505353, upload-time = "2025-01-26T16:36:27.374Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ae/4f/7297663840621022bc73c22d7d9d80dbc78b4db6297f764b545cd5dd462d/graphql_core-3.2.6-py3-none-any.whl", hash = "sha256:78b016718c161a6fb20a7d97bbf107f331cd1afe53e45566c59f776ed7f0b45f", size = 203416, upload-time = "2025-01-26T16:36:24.868Z" },
+]
+
+[[package]]
+name = "graphql-relay"
+version = "3.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "graphql-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d1/13/98fbf8d67552f102488ffc16c6f559ce71ea15f6294728d33928ab5ff14d/graphql-relay-3.2.0.tar.gz", hash = "sha256:1ff1c51298356e481a0be009ccdff249832ce53f30559c1338f22a0e0d17250c", size = 50027, upload-time = "2022-04-16T11:03:45.447Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/74/16/a4cf06adbc711bd364a73ce043b0b08d8fa5aae3df11b6ee4248bcdad2e0/graphql_relay-3.2.0-py3-none-any.whl", hash = "sha256:c9b22bd28b170ba1fe674c74384a8ff30a76c8e26f88ac3aa1584dd3179953e5", size = 16940, upload-time = "2022-04-16T11:03:43.895Z" },
 ]
 
 [[package]]
@@ -3898,6 +3987,7 @@ dependencies = [
     { name = "chromadb" },
     { name = "dagster" },
     { name = "dagster-postgres" },
+    { name = "dagster-webserver" },
     { name = "eodhd" },
     { name = "feedparser" },
     { name = "finnhub-python" },
@@ -3960,6 +4050,7 @@ requires-dist = [
     { name = "chromadb", specifier = ">=1.0.12" },
     { name = "dagster", specifier = ">=1.8.0" },
     { name = "dagster-postgres", specifier = ">=0.24.0" },
+    { name = "dagster-webserver", specifier = ">=1.8.0" },
     { name = "eodhd", specifier = ">=1.0.32" },
     { name = "feedparser", specifier = ">=6.0.11" },
     { name = "finnhub-python", specifier = ">=2.4.23" },

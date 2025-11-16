@@ -44,6 +44,7 @@ dependencies = [
     "uuid-utils>=0.11.0",
     "dagster>=1.8.0",
     "dagster-postgres>=0.24.0",
+    "dagster-webserver>=1.8.0",
 ]
 
 [project.optional-dependencies]
