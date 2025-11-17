@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Tuple
 from decimal import Decimal
-import pickle
 
 import pandas as pd
 import numpy as np
@@ -299,13 +298,17 @@ class HistoricalDataHandler:
         start_date: str,
         end_date: str
     ) -> Optional[pd.DataFrame]:
-        """Load data from cache if available."""
-        cache_file = self._cache_dir / f"{ticker}_{start_date}_{end_date}.pkl"
+        """
+        Load data from cache if available.
+
+        SECURITY: Uses Parquet format instead of pickle to prevent
+        arbitrary code execution during deserialization.
+        """
+        cache_file = self._cache_dir / f"{ticker}_{start_date}_{end_date}.parquet"
 
         if cache_file.exists():
             try:
-                with open(cache_file, 'rb') as f:
-                    return pickle.load(f)
+                return pd.read_parquet(cache_file)
             except Exception as e:
                 logger.warning(f"Failed to load cache for {ticker}: {e}")
 
@@ -318,12 +321,16 @@ class HistoricalDataHandler:
         start_date: str,
         end_date: str
     ) -> None:
-        """Save data to cache."""
-        cache_file = self._cache_dir / f"{ticker}_{start_date}_{end_date}.pkl"
+        """
+        Save data to cache.
+
+        SECURITY: Uses Parquet format instead of pickle to prevent
+        arbitrary code execution risks during deserialization.
+        """
+        cache_file = self._cache_dir / f"{ticker}_{start_date}_{end_date}.parquet"
 
         try:
-            with open(cache_file, 'wb') as f:
-                pickle.dump(data, f)
+            data.to_parquet(cache_file, compression='snappy', index=True)
             logger.debug(f"Cached data for {ticker}")
         except Exception as e:
             logger.warning(f"Failed to save cache for {ticker}: {e}")

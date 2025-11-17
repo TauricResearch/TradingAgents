@@ -11,7 +11,8 @@ Then open http://localhost:8000 in your browser!
 """
 
 import chainlit as cl
-from decimal import Decimal
+import logging
+from decimal import Decimal, InvalidOperation
 from datetime import datetime
 import json
 from typing import Optional
@@ -20,16 +21,38 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.brokers import AlpacaBroker
 from tradingagents.brokers.base import OrderSide, OrderType
+from tradingagents.security import validate_ticker
 
-
-# Global state
-ta_graph: Optional[TradingAgentsGraph] = None
-broker: Optional[AlpacaBroker] = None
+logger = logging.getLogger(__name__)
 
 
 @cl.on_chat_start
-async def start():
-    """Initialize the chat session."""
+async def start() -> None:
+    """
+    Initialize the chat session and welcome the user.
+
+    Sets up session state, initializes configuration, and displays
+    a welcome message with available commands.
+
+    Session Variables:
+        - ta_graph: TradingAgentsGraph instance (lazily initialized)
+        - broker: AlpacaBroker instance (lazily initialized)
+        - config: Configuration dictionary
+        - broker_connected: Boolean connection status
+
+    Note:
+        All state is stored in Chainlit's user_session to avoid
+        global variables and enable multi-user support.
+    """
+    logger.info("Chat session started - initializing session state")
+    # Initialize session state - NO GLOBAL VARIABLES
+    cl.user_session.set("ta_graph", None)
+    cl.user_session.set("broker", None)
+    cl.user_session.set("config", DEFAULT_CONFIG.copy())
+    cl.user_session.set("broker_connected", False)
+
+    logger.debug("Session state initialized")
+
     await cl.Message(
         content="""# 🤖 Welcome to TradingAgents!
 
@@ -56,24 +79,44 @@ What would you like to do?
 """
     ).send()
 
-    # Store settings in session
-    cl.user_session.set("config", DEFAULT_CONFIG.copy())
-    cl.user_session.set("broker_connected", False)
-
 
 @cl.on_message
-async def main(message: cl.Message):
-    """Handle incoming messages."""
-    global ta_graph, broker
+async def main(message: cl.Message) -> None:
+    """
+    Handle incoming chat messages and dispatch to appropriate handlers.
 
+    Parses user input, validates commands, and routes to the corresponding
+    async handler function.
+
+    Args:
+        message: Chainlit Message object containing user input
+
+    Supported Commands:
+        - help: Display available commands
+        - analyze TICKER: Analyze stock
+        - portfolio: View positions
+        - account: View account status
+        - connect: Connect to paper trading
+        - buy TICKER QTY: Buy shares
+        - sell TICKER QTY: Sell shares
+        - settings: View settings
+        - provider NAME: Change LLM provider
+
+    Note:
+        All input is validated to prevent command injection and
+        other security issues.
+    """
     msg_content = message.content.strip().lower()
     parts = msg_content.split()
+
+    logger.debug("Received message: %s", msg_content)
 
     if not parts:
         await cl.Message(content="Please enter a command. Type `help` for options.").send()
         return
 
     command = parts[0]
+    logger.info("Processing command: %s", command)
 
     # Help command
     if command == "help":
@@ -85,8 +128,15 @@ async def main(message: cl.Message):
             await cl.Message(content="Usage: `analyze TICKER`\n\nExample: `analyze AAPL`").send()
             return
 
-        ticker = parts[1].upper()
-        await analyze_stock(ticker)
+        # SECURITY: Validate ticker to prevent command injection
+        try:
+            ticker = validate_ticker(parts[1])
+            logger.info("User requested analysis for ticker: %s", ticker)
+            await analyze_stock(ticker)
+        except ValueError as e:
+            logger.warning("Invalid ticker input: %s", str(e))
+            await cl.Message(content=f"❌ Invalid ticker: {e}").send()
+            return
 
     # Portfolio command
     elif command == "portfolio":
@@ -106,12 +156,23 @@ async def main(message: cl.Message):
             await cl.Message(content="Usage: `buy TICKER QUANTITY`\n\nExample: `buy AAPL 10`").send()
             return
 
-        ticker = parts[1].upper()
+        # SECURITY: Validate ticker to prevent command injection
+        try:
+            ticker = validate_ticker(parts[1])
+        except ValueError as e:
+            await cl.Message(content=f"❌ Invalid ticker: {e}").send()
+            return
+
+        # SECURITY: Validate quantity
         try:
             quantity = Decimal(parts[2])
+            if quantity <= 0:
+                raise ValueError("Quantity must be positive")
+            if quantity > Decimal('100000'):
+                raise ValueError("Quantity too large (max 100,000 shares)")
             await execute_buy(ticker, quantity)
-        except ValueError:
-            await cl.Message(content="Invalid quantity. Please use a number.").send()
+        except (ValueError, InvalidOperation) as e:
+            await cl.Message(content=f"❌ Invalid quantity: {e}").send()
 
     # Sell command
     elif command == "sell":
@@ -119,12 +180,23 @@ async def main(message: cl.Message):
             await cl.Message(content="Usage: `sell TICKER QUANTITY`\n\nExample: `sell AAPL 10`").send()
             return
 
-        ticker = parts[1].upper()
+        # SECURITY: Validate ticker to prevent command injection
+        try:
+            ticker = validate_ticker(parts[1])
+        except ValueError as e:
+            await cl.Message(content=f"❌ Invalid ticker: {e}").send()
+            return
+
+        # SECURITY: Validate quantity
         try:
             quantity = Decimal(parts[2])
+            if quantity <= 0:
+                raise ValueError("Quantity must be positive")
+            if quantity > Decimal('100000'):
+                raise ValueError("Quantity too large (max 100,000 shares)")
             await execute_sell(ticker, quantity)
-        except ValueError:
-            await cl.Message(content="Invalid quantity. Please use a number.").send()
+        except (ValueError, InvalidOperation) as e:
+            await cl.Message(content=f"❌ Invalid quantity: {e}").send()
 
     # Settings command
     elif command == "settings":
@@ -145,8 +217,13 @@ async def main(message: cl.Message):
         ).send()
 
 
-async def show_help():
-    """Show help message."""
+async def show_help() -> None:
+    """
+    Display help message with all available commands and examples.
+
+    Shows user all supported commands, their syntax, and usage examples.
+    """
+    logger.debug("Displaying help message")
     await cl.Message(
         content="""# 📚 TradingAgents Commands
 
@@ -179,9 +256,34 @@ sell NVDA 5
     ).send()
 
 
-async def analyze_stock(ticker: str):
-    """Analyze a stock using TradingAgents."""
-    global ta_graph
+async def analyze_stock(ticker: str) -> None:
+    """
+    Analyze a stock using TradingAgents multi-agent system.
+
+    Runs market, fundamentals, and news analysis on the specified ticker.
+    Uses multiple expert agents to provide comprehensive analysis and
+    trading signals.
+
+    Args:
+        ticker: Stock ticker symbol (e.g., "AAPL", "NVDA")
+
+    Analysis Includes:
+        - Market analysis: Technical indicators and price action
+        - Fundamentals analysis: P/E, earnings, growth metrics
+        - News sentiment: Recent news sentiment analysis
+        - Investment decision: Combined recommendation
+
+    Performance:
+        Typical analysis time: 1-2 minutes (network and LLM dependent)
+
+    Note:
+        Analysis results are stored in session for reference during
+        subsequent trading operations.
+    """
+    # Get from session instead of global
+    ta_graph = cl.user_session.get("ta_graph")
+
+    logger.info("Starting analysis for ticker: %s", ticker)
 
     # Show loading message
     msg = cl.Message(content=f"🔍 Analyzing **{ticker}** with TradingAgents...\n\nThis may take 1-2 minutes...")
@@ -190,15 +292,20 @@ async def analyze_stock(ticker: str):
     try:
         # Initialize TradingAgents if needed
         if ta_graph is None:
+            logger.debug("Initializing TradingAgentsGraph for first time")
             config = cl.user_session.get("config")
             ta_graph = TradingAgentsGraph(
                 selected_analysts=["market", "fundamentals", "news"],
                 config=config
             )
+            # Store in session
+            cl.user_session.set("ta_graph", ta_graph)
 
         # Run analysis
         trade_date = datetime.now().strftime("%Y-%m-%d")
+        logger.debug("Running analysis for %s on %s", ticker, trade_date)
         final_state, signal = ta_graph.propagate(ticker, trade_date)
+        logger.info("Analysis completed for %s: signal=%s", ticker, signal)
 
         # Format results
         result = f"""# 📊 Analysis Complete: {ticker}
@@ -236,16 +343,37 @@ Would you like to execute this signal? Use:
         })
 
     except Exception as e:
+        logger.error("Analysis failed for %s: %s", ticker, str(e), exc_info=True)
         await cl.Message(
             content=f"❌ Analysis failed: {str(e)}\n\nThis might be due to:\n- API quota limits\n- Network issues\n- Invalid ticker\n\nPlease try again or check your configuration."
         ).send()
 
 
-async def connect_broker():
-    """Connect to paper trading broker."""
-    global broker
+async def connect_broker() -> None:
+    """
+    Connect to Alpaca paper trading broker.
+
+    Establishes connection to Alpaca paper trading account and verifies
+    credentials. Displays account information upon successful connection.
+
+    The broker instance and connection state are stored in the Chainlit
+    session for use by subsequent trading operations.
+
+    Requires Environment Variables:
+        - ALPACA_API_KEY: Alpaca API key
+        - ALPACA_SECRET_KEY: Alpaca secret key
+
+    Example Output:
+        Shows account number, cash balance, buying power, and portfolio value.
+
+    Note:
+        Paper trading is a simulated trading environment for testing
+        without real capital.
+    """
+    logger.info("User requested broker connection")
 
     if cl.user_session.get("broker_connected"):
+        logger.debug("Broker already connected, skipping connection attempt")
         await cl.Message(content="✓ Already connected to Alpaca paper trading!").send()
         return
 
@@ -253,12 +381,18 @@ async def connect_broker():
     await msg.send()
 
     try:
+        logger.debug("Creating AlpacaBroker instance")
         broker = AlpacaBroker(paper_trading=True)
         broker.connect()
 
+        logger.debug("Fetching account information")
         account = broker.get_account()
 
+        # Store in session
+        cl.user_session.set("broker", broker)
         cl.user_session.set("broker_connected", True)
+
+        logger.info("Successfully connected to Alpaca (Account: %s)", account.account_number)
 
         await cl.Message(
             content=f"""✓ Connected to Alpaca Paper Trading!
@@ -273,6 +407,7 @@ You can now execute trades!
         ).send()
 
     except Exception as e:
+        logger.error("Broker connection failed: %s", str(e), exc_info=True)
         await cl.Message(
             content=f"""❌ Connection failed: {str(e)}
 
@@ -290,16 +425,39 @@ You can now execute trades!
         ).send()
 
 
-async def show_account():
-    """Show account information."""
-    global broker
+async def show_account() -> None:
+    """
+    Display current account status and financial metrics.
+
+    Shows cash balance, buying power, portfolio value, and P&L information.
+    Requires active broker connection.
+
+    Displayed Information:
+        - Account number
+        - Available cash
+        - Buying power (margin available)
+        - Current portfolio value
+        - Total equity
+        - Session P&L (profit/loss)
+
+    Requires:
+        - Broker connection via `connect` command first
+    """
+    logger.debug("User requested account status")
+    broker = cl.user_session.get("broker")
 
     if not broker or not cl.user_session.get("broker_connected"):
+        logger.warning("Account requested but broker not connected")
         await cl.Message(content="⚠️ Not connected. Use `connect` first!").send()
         return
 
     try:
+        logger.debug("Fetching account information")
         account = broker.get_account()
+
+        session_pnl = account.equity - account.last_equity
+        logger.debug("Account data retrieved: cash=%.2f, bp=%.2f, pnl=%.2f",
+                    account.cash, account.buying_power, session_pnl)
 
         await cl.Message(
             content=f"""# 💰 Account Status
@@ -310,28 +468,53 @@ async def show_account():
 **Portfolio Value:** ${account.portfolio_value:,.2f}
 **Total Equity:** ${account.equity:,.2f}
 
-**Session P&L:** ${account.equity - account.last_equity:,.2f}
+**Session P&L:** ${session_pnl:,.2f}
 
 Type `portfolio` to see your positions.
 """
         ).send()
 
     except Exception as e:
+        logger.error("Failed to fetch account: %s", str(e), exc_info=True)
         await cl.Message(content=f"❌ Error: {str(e)}").send()
 
 
-async def show_portfolio():
-    """Show current positions."""
-    global broker
+async def show_portfolio() -> None:
+    """
+    Display all current positions and portfolio metrics.
+
+    Shows all open positions with quantity, entry price, current price,
+    market value, and unrealized P&L for each position.
+
+    Displayed Information per Position:
+        - Ticker symbol
+        - Quantity held
+        - Average entry price
+        - Current market price
+        - Current market value
+        - Unrealized profit/loss (dollars and percentage)
+
+    Summary Totals:
+        - Total position value across all holdings
+        - Total unrealized P&L across portfolio
+
+    Requires:
+        - Broker connection via `connect` command first
+    """
+    logger.debug("User requested portfolio view")
+    broker = cl.user_session.get("broker")
 
     if not broker or not cl.user_session.get("broker_connected"):
+        logger.warning("Portfolio requested but broker not connected")
         await cl.Message(content="⚠️ Not connected. Use `connect` first!").send()
         return
 
     try:
+        logger.debug("Fetching positions")
         positions = broker.get_positions()
 
         if not positions:
+            logger.debug("No positions found")
             await cl.Message(content="📭 No positions currently held.").send()
             return
 
@@ -356,17 +539,45 @@ async def show_portfolio():
 **Total Unrealized P&L:** ${total_pnl:,.2f}
 """
 
+        logger.debug("Portfolio retrieved: %d positions, total_value=%.2f, total_pnl=%.2f",
+                    len(positions), total_value, total_pnl)
+
         await cl.Message(content=result).send()
 
     except Exception as e:
+        logger.error("Failed to fetch portfolio: %s", str(e), exc_info=True)
         await cl.Message(content=f"❌ Error: {str(e)}").send()
 
 
-async def execute_buy(ticker: str, quantity: Decimal):
-    """Execute a buy order."""
-    global broker
+async def execute_buy(ticker: str, quantity: Decimal) -> None:
+    """
+    Execute a market buy order for the specified ticker and quantity.
+
+    Places a market buy order at the current market price. Requires
+    sufficient buying power in the account.
+
+    Args:
+        ticker: Stock ticker symbol (e.g., "AAPL")
+        quantity: Number of shares to buy (Decimal)
+
+    Error Handling:
+        - Validates sufficient buying power
+        - Handles connection errors
+        - Returns detailed error messages
+
+    Note:
+        - Uses market order (executes at current market price)
+        - Order status can be checked via `portfolio` command
+        - Actual fill price may differ from market price
+
+    Requires:
+        - Broker connection via `connect` command first
+    """
+    logger.info("User requested buy order: %s qty=%s", ticker, quantity)
+    broker = cl.user_session.get("broker")
 
     if not broker or not cl.user_session.get("broker_connected"):
+        logger.warning("Buy requested but broker not connected")
         await cl.Message(content="⚠️ Not connected. Use `connect` first!").send()
         return
 
@@ -374,7 +585,11 @@ async def execute_buy(ticker: str, quantity: Decimal):
     await msg.send()
 
     try:
+        logger.debug("Executing buy order: %s qty=%s", ticker, quantity)
         order = broker.buy_market(ticker, quantity)
+
+        logger.info("Buy order placed successfully: %s qty=%s order_id=%s",
+                   ticker, quantity, order.order_id)
 
         await cl.Message(
             content=f"""✓ Buy order placed successfully!
@@ -389,14 +604,40 @@ Check your `portfolio` to see the position.
         ).send()
 
     except Exception as e:
+        logger.error("Buy order failed for %s: %s", ticker, str(e), exc_info=True)
         await cl.Message(content=f"❌ Order failed: {str(e)}").send()
 
 
-async def execute_sell(ticker: str, quantity: Decimal):
-    """Execute a sell order."""
-    global broker
+async def execute_sell(ticker: str, quantity: Decimal) -> None:
+    """
+    Execute a market sell order for the specified ticker and quantity.
+
+    Places a market sell order at the current market price. The account
+    must hold at least the specified quantity of the stock.
+
+    Args:
+        ticker: Stock ticker symbol (e.g., "AAPL")
+        quantity: Number of shares to sell (Decimal)
+
+    Error Handling:
+        - Validates position exists and has sufficient quantity
+        - Handles connection errors
+        - Returns detailed error messages
+
+    Note:
+        - Uses market order (executes at current market price)
+        - Position is closed or reduced based on quantity sold
+        - Actual fill price may differ from market price
+        - Proceeds are added to cash balance
+
+    Requires:
+        - Broker connection via `connect` command first
+    """
+    logger.info("User requested sell order: %s qty=%s", ticker, quantity)
+    broker = cl.user_session.get("broker")
 
     if not broker or not cl.user_session.get("broker_connected"):
+        logger.warning("Sell requested but broker not connected")
         await cl.Message(content="⚠️ Not connected. Use `connect` first!").send()
         return
 
@@ -404,7 +645,11 @@ async def execute_sell(ticker: str, quantity: Decimal):
     await msg.send()
 
     try:
+        logger.debug("Executing sell order: %s qty=%s", ticker, quantity)
         order = broker.sell_market(ticker, quantity)
+
+        logger.info("Sell order placed successfully: %s qty=%s order_id=%s",
+                   ticker, quantity, order.order_id)
 
         await cl.Message(
             content=f"""✓ Sell order placed successfully!
@@ -419,12 +664,29 @@ Check your `portfolio` to see updated positions.
         ).send()
 
     except Exception as e:
+        logger.error("Sell order failed for %s: %s", ticker, str(e), exc_info=True)
         await cl.Message(content=f"❌ Order failed: {str(e)}").send()
 
 
-async def show_settings():
-    """Show current settings."""
+async def show_settings() -> None:
+    """
+    Display current application settings and configuration.
+
+    Shows the configured LLM provider, models, and connection status.
+    Provides information about how to change settings.
+
+    Displayed Settings:
+        - LLM Provider (openai, anthropic, google)
+        - Deep thinking model for analysis
+        - Quick thinking model for simple tasks
+        - Broker connection status
+    """
+    logger.debug("User requested settings view")
     config = cl.user_session.get("config")
+    broker_connected = cl.user_session.get('broker_connected', False)
+
+    logger.debug("Settings: provider=%s, broker_connected=%s",
+                config.get('llm_provider', 'openai'), broker_connected)
 
     await cl.Message(
         content=f"""# ⚙️ Current Settings
@@ -432,7 +694,7 @@ async def show_settings():
 **LLM Provider:** {config.get('llm_provider', 'openai')}
 **Deep Think Model:** {config.get('deep_think_llm', 'gpt-4o')}
 **Quick Think Model:** {config.get('quick_think_llm', 'gpt-4o-mini')}
-**Broker Connected:** {cl.user_session.get('broker_connected', False)}
+**Broker Connected:** {broker_connected}
 
 To change LLM provider, use: `provider NAME`
 
@@ -441,11 +703,29 @@ Available providers: openai, anthropic, google
     ).send()
 
 
-async def set_provider(provider: str):
-    """Set LLM provider."""
-    global ta_graph
+async def set_provider(provider: str) -> None:
+    """
+    Change the LLM provider for analysis operations.
+
+    Updates the session configuration to use the specified LLM provider.
+    Resets the TradingAgents graph to use the new provider for subsequent
+    analysis requests.
+
+    Args:
+        provider: LLM provider name (openai, anthropic, or google)
+
+    Supported Providers:
+        - openai: GPT-4, GPT-4O
+        - anthropic: Claude models
+        - google: Gemini models
+
+    Note:
+        The provider change takes effect on the next analysis command.
+    """
+    logger.info("User requested provider change: %s", provider)
 
     if provider not in ["openai", "anthropic", "google"]:
+        logger.warning("Invalid provider requested: %s", provider)
         await cl.Message(content="❌ Invalid provider. Choose: openai, anthropic, or google").send()
         return
 
@@ -453,7 +733,9 @@ async def set_provider(provider: str):
     config["llm_provider"] = provider
 
     # Reset TradingAgents to use new provider
-    ta_graph = None
+    cl.user_session.set("ta_graph", None)
+
+    logger.debug("Provider set to: %s, TradingAgentsGraph reset", provider)
 
     await cl.Message(content=f"✓ LLM provider set to **{provider}**\n\nNext analysis will use this provider.").send()
 

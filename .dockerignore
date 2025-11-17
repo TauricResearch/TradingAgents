@@ -46,6 +46,11 @@ docs/
 # Tests
 tests/
 *.coverage
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.hypothesis/
 
 # OS
 .DS_Store
@@ -53,13 +58,23 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
 
 # Development files
 notebooks/
 examples/
 *.ipynb
+scripts/
 
 # Build artifacts
 dist/
 build/
 *.egg-info/
+*.egg
+.eggs/
+__pypackages__/
+
+# Docker files (don't copy into image)
+docker-compose*.yml
+Dockerfile*
+.dockerignore

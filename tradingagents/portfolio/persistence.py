@@ -572,19 +572,27 @@ class PortfolioPersistence:
                 if not ids_to_delete:
                     return 0
 
+                # SECURITY NOTE: The f-strings below are SAFE because:
+                # 1. They only generate placeholder "?" characters, never actual data
+                # 2. All actual values are passed via parameterized query (ids_to_delete)
+                # 3. ids_to_delete contains integers from database, not user input
+                # This pattern creates: "DELETE FROM table WHERE id IN (?,?,?)"
+                # and then passes the actual IDs separately to prevent SQL injection
+
                 # Delete related positions and trades
+                placeholders = ','.join('?' * len(ids_to_delete))
                 cursor.execute(
-                    f'DELETE FROM positions WHERE snapshot_id IN ({",".join("?" * len(ids_to_delete))})',
+                    f'DELETE FROM positions WHERE snapshot_id IN ({placeholders})',
                     ids_to_delete
                 )
                 cursor.execute(
-                    f'DELETE FROM trades WHERE snapshot_id IN ({",".join("?" * len(ids_to_delete))})',
+                    f'DELETE FROM trades WHERE snapshot_id IN ({placeholders})',
                     ids_to_delete
                 )
 
                 # Delete snapshots
                 cursor.execute(
-                    f'DELETE FROM portfolio_snapshots WHERE id IN ({",".join("?" * len(ids_to_delete))})',
+                    f'DELETE FROM portfolio_snapshots WHERE id IN ({placeholders})',
                     ids_to_delete
                 )
 

@@ -43,6 +43,13 @@ ENV PYTHONUNBUFFERED=1
 ENV TRADINGAGENTS_DATA_DIR=/app/data
 ENV TRADINGAGENTS_RESULTS_DIR=/app/eval_results
 
+# Create non-root user and set permissions
+RUN useradd -m -u 1000 tradingagents && \
+    chown -R tradingagents:tradingagents /app /app/data /app/eval_results /app/dataflows/data_cache /app/portfolio_data
+
+# Switch to non-root user
+USER tradingagents
+
 # Expose port for web interface
 EXPOSE 8000
 

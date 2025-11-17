@@ -339,7 +339,7 @@ class BrokerError(Exception):
     pass
 
 
-class ConnectionError(BrokerError):
+class BrokerConnectionError(BrokerError):
     """Raised when broker connection fails."""
     pass
 
