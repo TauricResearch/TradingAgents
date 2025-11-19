@@ -497,8 +497,28 @@ def get_user_selections():
 
 
 def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
+    """Get ticker symbol from user input with validation."""
+    while True:
+        ticker = typer.prompt("", default="SPY")
+        try:
+            # Validate ticker format
+            if not ticker or len(ticker) > 10:
+                console.print("[red]Error: Ticker must be 1-10 characters[/red]")
+                continue
+
+            # Check for path traversal attempts
+            if '..' in ticker or '/' in ticker or '\\' in ticker:
+                console.print("[red]Error: Invalid characters in ticker symbol[/red]")
+                continue
+
+            # Validate characters (alphanumeric, dots, hyphens only)
+            if not all(c.isalnum() or c in '.-' for c in ticker):
+                console.print("[red]Error: Ticker can only contain letters, numbers, dots, and hyphens[/red]")
+                continue
+
+            return ticker.upper()  # Return normalized uppercase ticker
+        except Exception as e:
+            console.print(f"[red]Error validating ticker: {e}[/red]")
 
 
 def get_analysis_date():
