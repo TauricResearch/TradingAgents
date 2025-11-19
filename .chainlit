@@ -1,0 +1,94 @@
+[project]
+# Whether to enable telemetry (default: true). No personal data is collected.
+enable_telemetry = false
+
+# List of environment variables to be provided by each user to use the app.
+user_env = []
+
+# Duration (in seconds) during which the session is saved when the connection is lost
+session_timeout = 3600
+
+# Enable third parties caching (e.g LangChain cache)
+cache = false
+
+[features]
+# Show the prompt playground
+prompt_playground = false
+
+# Process and display HTML in messages. This can be a security risk (see https://stackoverflow.com/questions/19603097/why-is-it-dangerous-to-render-user-generated-html-or-javascript)
+unsafe_allow_html = false
+
+# Process and display mathematical expressions. This can clash with "$" characters in messages.
+latex = false
+
+# Automatically tag threads with the current chat profile (if a chat profile is used)
+auto_tag_thread = true
+
+# Authorize users to upload files with messages
+[features.multi_modal]
+    enabled = true
+    accept = ["*/*"]
+    max_files = 20
+    max_size_mb = 500
+
+[UI]
+# Name of the app and chatbot.
+name = "TradingAgents"
+
+# Description of the app and chatbot. This is used for HTML tags.
+description = "AI-Powered Trading Analysis and Execution Platform"
+
+# Large size content are by default collapsed for a cleaner ui
+default_collapse_content = true
+
+# The default value for the expand messages settings.
+default_expand_messages = false
+
+# Hide the chain of thought details from the user in the UI.
+hide_cot = false
+
+# Link to your github repo. This will add a github button in the UI's header.
+github = "https://github.com/TauricResearch/TradingAgents"
+
+# Specify a CSS file that can be used to customize the user interface.
+# The CSS file can be served from the public directory or via an external link.
+# custom_css = "/public/test.css"
+
+# Specify a Javascript file that can be used to customize the user interface.
+# The Javascript file can be served from the public directory.
+# custom_js = "/public/test.js"
+
+# Specify a custom font url.
+# custom_font = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+
+# Specify a custom build directory for the frontend.
+# This can be used to customize the frontend code.
+# Be careful: If this is a relative path, it should not start with a slash.
+# custom_build = "./public/build"
+
+# Override default MUI light theme. (Check theme.ts)
+[UI.theme]
+    #layout = "wide"
+    #font_family = "Inter, sans-serif"
+[UI.theme.light]
+    #background = "#FAFAFA"
+    #paper = "#FFFFFF"
+
+    [UI.theme.light.primary]
+        #main = "#F80061"
+        #dark = "#980039"
+        #light = "#FFE7EB"
+
+# Override default MUI dark theme. (Check theme.ts)
+[UI.theme.dark]
+    #background = "#0F1117"
+    #paper = "#1E1E2E"
+
+    [UI.theme.dark.primary]
+        #main = "#F80061"
+        #dark = "#980039"
+        #light = "#FFE7EB"
+
+
+[meta]
+generated_by = "1.0.0"

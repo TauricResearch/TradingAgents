@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  tradingagents:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tradingagents
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Mount data directories for persistence
+      - ./data:/app/data
+      - ./eval_results:/app/eval_results
+      - ./portfolio_data:/app/portfolio_data
+      # Mount code for development (optional)
+      # - ./tradingagents:/app/tradingagents
+    restart: unless-stopped
+    networks:
+      - tradingagents-network
+
+  # Optional: Jupyter notebook for analysis
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tradingagents-jupyter
+    ports:
+      - "8888:8888"
+    env_file:
+      - .env
+    environment:
+      # SECURITY: Set JUPYTER_TOKEN in .env file to enable authentication
+      # Generate a token: python -c "from jupyter_server.auth import passwd; print(passwd())"
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-changeme}
+    volumes:
+      - ./:/app
+      - ./notebooks:/app/notebooks
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.token='${JUPYTER_TOKEN:-changeme}'
+    restart: unless-stopped
+    networks:
+      - tradingagents-network
+    profiles:
+      - jupyter
+
+networks:
+  tradingagents-network:
+    driver: bridge
+
+volumes:
+  data:
+  eval_results:
+  portfolio_data:

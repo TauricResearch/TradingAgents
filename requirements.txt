@@ -1,26 +1,71 @@
-typing-extensions
-langchain-openai
-langchain-experimental
-pandas
-yfinance
-praw
-feedparser
-stockstats
-eodhd
-langgraph
-chromadb
-setuptools
-backtrader
-akshare
-tushare
-finnhub-python
-parsel
-requests
-tqdm
-pytz
-redis
-chainlit
-rich
-questionary
-langchain_anthropic
-langchain-google-genai
+# =============================================================================
+# TradingAgents - Pinned Dependencies
+# =============================================================================
+# All versions are pinned to prevent supply chain attacks and breaking changes
+# Last updated: 2025-11-17
+# =============================================================================
+
+# Core LangChain Framework
+# -----------------------------------------------------------------------------
+langchain-core==0.3.28
+langchain-openai==0.2.11
+langchain-anthropic==0.1.23
+langchain-google-genai==1.0.10
+langchain-experimental==0.3.3
+langgraph==0.2.58
+
+# AI/ML API Clients
+# -----------------------------------------------------------------------------
+openai==1.58.1
+
+# Data & Financial APIs
+# -----------------------------------------------------------------------------
+pandas==2.2.3
+numpy==1.26.4
+yfinance==0.2.50
+eodhd==1.0.25
+finnhub-python==2.4.20
+akshare==1.14.9
+tushare==1.4.7
+
+# Web Scraping & Parsing
+# -----------------------------------------------------------------------------
+requests==2.32.3
+feedparser==6.0.11
+parsel==1.9.1
+praw==7.8.1
+
+# Technical Analysis & Backtesting
+# -----------------------------------------------------------------------------
+stockstats==0.6.2
+backtrader==1.9.78.123
+scikit-learn==1.5.2
+
+# Database & Caching
+# -----------------------------------------------------------------------------
+chromadb==0.5.23
+redis==5.2.1
+pyarrow==18.1.0  # Required for secure Parquet-based caching
+
+# Web Interface
+# -----------------------------------------------------------------------------
+chainlit==1.3.1
+
+# CLI & UI Utilities
+# -----------------------------------------------------------------------------
+rich==13.9.4
+questionary==2.0.1
+tqdm==4.67.1
+
+# System Utilities
+# -----------------------------------------------------------------------------
+python-dotenv==1.0.1
+pytz==2024.2
+typing-extensions==4.12.2
+setuptools==75.6.0
+
+# Testing & Development
+# -----------------------------------------------------------------------------
+pytest==8.3.4
+pytest-cov==6.0.0
+pytest-asyncio==0.24.0
