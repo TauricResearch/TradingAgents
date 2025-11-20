@@ -143,7 +143,7 @@ class AnalysisService:
             
             # Stream the analysis
             trace = []
-            for chunk in graph.graph.stream(init_agent_state, **args):
+            async for chunk in graph.graph.astream(init_agent_state, **args):
                 if update_callback:
                     await self._process_chunk(chunk, update_callback, analysis_id, request.analysts)
                 trace.append(chunk)

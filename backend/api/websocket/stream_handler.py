@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from typing import Dict, Set
 from fastapi import WebSocket, WebSocketDisconnect
 from ..models.schemas import StreamUpdate
@@ -63,6 +64,15 @@ class StreamHandler:
                 "data": {"message": "Connected", "analysis_id": analysis_id},
                 "timestamp": ""
             })
+            
+            # Send current agent statuses
+            current_statuses = self.analysis_service.agent_statuses.get(analysis_id, {})
+            for agent, status in current_statuses.items():
+                await websocket.send_json({
+                    "type": "agent_status",
+                    "data": {"agent": agent, "status": status},
+                    "timestamp": datetime.now().isoformat()
+                })
             
             # Keep connection alive and forward updates
             while True:
