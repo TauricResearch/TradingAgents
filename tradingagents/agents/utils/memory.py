@@ -5,16 +5,26 @@ from openai import OpenAI
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
+        # Check if using DeepSeek API (which doesn't support embeddings)
+        self.use_embeddings = True
+        if "deepseek" in config["backend_url"].lower() or "openrouter" in config["backend_url"].lower():
+            self.use_embeddings = False
+            print(f"⚠️  API (DeepSeek/OpenRouter) 不支持 embeddings，{name} 记忆功能已禁用")
+        elif config["backend_url"] == "http://localhost:11434/v1":
             self.embedding = "nomic-embed-text"
         else:
             self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+        
+        if self.use_embeddings:
+            self.client = OpenAI(base_url=config["backend_url"])
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""
+        if not self.use_embeddings:
+            # Return a dummy embedding if embeddings are disabled
+            return [0.0] * 1536  # Standard embedding size
         
         response = self.client.embeddings.create(
             model=self.embedding, input=text
