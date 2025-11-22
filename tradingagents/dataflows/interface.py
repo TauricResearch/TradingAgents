@@ -48,7 +48,7 @@ TOOLS_CATEGORIES = {
         "tools": [
             "get_news",
             "get_global_news",
-            "get_insider_sentiment",
+            # "get_insider_sentiment",
             "get_insider_transactions",
         ]
     }
@@ -104,11 +104,11 @@ VENDOR_METHODS = {
     },
     "get_global_news": {
         "openai": get_global_news_openai,
-        "local": get_reddit_global_news
+        # "local": get_reddit_global_news
     },
-    "get_insider_sentiment": {
-        "local": get_finnhub_company_insider_sentiment
-    },
+    # "get_insider_sentiment": {
+    #     "local": get_finnhub_company_insider_sentiment
+    # },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,

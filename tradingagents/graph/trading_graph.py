@@ -108,7 +108,7 @@ class TradingAgentsGraph:
             self.conditional_logic,
         )
 
-        self.propagator = Propagator()
+        self.propagator = Propagator(self.config["max_recur_limit"])
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
@@ -141,8 +141,8 @@ class TradingAgentsGraph:
                 [
                     # News and insider information
                     get_news,
-                    get_global_news,
-                    get_insider_sentiment,
+                    # get_global_news,
+                    # get_insider_sentiment,
                     get_insider_transactions,
                 ]
             ),

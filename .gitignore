@@ -9,3 +9,9 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
+data/
+llamacpp.txt
+nohup.out
+out.txt
+test_llamacppserver.ipynb
+venv/

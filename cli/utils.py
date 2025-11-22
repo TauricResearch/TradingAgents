@@ -127,6 +127,15 @@ def select_shallow_thinking_agent(provider) -> str:
 
     # Define shallow thinking llm engine options with their corresponding model names
     SHALLOW_AGENT_OPTIONS = {
+        "ollama": [
+            ("qwen3_ollama", "qwen3:30b"),
+            ("gemma3", "gemma3:27b"),
+            ("gpt_oss_ollama", "gpt-oss"),
+            ("gpt_oss", "hf.co/unsloth/gpt-oss-20b-GGUF:F16"),
+            ("qwen3", "hf.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF:Q5_K_XL"),
+            ("llama3.1 local", "llama3.1"),
+            ("llama3.2 local", "llama3.2"),
+        ],
         "openai": [
             ("GPT-4o-mini - Fast and efficient for quick tasks", "gpt-4o-mini"),
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
@@ -149,9 +158,8 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
             ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
         ],
-        "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("llama3.2 local", "llama3.2"),
+        "llama_cpp": [
+            ("default", "default"),
         ]
     }
 
@@ -185,6 +193,14 @@ def select_deep_thinking_agent(provider) -> str:
 
     # Define deep thinking llm engine options with their corresponding model names
     DEEP_AGENT_OPTIONS = {
+        "ollama": [
+            ("qwen3_ollama", "qwen3:30b"),
+            ("gemma3", "gemma3:27b"),
+            ("gpt_oss_ollama", "gpt-oss"),
+            ("gpt_oss", "hf.co/unsloth/gpt-oss-20b-GGUF:F16"),
+            ("qwen3", "hf.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF:Q5_K_XL"),
+            ("llama3.1 local", "llama3.1"),
+        ],
         "openai": [
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
             ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
@@ -211,9 +227,8 @@ def select_deep_thinking_agent(provider) -> str:
             ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
             ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
         ],
-        "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("qwen3", "qwen3"),
+        "llama_cpp": [
+            ("default", "default"),
         ]
     }
     
@@ -243,11 +258,12 @@ def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
     # Define OpenAI api options with their corresponding endpoints
     BASE_URLS = [
+        ("Ollama", "http://localhost:11434/v1"),
         ("OpenAI", "https://api.openai.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
-        ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        ("Openrouter", "https://openrouter.ai/api/v1"),   
+        ("Llama_CPP", "https://localhost:8080/v1"),
     ]
     
     choice = questionary.select(

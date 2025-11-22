@@ -12,7 +12,7 @@ def create_news_analyst(llm):
 
         tools = [
             get_news,
-            get_global_news,
+            # get_global_news,
         ]
 
         system_message = (
