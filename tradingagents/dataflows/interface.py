@@ -166,7 +166,7 @@ def route_to_vendor(method: str, *args, **kwargs):
     # Track results and execution state
     results = []
     vendor_attempt_count = 0
-    any_primary_vendor_attempted = False
+    primary_vendors_attempted = []
     successful_vendor = None
 
     for vendor in fallback_vendors:
@@ -178,10 +178,6 @@ def route_to_vendor(method: str, *args, **kwargs):
         vendor_impl = VENDOR_METHODS[method][vendor]
         is_primary_vendor = vendor in primary_vendors
         vendor_attempt_count += 1
-
-        # Track if we attempted any primary vendor
-        if is_primary_vendor:
-            any_primary_vendor_attempted = True
 
         # Debug: Print current attempt
         vendor_type = "PRIMARY" if is_primary_vendor else "FALLBACK"
@@ -214,6 +210,10 @@ def route_to_vendor(method: str, *args, **kwargs):
                 print(f"FAILED: {impl_func.__name__} from vendor '{vendor_name}' failed: {e}")
                 continue
 
+        # Track which primary vendors we've attempted
+        if is_primary_vendor:
+            primary_vendors_attempted.append(vendor)
+
         # Add this vendor's results
         if vendor_results:
             results.extend(vendor_results)
@@ -221,13 +221,17 @@ def route_to_vendor(method: str, *args, **kwargs):
             result_summary = f"Got {len(vendor_results)} result(s)"
             print(f"SUCCESS: Vendor '{vendor}' succeeded - {result_summary}")
             
-            # Stopping logic: Stop after first successful vendor for single-vendor configs
-            # Multiple vendor configs (comma-separated) may want to collect from multiple sources
+            # Stopping logic for single vendor: Stop after first success
             if len(primary_vendors) == 1:
                 print(f"DEBUG: Stopping after successful vendor '{vendor}' (single-vendor config)")
                 break
         else:
             print(f"FAILED: Vendor '{vendor}' produced no results")
+        
+        # Stopping logic for multi-vendor: Stop after all primaries attempted (regardless of success)
+        if len(primary_vendors) > 1 and set(primary_vendors_attempted) == set(primary_vendors):
+            print(f"DEBUG: All primary vendors attempted ({', '.join(primary_vendors_attempted)}), stopping")
+            break
 
     # Final result summary
     if not results:
