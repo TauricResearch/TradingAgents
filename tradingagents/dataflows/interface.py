@@ -138,107 +138,85 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+# Route method calls to vendors
 def route_to_vendor(method: str, *args, **kwargs):
-    """Route method calls to appropriate vendor implementation with fallback support."""
+    """Route method calls to appropriate vendor implementation with proper primary/fallback behavior."""
+
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
-
-    # Handle comma-separated vendors
-    primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
 
-    # Get all available vendors for this method for fallback
+    # Parse configured vendors
+    primary_vendors = [v.strip() for v in vendor_config.split(",")]
     all_available_vendors = list(VENDOR_METHODS[method].keys())
-    
-    # Create fallback vendor list: primary vendors first, then remaining vendors as fallbacks
-    fallback_vendors = primary_vendors.copy()
-    for vendor in all_available_vendors:
-        if vendor not in fallback_vendors:
-            fallback_vendors.append(vendor)
 
-    # Debug: Print fallback ordering
-    primary_str = " → ".join(primary_vendors)
-    fallback_str = " → ".join(fallback_vendors)
-    print(f"DEBUG: {method} - Primary: [{primary_str}] | Full fallback order: [{fallback_str}]")
+    # Compute fallback vendors (ones NOT listed as primary)
+    fallback_vendors = [v for v in all_available_vendors if v not in primary_vendors]
 
-    # Track results and execution state
+    print(f"DEBUG: {method} - Primary vendors: {primary_vendors} | Fallback vendors: {fallback_vendors}")
+
     results = []
-    vendor_attempt_count = 0
-    any_primary_vendor_attempted = False
     successful_vendor = None
 
-    for vendor in fallback_vendors:
+    # Attempt all primary vendors
+    for vendor in primary_vendors:
         if vendor not in VENDOR_METHODS[method]:
-            if vendor in primary_vendors:
-                print(f"INFO: Vendor '{vendor}' not supported for method '{method}', falling back to next vendor")
+            print(f"INFO: Primary vendor '{vendor}' not supported for method '{method}'")
             continue
 
         vendor_impl = VENDOR_METHODS[method][vendor]
-        is_primary_vendor = vendor in primary_vendors
-        vendor_attempt_count += 1
+        vendor_methods = vendor_impl if isinstance(vendor_impl, list) else [vendor_impl]
 
-        # Track if we attempted any primary vendor
-        if is_primary_vendor:
-            any_primary_vendor_attempted = True
+        print(f"DEBUG: Trying PRIMARY vendor '{vendor}' ({len(vendor_methods)} implementations)")
 
-        # Debug: Print current attempt
-        vendor_type = "PRIMARY" if is_primary_vendor else "FALLBACK"
-        print(f"DEBUG: Attempting {vendor_type} vendor '{vendor}' for {method} (attempt #{vendor_attempt_count})")
-
-        # Handle list of methods for a vendor
-        if isinstance(vendor_impl, list):
-            vendor_methods = [(impl, vendor) for impl in vendor_impl]
-            print(f"DEBUG: Vendor '{vendor}' has multiple implementations: {len(vendor_methods)} functions")
-        else:
-            vendor_methods = [(vendor_impl, vendor)]
-
-        # Run methods for this vendor
         vendor_results = []
-        for impl_func, vendor_name in vendor_methods:
+        for impl_func in vendor_methods:
             try:
-                print(f"DEBUG: Calling {impl_func.__name__} from vendor '{vendor_name}'...")
+                print(f"DEBUG: Calling {impl_func.__name__} from vendor '{vendor}'...")
                 result = impl_func(*args, **kwargs)
                 vendor_results.append(result)
-                print(f"SUCCESS: {impl_func.__name__} from vendor '{vendor_name}' completed successfully")
-                    
+                print(f"SUCCESS: {impl_func.__name__} succeeded for vendor '{vendor}'")
+
             except AlphaVantageRateLimitError as e:
-                if vendor == "alpha_vantage":
-                    print(f"RATE_LIMIT: Alpha Vantage rate limit exceeded, falling back to next available vendor")
-                    print(f"DEBUG: Rate limit details: {e}")
-                # Continue to next vendor for fallback
-                continue
+                print(f"RATE_LIMIT: Vendor '{vendor}' exceeded rate limit, trying next primary vendor")
+                print(f"DEBUG: {e}")
+                break
+
             except Exception as e:
-                # Log error but continue with other implementations
-                print(f"FAILED: {impl_func.__name__} from vendor '{vendor_name}' failed: {e}")
+                print(f"FAILED: {impl_func.__name__} for vendor '{vendor}' - {e}")
                 continue
 
-        # Add this vendor's results
         if vendor_results:
             results.extend(vendor_results)
             successful_vendor = vendor
-            result_summary = f"Got {len(vendor_results)} result(s)"
-            print(f"SUCCESS: Vendor '{vendor}' succeeded - {result_summary}")
-            
-            # Stopping logic: Stop after first successful vendor for single-vendor configs
-            # Multiple vendor configs (comma-separated) may want to collect from multiple sources
-            if len(primary_vendors) == 1:
-                print(f"DEBUG: Stopping after successful vendor '{vendor}' (single-vendor config)")
-                break
         else:
-            print(f"FAILED: Vendor '{vendor}' produced no results")
+            print(f"FAILED: Primary vendor '{vendor}' returned no results")
 
-    # Final result summary
-    if not results:
-        print(f"FAILURE: All {vendor_attempt_count} vendor attempts failed for method '{method}'")
-        raise RuntimeError(f"All vendor implementations failed for method '{method}'")
-    else:
-        print(f"FINAL: Method '{method}' completed with {len(results)} result(s) from {vendor_attempt_count} vendor attempt(s)")
+    # If ANY primary vendor succeeded then STOP EARLY
+    if successful_vendor:
+        print(f"FINAL: Completed with primary vendor(s). Total results: {len(results)}")
+        return results[0] if len(results) == 1 else '\n'.join(str(r) for r in results)
 
-    # Return single result if only one, otherwise concatenate as string
-    if len(results) == 1:
-        return results[0]
-    else:
-        # Convert all results to strings and concatenate
-        return '\n'.join(str(result) for result in results)
+    print("WARNING: All primary vendors failed. Attempting fallback vendors...")
+
+    # Fallback logic
+    for vendor in fallback_vendors:
+        vendor_impl = VENDOR_METHODS[method][vendor]
+        vendor_methods = vendor_impl if isinstance(vendor_impl, list) else [vendor_impl]
+
+        print(f"DEBUG: Trying FALLBACK vendor '{vendor}'")
+
+        for impl_func in vendor_methods:
+            try:
+                result = impl_func(*args, **kwargs)
+                print(f"SUCCESS: Fallback vendor '{vendor}' succeeded via {impl_func.__name__}")
+                return result
+
+            except Exception as e:
+                print(f"FAILED: Fallback vendor '{vendor}' - {e}")
+                continue
+
+    # If all vendors fail
+    raise RuntimeError(f"All vendors failed for method '{method}'")
