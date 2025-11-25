@@ -208,15 +208,27 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         print(f"DEBUG: Trying FALLBACK vendor '{vendor}'")
 
+        vendor_results = []
         for impl_func in vendor_methods:
             try:
                 result = impl_func(*args, **kwargs)
+                vendor_results.append(result)
                 print(f"SUCCESS: Fallback vendor '{vendor}' succeeded via {impl_func.__name__}")
-                return result
-
+            except AlphaVantageRateLimitError as e:
+                print(f"RATE_LIMIT: Fallback vendor '{vendor}' exceeded rate limit, trying next fallback vendor.")
+                print(f"DEBUG: {e}")
+                vendor_results = []  # Discard partial results for this vendor
+                break
             except Exception as e:
-                print(f"FAILED: Fallback vendor '{vendor}' - {e}")
+                print(f"FAILED: Fallback vendor '{vendor}' via {impl_func.__name__} - {e}")
                 continue
+
+        if vendor_results:
+            print(f"SUCCESS: Fallback vendor '{vendor}' succeeded with {len(vendor_results)} result(s).")
+            if len(vendor_results) == 1:
+                return vendor_results[0]
+            else:
+                return '\n'.join(str(r) for r in vendor_results)
 
     # If all vendors fail
     raise RuntimeError(f"All vendors failed for method '{method}'")
