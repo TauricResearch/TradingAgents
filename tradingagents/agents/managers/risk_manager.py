@@ -22,27 +22,25 @@ def create_risk_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
+        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best course of action for the trader for the **Short Term (1-2 Weeks)**. Your decision must result in a clear recommendation: **Long, Short, or Hold**. Choose Hold only if strongly justified by specific arguments, not as a fallback.
 
-Guidelines for Decision-Making:
-1. **Summarize Key Arguments**: Extract the strongest points from each analyst, focusing on relevance to the context.
-2. **Provide Rationale**: Support your recommendation with direct quotes and counterarguments from the debate.
-3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights.
-4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments and improve the decision you are making now to make sure you don't make a wrong BUY/SELL/HOLD call that loses money.
+        Guidelines for Decision-Making:
+        1. **Summarize Key Arguments**: Extract the strongest points regarding short-term volatility and risk.
+        2. **Provide Rationale**: Support your recommendation with direct quotes and counterarguments.
+        3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights to fit a 1-2 week horizon.
+        4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments.
 
-Deliverables:
-- A clear and actionable recommendation: Buy, Sell, or Hold.
-- Detailed reasoning anchored in the debate and past reflections.
+        Deliverables:
+        - A clear and actionable recommendation: **Signal: [Long/Short/Hold]**.
+        - Detailed reasoning anchored in the debate and past reflections.
 
----
+        ---
 
-**Analysts Debate History:**  
-{history}
+        **Analysts Debate History:** {history}
 
----
+        ---
 
-Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
-
+        Focus on actionable insights and continuous improvement for the short term."""
         response = llm.invoke(prompt)
 
         new_risk_debate_state = {
