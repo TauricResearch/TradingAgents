@@ -2,6 +2,10 @@
 results
 env/
 __pycache__/
+.venv
+results
+env/
+__pycache__/
 .DS_Store
 *.csv
 src/

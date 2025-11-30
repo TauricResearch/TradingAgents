@@ -20,3 +20,23 @@ def get_stock_data(
         str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
     """
     return route_to_vendor("get_stock_data", symbol, start_date, end_date)
+
+@tool
+def get_market_movers(
+    metric: Annotated[str, "One of 'top_gainers', 'top_losers', 'most_actively_traded'"] = "top_gainers",
+    limit: Annotated[int, "Number of results to return"] = 10,
+) -> str:
+    """
+    Retrieve top market movers (gainers, losers, active) to identify potential stocks to analyze.
+    """
+    return route_to_vendor("get_market_movers", metric, limit)
+
+@tool
+def get_earnings_calendar(
+    horizon: Annotated[str, "Time horizon: '3month', '6month', '12month'"] = "3month",
+    symbol: Annotated[str, "Optional ticker symbol to filter by"] = None,
+) -> str:
+    """
+    Retrieve earnings calendar to identify companies reporting soon (potential volatility).
+    """
+    return route_to_vendor("get_earnings_calendar", horizon, symbol)

@@ -2,7 +2,9 @@ from langchain_core.messages import HumanMessage, RemoveMessage
 
 # Import tools from separate utility files
 from tradingagents.agents.utils.core_stock_tools import (
-    get_stock_data
+    get_stock_data,
+    get_market_movers,
+    get_earnings_calendar
 )
 from tradingagents.agents.utils.technical_indicators_tools import (
     get_indicators
@@ -19,6 +21,7 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.dataflows.social_sentiment import get_trending_social
 
 def create_msg_delete():
     def delete_messages(state):
@@ -34,6 +37,3 @@ def create_msg_delete():
         return {"messages": removal_operations + [placeholder]}
     
     return delete_messages
-
-
-        

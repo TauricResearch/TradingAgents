@@ -12,20 +12,21 @@ from .alpha_vantage import (
     get_balance_sheet as get_alpha_vantage_balance_sheet,
     get_cashflow as get_alpha_vantage_cashflow,
     get_income_statement as get_alpha_vantage_income_statement,
-    get_insider_transactions as get_alpha_vantage_insider_transactions,
-    get_news as get_alpha_vantage_news
+    get_news as get_alpha_vantage_news,
+    get_market_movers as get_alpha_vantage_market_movers,
+    get_earnings_calendar as get_alpha_vantage_earnings_calendar
 )
+from .social_sentiment import get_trending_social as get_social_trending
+from .config import get_config
 from .alpha_vantage_common import AlphaVantageRateLimitError
 
-# Configuration and routing logic
-from .config import get_config
-
-# Tools organized by category
 TOOLS_CATEGORIES = {
     "core_stock_apis": {
-        "description": "OHLCV stock price data",
+        "description": "Core stock price and volume data",
         "tools": [
-            "get_stock_data"
+            "get_stock_data",
+            "get_market_movers",
+            "get_earnings_calendar"
         ]
     },
     "technical_indicators": {
@@ -51,6 +52,12 @@ TOOLS_CATEGORIES = {
             "get_insider_sentiment",
             "get_insider_transactions",
         ]
+    },
+    "social_data": {
+        "description": "Social media trending and sentiment",
+        "tools": [
+            "get_trending_social"
+        ]
     }
 }
 
@@ -58,7 +65,8 @@ VENDOR_LIST = [
     "local",
     "yfinance",
     "openai",
-    "google"
+    "google",
+    "alpha_vantage"
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -68,6 +76,12 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
         "local": get_YFin_data,
+    },
+    "get_market_movers": {
+        "alpha_vantage": get_alpha_vantage_market_movers,
+    },
+    "get_earnings_calendar": {
+        "alpha_vantage": get_alpha_vantage_earnings_calendar,
     },
     # technical_indicators
     "get_indicators": {
@@ -104,22 +118,25 @@ VENDOR_METHODS = {
     },
     "get_global_news": {
         "openai": get_global_news_openai,
-        "local": get_reddit_global_news
+        "local": get_reddit_global_news,
     },
     "get_insider_sentiment": {
-        "local": get_finnhub_company_insider_sentiment
+        "local": get_finnhub_company_insider_sentiment,
     },
     "get_insider_transactions": {
-        "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
         "local": get_finnhub_company_insider_transactions,
     },
+    # social_data
+    "get_trending_social": {
+        "default": get_social_trending
+    }
 }
 
 def get_category_for_method(method: str) -> str:
-    """Get the category that contains the specified method."""
-    for category, info in TOOLS_CATEGORIES.items():
-        if method in info["tools"]:
+    """Find which category a method belongs to."""
+    for category, data in TOOLS_CATEGORIES.items():
+        if method in data["tools"]:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
 
