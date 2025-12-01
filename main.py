@@ -316,6 +316,19 @@ def _process_autopilot_events(worker: AutopilotWorker) -> None:
     console.print(table)
 
 
+def _resolve_premarket_window(value: Any) -> int:
+    candidates = [os.getenv("AUTOPILOT_PREMARKET_MINUTES"), value, 30]
+    for candidate in candidates:
+        if candidate in (None, ""):
+            continue
+        try:
+            minutes = int(candidate)
+        except (TypeError, ValueError):
+            continue
+        return max(minutes, 0)
+    return 0
+
+
 def _run_price_alert_poll(broker: AutopilotBroker) -> None:
     outcomes = broker.poll_once()
     if not outcomes:
@@ -528,7 +541,7 @@ def _run_autopilot_loop(
     event_interval = max(int(autopilot_cfg.get("event_loop_interval_seconds", 10)), 1)
     price_poll_interval = max(int(autopilot_cfg.get("price_poll_interval_seconds", 60)), event_interval)
     seed_run = bool(autopilot_cfg.get("auto_trade_on_start", True))
-    premarket_window = max(int(autopilot_cfg.get("pre_market_research_minutes", 30)), 0)
+    premarket_window = _resolve_premarket_window(autopilot_cfg.get("pre_market_research_minutes"))
 
     console.print("Autopilot mode enabled. Press Ctrl+C to stop.", style="bold cyan")
 
@@ -546,13 +559,23 @@ def _run_autopilot_loop(
             console.print(f"Failed to refresh account snapshot: {exc}", style="red")
             return None
 
+    def _refresh_snapshot_if_needed(force: bool = False) -> Optional[AccountSnapshot]:
+        nonlocal latest_snapshot, market_is_open, market_status
+        if not force and not market_is_open and not _within_premarket(market_status, premarket_window):
+            return latest_snapshot
+        snap = _refresh_snapshot()
+        return snap
+
+    heartbeat_interval = max(event_interval, 30)
+    market_check_interval = max(price_poll_interval, 60)
     market_status = _get_market_status(auto_trader)
     last_market_check = time.time()
     market_is_open = bool(market_status.get("is_open"))
+    next_market_check_delay = market_check_interval
 
     if seed_run:
         if market_is_open:
-            snap = _refresh_snapshot()
+            snap = _refresh_snapshot_if_needed(force=True)
             if snap:
                 ran = _execute_auto_trade(
                     auto_trader,
@@ -568,7 +591,7 @@ def _run_autopilot_loop(
             reason = market_status.get("clock_text") or market_status.get("reason") or "market closed"
             console.print(f"Initial run skipped: {reason}.", style="yellow")
             if premarket_window > 0 and _should_run_premarket(market_status, premarket_window):
-                snap = _refresh_snapshot()
+                snap = _refresh_snapshot_if_needed(force=True)
                 if snap and _execute_auto_trade(
                     auto_trader,
                     snap,
@@ -591,8 +614,6 @@ def _run_autopilot_loop(
     last_price_poll = 0.0
     last_signature = ""
     last_heartbeat = 0.0
-    heartbeat_interval = max(event_interval, 30)
-    market_check_interval = max(price_poll_interval, 60)
     events_since_heartbeat = 0
     console.print(
         f"Entering autopilot loop (event every {event_interval}s, price poll every {price_poll_interval}s)…",
@@ -600,8 +621,6 @@ def _run_autopilot_loop(
     )
 
     try:
-        market_status = _get_market_status(auto_trader)
-        last_market_check = time.time()
         while True:
             events_since_heartbeat += _drain_autopilot_queue(autopilot_worker)
 
@@ -626,13 +645,15 @@ def _run_autopilot_loop(
                 events_since_heartbeat = 0
                 last_heartbeat = now
 
-            if now - last_market_check >= market_check_interval:
+            if now - last_market_check >= next_market_check_delay:
                 market_status = _get_market_status(auto_trader)
                 last_market_check = now
                 is_open = bool(market_status.get("is_open"))
+                next_market_check_delay = market_check_interval if is_open else max(market_check_interval * 5, 300)
+                market_is_open = is_open
                 if is_open:
                     if pending_market_open_run:
-                        snap = _refresh_snapshot()
+                        snap = _refresh_snapshot_if_needed(force=True)
                         if snap and _execute_auto_trade(
                             auto_trader,
                             snap,
@@ -841,10 +862,19 @@ def _should_run_premarket(status: Dict[str, Any], window_minutes: int) -> bool:
     next_open = _parse_market_time(status.get("next_open"))
     if not next_open:
         return False
-    now_utc = datetime.now(timezone.utc)
+    current = _parse_market_time(status.get("current_time"))
+    if current is None:
+        current = datetime.now(timezone.utc)
+    now_utc = current.astimezone(timezone.utc)
     target = next_open.astimezone(timezone.utc)
     minutes = (target - now_utc).total_seconds() / 60
     return 0 <= minutes <= window_minutes
+
+
+def _within_premarket(status: Dict[str, Any], window_minutes: int) -> bool:
+    if not window_minutes:
+        return False
+    return _should_run_premarket(status, window_minutes)
 
 
 def _parse_market_time(value: Optional[str]) -> Optional[datetime]:

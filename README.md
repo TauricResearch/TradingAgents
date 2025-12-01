@@ -127,6 +127,11 @@ cp .env.example .env
 # Edit .env with your actual API keys
 ```
 
+Run a quick preflight to verify env vars and writable result directories:
+```bash
+python scripts/preflight_check.py
+```
+
 **Note:** We are happy to partner with Alpha Vantage to provide robust API support for TradingAgents. You can get a free AlphaVantage API [here](https://www.alphavantage.co/support/#api-key), TradingAgents-sourced requests also have increased rate limits to 60 requests per minute with no daily limits. Typically the quota is sufficient for performing complex tasks with TradingAgents thanks to Alpha Vantage’s open-source support program. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
 
 ### CLI Usage
@@ -255,6 +260,14 @@ config["portfolio_orchestrator"]["trade_activation"]["priority_threshold"] = 0.8
 > The default configuration uses yfinance for stock price and technical data, and Alpha Vantage for fundamental and news data. For production use or if you encounter rate limits, consider upgrading to [Alpha Vantage Premium](https://www.alphavantage.co/premium/) for more stable and reliable data access. For offline experimentation, there's a local data vendor option that uses our **Tauric TradingDB**, a curated dataset for backtesting, though this is still in development. We're currently refining this dataset and plan to release it soon alongside our upcoming projects. Stay tuned!
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
+
+### Development & tests
+
+Install dev extras to run the test suite:
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
 
 ## Contributing
 

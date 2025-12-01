@@ -396,10 +396,38 @@ class TradingAgentsGraph:
 
         normalized = clock_text.lower()
         is_open = "is open: yes" in normalized
+        parsed = self._parse_market_clock(clock_text)
         return {
             "is_open": is_open,
             "clock_text": clock_text,
+            **parsed,
         }
+
+    def _parse_market_clock(self, clock_text: str) -> Dict[str, str]:
+        current_time = None
+        next_open = None
+        next_close = None
+        for line in clock_text.splitlines():
+            line = line.strip()
+            if not line or ":" not in line:
+                continue
+            label, value = line.split(":", 1)
+            label = label.strip().lower()
+            value = value.strip()
+            if label == "current time":
+                current_time = value
+            elif label == "next open":
+                next_open = value
+            elif label == "next close":
+                next_close = value
+        payload: Dict[str, str] = {}
+        if current_time:
+            payload["current_time"] = current_time
+        if next_open:
+            payload["next_open"] = next_open
+        if next_close:
+            payload["next_close"] = next_close
+        return payload
 
     def _generate_plan_with_llm(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         system_prompt = (
@@ -459,7 +487,15 @@ class TradingAgentsGraph:
         }
 
 
-    def _maybe_execute_trade(self, final_state: Dict[str, Any], decision_text: str) -> Dict[str, Any]:
+    def _maybe_execute_trade(
+        self,
+        final_state: Dict[str, Any],
+        decision_text: str,
+        *,
+        quantity: Optional[float] = None,
+        notional: Optional[float] = None,
+        reference_price: Optional[float] = None,
+    ) -> Dict[str, Any]:
         exec_cfg = self.trade_execution_config or {}
         if not exec_cfg.get("enabled"):
             return {"status": "disabled", "reason": "trade_execution_disabled"}
@@ -472,8 +508,59 @@ class TradingAgentsGraph:
         if action not in {"BUY", "SELL"}:
             return {"status": "skipped", "reason": f"action_{action}"}
 
-        quantity = float(exec_cfg.get("default_order_quantity", 0))
-        if quantity <= 0:
+        def _as_quantity(value: Any) -> Optional[float]:
+            try:
+                qty = float(value)
+            except (TypeError, ValueError):
+                return None
+            return qty if qty > 0 else None
+
+        resolved_qty = _as_quantity(quantity)
+
+        ref_price_value = _as_quantity(reference_price)
+        if not ref_price_value and isinstance(final_state, dict):
+            ref_price_value = _as_quantity(final_state.get("reference_price"))
+
+        if resolved_qty is None and notional not in (None, ""):
+            try:
+                notional_value = float(notional)
+            except (TypeError, ValueError):
+                notional_value = None
+            if notional_value and ref_price_value:
+                computed = int(notional_value // ref_price_value)
+                resolved_qty = float(computed) if computed > 0 else None
+
+        if resolved_qty is None:
+            resolved_qty = _as_quantity(exec_cfg.get("default_order_quantity", 0))
+
+        if not ref_price_value and resolved_qty and ref_price_value is None:
+            # Best effort: try to recover reference price from hypothesis/trader notes if present
+            ref_price_value = _as_quantity(final_state.get("reference_price")) if isinstance(final_state, dict) else None
+
+        # Guard against exceeding buying power if price is available
+        if resolved_qty and ref_price_value:
+            try:
+                client = self._get_alpaca_client()
+                if client:
+                    account_text = client.fetch_account_info()
+                    buying_power = self._parse_buying_power(account_text)
+                    estimated_cost = resolved_qty * ref_price_value
+                    if buying_power and estimated_cost > buying_power:
+                        capped = int(buying_power // ref_price_value)
+                        if capped <= 0:
+                            return {
+                                "status": "skipped",
+                                "reason": "insufficient_buying_power",
+                                "buying_power": buying_power,
+                                "requested_qty": resolved_qty,
+                                "reference_price": ref_price_value,
+                            }
+                        resolved_qty = float(capped)
+            except Exception:
+                # Fail open on guard; order placement will still respect dry_run flag
+                pass
+
+        if resolved_qty is None or resolved_qty <= 0:
             return {"status": "skipped", "reason": "invalid_quantity"}
 
         client = self._get_alpaca_client()
@@ -485,7 +572,7 @@ class TradingAgentsGraph:
             "side": "buy" if action == "BUY" else "sell",
             "order_type": "market",
             "time_in_force": exec_cfg.get("time_in_force", "day").upper(),
-            "quantity": float(quantity),
+            "quantity": float(resolved_qty),
         }
 
         try:
@@ -515,6 +602,20 @@ class TradingAgentsGraph:
         except Exception as exc:  # pragma: no cover
             self.logger.exception("Unexpected error during order submission")
             return {"status": "failed", "reason": str(exc), "payload": payload}
+
+    def _parse_buying_power(self, account_text: str) -> float:
+        for line in account_text.splitlines():
+            if "buying power" not in line.lower():
+                continue
+            parts = line.split(":", 1)
+            if len(parts) != 2:
+                continue
+            value = parts[1].strip().replace("$", "").replace(",", "")
+            try:
+                return float(value)
+            except ValueError:
+                continue
+        return 0.0
 
     def _extract_action(self, decision_text: str) -> str:
         if not decision_text:
@@ -634,11 +735,25 @@ class TradingAgentsGraph:
         self._write_run_summary(final_state, processed_result)
         return final_state, processed_result
 
-    def execute_trade_directive(self, symbol: str, action: str) -> Dict[str, Any]:
+    def execute_trade_directive(
+        self,
+        symbol: str,
+        action: str,
+        *,
+        quantity: Optional[float] = None,
+        notional: Optional[float] = None,
+        reference_price: Optional[float] = None,
+    ) -> Dict[str, Any]:
         """Execute a trade directive issued outside the standard graph run."""
         directive = (action or "").strip().upper()
         minimal_state = {"company_of_interest": symbol}
-        return self._maybe_execute_trade(minimal_state, directive)
+        return self._maybe_execute_trade(
+            minimal_state,
+            directive,
+            quantity=quantity,
+            notional=notional,
+            reference_price=reference_price,
+        )
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""

@@ -99,6 +99,9 @@ class TradingToolbox:
         self.logger = logger or logging.getLogger(__name__)
         self.memory_store = memory_store
         self._agent_runners = self._init_agent_runners()
+        self._trade_tool_enabled = bool(
+            (self.config.get("auto_trade", {}) or {}).get("responses_enable_trade_tool")
+        )
         self._tools = self._build_tools()
 
     @property
@@ -194,22 +197,38 @@ class TradingToolbox:
                 },
                 handler=self._tool_fetch_indicators,
             ),
-            "submit_trade_order": ResponsesTool(
+        }
+        if self._trade_tool_enabled:
+            tools["submit_trade_order"] = ResponsesTool(
                 name="submit_trade_order",
-                description="Submit a trade directive (BUY/SELL/HOLD) for a ticker with optional reasoning. Honors dry-run and market-open checks.",
+                description=(
+                    "Submit a trade directive (BUY/SELL/HOLD) for a ticker with optional sizing. Honors dry-run and market-open checks. "
+                    "Provide quantity in shares when you can; otherwise pass notional and a reference price to convert."
+                ),
                 schema={
                     "type": "object",
                     "properties": {
                         "symbol": {"type": "string"},
                         "action": {"type": "string", "enum": ["BUY", "SELL", "HOLD"]},
+                        "quantity": {
+                            "type": "number",
+                            "description": "Number of shares to trade (preferred).",
+                        },
+                        "notional": {
+                            "type": "number",
+                            "description": "Dollar amount to allocate; requires reference_price for conversion.",
+                        },
+                        "reference_price": {
+                            "type": "number",
+                            "description": "Price used to convert notional to shares; use your latest fetch_market_data/fetch_indicators price.",
+                        },
                         "notes": {"type": "string"},
                     },
                     "required": ["symbol", "action"],
                     "additionalProperties": False,
                 },
                 handler=self._tool_submit_trade,
-            ),
-        }
+            )
         if self.memory_store and self.memory_store.is_enabled():
             tools["get_ticker_memory"] = ResponsesTool(
                 name="get_ticker_memory",
@@ -306,6 +325,9 @@ class TradingToolbox:
     def _tool_submit_trade(self, args: Dict[str, Any]) -> Dict[str, Any]:
         symbol = str(args.get("symbol") or "").upper()
         action = str(args.get("action") or "").upper()
+        quantity = args.get("quantity")
+        notional = args.get("notional")
+        reference_price = args.get("reference_price")
         status = self.graph.check_market_status()
         market_open = bool(status.get("is_open", True))
         if not market_open:
@@ -313,7 +335,13 @@ class TradingToolbox:
                 "status": "market_closed",
                 "clock": status.get("clock_text"),
             }
-        result = self.graph.execute_trade_directive(symbol, action)
+        result = self.graph.execute_trade_directive(
+            symbol,
+            action,
+            quantity=quantity,
+            notional=notional,
+            reference_price=reference_price,
+        )
         return {"status": result.get("status"), "response": result}
 
     def _call_vendor(self, method: str, *args) -> Any:
@@ -419,6 +447,19 @@ class ResponsesAutoTradeService:
         max_entries = int(memory_cfg.get("max_entries", 5))
         self.memory_store = TickerMemoryStore(memory_dir, max_entries=max_entries, enabled=memory_enabled)
         self._strategy_brief_cache = self._strategy_presets_brief()
+        auto_trade_cfg = self.config.get("auto_trade", {}) or {}
+        self.trade_tool_enabled = bool(auto_trade_cfg.get("responses_enable_trade_tool"))
+        self.plan_followup_limit = max(int(auto_trade_cfg.get("responses_plan_followup_limit", 2)), 0)
+        self._plan_status_done_values = {
+            "done",
+            "complete",
+            "completed",
+            "skipped",
+            "skip",
+            "n/a",
+            "na",
+            "not_applicable",
+        }
 
     def run(self, snapshot: AccountSnapshot, *, focus_override: Optional[List[str]] = None) -> AutoTradeResult:
         self._reference_prices = _snapshot_reference_prices(snapshot)
@@ -527,6 +568,8 @@ class ResponsesAutoTradeService:
             submitted_trades=submitted_trades,
         )
         final_text = self._response_text(response)
+        if final_text:
+            conversation.append({"role": "assistant", "content": final_text})
         summary = _extract_json_block(final_text)
 
         if not summary.get("decisions"):
@@ -554,14 +597,58 @@ class ResponsesAutoTradeService:
                 submitted_trades=submitted_trades,
             )
             final_text = self._response_text(response)
+            if final_text:
+                conversation.append({"role": "assistant", "content": final_text})
             summary = _extract_json_block(final_text)
+
+        guard_info = self._plan_guard(summary)
+        followups = 0
+        while (
+            summary.get("decisions")
+            and guard_info.get("needs_followup")
+            and followups < self.plan_followup_limit
+        ):
+            followups += 1
+            conversation.append(
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "plan_validation": {
+                                "status": "incomplete",
+                                "details": guard_info.get("details"),
+                                "instruction": (
+                                    "Finish or explicitly skip (with justification) every plan step before "
+                                    "finalizing the decision summary. Continue executing the scheduled tools; do "
+                                    "not place trades until no steps remain pending."
+                                ),
+                            }
+                        }
+                    ),
+                }
+            )
+            response = self._responses_call(
+                conversation,
+                toolbox,
+                transcript,
+                allow_tools=True,
+                submitted_trades=submitted_trades,
+            )
+            final_text = self._response_text(response)
+            if final_text:
+                conversation.append({"role": "assistant", "content": final_text})
+            summary = _extract_json_block(final_text)
+            guard_info = self._plan_guard(summary)
 
         decisions, focus = self._decisions_from_summary(summary)
         raw_state = {
             "responses_transcript": transcript,
             "responses_summary": summary,
             "responses_output_text": final_text,
+            "plan_guard": guard_info,
         }
+        if guard_info.get("needs_followup") and guard_info.get("reason"):
+            raw_state.setdefault("skip_reason", guard_info.get("reason"))
         if self.memory_store and self.memory_store.is_enabled() and decisions:
             payload: List[Dict[str, Any]] = []
             for decision in decisions:
@@ -571,7 +658,12 @@ class ResponsesAutoTradeService:
                 decision_dict["priority"] = decision.priority
                 payload.append(decision_dict)
             self.memory_store.record_decisions(payload)
-        self._auto_execute_trades(decisions, submitted_trades)
+        self._auto_execute_trades(
+            decisions,
+            submitted_trades,
+            allow_execution=not bool(guard_info.get("blocked_actions")),
+            guard_reason=guard_info.get("reason"),
+        )
 
         return AutoTradeResult(
             focus_tickers=focus or focus_tickers,
@@ -781,6 +873,51 @@ class ResponsesAutoTradeService:
             derived.append(f"price <= {failure_price:.2f}")
         return base_triggers + derived
 
+    def _plan_guard(self, summary: Dict[str, Any]) -> Dict[str, Any]:
+        decisions = summary.get("decisions") or []
+        details: List[Dict[str, Any]] = []
+        blocked: List[str] = []
+        for entry in decisions:
+            ticker = str(entry.get("ticker") or "").upper()
+            if not ticker:
+                continue
+            statuses = entry.get("plan_status") or {}
+            incomplete: List[str] = []
+            if isinstance(statuses, dict) and statuses:
+                for step, status in statuses.items():
+                    label = str(step or "").strip() or "<unnamed step>"
+                    status_text = str(status or "").strip()
+                    normalized = status_text.lower()
+                    ok = (
+                        normalized in self._plan_status_done_values
+                        or "done" in normalized
+                        or "complete" in normalized
+                        or "skip" in normalized
+                        or "n/a" in normalized
+                    )
+                    if ok:
+                        continue
+                    display = f"{label} ({status_text or 'pending'})"
+                    incomplete.append(display)
+            elif entry.get("plan_actions"):
+                for action in entry.get("plan_actions") or []:
+                    incomplete.append(f"{action} (no status reported)")
+            if incomplete:
+                details.append({"ticker": ticker, "steps": incomplete})
+                action = str(entry.get("action") or "").upper()
+                if action in {"BUY", "SELL"} and ticker not in blocked:
+                    blocked.append(ticker)
+        reason = ""
+        if details:
+            joined = "; ".join(f"{item['ticker']}: {', '.join(item['steps'])}" for item in details)
+            reason = f"Plan validation incomplete; pending steps -> {joined}"
+        return {
+            "needs_followup": bool(details),
+            "blocked_actions": blocked,
+            "details": details,
+            "reason": reason,
+        }
+
     def _extract_tool_calls(self, response: Any) -> List[Dict[str, Any]]:
         calls: List[Dict[str, Any]] = []
         output_items = getattr(response, "output", []) or []
@@ -857,9 +994,19 @@ class ResponsesAutoTradeService:
         self,
         decisions: List[TickerDecision],
         submitted_trades: Set[Tuple[str, str]],
+        *,
+        allow_execution: bool = True,
+        guard_reason: Optional[str] = None,
     ) -> None:
         exec_cfg = self.config.get("trade_execution", {}) or {}
         if not exec_cfg.get("enabled"):
+            return
+        if not allow_execution:
+            message = guard_reason or "Plan guard blocked trade execution."
+            try:
+                print(f"[Auto Execution] Skipping trade execution: {message}")
+            except Exception:
+                pass
             return
         for decision in decisions:
             action = (decision.final_decision or decision.immediate_action or "").upper()
@@ -875,6 +1022,13 @@ class ResponsesAutoTradeService:
                 pass
 
     def _build_system_prompt(self) -> str:
+        trade_clause = (
+            "After producing the JSON, call `submit_trade_order` for every ticker whose action is BUY or SELL "
+            "(subject to trade execution settings)."
+            if self.trade_tool_enabled
+            else "Do not call `submit_trade_order`; once your plan summary shows every step resolved, the autopilot "
+            "will handle trade submission automatically."
+        )
         return (
             "You are the trading orchestrator for TradingAgents. Every run must begin by calling "
             "`get_account_overview` exactly once (unless you explicitly refresh the Alpaca snapshot) and narrating the "
@@ -898,17 +1052,18 @@ class ResponsesAutoTradeService:
             "conditions that complete or cancel the hypothesis so automation can act on them.\n\n"
             "Narrate every step before you make the tool call so the CLI can display your thinking live, and summarize what "
             "you learned from each tool. Be curious: when a ticker’s context is thin, proactively explore the smallest set "
-            "of tools needed to form a defendable hypothesis rather than defaulting to HOLD. Maintain an explicit plan tracker: list "+
+            "of tools needed to form a defendable hypothesis rather than defaulting to HOLD. Maintain an explicit plan tracker: list "
             "each planned action (e.g., ‘Step 1 – Fetch TSLA market data’) along with its status (`pending`, `in_progress`, `done`), "
             "and after every tool call, announce which step changed status and why. Consider market-open status before "
             "trading, respect trade execution limits (but treat `day_trades_remaining` as informational—you may still "
-            "recommend buys/sells), and keep narration concise but informative.\n\n"
+            "recommend buys/sells), and keep narration concise but informative. Before the final summary, resolve every "
+            "`plan_status` entry: either run the scheduled step or explicitly mark it as `skipped` with a short reason so "
+            "no action remains `pending`.\n\n"
             "Conclude with a JSON summary containing decisions for each ticker. The final assistant message must include a "
             "JSON object with a `decisions` array where each entry specifies `ticker`, `action`, `priority`, "
             "`plan_actions`, `next_decision`, `notes`, `plan_status` (a mapping of each plan action to its status), the `strategy` object described above, "
-            "and optional `action_queue` and `execution_plan` fields. After "
-            "producing the JSON, call `submit_trade_order` for every ticker whose action is BUY or SELL (subject to trade "
-            "execution settings)."
+            "and optional `action_queue` and `execution_plan` fields. "
+            f"{trade_clause}"
         )
 
     def _safe_json(self, raw: str) -> Dict[str, Any]:
