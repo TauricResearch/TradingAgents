@@ -1,0 +1,46 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -r requirements.txt -r requirements-dev.txt || python -m pip install -r requirements.txt pytest
+      - run: pytest -q
+
+  deploy:
+    needs: build-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy via rsync
+        uses: burnett01/rsync-deployments@v7.1
+        with:
+          switches: -avz --delete --exclude ".git" --exclude ".github" --exclude "results" --exclude "__pycache__" --exclude ".venv"
+          path: ./
+          remote_path: ${{ secrets.DEPLOY_PATH || '/opt/tradingagents' }}
+          remote_host: ${{ secrets.DEPLOY_HOST }}
+          remote_user: ${{ secrets.DEPLOY_USER }}
+          private_key: ${{ secrets.DEPLOY_KEY }}
+      - name: Install deps and restart service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -e
+            cd ${DEPLOY_PATH:-/opt/tradingagents}
+            python3.11 -m venv .venv
+            . .venv/bin/activate
+            pip install -r requirements.txt -r requirements-dev.txt || pip install -r requirements.txt pytest
+            sudo systemctl restart tradingagents
