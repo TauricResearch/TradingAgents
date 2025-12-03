@@ -73,13 +73,25 @@ source .venv/bin/activate
 
 ### Required API Keys
 
-The framework requires an OpenAI API key for powering the agents and an Alpha Vantage API key for fundamental and news data (default configuration).
+The framework requires an OpenAI API key for powering the agents and at least one news data provider API key.
+
+**Required:**
+- `OPENAI_API_KEY` - Powers the LLM agents
+
+**News Data Providers (at least one required):**
+- `TAVILY_API_KEY` - Tavily search API (preferred for news discovery)
+- `BRAVE_API_KEY` - Brave Search API (fallback option)
+- `ALPHA_VANTAGE_API_KEY` - Alpha Vantage API (for fundamentals and news)
+
+The news discovery system uses a fallback chain: Tavily → Brave → Alpha Vantage → OpenAI → Google. Configure the API keys for your preferred providers.
 
 Set environment variables:
 
 ```bash
 export OPENAI_API_KEY=your_openai_api_key
 export ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
+export TAVILY_API_KEY=your_tavily_api_key
+export BRAVE_API_KEY=your_brave_api_key
 ```
 
 Alternatively, create a `.env` file in the project root:
@@ -95,7 +107,7 @@ Then edit the `.env` file with your API keys.
 Run the CLI:
 
 ```bash
-uv run cli/main.py
+uv run python -m cli.main
 ```
 
 The CLI provides two main modes:
@@ -105,6 +117,7 @@ The CLI provides two main modes:
 The trending stock discovery feature uses LLM-powered entity extraction to identify stocks making news. This is the primary enhancement in this fork, enabling proactive discovery of trading opportunities.
 
 Configuration options:
+
 - **Lookback period:** 1h, 6h, 24h, or 7d
 - **Sector filter:** Technology, Healthcare, Finance, Energy, Consumer Goods, Industrials
 - **Event type filter:** Earnings, Merger/Acquisition, Regulatory, Product Launch, Executive Change

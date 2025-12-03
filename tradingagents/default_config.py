@@ -28,4 +28,7 @@ DEFAULT_CONFIG = {
     "discovery_cache_ttl": 300,
     "discovery_max_results": 20,
     "discovery_min_mentions": 2,
+    "bulk_news_vendor_order": ["tavily", "brave", "alpha_vantage", "openai", "google"],
+    "bulk_news_timeout": 30,
+    "bulk_news_max_retries": 3,
 }

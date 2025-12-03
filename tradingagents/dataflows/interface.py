@@ -18,6 +18,8 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_news import get_bulk_news_alpha_vantage
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .tavily import get_bulk_news_tavily
+from .brave import get_bulk_news_brave
 
 from .config import get_config
 
@@ -113,6 +115,8 @@ VENDOR_METHODS = {
         "local": get_finnhub_company_insider_transactions,
     },
     "get_bulk_news": {
+        "tavily": get_bulk_news_tavily,
+        "brave": get_bulk_news_brave,
         "alpha_vantage": get_bulk_news_alpha_vantage,
         "openai": get_bulk_news_openai,
         "google": get_bulk_news_google,
@@ -192,7 +196,8 @@ def _convert_to_news_articles(raw_articles: List[Dict[str, Any]]) -> List[NewsAr
 def _fetch_bulk_news_from_vendor(lookback_period: str) -> List[Dict[str, Any]]:
     lookback_hours = parse_lookback_period(lookback_period)
 
-    vendor_order = ["alpha_vantage", "openai", "google"]
+    config = get_config()
+    vendor_order = config.get("bulk_news_vendor_order", ["tavily", "brave", "alpha_vantage", "openai", "google"])
 
     for vendor in vendor_order:
         if vendor not in VENDOR_METHODS["get_bulk_news"]:
