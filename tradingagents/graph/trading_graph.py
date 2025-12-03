@@ -1,9 +1,9 @@
-# TradingAgents/graph/trading_graph.py
-
 import os
+import signal
+import threading
 from pathlib import Path
 import json
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, Any, Tuple, List, Optional
 
 from langchain_openai import ChatOpenAI
@@ -22,7 +22,6 @@ from tradingagents.agents.utils.agent_states import (
 )
 from tradingagents.dataflows.config import set_config
 
-# Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
     get_indicators,
@@ -36,6 +35,19 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news
 )
 
+from tradingagents.agents.discovery import (
+    DiscoveryRequest,
+    DiscoveryResult,
+    DiscoveryStatus,
+    TrendingStock,
+    Sector,
+    EventCategory,
+    DiscoveryTimeoutError,
+    extract_entities,
+    calculate_trending_scores,
+)
+from tradingagents.dataflows.interface import get_bulk_news
+
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
 from .propagation import Propagator
@@ -43,8 +55,15 @@ from .reflection import Reflector
 from .signal_processing import SignalProcessor
 
 
+class DiscoveryTimeoutException(Exception):
+    pass
+
+
+def _timeout_handler(signum, frame):
+    raise DiscoveryTimeoutException("Discovery operation timed out")
+
+
 class TradingAgentsGraph:
-    """Main class that orchestrates the trading agents framework."""
 
     def __init__(
         self,
@@ -52,26 +71,16 @@ class TradingAgentsGraph:
         debug=False,
         config: Dict[str, Any] = None,
     ):
-        """Initialize the trading agents graph and components.
-
-        Args:
-            selected_analysts: List of analyst types to include
-            debug: Whether to run in debug mode
-            config: Configuration dictionary. If None, uses default config
-        """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
 
-        # Update the interface's config
         set_config(self.config)
 
-        # Create necessary directories
         os.makedirs(
             os.path.join(self.config["project_dir"], "dataflows/data_cache"),
             exist_ok=True,
         )
 
-        # Initialize LLMs
         if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
             self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
@@ -83,18 +92,13 @@ class TradingAgentsGraph:
             self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
-        
-        # Initialize memories
+
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
         self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
         self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
         self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
-
-        # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
-
-        # Initialize components
         self.conditional_logic = ConditionalLogic()
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
@@ -111,35 +115,26 @@ class TradingAgentsGraph:
         self.propagator = Propagator()
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
-
-        # State tracking
         self.curr_state = None
         self.ticker = None
-        self.log_states_dict = {}  # date to full state dict
-
-        # Set up the graph
+        self.log_states_dict = {}
         self.graph = self.graph_setup.setup_graph(selected_analysts)
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
-        """Create tool nodes for different data sources using abstract methods."""
         return {
             "market": ToolNode(
                 [
-                    # Core stock data tools
                     get_stock_data,
-                    # Technical indicators
                     get_indicators,
                 ]
             ),
             "social": ToolNode(
                 [
-                    # News tools for social media analysis
                     get_news,
                 ]
             ),
             "news": ToolNode(
                 [
-                    # News and insider information
                     get_news,
                     get_global_news,
                     get_insider_sentiment,
@@ -148,7 +143,6 @@ class TradingAgentsGraph:
             ),
             "fundamentals": ToolNode(
                 [
-                    # Fundamental analysis tools
                     get_fundamentals,
                     get_balance_sheet,
                     get_cashflow,
@@ -158,18 +152,13 @@ class TradingAgentsGraph:
         }
 
     def propagate(self, company_name, trade_date):
-        """Run the trading agents graph for a company on a specific date."""
-
         self.ticker = company_name
-
-        # Initialize state
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date
         )
         args = self.propagator.get_graph_args()
 
         if self.debug:
-            # Debug mode with tracing
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
                 if len(chunk["messages"]) == 0:
@@ -180,20 +169,14 @@ class TradingAgentsGraph:
 
             final_state = trace[-1]
         else:
-            # Standard mode without tracing
             final_state = self.graph.invoke(init_agent_state, **args)
 
-        # Store current state for reflection
         self.curr_state = final_state
-
-        # Log state
         self._log_state(trade_date, final_state)
 
-        # Return decision and processed signal
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
     def _log_state(self, trade_date, final_state):
-        """Log the final state to a JSON file."""
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -224,7 +207,6 @@ class TradingAgentsGraph:
             "final_trade_decision": final_state["final_trade_decision"],
         }
 
-        # Save to file
         directory = Path(f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/")
         directory.mkdir(parents=True, exist_ok=True)
 
@@ -235,7 +217,6 @@ class TradingAgentsGraph:
             json.dump(self.log_states_dict, f, indent=4)
 
     def reflect_and_remember(self, returns_losses):
-        """Reflect on decisions and update memory based on returns."""
         self.reflector.reflect_bull_researcher(
             self.curr_state, returns_losses, self.bull_memory
         )
@@ -253,5 +234,95 @@ class TradingAgentsGraph:
         )
 
     def process_signal(self, full_signal):
-        """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def discover_trending(
+        self,
+        request: Optional[DiscoveryRequest] = None,
+    ) -> DiscoveryResult:
+        if request is None:
+            request = DiscoveryRequest(
+                lookback_period="24h",
+                max_results=self.config.get("discovery_max_results", 20),
+            )
+
+        started_at = datetime.now()
+        result = DiscoveryResult(
+            request=request,
+            trending_stocks=[],
+            status=DiscoveryStatus.PROCESSING,
+            started_at=started_at,
+        )
+
+        hard_timeout = self.config.get("discovery_hard_timeout", 120)
+
+        discovery_result = {"stocks": [], "error": None}
+
+        def run_discovery():
+            try:
+                articles = get_bulk_news(request.lookback_period)
+
+                mentions = extract_entities(articles, self.config)
+
+                min_mentions = self.config.get("discovery_min_mentions", 2)
+                max_results = request.max_results or self.config.get("discovery_max_results", 20)
+
+                trending_stocks = calculate_trending_scores(
+                    mentions,
+                    articles,
+                    max_results=max_results,
+                    min_mentions=min_mentions,
+                )
+
+                discovery_result["stocks"] = trending_stocks
+            except Exception as e:
+                discovery_result["error"] = str(e)
+
+        discovery_thread = threading.Thread(target=run_discovery)
+        discovery_thread.start()
+        discovery_thread.join(timeout=hard_timeout)
+
+        if discovery_thread.is_alive():
+            raise DiscoveryTimeoutError(
+                f"Discovery operation exceeded {hard_timeout} second timeout"
+            )
+
+        if discovery_result["error"]:
+            result.status = DiscoveryStatus.FAILED
+            result.error_message = discovery_result["error"]
+            result.completed_at = datetime.now()
+            return result
+
+        trending_stocks = discovery_result["stocks"]
+
+        if request.sector_filter:
+            sector_values = {s.value if isinstance(s, Sector) else s for s in request.sector_filter}
+            trending_stocks = [
+                stock for stock in trending_stocks
+                if stock.sector.value in sector_values or stock.sector in request.sector_filter
+            ]
+
+        if request.event_filter:
+            event_values = {e.value if isinstance(e, EventCategory) else e for e in request.event_filter}
+            trending_stocks = [
+                stock for stock in trending_stocks
+                if stock.event_type.value in event_values or stock.event_type in request.event_filter
+            ]
+
+        result.trending_stocks = trending_stocks
+        result.status = DiscoveryStatus.COMPLETED
+        result.completed_at = datetime.now()
+
+        return result
+
+    def analyze_trending(
+        self,
+        trending_stock: TrendingStock,
+        trade_date: Optional[date] = None,
+    ) -> Tuple[Dict[str, Any], str]:
+        ticker = trending_stock.ticker
+
+        if trade_date is None:
+            trade_date = date.today()
+
+        return self.propagate(ticker, trade_date)
