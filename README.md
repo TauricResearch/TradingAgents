@@ -1,147 +1,117 @@
-<p align="center">
-  <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
-</p>
+# TradingAgents: Multi-Agent LLM Financial Trading Framework
 
-<div align="center" style="line-height: 1;">
-  <a href="https://arxiv.org/abs/2412.20138" target="_blank"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv"/></a>
-  <a href="https://discord.com/invite/hk9PGKShPK" target="_blank"><img alt="Discord" src="https://img.shields.io/badge/Discord-TradingResearch-7289da?logo=discord&logoColor=white&color=7289da"/></a>
-  <a href="./assets/wechat.png" target="_blank"><img alt="WeChat" src="https://img.shields.io/badge/WeChat-TauricResearch-brightgreen?logo=wechat&logoColor=white"/></a>
-  <a href="https://x.com/TauricResearch" target="_blank"><img alt="X Follow" src="https://img.shields.io/badge/X-TauricResearch-white?logo=x&logoColor=white"/></a>
-  <br>
-  <a href="https://github.com/TauricResearch/" target="_blank"><img alt="Community" src="https://img.shields.io/badge/Join_GitHub_Community-TauricResearch-14C290?logo=discourse"/></a>
-</div>
+A multi-agent LLM-powered financial trading framework that simulates the decision-making process of a professional trading firm through specialized AI agents.
 
-<div align="center">
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> |
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=es">Español</a> |
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=fr">français</a> |
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ja">日本語</a> |
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ko">한국어</a> |
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=pt">Português</a> |
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ru">Русский</a> |
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=zh">中文</a>
-</div>
-
----
-
-# TradingAgents: Multi-Agents LLM Financial Trading Framework
-
-> **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
->
-> So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
-
-<div align="center">
-<a href="https://www.star-history.com/#TauricResearch/TradingAgents&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" />
-   <img alt="TradingAgents Star History" src="https://api.star-history.com/svg?repos=TauricResearch/TradingAgents&type=Date" style="width: 80%; height: auto;" />
- </picture>
-</a>
-</div>
-
-<div align="center">
-
-[TradingAgents](#tradingagents-framework) | [Installation & CLI](#installation-and-cli) | [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | [Package Usage](#tradingagents-package) | [Source](#source)
-
-</div>
+[Framework](#tradingagents-framework) | [Installation](#installation) | [CLI Usage](#cli-usage) | [Package Usage](#package-usage) | [Attribution](#attribution)
 
 ## TradingAgents Framework
 
-TradingAgents is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents: from fundamental analysts, sentiment experts, and technical analysts, to trader, risk management team, the platform collaboratively evaluates market conditions and informs trading decisions. Moreover, these agents engage in dynamic discussions to pinpoint the optimal strategy.
+TradingAgents is a multi-agent trading framework that simulates the dynamics of a professional trading firm. The system deploys specialized LLM-powered agents including fundamental analysts, sentiment experts, technical analysts, traders, and risk management teams that collaboratively evaluate market conditions and inform trading decisions. These agents engage in structured debates to determine optimal strategies through a LangGraph-based orchestration system.
 
 <p align="center">
   <img src="assets/schema.png" style="width: 100%; height: auto;">
 </p>
 
-> TradingAgents framework is designed for research purposes. Trading performance may vary based on many factors, including the chosen backbone language models, model temperature, trading periods, the quality of data, and other non-deterministic factors. [It is not intended as financial, investment, or trading advice.](https://tauric.ai/disclaimer/)
+TradingAgents is designed for research purposes. Trading performance varies based on the chosen language models, model temperature, trading periods, data quality, and other non-deterministic factors. This framework is not intended as financial, investment, or trading advice.
 
-Our framework decomposes complex trading tasks into specialized roles. This ensures the system achieves a robust, scalable approach to market analysis and decision-making.
+The framework decomposes complex trading tasks into specialized roles, enabling a robust, scalable approach to market analysis and decision-making.
 
 ### Analyst Team
-- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
-- Sentiment Analyst: Analyzes social media and public sentiment using sentiment scoring algorithms to gauge short-term market mood.
-- News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
-- Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
+
+The analyst team consists of four specialized agents that gather and analyze different aspects of market data:
+
+- **Fundamentals Analyst:** Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
+- **Sentiment Analyst:** Analyzes social media and public sentiment using sentiment scoring algorithms to gauge short-term market mood.
+- **News Analyst:** Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
+- **Technical Analyst:** Utilizes technical indicators (such as MACD and RSI) to detect trading patterns and forecast price movements.
 
 <p align="center">
   <img src="assets/analyst.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
 ### Researcher Team
-- Comprises both bullish and bearish researchers who critically assess the insights provided by the Analyst Team. Through structured debates, they balance potential gains against inherent risks.
+
+The researcher team comprises both bullish and bearish researchers who critically assess insights from the analyst team. Through structured debates across multiple rounds, they balance potential gains against inherent risks to form a comprehensive investment thesis.
 
 <p align="center">
   <img src="assets/researcher.png" width="70%" style="display: inline-block; margin: 0 2%;">
 </p>
 
 ### Trader Agent
-- Composes reports from the analysts and researchers to make informed trading decisions. It determines the timing and magnitude of trades based on comprehensive market insights.
+
+The trader agent synthesizes reports from analysts and researchers to formulate trading decisions. It determines the timing and magnitude of trades based on comprehensive market insights and the investment plan from the research team.
 
 <p align="center">
   <img src="assets/trader.png" width="70%" style="display: inline-block; margin: 0 2%;">
 </p>
 
 ### Risk Management and Portfolio Manager
-- Continuously evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. The risk management team evaluates and adjusts trading strategies, providing assessment reports to the Portfolio Manager for final decision.
-- The Portfolio Manager approves/rejects the transaction proposal. If approved, the order will be sent to the simulated exchange and executed.
+
+The risk management team evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. Three debaters with different risk perspectives (aggressive, conservative, and neutral) evaluate and adjust trading strategies, providing assessment reports to the Portfolio Manager.
+
+The Portfolio Manager makes the final approval or rejection of transaction proposals. Approved orders are sent to the simulated exchange for execution.
 
 <p align="center">
   <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
 </p>
 
-## Installation and CLI
+## Installation
 
-### Installation
+Clone the repository:
 
-Clone TradingAgents:
 ```bash
-git clone https://github.com/TauricResearch/TradingAgents.git
+git clone <repository-url>
 cd TradingAgents
 ```
 
 Sync virtual environment:
+
 ```bash
 uv sync
 source .venv/bin/activate
 ```
 
-### Required APIs
+### Required API Keys
 
-You will need the OpenAI API for all the agents, and [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for fundamental and news data (default configuration).
+The framework requires an OpenAI API key for powering the agents and an Alpha Vantage API key for fundamental and news data (default configuration).
+
+Set environment variables:
 
 ```bash
-export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
-export ALPHA_VANTAGE_API_KEY=$YOUR_ALPHA_VANTAGE_API_KEY
+export OPENAI_API_KEY=your_openai_api_key
+export ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
 ```
 
-Alternatively, you can create a `.env` file in the project root with your API keys (see `.env.example` for reference):
+Alternatively, create a `.env` file in the project root:
+
 ```bash
 cp .env.example .env
 ```
 
-**Note:** We are happy to partner with Alpha Vantage to provide robust API support for TradingAgents. You can get a free AlphaVantage API [here](https://www.alphavantage.co/support/#api-key), TradingAgents-sourced requests also have increased rate limits to 60 requests per minute with no daily limits. Typically the quota is sufficient for performing complex tasks with TradingAgents thanks to Alpha Vantage's open-source support program. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
+Then edit the `.env` file with your API keys.
 
-### CLI Usage
+## CLI Usage
 
 Run the CLI:
+
 ```bash
 uv run cli/main.py
 ```
 
 The CLI provides two main modes:
 
-#### 1. Discover Trending Stocks
+### Discover Trending Stocks
 
-Find trending stocks from recent news using LLM-powered entity extraction:
+The trending stock discovery feature uses LLM-powered entity extraction to identify stocks making news. This is the primary enhancement in this fork, enabling proactive discovery of trading opportunities.
 
-- Select a lookback period (1h, 6h, 24h, or 7d)
-- Optionally filter by sector (Technology, Healthcare, Finance, Energy, Consumer Goods, Industrials)
-- Optionally filter by event type (Earnings, Merger/Acquisition, Regulatory, Product Launch, Executive Change)
-- View ranked results with scores, mentions, and sentiment
-- Drill into stock details and seamlessly transition to full analysis
+Configuration options:
+- **Lookback period:** 1h, 6h, 24h, or 7d
+- **Sector filter:** Technology, Healthcare, Finance, Energy, Consumer Goods, Industrials
+- **Event type filter:** Earnings, Merger/Acquisition, Regulatory, Product Launch, Executive Change
 
-#### 2. Analyze Specific Ticker
+Results display includes scores, mention counts, and sentiment for each discovered stock. Stocks can be selected for full multi-agent analysis directly from the discovery results.
+
+### Analyze Specific Ticker
 
 Run full multi-agent analysis on a specific stock:
 
@@ -155,7 +125,7 @@ Run full multi-agent analysis on a specific stock:
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
-An interface will appear showing results as they load, letting you track the agent's progress as it runs.
+The interface displays results as they load, allowing tracking of agent progress during execution.
 
 <p align="center">
   <img src="assets/cli/cli_news.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -165,15 +135,15 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
-## TradingAgents Package
+## Package Usage
 
-### Implementation Details
+### Implementation Overview
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. We utilize `o1-preview` and `gpt-4o` as our deep thinking and fast thinking LLMs for our experiments. However, for testing purposes, we recommend you use `o4-mini` and `gpt-4.1-mini` to save on costs as our framework makes **lots of** API calls.
+TradingAgents is built with LangGraph for flexibility and modularity in agent orchestration. For testing purposes, using smaller models reduces costs as the framework makes numerous API calls during analysis.
 
-### Python Usage
+### Basic Usage
 
-To use TradingAgents inside your code, you can import the `tradingagents` module and initialize a `TradingAgentsGraph()` object. The `.propagate()` function will return a decision. You can run `main.py`, here's also a quick example:
+To use TradingAgents programmatically, import the `tradingagents` module and initialize a `TradingAgentsGraph` object:
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -185,15 +155,17 @@ _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```
 
-You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
+### Configuration Customization
+
+The configuration can be customized to specify LLM models, debate rounds, and data vendors:
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-4.1-nano"
-config["quick_think_llm"] = "gpt-4.1-nano"
+config["deep_think_llm"] = "gpt-4o-mini"
+config["quick_think_llm"] = "gpt-4o-mini"
 config["max_debate_rounds"] = 1
 
 config["data_vendors"] = {
@@ -211,7 +183,59 @@ print(decision)
 
 ### Trending Stock Discovery API
 
-You can also use the trending stock discovery feature programmatically:
+The trending stock discovery feature can be used programmatically through the discovery models:
+
+#### DiscoveryRequest
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `lookback_period` | str | Time period to search (1h, 6h, 24h, 7d) |
+| `sector_filter` | Optional[List[Sector]] | Filter by sector categories |
+| `event_filter` | Optional[List[EventCategory]] | Filter by event types |
+| `max_results` | int | Maximum number of stocks to return (default: 20) |
+
+#### DiscoveryResult
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `request` | DiscoveryRequest | The original request parameters |
+| `trending_stocks` | List[TrendingStock] | List of discovered trending stocks |
+| `status` | DiscoveryStatus | Processing status (created, processing, completed, failed) |
+
+#### TrendingStock
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ticker` | str | Stock ticker symbol |
+| `company_name` | str | Company name |
+| `score` | float | Relevance score |
+| `mention_count` | int | Number of mentions in news |
+| `sentiment` | float | Sentiment score |
+| `sector` | Sector | Industry sector |
+| `event_type` | EventCategory | Type of news event |
+| `news_summary` | str | Summary of relevant news |
+| `source_articles` | List[NewsArticle] | Source news articles |
+
+#### Sector Enum
+
+- `TECHNOLOGY`
+- `HEALTHCARE`
+- `FINANCE`
+- `ENERGY`
+- `CONSUMER_GOODS`
+- `INDUSTRIALS`
+- `OTHER`
+
+#### EventCategory Enum
+
+- `EARNINGS`
+- `MERGER_ACQUISITION`
+- `REGULATORY`
+- `PRODUCT_LAUNCH`
+- `EXECUTIVE_CHANGE`
+- `OTHER`
+
+#### Example
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -237,10 +261,6 @@ for stock in result.trending_stocks:
     print(f"{stock.ticker}: {stock.company_name} (Score: {stock.score:.2f})")
 ```
 
-> The default configuration uses yfinance for stock price and technical data, and Alpha Vantage for fundamental and news data. For production use or if you encounter rate limits, consider upgrading to [Alpha Vantage Premium](https://www.alphavantage.co/premium/) for more stable and reliable data access. For offline experimentation, there's a local data vendor option that uses our **Tauric TradingDB**, a curated dataset for backtesting, though this is still in development. We're currently refining this dataset and plan to release it soon alongside our upcoming projects. Stay tuned!
-
-You can view the full list of configurations in `tradingagents/default_config.py`.
-
 ### Configuration Options
 
 | Option | Description | Default |
@@ -250,14 +270,16 @@ You can view the full list of configurations in `tradingagents/default_config.py
 | `quick_think_llm` | Model for fast/simple tasks | gpt-5-mini |
 | `max_debate_rounds` | Number of bull/bear debate iterations | 2 |
 | `max_risk_discuss_rounds` | Number of risk assessment rounds | 2 |
-| `discovery_max_results` | Max trending stocks to return | 20 |
+| `discovery_max_results` | Maximum trending stocks to return | 20 |
 | `discovery_min_mentions` | Minimum mentions to include stock | 2 |
 
-## Source
+See `tradingagents/default_config.py` for the full list of configuration options.
 
-Thanks to Yijia Xiao and Edward Sun and Di Luo and Wei Wang. Core agent implementation based on [TradingAgents: Multi-Agents LLM Financial Trading Framework](https://arxiv.org/abs/2412.20138)
+## Attribution
 
-```
+This project is based on research by Yijia Xiao, Edward Sun, Di Luo, and Wei Wang. Core agent implementation based on [TradingAgents: Multi-Agents LLM Financial Trading Framework](https://arxiv.org/abs/2412.20138).
+
+```bibtex
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,
       title={TradingAgents: Multi-Agents LLM Financial Trading Framework},
       author={Yijia Xiao and Edward Sun and Di Luo and Wei Wang},
