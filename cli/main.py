@@ -195,7 +195,7 @@ EVENT_OPTIONS = [
 ]
 
 
-def create_question_box(title: str, prompt: str, default: str = None) -> Panel:
+def create_question_box(title: str, prompt: str, default: Optional[str] = None) -> Panel:
     box_content = f"[bold]{title}[/bold]\n"
     box_content += f"[dim]{prompt}[/dim]"
     if default:
@@ -638,7 +638,7 @@ def run_analysis_for_ticker(ticker: str, config: dict):
 
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    with Live(layout, refresh_per_second=4):
         update_display(layout)
 
         message_buffer.add_message("System", f"Selected ticker: {ticker}")
