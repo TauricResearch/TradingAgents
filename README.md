@@ -27,7 +27,7 @@
 
 # TradingAgents: Multi-Agents LLM Financial Trading Framework 
 
-> 🎉 **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
+> **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
 >
 > So we decided to fully open-source the framework. Looking forward to building impactful projects with you!
 
@@ -43,7 +43,7 @@
 
 <div align="center">
 
-🚀 [TradingAgents](#tradingagents-framework) | ⚡ [Installation & CLI](#installation-and-cli) | 🎬 [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | 📦 [Package Usage](#tradingagents-package) | 🤝 [Contributing](#contributing) | 📄 [Citation](#citation)
+[TradingAgents](#tradingagents-framework) | [Installation & CLI](#installation-and-cli) | [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | [Package Usage](#tradingagents-package) | [Contributing](#contributing) | [Citation](#citation)
 
 </div>
 
@@ -101,15 +101,10 @@ git clone https://github.com/TauricResearch/TradingAgents.git
 cd TradingAgents
 ```
 
-Create a virtual environment in any of your favorite environment managers:
+Sync virtual environment:
 ```bash
-conda create -n tradingagents python=3.13
-conda activate tradingagents
-```
-
-Install dependencies:
-```bash
-pip install -r requirements.txt
+uv sync
+uv source .venv/bin/activate
 ```
 
 ### Required APIs
@@ -133,7 +128,7 @@ cp .env.example .env
 
 You can also try out the CLI directly by running:
 ```bash
-python -m cli.main
+uv run cli/main.py
 ```
 You will see a screen where you can select your desired tickers, date, LLMs, research depth, etc.
 
@@ -204,13 +199,9 @@ print(decision)
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
 
-## Contributing
+## Source
 
-We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
-
-## Citation
-
-Please reference our work if you find *TradingAgents* provides you with some help :)
+Thanks to Yijia Xiao and Edward Sun and Di Luo and Wei Wang. Core agent implementation based on [TradingAgents: Multi-Agents LLM Financial Trading Framework](https://arxiv.org/abs/2412.20138)
 
 ```
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,

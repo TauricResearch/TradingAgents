@@ -9,3 +9,13 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
+.claude/
+.pytest_cache/
+.specify/
+specs/
+agent-os/
+*.local.md
+build/
+.mcp.json
+*.zip
+todos.md
