@@ -29,6 +29,7 @@ class ExtractedEntity(BaseModel):
     context_snippet: str = PydanticField(description="Surrounding context of 50-100 characters around the company mention")
     event_type: str = PydanticField(description="Event category: earnings, merger_acquisition, regulatory, product_launch, executive_change, or other")
     sentiment: float = PydanticField(default=0.0, description="Sentiment score from -1.0 (negative) to 1.0 (positive)")
+    article_id: str = PydanticField(description="The article ID where this company was mentioned (e.g., article_0, article_1)")
 
 
 class ExtractionResponse(BaseModel):
@@ -75,9 +76,11 @@ For each article provided, extract all mentions of publicly traded companies. Fo
    - 0.0: Neutral news
    - 0.5: Moderately positive news
    - 1.0: Very positive news (breakthroughs, record earnings)
+6. Include the article_id (e.g., article_0, article_1) where the company was mentioned
 
 Only extract companies that are publicly traded on major stock exchanges.
 Handle name variations by providing the most complete company name found.
+IMPORTANT: Each entity must include the article_id from which it was extracted.
 
 Articles to analyze:
 {articles_text}
@@ -126,11 +129,12 @@ def _extract_batch(
         if len(context) > 150:
             context = context[:147] + "..."
 
+        article_id = entity.article_id if entity.article_id else f"article_{start_idx}"
         mention = EntityMention(
             company_name=entity.company_name,
             confidence=confidence,
             context_snippet=context,
-            article_id=f"article_{start_idx}",
+            article_id=article_id,
             event_type=EventCategory(event_type_str),
             sentiment=sentiment,
         )

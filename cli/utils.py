@@ -1,7 +1,198 @@
 import questionary
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Callable, Any
+from contextlib import contextmanager
+from functools import wraps
+import threading
+import time
+
+from rich.console import Console
+from rich.spinner import Spinner
+from rich.live import Live
+from rich.panel import Panel
+from rich.text import Text
+from rich.align import Align
 
 from cli.models import AnalystType
+
+console = Console()
+
+SPINNER_STYLES = {
+    "default": "dots",
+    "fast": "dots2",
+    "bounce": "bouncingBall",
+    "pulse": "point",
+    "arrow": "arrow3",
+    "loading": "dots12",
+}
+
+
+class LoadingIndicator:
+    def __init__(
+        self,
+        message: str = "Working...",
+        spinner_style: str = "default",
+        show_elapsed: bool = False,
+        border_style: str = "cyan",
+    ):
+        self.message = message
+        self.spinner_name = SPINNER_STYLES.get(spinner_style, spinner_style)
+        self.show_elapsed = show_elapsed
+        self.border_style = border_style
+        self._live = None
+        self._start_time = None
+        self._stop_event = threading.Event()
+        self._update_thread = None
+
+    def _create_display(self) -> Panel:
+        elapsed_text = ""
+        if self.show_elapsed and self._start_time:
+            elapsed = time.time() - self._start_time
+            elapsed_text = f" [{elapsed:.1f}s]"
+
+        spinner = Spinner(self.spinner_name, text=f" {self.message}{elapsed_text}")
+        return Panel(
+            Align.center(spinner),
+            border_style=self.border_style,
+            padding=(0, 2),
+        )
+
+    def _update_loop(self):
+        while not self._stop_event.is_set():
+            if self._live and self.show_elapsed:
+                self._live.update(self._create_display())
+            time.sleep(0.1)
+
+    def start(self):
+        self._start_time = time.time()
+        self._stop_event.clear()
+        self._live = Live(
+            self._create_display(),
+            console=console,
+            refresh_per_second=10,
+            transient=True,
+        )
+        self._live.start()
+        if self.show_elapsed:
+            self._update_thread = threading.Thread(target=self._update_loop, daemon=True)
+            self._update_thread.start()
+
+    def stop(self):
+        self._stop_event.set()
+        if self._update_thread:
+            self._update_thread.join(timeout=0.5)
+        if self._live:
+            self._live.stop()
+
+    def update_message(self, message: str):
+        self.message = message
+        if self._live:
+            self._live.update(self._create_display())
+
+
+@contextmanager
+def loading(
+    message: str = "Working...",
+    spinner_style: str = "default",
+    show_elapsed: bool = False,
+    success_message: Optional[str] = None,
+    error_message: Optional[str] = None,
+):
+    indicator = LoadingIndicator(
+        message=message,
+        spinner_style=spinner_style,
+        show_elapsed=show_elapsed,
+    )
+    try:
+        indicator.start()
+        yield indicator
+        if success_message:
+            console.print(f"[green]{success_message}[/green]")
+    except Exception as e:
+        if error_message:
+            console.print(f"[red]{error_message}: {e}[/red]")
+        raise
+    finally:
+        indicator.stop()
+
+
+def with_loading(
+    message: str = "Working...",
+    spinner_style: str = "default",
+    show_elapsed: bool = False,
+    success_message: Optional[str] = None,
+):
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            with loading(
+                message=message,
+                spinner_style=spinner_style,
+                show_elapsed=show_elapsed,
+                success_message=success_message,
+            ):
+                return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+class MultiStageLoader:
+    def __init__(self, stages: List[str], title: str = "Progress"):
+        self.stages = stages
+        self.title = title
+        self.current_stage = 0
+        self._live = None
+        self._start_time = None
+
+    def _create_display(self) -> Panel:
+        lines = []
+        for i, stage in enumerate(self.stages):
+            if i < self.current_stage:
+                lines.append(Text(f"  [done] {stage}", style="green"))
+            elif i == self.current_stage:
+                spinner = Spinner("dots", text=f" {stage}")
+                lines.append(spinner)
+            else:
+                lines.append(Text(f"  [ -- ] {stage}", style="dim"))
+
+        from rich.console import Group
+        content = Group(*lines)
+
+        elapsed = ""
+        if self._start_time:
+            elapsed = f" [{time.time() - self._start_time:.1f}s]"
+
+        return Panel(
+            content,
+            title=f"{self.title}{elapsed}",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+
+    def start(self):
+        self._start_time = time.time()
+        self._live = Live(
+            self._create_display(),
+            console=console,
+            refresh_per_second=10,
+        )
+        self._live.start()
+
+    def next_stage(self):
+        self.current_stage += 1
+        if self._live:
+            self._live.update(self._create_display())
+
+    def stop(self):
+        if self._live:
+            self._live.stop()
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+        return False
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),

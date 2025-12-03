@@ -35,7 +35,20 @@ from tradingagents.agents.discovery.models import (
 )
 from tradingagents.agents.discovery.persistence import save_discovery_result
 from cli.models import AnalystType
-from cli.utils import *
+from cli.utils import (
+    ANALYST_ORDER,
+    get_ticker,
+    get_analysis_date,
+    select_analysts,
+    select_research_depth,
+    select_shallow_thinking_agent,
+    select_deep_thinking_agent,
+    select_llm_provider,
+    loading,
+    with_loading,
+    MultiStageLoader,
+    LoadingIndicator,
+)
 
 console = Console()
 
@@ -466,33 +479,32 @@ def discover_trending_flow():
     )
 
     discovery_stages = [
-        "Fetching news...",
-        "Extracting entities...",
-        "Resolving tickers...",
-        "Calculating scores...",
+        "Initializing analysis engine",
+        "Fetching news sources",
+        "Extracting stock entities",
+        "Resolving ticker symbols",
+        "Calculating trending scores",
     ]
 
     result = None
-    with Live(console=console, refresh_per_second=4) as live:
-        for i, stage in enumerate(discovery_stages):
-            progress_panel = Panel(
-                f"[bold cyan]{stage}[/bold cyan]\n\n"
-                f"[dim]Stage {i+1} of {len(discovery_stages)}[/dim]",
-                title="Discovery Progress",
-                border_style="cyan",
-                padding=(2, 4),
-            )
-            live.update(Align.center(progress_panel))
 
-            if i == 0:
-                try:
-                    graph = TradingAgentsGraph(config=config, debug=False)
-                    result = graph.discover_trending(request)
-                except Exception as e:
-                    console.print(f"\n[red]Error during discovery: {e}[/red]")
-                    return
+    with MultiStageLoader(discovery_stages, title="Discovery Progress") as loader:
+        try:
+            loader.next_stage()
+            graph = TradingAgentsGraph(config=config, debug=False)
 
-            time.sleep(0.5)
+            loader.next_stage()
+            result = graph.discover_trending(request)
+
+            loader.next_stage()
+            time.sleep(0.3)
+
+            loader.next_stage()
+            time.sleep(0.3)
+
+        except Exception as e:
+            console.print(f"\n[red]Error during discovery: {e}[/red]")
+            return
 
     if result is None:
         console.print("\n[red]Discovery failed. Please try again.[/red]")
@@ -504,7 +516,8 @@ def discover_trending_flow():
 
     if result.status == DiscoveryStatus.COMPLETED:
         try:
-            save_path = save_discovery_result(result)
+            with loading("Saving discovery results..."):
+                save_path = save_discovery_result(result)
             console.print(f"\n[dim]Results saved to: {save_path}[/dim]")
         except Exception as e:
             console.print(f"\n[yellow]Warning: Could not save results: {e}[/yellow]")
@@ -546,7 +559,9 @@ def discover_trending_flow():
         ).ask()
 
         if analyze_choice:
-            console.print(f"\n[green]Starting analysis for {selected_stock.ticker}...[/green]\n")
+            console.print()
+            with loading(f"Preparing analysis for {selected_stock.ticker}...", spinner_style="loading"):
+                time.sleep(0.5)
             run_analysis_for_ticker(selected_stock.ticker, config)
             break
 
@@ -586,9 +601,10 @@ def run_analysis_for_ticker(ticker: str, config: dict):
     config["max_risk_discuss_rounds"] = selected_research_depth
     config["deep_think_llm"] = selected_deep_thinker
 
-    graph = TradingAgentsGraph(
-        [analyst.value for analyst in selected_analysts], config=config, debug=True
-    )
+    with loading("Initializing trading agents...", show_elapsed=True):
+        graph = TradingAgentsGraph(
+            [analyst.value for analyst in selected_analysts], config=config, debug=True
+        )
 
     results_dir = Path(config["results_dir"]) / ticker / analysis_date
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -1332,9 +1348,10 @@ def run_analysis():
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
 
-    graph = TradingAgentsGraph(
-        [analyst.value for analyst in selections["analysts"]], config=config, debug=True
-    )
+    with loading("Initializing trading agents...", show_elapsed=True):
+        graph = TradingAgentsGraph(
+            [analyst.value for analyst in selections["analysts"]], config=config, debug=True
+        )
 
     results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
     results_dir.mkdir(parents=True, exist_ok=True)

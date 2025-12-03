@@ -40,12 +40,19 @@ def get_bulk_news_alpha_vantage(lookback_hours: int) -> List[Dict[str, Any]]:
         try:
             response = json.loads(response)
         except json.JSONDecodeError:
+            print(f"DEBUG: Alpha Vantage JSON decode failed")
             return []
 
     if not isinstance(response, dict):
+        print(f"DEBUG: Alpha Vantage response not a dict: {type(response)}")
         return []
 
+    if "Information" in response:
+        print(f"DEBUG: Alpha Vantage info message: {response.get('Information')}")
+
     feed = response.get("feed", [])
+    if not feed:
+        print(f"DEBUG: Alpha Vantage feed empty. Keys in response: {list(response.keys())}")
 
     articles = []
     for item in feed:

@@ -265,6 +265,8 @@ class TradingAgentsGraph:
                 mentions = extract_entities(articles, self.config)
 
                 min_mentions = self.config.get("discovery_min_mentions", 2)
+                if len(articles) < 10:
+                    min_mentions = 1
                 max_results = request.max_results or self.config.get("discovery_max_results", 20)
 
                 trending_stocks = calculate_trending_scores(
