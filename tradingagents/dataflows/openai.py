@@ -1,9 +1,28 @@
 import json
 import re
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from openai import OpenAI
 from .config import get_config
+
+
+def _extract_response_text(response) -> Optional[str]:
+    if not hasattr(response, 'output') or not response.output:
+        return None
+
+    for output_item in response.output:
+        if not hasattr(output_item, 'content') or not output_item.content:
+            continue
+
+        text_pieces = []
+        for content_item in output_item.content:
+            if hasattr(content_item, 'text') and content_item.text:
+                text_pieces.append(content_item.text)
+
+        if text_pieces:
+            return "\n".join(text_pieces)
+
+    return None
 
 
 def get_stock_news_openai(query, start_date, end_date):
@@ -38,7 +57,7 @@ def get_stock_news_openai(query, start_date, end_date):
         store=True,
     )
 
-    return response.output[1].content[0].text
+    return _extract_response_text(response) or ""
 
 
 def get_global_news_openai(curr_date, look_back_days=7, limit=5):
@@ -73,7 +92,7 @@ def get_global_news_openai(curr_date, look_back_days=7, limit=5):
         store=True,
     )
 
-    return response.output[1].content[0].text
+    return _extract_response_text(response) or ""
 
 
 def get_fundamentals_openai(ticker, curr_date):
@@ -108,7 +127,7 @@ def get_fundamentals_openai(ticker, curr_date):
         store=True,
     )
 
-    return response.output[1].content[0].text
+    return _extract_response_text(response) or ""
 
 
 def get_bulk_news_openai(lookback_hours: int) -> List[Dict[str, Any]]:
@@ -172,7 +191,9 @@ Return ONLY the JSON array, no additional text."""
     )
 
     try:
-        response_text = response.output[1].content[0].text
+        response_text = _extract_response_text(response)
+        if not response_text:
+            return []
 
         json_match = re.search(r'\[[\s\S]*\]', response_text)
         if json_match:
@@ -194,5 +215,5 @@ Return ONLY the JSON array, no additional text."""
 
         return result
 
-    except (json.JSONDecodeError, IndexError, AttributeError):
+    except (json.JSONDecodeError, AttributeError):
         return []
