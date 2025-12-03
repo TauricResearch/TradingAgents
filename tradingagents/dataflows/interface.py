@@ -191,7 +191,8 @@ def _convert_to_news_articles(raw_articles: List[Dict[str, Any]]) -> List[NewsAr
                 ticker_mentions=[],
             )
             articles.append(article)
-        except Exception:
+        except (KeyError, TypeError, ValueError) as e:
+            logger.debug("Error converting article to NewsArticle: %s", e)
             continue
     return articles
 
@@ -218,7 +219,7 @@ def _fetch_bulk_news_from_vendor(lookback_period: str) -> List[Dict[str, Any]]:
         except AlphaVantageRateLimitError as e:
             logger.warning("Alpha Vantage rate limit exceeded: %s", e)
             continue
-        except Exception as e:
+        except (RuntimeError, ConnectionError, TimeoutError, ValueError, OSError) as e:
             logger.error("Vendor '%s' failed: %s", vendor, e)
             continue
 
@@ -316,7 +317,7 @@ def route_to_vendor(method: str, *args, **kwargs):
                     logger.warning("Alpha Vantage rate limit exceeded, falling back to next available vendor")
                     logger.debug("Rate limit details: %s", e)
                 continue
-            except Exception as e:
+            except (RuntimeError, ConnectionError, TimeoutError, ValueError, KeyError, OSError) as e:
                 logger.error("%s from vendor '%s' failed: %s", impl_func.__name__, vendor_name, e)
                 continue
 

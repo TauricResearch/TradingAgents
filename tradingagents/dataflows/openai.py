@@ -54,7 +54,7 @@ def get_stock_news_openai(query, start_date, end_date):
         temperature=1,
         max_output_tokens=4096,
         top_p=1,
-        store=True,
+        store=False,
     )
 
     return _extract_response_text(response) or ""
@@ -89,7 +89,7 @@ def get_global_news_openai(curr_date, look_back_days=7, limit=5):
         temperature=1,
         max_output_tokens=4096,
         top_p=1,
-        store=True,
+        store=False,
     )
 
     return _extract_response_text(response) or ""
@@ -124,7 +124,7 @@ def get_fundamentals_openai(ticker, curr_date):
         temperature=1,
         max_output_tokens=4096,
         top_p=1,
-        store=True,
+        store=False,
     )
 
     return _extract_response_text(response) or ""
@@ -187,7 +187,7 @@ Return ONLY the JSON array, no additional text."""
         temperature=0.5,
         max_output_tokens=8192,
         top_p=1,
-        store=True,
+        store=False,
     )
 
     try:

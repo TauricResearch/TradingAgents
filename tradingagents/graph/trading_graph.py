@@ -280,7 +280,7 @@ class TradingAgentsGraph:
                 )
 
                 discovery_result["stocks"] = trending_stocks
-            except Exception as e:
+            except (ValueError, KeyError, RuntimeError, ConnectionError, TimeoutError) as e:
                 discovery_result["error"] = str(e)
 
         discovery_thread = threading.Thread(target=run_discovery)

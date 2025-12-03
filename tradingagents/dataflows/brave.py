@@ -120,7 +120,7 @@ def get_bulk_news_brave(lookback_hours: int) -> List[Dict[str, Any]]:
         except requests.exceptions.RequestException as e:
             logger.debug("Brave search request failed for '%s': %s", query, e)
             continue
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             logger.debug("Brave search failed for query '%s': %s", query, e)
             continue
 

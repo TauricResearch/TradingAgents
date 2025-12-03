@@ -462,7 +462,7 @@ def _search_yfinance_ticker(company_name: str) -> Optional[str]:
         info = search_result.info
         if info and "symbol" in info:
             return info["symbol"]
-    except Exception as e:
+    except (KeyError, ValueError, AttributeError, RuntimeError) as e:
         logger.debug("yfinance search failed for %s: %s", company_name, str(e))
 
     try:
@@ -471,7 +471,7 @@ def _search_yfinance_ticker(company_name: str) -> Optional[str]:
             for quote in search.quotes:
                 if "symbol" in quote:
                     return quote["symbol"]
-    except Exception as e:
+    except (KeyError, ValueError, AttributeError, RuntimeError) as e:
         logger.debug("yfinance Search failed for %s: %s", company_name, str(e))
 
     return None
@@ -495,7 +495,7 @@ def validate_us_ticker(ticker: str) -> bool:
 
         logger.warning("Validation failed for %s: exchange %s is not a US exchange", ticker, exchange)
         return False
-    except Exception as e:
+    except (KeyError, ValueError, AttributeError, RuntimeError) as e:
         logger.warning("Validation failed for %s: %s", ticker, str(e))
         return False
 

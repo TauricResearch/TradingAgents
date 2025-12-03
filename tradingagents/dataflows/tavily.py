@@ -36,7 +36,7 @@ def _search_with_retry(client, query: str, search_depth: str, topic: str, time_r
                 max_results=max_results,
             )
             return response
-        except Exception as e:
+        except (RuntimeError, ConnectionError, TimeoutError, OSError) as e:
             error_str = str(e).lower()
             if "rate" in error_str or "limit" in error_str or "429" in error_str:
                 wait_time = RETRY_BACKOFF * (attempt + 1) * 2
@@ -123,7 +123,7 @@ def get_bulk_news_tavily(lookback_hours: int) -> List[Dict[str, Any]]:
                     }
                     all_articles.append(article)
 
-        except Exception as e:
+        except (RuntimeError, ConnectionError, TimeoutError, OSError, ValueError) as e:
             logger.debug("Tavily search failed for query '%s': %s", query, e)
             continue
 

@@ -53,7 +53,7 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
     elif "entitlement" in api_params:
         api_params.pop("entitlement", None)
 
-    response = requests.get(API_BASE_URL, params=api_params)
+    response = requests.get(API_BASE_URL, params=api_params, timeout=30)
     response.raise_for_status()
 
     response_text = response.text
@@ -88,6 +88,6 @@ def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> 
 
         return filtered_df.to_csv(index=False)
 
-    except Exception as e:
+    except (pd.errors.ParserError, KeyError, ValueError) as e:
         logger.warning("Failed to filter CSV data by date range: %s", e)
         return csv_data

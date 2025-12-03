@@ -77,7 +77,8 @@ def get_bulk_news_alpha_vantage(lookback_hours: int) -> List[Dict[str, Any]]:
                 "content_snippet": item.get("summary", "")[:500],
             }
             articles.append(article)
-        except Exception:
+        except (KeyError, TypeError, AttributeError) as e:
+            logger.debug("Error parsing news article: %s", e)
             continue
 
     return articles

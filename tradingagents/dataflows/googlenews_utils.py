@@ -27,7 +27,7 @@ def is_rate_limited(response):
 )
 def make_request(url, headers):
     time.sleep(random.uniform(2, 6))
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=30)
     return response
 
 
@@ -81,7 +81,7 @@ def getNewsData(query, start_date, end_date):
                             "source": source,
                         }
                     )
-                except Exception as e:
+                except (TypeError, AttributeError, KeyError) as e:
                     logger.debug("Error processing result: %s", e)
                     continue
 
@@ -91,7 +91,7 @@ def getNewsData(query, start_date, end_date):
 
             page += 1
 
-        except Exception as e:
+        except (requests.RequestException, ConnectionError, TimeoutError) as e:
             logger.debug("Failed after multiple retries: %s", e)
             break
 

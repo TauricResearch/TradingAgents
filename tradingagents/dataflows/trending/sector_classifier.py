@@ -261,7 +261,7 @@ def classify_sector(ticker: str) -> str:
         _sector_cache[ticker_upper] = sector
         logger.info("Classified %s as %s via LLM", ticker, sector)
         return sector
-    except Exception as e:
+    except (KeyError, ValueError, RuntimeError, ConnectionError, TimeoutError) as e:
         logger.error("LLM sector classification failed for %s: %s", ticker, str(e))
         _sector_cache[ticker_upper] = "other"
         return "other"

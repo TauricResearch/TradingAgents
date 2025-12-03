@@ -1,9 +1,13 @@
+import logging
 import re
+import requests
 from typing import Annotated, List, Dict, Any
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from dateutil import parser as dateutil_parser
 from .googlenews_utils import getNewsData
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_google_news_date(date_str: str) -> datetime:
@@ -108,7 +112,8 @@ def get_bulk_news_google(lookback_hours: int) -> List[Dict[str, Any]]:
                     }
                     all_articles.append(article)
 
-        except Exception:
+        except (TypeError, KeyError, AttributeError, requests.RequestException) as e:
+            logger.debug("Google News search failed for query '%s': %s", query, e)
             continue
 
     return all_articles
