@@ -1,7 +1,6 @@
-import pytest
 from datetime import date
+
 from tradingagents.graph.propagation import Propagator
-from tradingagents.agents.utils.agent_states import InvestDebateState, RiskDebateState
 
 
 class TestPropagator:

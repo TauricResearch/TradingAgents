@@ -1,11 +1,3 @@
-import pytest
-from tradingagents.agents.utils.agent_states import (
-    InvestDebateState,
-    RiskDebateState,
-    AgentState,
-)
-
-
 class TestInvestDebateState:
     """Test suite for InvestDebateState TypedDict."""
 
@@ -19,7 +11,7 @@ class TestInvestDebateState:
             "judge_decision": "Final decision",
             "count": 3,
         }
-        
+
         assert state["bull_history"] == "Bull argument 1\nBull argument 2"
         assert state["bear_history"] == "Bear argument 1\nBear argument 2"
         assert state["history"] == "Combined history"
@@ -37,7 +29,7 @@ class TestInvestDebateState:
             "judge_decision": "",
             "count": 0,
         }
-        
+
         assert state["bull_history"] == ""
         assert state["bear_history"] == ""
         assert state["count"] == 0
@@ -59,7 +51,7 @@ class TestInvestDebateState:
         """Test InvestDebateState with multiline conversation histories."""
         bull_history = "\n".join([f"Bull point {i}" for i in range(5)])
         bear_history = "\n".join([f"Bear point {i}" for i in range(5)])
-        
+
         state = {
             "bull_history": bull_history,
             "bear_history": bear_history,
@@ -68,7 +60,7 @@ class TestInvestDebateState:
             "judge_decision": "Final",
             "count": 5,
         }
-        
+
         assert state["bull_history"].count("\n") == 4
         assert state["bear_history"].count("\n") == 4
 
@@ -90,7 +82,7 @@ class TestRiskDebateState:
             "judge_decision": "Portfolio manager decision",
             "count": 2,
         }
-        
+
         assert state["risky_history"] == "Risky analysis 1"
         assert state["safe_history"] == "Safe analysis 1"
         assert state["neutral_history"] == "Neutral analysis 1"
@@ -101,7 +93,7 @@ class TestRiskDebateState:
     def test_risk_debate_state_speaker_variations(self):
         """Test RiskDebateState with different speaker values."""
         speakers = ["risky", "safe", "neutral", "judge"]
-        
+
         for speaker in speakers:
             state = {
                 "risky_history": "Risky",
@@ -131,7 +123,7 @@ class TestRiskDebateState:
             "judge_decision": "",
             "count": 0,
         }
-        
+
         assert state["current_risky_response"] == ""
         assert state["current_safe_response"] == ""
         assert state["current_neutral_response"] == ""
@@ -141,7 +133,7 @@ class TestRiskDebateState:
         risky_history = "\n".join([f"Risky round {i}" for i in range(10)])
         safe_history = "\n".join([f"Safe round {i}" for i in range(10)])
         neutral_history = "\n".join([f"Neutral round {i}" for i in range(10)])
-        
+
         state = {
             "risky_history": risky_history,
             "safe_history": safe_history,
@@ -154,7 +146,7 @@ class TestRiskDebateState:
             "judge_decision": "Final decision",
             "count": 10,
         }
-        
+
         assert len(state["risky_history"].split("\n")) == 10
         assert len(state["safe_history"].split("\n")) == 10
         assert len(state["neutral_history"].split("\n")) == 10
@@ -171,7 +163,7 @@ class TestAgentState:
             "trade_date": "2024-01-15",
             "sender": "market_analyst",
         }
-        
+
         assert state["company_of_interest"] == "AAPL"
         assert state["trade_date"] == "2024-01-15"
         assert state["sender"] == "market_analyst"
@@ -188,7 +180,7 @@ class TestAgentState:
             "news_report": "Recent news about Tesla",
             "fundamentals_report": "Strong fundamentals",
         }
-        
+
         assert state["market_report"] == "Market analysis for TSLA"
         assert state["sentiment_report"] == "Social sentiment positive"
         assert state["news_report"] == "Recent news about Tesla"
@@ -204,7 +196,7 @@ class TestAgentState:
             "judge_decision": "Decision",
             "count": 2,
         }
-        
+
         risk_debate = {
             "risky_history": "Risky analysis",
             "safe_history": "Safe analysis",
@@ -217,7 +209,7 @@ class TestAgentState:
             "judge_decision": "Portfolio decision",
             "count": 3,
         }
-        
+
         state = {
             "messages": [],
             "company_of_interest": "NVDA",
@@ -226,7 +218,7 @@ class TestAgentState:
             "investment_debate_state": invest_debate,
             "risk_debate_state": risk_debate,
         }
-        
+
         assert state["investment_debate_state"]["count"] == 2
         assert state["risk_debate_state"]["count"] == 3
         assert state["risk_debate_state"]["latest_speaker"] == "safe"
@@ -242,7 +234,7 @@ class TestAgentState:
             "trader_investment_plan": "Execute buy order for 100 shares",
             "final_trade_decision": "BUY 100 shares at market price",
         }
-        
+
         assert "Long position" in state["investment_plan"]
         assert "Execute buy order" in state["trader_investment_plan"]
         assert "BUY 100 shares" in state["final_trade_decision"]
@@ -250,7 +242,7 @@ class TestAgentState:
     def test_agent_state_ticker_variations(self):
         """Test AgentState with various ticker symbols."""
         tickers = ["AAPL", "GOOGL", "AMZN", "TSLA", "MSFT", "META", "SPY", "QQQ"]
-        
+
         for ticker in tickers:
             state = {
                 "messages": [],
@@ -268,7 +260,7 @@ class TestAgentState:
             "2023-06-30",
             "2025-03-20",
         ]
-        
+
         for date_str in dates:
             state = {
                 "messages": [],
@@ -294,7 +286,7 @@ class TestAgentState:
             "neutral_analyst",
             "portfolio_manager",
         ]
-        
+
         for sender in senders:
             state = {
                 "messages": [],
@@ -339,7 +331,7 @@ class TestAgentState:
             },
             "final_trade_decision": "BUY 200 AAPL @ $150 limit",
         }
-        
+
         assert state["company_of_interest"] == "AAPL"
         assert "BUY" in state["final_trade_decision"]
         assert state["investment_debate_state"]["judge_decision"] == "Recommend buy"

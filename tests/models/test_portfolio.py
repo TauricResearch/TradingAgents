@@ -1,16 +1,13 @@
-from datetime import datetime
 from decimal import Decimal
 from uuid import uuid4
 
-import pytest
-
 from tradingagents.models.portfolio import (
+    CashTransaction,
     PortfolioConfig,
     PortfolioSnapshot,
-    CashTransaction,
     TransactionType,
 )
-from tradingagents.models.trading import OrderSide, Fill, Position
+from tradingagents.models.trading import Fill, OrderSide, Position
 
 
 class TestPortfolioConfig:

@@ -1,12 +1,16 @@
 import logging
-from typing import Annotated
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
+from typing import Annotated
+
 import yfinance as yf
+from dateutil.relativedelta import relativedelta
+
+from tradingagents.validation import validate_date, validate_date_range, validate_ticker
+
 from .stockstats_utils import StockstatsUtils
-from tradingagents.validation import validate_ticker, validate_date_range, validate_date
 
 logger = logging.getLogger(__name__)
+
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -42,6 +46,7 @@ def get_YFin_data_online(
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
     return header + csv_string
+
 
 def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -139,7 +144,7 @@ def get_stock_stats_indicators_window(
         date_values = []
 
         while current_dt >= before:
-            date_str = current_dt.strftime('%Y-%m-%d')
+            date_str = current_dt.strftime("%Y-%m-%d")
 
             if date_str in indicator_data:
                 indicator_value = indicator_data[date_str]
@@ -177,12 +182,14 @@ def get_stock_stats_indicators_window(
 def _get_stock_stats_bulk(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to calculate"],
-    curr_date: Annotated[str, "current date for reference"]
+    curr_date: Annotated[str, "current date for reference"],
 ) -> dict:
-    from .config import get_config
+    import os
+
     import pandas as pd
     from stockstats import wrap
-    import os
+
+    from .config import get_config
 
     config = get_config()
     online = config["data_vendors"]["technical_indicators"] != "local"
@@ -235,7 +242,7 @@ def _get_stock_stats_bulk(
     df[indicator]
 
     indicator_series = df[indicator].apply(lambda x: "N/A" if pd.isna(x) else str(x))
-    result_dict = dict(zip(df["Date"], indicator_series))
+    result_dict = dict(zip(df["Date"], indicator_series, strict=False))
 
     return result_dict
 
@@ -259,7 +266,9 @@ def get_stockstats_indicator(
     except (KeyError, ValueError, IndexError) as e:
         logger.error(
             "Error getting stockstats indicator data for indicator %s on %s: %s",
-            indicator, curr_date, e
+            indicator,
+            curr_date,
+            e,
         )
         return ""
 
@@ -269,7 +278,7 @@ def get_stockstats_indicator(
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
 ) -> str:
     try:
         ticker_obj = yf.Ticker(ticker.upper())
@@ -285,7 +294,9 @@ def get_balance_sheet(
         csv_string = data.to_csv()
 
         header = f"# Balance Sheet data for {ticker.upper()} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += (
+            f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        )
 
         return header + csv_string
 
@@ -296,7 +307,7 @@ def get_balance_sheet(
 def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
 ) -> str:
     try:
         ticker_obj = yf.Ticker(ticker.upper())
@@ -312,7 +323,9 @@ def get_cashflow(
         csv_string = data.to_csv()
 
         header = f"# Cash Flow data for {ticker.upper()} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += (
+            f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        )
 
         return header + csv_string
 
@@ -323,7 +336,7 @@ def get_cashflow(
 def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None,
 ) -> str:
     try:
         ticker_obj = yf.Ticker(ticker.upper())
@@ -339,7 +352,9 @@ def get_income_statement(
         csv_string = data.to_csv()
 
         header = f"# Income Statement data for {ticker.upper()} ({freq})\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += (
+            f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        )
 
         return header + csv_string
 
@@ -348,7 +363,7 @@ def get_income_statement(
 
 
 def get_insider_transactions(
-    ticker: Annotated[str, "ticker symbol of the company"]
+    ticker: Annotated[str, "ticker symbol of the company"],
 ) -> str:
     try:
         ticker_obj = yf.Ticker(ticker.upper())
@@ -360,7 +375,9 @@ def get_insider_transactions(
         csv_string = data.to_csv()
 
         header = f"# Insider Transactions data for {ticker.upper()}\n"
-        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        header += (
+            f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        )
 
         return header + csv_string
 

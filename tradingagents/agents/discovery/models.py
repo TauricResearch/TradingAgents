@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 class DiscoveryStatus(Enum):
@@ -37,9 +37,9 @@ class NewsArticle:
     url: str
     published_at: datetime
     content_snippet: str
-    ticker_mentions: List[str]
+    ticker_mentions: list[str]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "title": self.title,
             "source": self.source,
@@ -50,7 +50,7 @@ class NewsArticle:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "NewsArticle":
+    def from_dict(cls, data: dict[str, Any]) -> "NewsArticle":
         return cls(
             title=data["title"],
             source=data["source"],
@@ -71,9 +71,9 @@ class TrendingStock:
     sector: Sector
     event_type: EventCategory
     news_summary: str
-    source_articles: List[NewsArticle]
+    source_articles: list[NewsArticle]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "ticker": self.ticker,
             "company_name": self.company_name,
@@ -87,7 +87,7 @@ class TrendingStock:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TrendingStock":
+    def from_dict(cls, data: dict[str, Any]) -> "TrendingStock":
         return cls(
             ticker=data["ticker"],
             company_name=data["company_name"],
@@ -106,12 +106,12 @@ class TrendingStock:
 @dataclass
 class DiscoveryRequest:
     lookback_period: str
-    sector_filter: Optional[List[Sector]] = None
-    event_filter: Optional[List[EventCategory]] = None
+    sector_filter: list[Sector] | None = None
+    event_filter: list[EventCategory] | None = None
     max_results: int = 20
     created_at: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "lookback_period": self.lookback_period,
             "sector_filter": (
@@ -125,7 +125,7 @@ class DiscoveryRequest:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DiscoveryRequest":
+    def from_dict(cls, data: dict[str, Any]) -> "DiscoveryRequest":
         return cls(
             lookback_period=data["lookback_period"],
             sector_filter=(
@@ -146,24 +146,26 @@ class DiscoveryRequest:
 @dataclass
 class DiscoveryResult:
     request: DiscoveryRequest
-    trending_stocks: List[TrendingStock]
+    trending_stocks: list[TrendingStock]
     status: DiscoveryStatus
     started_at: datetime
-    completed_at: Optional[datetime] = None
-    error_message: Optional[str] = None
+    completed_at: datetime | None = None
+    error_message: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "request": self.request.to_dict(),
             "trending_stocks": [stock.to_dict() for stock in self.trending_stocks],
             "status": self.status.value,
             "started_at": self.started_at.isoformat(),
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": self.completed_at.isoformat()
+            if self.completed_at
+            else None,
             "error_message": self.error_message,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DiscoveryResult":
+    def from_dict(cls, data: dict[str, Any]) -> "DiscoveryResult":
         return cls(
             request=DiscoveryRequest.from_dict(data["request"]),
             trending_stocks=[

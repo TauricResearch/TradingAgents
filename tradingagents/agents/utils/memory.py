@@ -1,4 +1,5 @@
 import logging
+
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
@@ -14,17 +15,15 @@ class FinancialSituationMemory:
             self.embedding = "text-embedding-3-small"
         self.client = OpenAI(base_url=config["backend_url"])
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
-        self.situation_collection = self.chroma_client.get_or_create_collection(name=name)
+        self.situation_collection = self.chroma_client.get_or_create_collection(
+            name=name
+        )
 
     def get_embedding(self, text):
-
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
+        response = self.client.embeddings.create(model=self.embedding, input=text)
         return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):
-
         situations = []
         advice = []
         ids = []

@@ -1,11 +1,9 @@
-import pytest
 import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 from tradingagents.dataflows.trending.stock_resolver import (
     resolve_ticker,
     validate_us_ticker,
-    _normalize_company_name,
-    _search_yfinance_ticker,
 )
 
 
@@ -109,7 +107,9 @@ class TestUSExchangeValidation:
 
 class TestAmbiguousResolutionLogging:
     def test_ambiguous_resolution_logs_multiple_matches(self, caplog):
-        with caplog.at_level(logging.INFO, logger="tradingagents.dataflows.trending.stock_resolver"):
+        with caplog.at_level(
+            logging.INFO, logger="tradingagents.dataflows.trending.stock_resolver"
+        ):
             pass
 
     @patch("tradingagents.dataflows.trending.stock_resolver._search_yfinance_ticker")
@@ -118,18 +118,24 @@ class TestAmbiguousResolutionLogging:
         mock_search.return_value = "RBLX"
         mock_validate.return_value = True
 
-        with caplog.at_level(logging.INFO, logger="tradingagents.dataflows.trending.stock_resolver"):
+        with caplog.at_level(
+            logging.INFO, logger="tradingagents.dataflows.trending.stock_resolver"
+        ):
             result = resolve_ticker("SomeRandomCompanyNotInMapping")
 
-        assert any("fallback" in record.message.lower() or "yfinance" in record.message.lower()
-                   for record in caplog.records)
+        assert any(
+            "fallback" in record.message.lower() or "yfinance" in record.message.lower()
+            for record in caplog.records
+        )
 
     @patch("tradingagents.dataflows.trending.stock_resolver.yf.Ticker")
     def test_validation_failure_is_logged(self, mock_ticker, caplog):
         mock_info = {"exchange": "LSE"}
         mock_ticker.return_value.info = mock_info
 
-        with caplog.at_level(logging.WARNING, logger="tradingagents.dataflows.trending.stock_resolver"):
+        with caplog.at_level(
+            logging.WARNING, logger="tradingagents.dataflows.trending.stock_resolver"
+        ):
             result = validate_us_ticker("VOD.L")
 
         assert result is False

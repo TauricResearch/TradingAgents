@@ -5,14 +5,14 @@ import pytest
 
 from tradingagents.models.backtest import (
     BacktestConfig,
+    BacktestMetrics,
     BacktestResult,
     BacktestStatus,
-    BacktestMetrics,
     EquityCurvePoint,
     TradeLog,
 )
 from tradingagents.models.portfolio import PortfolioConfig
-from tradingagents.models.trading import Trade, OrderSide
+from tradingagents.models.trading import OrderSide, Trade
 
 
 class TestBacktestConfig:

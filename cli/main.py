@@ -3,14 +3,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import questionary
+from rich.align import Align
 from rich.console import Console
 from rich.panel import Panel
-from rich.align import Align
-import questionary
 
 from cli.analysis import run_analysis, run_analysis_for_ticker
-from cli.discovery import discover_trending_flow
 from cli.backtest_cmd import run_backtest
+from cli.discovery import discover_trending_flow
 
 console = Console()
 
@@ -22,7 +22,7 @@ app = typer.Typer(
 
 
 def show_main_menu():
-    with open("./cli/static/welcome.txt", "r") as f:
+    with open("./cli/static/welcome.txt") as f:
         welcome_ascii = f.read()
 
     welcome_content = f"{welcome_ascii}\n"
@@ -30,7 +30,9 @@ def show_main_menu():
     welcome_content += "[bold]Available Options:[/bold]\n"
     welcome_content += "1. Analyze a specific stock\n"
     welcome_content += "2. Discover trending stocks\n\n"
-    welcome_content += "[dim]Built by Tauric Research (https://github.com/TauricResearch)[/dim]"
+    welcome_content += (
+        "[dim]Built by Tauric Research (https://github.com/TauricResearch)[/dim]"
+    )
 
     welcome_box = Panel(
         welcome_content,
@@ -90,11 +92,19 @@ def menu():
 
 @app.command()
 def backtest(
-    ticker: str = typer.Option(None, "--ticker", "-t", help="Ticker symbol to backtest"),
-    start_date: str = typer.Option(None, "--start", "-s", help="Start date (YYYY-MM-DD)"),
+    ticker: str = typer.Option(
+        None, "--ticker", "-t", help="Ticker symbol to backtest"
+    ),
+    start_date: str = typer.Option(
+        None, "--start", "-s", help="Start date (YYYY-MM-DD)"
+    ),
     end_date: str = typer.Option(None, "--end", "-e", help="End date (YYYY-MM-DD)"),
-    initial_cash: float = typer.Option(100000.0, "--cash", "-c", help="Initial portfolio cash"),
-    strategy: str = typer.Option("sma", "--strategy", help="Strategy: sma, rsi, or hold"),
+    initial_cash: float = typer.Option(
+        100000.0, "--cash", "-c", help="Initial portfolio cash"
+    ),
+    strategy: str = typer.Option(
+        "sma", "--strategy", help="Strategy: sma, rsi, or hold"
+    ),
 ):
     run_backtest(
         ticker=ticker,

@@ -1,16 +1,15 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
-from datetime import date
 from langchain_core.messages import AIMessage, HumanMessage
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.graph.propagation import Propagator
-from tradingagents.graph.conditional_logic import ConditionalLogic
 from tradingagents.agents.utils.agent_states import InvestDebateState, RiskDebateState
+from tradingagents.graph.conditional_logic import ConditionalLogic
+from tradingagents.graph.propagation import Propagator
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 
 class TestWorkflowStateTransitions:
-
     def test_initial_state_structure(self):
         propagator = Propagator()
         state = propagator.create_initial_state("AAPL", "2024-01-15")
@@ -138,7 +137,6 @@ class TestWorkflowStateTransitions:
 
 
 class TestWorkflowEndToEnd:
-
     def test_final_state_has_all_reports(self):
         final_state = {
             "company_of_interest": "AAPL",
@@ -216,7 +214,6 @@ class TestWorkflowEndToEnd:
 
 
 class TestTradingAgentsGraphValidation:
-
     @patch("tradingagents.graph.trading_graph.ChatOpenAI")
     @patch("tradingagents.graph.trading_graph.set_config")
     def test_graph_validates_ticker_on_propagate(self, mock_set_config, mock_llm):
@@ -233,6 +230,7 @@ class TestTradingAgentsGraphValidation:
             graph.log_states_dict = {}
 
             from tradingagents.validation import validate_ticker
+
             with pytest.raises(TickerValidationError):
                 validate_ticker("INVALID123TICKER")
 
@@ -246,7 +244,7 @@ class TestTradingAgentsGraphValidation:
         assert validate_ticker("  MSFT  ") == "MSFT"
 
     def test_invalid_ticker_formats(self):
-        from tradingagents.validation import validate_ticker, TickerValidationError
+        from tradingagents.validation import TickerValidationError, validate_ticker
 
         with pytest.raises(TickerValidationError):
             validate_ticker("")

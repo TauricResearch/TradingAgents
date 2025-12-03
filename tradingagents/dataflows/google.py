@@ -1,10 +1,12 @@
 import logging
 import re
-import requests
-from typing import Annotated, List, Dict, Any
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+from typing import Annotated, Any, Dict, List
+
+import requests
 from dateutil import parser as dateutil_parser
+from dateutil.relativedelta import relativedelta
+
 from .googlenews_utils import getNewsData
 
 logger = logging.getLogger(__name__)
@@ -75,7 +77,7 @@ def get_google_news(
     return f"## {query} Google News, from {before} to {curr_date}:\n\n{news_str}"
 
 
-def get_bulk_news_google(lookback_hours: int) -> List[Dict[str, Any]]:
+def get_bulk_news_google(lookback_hours: int) -> list[dict[str, Any]]:
     end_date = datetime.now()
     start_date = end_date - timedelta(hours=lookback_hours)
 

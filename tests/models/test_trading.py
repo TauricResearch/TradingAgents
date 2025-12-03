@@ -5,13 +5,13 @@ from uuid import uuid4
 import pytest
 
 from tradingagents.models.trading import (
-    OrderSide,
-    OrderType,
-    OrderStatus,
-    PositionSide,
-    Order,
     Fill,
+    Order,
+    OrderSide,
+    OrderStatus,
+    OrderType,
     Position,
+    PositionSide,
     Trade,
 )
 

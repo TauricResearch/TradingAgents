@@ -1,6 +1,5 @@
 def create_risk_manager(llm, memory):
     def risk_manager_node(state) -> dict:
-
         company_name = state["company_of_interest"]
 
         history = state["risk_debate_state"]["history"]
@@ -32,7 +31,7 @@ Deliverables:
 
 ---
 
-**Analysts Debate History:**  
+**Analysts Debate History:**
 {history}
 
 ---

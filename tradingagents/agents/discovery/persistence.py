@@ -7,7 +7,7 @@ from .models import DiscoveryResult, TrendingStock
 
 def save_discovery_result(
     result: DiscoveryResult,
-    base_path: Optional[Path] = None,
+    base_path: Path | None = None,
 ) -> Path:
     if base_path is None:
         base_path = Path("results")

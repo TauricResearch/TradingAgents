@@ -12,7 +12,7 @@ class OHLCVBar(BaseModel):
     low: Decimal = Field(gt=0)
     close: Decimal = Field(gt=0)
     volume: int = Field(ge=0)
-    adjusted_close: Optional[Decimal] = Field(default=None, gt=0)
+    adjusted_close: Decimal | None = Field(default=None, gt=0)
 
     @field_validator("high")
     @classmethod
@@ -47,14 +47,14 @@ class OHLCV(BaseModel):
     currency: str = Field(default="USD")
 
     @property
-    def start_date(self) -> Optional[datetime]:
+    def start_date(self) -> datetime | None:
         return self.bars[0].timestamp if self.bars else None
 
     @property
-    def end_date(self) -> Optional[datetime]:
+    def end_date(self) -> datetime | None:
         return self.bars[-1].timestamp if self.bars else None
 
-    def get_bar(self, dt: datetime) -> Optional[OHLCVBar]:
+    def get_bar(self, dt: datetime) -> OHLCVBar | None:
         for bar in self.bars:
             if bar.timestamp.date() == dt.date():
                 return bar
@@ -74,47 +74,47 @@ class TechnicalIndicators(BaseModel):
     timestamp: datetime
     ticker: str
 
-    sma_20: Optional[Decimal] = None
-    sma_50: Optional[Decimal] = None
-    sma_200: Optional[Decimal] = None
+    sma_20: Decimal | None = None
+    sma_50: Decimal | None = None
+    sma_200: Decimal | None = None
 
-    ema_10: Optional[Decimal] = None
-    ema_20: Optional[Decimal] = None
+    ema_10: Decimal | None = None
+    ema_20: Decimal | None = None
 
-    rsi_14: Optional[Decimal] = Field(default=None, ge=0, le=100)
+    rsi_14: Decimal | None = Field(default=None, ge=0, le=100)
 
-    macd: Optional[Decimal] = None
-    macd_signal: Optional[Decimal] = None
-    macd_histogram: Optional[Decimal] = None
+    macd: Decimal | None = None
+    macd_signal: Decimal | None = None
+    macd_histogram: Decimal | None = None
 
-    bollinger_upper: Optional[Decimal] = None
-    bollinger_middle: Optional[Decimal] = None
-    bollinger_lower: Optional[Decimal] = None
+    bollinger_upper: Decimal | None = None
+    bollinger_middle: Decimal | None = None
+    bollinger_lower: Decimal | None = None
 
-    atr_14: Optional[Decimal] = Field(default=None, ge=0)
+    atr_14: Decimal | None = Field(default=None, ge=0)
 
-    mfi_14: Optional[Decimal] = Field(default=None, ge=0, le=100)
+    mfi_14: Decimal | None = Field(default=None, ge=0, le=100)
 
-    vwap: Optional[Decimal] = None
+    vwap: Decimal | None = None
 
-    obv: Optional[int] = None
+    obv: int | None = None
 
 
 class MarketSnapshot(BaseModel):
     ticker: str
     timestamp: datetime
     bar: OHLCVBar
-    indicators: Optional[TechnicalIndicators] = None
-    prev_close: Optional[Decimal] = None
+    indicators: TechnicalIndicators | None = None
+    prev_close: Decimal | None = None
 
     @property
-    def change(self) -> Optional[Decimal]:
+    def change(self) -> Decimal | None:
         if self.prev_close:
             return self.bar.close - self.prev_close
         return None
 
     @property
-    def change_percent(self) -> Optional[Decimal]:
+    def change_percent(self) -> Decimal | None:
         if self.prev_close and self.prev_close > 0:
             return ((self.bar.close - self.prev_close) / self.prev_close) * 100
         return None

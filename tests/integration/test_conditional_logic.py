@@ -1,7 +1,7 @@
-import pytest
 from unittest.mock import MagicMock
-from tradingagents.graph.conditional_logic import ConditionalLogic
+
 from tradingagents.agents.utils.agent_states import InvestDebateState, RiskDebateState
+from tradingagents.graph.conditional_logic import ConditionalLogic
 
 
 class TestConditionalLogicAnalysts:

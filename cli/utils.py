@@ -1,16 +1,17 @@
-import questionary
-from typing import List, Optional, Callable, Any
-from contextlib import contextmanager
-from functools import wraps
 import threading
 import time
+from collections.abc import Callable
+from contextlib import contextmanager
+from functools import wraps
+from typing import Any
 
+import questionary
+from rich.align import Align
 from rich.console import Console
-from rich.spinner import Spinner
 from rich.live import Live
 from rich.panel import Panel
+from rich.spinner import Spinner
 from rich.text import Text
-from rich.align import Align
 
 from cli.models import AnalystType
 
@@ -73,7 +74,9 @@ class LoadingIndicator:
         )
         self._live.start()
         if self.show_elapsed:
-            self._update_thread = threading.Thread(target=self._update_loop, daemon=True)
+            self._update_thread = threading.Thread(
+                target=self._update_loop, daemon=True
+            )
             self._update_thread.start()
 
     def stop(self):
@@ -94,8 +97,8 @@ def loading(
     message: str = "Working...",
     spinner_style: str = "default",
     show_elapsed: bool = False,
-    success_message: Optional[str] = None,
-    error_message: Optional[str] = None,
+    success_message: str | None = None,
+    error_message: str | None = None,
 ):
     indicator = LoadingIndicator(
         message=message,
@@ -119,7 +122,7 @@ def with_loading(
     message: str = "Working...",
     spinner_style: str = "default",
     show_elapsed: bool = False,
-    success_message: Optional[str] = None,
+    success_message: str | None = None,
 ):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -131,12 +134,14 @@ def with_loading(
                 success_message=success_message,
             ):
                 return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
 class MultiStageLoader:
-    def __init__(self, stages: List[str], title: str = "Progress"):
+    def __init__(self, stages: list[str], title: str = "Progress"):
         self.stages = stages
         self.title = title
         self.current_stage = 0
@@ -155,6 +160,7 @@ class MultiStageLoader:
                 lines.append(Text(f"  [ -- ] {stage}", style="dim"))
 
         from rich.console import Group
+
         content = Group(*lines)
 
         elapsed = ""
@@ -193,6 +199,7 @@ class MultiStageLoader:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
         return False
+
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -255,7 +262,7 @@ def get_analysis_date() -> str:
     return date.strip()
 
 
-def select_analysts() -> List[AnalystType]:
+def select_analysts() -> list[AnalystType]:
     """Select analysts using an interactive checkbox."""
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
@@ -320,30 +327,60 @@ def select_shallow_thinking_agent(provider) -> str:
     SHALLOW_AGENT_OPTIONS = {
         "openai": [
             ("GPT-4o-mini - Fast and efficient for quick tasks", "gpt-4o-mini"),
-            ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
+            (
+                "GPT-4.1-nano - Ultra-lightweight model for basic operations",
+                "gpt-4.1-nano",
+            ),
             ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
             ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
         ],
         "anthropic": [
-            ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
-            ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
-            ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
-            ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
+            (
+                "Claude Haiku 3.5 - Fast inference and standard capabilities",
+                "claude-3-5-haiku-latest",
+            ),
+            (
+                "Claude Sonnet 3.5 - Highly capable standard model",
+                "claude-3-5-sonnet-latest",
+            ),
+            (
+                "Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities",
+                "claude-3-7-sonnet-latest",
+            ),
+            (
+                "Claude Sonnet 4 - High performance and excellent reasoning",
+                "claude-sonnet-4-0",
+            ),
         ],
         "google": [
-            ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
-            ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
+            (
+                "Gemini 2.0 Flash-Lite - Cost efficiency and low latency",
+                "gemini-2.0-flash-lite",
+            ),
+            (
+                "Gemini 2.0 Flash - Next generation features, speed, and thinking",
+                "gemini-2.0-flash",
+            ),
+            (
+                "Gemini 2.5 Flash - Adaptive thinking, cost efficiency",
+                "gemini-2.5-flash-preview-05-20",
+            ),
         ],
         "openrouter": [
             ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
-            ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
-            ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
+            (
+                "Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B",
+                "meta-llama/llama-3.3-8b-instruct:free",
+            ),
+            (
+                "google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token",
+                "google/gemini-2.0-flash-exp:free",
+            ),
         ],
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("llama3.2 local", "llama3.2"),
-        ]
+        ],
     }
 
     choice = questionary.select(
@@ -377,7 +414,10 @@ def select_deep_thinking_agent(provider) -> str:
     # Define deep thinking llm engine options with their corresponding model names
     DEEP_AGENT_OPTIONS = {
         "openai": [
-            ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
+            (
+                "GPT-4.1-nano - Ultra-lightweight model for basic operations",
+                "gpt-4.1-nano",
+            ),
             ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
             ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
             ("o4-mini - Specialized reasoning model (compact)", "o4-mini"),
@@ -386,28 +426,55 @@ def select_deep_thinking_agent(provider) -> str:
             ("o1 - Premier reasoning and problem-solving model", "o1"),
         ],
         "anthropic": [
-            ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
-            ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
-            ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
-            ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
+            (
+                "Claude Haiku 3.5 - Fast inference and standard capabilities",
+                "claude-3-5-haiku-latest",
+            ),
+            (
+                "Claude Sonnet 3.5 - Highly capable standard model",
+                "claude-3-5-sonnet-latest",
+            ),
+            (
+                "Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities",
+                "claude-3-7-sonnet-latest",
+            ),
+            (
+                "Claude Sonnet 4 - High performance and excellent reasoning",
+                "claude-sonnet-4-0",
+            ),
             ("Claude Opus 4 - Most powerful Anthropic model", "	claude-opus-4-0"),
         ],
         "google": [
-            ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
-            ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
+            (
+                "Gemini 2.0 Flash-Lite - Cost efficiency and low latency",
+                "gemini-2.0-flash-lite",
+            ),
+            (
+                "Gemini 2.0 Flash - Next generation features, speed, and thinking",
+                "gemini-2.0-flash",
+            ),
+            (
+                "Gemini 2.5 Flash - Adaptive thinking, cost efficiency",
+                "gemini-2.5-flash-preview-05-20",
+            ),
             ("Gemini 2.5 Pro", "gemini-2.5-pro-preview-06-05"),
         ],
         "openrouter": [
-            ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
-            ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
+            (
+                "DeepSeek V3 - a 685B-parameter, mixture-of-experts model",
+                "deepseek/deepseek-chat-v3-0324:free",
+            ),
+            (
+                "Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.",
+                "deepseek/deepseek-chat-v3-0324:free",
+            ),
         ],
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("qwen3", "qwen3"),
-        ]
+        ],
     }
-    
+
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
@@ -430,6 +497,7 @@ def select_deep_thinking_agent(provider) -> str:
 
     return choice
 
+
 def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
     # Define OpenAI api options with their corresponding endpoints
@@ -438,9 +506,9 @@ def select_llm_provider() -> tuple[str, str]:
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        ("Ollama", "http://localhost:11434/v1"),
     ]
-    
+
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
@@ -456,12 +524,12 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
         console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
         exit(1)
-    
+
     display_name, url = choice
     print(f"You selected: {display_name}\tURL: {url}")
-    
+
     return display_name, url

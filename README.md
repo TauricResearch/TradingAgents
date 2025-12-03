@@ -76,9 +76,11 @@ source .venv/bin/activate
 The framework requires an OpenAI API key for powering the agents and at least one news data provider API key.
 
 **Required:**
+
 - `OPENAI_API_KEY` - Powers the LLM agents
 
 **News Data Providers (at least one required):**
+
 - `TAVILY_API_KEY` - Tavily search API (preferred for news discovery)
 - `BRAVE_API_KEY` - Brave Search API (fallback option)
 - `ALPHA_VANTAGE_API_KEY` - Alpha Vantage API (for fundamentals and news)

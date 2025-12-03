@@ -1,35 +1,33 @@
 import datetime
-from pathlib import Path
 from functools import wraps
-from typing import List
+from pathlib import Path
 
 import typer
-from rich.panel import Panel
-from rich.live import Live
 from rich.align import Align
+from rich.live import Live
+from rich.panel import Panel
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.dataflows.config import get_config
-
-from cli.state import message_buffer
-from cli.models import AnalystType, AgentStatus
 from cli.display import (
-    create_layout,
-    update_display,
-    display_complete_report,
-    update_research_team_status,
-    extract_content_string,
-    create_question_box,
     console,
+    create_layout,
+    create_question_box,
+    display_complete_report,
+    extract_content_string,
+    update_display,
+    update_research_team_status,
 )
+from cli.models import AgentStatus, AnalystType
+from cli.state import message_buffer
 from cli.utils import (
+    loading,
     select_analysts,
-    select_research_depth,
-    select_shallow_thinking_agent,
     select_deep_thinking_agent,
     select_llm_provider,
-    loading,
+    select_research_depth,
+    select_shallow_thinking_agent,
 )
+from tradingagents.dataflows.config import get_config
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 
 def get_ticker() -> str:
@@ -54,14 +52,16 @@ def get_analysis_date() -> str:
 
 
 def get_user_selections() -> dict:
-    with open("./cli/static/welcome.txt", "r") as f:
+    with open("./cli/static/welcome.txt") as f:
         welcome_ascii = f.read()
 
     welcome_content = f"{welcome_ascii}\n"
     welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
     welcome_content += "I. Analyst Team -> II. Research Team -> III. Trader -> IV. Risk Management -> V. Portfolio Management\n\n"
-    welcome_content += "[dim]Built by Tauric Research (https://github.com/TauricResearch)[/dim]"
+    welcome_content += (
+        "[dim]Built by Tauric Research (https://github.com/TauricResearch)[/dim]"
+    )
 
     welcome_box = Panel(
         welcome_content,
@@ -108,9 +108,7 @@ def get_user_selections() -> dict:
     selected_research_depth = select_research_depth()
 
     console.print(
-        create_question_box(
-            "Step 5: OpenAI backend", "Select which service to talk to"
-        )
+        create_question_box("Step 5: OpenAI backend", "Select which service to talk to")
     )
     selected_llm_provider, backend_url = select_llm_provider()
 
@@ -134,15 +132,21 @@ def get_user_selections() -> dict:
     }
 
 
-def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType]) -> None:
+def process_chunk_for_display(
+    chunk: dict, selected_analysts: list[AnalystType]
+) -> None:
     if "market_report" in chunk and chunk["market_report"]:
         message_buffer.update_report_section("market_report", chunk["market_report"])
         message_buffer.update_agent_status("Market Analyst", AgentStatus.COMPLETED)
         if AnalystType.SOCIAL in selected_analysts:
-            message_buffer.update_agent_status("Social Analyst", AgentStatus.IN_PROGRESS)
+            message_buffer.update_agent_status(
+                "Social Analyst", AgentStatus.IN_PROGRESS
+            )
 
     if "sentiment_report" in chunk and chunk["sentiment_report"]:
-        message_buffer.update_report_section("sentiment_report", chunk["sentiment_report"])
+        message_buffer.update_report_section(
+            "sentiment_report", chunk["sentiment_report"]
+        )
         message_buffer.update_agent_status("Social Analyst", AgentStatus.COMPLETED)
         if AnalystType.NEWS in selected_analysts:
             message_buffer.update_agent_status("News Analyst", AgentStatus.IN_PROGRESS)
@@ -151,11 +155,17 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
         message_buffer.update_report_section("news_report", chunk["news_report"])
         message_buffer.update_agent_status("News Analyst", AgentStatus.COMPLETED)
         if AnalystType.FUNDAMENTALS in selected_analysts:
-            message_buffer.update_agent_status("Fundamentals Analyst", AgentStatus.IN_PROGRESS)
+            message_buffer.update_agent_status(
+                "Fundamentals Analyst", AgentStatus.IN_PROGRESS
+            )
 
     if "fundamentals_report" in chunk and chunk["fundamentals_report"]:
-        message_buffer.update_report_section("fundamentals_report", chunk["fundamentals_report"])
-        message_buffer.update_agent_status("Fundamentals Analyst", AgentStatus.COMPLETED)
+        message_buffer.update_report_section(
+            "fundamentals_report", chunk["fundamentals_report"]
+        )
+        message_buffer.update_agent_status(
+            "Fundamentals Analyst", AgentStatus.COMPLETED
+        )
         update_research_team_status(AgentStatus.IN_PROGRESS)
 
     if "investment_debate_state" in chunk and chunk["investment_debate_state"]:
@@ -197,13 +207,18 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
             message_buffer.update_agent_status("Risky Analyst", AgentStatus.IN_PROGRESS)
 
     if "trader_investment_plan" in chunk and chunk["trader_investment_plan"]:
-        message_buffer.update_report_section("trader_investment_plan", chunk["trader_investment_plan"])
+        message_buffer.update_report_section(
+            "trader_investment_plan", chunk["trader_investment_plan"]
+        )
         message_buffer.update_agent_status("Risky Analyst", AgentStatus.IN_PROGRESS)
 
     if "risk_debate_state" in chunk and chunk["risk_debate_state"]:
         risk_state = chunk["risk_debate_state"]
 
-        if "current_risky_response" in risk_state and risk_state["current_risky_response"]:
+        if (
+            "current_risky_response" in risk_state
+            and risk_state["current_risky_response"]
+        ):
             message_buffer.update_agent_status("Risky Analyst", AgentStatus.IN_PROGRESS)
             message_buffer.add_message(
                 "Reasoning",
@@ -214,7 +229,10 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
                 f"### Risky Analyst Analysis\n{risk_state['current_risky_response']}",
             )
 
-        if "current_safe_response" in risk_state and risk_state["current_safe_response"]:
+        if (
+            "current_safe_response" in risk_state
+            and risk_state["current_safe_response"]
+        ):
             message_buffer.update_agent_status("Safe Analyst", AgentStatus.IN_PROGRESS)
             message_buffer.add_message(
                 "Reasoning",
@@ -225,8 +243,13 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
                 f"### Safe Analyst Analysis\n{risk_state['current_safe_response']}",
             )
 
-        if "current_neutral_response" in risk_state and risk_state["current_neutral_response"]:
-            message_buffer.update_agent_status("Neutral Analyst", AgentStatus.IN_PROGRESS)
+        if (
+            "current_neutral_response" in risk_state
+            and risk_state["current_neutral_response"]
+        ):
+            message_buffer.update_agent_status(
+                "Neutral Analyst", AgentStatus.IN_PROGRESS
+            )
             message_buffer.add_message(
                 "Reasoning",
                 f"Neutral Analyst: {risk_state['current_neutral_response']}",
@@ -237,7 +260,9 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
             )
 
         if "judge_decision" in risk_state and risk_state["judge_decision"]:
-            message_buffer.update_agent_status("Portfolio Manager", AgentStatus.IN_PROGRESS)
+            message_buffer.update_agent_status(
+                "Portfolio Manager", AgentStatus.IN_PROGRESS
+            )
             message_buffer.add_message(
                 "Reasoning",
                 f"Portfolio Manager: {risk_state['judge_decision']}",
@@ -249,12 +274,15 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
             message_buffer.update_agent_status("Risky Analyst", AgentStatus.COMPLETED)
             message_buffer.update_agent_status("Safe Analyst", AgentStatus.COMPLETED)
             message_buffer.update_agent_status("Neutral Analyst", AgentStatus.COMPLETED)
-            message_buffer.update_agent_status("Portfolio Manager", AgentStatus.COMPLETED)
+            message_buffer.update_agent_status(
+                "Portfolio Manager", AgentStatus.COMPLETED
+            )
 
 
 def setup_logging_decorators(report_dir, log_file) -> tuple:
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             func(*args, **kwargs)
@@ -262,10 +290,12 @@ def setup_logging_decorators(report_dir, log_file) -> tuple:
             content = content.replace("\n", " ")
             with open(log_file, "a") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
+
         return wrapper
 
     def save_tool_call_decorator(obj, func_name):
         func = getattr(obj, func_name)
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             func(*args, **kwargs)
@@ -273,22 +303,32 @@ def setup_logging_decorators(report_dir, log_file) -> tuple:
             args_str = ", ".join(f"{k}={v}" for k, v in tool_args.items())
             with open(log_file, "a") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
+
         return wrapper
 
     def save_report_section_decorator(obj, func_name):
         func = getattr(obj, func_name)
+
         @wraps(func)
         def wrapper(section_name, content):
             func(section_name, content)
-            if section_name in obj.report_sections and obj.report_sections[section_name] is not None:
+            if (
+                section_name in obj.report_sections
+                and obj.report_sections[section_name] is not None
+            ):
                 section_content = obj.report_sections[section_name]
                 if section_content:
                     file_name = f"{section_name}.md"
                     with open(report_dir / file_name, "w") as f:
                         f.write(section_content)
+
         return wrapper
 
-    return save_message_decorator, save_tool_call_decorator, save_report_section_decorator
+    return (
+        save_message_decorator,
+        save_tool_call_decorator,
+        save_report_section_decorator,
+    )
 
 
 def run_analysis_for_ticker(ticker: str, config: dict) -> None:
@@ -296,8 +336,7 @@ def run_analysis_for_ticker(ticker: str, config: dict) -> None:
 
     console.print(
         create_question_box(
-            "Analysts Team",
-            "Select your LLM analyst agents for the analysis"
+            "Analysts Team", "Select your LLM analyst agents for the analysis"
         )
     )
     selected_analysts = select_analysts()
@@ -306,18 +345,12 @@ def run_analysis_for_ticker(ticker: str, config: dict) -> None:
     )
 
     console.print(
-        create_question_box(
-            "Research Depth",
-            "Select your research depth level"
-        )
+        create_question_box("Research Depth", "Select your research depth level")
     )
     selected_research_depth = select_research_depth()
 
     console.print(
-        create_question_box(
-            "Deep-Thinking Model",
-            "Select the model for deep analysis"
-        )
+        create_question_box("Deep-Thinking Model", "Select the model for deep analysis")
     )
     llm_provider = config.get("llm_provider", "openai")
     selected_deep_thinker = select_deep_thinking_agent(llm_provider.capitalize())
@@ -344,11 +377,13 @@ def run_analysis() -> None:
         selections["ticker"],
         selections["analysis_date"],
         selections["analysts"],
-        config
+        config,
     )
 
 
-def _run_analysis_with_config(ticker: str, analysis_date: str, selected_analysts: List[AnalystType], config: dict) -> None:
+def _run_analysis_with_config(
+    ticker: str, analysis_date: str, selected_analysts: list[AnalystType], config: dict
+) -> None:
     with loading("Initializing trading agents...", show_elapsed=True):
         graph = TradingAgentsGraph(
             [analyst.value for analyst in selected_analysts], config=config, debug=True
@@ -361,12 +396,17 @@ def _run_analysis_with_config(ticker: str, analysis_date: str, selected_analysts
     log_file = results_dir / "message_tool.log"
     log_file.touch(exist_ok=True)
 
-    save_message_decorator, save_tool_call_decorator, save_report_section_decorator = \
+    save_message_decorator, save_tool_call_decorator, save_report_section_decorator = (
         setup_logging_decorators(report_dir, log_file)
+    )
 
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")
-    message_buffer.add_tool_call = save_tool_call_decorator(message_buffer, "add_tool_call")
-    message_buffer.update_report_section = save_report_section_decorator(message_buffer, "update_report_section")
+    message_buffer.add_tool_call = save_tool_call_decorator(
+        message_buffer, "add_tool_call"
+    )
+    message_buffer.update_report_section = save_report_section_decorator(
+        message_buffer, "update_report_section"
+    )
 
     layout = create_layout()
 
@@ -416,7 +456,9 @@ def _run_analysis_with_config(ticker: str, analysis_date: str, selected_analysts
                 if hasattr(last_message, "tool_calls"):
                     for tool_call in last_message.tool_calls:
                         if isinstance(tool_call, dict):
-                            message_buffer.add_tool_call(tool_call["name"], tool_call["args"])
+                            message_buffer.add_tool_call(
+                                tool_call["name"], tool_call["args"]
+                            )
                         else:
                             message_buffer.add_tool_call(tool_call.name, tool_call.args)
 
@@ -431,7 +473,9 @@ def _run_analysis_with_config(ticker: str, analysis_date: str, selected_analysts
         for agent in message_buffer.agent_status:
             message_buffer.update_agent_status(agent, AgentStatus.COMPLETED)
 
-        message_buffer.add_message("Analysis", f"Completed analysis for {analysis_date}")
+        message_buffer.add_message(
+            "Analysis", f"Completed analysis for {analysis_date}"
+        )
 
         for section in message_buffer.report_sections.keys():
             if section in final_state:

@@ -36,7 +36,9 @@ def validate_ticker(
         raise TickerValidationError("Ticker cannot be None")
 
     if not isinstance(ticker, str):
-        raise TickerValidationError(f"Ticker must be a string, got {type(ticker).__name__}")
+        raise TickerValidationError(
+            f"Ticker must be a string, got {type(ticker).__name__}"
+        )
 
     ticker = ticker.strip().upper()
 
@@ -46,7 +48,9 @@ def validate_ticker(
         raise TickerValidationError("Ticker cannot be empty")
 
     if len(ticker) > 10:
-        raise TickerValidationError(f"Ticker '{ticker}' is too long (max 10 characters)")
+        raise TickerValidationError(
+            f"Ticker '{ticker}' is too long (max 10 characters)"
+        )
 
     if not TICKER_PATTERN.match(ticker) and not TICKER_SPECIAL_PATTERN.match(ticker):
         raise TickerValidationError(
@@ -68,7 +72,9 @@ def validate_tickers(
         raise TickerValidationError("Tickers list cannot be None")
 
     if not isinstance(tickers, (list, tuple)):
-        raise TickerValidationError(f"Tickers must be a list, got {type(tickers).__name__}")
+        raise TickerValidationError(
+            f"Tickers must be a list, got {type(tickers).__name__}"
+        )
 
     if not tickers:
         if allow_empty_list:
@@ -80,7 +86,9 @@ def validate_tickers(
 
     for i, ticker in enumerate(tickers):
         try:
-            validated.append(validate_ticker(ticker, check_format_only=check_format_only))
+            validated.append(
+                validate_ticker(ticker, check_format_only=check_format_only)
+            )
         except TickerValidationError as e:
             errors.append(f"Index {i}: {e}")
 
@@ -91,9 +99,9 @@ def validate_tickers(
 
 
 def parse_date(
-    date_input: Union[str, date, datetime, None],
+    date_input: str | date | datetime | None,
     date_format: str = "%Y-%m-%d",
-) -> Optional[date]:
+) -> date | None:
     if date_input is None:
         return None
 
@@ -104,7 +112,9 @@ def parse_date(
         return date_input
 
     if not isinstance(date_input, str):
-        raise DateValidationError(f"Date must be string, date, or datetime, got {type(date_input).__name__}")
+        raise DateValidationError(
+            f"Date must be string, date, or datetime, got {type(date_input).__name__}"
+        )
 
     date_input = date_input.strip()
 
@@ -135,14 +145,14 @@ def parse_date(
 
 
 def validate_date(
-    date_input: Union[str, date, datetime, None],
+    date_input: str | date | datetime | None,
     date_format: str = "%Y-%m-%d",
     allow_none: bool = False,
-    min_date: Optional[date] = None,
-    max_date: Optional[date] = None,
+    min_date: date | None = None,
+    max_date: date | None = None,
     allow_future: bool = True,
     allow_weekend: bool = True,
-) -> Optional[date]:
+) -> date | None:
     if date_input is None:
         if allow_none:
             return None
@@ -184,13 +194,13 @@ def validate_date(
 
 
 def validate_date_range(
-    start_date: Union[str, date, datetime],
-    end_date: Union[str, date, datetime],
+    start_date: str | date | datetime,
+    end_date: str | date | datetime,
     date_format: str = "%Y-%m-%d",
-    min_date: Optional[date] = None,
-    max_date: Optional[date] = None,
+    min_date: date | None = None,
+    max_date: date | None = None,
     allow_future: bool = True,
-    max_range_days: Optional[int] = None,
+    max_range_days: int | None = None,
 ) -> tuple[date, date]:
     start = validate_date(
         start_date,
@@ -231,7 +241,7 @@ def validate_date_range(
 
 
 def format_date(
-    date_input: Union[str, date, datetime],
+    date_input: str | date | datetime,
     output_format: str = "%Y-%m-%d",
     input_format: str = "%Y-%m-%d",
 ) -> str:
@@ -250,7 +260,7 @@ def is_valid_ticker(ticker: str) -> bool:
 
 
 def is_valid_date(
-    date_input: Union[str, date, datetime],
+    date_input: str | date | datetime,
     date_format: str = "%Y-%m-%d",
 ) -> bool:
     try:
@@ -260,14 +270,14 @@ def is_valid_date(
         return False
 
 
-def is_trading_day(check_date: Union[str, date, datetime]) -> bool:
+def is_trading_day(check_date: str | date | datetime) -> bool:
     parsed = parse_date(check_date)
     if parsed is None:
         return False
     return parsed.weekday() < 5
 
 
-def get_previous_trading_day(from_date: Union[str, date, datetime, None] = None) -> date:
+def get_previous_trading_day(from_date: str | date | datetime | None = None) -> date:
     if from_date is None:
         check = date.today()
     else:
@@ -281,7 +291,7 @@ def get_previous_trading_day(from_date: Union[str, date, datetime, None] = None)
     return check
 
 
-def get_next_trading_day(from_date: Union[str, date, datetime, None] = None) -> date:
+def get_next_trading_day(from_date: str | date | datetime | None = None) -> date:
     if from_date is None:
         check = date.today()
     else:

@@ -1,8 +1,8 @@
-import pytest
 import math
 from datetime import datetime, timedelta
 from unittest.mock import patch
-from tradingagents.agents.discovery import NewsArticle, EventCategory, Sector
+
+from tradingagents.agents.discovery import EventCategory, NewsArticle
 from tradingagents.agents.discovery.entity_extractor import EntityMention
 
 

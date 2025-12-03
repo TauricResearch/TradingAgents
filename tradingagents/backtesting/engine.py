@@ -1,10 +1,12 @@
 import logging
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Optional, Callable
+from typing import Optional
 
 from tradingagents.models.backtest import (
     BacktestConfig,
+    BacktestMetrics,
     BacktestResult,
     BacktestStatus,
     EquityCurvePoint,
@@ -12,7 +14,7 @@ from tradingagents.models.backtest import (
 )
 from tradingagents.models.decisions import SignalType, TradingDecision
 from tradingagents.models.portfolio import PortfolioSnapshot
-from tradingagents.models.trading import Order, OrderSide, OrderStatus, Fill, Trade
+from tradingagents.models.trading import Fill, Order, OrderSide, OrderStatus, Trade
 
 from .data_loader import DataLoader
 from .metrics import MetricsCalculator
@@ -24,15 +26,15 @@ class BacktestEngine:
     def __init__(
         self,
         config: BacktestConfig,
-        decision_callback: Optional[Callable[[str, date, dict], TradingDecision]] = None,
+        decision_callback: Callable[[str, date, dict], TradingDecision] | None = None,
     ):
         self.config = config
         self.decision_callback = decision_callback
         self.data_loader = DataLoader()
         self.metrics_calculator = MetricsCalculator(config.risk_free_rate)
 
-        self.portfolio: Optional[PortfolioSnapshot] = None
-        self.trade_log: Optional[TradeLog] = None
+        self.portfolio: PortfolioSnapshot | None = None
+        self.trade_log: TradeLog | None = None
         self.equity_curve: list[EquityCurvePoint] = []
         self.daily_returns: list[Decimal] = []
         self.decisions: list[TradingDecision] = []
@@ -52,7 +54,9 @@ class BacktestEngine:
 
                 self._process_day(trading_date, i)
 
-            self._close_all_positions(trading_days[-1] if trading_days else self.config.end_date)
+            self._close_all_positions(
+                trading_days[-1] if trading_days else self.config.end_date
+            )
 
             metrics = self.metrics_calculator.calculate_metrics(
                 self.equity_curve,
@@ -138,7 +142,7 @@ class BacktestEngine:
         ticker: str,
         trading_date: date,
         day_index: int,
-    ) -> Optional[TradingDecision]:
+    ) -> TradingDecision | None:
         if self.decision_callback:
             context = {
                 "day_index": day_index,
@@ -153,7 +157,7 @@ class BacktestEngine:
         self,
         ticker: str,
         trading_date: date,
-    ) -> Optional[TradingDecision]:
+    ) -> TradingDecision | None:
         return None
 
     def _execute_decision(
@@ -172,14 +176,18 @@ class BacktestEngine:
             if decision.recommended_quantity:
                 quantity = decision.recommended_quantity
             else:
-                max_position_value = self.portfolio.cash * (config.max_position_size_percent / 100)
+                max_position_value = self.portfolio.cash * (
+                    config.max_position_size_percent / 100
+                )
                 quantity = int(max_position_value / execution_price)
 
             if quantity <= 0:
                 return
 
             if not self.portfolio.can_afford(ticker, quantity, execution_price, config):
-                quantity = self.portfolio.max_shares_affordable(ticker, execution_price, config)
+                quantity = self.portfolio.max_shares_affordable(
+                    ticker, execution_price, config
+                )
 
             if quantity <= 0:
                 return
@@ -221,7 +229,10 @@ class BacktestEngine:
 
             logger.debug(
                 "BUY %s: %d shares @ $%.2f on %s",
-                ticker, quantity, execution_price, trading_date
+                ticker,
+                quantity,
+                execution_price,
+                trading_date,
             )
 
         elif decision.is_sell and position.quantity > 0:
@@ -259,15 +270,18 @@ class BacktestEngine:
                 trade.exit_time = datetime.combine(trading_date, datetime.min.time())
                 trade.exit_order_id = order.id
                 trade.commission = (
-                    config.calculate_commission(trade.entry_quantity, trade.entry_price) +
-                    commission
+                    config.calculate_commission(trade.entry_quantity, trade.entry_price)
+                    + commission
                 )
                 self.trade_log.add_trade(trade)
                 del self.open_trades[ticker]
 
             logger.debug(
                 "SELL %s: %d shares @ $%.2f on %s",
-                ticker, quantity, execution_price, trading_date
+                ticker,
+                quantity,
+                execution_price,
+                trading_date,
             )
 
     def _record_equity(self, trading_date: date, prices: dict[str, Decimal]) -> None:
@@ -305,11 +319,12 @@ class BacktestEngine:
                 )
                 self._execute_decision(decision, prices[ticker], final_date)
 
-    def _empty_metrics(self) -> "BacktestMetrics":
-        from tradingagents.models.backtest import BacktestMetrics
+    def _empty_metrics(self) -> BacktestMetrics:
         return BacktestMetrics(
             start_equity=self.config.portfolio_config.initial_cash,
-            end_equity=self.portfolio.cash if self.portfolio else self.config.portfolio_config.initial_cash,
+            end_equity=self.portfolio.cash
+            if self.portfolio
+            else self.config.portfolio_config.initial_cash,
         )
 
 
@@ -329,7 +344,7 @@ class SimpleBacktestEngine(BacktestEngine):
         ticker: str,
         trading_date: date,
         day_index: int,
-    ) -> Optional[TradingDecision]:
+    ) -> TradingDecision | None:
         context = {
             "day_index": day_index,
             "portfolio": self.portfolio,
@@ -339,7 +354,11 @@ class SimpleBacktestEngine(BacktestEngine):
 
         position = self.portfolio.get_position(ticker)
 
-        if position.quantity == 0 and self.buy_signal and self.buy_signal(ticker, trading_date, context):
+        if (
+            position.quantity == 0
+            and self.buy_signal
+            and self.buy_signal(ticker, trading_date, context)
+        ):
             return TradingDecision(
                 ticker=ticker,
                 timestamp=datetime.now(),
@@ -351,7 +370,11 @@ class SimpleBacktestEngine(BacktestEngine):
                 rationale="Buy signal triggered",
             )
 
-        if position.quantity > 0 and self.sell_signal and self.sell_signal(ticker, trading_date, context):
+        if (
+            position.quantity > 0
+            and self.sell_signal
+            and self.sell_signal(ticker, trading_date, context)
+        ):
             return TradingDecision(
                 ticker=ticker,
                 timestamp=datetime.now(),

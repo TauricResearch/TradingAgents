@@ -1,6 +1,7 @@
 # TradingAgents/graph/propagation.py
 
-from typing import Dict, Any
+from typing import Any, Dict
+
 from tradingagents.agents.utils.agent_states import (
     InvestDebateState,
     RiskDebateState,
@@ -16,7 +17,7 @@ class Propagator:
 
     def create_initial_state(
         self, company_name: str, trade_date: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create the initial state for the agent graph."""
         return {
             "messages": [("human", company_name)],
@@ -40,7 +41,7 @@ class Propagator:
             "news_report": "",
         }
 
-    def get_graph_args(self) -> Dict[str, Any]:
+    def get_graph_args(self) -> dict[str, Any]:
         """Get arguments for the graph invocation."""
         return {
             "stream_mode": "values",

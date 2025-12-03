@@ -1,17 +1,17 @@
 import datetime
 from collections import deque
-from typing import Dict, Any, Deque
+from typing import Any
 
 from cli.models import AgentStatus
 
 
 class MessageBuffer:
     def __init__(self, max_length: int = 100) -> None:
-        self.messages: Deque = deque(maxlen=max_length)
-        self.tool_calls: Deque = deque(maxlen=max_length)
+        self.messages: deque = deque(maxlen=max_length)
+        self.tool_calls: deque = deque(maxlen=max_length)
         self.current_report = None
         self.final_report = None
-        self.agent_status: Dict[str, AgentStatus] = {
+        self.agent_status: dict[str, AgentStatus] = {
             "Market Analyst": AgentStatus.PENDING,
             "Social Analyst": AgentStatus.PENDING,
             "News Analyst": AgentStatus.PENDING,
@@ -40,7 +40,7 @@ class MessageBuffer:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.messages.append((timestamp, message_type, content))
 
-    def add_tool_call(self, tool_name: str, args: Dict[str, Any]) -> None:
+    def add_tool_call(self, tool_name: str, args: dict[str, Any]) -> None:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.tool_calls.append((timestamp, tool_name, args))
 

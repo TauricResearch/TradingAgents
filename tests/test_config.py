@@ -1,10 +1,11 @@
-import pytest
 import os
 from unittest.mock import patch
 
+import pytest
+
 from tradingagents.config import (
-    TradingAgentsSettings,
     DataVendorsConfig,
+    TradingAgentsSettings,
     get_settings,
     reset_settings,
     update_settings,

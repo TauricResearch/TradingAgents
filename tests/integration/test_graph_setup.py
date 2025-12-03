@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import MagicMock, patch
-from tradingagents.graph.setup import GraphSetup
+
+import pytest
+
 from tradingagents.graph.conditional_logic import ConditionalLogic
+from tradingagents.graph.setup import GraphSetup
 
 
 class TestGraphSetup:
@@ -40,19 +42,22 @@ class TestGraphSetup:
     def test_setup_graph_with_all_analysts(self):
         setup = self.create_graph_setup()
 
-        with patch("tradingagents.graph.setup.create_market_analyst") as mock_market, \
-             patch("tradingagents.graph.setup.create_social_media_analyst") as mock_social, \
-             patch("tradingagents.graph.setup.create_news_analyst") as mock_news, \
-             patch("tradingagents.graph.setup.create_fundamentals_analyst") as mock_fund, \
-             patch("tradingagents.graph.setup.create_bull_researcher") as mock_bull, \
-             patch("tradingagents.graph.setup.create_bear_researcher") as mock_bear, \
-             patch("tradingagents.graph.setup.create_research_manager") as mock_rm, \
-             patch("tradingagents.graph.setup.create_trader") as mock_trader, \
-             patch("tradingagents.graph.setup.create_risky_debator") as mock_risky, \
-             patch("tradingagents.graph.setup.create_neutral_debator") as mock_neutral, \
-             patch("tradingagents.graph.setup.create_safe_debator") as mock_safe, \
-             patch("tradingagents.graph.setup.create_risk_manager") as mock_risk_mgr:
-
+        with (
+            patch("tradingagents.graph.setup.create_market_analyst") as mock_market,
+            patch(
+                "tradingagents.graph.setup.create_social_media_analyst"
+            ) as mock_social,
+            patch("tradingagents.graph.setup.create_news_analyst") as mock_news,
+            patch("tradingagents.graph.setup.create_fundamentals_analyst") as mock_fund,
+            patch("tradingagents.graph.setup.create_bull_researcher") as mock_bull,
+            patch("tradingagents.graph.setup.create_bear_researcher") as mock_bear,
+            patch("tradingagents.graph.setup.create_research_manager") as mock_rm,
+            patch("tradingagents.graph.setup.create_trader") as mock_trader,
+            patch("tradingagents.graph.setup.create_risky_debator") as mock_risky,
+            patch("tradingagents.graph.setup.create_neutral_debator") as mock_neutral,
+            patch("tradingagents.graph.setup.create_safe_debator") as mock_safe,
+            patch("tradingagents.graph.setup.create_risk_manager") as mock_risk_mgr,
+        ):
             mock_market.return_value = MagicMock()
             mock_social.return_value = MagicMock()
             mock_news.return_value = MagicMock()
@@ -80,19 +85,22 @@ class TestGraphSetup:
     def test_setup_graph_with_single_analyst(self):
         setup = self.create_graph_setup()
 
-        with patch("tradingagents.graph.setup.create_market_analyst") as mock_market, \
-             patch("tradingagents.graph.setup.create_social_media_analyst") as mock_social, \
-             patch("tradingagents.graph.setup.create_news_analyst") as mock_news, \
-             patch("tradingagents.graph.setup.create_fundamentals_analyst") as mock_fund, \
-             patch("tradingagents.graph.setup.create_bull_researcher") as mock_bull, \
-             patch("tradingagents.graph.setup.create_bear_researcher") as mock_bear, \
-             patch("tradingagents.graph.setup.create_research_manager") as mock_rm, \
-             patch("tradingagents.graph.setup.create_trader") as mock_trader, \
-             patch("tradingagents.graph.setup.create_risky_debator") as mock_risky, \
-             patch("tradingagents.graph.setup.create_neutral_debator") as mock_neutral, \
-             patch("tradingagents.graph.setup.create_safe_debator") as mock_safe, \
-             patch("tradingagents.graph.setup.create_risk_manager") as mock_risk_mgr:
-
+        with (
+            patch("tradingagents.graph.setup.create_market_analyst") as mock_market,
+            patch(
+                "tradingagents.graph.setup.create_social_media_analyst"
+            ) as mock_social,
+            patch("tradingagents.graph.setup.create_news_analyst") as mock_news,
+            patch("tradingagents.graph.setup.create_fundamentals_analyst") as mock_fund,
+            patch("tradingagents.graph.setup.create_bull_researcher") as mock_bull,
+            patch("tradingagents.graph.setup.create_bear_researcher") as mock_bear,
+            patch("tradingagents.graph.setup.create_research_manager") as mock_rm,
+            patch("tradingagents.graph.setup.create_trader") as mock_trader,
+            patch("tradingagents.graph.setup.create_risky_debator") as mock_risky,
+            patch("tradingagents.graph.setup.create_neutral_debator") as mock_neutral,
+            patch("tradingagents.graph.setup.create_safe_debator") as mock_safe,
+            patch("tradingagents.graph.setup.create_risk_manager") as mock_risk_mgr,
+        ):
             mock_market.return_value = MagicMock()
             mock_bull.return_value = MagicMock()
             mock_bear.return_value = MagicMock()
@@ -119,16 +127,17 @@ class TestGraphSetup:
     def test_setup_graph_returns_compiled_graph(self):
         setup = self.create_graph_setup()
 
-        with patch("tradingagents.graph.setup.create_market_analyst") as mock_market, \
-             patch("tradingagents.graph.setup.create_bull_researcher") as mock_bull, \
-             patch("tradingagents.graph.setup.create_bear_researcher") as mock_bear, \
-             patch("tradingagents.graph.setup.create_research_manager") as mock_rm, \
-             patch("tradingagents.graph.setup.create_trader") as mock_trader, \
-             patch("tradingagents.graph.setup.create_risky_debator") as mock_risky, \
-             patch("tradingagents.graph.setup.create_neutral_debator") as mock_neutral, \
-             patch("tradingagents.graph.setup.create_safe_debator") as mock_safe, \
-             patch("tradingagents.graph.setup.create_risk_manager") as mock_risk_mgr:
-
+        with (
+            patch("tradingagents.graph.setup.create_market_analyst") as mock_market,
+            patch("tradingagents.graph.setup.create_bull_researcher") as mock_bull,
+            patch("tradingagents.graph.setup.create_bear_researcher") as mock_bear,
+            patch("tradingagents.graph.setup.create_research_manager") as mock_rm,
+            patch("tradingagents.graph.setup.create_trader") as mock_trader,
+            patch("tradingagents.graph.setup.create_risky_debator") as mock_risky,
+            patch("tradingagents.graph.setup.create_neutral_debator") as mock_neutral,
+            patch("tradingagents.graph.setup.create_safe_debator") as mock_safe,
+            patch("tradingagents.graph.setup.create_risk_manager") as mock_risk_mgr,
+        ):
             mock_market.return_value = MagicMock()
             mock_bull.return_value = MagicMock()
             mock_bear.return_value = MagicMock()

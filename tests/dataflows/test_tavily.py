@@ -1,30 +1,37 @@
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
+
 from tradingagents.dataflows.tavily import (
+    _search_with_retry,
     get_api_key,
     get_bulk_news_tavily,
-    _search_with_retry,
-    DEFAULT_TIMEOUT,
-    MAX_RETRIES,
 )
 
 
 class TestGetApiKey:
-
     def test_get_api_key_success(self):
-        with patch.dict('os.environ', {'TAVILY_API_KEY': 'test_key_123'}):
+        from tradingagents import config as main_config
+
+        main_config._settings = None
+        with patch.dict(
+            "os.environ", {"TRADINGAGENTS_TAVILY_API_KEY": "test_key_123"}, clear=False
+        ):
             result = get_api_key()
-            assert result == 'test_key_123'
+            assert result == "test_key_123"
 
     def test_get_api_key_missing(self):
-        with patch.dict('os.environ', {}, clear=True):
-            with pytest.raises(ValueError, match="TAVILY_API_KEY environment variable is not set"):
+        with patch("tradingagents.config.get_settings") as mock_get_settings:
+            mock_settings = Mock()
+            mock_settings.require_api_key.side_effect = ValueError(
+                "tavily API key not configured"
+            )
+            mock_get_settings.return_value = mock_settings
+            with pytest.raises(ValueError, match="tavily API key not configured"):
                 get_api_key()
 
 
 class TestSearchWithRetry:
-
     def test_successful_search(self):
         mock_client = Mock()
         mock_client.search.return_value = {"results": []}
@@ -41,11 +48,11 @@ class TestSearchWithRetry:
         assert result == {"results": []}
         mock_client.search.assert_called_once()
 
-    @patch('tradingagents.dataflows.tavily.time.sleep')
+    @patch("tradingagents.dataflows.tavily.time.sleep")
     def test_retry_on_rate_limit(self, mock_sleep):
         mock_client = Mock()
         mock_client.search.side_effect = [
-            Exception("Rate limit exceeded"),
+            RuntimeError("Rate limit exceeded"),
             {"results": []},
         ]
 
@@ -62,11 +69,11 @@ class TestSearchWithRetry:
         assert mock_client.search.call_count == 2
         assert mock_sleep.call_count == 1
 
-    @patch('tradingagents.dataflows.tavily.time.sleep')
+    @patch("tradingagents.dataflows.tavily.time.sleep")
     def test_retry_on_timeout(self, mock_sleep):
         mock_client = Mock()
         mock_client.search.side_effect = [
-            Exception("Request timed out"),
+            TimeoutError("Request timed out"),
             {"results": []},
         ]
 
@@ -82,11 +89,11 @@ class TestSearchWithRetry:
         assert result == {"results": []}
         assert mock_client.search.call_count == 2
 
-    @patch('tradingagents.dataflows.tavily.time.sleep')
+    @patch("tradingagents.dataflows.tavily.time.sleep")
     def test_retry_on_connection_error(self, mock_sleep):
         mock_client = Mock()
         mock_client.search.side_effect = [
-            Exception("Connection error occurred"),
+            ConnectionError("Connection error occurred"),
             {"results": []},
         ]
 
@@ -102,12 +109,12 @@ class TestSearchWithRetry:
         assert result == {"results": []}
         assert mock_client.search.call_count == 2
 
-    @patch('tradingagents.dataflows.tavily.time.sleep')
+    @patch("tradingagents.dataflows.tavily.time.sleep")
     def test_max_retries_exceeded(self, mock_sleep):
         mock_client = Mock()
-        mock_client.search.side_effect = Exception("Rate limit 429")
+        mock_client.search.side_effect = RuntimeError("Rate limit 429")
 
-        with pytest.raises(Exception, match="Rate limit 429"):
+        with pytest.raises(RuntimeError, match="Rate limit 429"):
             _search_with_retry(
                 client=mock_client,
                 query="test query",
@@ -122,9 +129,9 @@ class TestSearchWithRetry:
 
     def test_non_retryable_error(self):
         mock_client = Mock()
-        mock_client.search.side_effect = Exception("Invalid API key")
+        mock_client.search.side_effect = ValueError("Invalid API key")
 
-        with pytest.raises(Exception, match="Invalid API key"):
+        with pytest.raises(ValueError, match="Invalid API key"):
             _search_with_retry(
                 client=mock_client,
                 query="test query",
@@ -138,15 +145,14 @@ class TestSearchWithRetry:
 
 
 class TestGetBulkNewsTavily:
-
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', False)
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", False)
     def test_returns_empty_when_library_not_installed(self):
         result = get_bulk_news_tavily(24)
         assert result == []
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
     def test_returns_empty_when_no_api_key(self, mock_get_api_key, mock_client_class):
         mock_get_api_key.side_effect = ValueError("TAVILY_API_KEY not set")
 
@@ -154,10 +160,10 @@ class TestGetBulkNewsTavily:
 
         assert result == []
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
     def test_basic_call(self, mock_search, mock_get_api_key, mock_client_class):
         mock_get_api_key.return_value = "test_key"
         mock_search.return_value = {"results": []}
@@ -167,10 +173,10 @@ class TestGetBulkNewsTavily:
         assert isinstance(result, list)
         assert mock_search.call_count == 5
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
     def test_parses_articles(self, mock_search, mock_get_api_key, mock_client_class):
         mock_get_api_key.return_value = "test_key"
 
@@ -193,11 +199,13 @@ class TestGetBulkNewsTavily:
         assert "published_at" in article
         assert article["content_snippet"] == "This is a test article about stocks."
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
-    def test_deduplicates_by_url(self, mock_search, mock_get_api_key, mock_client_class):
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
+    def test_deduplicates_by_url(
+        self, mock_search, mock_get_api_key, mock_client_class
+    ):
         mock_get_api_key.return_value = "test_key"
 
         duplicate_article = {
@@ -214,11 +222,13 @@ class TestGetBulkNewsTavily:
         urls = [a["url"] for a in result]
         assert len(urls) == len(set(urls))
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
-    def test_truncates_long_content(self, mock_search, mock_get_api_key, mock_client_class):
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
+    def test_truncates_long_content(
+        self, mock_search, mock_get_api_key, mock_client_class
+    ):
         mock_get_api_key.return_value = "test_key"
 
         long_content = "A" * 1000
@@ -236,10 +246,10 @@ class TestGetBulkNewsTavily:
 
         assert len(result[0]["content_snippet"]) == 500
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
     def test_time_range_day(self, mock_search, mock_get_api_key, mock_client_class):
         mock_get_api_key.return_value = "test_key"
         mock_search.return_value = {"results": []}
@@ -249,10 +259,10 @@ class TestGetBulkNewsTavily:
         call_kwargs = mock_search.call_args_list[0][1]
         assert call_kwargs["time_range"] == "day"
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
     def test_time_range_week(self, mock_search, mock_get_api_key, mock_client_class):
         mock_get_api_key.return_value = "test_key"
         mock_search.return_value = {"results": []}
@@ -262,10 +272,10 @@ class TestGetBulkNewsTavily:
         call_kwargs = mock_search.call_args_list[0][1]
         assert call_kwargs["time_range"] == "week"
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
     def test_time_range_month(self, mock_search, mock_get_api_key, mock_client_class):
         mock_get_api_key.return_value = "test_key"
         mock_search.return_value = {"results": []}
@@ -275,11 +285,13 @@ class TestGetBulkNewsTavily:
         call_kwargs = mock_search.call_args_list[0][1]
         assert call_kwargs["time_range"] == "month"
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
-    def test_handles_missing_published_date(self, mock_search, mock_get_api_key, mock_client_class):
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
+    def test_handles_missing_published_date(
+        self, mock_search, mock_get_api_key, mock_client_class
+    ):
         mock_get_api_key.return_value = "test_key"
 
         mock_article = {
@@ -295,11 +307,13 @@ class TestGetBulkNewsTavily:
         assert len(result) == 1
         assert "published_at" in result[0]
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
-    def test_handles_invalid_date_format(self, mock_search, mock_get_api_key, mock_client_class):
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
+    def test_handles_invalid_date_format(
+        self, mock_search, mock_get_api_key, mock_client_class
+    ):
         mock_get_api_key.return_value = "test_key"
 
         mock_article = {
@@ -316,16 +330,22 @@ class TestGetBulkNewsTavily:
         assert len(result) == 1
         assert "published_at" in result[0]
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
-    def test_continues_on_query_failure(self, mock_search, mock_get_api_key, mock_client_class):
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
+    def test_continues_on_query_failure(
+        self, mock_search, mock_get_api_key, mock_client_class
+    ):
         mock_get_api_key.return_value = "test_key"
 
         mock_search.side_effect = [
-            Exception("Query failed"),
-            {"results": [{"title": "Article", "url": "https://test.com", "content": "test"}]},
+            RuntimeError("Query failed"),
+            {
+                "results": [
+                    {"title": "Article", "url": "https://test.com", "content": "test"}
+                ]
+            },
             {"results": []},
             {"results": []},
             {"results": []},
@@ -335,11 +355,13 @@ class TestGetBulkNewsTavily:
 
         assert len(result) > 0
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
-    def test_skips_articles_without_url(self, mock_search, mock_get_api_key, mock_client_class):
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
+    def test_skips_articles_without_url(
+        self, mock_search, mock_get_api_key, mock_client_class
+    ):
         mock_get_api_key.return_value = "test_key"
 
         mock_articles = [
@@ -354,11 +376,13 @@ class TestGetBulkNewsTavily:
         urls = [a["url"] for a in result if a.get("url")]
         assert all(url for url in urls)
 
-    @patch('tradingagents.dataflows.tavily.TAVILY_AVAILABLE', True)
-    @patch('tradingagents.dataflows.tavily.TavilyClient')
-    @patch('tradingagents.dataflows.tavily.get_api_key')
-    @patch('tradingagents.dataflows.tavily._search_with_retry')
-    def test_uses_correct_search_parameters(self, mock_search, mock_get_api_key, mock_client_class):
+    @patch("tradingagents.dataflows.tavily.TAVILY_AVAILABLE", True)
+    @patch("tradingagents.dataflows.tavily.TavilyClient")
+    @patch("tradingagents.dataflows.tavily.get_api_key")
+    @patch("tradingagents.dataflows.tavily._search_with_retry")
+    def test_uses_correct_search_parameters(
+        self, mock_search, mock_get_api_key, mock_client_class
+    ):
         mock_get_api_key.return_value = "test_key"
         mock_search.return_value = {"results": []}
 

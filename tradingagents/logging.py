@@ -1,7 +1,7 @@
+import json
 import logging
 import logging.handlers
 import os
-import json
 from datetime import datetime
 
 LOG_FILE_NAME = "tradingagents.log"
@@ -32,6 +32,7 @@ class JSONFormatter(logging.Formatter):
 def _get_settings():
     try:
         from tradingagents.config import get_settings
+
         return get_settings()
     except ImportError:
         return None
@@ -50,8 +51,18 @@ def setup_logging():
     else:
         log_level_str = os.getenv("TRADINGAGENTS_LOG_LEVEL", "INFO")
         log_dir = os.getenv("TRADINGAGENTS_LOG_DIR", "./logs")
-        console_enabled = os.getenv("TRADINGAGENTS_LOG_CONSOLE", "true").lower() in ("true", "1", "yes", "on")
-        file_enabled = os.getenv("TRADINGAGENTS_LOG_FILE", "true").lower() in ("true", "1", "yes", "on")
+        console_enabled = os.getenv("TRADINGAGENTS_LOG_CONSOLE", "true").lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
+        file_enabled = os.getenv("TRADINGAGENTS_LOG_FILE", "true").lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
 
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
 
@@ -76,8 +87,8 @@ def setup_logging():
         root_logger.addHandler(file_handler)
 
     if console_enabled:
-        from rich.logging import RichHandler
         from rich.console import Console
+        from rich.logging import RichHandler
 
         console = Console(stderr=True)
         rich_handler = RichHandler(

@@ -1,10 +1,12 @@
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
 
 logger = logging.getLogger(__name__)
+
 
 def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
     params = {
@@ -17,6 +19,7 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
 
     return _make_api_request("NEWS_SENTIMENT", params)
 
+
 def get_insider_transactions(symbol: str) -> dict[str, str] | str:
     params = {
         "symbol": symbol,
@@ -25,7 +28,7 @@ def get_insider_transactions(symbol: str) -> dict[str, str] | str:
     return _make_api_request("INSIDER_TRANSACTIONS", params)
 
 
-def get_bulk_news_alpha_vantage(lookback_hours: int) -> List[Dict[str, Any]]:
+def get_bulk_news_alpha_vantage(lookback_hours: int) -> list[dict[str, Any]]:
     end_date = datetime.now()
     start_date = end_date - timedelta(hours=lookback_hours)
 
@@ -55,7 +58,9 @@ def get_bulk_news_alpha_vantage(lookback_hours: int) -> List[Dict[str, Any]]:
 
     feed = response.get("feed", [])
     if not feed:
-        logger.debug("Alpha Vantage feed empty. Keys in response: %s", list(response.keys()))
+        logger.debug(
+            "Alpha Vantage feed empty. Keys in response: %s", list(response.keys())
+        )
 
     articles = []
     for item in feed:

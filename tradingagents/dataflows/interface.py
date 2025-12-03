@@ -1,45 +1,59 @@
 import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime
 import threading
-
-from .local import get_YFin_data, get_finnhub_news, get_finnhub_company_insider_sentiment, get_finnhub_company_insider_transactions, get_simfin_balance_sheet, get_simfin_cashflow, get_simfin_income_statements, get_reddit_global_news, get_reddit_company_news
-from .y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions
-from .google import get_google_news, get_bulk_news_google
-from .openai import get_stock_news_openai, get_global_news_openai, get_fundamentals_openai, get_bulk_news_openai
-from .alpha_vantage import (
-    get_stock as get_alpha_vantage_stock,
-    get_indicator as get_alpha_vantage_indicator,
-    get_fundamentals as get_alpha_vantage_fundamentals,
-    get_balance_sheet as get_alpha_vantage_balance_sheet,
-    get_cashflow as get_alpha_vantage_cashflow,
-    get_income_statement as get_alpha_vantage_income_statement,
-    get_insider_transactions as get_alpha_vantage_insider_transactions,
-    get_news as get_alpha_vantage_news
-)
-from .alpha_vantage_news import get_bulk_news_alpha_vantage
-from .alpha_vantage_common import AlphaVantageRateLimitError
-from .tavily import get_bulk_news_tavily
-from .brave import get_bulk_news_brave
-
-from .config import get_config
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from tradingagents.agents.discovery import NewsArticle
+
+from .alpha_vantage import get_balance_sheet as get_alpha_vantage_balance_sheet
+from .alpha_vantage import get_cashflow as get_alpha_vantage_cashflow
+from .alpha_vantage import get_fundamentals as get_alpha_vantage_fundamentals
+from .alpha_vantage import get_income_statement as get_alpha_vantage_income_statement
+from .alpha_vantage import get_indicator as get_alpha_vantage_indicator
+from .alpha_vantage import (
+    get_insider_transactions as get_alpha_vantage_insider_transactions,
+)
+from .alpha_vantage import get_news as get_alpha_vantage_news
+from .alpha_vantage import get_stock as get_alpha_vantage_stock
+from .alpha_vantage_common import AlphaVantageRateLimitError
+from .alpha_vantage_news import get_bulk_news_alpha_vantage
+from .brave import get_bulk_news_brave
+from .config import get_config
+from .google import get_bulk_news_google, get_google_news
+from .local import (
+    get_finnhub_company_insider_sentiment,
+    get_finnhub_company_insider_transactions,
+    get_finnhub_news,
+    get_reddit_company_news,
+    get_reddit_global_news,
+    get_simfin_balance_sheet,
+    get_simfin_cashflow,
+    get_simfin_income_statements,
+    get_YFin_data,
+)
+from .openai import (
+    get_bulk_news_openai,
+    get_fundamentals_openai,
+    get_global_news_openai,
+    get_stock_news_openai,
+)
+from .tavily import get_bulk_news_tavily
+from .y_finance import get_balance_sheet as get_yfinance_balance_sheet
+from .y_finance import get_cashflow as get_yfinance_cashflow
+from .y_finance import get_income_statement as get_yfinance_income_statement
+from .y_finance import get_insider_transactions as get_yfinance_insider_transactions
+from .y_finance import get_stock_stats_indicators_window, get_YFin_data_online
 
 logger = logging.getLogger(__name__)
 
 TOOLS_CATEGORIES = {
     "core_stock_apis": {
         "description": "OHLCV stock price data",
-        "tools": [
-            "get_stock_data"
-        ]
+        "tools": ["get_stock_data"],
     },
     "technical_indicators": {
         "description": "Technical analysis indicators",
-        "tools": [
-            "get_indicators"
-        ]
+        "tools": ["get_indicators"],
     },
     "fundamental_data": {
         "description": "Company fundamentals",
@@ -47,8 +61,8 @@ TOOLS_CATEGORIES = {
             "get_fundamentals",
             "get_balance_sheet",
             "get_cashflow",
-            "get_income_statement"
-        ]
+            "get_income_statement",
+        ],
     },
     "news_data": {
         "description": "News (public/insiders, original/processed)",
@@ -58,16 +72,11 @@ TOOLS_CATEGORIES = {
             "get_insider_sentiment",
             "get_insider_transactions",
             "get_bulk_news",
-        ]
-    }
+        ],
+    },
 }
 
-VENDOR_LIST = [
-    "local",
-    "yfinance",
-    "openai",
-    "google"
-]
+VENDOR_LIST = ["local", "yfinance", "openai", "google"]
 
 VENDOR_METHODS = {
     "get_stock_data": {
@@ -78,7 +87,7 @@ VENDOR_METHODS = {
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
-        "local": get_stock_stats_indicators_window
+        "local": get_stock_stats_indicators_window,
     },
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
@@ -107,11 +116,9 @@ VENDOR_METHODS = {
     },
     "get_global_news": {
         "openai": get_global_news_openai,
-        "local": get_reddit_global_news
+        "local": get_reddit_global_news,
     },
-    "get_insider_sentiment": {
-        "local": get_finnhub_company_insider_sentiment
-    },
+    "get_insider_sentiment": {"local": get_finnhub_company_insider_sentiment},
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
@@ -128,7 +135,7 @@ VENDOR_METHODS = {
 
 CACHE_TTL_SECONDS = 300
 
-_bulk_news_cache: Dict[str, Dict[str, Any]] = {}
+_bulk_news_cache: dict[str, dict[str, Any]] = {}
 _bulk_news_cache_lock = threading.Lock()
 
 
@@ -144,21 +151,26 @@ def parse_lookback_period(lookback: str) -> int:
     elif lookback == "7d":
         return 168
     else:
-        raise ValueError(f"Invalid lookback period: {lookback}. Valid values: 1h, 6h, 24h, 7d")
+        raise ValueError(
+            f"Invalid lookback period: {lookback}. Valid values: 1h, 6h, 24h, 7d"
+        )
 
 
-def _get_cached_bulk_news(lookback_period: str) -> Optional[List[NewsArticle]]:
+def _get_cached_bulk_news(lookback_period: str) -> list[NewsArticle] | None:
     cache_key = lookback_period
     with _bulk_news_cache_lock:
         if cache_key in _bulk_news_cache:
             cached = _bulk_news_cache[cache_key]
             cached_time = cached.get("timestamp")
-            if cached_time and (datetime.now() - cached_time).total_seconds() < CACHE_TTL_SECONDS:
+            if (
+                cached_time
+                and (datetime.now() - cached_time).total_seconds() < CACHE_TTL_SECONDS
+            ):
                 return cached.get("articles")
     return None
 
 
-def _set_cached_bulk_news(lookback_period: str, articles: List[NewsArticle]) -> None:
+def _set_cached_bulk_news(lookback_period: str, articles: list[NewsArticle]) -> None:
     cache_key = lookback_period
     with _bulk_news_cache_lock:
         _bulk_news_cache[cache_key] = {
@@ -167,14 +179,16 @@ def _set_cached_bulk_news(lookback_period: str, articles: List[NewsArticle]) -> 
         }
 
 
-def _convert_to_news_articles(raw_articles: List[Dict[str, Any]]) -> List[NewsArticle]:
+def _convert_to_news_articles(raw_articles: list[dict[str, Any]]) -> list[NewsArticle]:
     articles = []
     for item in raw_articles:
         try:
             published_at_str = item.get("published_at", "")
             if isinstance(published_at_str, str):
                 try:
-                    published_at = datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+                    published_at = datetime.fromisoformat(
+                        published_at_str.replace("Z", "+00:00")
+                    )
                 except ValueError:
                     published_at = datetime.now()
             elif isinstance(published_at_str, datetime):
@@ -197,11 +211,14 @@ def _convert_to_news_articles(raw_articles: List[Dict[str, Any]]) -> List[NewsAr
     return articles
 
 
-def _fetch_bulk_news_from_vendor(lookback_period: str) -> List[Dict[str, Any]]:
+def _fetch_bulk_news_from_vendor(lookback_period: str) -> list[dict[str, Any]]:
     lookback_hours = parse_lookback_period(lookback_period)
 
     config = get_config()
-    vendor_order = config.get("bulk_news_vendor_order", ["tavily", "brave", "alpha_vantage", "openai", "google"])
+    vendor_order = config.get(
+        "bulk_news_vendor_order",
+        ["tavily", "brave", "alpha_vantage", "openai", "google"],
+    )
 
     for vendor in vendor_order:
         if vendor not in VENDOR_METHODS["get_bulk_news"]:
@@ -226,7 +243,7 @@ def _fetch_bulk_news_from_vendor(lookback_period: str) -> List[Dict[str, Any]]:
     return []
 
 
-def get_bulk_news(lookback_period: str = "24h") -> List[NewsArticle]:
+def get_bulk_news(lookback_period: str = "24h") -> list[NewsArticle]:
     cached = _get_cached_bulk_news(lookback_period)
     if cached is not None:
         logger.debug("Returning cached bulk news for period '%s'", lookback_period)
@@ -247,6 +264,7 @@ def get_category_for_method(method: str) -> str:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
 
+
 def get_vendor(category: str, method: str = None) -> str:
     config = get_config()
 
@@ -257,11 +275,12 @@ def get_vendor(category: str, method: str = None) -> str:
 
     return config.get("data_vendors", {}).get(category, "default")
 
+
 def route_to_vendor(method: str, *args, **kwargs):
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
 
-    primary_vendors = [v.strip() for v in vendor_config.split(',')]
+    primary_vendors = [v.strip() for v in vendor_config.split(",")]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
@@ -275,7 +294,12 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     primary_str = " -> ".join(primary_vendors)
     fallback_str = " -> ".join(fallback_vendors)
-    logger.debug("%s - Primary: [%s] | Full fallback order: [%s]", method, primary_str, fallback_str)
+    logger.debug(
+        "%s - Primary: [%s] | Full fallback order: [%s]",
+        method,
+        primary_str,
+        fallback_str,
+    )
 
     results = []
     vendor_attempt_count = 0
@@ -285,7 +309,11 @@ def route_to_vendor(method: str, *args, **kwargs):
     for vendor in fallback_vendors:
         if vendor not in VENDOR_METHODS[method]:
             if vendor in primary_vendors:
-                logger.info("Vendor '%s' not supported for method '%s', falling back to next vendor", vendor, method)
+                logger.info(
+                    "Vendor '%s' not supported for method '%s', falling back to next vendor",
+                    vendor,
+                    method,
+                )
             continue
 
         vendor_impl = VENDOR_METHODS[method][vendor]
@@ -296,29 +324,56 @@ def route_to_vendor(method: str, *args, **kwargs):
             any_primary_vendor_attempted = True
 
         vendor_type = "PRIMARY" if is_primary_vendor else "FALLBACK"
-        logger.debug("Attempting %s vendor '%s' for %s (attempt #%d)", vendor_type, vendor, method, vendor_attempt_count)
+        logger.debug(
+            "Attempting %s vendor '%s' for %s (attempt #%d)",
+            vendor_type,
+            vendor,
+            method,
+            vendor_attempt_count,
+        )
 
         if isinstance(vendor_impl, list):
             vendor_methods = [(impl, vendor) for impl in vendor_impl]
-            logger.debug("Vendor '%s' has multiple implementations: %d functions", vendor, len(vendor_methods))
+            logger.debug(
+                "Vendor '%s' has multiple implementations: %d functions",
+                vendor,
+                len(vendor_methods),
+            )
         else:
             vendor_methods = [(vendor_impl, vendor)]
 
         vendor_results = []
         for impl_func, vendor_name in vendor_methods:
             try:
-                logger.debug("Calling %s from vendor '%s'...", impl_func.__name__, vendor_name)
+                logger.debug(
+                    "Calling %s from vendor '%s'...", impl_func.__name__, vendor_name
+                )
                 result = impl_func(*args, **kwargs)
                 vendor_results.append(result)
-                logger.info("%s from vendor '%s' completed successfully", impl_func.__name__, vendor_name)
+                logger.info(
+                    "%s from vendor '%s' completed successfully",
+                    impl_func.__name__,
+                    vendor_name,
+                )
 
             except AlphaVantageRateLimitError as e:
                 if vendor == "alpha_vantage":
-                    logger.warning("Alpha Vantage rate limit exceeded, falling back to next available vendor")
+                    logger.warning(
+                        "Alpha Vantage rate limit exceeded, falling back to next available vendor"
+                    )
                     logger.debug("Rate limit details: %s", e)
                 continue
-            except (RuntimeError, ConnectionError, TimeoutError, ValueError, KeyError, OSError) as e:
-                logger.error("%s from vendor '%s' failed: %s", impl_func.__name__, vendor_name, e)
+            except (
+                RuntimeError,
+                ConnectionError,
+                TimeoutError,
+                ValueError,
+                KeyError,
+                OSError,
+            ) as e:
+                logger.error(
+                    "%s from vendor '%s' failed: %s", impl_func.__name__, vendor_name, e
+                )
                 continue
 
         if vendor_results:
@@ -328,18 +383,30 @@ def route_to_vendor(method: str, *args, **kwargs):
             logger.info("Vendor '%s' succeeded - %s", vendor, result_summary)
 
             if len(primary_vendors) == 1:
-                logger.debug("Stopping after successful vendor '%s' (single-vendor config)", vendor)
+                logger.debug(
+                    "Stopping after successful vendor '%s' (single-vendor config)",
+                    vendor,
+                )
                 break
         else:
             logger.error("Vendor '%s' produced no results", vendor)
 
     if not results:
-        logger.error("All %d vendor attempts failed for method '%s'", vendor_attempt_count, method)
+        logger.error(
+            "All %d vendor attempts failed for method '%s'",
+            vendor_attempt_count,
+            method,
+        )
         raise RuntimeError(f"All vendor implementations failed for method '{method}'")
     else:
-        logger.info("Method '%s' completed with %d result(s) from %d vendor attempt(s)", method, len(results), vendor_attempt_count)
+        logger.info(
+            "Method '%s' completed with %d result(s) from %d vendor attempt(s)",
+            method,
+            len(results),
+            vendor_attempt_count,
+        )
 
     if len(results) == 1:
         return results[0]
     else:
-        return '\n'.join(str(result) for result in results)
+        return "\n".join(str(result) for result in results)

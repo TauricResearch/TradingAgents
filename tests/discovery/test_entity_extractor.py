@@ -1,14 +1,16 @@
-import pytest
 from datetime import datetime
-from unittest.mock import patch, MagicMock
-from tradingagents.agents.discovery import NewsArticle, EventCategory
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from tradingagents.agents.discovery import EventCategory, NewsArticle
 
 
 class TestExtractEntitiesReturnsCompanyMentions:
     def test_extract_entities_returns_list_of_company_mentions(self):
         from tradingagents.agents.discovery.entity_extractor import (
-            extract_entities,
             EntityMention,
+            extract_entities,
         )
 
         articles = [
@@ -54,7 +56,6 @@ class TestConfidenceScoreRange:
     def test_confidence_score_in_valid_range(self):
         from tradingagents.agents.discovery.entity_extractor import (
             extract_entities,
-            EntityMention,
         )
 
         articles = [
@@ -98,7 +99,6 @@ class TestContextSnippetExtraction:
     def test_context_snippet_extraction(self):
         from tradingagents.agents.discovery.entity_extractor import (
             extract_entities,
-            EntityMention,
         )
 
         articles = [
@@ -144,9 +144,8 @@ class TestContextSnippetExtraction:
 class TestBatchProcessing:
     def test_batch_processing_of_multiple_articles(self):
         from tradingagents.agents.discovery.entity_extractor import (
-            extract_entities,
-            EntityMention,
             BATCH_SIZE,
+            extract_entities,
         )
 
         articles = [
@@ -191,7 +190,6 @@ class TestNoCompanyMentions:
     def test_handling_of_articles_with_no_company_mentions(self):
         from tradingagents.agents.discovery.entity_extractor import (
             extract_entities,
-            EntityMention,
         )
 
         articles = [
@@ -238,7 +236,6 @@ class TestEventTypeClassification:
     def test_event_type_classification(self, event_type):
         from tradingagents.agents.discovery.entity_extractor import (
             extract_entities,
-            EntityMention,
         )
 
         articles = [

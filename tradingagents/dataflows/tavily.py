@@ -2,12 +2,13 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
 try:
     from tavily import TavilyClient
+
     TAVILY_AVAILABLE = True
 except ImportError:
     TAVILY_AVAILABLE = False
@@ -20,6 +21,7 @@ RETRY_BACKOFF = 1.0
 def get_api_key() -> str:
     try:
         from tradingagents.config import get_settings
+
         return get_settings().require_api_key("tavily")
     except ImportError:
         api_key = os.getenv("TAVILY_API_KEY")
@@ -28,7 +30,15 @@ def get_api_key() -> str:
         return api_key
 
 
-def _search_with_retry(client, query: str, search_depth: str, topic: str, time_range: str, max_results: int, max_retries: int = MAX_RETRIES) -> Dict[str, Any]:
+def _search_with_retry(
+    client,
+    query: str,
+    search_depth: str,
+    topic: str,
+    time_range: str,
+    max_results: int,
+    max_retries: int = MAX_RETRIES,
+) -> dict[str, Any]:
     last_exception = None
     for attempt in range(max_retries):
         try:
@@ -44,17 +54,32 @@ def _search_with_retry(client, query: str, search_depth: str, topic: str, time_r
             error_str = str(e).lower()
             if "rate" in error_str or "limit" in error_str or "429" in error_str:
                 wait_time = RETRY_BACKOFF * (attempt + 1) * 2
-                logger.debug("Tavily rate limited, waiting %ds before retry %d/%d", wait_time, attempt + 1, max_retries)
+                logger.debug(
+                    "Tavily rate limited, waiting %ds before retry %d/%d",
+                    wait_time,
+                    attempt + 1,
+                    max_retries,
+                )
                 time.sleep(wait_time)
                 last_exception = e
             elif "timeout" in error_str or "timed out" in error_str:
                 wait_time = RETRY_BACKOFF * (attempt + 1)
-                logger.debug("Tavily timeout, waiting %ds before retry %d/%d", wait_time, attempt + 1, max_retries)
+                logger.debug(
+                    "Tavily timeout, waiting %ds before retry %d/%d",
+                    wait_time,
+                    attempt + 1,
+                    max_retries,
+                )
                 time.sleep(wait_time)
                 last_exception = e
             elif "connection" in error_str or "network" in error_str:
                 wait_time = RETRY_BACKOFF * (attempt + 1)
-                logger.debug("Tavily connection error, waiting %ds before retry %d/%d", wait_time, attempt + 1, max_retries)
+                logger.debug(
+                    "Tavily connection error, waiting %ds before retry %d/%d",
+                    wait_time,
+                    attempt + 1,
+                    max_retries,
+                )
                 time.sleep(wait_time)
                 last_exception = e
             else:
@@ -62,7 +87,7 @@ def _search_with_retry(client, query: str, search_depth: str, topic: str, time_r
     raise last_exception if last_exception else Exception("Max retries exceeded")
 
 
-def get_bulk_news_tavily(lookback_hours: int) -> List[Dict[str, Any]]:
+def get_bulk_news_tavily(lookback_hours: int) -> list[dict[str, Any]]:
     if not TAVILY_AVAILABLE:
         logger.debug("Tavily library not installed")
         return []
@@ -112,7 +137,9 @@ def get_bulk_news_tavily(lookback_hours: int) -> List[Dict[str, Any]]:
                     published_date = item.get("published_date")
                     if published_date:
                         try:
-                            published_at = datetime.fromisoformat(published_date.replace("Z", "+00:00"))
+                            published_at = datetime.fromisoformat(
+                                published_date.replace("Z", "+00:00")
+                            )
                         except (ValueError, TypeError):
                             published_at = datetime.now()
                     else:

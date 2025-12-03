@@ -1,6 +1,8 @@
+from datetime import datetime
+from unittest.mock import MagicMock, patch
+
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+
 from tradingagents.agents.discovery import NewsArticle
 from tradingagents.dataflows.alpha_vantage_common import AlphaVantageRateLimitError
 
@@ -92,11 +94,13 @@ class TestVendorFallback:
             "tradingagents.dataflows.interface.VENDOR_METHODS",
             {
                 "get_bulk_news": {
-                    "alpha_vantage": MagicMock(side_effect=AlphaVantageRateLimitError("Rate limit")),
+                    "alpha_vantage": MagicMock(
+                        side_effect=AlphaVantageRateLimitError("Rate limit")
+                    ),
                     "openai": MagicMock(return_value=mock_openai_news),
                     "google": MagicMock(return_value=[]),
                 }
-            }
+            },
         ):
             from tradingagents.dataflows.interface import _fetch_bulk_news_from_vendor
 

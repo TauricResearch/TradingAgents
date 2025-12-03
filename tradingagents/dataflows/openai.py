@@ -1,22 +1,24 @@
 import json
 import re
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from openai import OpenAI
+
 from .config import get_config
 
 
-def _extract_response_text(response) -> Optional[str]:
-    if not hasattr(response, 'output') or not response.output:
+def _extract_response_text(response) -> str | None:
+    if not hasattr(response, "output") or not response.output:
         return None
 
     for output_item in response.output:
-        if not hasattr(output_item, 'content') or not output_item.content:
+        if not hasattr(output_item, "content") or not output_item.content:
             continue
 
         text_pieces = []
         for content_item in output_item.content:
-            if hasattr(content_item, 'text') and content_item.text:
+            if hasattr(content_item, "text") and content_item.text:
                 text_pieces.append(content_item.text)
 
         if text_pieces:
@@ -130,7 +132,7 @@ def get_fundamentals_openai(ticker, curr_date):
     return _extract_response_text(response) or ""
 
 
-def get_bulk_news_openai(lookback_hours: int) -> List[Dict[str, Any]]:
+def get_bulk_news_openai(lookback_hours: int) -> list[dict[str, Any]]:
     config = get_config()
     client = OpenAI(base_url=config["backend_url"])
 
@@ -195,7 +197,7 @@ Return ONLY the JSON array, no additional text."""
         if not response_text:
             return []
 
-        json_match = re.search(r'\[[\s\S]*\]', response_text)
+        json_match = re.search(r"\[[\s\S]*\]", response_text)
         if json_match:
             articles = json.loads(json_match.group())
         else:
@@ -208,7 +210,9 @@ Return ONLY the JSON array, no additional text."""
                     "title": item.get("title", ""),
                     "source": item.get("source", "Web Search"),
                     "url": item.get("url", ""),
-                    "published_at": item.get("published_at", datetime.now().isoformat()),
+                    "published_at": item.get(
+                        "published_at", datetime.now().isoformat()
+                    ),
                     "content_snippet": item.get("content_snippet", "")[:500],
                 }
                 result.append(article)

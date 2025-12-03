@@ -1,5 +1,5 @@
-import pytest
 import os
+
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
@@ -25,7 +25,12 @@ class TestDefaultConfig:
     def test_llm_provider_configured(self):
         """Test that llm_provider is configured."""
         assert "llm_provider" in DEFAULT_CONFIG
-        assert DEFAULT_CONFIG["llm_provider"] in ["openai", "anthropic", "google", "ollama"]
+        assert DEFAULT_CONFIG["llm_provider"] in [
+            "openai",
+            "anthropic",
+            "google",
+            "ollama",
+        ]
 
     def test_llm_models_configured(self):
         """Test that LLM models are configured."""
@@ -59,14 +64,14 @@ class TestDefaultConfig:
         """Test that data vendors are configured."""
         assert "data_vendors" in DEFAULT_CONFIG
         assert isinstance(DEFAULT_CONFIG["data_vendors"], dict)
-        
+
         required_categories = [
             "core_stock_apis",
             "technical_indicators",
             "fundamental_data",
             "news_data",
         ]
-        
+
         for category in required_categories:
             assert category in DEFAULT_CONFIG["data_vendors"]
 
@@ -81,7 +86,10 @@ class TestDefaultConfig:
         assert "discovery_hard_timeout" in DEFAULT_CONFIG
         assert isinstance(DEFAULT_CONFIG["discovery_timeout"], int)
         assert isinstance(DEFAULT_CONFIG["discovery_hard_timeout"], int)
-        assert DEFAULT_CONFIG["discovery_hard_timeout"] >= DEFAULT_CONFIG["discovery_timeout"]
+        assert (
+            DEFAULT_CONFIG["discovery_hard_timeout"]
+            >= DEFAULT_CONFIG["discovery_timeout"]
+        )
 
     def test_discovery_config_cache_ttl(self):
         """Test discovery cache TTL configuration."""
@@ -116,11 +124,11 @@ class TestDefaultConfig:
     def test_config_immutability_safety(self):
         """Test that modifying a copy doesn't affect the original."""
         original_provider = DEFAULT_CONFIG["llm_provider"]
-        
+
         # Create a copy and modify it
         config_copy = DEFAULT_CONFIG.copy()
         config_copy["llm_provider"] = "modified_provider"
-        
+
         # Original should remain unchanged
         assert DEFAULT_CONFIG["llm_provider"] == original_provider
 
@@ -132,7 +140,7 @@ class TestDefaultConfig:
             "fundamental_data",
             "news_data",
         ]
-        
+
         for category in DEFAULT_CONFIG["data_vendors"].keys():
             assert category in valid_categories
 
@@ -153,7 +161,7 @@ class TestDefaultConfig:
             "discovery_max_results",
             "discovery_min_mentions",
         ]
-        
+
         for config_key in numeric_configs:
             value = DEFAULT_CONFIG[config_key]
             assert isinstance(value, int)
@@ -163,7 +171,7 @@ class TestDefaultConfig:
         """Test that results_dir respects environment variable."""
         # The config uses os.getenv with a default
         results_dir = DEFAULT_CONFIG["results_dir"]
-        
+
         # Should either be from env or default to ./results
         assert isinstance(results_dir, str)
         assert len(results_dir) > 0

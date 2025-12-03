@@ -1,33 +1,40 @@
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+
+import pytest
 import requests
+
 from tradingagents.dataflows.brave import (
+    _make_request_with_retry,
+    _parse_brave_age,
     get_api_key,
     get_bulk_news_brave,
-    _parse_brave_age,
-    _make_request_with_retry,
-    BRAVE_SEARCH_URL,
-    DEFAULT_TIMEOUT,
-    MAX_RETRIES,
 )
 
 
 class TestGetApiKey:
-
     def test_get_api_key_success(self):
-        with patch.dict('os.environ', {'BRAVE_API_KEY': 'test_key_123'}):
+        from tradingagents import config as main_config
+
+        main_config._settings = None
+        with patch.dict(
+            "os.environ", {"TRADINGAGENTS_BRAVE_API_KEY": "test_key_123"}, clear=False
+        ):
             result = get_api_key()
-            assert result == 'test_key_123'
+            assert result == "test_key_123"
 
     def test_get_api_key_missing(self):
-        with patch.dict('os.environ', {}, clear=True):
-            with pytest.raises(ValueError, match="BRAVE_API_KEY environment variable is not set"):
+        with patch("tradingagents.config.get_settings") as mock_get_settings:
+            mock_settings = Mock()
+            mock_settings.require_api_key.side_effect = ValueError(
+                "brave API key not configured"
+            )
+            mock_get_settings.return_value = mock_settings
+            with pytest.raises(ValueError, match="brave API key not configured"):
                 get_api_key()
 
 
 class TestParseBraveAge:
-
     def test_parse_hours_ago(self):
         result = _parse_brave_age("2 hours ago")
         expected = datetime.now() - timedelta(hours=2)
@@ -70,8 +77,7 @@ class TestParseBraveAge:
 
 
 class TestMakeRequestWithRetry:
-
-    @patch('tradingagents.dataflows.brave.requests.get')
+    @patch("tradingagents.dataflows.brave.requests.get")
     def test_successful_request(self, mock_get):
         mock_response = Mock()
         mock_response.status_code = 200
@@ -83,8 +89,8 @@ class TestMakeRequestWithRetry:
         assert result == mock_response
         mock_get.assert_called_once()
 
-    @patch('tradingagents.dataflows.brave.requests.get')
-    @patch('tradingagents.dataflows.brave.time.sleep')
+    @patch("tradingagents.dataflows.brave.requests.get")
+    @patch("tradingagents.dataflows.brave.time.sleep")
     def test_retry_on_timeout(self, mock_sleep, mock_get):
         mock_get.side_effect = [
             requests.exceptions.Timeout(),
@@ -97,8 +103,8 @@ class TestMakeRequestWithRetry:
         assert mock_get.call_count == 3
         assert mock_sleep.call_count == 2
 
-    @patch('tradingagents.dataflows.brave.requests.get')
-    @patch('tradingagents.dataflows.brave.time.sleep')
+    @patch("tradingagents.dataflows.brave.requests.get")
+    @patch("tradingagents.dataflows.brave.time.sleep")
     def test_retry_on_connection_error(self, mock_sleep, mock_get):
         mock_get.side_effect = [
             requests.exceptions.ConnectionError(),
@@ -110,8 +116,8 @@ class TestMakeRequestWithRetry:
         assert mock_get.call_count == 2
         assert mock_sleep.call_count == 1
 
-    @patch('tradingagents.dataflows.brave.requests.get')
-    @patch('tradingagents.dataflows.brave.time.sleep')
+    @patch("tradingagents.dataflows.brave.requests.get")
+    @patch("tradingagents.dataflows.brave.time.sleep")
     def test_retry_on_rate_limit(self, mock_sleep, mock_get):
         rate_limited_response = Mock()
         rate_limited_response.status_code = 429
@@ -128,8 +134,8 @@ class TestMakeRequestWithRetry:
         assert mock_get.call_count == 2
         assert mock_sleep.call_count == 1
 
-    @patch('tradingagents.dataflows.brave.requests.get')
-    @patch('tradingagents.dataflows.brave.time.sleep')
+    @patch("tradingagents.dataflows.brave.requests.get")
+    @patch("tradingagents.dataflows.brave.time.sleep")
     def test_max_retries_exceeded(self, mock_sleep, mock_get):
         mock_get.side_effect = requests.exceptions.Timeout()
 
@@ -138,11 +144,13 @@ class TestMakeRequestWithRetry:
 
         assert mock_get.call_count == 3
 
-    @patch('tradingagents.dataflows.brave.requests.get')
+    @patch("tradingagents.dataflows.brave.requests.get")
     def test_non_retryable_http_error(self, mock_get):
         mock_response = Mock()
         mock_response.status_code = 400
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_response)
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+            response=mock_response
+        )
         mock_get.return_value = mock_response
 
         with pytest.raises(requests.exceptions.HTTPError):
@@ -152,8 +160,7 @@ class TestMakeRequestWithRetry:
 
 
 class TestGetBulkNewsBrave:
-
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_returns_empty_when_no_api_key(self, mock_get_api_key):
         mock_get_api_key.side_effect = ValueError("BRAVE_API_KEY not set")
 
@@ -161,8 +168,8 @@ class TestGetBulkNewsBrave:
 
         assert result == []
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_basic_call(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
         mock_response = Mock()
@@ -174,8 +181,8 @@ class TestGetBulkNewsBrave:
         assert isinstance(result, list)
         assert mock_request.call_count == 5
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_parses_articles(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
 
@@ -201,8 +208,8 @@ class TestGetBulkNewsBrave:
         assert "published_at" in article
         assert article["content_snippet"] == "This is a test article about stocks."
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_deduplicates_by_url(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
 
@@ -215,7 +222,9 @@ class TestGetBulkNewsBrave:
         }
 
         mock_response = Mock()
-        mock_response.json.return_value = {"results": [duplicate_article, duplicate_article]}
+        mock_response.json.return_value = {
+            "results": [duplicate_article, duplicate_article]
+        }
         mock_request.return_value = mock_response
 
         result = get_bulk_news_brave(24)
@@ -223,8 +232,8 @@ class TestGetBulkNewsBrave:
         urls = [a["url"] for a in result]
         assert len(urls) == len(set(urls))
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_truncates_long_descriptions(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
 
@@ -246,8 +255,8 @@ class TestGetBulkNewsBrave:
 
         assert len(result[0]["content_snippet"]) == 500
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_freshness_parameter_24h(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
         mock_response = Mock()
@@ -260,8 +269,8 @@ class TestGetBulkNewsBrave:
         params = call_args[0][2]
         assert params["freshness"] == "pd"
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_freshness_parameter_7d(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
         mock_response = Mock()
@@ -274,8 +283,8 @@ class TestGetBulkNewsBrave:
         params = call_args[0][2]
         assert params["freshness"] == "pw"
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_freshness_parameter_month(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
         mock_response = Mock()
@@ -288,8 +297,8 @@ class TestGetBulkNewsBrave:
         params = call_args[0][2]
         assert params["freshness"] == "pm"
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_handles_missing_meta_url(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
 
@@ -308,13 +317,22 @@ class TestGetBulkNewsBrave:
 
         assert result[0]["source"] == "Brave News"
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_continues_on_query_failure(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
 
         mock_response = Mock()
-        mock_response.json.return_value = {"results": [{"title": "Article", "url": "https://test.com", "age": "1h", "description": "test"}]}
+        mock_response.json.return_value = {
+            "results": [
+                {
+                    "title": "Article",
+                    "url": "https://test.com",
+                    "age": "1h",
+                    "description": "test",
+                }
+            ]
+        }
 
         mock_request.side_effect = [
             requests.exceptions.HTTPError("Error"),
@@ -328,14 +346,19 @@ class TestGetBulkNewsBrave:
 
         assert len(result) > 0
 
-    @patch('tradingagents.dataflows.brave._make_request_with_retry')
-    @patch('tradingagents.dataflows.brave.get_api_key')
+    @patch("tradingagents.dataflows.brave._make_request_with_retry")
+    @patch("tradingagents.dataflows.brave.get_api_key")
     def test_skips_articles_without_url(self, mock_get_api_key, mock_request):
         mock_get_api_key.return_value = "test_key"
 
         mock_articles = [
             {"title": "No URL Article", "age": "1h", "description": "test"},
-            {"title": "Has URL", "url": "https://test.com", "age": "1h", "description": "test"},
+            {
+                "title": "Has URL",
+                "url": "https://test.com",
+                "age": "1h",
+                "description": "test",
+            },
         ]
 
         mock_response = Mock()

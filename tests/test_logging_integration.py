@@ -1,45 +1,27 @@
+import json
 import logging
 import os
 import tempfile
-import pytest
 from unittest.mock import patch
+
+import tradingagents.logging as log_module
 
 
 class TestLoggingIntegration:
-    @pytest.fixture(autouse=True)
-    def setup_and_teardown(self):
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
-
-        tradingagents_logger = logging.getLogger("tradingagents")
-        for handler in tradingagents_logger.handlers[:]:
-            tradingagents_logger.removeHandler(handler)
-        tradingagents_logger.setLevel(logging.NOTSET)
-
-        yield
-
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
-        tradingagents_logger = logging.getLogger("tradingagents")
-        for handler in tradingagents_logger.handlers[:]:
-            tradingagents_logger.removeHandler(handler)
-
     def test_logging_initialization_from_module_import(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             env_vars = {
                 "TRADINGAGENTS_LOG_LEVEL": "INFO",
                 "TRADINGAGENTS_LOG_DIR": tmpdir,
-                "TRADINGAGENTS_LOG_CONSOLE": "false",
-                "TRADINGAGENTS_LOG_FILE": "true",
+                "TRADINGAGENTS_LOG_CONSOLE_ENABLED": "false",
+                "TRADINGAGENTS_LOG_FILE_ENABLED": "true",
             }
             with patch.dict(os.environ, env_vars, clear=False):
-                import importlib
-                import tradingagents.logging as log_module
-                importlib.reload(log_module)
-
                 log_module.setup_logging()
 
-                interface_logger = log_module.get_logger("tradingagents.dataflows.interface")
+                interface_logger = log_module.get_logger(
+                    "tradingagents.dataflows.interface"
+                )
 
                 assert interface_logger is not None
                 assert interface_logger.name == "tradingagents.dataflows.interface"
@@ -49,7 +31,7 @@ class TestLoggingIntegration:
                 log_file = os.path.join(tmpdir, "tradingagents.log")
                 assert os.path.exists(log_file)
 
-                with open(log_file, "r") as f:
+                with open(log_file) as f:
                     content = f.read()
                     assert "Test message from interface logger" in content
 
@@ -58,18 +40,17 @@ class TestLoggingIntegration:
             env_vars = {
                 "TRADINGAGENTS_LOG_LEVEL": "INFO",
                 "TRADINGAGENTS_LOG_DIR": tmpdir,
-                "TRADINGAGENTS_LOG_CONSOLE": "true",
-                "TRADINGAGENTS_LOG_FILE": "false",
+                "TRADINGAGENTS_LOG_CONSOLE_ENABLED": "true",
+                "TRADINGAGENTS_LOG_FILE_ENABLED": "false",
             }
             with patch.dict(os.environ, env_vars, clear=False):
-                import importlib
-                import tradingagents.logging as log_module
-                importlib.reload(log_module)
-
                 logger = log_module.setup_logging()
 
                 from rich.logging import RichHandler
-                rich_handlers = [h for h in logger.handlers if isinstance(h, RichHandler)]
+
+                rich_handlers = [
+                    h for h in logger.handlers if isinstance(h, RichHandler)
+                ]
                 assert len(rich_handlers) == 1
 
                 rich_handler = rich_handlers[0]
@@ -81,15 +62,10 @@ class TestLoggingIntegration:
             env_vars = {
                 "TRADINGAGENTS_LOG_LEVEL": "DEBUG",
                 "TRADINGAGENTS_LOG_DIR": tmpdir,
-                "TRADINGAGENTS_LOG_CONSOLE": "false",
-                "TRADINGAGENTS_LOG_FILE": "true",
+                "TRADINGAGENTS_LOG_CONSOLE_ENABLED": "false",
+                "TRADINGAGENTS_LOG_FILE_ENABLED": "true",
             }
             with patch.dict(os.environ, env_vars, clear=False):
-                import importlib
-                import json
-                import tradingagents.logging as log_module
-                importlib.reload(log_module)
-
                 logger = log_module.setup_logging()
 
                 logger.debug("Debug message")
@@ -103,7 +79,7 @@ class TestLoggingIntegration:
                 log_file = os.path.join(tmpdir, "tradingagents.log")
                 assert os.path.exists(log_file)
 
-                with open(log_file, "r") as f:
+                with open(log_file) as f:
                     lines = f.readlines()
 
                 assert len(lines) >= 4
@@ -120,18 +96,18 @@ class TestLoggingIntegration:
             env_vars = {
                 "TRADINGAGENTS_LOG_LEVEL": "WARNING",
                 "TRADINGAGENTS_LOG_DIR": tmpdir,
-                "TRADINGAGENTS_LOG_CONSOLE": "false",
-                "TRADINGAGENTS_LOG_FILE": "true",
+                "TRADINGAGENTS_LOG_CONSOLE_ENABLED": "false",
+                "TRADINGAGENTS_LOG_FILE_ENABLED": "true",
             }
             with patch.dict(os.environ, env_vars, clear=False):
-                import importlib
-                import tradingagents.logging as log_module
-                importlib.reload(log_module)
-
                 root_logger = log_module.setup_logging()
 
-                child_logger = log_module.get_logger("tradingagents.dataflows.interface")
-                grandchild_logger = log_module.get_logger("tradingagents.dataflows.interface.submodule")
+                child_logger = log_module.get_logger(
+                    "tradingagents.dataflows.interface"
+                )
+                grandchild_logger = log_module.get_logger(
+                    "tradingagents.dataflows.interface.submodule"
+                )
 
                 assert root_logger.level == logging.WARNING
 
@@ -142,7 +118,7 @@ class TestLoggingIntegration:
                     handler.flush()
 
                 log_file = os.path.join(tmpdir, "tradingagents.log")
-                with open(log_file, "r") as f:
+                with open(log_file) as f:
                     content = f.read()
 
                 assert "This should not be logged" not in content
@@ -153,14 +129,10 @@ class TestLoggingIntegration:
             env_vars = {
                 "TRADINGAGENTS_LOG_LEVEL": "INFO",
                 "TRADINGAGENTS_LOG_DIR": tmpdir,
-                "TRADINGAGENTS_LOG_CONSOLE": "false",
-                "TRADINGAGENTS_LOG_FILE": "true",
+                "TRADINGAGENTS_LOG_CONSOLE_ENABLED": "false",
+                "TRADINGAGENTS_LOG_FILE_ENABLED": "true",
             }
             with patch.dict(os.environ, env_vars, clear=False):
-                import importlib
-                import tradingagents.logging as log_module
-                importlib.reload(log_module)
-
                 log_module._logging_initialized = False
 
                 logger = log_module.get_logger("tradingagents.test")

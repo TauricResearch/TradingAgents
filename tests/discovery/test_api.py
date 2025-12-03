@@ -1,17 +1,17 @@
+from datetime import datetime
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timedelta
-import signal
 
 from tradingagents.agents.discovery import (
     DiscoveryRequest,
     DiscoveryResult,
     DiscoveryStatus,
-    TrendingStock,
+    DiscoveryTimeoutError,
+    EventCategory,
     NewsArticle,
     Sector,
-    EventCategory,
-    DiscoveryTimeoutError,
+    TrendingStock,
 )
 
 
@@ -141,7 +141,9 @@ class TestEventFilterParameter:
         mock_bulk_news.return_value = [create_mock_news_article()]
         mock_extract.return_value = []
         mock_scores.return_value = [
-            create_mock_trending_stock(ticker="AAPL", event_type=EventCategory.EARNINGS),
+            create_mock_trending_stock(
+                ticker="AAPL", event_type=EventCategory.EARNINGS
+            ),
             create_mock_trending_stock(
                 ticker="MSFT", event_type=EventCategory.PRODUCT_LAUNCH
             ),
@@ -179,6 +181,7 @@ class TestTimeoutHandling:
     def test_timeout_raises_discovery_timeout_error(self, mock_bulk_news):
         def slow_fetch(*args, **kwargs):
             import time
+
             time.sleep(0.5)
             return []
 

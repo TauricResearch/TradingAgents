@@ -1,8 +1,9 @@
 from typing import Dict, Optional
+
 from tradingagents.config import get_settings, update_settings
 
-_config: Optional[Dict] = None
-DATA_DIR: Optional[str] = None
+_config: dict | None = None
+DATA_DIR: str | None = None
 
 
 def initialize_config():
@@ -13,7 +14,7 @@ def initialize_config():
         DATA_DIR = _config["data_dir"]
 
 
-def set_config(config: Dict):
+def set_config(config: dict):
     global _config, DATA_DIR
 
     settings = get_settings()
@@ -25,7 +26,7 @@ def set_config(config: Dict):
     DATA_DIR = _config["data_dir"]
 
 
-def get_config() -> Dict:
+def get_config() -> dict:
     global _config
     if _config is None:
         initialize_config()

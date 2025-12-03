@@ -1,31 +1,29 @@
 import time
-from typing import Optional, List
 
 import questionary
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 from rich.rule import Rule
-from rich import box
-
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.dataflows.config import get_config
-from tradingagents.agents.discovery.models import (
-    DiscoveryRequest,
-    DiscoveryStatus,
-    TrendingStock,
-    Sector,
-    EventCategory,
-)
-from tradingagents.agents.discovery.persistence import save_discovery_result
+from rich.table import Table
 
 from cli.display import create_question_box
 from cli.utils import (
+    MultiStageLoader,
+    loading,
     select_llm_provider,
     select_shallow_thinking_agent,
-    loading,
-    MultiStageLoader,
 )
+from tradingagents.agents.discovery.models import (
+    DiscoveryRequest,
+    DiscoveryStatus,
+    EventCategory,
+    Sector,
+    TrendingStock,
+)
+from tradingagents.agents.discovery.persistence import save_discovery_result
+from tradingagents.dataflows.config import get_config
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 console = Console()
 
@@ -60,7 +58,8 @@ def select_lookback_period() -> str:
     choice = questionary.select(
         "Select lookback period:",
         choices=[
-            questionary.Choice(display, value=value) for display, value in LOOKBACK_OPTIONS
+            questionary.Choice(display, value=value)
+            for display, value in LOOKBACK_OPTIONS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -79,7 +78,7 @@ def select_lookback_period() -> str:
     return choice
 
 
-def select_sector_filter() -> Optional[List[Sector]]:
+def select_sector_filter() -> list[Sector] | None:
     use_filter = questionary.confirm(
         "Filter by sector?",
         default=False,
@@ -97,7 +96,8 @@ def select_sector_filter() -> Optional[List[Sector]]:
     choices = questionary.checkbox(
         "Select sectors to include:",
         choices=[
-            questionary.Choice(display, value=value) for display, value in SECTOR_OPTIONS
+            questionary.Choice(display, value=value)
+            for display, value in SECTOR_OPTIONS
         ],
         instruction="\n- Press Space to select/unselect\n- Press 'a' to select all\n- Press Enter when done",
         style=questionary.Style(
@@ -116,7 +116,7 @@ def select_sector_filter() -> Optional[List[Sector]]:
     return choices
 
 
-def select_event_filter() -> Optional[List[EventCategory]]:
+def select_event_filter() -> list[EventCategory] | None:
     use_filter = questionary.confirm(
         "Filter by event type?",
         default=False,
@@ -153,7 +153,7 @@ def select_event_filter() -> Optional[List[EventCategory]]:
     return choices
 
 
-def create_discovery_results_table(trending_stocks: List[TrendingStock]) -> Table:
+def create_discovery_results_table(trending_stocks: list[TrendingStock]) -> Table:
     table = Table(
         show_header=True,
         header_style="bold magenta",
@@ -181,7 +181,9 @@ def create_discovery_results_table(trending_stocks: List[TrendingStock]) -> Tabl
         table.add_row(
             rank_display,
             ticker_display,
-            stock.company_name[:25] if len(stock.company_name) > 25 else stock.company_name,
+            stock.company_name[:25]
+            if len(stock.company_name) > 25
+            else stock.company_name,
             f"{stock.score:.2f}",
             str(stock.mention_count),
             stock.event_type.value.replace("_", " ").title(),
@@ -191,8 +193,20 @@ def create_discovery_results_table(trending_stocks: List[TrendingStock]) -> Tabl
 
 
 def create_stock_detail_panel(stock: TrendingStock, rank: int) -> Panel:
-    sentiment_label = "positive" if stock.sentiment > 0.3 else "negative" if stock.sentiment < -0.3 else "neutral"
-    sentiment_color = "green" if stock.sentiment > 0.3 else "red" if stock.sentiment < -0.3 else "yellow"
+    sentiment_label = (
+        "positive"
+        if stock.sentiment > 0.3
+        else "negative"
+        if stock.sentiment < -0.3
+        else "neutral"
+    )
+    sentiment_color = (
+        "green"
+        if stock.sentiment > 0.3
+        else "red"
+        if stock.sentiment < -0.3
+        else "yellow"
+    )
 
     content = f"""[bold]Rank #{rank}: {stock.ticker} - {stock.company_name}[/bold]
 
@@ -218,14 +232,16 @@ def create_stock_detail_panel(stock: TrendingStock, rank: int) -> Panel:
     )
 
 
-def select_stock_for_detail(trending_stocks: List[TrendingStock]) -> Optional[TrendingStock]:
+def select_stock_for_detail(
+    trending_stocks: list[TrendingStock],
+) -> TrendingStock | None:
     if not trending_stocks:
         return None
 
     choices = [
         questionary.Choice(
             f"{i+1}. {stock.ticker} - {stock.company_name} (Score: {stock.score:.2f})",
-            value=stock
+            value=stock,
         )
         for i, stock in enumerate(trending_stocks)
     ]
@@ -254,7 +270,7 @@ def discover_trending_flow(run_analysis_callback=None) -> None:
     console.print(
         create_question_box(
             "Step 1: Lookback Period",
-            "Select how far back to search for trending stocks"
+            "Select how far back to search for trending stocks",
         )
     )
     lookback_period = select_lookback_period()
@@ -263,34 +279,35 @@ def discover_trending_flow(run_analysis_callback=None) -> None:
 
     console.print(
         create_question_box(
-            "Step 2: Sector Filter (Optional)",
-            "Optionally filter results by sector"
+            "Step 2: Sector Filter (Optional)", "Optionally filter results by sector"
         )
     )
     sector_filter = select_sector_filter()
     if sector_filter:
-        console.print(f"[green]Selected sectors:[/green] {', '.join(s.value for s in sector_filter)}")
+        console.print(
+            f"[green]Selected sectors:[/green] {', '.join(s.value for s in sector_filter)}"
+        )
     else:
         console.print("[dim]No sector filter applied[/dim]")
     console.print()
 
     console.print(
         create_question_box(
-            "Step 3: Event Filter (Optional)",
-            "Optionally filter results by event type"
+            "Step 3: Event Filter (Optional)", "Optionally filter results by event type"
         )
     )
     event_filter = select_event_filter()
     if event_filter:
-        console.print(f"[green]Selected events:[/green] {', '.join(e.value for e in event_filter)}")
+        console.print(
+            f"[green]Selected events:[/green] {', '.join(e.value for e in event_filter)}"
+        )
     else:
         console.print("[dim]No event filter applied[/dim]")
     console.print()
 
     console.print(
         create_question_box(
-            "Step 4: LLM Provider",
-            "Select your LLM provider for entity extraction"
+            "Step 4: LLM Provider", "Select your LLM provider for entity extraction"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
@@ -298,8 +315,7 @@ def discover_trending_flow(run_analysis_callback=None) -> None:
 
     console.print(
         create_question_box(
-            "Step 5: Quick-Thinking Model",
-            "Select the model for entity extraction"
+            "Step 5: Quick-Thinking Model", "Select the model for entity extraction"
         )
     )
     selected_model = select_shallow_thinking_agent(selected_llm_provider)
@@ -359,13 +375,15 @@ def discover_trending_flow(run_analysis_callback=None) -> None:
             with loading("Saving discovery results..."):
                 save_path = save_discovery_result(result)
             console.print(f"\n[dim]Results saved to: {save_path}[/dim]")
-        except (IOError, OSError, ValueError) as e:
+        except (OSError, ValueError) as e:
             console.print(f"\n[yellow]Warning: Could not save results: {e}[/yellow]")
 
     console.print()
 
     if not result.trending_stocks:
-        console.print("[yellow]No trending stocks found matching your criteria.[/yellow]")
+        console.print(
+            "[yellow]No trending stocks found matching your criteria.[/yellow]"
+        )
         return
 
     console.print(f"[green]Found {len(result.trending_stocks)} trending stocks[/green]")
@@ -400,7 +418,10 @@ def discover_trending_flow(run_analysis_callback=None) -> None:
 
         if analyze_choice and run_analysis_callback:
             console.print()
-            with loading(f"Preparing analysis for {selected_stock.ticker}...", spinner_style="loading"):
+            with loading(
+                f"Preparing analysis for {selected_stock.ticker}...",
+                spinner_style="loading",
+            ):
                 time.sleep(0.5)
             run_analysis_callback(selected_stock.ticker, config)
             break

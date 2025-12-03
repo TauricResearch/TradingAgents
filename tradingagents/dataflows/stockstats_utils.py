@@ -1,9 +1,11 @@
+import os
+from typing import Annotated
+
 import pandas as pd
 import yfinance as yf
 from stockstats import wrap
-from typing import Annotated
-import os
-from .config import get_config, DATA_DIR
+
+from .config import DATA_DIR, get_config
 
 
 class StockstatsUtils:

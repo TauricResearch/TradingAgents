@@ -1,25 +1,24 @@
 import math
 from collections import defaultdict
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List
 
+from tradingagents.agents.discovery.entity_extractor import EntityMention
 from tradingagents.agents.discovery.models import (
-    TrendingStock,
+    EventCategory,
     NewsArticle,
     Sector,
-    EventCategory,
+    TrendingStock,
 )
-from tradingagents.agents.discovery.entity_extractor import EntityMention
-from tradingagents.dataflows.trending.stock_resolver import resolve_ticker
 from tradingagents.dataflows.trending.sector_classifier import classify_sector
-
+from tradingagents.dataflows.trending.stock_resolver import resolve_ticker
 
 DEFAULT_DECAY_RATE = 0.1
 DEFAULT_MAX_RESULTS = 20
 DEFAULT_MIN_MENTIONS = 2
 
 
-def _aggregate_sentiment(mentions: List[EntityMention]) -> float:
+def _aggregate_sentiment(mentions: list[EntityMention]) -> float:
     if not mentions:
         return 0.0
 
@@ -37,7 +36,7 @@ def _aggregate_sentiment(mentions: List[EntityMention]) -> float:
 
 
 def _calculate_recency_weight(
-    articles: List[NewsArticle],
+    articles: list[NewsArticle],
     article_ids: set,
     decay_rate: float,
 ) -> float:
@@ -60,18 +59,18 @@ def _calculate_recency_weight(
     return sum(weights) / len(weights)
 
 
-def _get_most_common_event_type(mentions: List[EntityMention]) -> EventCategory:
+def _get_most_common_event_type(mentions: list[EntityMention]) -> EventCategory:
     if not mentions:
         return EventCategory.OTHER
 
-    event_counts: Dict[EventCategory, int] = defaultdict(int)
+    event_counts: dict[EventCategory, int] = defaultdict(int)
     for mention in mentions:
         event_counts[mention.event_type] += 1
 
     return max(event_counts.keys(), key=lambda e: event_counts[e])
 
 
-def _build_news_summary(mentions: List[EntityMention]) -> str:
+def _build_news_summary(mentions: list[EntityMention]) -> str:
     if not mentions:
         return ""
 
@@ -80,17 +79,17 @@ def _build_news_summary(mentions: List[EntityMention]) -> str:
 
 
 def calculate_trending_scores(
-    mentions: List[EntityMention],
-    articles: List[NewsArticle],
+    mentions: list[EntityMention],
+    articles: list[NewsArticle],
     decay_rate: float = DEFAULT_DECAY_RATE,
     max_results: int = DEFAULT_MAX_RESULTS,
     min_mentions: int = DEFAULT_MIN_MENTIONS,
-) -> List[TrendingStock]:
+) -> list[TrendingStock]:
     if not mentions:
         return []
 
-    ticker_mentions: Dict[str, List[EntityMention]] = defaultdict(list)
-    ticker_company_names: Dict[str, str] = {}
+    ticker_mentions: dict[str, list[EntityMention]] = defaultdict(list)
+    ticker_company_names: dict[str, str] = {}
 
     for mention in mentions:
         ticker = resolve_ticker(mention.company_name)
@@ -99,11 +98,11 @@ def calculate_trending_scores(
             if ticker not in ticker_company_names:
                 ticker_company_names[ticker] = mention.company_name
 
-    article_index: Dict[str, int] = {}
+    article_index: dict[str, int] = {}
     for i, article in enumerate(articles):
         article_index[f"article_{i}"] = i
 
-    trending_stocks: List[TrendingStock] = []
+    trending_stocks: list[TrendingStock] = []
 
     for ticker, ticker_mention_list in ticker_mentions.items():
         article_ids = {m.article_id for m in ticker_mention_list}
@@ -127,7 +126,7 @@ def calculate_trending_scores(
 
         event_type = _get_most_common_event_type(ticker_mention_list)
 
-        source_article_list: List[NewsArticle] = []
+        source_article_list: list[NewsArticle] = []
         for article_id in article_ids:
             idx = article_index.get(article_id)
             if idx is not None and idx < len(articles):

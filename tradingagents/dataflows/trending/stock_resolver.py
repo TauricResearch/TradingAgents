@@ -456,7 +456,7 @@ def _normalize_company_name(name: str) -> str:
     return normalized
 
 
-def _search_yfinance_ticker(company_name: str) -> Optional[str]:
+def _search_yfinance_ticker(company_name: str) -> str | None:
     try:
         search_result = yf.Ticker(company_name)
         info = search_result.info
@@ -490,17 +490,24 @@ def validate_us_ticker(ticker: str) -> bool:
             return True
 
         exchange_lower = exchange.lower()
-        if any(us_ex.lower() in exchange_lower for us_ex in ["nyse", "nasdaq", "amex", "nys", "nms", "ngm"]):
+        if any(
+            us_ex.lower() in exchange_lower
+            for us_ex in ["nyse", "nasdaq", "amex", "nys", "nms", "ngm"]
+        ):
             return True
 
-        logger.warning("Validation failed for %s: exchange %s is not a US exchange", ticker, exchange)
+        logger.warning(
+            "Validation failed for %s: exchange %s is not a US exchange",
+            ticker,
+            exchange,
+        )
         return False
     except (KeyError, ValueError, AttributeError, RuntimeError) as e:
         logger.warning("Validation failed for %s: %s", ticker, str(e))
         return False
 
 
-def resolve_ticker(company_name: str) -> Optional[str]:
+def resolve_ticker(company_name: str) -> str | None:
     if not company_name or not company_name.strip():
         return None
 
@@ -525,7 +532,11 @@ def resolve_ticker(company_name: str) -> Optional[str]:
             logger.info("Resolved %s to %s via yfinance", company_name, yf_ticker)
             return yf_ticker
         else:
-            logger.warning("Ticker %s for %s failed US exchange validation", yf_ticker, company_name)
+            logger.warning(
+                "Ticker %s for %s failed US exchange validation",
+                yf_ticker,
+                company_name,
+            )
             return None
 
     logger.warning("Could not resolve ticker for company: %s", company_name)

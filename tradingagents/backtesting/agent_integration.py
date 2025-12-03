@@ -1,15 +1,15 @@
 import logging
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.models.backtest import BacktestConfig, BacktestResult
 from tradingagents.models.decisions import (
-    SignalType,
-    TradingDecision,
     AnalystReport,
     AnalystType,
+    SignalType,
+    TradingDecision,
 )
 
 from .engine import BacktestEngine
@@ -21,12 +21,12 @@ class AgentBacktestEngine(BacktestEngine):
     def __init__(
         self,
         config: BacktestConfig,
-        agent_config: Optional[Dict[str, Any]] = None,
+        agent_config: dict[str, Any] | None = None,
     ):
         super().__init__(config)
         self.agent_config = agent_config or config.agent_config
-        self.trading_graph: Optional[TradingAgentsGraph] = None
-        self._decision_cache: Dict[str, TradingDecision] = {}
+        self.trading_graph: TradingAgentsGraph | None = None
+        self._decision_cache: dict[str, TradingDecision] = {}
 
     def _initialize(self):
         super()._initialize()
@@ -49,7 +49,7 @@ class AgentBacktestEngine(BacktestEngine):
         ticker: str,
         trading_date: date,
         day_index: int,
-    ) -> Optional[TradingDecision]:
+    ) -> TradingDecision | None:
         cache_key = f"{ticker}_{trading_date}"
         if cache_key in self._decision_cache:
             return self._decision_cache[cache_key]
@@ -68,8 +68,7 @@ class AgentBacktestEngine(BacktestEngine):
 
         except (ValueError, KeyError, RuntimeError, ConnectionError, TimeoutError) as e:
             logger.error(
-                "Agent decision failed for %s on %s: %s",
-                ticker, trading_date, e
+                "Agent decision failed for %s on %s: %s", ticker, trading_date, e
             )
             return None
 
@@ -77,8 +76,8 @@ class AgentBacktestEngine(BacktestEngine):
         self,
         ticker: str,
         trading_date: date,
-        final_state: Dict[str, Any],
-        signal_info: Dict[str, Any],
+        final_state: dict[str, Any],
+        signal_info: dict[str, Any],
     ) -> TradingDecision:
         signal = self._extract_signal(signal_info)
         confidence = self._extract_confidence(signal_info)
@@ -134,9 +133,17 @@ class AgentBacktestEngine(BacktestEngine):
         bear_argument = None
 
         if debate_state.get("bull_history"):
-            bull_argument = debate_state["bull_history"][-1] if debate_state["bull_history"] else None
+            bull_argument = (
+                debate_state["bull_history"][-1]
+                if debate_state["bull_history"]
+                else None
+            )
         if debate_state.get("bear_history"):
-            bear_argument = debate_state["bear_history"][-1] if debate_state["bear_history"] else None
+            bear_argument = (
+                debate_state["bear_history"][-1]
+                if debate_state["bear_history"]
+                else None
+            )
 
         risk_state = final_state.get("risk_debate_state", {})
         risk_approved = self._extract_risk_approval(risk_state)
@@ -160,7 +167,7 @@ class AgentBacktestEngine(BacktestEngine):
             rationale=final_decision_text[:1000] if final_decision_text else "",
         )
 
-    def _extract_signal(self, signal_info: Dict[str, Any]) -> SignalType:
+    def _extract_signal(self, signal_info: dict[str, Any]) -> SignalType:
         action = signal_info.get("action", "").upper()
         direction = signal_info.get("direction", "").upper()
 
@@ -178,7 +185,7 @@ class AgentBacktestEngine(BacktestEngine):
 
         return SignalType.HOLD
 
-    def _extract_confidence(self, signal_info: Dict[str, Any]) -> Decimal:
+    def _extract_confidence(self, signal_info: dict[str, Any]) -> Decimal:
         confidence = signal_info.get("confidence", 0.5)
         if isinstance(confidence, str):
             try:
@@ -190,7 +197,7 @@ class AgentBacktestEngine(BacktestEngine):
 
     def _extract_action(
         self,
-        signal_info: Dict[str, Any],
+        signal_info: dict[str, Any],
         final_decision_text: str,
     ) -> str:
         action = signal_info.get("action", "")
@@ -205,7 +212,7 @@ class AgentBacktestEngine(BacktestEngine):
 
         return "HOLD"
 
-    def _extract_risk_approval(self, risk_state: Dict[str, Any]) -> Optional[bool]:
+    def _extract_risk_approval(self, risk_state: dict[str, Any]) -> bool | None:
         judge_decision = risk_state.get("judge_decision", "")
         if not judge_decision:
             return None
@@ -224,7 +231,7 @@ def run_agent_backtest(
     start_date: date,
     end_date: date,
     initial_cash: Decimal = Decimal("100000"),
-    agent_config: Optional[Dict[str, Any]] = None,
+    agent_config: dict[str, Any] | None = None,
 ) -> BacktestResult:
     from tradingagents.models.portfolio import PortfolioConfig
 

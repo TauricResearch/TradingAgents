@@ -41,16 +41,16 @@ class Order(BaseModel):
     side: OrderSide
     order_type: OrderType = Field(default=OrderType.MARKET)
     quantity: int = Field(gt=0)
-    limit_price: Optional[Decimal] = Field(default=None, gt=0)
-    stop_price: Optional[Decimal] = Field(default=None, gt=0)
+    limit_price: Decimal | None = Field(default=None, gt=0)
+    stop_price: Decimal | None = Field(default=None, gt=0)
     status: OrderStatus = Field(default=OrderStatus.PENDING)
     created_at: datetime = Field(default_factory=datetime.now)
-    submitted_at: Optional[datetime] = None
-    filled_at: Optional[datetime] = None
+    submitted_at: datetime | None = None
+    filled_at: datetime | None = None
     filled_quantity: int = Field(default=0, ge=0)
-    filled_avg_price: Optional[Decimal] = None
+    filled_avg_price: Decimal | None = None
     commission: Decimal = Field(default=Decimal("0"))
-    notes: Optional[str] = None
+    notes: str | None = None
 
     @computed_field
     @property
@@ -96,7 +96,7 @@ class Position(BaseModel):
     quantity: int = Field(default=0)
     avg_cost: Decimal = Field(default=Decimal("0"), ge=0)
     realized_pnl: Decimal = Field(default=Decimal("0"))
-    opened_at: Optional[datetime] = None
+    opened_at: datetime | None = None
     last_updated: datetime = Field(default_factory=datetime.now)
 
     @computed_field
@@ -127,7 +127,9 @@ class Position(BaseModel):
             if self.quantity >= 0:
                 total_cost = (self.quantity * self.avg_cost) + fill.total_value
                 self.quantity += fill.quantity
-                self.avg_cost = total_cost / self.quantity if self.quantity else Decimal("0")
+                self.avg_cost = (
+                    total_cost / self.quantity if self.quantity else Decimal("0")
+                )
             else:
                 close_qty = min(fill.quantity, abs(self.quantity))
                 pnl = close_qty * (self.avg_cost - fill.price)
@@ -139,7 +141,9 @@ class Position(BaseModel):
             if self.quantity <= 0:
                 total_cost = (abs(self.quantity) * self.avg_cost) + fill.total_value
                 self.quantity -= fill.quantity
-                self.avg_cost = total_cost / abs(self.quantity) if self.quantity else Decimal("0")
+                self.avg_cost = (
+                    total_cost / abs(self.quantity) if self.quantity else Decimal("0")
+                )
             else:
                 close_qty = min(fill.quantity, self.quantity)
                 pnl = close_qty * (fill.price - self.avg_cost)
@@ -163,13 +167,13 @@ class Trade(BaseModel):
     entry_price: Decimal = Field(gt=0)
     entry_quantity: int = Field(gt=0)
     entry_time: datetime
-    exit_price: Optional[Decimal] = Field(default=None, gt=0)
-    exit_quantity: Optional[int] = Field(default=None, gt=0)
-    exit_time: Optional[datetime] = None
+    exit_price: Decimal | None = Field(default=None, gt=0)
+    exit_quantity: int | None = Field(default=None, gt=0)
+    exit_time: datetime | None = None
     commission: Decimal = Field(default=Decimal("0"), ge=0)
-    entry_order_id: Optional[UUID] = None
-    exit_order_id: Optional[UUID] = None
-    notes: Optional[str] = None
+    entry_order_id: UUID | None = None
+    exit_order_id: UUID | None = None
+    notes: str | None = None
     tags: list[str] = Field(default_factory=list)
 
     @computed_field
@@ -179,23 +183,27 @@ class Trade(BaseModel):
 
     @computed_field
     @property
-    def pnl(self) -> Optional[Decimal]:
+    def pnl(self) -> Decimal | None:
         if not self.is_closed:
             return None
         if self.side == OrderSide.BUY:
-            return (self.exit_price - self.entry_price) * self.exit_quantity - self.commission
-        return (self.entry_price - self.exit_price) * self.exit_quantity - self.commission
+            return (
+                self.exit_price - self.entry_price
+            ) * self.exit_quantity - self.commission
+        return (
+            self.entry_price - self.exit_price
+        ) * self.exit_quantity - self.commission
 
     @computed_field
     @property
-    def pnl_percent(self) -> Optional[Decimal]:
+    def pnl_percent(self) -> Decimal | None:
         if not self.is_closed or self.entry_price == 0:
             return None
         return (self.pnl / (self.entry_price * self.entry_quantity)) * 100
 
     @computed_field
     @property
-    def holding_period(self) -> Optional[int]:
+    def holding_period(self) -> int | None:
         if not self.exit_time:
             return None
         return (self.exit_time - self.entry_time).days

@@ -1,14 +1,14 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
-from pydantic import BaseModel, Field as PydanticField
 
-from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
+from pydantic import Field as PydanticField
 
+from tradingagents.agents.discovery.models import EventCategory, NewsArticle
 from tradingagents.dataflows.config import get_config
-from tradingagents.agents.discovery.models import NewsArticle, EventCategory
-
 
 BATCH_SIZE = 10
 
@@ -24,19 +24,34 @@ class EntityMention:
 
 
 class ExtractedEntity(BaseModel):
-    company_name: str = PydanticField(description="The name of the publicly traded company mentioned")
-    confidence: float = PydanticField(description="Confidence score from 0.0 to 1.0 based on mention clarity")
-    context_snippet: str = PydanticField(description="Surrounding context of 50-100 characters around the company mention")
-    event_type: str = PydanticField(description="Event category: earnings, merger_acquisition, regulatory, product_launch, executive_change, or other")
-    sentiment: float = PydanticField(default=0.0, description="Sentiment score from -1.0 (negative) to 1.0 (positive)")
-    article_id: str = PydanticField(description="The article ID where this company was mentioned (e.g., article_0, article_1)")
+    company_name: str = PydanticField(
+        description="The name of the publicly traded company mentioned"
+    )
+    confidence: float = PydanticField(
+        description="Confidence score from 0.0 to 1.0 based on mention clarity"
+    )
+    context_snippet: str = PydanticField(
+        description="Surrounding context of 50-100 characters around the company mention"
+    )
+    event_type: str = PydanticField(
+        description="Event category: earnings, merger_acquisition, regulatory, product_launch, executive_change, or other"
+    )
+    sentiment: float = PydanticField(
+        default=0.0,
+        description="Sentiment score from -1.0 (negative) to 1.0 (positive)",
+    )
+    article_id: str = PydanticField(
+        description="The article ID where this company was mentioned (e.g., article_0, article_1)"
+    )
 
 
 class ExtractionResponse(BaseModel):
-    entities: List[ExtractedEntity] = PydanticField(default_factory=list, description="List of extracted company entities")
+    entities: list[ExtractedEntity] = PydanticField(
+        default_factory=list, description="List of extracted company entities"
+    )
 
 
-def _get_llm(config: Optional[dict] = None):
+def _get_llm(config: dict | None = None):
     cfg = config or get_config()
     provider = cfg.get("llm_provider", "openai").lower()
     model = cfg.get("quick_think_llm", "gpt-4o-mini")
@@ -88,7 +103,7 @@ Articles to analyze:
 Extract all company mentions from the articles above."""
 
 
-def _format_articles_for_prompt(articles: List[NewsArticle], start_idx: int) -> str:
+def _format_articles_for_prompt(articles: list[NewsArticle], start_idx: int) -> str:
     formatted = []
     for i, article in enumerate(articles):
         article_id = f"article_{start_idx + i}"
@@ -102,10 +117,10 @@ def _format_articles_for_prompt(articles: List[NewsArticle], start_idx: int) -> 
 
 
 def _extract_batch(
-    articles: List[NewsArticle],
+    articles: list[NewsArticle],
     start_idx: int,
     llm,
-) -> List[EntityMention]:
+) -> list[EntityMention]:
     if not articles:
         return []
 
@@ -144,14 +159,14 @@ def _extract_batch(
 
 
 def extract_entities(
-    articles: List[NewsArticle],
-    config: Optional[dict] = None,
-) -> List[EntityMention]:
+    articles: list[NewsArticle],
+    config: dict | None = None,
+) -> list[EntityMention]:
     if not articles:
         return []
 
     llm = _get_llm(config)
-    all_mentions: List[EntityMention] = []
+    all_mentions: list[EntityMention] = []
 
     for batch_start in range(0, len(articles), BATCH_SIZE):
         batch_end = min(batch_start + BATCH_SIZE, len(articles))

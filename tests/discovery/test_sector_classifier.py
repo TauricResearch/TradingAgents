@@ -1,11 +1,10 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 from tradingagents.dataflows.trending.sector_classifier import (
-    classify_sector,
     TICKER_TO_SECTOR,
     VALID_SECTORS,
-    _llm_classify_sector,
     _sector_cache,
+    classify_sector,
 )
 
 
@@ -62,7 +61,7 @@ class TestLLMFallback:
 
     @patch("tradingagents.dataflows.trending.sector_classifier._llm_classify_sector")
     def test_llm_fallback_returns_other_on_error(self, mock_llm_classify):
-        mock_llm_classify.side_effect = Exception("LLM error")
+        mock_llm_classify.side_effect = RuntimeError("LLM error")
         _sector_cache.clear()
 
         result = classify_sector("ERRORCO")
@@ -81,7 +80,7 @@ class TestAllSectorCategories:
             "industrials",
             "other",
         }
-        assert VALID_SECTORS == expected_sectors
+        assert expected_sectors == VALID_SECTORS
 
     def test_static_mapping_covers_all_sector_categories(self):
         sectors_in_mapping = set(TICKER_TO_SECTOR.values())

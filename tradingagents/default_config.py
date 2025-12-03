@@ -21,8 +21,7 @@ DEFAULT_CONFIG = {
         "fundamental_data": "alpha_vantage",
         "news_data": "alpha_vantage",
     },
-    "tool_vendors": {
-    },
+    "tool_vendors": {},
     "discovery_timeout": 60,
     "discovery_hard_timeout": 120,
     "discovery_cache_ttl": 300,
@@ -33,6 +32,8 @@ DEFAULT_CONFIG = {
     "bulk_news_max_retries": 3,
     "log_level": os.getenv("TRADINGAGENTS_LOG_LEVEL", "INFO"),
     "log_dir": os.getenv("TRADINGAGENTS_LOG_DIR", "./logs"),
-    "log_console_enabled": os.getenv("TRADINGAGENTS_LOG_CONSOLE", "true").lower() in ("true", "1", "yes", "on"),
-    "log_file_enabled": os.getenv("TRADINGAGENTS_LOG_FILE", "true").lower() in ("true", "1", "yes", "on"),
+    "log_console_enabled": os.getenv("TRADINGAGENTS_LOG_CONSOLE", "true").lower()
+    in ("true", "1", "yes", "on"),
+    "log_file_enabled": os.getenv("TRADINGAGENTS_LOG_FILE", "true").lower()
+    in ("true", "1", "yes", "on"),
 }

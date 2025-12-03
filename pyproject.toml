@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "sqlalchemy>=2.0.0",
     "akshare>=1.16.98",
     "backtrader>=1.9.78.123",
     "chainlit>=2.5.5",
@@ -33,3 +34,85 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=3.8.0",
+    "ruff>=0.8.2",
+    "mypy>=1.13.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "types-requests>=2.32.0",
+    "types-pytz>=2024.2.0",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "W",
+    "I",
+    "UP",
+    "B",
+    "C4",
+    "SIM",
+]
+ignore = [
+    "E501",
+    "E402",
+    "E712",
+    "B006",
+    "B007",
+    "B008",
+    "B904",
+    "C416",
+    "C901",
+    "SIM102",
+    "SIM105",
+    "SIM118",
+    "SIM222",
+    "UP035",
+    "UP038",
+    "F401",
+    "F403",
+    "F405",
+    "F841",
+]
+unfixable = ["F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["tradingagents", "cli"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F841"]
+"tradingagents/agents/utils/agent_utils.py" = ["F401"]
+"tradingagents/agents/__init__.py" = ["F401"]
+"tradingagents/dataflows/__init__.py" = ["F401"]
+"tradingagents/models/__init__.py" = ["F401"]
+"tradingagents/backtesting/__init__.py" = ["F401"]
+"tradingagents/agents/discovery/__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_return_any = false
+warn_unused_ignores = false
+check_untyped_defs = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+no_implicit_optional = false
+strict_optional = false
+exclude = ["tests/", "build/", "dist/", ".venv/"]
+explicit_package_bases = true
+mypy_path = "."

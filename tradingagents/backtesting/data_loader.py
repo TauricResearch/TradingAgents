@@ -9,17 +9,17 @@ from stockstats import wrap
 
 from tradingagents.models.market_data import (
     OHLCV,
-    OHLCVBar,
-    TechnicalIndicators,
     HistoricalDataRequest,
     HistoricalDataResponse,
+    OHLCVBar,
+    TechnicalIndicators,
 )
 
 logger = logging.getLogger(__name__)
 
 
 class DataLoader:
-    def __init__(self, cache_dir: Optional[str] = None):
+    def __init__(self, cache_dir: str | None = None):
         self.cache_dir = cache_dir
         self._cache: dict[str, pd.DataFrame] = {}
 
@@ -89,7 +89,9 @@ class DataLoader:
         )
 
         if df.empty:
-            logger.warning("No data returned for %s from %s to %s", ticker, start_date, end_date)
+            logger.warning(
+                "No data returned for %s from %s to %s", ticker, start_date, end_date
+            )
             return pd.DataFrame()
 
         df = df.reset_index()
@@ -116,7 +118,9 @@ class DataLoader:
                 low=Decimal(str(round(row["Low"], 4))),
                 close=Decimal(str(round(row["Close"], 4))),
                 volume=int(row["Volume"]),
-                adjusted_close=Decimal(str(round(row["Adj Close"], 4))) if "Adj Close" in row else None,
+                adjusted_close=Decimal(str(round(row["Adj Close"], 4)))
+                if "Adj Close" in row
+                else None,
             )
             bars.append(bar)
 
@@ -193,7 +197,7 @@ class DataLoader:
         return indicators
 
     @staticmethod
-    def _safe_decimal(value) -> Optional[Decimal]:
+    def _safe_decimal(value) -> Decimal | None:
         if value is None or pd.isna(value):
             return None
         return Decimal(str(round(float(value), 4)))
@@ -202,10 +206,12 @@ class DataLoader:
         self,
         ticker: str,
         target_date: date,
-        ohlcv: Optional[OHLCV] = None,
-    ) -> Optional[Decimal]:
+        ohlcv: OHLCV | None = None,
+    ) -> Decimal | None:
         if ohlcv is None:
-            ohlcv = self.load_ohlcv(ticker, target_date - timedelta(days=5), target_date)
+            ohlcv = self.load_ohlcv(
+                ticker, target_date - timedelta(days=5), target_date
+            )
 
         target_datetime = datetime.combine(target_date, datetime.min.time())
         bar = ohlcv.get_bar(target_datetime)

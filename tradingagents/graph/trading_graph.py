@@ -1,52 +1,48 @@
+import json
 import logging
 import os
 import threading
-from pathlib import Path
-import json
 from datetime import date, datetime
-from typing import Dict, Any, Tuple, Optional
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
-from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-
+from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolNode
-
-from tradingagents.dataflows.config import get_config
-from tradingagents.agents.utils.memory import FinancialSituationMemory
-from tradingagents.dataflows.config import set_config
-
-from tradingagents.agents.utils.agent_utils import (
-    get_stock_data,
-    get_indicators,
-    get_fundamentals,
-    get_balance_sheet,
-    get_cashflow,
-    get_income_statement,
-    get_news,
-    get_insider_sentiment,
-    get_insider_transactions,
-    get_global_news
-)
 
 from tradingagents.agents.discovery import (
     DiscoveryRequest,
     DiscoveryResult,
     DiscoveryStatus,
-    TrendingStock,
-    Sector,
-    EventCategory,
     DiscoveryTimeoutError,
-    extract_entities,
+    EventCategory,
+    Sector,
+    TrendingStock,
     calculate_trending_scores,
+    extract_entities,
 )
+from tradingagents.agents.utils.agent_utils import (
+    get_balance_sheet,
+    get_cashflow,
+    get_fundamentals,
+    get_global_news,
+    get_income_statement,
+    get_indicators,
+    get_insider_sentiment,
+    get_insider_transactions,
+    get_news,
+    get_stock_data,
+)
+from tradingagents.agents.utils.memory import FinancialSituationMemory
+from tradingagents.dataflows.config import get_config, set_config
 from tradingagents.dataflows.interface import get_bulk_news
-from tradingagents.validation import validate_ticker, validate_date
+from tradingagents.validation import validate_date, validate_ticker
 
 from .conditional_logic import ConditionalLogic
-from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
+from .setup import GraphSetup
 from .signal_processing import SignalProcessor
 
 logger = logging.getLogger(__name__)
@@ -61,12 +57,11 @@ def _timeout_handler(signum, frame) -> None:
 
 
 class TradingAgentsGraph:
-
     def __init__(
         self,
         selected_analysts=["market", "social", "news", "fundamentals"],
         debug=False,
-        config: Dict[str, Any] = None,
+        config: dict[str, Any] = None,
     ):
         self.debug = debug
         self.config = config or get_config()
@@ -78,23 +73,45 @@ class TradingAgentsGraph:
             exist_ok=True,
         )
 
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+        if (
+            self.config["llm_provider"].lower() == "openai"
+            or self.config["llm_provider"] == "ollama"
+            or self.config["llm_provider"] == "openrouter"
+        ):
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"], base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"],
+            )
         elif self.config["llm_provider"].lower() == "anthropic":
-            self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+            self.deep_thinking_llm = ChatAnthropic(
+                model=self.config["deep_think_llm"], base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = ChatAnthropic(
+                model=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"],
+            )
         elif self.config["llm_provider"].lower() == "google":
-            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
-            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+            self.deep_thinking_llm = ChatGoogleGenerativeAI(
+                model=self.config["deep_think_llm"]
+            )
+            self.quick_thinking_llm = ChatGoogleGenerativeAI(
+                model=self.config["quick_think_llm"]
+            )
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
 
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
         self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
-        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
+        self.invest_judge_memory = FinancialSituationMemory(
+            "invest_judge_memory", self.config
+        )
+        self.risk_manager_memory = FinancialSituationMemory(
+            "risk_manager_memory", self.config
+        )
         self.tool_nodes = self._create_tool_nodes()
         self.conditional_logic = ConditionalLogic()
         self.graph_setup = GraphSetup(
@@ -117,7 +134,7 @@ class TradingAgentsGraph:
         self.log_states_dict = {}
         self.graph = self.graph_setup.setup_graph(selected_analysts)
 
-    def _create_tool_nodes(self) -> Dict[str, ToolNode]:
+    def _create_tool_nodes(self) -> dict[str, ToolNode]:
         return {
             "market": ToolNode(
                 [
@@ -148,7 +165,7 @@ class TradingAgentsGraph:
             ),
         }
 
-    def propagate(self, company_name: str, trade_date) -> Tuple[Dict[str, Any], str]:
+    def propagate(self, company_name: str, trade_date) -> tuple[dict[str, Any], str]:
         company_name = validate_ticker(company_name)
         validated_date = validate_date(trade_date, allow_future=False)
         if isinstance(trade_date, str):
@@ -178,7 +195,7 @@ class TradingAgentsGraph:
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
-    def _log_state(self, trade_date, final_state: Dict[str, Any]) -> None:
+    def _log_state(self, trade_date, final_state: dict[str, Any]) -> None:
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -240,7 +257,7 @@ class TradingAgentsGraph:
 
     def discover_trending(
         self,
-        request: Optional[DiscoveryRequest] = None,
+        request: DiscoveryRequest | None = None,
     ) -> DiscoveryResult:
         if request is None:
             request = DiscoveryRequest(
@@ -269,7 +286,9 @@ class TradingAgentsGraph:
                 min_mentions = self.config.get("discovery_min_mentions", 2)
                 if len(articles) < 10:
                     min_mentions = 1
-                max_results = request.max_results or self.config.get("discovery_max_results", 20)
+                max_results = request.max_results or self.config.get(
+                    "discovery_max_results", 20
+                )
 
                 trending_stocks = calculate_trending_scores(
                     mentions,
@@ -279,7 +298,13 @@ class TradingAgentsGraph:
                 )
 
                 discovery_result["stocks"] = trending_stocks
-            except (ValueError, KeyError, RuntimeError, ConnectionError, TimeoutError) as e:
+            except (
+                ValueError,
+                KeyError,
+                RuntimeError,
+                ConnectionError,
+                TimeoutError,
+            ) as e:
                 discovery_result["error"] = str(e)
 
         discovery_thread = threading.Thread(target=run_discovery)
@@ -300,17 +325,26 @@ class TradingAgentsGraph:
         trending_stocks = discovery_result["stocks"]
 
         if request.sector_filter:
-            sector_values = {s.value if isinstance(s, Sector) else s for s in request.sector_filter}
+            sector_values = {
+                s.value if isinstance(s, Sector) else s for s in request.sector_filter
+            }
             trending_stocks = [
-                stock for stock in trending_stocks
-                if stock.sector.value in sector_values or stock.sector in request.sector_filter
+                stock
+                for stock in trending_stocks
+                if stock.sector.value in sector_values
+                or stock.sector in request.sector_filter
             ]
 
         if request.event_filter:
-            event_values = {e.value if isinstance(e, EventCategory) else e for e in request.event_filter}
+            event_values = {
+                e.value if isinstance(e, EventCategory) else e
+                for e in request.event_filter
+            }
             trending_stocks = [
-                stock for stock in trending_stocks
-                if stock.event_type.value in event_values or stock.event_type in request.event_filter
+                stock
+                for stock in trending_stocks
+                if stock.event_type.value in event_values
+                or stock.event_type in request.event_filter
             ]
 
         result.trending_stocks = trending_stocks
@@ -322,8 +356,8 @@ class TradingAgentsGraph:
     def analyze_trending(
         self,
         trending_stock: TrendingStock,
-        trade_date: Optional[date] = None,
-    ) -> Tuple[Dict[str, Any], str]:
+        trade_date: date | None = None,
+    ) -> tuple[dict[str, Any], str]:
         ticker = trending_stock.ticker
 
         if trade_date is None:

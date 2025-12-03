@@ -1,16 +1,16 @@
-from typing import Optional, Dict, Any
+from typing import Any
 
+from rich import box
+from rich.columns import Columns
 from rich.console import Console
-from cli.models import AgentStatus
+from rich.layout import Layout
+from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.spinner import Spinner
-from rich.markdown import Markdown
-from rich.layout import Layout
-from rich.text import Text
 from rich.table import Table
-from rich.columns import Columns
-from rich import box
+from rich.text import Text
 
+from cli.models import AgentStatus
 from cli.state import message_buffer
 
 console = Console()
@@ -32,7 +32,7 @@ def create_layout() -> Layout:
     return layout
 
 
-def update_display(layout: Layout, spinner_text: Optional[str] = None) -> None:
+def update_display(layout: Layout, spinner_text: str | None = None) -> None:
     layout["header"].update(
         Panel(
             "[bold green]Welcome to TradingAgents CLI[/bold green]\n"
@@ -135,13 +135,13 @@ def update_display(layout: Layout, spinner_text: Optional[str] = None) -> None:
             text_parts = []
             for item in content:
                 if isinstance(item, dict):
-                    if item.get('type') == 'text':
-                        text_parts.append(item.get('text', ''))
-                    elif item.get('type') == 'tool_use':
+                    if item.get("type") == "text":
+                        text_parts.append(item.get("text", ""))
+                    elif item.get("type") == "tool_use":
                         text_parts.append(f"[Tool: {item.get('name', 'unknown')}]")
                 else:
                     text_parts.append(str(item))
-            content_str = ' '.join(text_parts)
+            content_str = " ".join(text_parts)
         elif not isinstance(content_str, str):
             content_str = str(content)
 
@@ -210,7 +210,7 @@ def update_display(layout: Layout, spinner_text: Optional[str] = None) -> None:
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def display_complete_report(final_state: Dict[str, Any]) -> None:
+def display_complete_report(final_state: dict[str, Any]) -> None:
     console.print("\n[bold green]Complete Analysis Report[/bold green]\n")
 
     analyst_reports = []
@@ -397,18 +397,18 @@ def extract_content_string(content: Any) -> str:
         text_parts = []
         for item in content:
             if isinstance(item, dict):
-                if item.get('type') == 'text':
-                    text_parts.append(item.get('text', ''))
-                elif item.get('type') == 'tool_use':
+                if item.get("type") == "text":
+                    text_parts.append(item.get("text", ""))
+                elif item.get("type") == "tool_use":
                     text_parts.append(f"[Tool: {item.get('name', 'unknown')}]")
             else:
                 text_parts.append(str(item))
-        return ' '.join(text_parts)
+        return " ".join(text_parts)
     else:
         return str(content)
 
 
-def create_question_box(title: str, prompt: str, default: Optional[str] = None) -> Panel:
+def create_question_box(title: str, prompt: str, default: str | None = None) -> Panel:
     box_content = f"[bold]{title}[/bold]\n"
     box_content += f"[dim]{prompt}[/dim]"
     if default:

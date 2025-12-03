@@ -1,6 +1,5 @@
 import ast
 import os
-import pytest
 
 
 class TestLoggingMigration:
@@ -12,7 +11,7 @@ class TestLoggingMigration:
             "dataflows",
             "interface.py",
         )
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             content = f.read()
 
         tree = ast.parse(content)
@@ -33,7 +32,7 @@ class TestLoggingMigration:
             "dataflows",
             "brave.py",
         )
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             content = f.read()
 
         tree = ast.parse(content)
@@ -54,7 +53,7 @@ class TestLoggingMigration:
             "dataflows",
             "tavily.py",
         )
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             content = f.read()
 
         tree = ast.parse(content)
@@ -93,7 +92,7 @@ class TestLoggingMigration:
             if not os.path.exists(file_path):
                 continue
 
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 content = f.read()
 
             tree = ast.parse(content)
@@ -107,7 +106,9 @@ class TestLoggingMigration:
             if print_calls:
                 all_print_calls[filename] = print_calls
 
-        assert len(all_print_calls) == 0, f"Found print statements in: {all_print_calls}"
+        assert (
+            len(all_print_calls) == 0
+        ), f"Found print statements in: {all_print_calls}"
 
     def test_logger_import_exists_in_interface_py(self):
         file_path = os.path.join(
@@ -117,8 +118,10 @@ class TestLoggingMigration:
             "dataflows",
             "interface.py",
         )
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             content = f.read()
 
         assert "import logging" in content, "interface.py should import logging"
-        assert "logger = logging.getLogger(__name__)" in content, "interface.py should define logger"
+        assert (
+            "logger = logging.getLogger(__name__)" in content
+        ), "interface.py should define logger"

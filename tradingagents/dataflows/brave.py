@@ -1,9 +1,10 @@
 import logging
 import os
 import time
-import requests
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ RETRY_BACKOFF = 1.0
 def get_api_key() -> str:
     try:
         from tradingagents.config import get_settings
+
         return get_settings().require_api_key("brave")
     except ImportError:
         api_key = os.getenv("BRAVE_API_KEY")
@@ -24,14 +26,25 @@ def get_api_key() -> str:
         return api_key
 
 
-def _make_request_with_retry(url: str, headers: Dict, params: Dict, max_retries: int = MAX_RETRIES) -> requests.Response:
+def _make_request_with_retry(
+    url: str, headers: dict, params: dict, max_retries: int = MAX_RETRIES
+) -> requests.Response:
     last_exception = None
     for attempt in range(max_retries):
         try:
-            response = requests.get(url, headers=headers, params=params, timeout=DEFAULT_TIMEOUT)
+            response = requests.get(
+                url, headers=headers, params=params, timeout=DEFAULT_TIMEOUT
+            )
             if response.status_code == 429:
-                retry_after = int(response.headers.get("Retry-After", RETRY_BACKOFF * (attempt + 1)))
-                logger.debug("Brave rate limited, waiting %ds before retry %d/%d", retry_after, attempt + 1, max_retries)
+                retry_after = int(
+                    response.headers.get("Retry-After", RETRY_BACKOFF * (attempt + 1))
+                )
+                logger.debug(
+                    "Brave rate limited, waiting %ds before retry %d/%d",
+                    retry_after,
+                    attempt + 1,
+                    max_retries,
+                )
                 time.sleep(retry_after)
                 continue
             response.raise_for_status()
@@ -42,19 +55,30 @@ def _make_request_with_retry(url: str, headers: Dict, params: Dict, max_retries:
             time.sleep(RETRY_BACKOFF * (attempt + 1))
         except requests.exceptions.ConnectionError as e:
             last_exception = e
-            logger.debug("Brave connection error, retry %d/%d", attempt + 1, max_retries)
+            logger.debug(
+                "Brave connection error, retry %d/%d", attempt + 1, max_retries
+            )
             time.sleep(RETRY_BACKOFF * (attempt + 1))
         except requests.exceptions.HTTPError as e:
             if e.response is not None and e.response.status_code >= 500:
                 last_exception = e
-                logger.debug("Brave server error %d, retry %d/%d", e.response.status_code, attempt + 1, max_retries)
+                logger.debug(
+                    "Brave server error %d, retry %d/%d",
+                    e.response.status_code,
+                    attempt + 1,
+                    max_retries,
+                )
                 time.sleep(RETRY_BACKOFF * (attempt + 1))
             else:
                 raise
-    raise last_exception if last_exception else requests.exceptions.RequestException("Max retries exceeded")
+    raise (
+        last_exception
+        if last_exception
+        else requests.exceptions.RequestException("Max retries exceeded")
+    )
 
 
-def get_bulk_news_brave(lookback_hours: int) -> List[Dict[str, Any]]:
+def get_bulk_news_brave(lookback_hours: int) -> list[dict[str, Any]]:
     try:
         api_key = get_api_key()
     except ValueError as e:

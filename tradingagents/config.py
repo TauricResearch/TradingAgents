@@ -1,5 +1,6 @@
 import os
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
 
@@ -13,11 +14,13 @@ class DataVendorsConfig(BaseModel):
 
 class TradingAgentsSettings(BaseSettings):
     project_dir: str = Field(
-        default_factory=lambda: os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
+        default_factory=lambda: os.path.abspath(
+            os.path.join(os.path.dirname(__file__), ".")
+        )
     )
     results_dir: str = Field(default="./results")
     data_dir: str = Field(default="./data")
-    data_cache_dir: Optional[str] = None
+    data_cache_dir: str | None = None
 
     llm_provider: str = Field(default="openai")
     deep_think_llm: str = Field(default="gpt-5")
@@ -34,7 +37,7 @@ class TradingAgentsSettings(BaseSettings):
     discovery_max_results: int = Field(default=20, ge=1, le=100)
     discovery_min_mentions: int = Field(default=2, ge=1)
 
-    bulk_news_vendor_order: List[str] = Field(
+    bulk_news_vendor_order: list[str] = Field(
         default=["tavily", "brave", "alpha_vantage", "openai", "google"]
     )
     bulk_news_timeout: int = Field(default=30, ge=5)
@@ -45,15 +48,15 @@ class TradingAgentsSettings(BaseSettings):
     log_console_enabled: bool = Field(default=True)
     log_file_enabled: bool = Field(default=True)
 
-    openai_api_key: Optional[str] = Field(default=None)
-    alpha_vantage_api_key: Optional[str] = Field(default=None)
-    brave_api_key: Optional[str] = Field(default=None)
-    tavily_api_key: Optional[str] = Field(default=None)
-    google_api_key: Optional[str] = Field(default=None)
-    anthropic_api_key: Optional[str] = Field(default=None)
+    openai_api_key: str | None = Field(default=None)
+    alpha_vantage_api_key: str | None = Field(default=None)
+    brave_api_key: str | None = Field(default=None)
+    tavily_api_key: str | None = Field(default=None)
+    google_api_key: str | None = Field(default=None)
+    anthropic_api_key: str | None = Field(default=None)
 
     data_vendors: DataVendorsConfig = Field(default_factory=DataVendorsConfig)
-    tool_vendors: Dict[str, Any] = Field(default_factory=dict)
+    tool_vendors: dict[str, Any] = Field(default_factory=dict)
 
     model_config = {
         "env_prefix": "TRADINGAGENTS_",
@@ -93,15 +96,17 @@ class TradingAgentsSettings(BaseSettings):
     def validate_llm_provider(cls, v: str) -> str:
         valid_providers = {"openai", "anthropic", "google", "ollama", "openrouter"}
         if v.lower() not in valid_providers:
-            raise ValueError(f"Invalid LLM provider: {v}. Must be one of {valid_providers}")
+            raise ValueError(
+                f"Invalid LLM provider: {v}. Must be one of {valid_providers}"
+            )
         return v.lower()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = self.model_dump()
         result["data_vendors"] = self.data_vendors.model_dump()
         return result
 
-    def get_api_key(self, vendor: str) -> Optional[str]:
+    def get_api_key(self, vendor: str) -> str | None:
         key_map = {
             "openai": self.openai_api_key,
             "alpha_vantage": self.alpha_vantage_api_key,
@@ -123,7 +128,7 @@ class TradingAgentsSettings(BaseSettings):
         return key
 
 
-_settings: Optional[TradingAgentsSettings] = None
+_settings: TradingAgentsSettings | None = None
 
 
 def get_settings() -> TradingAgentsSettings:

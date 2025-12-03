@@ -13,7 +13,7 @@ VALID_SECTORS = {
     "other",
 }
 
-TICKER_TO_SECTOR: Dict[str, str] = {
+TICKER_TO_SECTOR: dict[str, str] = {
     "AAPL": "technology",
     "MSFT": "technology",
     "GOOGL": "technology",
@@ -199,12 +199,13 @@ TICKER_TO_SECTOR: Dict[str, str] = {
     "LNVGY": "industrials",
 }
 
-_sector_cache: Dict[str, str] = {}
+_sector_cache: dict[str, str] = {}
 
 
 def _llm_classify_sector(ticker: str) -> str:
-    from langchain_openai import ChatOpenAI
     from langchain_core.messages import HumanMessage, SystemMessage
+    from langchain_openai import ChatOpenAI
+
     from tradingagents.dataflows.config import get_config
 
     config = get_config()

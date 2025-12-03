@@ -1,22 +1,23 @@
-import pytest
 import json
+import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
-import tempfile
-import shutil
+
+import pytest
 
 from tradingagents.agents.discovery import (
-    TrendingStock,
-    NewsArticle,
     DiscoveryRequest,
     DiscoveryResult,
     DiscoveryStatus,
-    Sector,
     EventCategory,
+    NewsArticle,
+    Sector,
+    TrendingStock,
 )
 from tradingagents.agents.discovery.persistence import (
-    save_discovery_result,
     generate_markdown_summary,
+    save_discovery_result,
 )
 
 
@@ -110,8 +111,12 @@ def temp_results_dir():
 
 
 class TestDirectoryStructureCreation:
-    def test_creates_correct_directory_structure(self, sample_discovery_result, temp_results_dir):
-        result_path = save_discovery_result(sample_discovery_result, base_path=temp_results_dir)
+    def test_creates_correct_directory_structure(
+        self, sample_discovery_result, temp_results_dir
+    ):
+        result_path = save_discovery_result(
+            sample_discovery_result, base_path=temp_results_dir
+        )
 
         assert result_path.exists()
         assert result_path.is_dir()
@@ -127,13 +132,17 @@ class TestDirectoryStructureCreation:
 
 
 class TestDiscoveryResultJson:
-    def test_discovery_result_json_contains_all_fields(self, sample_discovery_result, temp_results_dir):
-        result_path = save_discovery_result(sample_discovery_result, base_path=temp_results_dir)
+    def test_discovery_result_json_contains_all_fields(
+        self, sample_discovery_result, temp_results_dir
+    ):
+        result_path = save_discovery_result(
+            sample_discovery_result, base_path=temp_results_dir
+        )
 
         json_path = result_path / "discovery_result.json"
         assert json_path.exists()
 
-        with open(json_path, "r") as f:
+        with open(json_path) as f:
             saved_data = json.load(f)
 
         assert "request" in saved_data
@@ -159,13 +168,17 @@ class TestDiscoveryResultJson:
 
 
 class TestDiscoverySummaryMarkdown:
-    def test_discovery_summary_md_is_human_readable(self, sample_discovery_result, temp_results_dir):
-        result_path = save_discovery_result(sample_discovery_result, base_path=temp_results_dir)
+    def test_discovery_summary_md_is_human_readable(
+        self, sample_discovery_result, temp_results_dir
+    ):
+        result_path = save_discovery_result(
+            sample_discovery_result, base_path=temp_results_dir
+        )
 
         md_path = result_path / "discovery_summary.md"
         assert md_path.exists()
 
-        with open(md_path, "r") as f:
+        with open(md_path) as f:
             markdown_content = f.read()
 
         assert "# Discovery Results" in markdown_content

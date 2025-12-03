@@ -1,9 +1,11 @@
 import logging
-import yfinance as yf
-from typing import Annotated, Callable, Any, Optional
-from pandas import DataFrame
-import pandas as pd
+from collections.abc import Callable
 from functools import wraps
+from typing import Annotated, Any, Optional
+
+import pandas as pd
+import yfinance as yf
+from pandas import DataFrame
 
 from .utils import SavePathType, decorate_all_methods
 
@@ -11,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 def init_ticker(func: Callable) -> Callable:
-
     @wraps(func)
     def wrapper(symbol: Annotated[str, "ticker symbol"], *args, **kwargs) -> Any:
         ticker = yf.Ticker(symbol)
@@ -22,7 +23,6 @@ def init_ticker(func: Callable) -> Callable:
 
 @decorate_all_methods(init_ticker)
 class YFinanceUtils:
-
     def get_stock_data(
         symbol: Annotated[str, "ticker symbol"],
         start_date: Annotated[
@@ -48,7 +48,7 @@ class YFinanceUtils:
 
     def get_company_info(
         symbol: Annotated[str, "ticker symbol"],
-        save_path: Optional[str] = None,
+        save_path: str | None = None,
     ) -> DataFrame:
         ticker = symbol
         info = ticker.info
@@ -67,7 +67,7 @@ class YFinanceUtils:
 
     def get_stock_dividends(
         symbol: Annotated[str, "ticker symbol"],
-        save_path: Optional[str] = None,
+        save_path: str | None = None,
     ) -> DataFrame:
         ticker = symbol
         dividends = ticker.dividends

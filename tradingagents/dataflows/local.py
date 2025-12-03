@@ -1,15 +1,18 @@
-import logging
-from typing import Annotated
-import pandas as pd
-import os
-from .config import DATA_DIR
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 import json
-from .reddit_utils import fetch_top_from_category
+import logging
+import os
+from datetime import datetime
+from typing import Annotated
+
+import pandas as pd
+from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
 
+from .config import DATA_DIR
+from .reddit_utils import fetch_top_from_category
+
 logger = logging.getLogger(__name__)
+
 
 def get_YFin_data_window(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -45,6 +48,7 @@ def get_YFin_data_window(
         + df_string
     )
 
+
 def get_YFin_data(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
@@ -74,12 +78,12 @@ def get_YFin_data(
 
     return filtered_data
 
+
 def get_finnhub_news(
     query: Annotated[str, "Search query or ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
-
     result = get_data_in_range(query, start_date, end_date, "news_data", DATA_DIR)
 
     if len(result) == 0:
@@ -102,7 +106,6 @@ def get_finnhub_company_insider_sentiment(
     ticker: Annotated[str, "ticker symbol for the company"],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
 ) -> str:
-
     date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
     before = date_obj - relativedelta(days=15)
     before = before.strftime("%Y-%m-%d")
@@ -131,7 +134,6 @@ def get_finnhub_company_insider_transactions(
     ticker: Annotated[str, "ticker symbol"],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
 ) -> str:
-
     date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
     before = date_obj - relativedelta(days=15)
     before = before.strftime("%Y-%m-%d")
@@ -156,6 +158,7 @@ def get_finnhub_company_insider_transactions(
         + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
     )
 
+
 def get_data_in_range(
     ticker: str,
     start_date: str,
@@ -164,7 +167,6 @@ def get_data_in_range(
     data_dir: str,
     period: str = None,
 ) -> dict:
-
     if period:
         data_path = os.path.join(
             data_dir,
@@ -177,7 +179,7 @@ def get_data_in_range(
             data_dir, "finnhub_data", data_type, f"{ticker}_data_formatted.json"
         )
 
-    with open(data_path, "r") as f:
+    with open(data_path) as f:
         data = json.load(f)
 
     filtered_data = {}
@@ -185,6 +187,7 @@ def get_data_in_range(
         if start_date <= key <= end_date and len(value) > 0:
             filtered_data[key] = value
     return filtered_data
+
 
 def get_simfin_balance_sheet(
     ticker: Annotated[str, "ticker symbol"],
@@ -314,7 +317,6 @@ def get_reddit_global_news(
     look_back_days: Annotated[int, "Number of days to look back"] = 7,
     limit: Annotated[int, "Maximum number of articles to return"] = 5,
 ) -> str:
-
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     before = curr_date_dt - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
@@ -357,7 +359,6 @@ def get_reddit_company_news(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
-
     start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
 

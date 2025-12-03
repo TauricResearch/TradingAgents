@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, computed_field
 
-from .trading import Position, Fill, OrderSide
+from .trading import Fill, OrderSide, Position
 
 
 class TransactionType(str, Enum):
@@ -24,8 +24,8 @@ class CashTransaction(BaseModel):
     transaction_type: TransactionType
     amount: Decimal
     timestamp: datetime = Field(default_factory=datetime.now)
-    description: Optional[str] = None
-    reference_id: Optional[UUID] = None
+    description: str | None = None
+    reference_id: UUID | None = None
 
 
 class PortfolioConfig(BaseModel):
@@ -34,7 +34,7 @@ class PortfolioConfig(BaseModel):
     commission_per_trade: Decimal = Field(default=Decimal("0"), ge=0)
     commission_percent: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     min_commission: Decimal = Field(default=Decimal("0"), ge=0)
-    max_commission: Optional[Decimal] = Field(default=None, ge=0)
+    max_commission: Decimal | None = Field(default=None, ge=0)
     slippage_percent: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     margin_enabled: bool = Field(default=False)
     margin_rate: Decimal = Field(default=Decimal("0.05"), ge=0)
