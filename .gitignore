@@ -19,3 +19,6 @@ build/
 .mcp.json
 *.zip
 todos.md
+
+# Logging output
+logs/
