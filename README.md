@@ -12,20 +12,19 @@
 </div>
 
 <div align="center">
-  <!-- Keep these links. Translations will automatically update with the README. -->
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=es">Español</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=fr">français</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ja">日本語</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ko">한국어</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=pt">Português</a> | 
-  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ru">Русский</a> | 
+  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=de">Deutsch</a> |
+  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=es">Español</a> |
+  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=fr">français</a> |
+  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ja">日本語</a> |
+  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ko">한국어</a> |
+  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=pt">Português</a> |
+  <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=ru">Русский</a> |
   <a href="https://www.readme-i18n.com/TauricResearch/TradingAgents?lang=zh">中文</a>
 </div>
 
 ---
 
-# TradingAgents: Multi-Agents LLM Financial Trading Framework 
+# TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 > **TradingAgents** officially released! We have received numerous inquiries about the work, and we would like to express our thanks for the enthusiasm in our community.
 >
@@ -43,7 +42,7 @@
 
 <div align="center">
 
-[TradingAgents](#tradingagents-framework) | [Installation & CLI](#installation-and-cli) | [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | [Package Usage](#tradingagents-package) | [Contributing](#contributing) | [Citation](#citation)
+[TradingAgents](#tradingagents-framework) | [Installation & CLI](#installation-and-cli) | [Demo](https://www.youtube.com/watch?v=90gr5lwjIho) | [Package Usage](#tradingagents-package) | [Source](#source)
 
 </div>
 
@@ -104,7 +103,7 @@ cd TradingAgents
 Sync virtual environment:
 ```bash
 uv sync
-uv source .venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### Required APIs
@@ -119,18 +118,38 @@ export ALPHA_VANTAGE_API_KEY=$YOUR_ALPHA_VANTAGE_API_KEY
 Alternatively, you can create a `.env` file in the project root with your API keys (see `.env.example` for reference):
 ```bash
 cp .env.example .env
-# Edit .env with your actual API keys
 ```
 
-**Note:** We are happy to partner with Alpha Vantage to provide robust API support for TradingAgents. You can get a free AlphaVantage API [here](https://www.alphavantage.co/support/#api-key), TradingAgents-sourced requests also have increased rate limits to 60 requests per minute with no daily limits. Typically the quota is sufficient for performing complex tasks with TradingAgents thanks to Alpha Vantage’s open-source support program. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
+**Note:** We are happy to partner with Alpha Vantage to provide robust API support for TradingAgents. You can get a free AlphaVantage API [here](https://www.alphavantage.co/support/#api-key), TradingAgents-sourced requests also have increased rate limits to 60 requests per minute with no daily limits. Typically the quota is sufficient for performing complex tasks with TradingAgents thanks to Alpha Vantage's open-source support program. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
 
 ### CLI Usage
 
-You can also try out the CLI directly by running:
+Run the CLI:
 ```bash
 uv run cli/main.py
 ```
-You will see a screen where you can select your desired tickers, date, LLMs, research depth, etc.
+
+The CLI provides two main modes:
+
+#### 1. Discover Trending Stocks
+
+Find trending stocks from recent news using LLM-powered entity extraction:
+
+- Select a lookback period (1h, 6h, 24h, or 7d)
+- Optionally filter by sector (Technology, Healthcare, Finance, Energy, Consumer Goods, Industrials)
+- Optionally filter by event type (Earnings, Merger/Acquisition, Regulatory, Product Launch, Executive Change)
+- View ranked results with scores, mentions, and sentiment
+- Drill into stock details and seamlessly transition to full analysis
+
+#### 2. Analyze Specific Ticker
+
+Run full multi-agent analysis on a specific stock:
+
+- Enter any ticker symbol and analysis date
+- Select which analyst agents to deploy
+- Configure research depth (debate rounds)
+- Watch real-time progress as agents collaborate
+- View comprehensive reports from each team
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -162,7 +181,6 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 
-# forward propagate
 _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```
@@ -173,31 +191,67 @@ You can also adjust the default configuration to set your own choice of LLMs, de
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
-# Create a custom config
 config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-4.1-nano"  # Use a different model
-config["quick_think_llm"] = "gpt-4.1-nano"  # Use a different model
-config["max_debate_rounds"] = 1  # Increase debate rounds
+config["deep_think_llm"] = "gpt-4.1-nano"
+config["quick_think_llm"] = "gpt-4.1-nano"
+config["max_debate_rounds"] = 1
 
-# Configure data vendors (default uses yfinance and Alpha Vantage)
 config["data_vendors"] = {
-    "core_stock_apis": "yfinance",           # Options: yfinance, alpha_vantage, local
-    "technical_indicators": "yfinance",      # Options: yfinance, alpha_vantage, local
-    "fundamental_data": "alpha_vantage",     # Options: openai, alpha_vantage, local
-    "news_data": "alpha_vantage",            # Options: openai, alpha_vantage, google, local
+    "core_stock_apis": "yfinance",
+    "technical_indicators": "yfinance",
+    "fundamental_data": "alpha_vantage",
+    "news_data": "alpha_vantage",
 }
 
-# Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 
-# forward propagate
 _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
+```
+
+### Trending Stock Discovery API
+
+You can also use the trending stock discovery feature programmatically:
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.agents.discovery.models import (
+    DiscoveryRequest,
+    Sector,
+    EventCategory,
+)
+from tradingagents.default_config import DEFAULT_CONFIG
+
+ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
+
+request = DiscoveryRequest(
+    lookback_period="24h",
+    sector_filter=[Sector.TECHNOLOGY, Sector.HEALTHCARE],
+    event_filter=[EventCategory.EARNINGS],
+    max_results=10,
+)
+
+result = ta.discover_trending(request)
+
+for stock in result.trending_stocks:
+    print(f"{stock.ticker}: {stock.company_name} (Score: {stock.score:.2f})")
 ```
 
 > The default configuration uses yfinance for stock price and technical data, and Alpha Vantage for fundamental and news data. For production use or if you encounter rate limits, consider upgrading to [Alpha Vantage Premium](https://www.alphavantage.co/premium/) for more stable and reliable data access. For offline experimentation, there's a local data vendor option that uses our **Tauric TradingDB**, a curated dataset for backtesting, though this is still in development. We're currently refining this dataset and plan to release it soon alongside our upcoming projects. Stay tuned!
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
+
+### Configuration Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `llm_provider` | LLM provider (openai, anthropic, google, ollama, openrouter) | openai |
+| `deep_think_llm` | Model for complex reasoning tasks | gpt-5 |
+| `quick_think_llm` | Model for fast/simple tasks | gpt-5-mini |
+| `max_debate_rounds` | Number of bull/bear debate iterations | 2 |
+| `max_risk_discuss_rounds` | Number of risk assessment rounds | 2 |
+| `discovery_max_results` | Max trending stocks to return | 20 |
+| `discovery_min_mentions` | Minimum mentions to include stock | 2 |
 
 ## Source
 
@@ -205,12 +259,12 @@ Thanks to Yijia Xiao and Edward Sun and Di Luo and Wei Wang. Core agent implemen
 
 ```
 @misc{xiao2025tradingagentsmultiagentsllmfinancial,
-      title={TradingAgents: Multi-Agents LLM Financial Trading Framework}, 
+      title={TradingAgents: Multi-Agents LLM Financial Trading Framework},
       author={Yijia Xiao and Edward Sun and Di Luo and Wei Wang},
       year={2025},
       eprint={2412.20138},
       archivePrefix={arXiv},
       primaryClass={q-fin.TR},
-      url={https://arxiv.org/abs/2412.20138}, 
+      url={https://arxiv.org/abs/2412.20138},
 }
 ```
