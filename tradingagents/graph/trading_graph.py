@@ -63,7 +63,7 @@ class DiscoveryTimeoutException(Exception):
     pass
 
 
-def _timeout_handler(signum, frame):
+def _timeout_handler(signum, frame) -> None:
     raise DiscoveryTimeoutException("Discovery operation timed out")
 
 
@@ -155,7 +155,7 @@ class TradingAgentsGraph:
             ),
         }
 
-    def propagate(self, company_name, trade_date):
+    def propagate(self, company_name: str, trade_date) -> Tuple[Dict[str, Any], str]:
         company_name = validate_ticker(company_name)
         validated_date = validate_date(trade_date, allow_future=False)
         if isinstance(trade_date, str):
@@ -185,7 +185,7 @@ class TradingAgentsGraph:
 
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
-    def _log_state(self, trade_date, final_state):
+    def _log_state(self, trade_date, final_state: Dict[str, Any]) -> None:
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
@@ -225,7 +225,7 @@ class TradingAgentsGraph:
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
 
-    def reflect_and_remember(self, returns_losses):
+    def reflect_and_remember(self, returns_losses) -> None:
         self.reflector.reflect_bull_researcher(
             self.curr_state, returns_losses, self.bull_memory
         )
@@ -242,7 +242,7 @@ class TradingAgentsGraph:
             self.curr_state, returns_losses, self.risk_manager_memory
         )
 
-    def process_signal(self, full_signal):
+    def process_signal(self, full_signal: str) -> str:
         return self.signal_processor.process_signal(full_signal)
 
     def discover_trending(

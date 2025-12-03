@@ -18,7 +18,7 @@ from cli.utils import loading
 console = Console()
 
 
-def sma_buy(ticker, trading_date, ctx):
+def sma_buy(ticker: str, trading_date: date_type, ctx: dict) -> bool:
     loader = ctx["data_loader"]
     ohlcv = loader.load_ohlcv(ticker, date_type(2020, 1, 1), trading_date)
     if len(ohlcv.bars) < 20:
@@ -29,7 +29,7 @@ def sma_buy(ticker, trading_date, ctx):
     return current > sma * 1.02
 
 
-def sma_sell(ticker, trading_date, ctx):
+def sma_sell(ticker: str, trading_date: date_type, ctx: dict) -> bool:
     loader = ctx["data_loader"]
     ohlcv = loader.load_ohlcv(ticker, date_type(2020, 1, 1), trading_date)
     if len(ohlcv.bars) < 20:
@@ -40,7 +40,7 @@ def sma_sell(ticker, trading_date, ctx):
     return current < sma * 0.98
 
 
-def rsi_buy(ticker, trading_date, ctx):
+def rsi_buy(ticker: str, trading_date: date_type, ctx: dict) -> bool:
     loader = ctx["data_loader"]
     ohlcv = loader.load_ohlcv(ticker, date_type(2020, 1, 1), trading_date)
     if len(ohlcv.bars) < 15:
@@ -57,7 +57,7 @@ def rsi_buy(ticker, trading_date, ctx):
     return rsi < 30
 
 
-def rsi_sell(ticker, trading_date, ctx):
+def rsi_sell(ticker: str, trading_date: date_type, ctx: dict) -> bool:
     loader = ctx["data_loader"]
     ohlcv = loader.load_ohlcv(ticker, date_type(2020, 1, 1), trading_date)
     if len(ohlcv.bars) < 15:
@@ -74,11 +74,11 @@ def rsi_sell(ticker, trading_date, ctx):
     return rsi > 70
 
 
-def hold_buy(ticker, trading_date, ctx):
+def hold_buy(ticker: str, trading_date: date_type, ctx: dict) -> bool:
     return ctx.get("day_index", 0) == 5
 
 
-def hold_sell(ticker, trading_date, ctx):
+def hold_sell(ticker: str, trading_date: date_type, ctx: dict) -> bool:
     return False
 
 
@@ -95,7 +95,7 @@ def run_backtest(
     end_date: str = None,
     initial_cash: float = 100000.0,
     strategy: str = "sma",
-):
+) -> None:
     if not ticker:
         console.print(create_question_box("Ticker Symbol", "Enter the ticker symbol to backtest", "AAPL"))
         ticker = typer.prompt("", default="AAPL")

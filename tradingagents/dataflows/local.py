@@ -78,7 +78,7 @@ def get_finnhub_news(
     query: Annotated[str, "Search query or ticker symbol"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
-):
+) -> str:
 
     result = get_data_in_range(query, start_date, end_date, "news_data", DATA_DIR)
 
@@ -101,7 +101,7 @@ def get_finnhub_news(
 def get_finnhub_company_insider_sentiment(
     ticker: Annotated[str, "ticker symbol for the company"],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
-):
+) -> str:
 
     date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
     before = date_obj - relativedelta(days=15)
@@ -130,7 +130,7 @@ def get_finnhub_company_insider_sentiment(
 def get_finnhub_company_insider_transactions(
     ticker: Annotated[str, "ticker symbol"],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
-):
+) -> str:
 
     date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
     before = date_obj - relativedelta(days=15)
@@ -156,7 +156,14 @@ def get_finnhub_company_insider_transactions(
         + "The change field reflects the variation in share count—here a negative number indicates a reduction in holdings—while share specifies the total number of shares involved. The transactionPrice denotes the per-share price at which the trade was executed, and transactionDate marks when the transaction occurred. The name field identifies the insider making the trade, and transactionCode (e.g., S for sale) clarifies the nature of the transaction. FilingDate records when the transaction was officially reported, and the unique id links to the specific SEC filing, as indicated by the source. Additionally, the symbol ties the transaction to a particular company, isDerivative flags whether the trade involves derivative securities, and currency notes the currency context of the transaction."
     )
 
-def get_data_in_range(ticker, start_date, end_date, data_type, data_dir, period=None):
+def get_data_in_range(
+    ticker: str,
+    start_date: str,
+    end_date: str,
+    data_type: str,
+    data_dir: str,
+    period: str = None,
+) -> dict:
 
     if period:
         data_path = os.path.join(
@@ -186,7 +193,7 @@ def get_simfin_balance_sheet(
         "reporting frequency of the company's financial history: annual / quarterly",
     ],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
-):
+) -> str:
     data_path = os.path.join(
         DATA_DIR,
         "fundamental_data",
@@ -227,7 +234,7 @@ def get_simfin_cashflow(
         "reporting frequency of the company's financial history: annual / quarterly",
     ],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
-):
+) -> str:
     data_path = os.path.join(
         DATA_DIR,
         "fundamental_data",
@@ -268,7 +275,7 @@ def get_simfin_income_statements(
         "reporting frequency of the company's financial history: annual / quarterly",
     ],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
-):
+) -> str:
     data_path = os.path.join(
         DATA_DIR,
         "fundamental_data",

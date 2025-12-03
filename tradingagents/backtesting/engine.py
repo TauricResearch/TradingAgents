@@ -88,7 +88,7 @@ class BacktestEngine:
                 error_message=str(e),
             )
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         self.portfolio = PortfolioSnapshot(
             cash=self.config.portfolio_config.initial_cash,
         )
@@ -98,7 +98,7 @@ class BacktestEngine:
         self.decisions = []
         self.open_trades = {}
 
-    def _preload_data(self):
+    def _preload_data(self) -> None:
         logger.info("Preloading data for %s tickers", len(self.config.tickers))
         for ticker in self.config.tickers:
             self.data_loader.load_ohlcv(
@@ -115,7 +115,7 @@ class BacktestEngine:
             self.config.end_date,
         )
 
-    def _process_day(self, trading_date: date, day_index: int):
+    def _process_day(self, trading_date: date, day_index: int) -> None:
         prices = self.data_loader.get_prices_dict(self.config.tickers, trading_date)
 
         if not prices:
@@ -161,7 +161,7 @@ class BacktestEngine:
         decision: TradingDecision,
         price: Decimal,
         trading_date: date,
-    ):
+    ) -> None:
         ticker = decision.ticker
         config = self.config.portfolio_config
         position = self.portfolio.get_position(ticker)
@@ -270,7 +270,7 @@ class BacktestEngine:
                 ticker, quantity, execution_price, trading_date
             )
 
-    def _record_equity(self, trading_date: date, prices: dict[str, Decimal]):
+    def _record_equity(self, trading_date: date, prices: dict[str, Decimal]) -> None:
         equity = self.portfolio.total_equity(prices)
         positions_value = self.portfolio.positions_value(prices)
 
@@ -288,7 +288,7 @@ class BacktestEngine:
                 daily_return = (equity - prev_equity) / prev_equity
                 self.daily_returns.append(daily_return)
 
-    def _close_all_positions(self, final_date: date):
+    def _close_all_positions(self, final_date: date) -> None:
         prices = self.data_loader.get_prices_dict(self.config.tickers, final_date)
 
         for ticker, trade in list(self.open_trades.items()):
@@ -305,7 +305,7 @@ class BacktestEngine:
                 )
                 self._execute_decision(decision, prices[ticker], final_date)
 
-    def _empty_metrics(self):
+    def _empty_metrics(self) -> "BacktestMetrics":
         from tradingagents.models.backtest import BacktestMetrics
         return BacktestMetrics(
             start_equity=self.config.portfolio_config.initial_cash,

@@ -1,12 +1,12 @@
 import datetime
 from collections import deque
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Deque
 
 
 class MessageBuffer:
-    def __init__(self, max_length=100):
-        self.messages = deque(maxlen=max_length)
-        self.tool_calls = deque(maxlen=max_length)
+    def __init__(self, max_length: int = 100) -> None:
+        self.messages: Deque = deque(maxlen=max_length)
+        self.tool_calls: Deque = deque(maxlen=max_length)
         self.current_report = None
         self.final_report = None
         self.agent_status = {
@@ -34,25 +34,25 @@ class MessageBuffer:
             "final_trade_decision": None,
         }
 
-    def add_message(self, message_type: str, content: str):
+    def add_message(self, message_type: str, content: str) -> None:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.messages.append((timestamp, message_type, content))
 
-    def add_tool_call(self, tool_name: str, args: Dict[str, Any]):
+    def add_tool_call(self, tool_name: str, args: Dict[str, Any]) -> None:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.tool_calls.append((timestamp, tool_name, args))
 
-    def update_agent_status(self, agent: str, status: str):
+    def update_agent_status(self, agent: str, status: str) -> None:
         if agent in self.agent_status:
             self.agent_status[agent] = status
             self.current_agent = agent
 
-    def update_report_section(self, section_name: str, content: str):
+    def update_report_section(self, section_name: str, content: str) -> None:
         if section_name in self.report_sections:
             self.report_sections[section_name] = content
             self._update_current_report()
 
-    def _update_current_report(self):
+    def _update_current_report(self) -> None:
         latest_section = None
         latest_content = None
 
@@ -77,7 +77,7 @@ class MessageBuffer:
 
         self._update_final_report()
 
-    def _update_final_report(self):
+    def _update_final_report(self) -> None:
         report_parts = []
 
         if any(
@@ -121,7 +121,7 @@ class MessageBuffer:
 
         self.final_report = "\n\n".join(report_parts) if report_parts else None
 
-    def reset(self):
+    def reset(self) -> None:
         for agent in self.agent_status:
             self.agent_status[agent] = "pending"
         for section in self.report_sections:

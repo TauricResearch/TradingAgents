@@ -13,7 +13,7 @@ def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
-):
+) -> str:
     symbol = validate_ticker(symbol)
     start, end = validate_date_range(start_date, end_date)
     start_date = start.strftime("%Y-%m-%d")
@@ -248,7 +248,6 @@ def get_stockstats_indicator(
         str, "The current trading date you are trading on, YYYY-mm-dd"
     ],
 ) -> str:
-
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     curr_date = curr_date_dt.strftime("%Y-%m-%d")
 
@@ -272,7 +271,7 @@ def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
-):
+) -> str:
     try:
         ticker_obj = yf.Ticker(ticker.upper())
 
@@ -299,7 +298,7 @@ def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
-):
+) -> str:
     try:
         ticker_obj = yf.Ticker(ticker.upper())
 
@@ -326,7 +325,7 @@ def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
-):
+) -> str:
     try:
         ticker_obj = yf.Ticker(ticker.upper())
 
@@ -351,7 +350,7 @@ def get_income_statement(
 
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"]
-):
+) -> str:
     try:
         ticker_obj = yf.Ticker(ticker.upper())
         data = ticker_obj.insider_transactions

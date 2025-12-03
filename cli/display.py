@@ -1,3 +1,5 @@
+from typing import Optional, Dict, Any
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.spinner import Spinner
@@ -13,7 +15,7 @@ from cli.state import message_buffer
 console = Console()
 
 
-def create_layout():
+def create_layout() -> Layout:
     layout = Layout()
     layout.split_column(
         Layout(name="header", size=3),
@@ -29,7 +31,7 @@ def create_layout():
     return layout
 
 
-def update_display(layout, spinner_text=None):
+def update_display(layout: Layout, spinner_text: Optional[str] = None) -> None:
     layout["header"].update(
         Panel(
             "[bold green]Welcome to TradingAgents CLI[/bold green]\n"
@@ -207,7 +209,7 @@ def update_display(layout, spinner_text=None):
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
-def display_complete_report(final_state):
+def display_complete_report(final_state: Dict[str, Any]) -> None:
     console.print("\n[bold green]Complete Analysis Report[/bold green]\n")
 
     analyst_reports = []
@@ -381,13 +383,13 @@ def display_complete_report(final_state):
             )
 
 
-def update_research_team_status(status):
+def update_research_team_status(status: str) -> None:
     research_team = ["Bull Researcher", "Bear Researcher", "Research Manager", "Trader"]
     for agent in research_team:
         message_buffer.update_agent_status(agent, status)
 
 
-def extract_content_string(content):
+def extract_content_string(content: Any) -> str:
     if isinstance(content, str):
         return content
     elif isinstance(content, list):
@@ -405,7 +407,7 @@ def extract_content_string(content):
         return str(content)
 
 
-def create_question_box(title: str, prompt: str, default: str = None) -> Panel:
+def create_question_box(title: str, prompt: str, default: Optional[str] = None) -> Panel:
     box_content = f"[bold]{title}[/bold]\n"
     box_content += f"[dim]{prompt}[/dim]"
     if default:

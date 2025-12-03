@@ -248,7 +248,7 @@ def select_stock_for_detail(trending_stocks: List[TrendingStock]) -> Optional[Tr
     return selected
 
 
-def discover_trending_flow(run_analysis_callback=None):
+def discover_trending_flow(run_analysis_callback=None) -> None:
     console.print(Rule("[bold green]Discover Trending Stocks[/bold green]"))
     console.print()
 

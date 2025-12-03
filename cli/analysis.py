@@ -33,11 +33,11 @@ from cli.utils import (
 )
 
 
-def get_ticker():
+def get_ticker() -> str:
     return typer.prompt("", default="SPY")
 
 
-def get_analysis_date():
+def get_analysis_date() -> str:
     while True:
         date_str = typer.prompt(
             "", default=datetime.datetime.now().strftime("%Y-%m-%d")
@@ -54,7 +54,7 @@ def get_analysis_date():
             )
 
 
-def get_user_selections():
+def get_user_selections() -> dict:
     with open("./cli/static/welcome.txt", "r") as f:
         welcome_ascii = f.read()
 
@@ -135,7 +135,7 @@ def get_user_selections():
     }
 
 
-def process_chunk_for_display(chunk, selected_analysts: List[AnalystType]):
+def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType]) -> None:
     if "market_report" in chunk and chunk["market_report"]:
         message_buffer.update_report_section("market_report", chunk["market_report"])
         message_buffer.update_agent_status("Market Analyst", "completed")
@@ -253,7 +253,7 @@ def process_chunk_for_display(chunk, selected_analysts: List[AnalystType]):
             message_buffer.update_agent_status("Portfolio Manager", "completed")
 
 
-def setup_logging_decorators(report_dir, log_file):
+def setup_logging_decorators(report_dir, log_file) -> tuple:
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
         @wraps(func)
@@ -292,7 +292,7 @@ def setup_logging_decorators(report_dir, log_file):
     return save_message_decorator, save_tool_call_decorator, save_report_section_decorator
 
 
-def run_analysis_for_ticker(ticker: str, config: dict):
+def run_analysis_for_ticker(ticker: str, config: dict) -> None:
     analysis_date = datetime.datetime.now().strftime("%Y-%m-%d")
 
     console.print(
@@ -330,7 +330,7 @@ def run_analysis_for_ticker(ticker: str, config: dict):
     _run_analysis_with_config(ticker, analysis_date, selected_analysts, config)
 
 
-def run_analysis():
+def run_analysis() -> None:
     selections = get_user_selections()
 
     config = get_config()
@@ -349,7 +349,7 @@ def run_analysis():
     )
 
 
-def _run_analysis_with_config(ticker: str, analysis_date: str, selected_analysts: List[AnalystType], config: dict):
+def _run_analysis_with_config(ticker: str, analysis_date: str, selected_analysts: List[AnalystType], config: dict) -> None:
     with loading("Initializing trading agents...", show_elapsed=True):
         graph = TradingAgentsGraph(
             [analyst.value for analyst in selected_analysts], config=config, debug=True
