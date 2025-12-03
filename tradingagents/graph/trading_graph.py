@@ -4,7 +4,7 @@ import os
 import threading
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -35,6 +35,13 @@ from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
 )
 from tradingagents.agents.utils.memory import FinancialSituationMemory
+from tradingagents.database import (
+    AnalysisService,
+    DiscoveryService,
+    TradingService,
+    get_db_session,
+    init_database,
+)
 from tradingagents.dataflows.config import get_config, set_config
 from tradingagents.dataflows.interface import get_bulk_news
 from tradingagents.validation import validate_date, validate_ticker
@@ -72,6 +79,11 @@ class TradingAgentsGraph:
             os.path.join(self.config["project_dir"], "dataflows/data_cache"),
             exist_ok=True,
         )
+
+        self.db_enabled = self.config.get("database_enabled", False)
+        if self.db_enabled:
+            db_path = self.config.get("database_path")
+            init_database(db_path)
 
         if (
             self.config["llm_provider"].lower() == "openai"
@@ -235,6 +247,23 @@ class TradingAgentsGraph:
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
 
+        if self.db_enabled:
+            self._persist_to_database(trade_date, final_state)
+
+    def _persist_to_database(self, trade_date, final_state: dict[str, Any]) -> None:
+        with get_db_session() as session:
+            analysis_service = AnalysisService(session)
+            trading_service = TradingService(session)
+
+            analysis_session = analysis_service.save_full_state(
+                self.ticker, str(trade_date), final_state
+            )
+
+            signal = self.process_signal(final_state.get("final_trade_decision", ""))
+            trading_service.save_trading_decision(
+                analysis_session.id, self.ticker, final_state, signal
+            )
+
     def reflect_and_remember(self, returns_losses) -> None:
         self.reflector.reflect_bull_researcher(
             self.curr_state, returns_losses, self.bull_memory
@@ -351,7 +380,46 @@ class TradingAgentsGraph:
         result.status = DiscoveryStatus.COMPLETED
         result.completed_at = datetime.now()
 
+        if self.db_enabled:
+            self._persist_discovery_to_database(request, result)
+
         return result
+
+    def _persist_discovery_to_database(
+        self, request: DiscoveryRequest, result: DiscoveryResult
+    ) -> None:
+        with get_db_session() as session:
+            discovery_service = DiscoveryService(session)
+
+            run = discovery_service.create_run(
+                request.lookback_period, request.max_results or 20
+            )
+
+            for stock in result.trending_stocks:
+                discovery_service.save_trending_stock(
+                    run.id,
+                    stock.ticker,
+                    stock.company_name,
+                    stock.trending_score,
+                    stock.mention_count,
+                    stock.sector.value
+                    if hasattr(stock.sector, "value")
+                    else str(stock.sector),
+                    stock.event_type.value
+                    if hasattr(stock.event_type, "value")
+                    else str(stock.event_type),
+                    stock.summary,
+                    [a.get("title", "") for a in stock.source_articles]
+                    if stock.source_articles
+                    else None,
+                )
+
+            if result.status == DiscoveryStatus.COMPLETED:
+                discovery_service.complete_run(run.id, len(result.trending_stocks))
+            else:
+                discovery_service.fail_run(
+                    run.id, result.error_message or "Unknown error"
+                )
 
     def analyze_trending(
         self,
