@@ -179,8 +179,6 @@ COMPANY_TO_TICKER = {
     "snapchat": "SNAP",
     "pinterest": "PINS",
     "pinterest inc": "PINS",
-    "twitter": "TWTR",
-    "twitter inc": "TWTR",
     "linkedin": "MSFT",
     "zoom": "ZM",
     "zoom video": "ZM",
