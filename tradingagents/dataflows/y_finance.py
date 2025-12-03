@@ -235,15 +235,8 @@ def _get_stock_stats_bulk(
 
     df[indicator]
 
-    result_dict = {}
-    for _, row in df.iterrows():
-        date_str = row["Date"]
-        indicator_value = row[indicator]
-
-        if pd.isna(indicator_value):
-            result_dict[date_str] = "N/A"
-        else:
-            result_dict[date_str] = str(indicator_value)
+    indicator_series = df[indicator].apply(lambda x: "N/A" if pd.isna(x) else str(x))
+    result_dict = dict(zip(df["Date"], indicator_series))
 
     return result_dict
 
