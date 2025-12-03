@@ -48,6 +48,7 @@ from tradingagents.agents.discovery import (
     calculate_trending_scores,
 )
 from tradingagents.dataflows.interface import get_bulk_news
+from tradingagents.validation import validate_ticker, validate_date, parse_date
 
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
@@ -155,6 +156,11 @@ class TradingAgentsGraph:
         }
 
     def propagate(self, company_name, trade_date):
+        company_name = validate_ticker(company_name)
+        validated_date = validate_date(trade_date, allow_future=False)
+        if isinstance(trade_date, str):
+            trade_date = validated_date
+
         self.ticker = company_name
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date

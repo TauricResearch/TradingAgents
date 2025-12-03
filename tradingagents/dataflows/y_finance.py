@@ -5,6 +5,7 @@ from dateutil.relativedelta import relativedelta
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils
+from tradingagents.validation import validate_ticker, validate_date_range, validate_date
 
 logger = logging.getLogger(__name__)
 
@@ -13,11 +14,12 @@ def get_YFin_data_online(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ):
+    symbol = validate_ticker(symbol)
+    start, end = validate_date_range(start_date, end_date)
+    start_date = start.strftime("%Y-%m-%d")
+    end_date = end.strftime("%Y-%m-%d")
 
-    datetime.strptime(start_date, "%Y-%m-%d")
-    datetime.strptime(end_date, "%Y-%m-%d")
-
-    ticker = yf.Ticker(symbol.upper())
+    ticker = yf.Ticker(symbol)
 
     data = ticker.history(start=start_date, end=end_date)
 
@@ -50,6 +52,9 @@ def get_stock_stats_indicators_window(
     ],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
+    symbol = validate_ticker(symbol)
+    validated_date = validate_date(curr_date, allow_future=False)
+    curr_date = validated_date.strftime("%Y-%m-%d")
 
     best_ind_params = {
         "close_50_sma": (
