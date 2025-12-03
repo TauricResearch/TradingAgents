@@ -2,7 +2,6 @@ import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional, Callable
-from uuid import uuid4
 
 from tradingagents.models.backtest import (
     BacktestConfig,

@@ -1,6 +1,6 @@
 import datetime
 from collections import deque
-from typing import Optional, Dict, Any, Deque
+from typing import Dict, Any, Deque
 
 from cli.models import AgentStatus
 

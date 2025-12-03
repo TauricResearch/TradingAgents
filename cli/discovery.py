@@ -12,7 +12,6 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.dataflows.config import get_config
 from tradingagents.agents.discovery.models import (
     DiscoveryRequest,
-    DiscoveryResult,
     DiscoveryStatus,
     TrendingStock,
     Sector,

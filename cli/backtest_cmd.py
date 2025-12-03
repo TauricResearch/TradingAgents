@@ -8,7 +8,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich import box
 
-from tradingagents.backtesting import SimpleBacktestEngine, DataLoader
+from tradingagents.backtesting import SimpleBacktestEngine
 from tradingagents.models.backtest import BacktestConfig, BacktestStatus
 from tradingagents.models.portfolio import PortfolioConfig
 

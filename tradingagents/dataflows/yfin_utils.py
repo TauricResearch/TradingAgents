@@ -5,7 +5,7 @@ from pandas import DataFrame
 import pandas as pd
 from functools import wraps
 
-from .utils import save_output, SavePathType, decorate_all_methods
+from .utils import SavePathType, decorate_all_methods
 
 logger = logging.getLogger(__name__)
 

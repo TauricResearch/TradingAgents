@@ -3,7 +3,6 @@ from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import yfinance as yf
-import os
 from .stockstats_utils import StockstatsUtils
 from tradingagents.validation import validate_ticker, validate_date_range, validate_date
 

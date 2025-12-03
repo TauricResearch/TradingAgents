@@ -1,5 +1,5 @@
 from typing import Dict, Optional
-from tradingagents.config import get_settings, update_settings, TradingAgentsSettings
+from tradingagents.config import get_settings, update_settings
 
 _config: Optional[Dict] = None
 DATA_DIR: Optional[str] = None

@@ -1,7 +1,7 @@
 import math
 from collections import defaultdict
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from tradingagents.agents.discovery.models import (
     TrendingStock,

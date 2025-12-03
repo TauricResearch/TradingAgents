@@ -4,7 +4,6 @@ from functools import wraps
 from typing import List
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.live import Live
 from rich.align import Align
