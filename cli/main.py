@@ -25,6 +25,7 @@ from rich.align import Align
 from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.graph.discovery_graph import DiscoveryGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
@@ -36,6 +37,30 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+
+
+def extract_text_from_content(content):
+    """
+    Extract plain text from LangChain content blocks.
+
+    Args:
+        content: Either a string or a list of content blocks from LangChain
+
+    Returns:
+        str: Extracted text
+    """
+    if isinstance(content, str):
+        return content
+    elif isinstance(content, list):
+        text_parts = []
+        for block in content:
+            if isinstance(block, dict) and 'text' in block:
+                text_parts.append(block['text'])
+            elif isinstance(block, str):
+                text_parts.append(block)
+        return '\n'.join(text_parts)
+    else:
+        return str(content)
 
 
 # Create a deque to store recent messages with a maximum length
@@ -429,62 +454,81 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # Step 1: Ticker symbol
+    # Step 1: Select mode (Discovery or Trading)
     console.print(
         create_question_box(
-            "Step 1: Ticker Symbol", "Enter the ticker symbol to analyze", "SPY"
+            "Step 1: Mode Selection", "Select which agent to run"
         )
     )
-    selected_ticker = get_ticker()
+    mode = select_mode()
+    
+    # Step 2: Ticker symbol (only for Trading mode)
+    selected_ticker = None
+    if mode == "trading":
+        console.print(
+            create_question_box(
+                "Step 2: Ticker Symbol", "Enter the ticker symbol to analyze", "SPY"
+            )
+        )
+        selected_ticker = get_ticker()
 
-    # Step 2: Analysis date
+    # Step 3: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    step_number = 2 if mode == "discovery" else 3
     console.print(
         create_question_box(
-            "Step 2: Analysis Date",
+            f"Step {step_number}: Analysis Date",
             "Enter the analysis date (YYYY-MM-DD)",
             default_date,
         )
     )
     analysis_date = get_analysis_date()
 
-    # Step 3: Select analysts
-    console.print(
-        create_question_box(
-            "Step 3: Analysts Team", "Select your LLM analyst agents for the analysis"
+    # For trading mode, continue with analyst selection
+    selected_analysts = None
+    selected_research_depth = None
+    if mode == "trading":
+        # Step 4: Select analysts
+        console.print(
+            create_question_box(
+                "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
+            )
         )
-    )
-    selected_analysts = select_analysts()
-    console.print(
-        f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
-    )
-
-    # Step 4: Research depth
-    console.print(
-        create_question_box(
-            "Step 4: Research Depth", "Select your research depth level"
+        selected_analysts = select_analysts()
+        console.print(
+            f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
         )
-    )
-    selected_research_depth = select_research_depth()
 
-    # Step 5: OpenAI backend
+        # Step 5: Research depth
+        console.print(
+            create_question_box(
+                "Step 5: Research Depth", "Select your research depth level"
+            )
+        )
+        selected_research_depth = select_research_depth()
+        step_offset = 5
+    else:
+        step_offset = 2
+
+    # OpenAI backend
     console.print(
         create_question_box(
-            "Step 5: OpenAI backend", "Select which service to talk to"
+            f"Step {step_offset + 1}: OpenAI backend", "Select which service to talk to"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
     
-    # Step 6: Thinking agents
+    # Thinking agents
     console.print(
         create_question_box(
-            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
+            f"Step {step_offset + 2}: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
     return {
+        "mode": mode,
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
@@ -520,6 +564,18 @@ def get_analysis_date():
             )
 
 
+def select_mode():
+    """Select between Discovery and Trading mode."""
+    console.print("[1] Discovery - Find investment opportunities")
+    console.print("[2] Trading - Analyze a specific ticker")
+    
+    while True:
+        choice = typer.prompt("Select mode", default="2")
+        if choice in ["1", "2"]:
+            return "discovery" if choice == "1" else "trading"
+        console.print("[red]Invalid choice. Please enter 1 or 2[/red]")
+
+
 def display_complete_report(final_state):
     """Display the complete analysis report with team-based panels."""
     console.print("\n[bold green]Complete Analysis Report[/bold green]\n")
@@ -531,7 +587,7 @@ def display_complete_report(final_state):
     if final_state.get("market_report"):
         analyst_reports.append(
             Panel(
-                Markdown(final_state["market_report"]),
+                Markdown(extract_text_from_content(final_state["market_report"])),
                 title="Market Analyst",
                 border_style="blue",
                 padding=(1, 2),
@@ -542,7 +598,7 @@ def display_complete_report(final_state):
     if final_state.get("sentiment_report"):
         analyst_reports.append(
             Panel(
-                Markdown(final_state["sentiment_report"]),
+                Markdown(extract_text_from_content(final_state["sentiment_report"])),
                 title="Social Analyst",
                 border_style="blue",
                 padding=(1, 2),
@@ -553,7 +609,7 @@ def display_complete_report(final_state):
     if final_state.get("news_report"):
         analyst_reports.append(
             Panel(
-                Markdown(final_state["news_report"]),
+                Markdown(extract_text_from_content(final_state["news_report"])),
                 title="News Analyst",
                 border_style="blue",
                 padding=(1, 2),
@@ -564,7 +620,7 @@ def display_complete_report(final_state):
     if final_state.get("fundamentals_report"):
         analyst_reports.append(
             Panel(
-                Markdown(final_state["fundamentals_report"]),
+                Markdown(extract_text_from_content(final_state["fundamentals_report"])),
                 title="Fundamentals Analyst",
                 border_style="blue",
                 padding=(1, 2),
@@ -612,7 +668,7 @@ def display_complete_report(final_state):
         if debate_state.get("judge_decision"):
             research_reports.append(
                 Panel(
-                    Markdown(debate_state["judge_decision"]),
+                    Markdown(extract_text_from_content(debate_state["judge_decision"])),
                     title="Research Manager",
                     border_style="blue",
                     padding=(1, 2),
@@ -634,7 +690,7 @@ def display_complete_report(final_state):
         console.print(
             Panel(
                 Panel(
-                    Markdown(final_state["trader_investment_plan"]),
+                    Markdown(extract_text_from_content(final_state["trader_investment_plan"])),
                     title="Trader",
                     border_style="blue",
                     padding=(1, 2),
@@ -698,7 +754,7 @@ def display_complete_report(final_state):
             console.print(
                 Panel(
                     Panel(
-                        Markdown(risk_state["judge_decision"]),
+                        Markdown(extract_text_from_content(risk_state["judge_decision"])),
                         title="Portfolio Manager",
                         border_style="blue",
                         padding=(1, 2),
@@ -715,6 +771,24 @@ def update_research_team_status(status):
     research_team = ["Bull Researcher", "Bear Researcher", "Research Manager", "Trader"]
     for agent in research_team:
         message_buffer.update_agent_status(agent, status)
+
+def extract_text_from_content(content):
+    """Extract text string from content that may be a string or list of dicts.
+    
+    Handles both:
+    - Plain strings
+    - Lists of dicts with 'type': 'text' and 'text': '...'
+    """
+    if isinstance(content, str):
+        return content
+    elif isinstance(content, list):
+        text_parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get('type') == 'text':
+                text_parts.append(item.get('text', ''))
+        return '\n'.join(text_parts) if text_parts else str(content)
+    else:
+        return str(content)
 
 def extract_content_string(content):
     """Extract string content from various message formats."""
@@ -739,6 +813,224 @@ def run_analysis():
     # First get all user selections
     selections = get_user_selections()
 
+    # Branch based on mode
+    if selections["mode"] == "discovery":
+        run_discovery_analysis(selections)
+    else:
+        run_trading_analysis(selections)
+
+
+def run_discovery_analysis(selections):
+    """Run discovery mode to find investment opportunities."""
+    from tradingagents.dataflows.config import set_config
+    import json
+    import re
+    
+    # Create config
+    config = DEFAULT_CONFIG.copy()
+    config["quick_think_llm"] = selections["shallow_thinker"]
+    config["deep_think_llm"] = selections["deep_thinker"]
+    config["backend_url"] = selections["backend_url"]
+    config["llm_provider"] = selections["llm_provider"].lower()
+    
+    # Set config globally for route_to_vendor
+    set_config(config)
+    
+    console.print(f"[dim]Using {config['llm_provider'].upper()} - Shallow: {config['quick_think_llm']}, Deep: {config['deep_think_llm']}[/dim]")
+    
+    # Initialize Discovery Graph (LLMs initialized internally like TradingAgentsGraph)
+    discovery_graph = DiscoveryGraph(config=config)
+    
+    console.print(f"\n[bold green]Running Discovery Analysis for {selections['analysis_date']}[/bold green]\n")
+    
+    # Run discovery
+    result = discovery_graph.graph.invoke({
+        "trade_date": selections["analysis_date"],
+        "tickers": [],
+        "filtered_tickers": [],
+        "opportunities": [],
+        "status": "start"
+    })
+    
+    # Create results directory
+    results_dir = Path(config["results_dir"]) / "discovery" / selections["analysis_date"]
+    results_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save discovery results
+    final_ranking = result.get("final_ranking", "No ranking available")
+    final_ranking_text = extract_text_from_content(final_ranking)
+
+    # Save as markdown
+    with open(results_dir / "discovery_results.md", "w") as f:
+        f.write(f"# Discovery Analysis - {selections['analysis_date']}\n\n")
+        f.write(f"**LLM Provider**: {config['llm_provider'].upper()}\n")
+        f.write(f"**Models**: Shallow={config['quick_think_llm']}, Deep={config['deep_think_llm']}\n\n")
+        f.write("## Top Investment Opportunities\n\n")
+        f.write(final_ranking_text)
+    
+    # Save raw result as JSON
+    with open(results_dir / "discovery_result.json", "w") as f:
+        json.dump({
+            "trade_date": selections["analysis_date"],
+            "config": {
+                "llm_provider": config["llm_provider"],
+                "shallow_llm": config["quick_think_llm"],
+                "deep_llm": config["deep_think_llm"]
+            },
+            "opportunities": result.get("opportunities", []),
+            "final_ranking": final_ranking_text
+        }, f, indent=2)
+    
+    console.print(f"\n[dim]Results saved to: {results_dir}[/dim]\n")
+
+    # Display results
+    console.print(Panel(
+        Markdown(final_ranking_text),
+        title="Top Investment Opportunities",
+        border_style="green"
+    ))
+
+    # Extract tickers from the ranking using the discovery graph's LLM
+    discovered_tickers = extract_tickers_from_ranking(final_ranking_text, discovery_graph.quick_thinking_llm)
+    
+    # Loop: Ask if they want to analyze any of the discovered tickers
+    while True:
+        if not discovered_tickers:
+            console.print("\n[yellow]No tickers found in discovery results[/yellow]")
+            break
+            
+        console.print(f"\n[bold]Discovered tickers:[/bold] {', '.join(discovered_tickers)}")
+        
+        run_trading = typer.confirm("\nWould you like to run trading analysis on one of these tickers?", default=False)
+        
+        if not run_trading:
+            console.print("\n[green]Discovery complete! Exiting...[/green]")
+            break
+        
+        # Let user select a ticker
+        console.print(f"\n[bold]Select a ticker to analyze:[/bold]")
+        for i, ticker in enumerate(discovered_tickers, 1):
+            console.print(f"[{i}] {ticker}")
+        
+        while True:
+            choice = typer.prompt("Enter number", default="1")
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(discovered_tickers):
+                    selected_ticker = discovered_tickers[idx]
+                    break
+                console.print("[red]Invalid choice. Try again.[/red]")
+            except ValueError:
+                console.print("[red]Invalid number. Try again.[/red]")
+        
+        console.print(f"\n[green]Selected: {selected_ticker}[/green]\n")
+        
+        # Update selections with the selected ticker
+        trading_selections = selections.copy()
+        trading_selections["ticker"] = selected_ticker
+        trading_selections["mode"] = "trading"
+        
+        # If analysts weren't selected (discovery mode), select default
+        if not trading_selections.get("analysts"):
+            trading_selections["analysts"] = [
+                AnalystType("market"),
+                AnalystType("social"), 
+                AnalystType("news"),
+                AnalystType("fundamentals")
+            ]
+        
+        # If research depth wasn't selected, use default
+        if not trading_selections.get("research_depth"):
+            trading_selections["research_depth"] = 1
+        
+        # Run trading analysis
+        run_trading_analysis(trading_selections)
+        
+        console.print("\n" + "="*70 + "\n")
+
+
+def extract_tickers_from_ranking(ranking_text, llm=None):
+    """Extract ticker symbols from discovery ranking results using LLM.
+
+    Args:
+        ranking_text: The text containing ticker information
+        llm: Optional LLM instance to use for extraction. If None, falls back to regex.
+
+    Returns:
+        List of ticker symbols (uppercase strings)
+    """
+    import json
+    import re
+    from langchain_core.messages import HumanMessage
+
+    # Try to extract from JSON first (fast path)
+    try:
+        # Look for JSON array in the text
+        json_match = re.search(r'\[[\s\S]*\]', ranking_text)
+        if json_match:
+            data = json.loads(json_match.group())
+            if isinstance(data, list):
+                tickers = [item.get("ticker", "").upper() for item in data if item.get("ticker")]
+                if tickers:
+                    return tickers
+    except:
+        pass
+
+    # Use LLM to extract tickers if available
+    if llm is not None:
+        try:
+            # Create extraction prompt
+            prompt = f"""Extract all stock ticker symbols from the following ranking text.
+Return ONLY a comma-separated list of valid ticker symbols (1-5 uppercase letters).
+Do not include explanations, just the tickers.
+
+Examples of valid tickers: AAPL, GOOGL, MSFT, TSLA, NVDA
+Examples of invalid: RMB (currency), BTC (crypto - not a stock ticker unless it's an ETF)
+
+Text:
+{ranking_text}
+
+Tickers:"""
+
+            response = llm.invoke([HumanMessage(content=prompt)])
+
+            # Extract text from response
+            response_text = extract_text_from_content(response.content)
+
+            # Parse the comma-separated list
+            tickers = [t.strip().upper() for t in response_text.split(",") if t.strip()]
+
+            # Basic validation: 1-5 uppercase letters
+            valid_tickers = [t for t in tickers if re.match(r'^[A-Z]{1,5}$', t)]
+
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_tickers = []
+            for t in valid_tickers:
+                if t not in seen:
+                    seen.add(t)
+                    unique_tickers.append(t)
+
+            return unique_tickers[:10]  # Limit to first 10
+
+        except Exception as e:
+            console.print(f"[yellow]Warning: LLM ticker extraction failed ({e}), using regex fallback[/yellow]")
+
+    # Regex fallback (used when no LLM provided or LLM extraction fails)
+    tickers = re.findall(r'\b[A-Z]{1,5}\b', ranking_text)
+    exclude = {'THE', 'AND', 'OR', 'FOR', 'NOT', 'BUT', 'TOP', 'USD', 'USA', 'AI', 'IT', 'IS', 'AS', 'AT', 'IN', 'ON', 'TO', 'BY', 'RMB', 'BTC'}
+    tickers = [t for t in tickers if t not in exclude]
+    seen = set()
+    unique_tickers = []
+    for t in tickers:
+        if t not in seen:
+            seen.add(t)
+            unique_tickers.append(t)
+    return unique_tickers[:10]
+
+
+def run_trading_analysis(selections):
+    """Run trading mode for a specific ticker."""
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
     config["max_debate_rounds"] = selections["research_depth"]
@@ -793,7 +1085,9 @@ def run_analysis():
                 if content:
                     file_name = f"{section_name}.md"
                     with open(report_dir / file_name, "w") as f:
-                        f.write(content)
+                        # Extract text from LangChain content blocks
+                        content_text = extract_text_from_content(content)
+                        f.write(content_text)
         return wrapper
 
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")

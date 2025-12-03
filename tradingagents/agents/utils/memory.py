@@ -5,11 +5,17 @@ from openai import OpenAI
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
+        # Determine embedding backend URL
+        # For Ollama, use the Ollama endpoint; otherwise default to OpenAI for embeddings
+        if config.get("backend_url") == "http://localhost:11434/v1":
+            self.embedding_backend = "http://localhost:11434/v1"
             self.embedding = "nomic-embed-text"
         else:
+            # Always use OpenAI for embeddings, regardless of LLM provider
+            self.embedding_backend = "https://api.openai.com/v1"
             self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+
+        self.client = OpenAI(base_url=self.embedding_backend)
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 

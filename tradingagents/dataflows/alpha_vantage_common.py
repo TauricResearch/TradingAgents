@@ -4,6 +4,7 @@ import pandas as pd
 import json
 from datetime import datetime
 from io import StringIO
+from typing import Union
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
@@ -39,7 +40,7 @@ class AlphaVantageRateLimitError(Exception):
     """Exception raised when Alpha Vantage API rate limit is exceeded."""
     pass
 
-def _make_api_request(function_name: str, params: dict) -> dict | str:
+def _make_api_request(function_name: str, params: dict) -> Union[dict, str]:
     """Helper function to make API requests and handle responses.
     
     Raises:

@@ -74,3 +74,14 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+
+
+class DiscoveryState(TypedDict):
+    trade_date: Annotated[str, "Current trading date (yyyy-mm-dd format)"]
+    tickers: Annotated[list[str], "List of tickers found"]
+    candidate_metadata: Annotated[list[dict], "Metadata for candidates (source, strategy)"]
+    filtered_tickers: Annotated[list[str], "List of tickers after filtering"]
+    opportunities: Annotated[list[dict], "List of final opportunities with rationale"]
+    final_ranking: Annotated[str, "Final ranking from LLM"]
+    status: Annotated[str, "Current status of discovery"]
+

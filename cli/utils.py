@@ -142,7 +142,10 @@ def select_shallow_thinking_agent(provider) -> str:
         "google": [
             ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
             ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
+            ("Gemini 2.5 Flash-Lite - Ultra-fast and cost-effective", "gemini-2.5-flash-lite"),
+            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash"),
+            ("Gemini 2.5 Pro - Most capable Gemini model", "gemini-2.5-pro"),
+            ("Gemini 3.0 Pro Preview - Next generation preview", "gemini-3-pro-preview"),
         ],
         "openrouter": [
             ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
@@ -204,8 +207,10 @@ def select_deep_thinking_agent(provider) -> str:
         "google": [
             ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
             ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
-            ("Gemini 2.5 Pro", "gemini-2.5-pro-preview-06-05"),
+            ("Gemini 2.5 Flash-Lite - Ultra-fast and cost-effective", "gemini-2.5-flash-lite"),
+            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash"),
+            ("Gemini 2.5 Pro - Most capable Gemini model", "gemini-2.5-pro"),
+            ("Gemini 3.0 Pro Preview - Next generation preview", "gemini-3-pro-preview"),
         ],
         "openrouter": [
             ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),

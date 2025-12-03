@@ -1,0 +1,61 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	Market\20Analyst(Market Analyst)
+	Msg\20Clear\20Market(Msg Clear Market)
+	tools_market(tools_market)
+	Social\20Analyst(Social Analyst)
+	Msg\20Clear\20Social(Msg Clear Social)
+	tools_social(tools_social)
+	News\20Analyst(News Analyst)
+	Msg\20Clear\20News(Msg Clear News)
+	tools_news(tools_news)
+	Fundamentals\20Analyst(Fundamentals Analyst)
+	Msg\20Clear\20Fundamentals(Msg Clear Fundamentals)
+	tools_fundamentals(tools_fundamentals)
+	Bull\20Researcher(Bull Researcher)
+	Bear\20Researcher(Bear Researcher)
+	Research\20Manager(Research Manager)
+	Trader(Trader)
+	Risky\20Analyst(Risky Analyst)
+	Neutral\20Analyst(Neutral Analyst)
+	Safe\20Analyst(Safe Analyst)
+	Risk\20Judge(Risk Judge)
+	__end__([<p>__end__</p>]):::last
+	Bear\20Researcher -.-> Bull\20Researcher;
+	Bear\20Researcher -.-> Research\20Manager;
+	Bull\20Researcher -.-> Bear\20Researcher;
+	Bull\20Researcher -.-> Research\20Manager;
+	Fundamentals\20Analyst -.-> Msg\20Clear\20Fundamentals;
+	Fundamentals\20Analyst -.-> tools_fundamentals;
+	Market\20Analyst -.-> Msg\20Clear\20Market;
+	Market\20Analyst -.-> tools_market;
+	Msg\20Clear\20Fundamentals --> Bull\20Researcher;
+	Msg\20Clear\20Market --> Social\20Analyst;
+	Msg\20Clear\20News --> Fundamentals\20Analyst;
+	Msg\20Clear\20Social --> News\20Analyst;
+	Neutral\20Analyst -.-> Risk\20Judge;
+	Neutral\20Analyst -.-> Risky\20Analyst;
+	News\20Analyst -.-> Msg\20Clear\20News;
+	News\20Analyst -.-> tools_news;
+	Research\20Manager --> Trader;
+	Risky\20Analyst -.-> Risk\20Judge;
+	Risky\20Analyst -.-> Safe\20Analyst;
+	Safe\20Analyst -.-> Neutral\20Analyst;
+	Safe\20Analyst -.-> Risk\20Judge;
+	Social\20Analyst -.-> Msg\20Clear\20Social;
+	Social\20Analyst -.-> tools_social;
+	Trader --> Risky\20Analyst;
+	__start__ --> Market\20Analyst;
+	tools_fundamentals --> Fundamentals\20Analyst;
+	tools_market --> Market\20Analyst;
+	tools_news --> News\20Analyst;
+	tools_social --> Social\20Analyst;
+	Risk\20Judge --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

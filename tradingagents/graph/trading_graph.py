@@ -22,19 +22,8 @@ from tradingagents.agents.utils.agent_states import (
 )
 from tradingagents.dataflows.config import set_config
 
-# Import the new abstract tool methods from agent_utils
-from tradingagents.agents.utils.agent_utils import (
-    get_stock_data,
-    get_indicators,
-    get_fundamentals,
-    get_balance_sheet,
-    get_cashflow,
-    get_income_statement,
-    get_news,
-    get_insider_sentiment,
-    get_insider_transactions,
-    get_global_news
-)
+# Import tools from new registry-based system
+from tradingagents.tools.generator import get_agent_tools
 
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
@@ -79,17 +68,33 @@ class TradingAgentsGraph:
             self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
         elif self.config["llm_provider"].lower() == "google":
-            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
-            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+            # Explicitly pass Google API key from environment
+            google_api_key = os.getenv("GOOGLE_API_KEY")
+            if not google_api_key:
+                raise ValueError("GOOGLE_API_KEY environment variable not set. Please add it to your .env file.")
+            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"], google_api_key=google_api_key)
+            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"], google_api_key=google_api_key)
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
         
-        # Initialize memories
-        self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
-        self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
-        self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
-        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
+        # Initialize memories only if enabled
+        if self.config.get("enable_memory", False):
+            self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
+            self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
+            self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
+            self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
+            self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
+
+            # Load historical memories if configured
+            if self.config.get("load_historical_memories", False):
+                self._load_historical_memories()
+        else:
+            # Create dummy memory objects that don't use embeddings
+            self.bull_memory = None
+            self.bear_memory = None
+            self.trader_memory = None
+            self.invest_judge_memory = None
+            self.risk_manager_memory = None
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -120,42 +125,84 @@ class TradingAgentsGraph:
         # Set up the graph
         self.graph = self.graph_setup.setup_graph(selected_analysts)
 
-    def _create_tool_nodes(self) -> Dict[str, ToolNode]:
-        """Create tool nodes for different data sources using abstract methods."""
-        return {
-            "market": ToolNode(
-                [
-                    # Core stock data tools
-                    get_stock_data,
-                    # Technical indicators
-                    get_indicators,
-                ]
-            ),
-            "social": ToolNode(
-                [
-                    # News tools for social media analysis
-                    get_news,
-                ]
-            ),
-            "news": ToolNode(
-                [
-                    # News and insider information
-                    get_news,
-                    get_global_news,
-                    get_insider_sentiment,
-                    get_insider_transactions,
-                ]
-            ),
-            "fundamentals": ToolNode(
-                [
-                    # Fundamental analysis tools
-                    get_fundamentals,
-                    get_balance_sheet,
-                    get_cashflow,
-                    get_income_statement,
-                ]
-            ),
+    def _load_historical_memories(self):
+        """Load pre-built historical memories from disk."""
+        import pickle
+        import glob
+
+        memory_dir = self.config.get("memory_dir", os.path.join(self.config["data_dir"], "memories"))
+
+        if not os.path.exists(memory_dir):
+            print(f"⚠️  Memory directory not found: {memory_dir}")
+            print("   Run scripts/build_historical_memories.py to create memories")
+            return
+
+        print(f"\n📚 Loading historical memories from {memory_dir}...")
+
+        memory_map = {
+            "bull": self.bull_memory,
+            "bear": self.bear_memory,
+            "trader": self.trader_memory,
+            "invest_judge": self.invest_judge_memory,
+            "risk_manager": self.risk_manager_memory
         }
+
+        for agent_type, memory in memory_map.items():
+            # Find the most recent memory file for this agent type
+            pattern = os.path.join(memory_dir, f"{agent_type}_memory_*.pkl")
+            files = glob.glob(pattern)
+
+            if not files:
+                print(f"   ⚠️  No historical memories found for {agent_type}")
+                continue
+
+            # Use the most recent file
+            latest_file = max(files, key=os.path.getmtime)
+
+            try:
+                with open(latest_file, 'rb') as f:
+                    data = pickle.load(f)
+
+                # Add memories to the collection
+                if data["documents"] and data["metadatas"] and data["embeddings"]:
+                    memory.situation_collection.add(
+                        documents=data["documents"],
+                        metadatas=data["metadatas"],
+                        embeddings=data["embeddings"],
+                        ids=data["ids"]
+                    )
+
+                    print(f"   ✅ {agent_type}: Loaded {len(data['documents'])} memories from {os.path.basename(latest_file)}")
+                else:
+                    print(f"   ⚠️  {agent_type}: Empty memory file")
+
+            except Exception as e:
+                print(f"   ❌ Error loading {agent_type} memories: {e}")
+
+        print("📚 Historical memory loading complete\n")
+
+    def _create_tool_nodes(self) -> Dict[str, ToolNode]:
+        """Create tool nodes for different agents using registry-based system.
+
+        This dynamically reads agent-tool mappings from the registry,
+        eliminating the need for hardcoded tool lists.
+        """
+        tool_nodes = {}
+
+        # Create tool nodes for each agent type
+        for agent_name in ["market", "social", "news", "fundamentals"]:
+            # Get tools for this agent from the registry
+            agent_tools = get_agent_tools(agent_name)
+
+            if agent_tools:
+                tool_nodes[agent_name] = ToolNode(agent_tools)
+            else:
+                # Log warning if no tools found for this agent
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"No tools found for agent '{agent_name}' in registry")
+
+        return tool_nodes
 
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date."""
@@ -236,6 +283,10 @@ class TradingAgentsGraph:
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
+        # Skip reflection if memory is disabled
+        if not self.config.get("enable_memory", False):
+            return
+            
         self.reflector.reflect_bull_researcher(
             self.curr_state, returns_losses, self.bull_memory
         )
@@ -255,3 +306,26 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+if __name__ == "__main__":
+    # Build the full TradingAgents graph
+    tg = TradingAgentsGraph()
+    
+    print("Generating graph diagrams...")
+    
+    # Export a PNG diagram (requires Graphviz)
+    try:
+        # get_graph() returns the drawable graph structure
+        tg.graph.get_graph().draw_png("trading_graph.png")
+        print("✅ PNG diagram saved as trading_graph.png")
+    except Exception as e:
+        print(f"⚠️  Could not generate PNG (Graphviz may be missing): {e}")
+        
+    # Export a Mermaid markdown file for easy embedding in docs/README
+    try:
+        mermaid_src = tg.graph.get_graph().draw_mermaid()
+        with open("trading_graph.mmd", "w") as f:
+            f.write(mermaid_src)
+        print("✅ Mermaid diagram saved as trading_graph.mmd")
+    except Exception as e:
+        print(f"⚠️  Could not generate Mermaid diagram: {e}")

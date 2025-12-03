@@ -384,7 +384,8 @@ def get_income_statement(
 
 
 def get_insider_transactions(
-    ticker: Annotated[str, "ticker symbol of the company"]
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
 ):
     """Get insider transactions data from yfinance."""
     try:
@@ -405,3 +406,15 @@ def get_insider_transactions(
         
     except Exception as e:
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"
+
+def validate_ticker(symbol: str) -> bool:
+    """
+    Validate if a ticker symbol exists and has trading data.
+    """
+    try:
+        ticker = yf.Ticker(symbol.upper())
+        # Try to fetch 1 day of history
+        history = ticker.history(period="1d")
+        return not history.empty
+    except Exception:
+        return False
