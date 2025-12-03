@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated, List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import threading
@@ -24,6 +25,8 @@ from .brave import get_bulk_news_brave
 from .config import get_config
 
 from tradingagents.agents.discovery import NewsArticle
+
+logger = logging.getLogger(__name__)
 
 TOOLS_CATEGORIES = {
     "core_stock_apis": {
@@ -206,17 +209,17 @@ def _fetch_bulk_news_from_vendor(lookback_period: str) -> List[Dict[str, Any]]:
         vendor_func = VENDOR_METHODS["get_bulk_news"][vendor]
 
         try:
-            print(f"DEBUG: Attempting bulk news from vendor '{vendor}'...")
+            logger.debug("Attempting bulk news from vendor '%s'...", vendor)
             result = vendor_func(lookback_hours)
             if result:
-                print(f"SUCCESS: Got {len(result)} articles from vendor '{vendor}'")
+                logger.info("Got %d articles from vendor '%s'", len(result), vendor)
                 return result
-            print(f"DEBUG: Vendor '{vendor}' returned empty results, trying next...")
+            logger.debug("Vendor '%s' returned empty results, trying next...", vendor)
         except AlphaVantageRateLimitError as e:
-            print(f"RATE_LIMIT: Alpha Vantage rate limit exceeded: {e}")
+            logger.warning("Alpha Vantage rate limit exceeded: %s", e)
             continue
         except Exception as e:
-            print(f"FAILED: Vendor '{vendor}' failed: {e}")
+            logger.error("Vendor '%s' failed: %s", vendor, e)
             continue
 
     return []
@@ -225,7 +228,7 @@ def _fetch_bulk_news_from_vendor(lookback_period: str) -> List[Dict[str, Any]]:
 def get_bulk_news(lookback_period: str = "24h") -> List[NewsArticle]:
     cached = _get_cached_bulk_news(lookback_period)
     if cached is not None:
-        print(f"DEBUG: Returning cached bulk news for period '{lookback_period}'")
+        logger.debug("Returning cached bulk news for period '%s'", lookback_period)
         return cached
 
     raw_articles = _fetch_bulk_news_from_vendor(lookback_period)
@@ -271,7 +274,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     primary_str = " -> ".join(primary_vendors)
     fallback_str = " -> ".join(fallback_vendors)
-    print(f"DEBUG: {method} - Primary: [{primary_str}] | Full fallback order: [{fallback_str}]")
+    logger.debug("%s - Primary: [%s] | Full fallback order: [%s]", method, primary_str, fallback_str)
 
     results = []
     vendor_attempt_count = 0
@@ -281,7 +284,7 @@ def route_to_vendor(method: str, *args, **kwargs):
     for vendor in fallback_vendors:
         if vendor not in VENDOR_METHODS[method]:
             if vendor in primary_vendors:
-                print(f"INFO: Vendor '{vendor}' not supported for method '{method}', falling back to next vendor")
+                logger.info("Vendor '%s' not supported for method '%s', falling back to next vendor", vendor, method)
             continue
 
         vendor_impl = VENDOR_METHODS[method][vendor]
@@ -292,48 +295,48 @@ def route_to_vendor(method: str, *args, **kwargs):
             any_primary_vendor_attempted = True
 
         vendor_type = "PRIMARY" if is_primary_vendor else "FALLBACK"
-        print(f"DEBUG: Attempting {vendor_type} vendor '{vendor}' for {method} (attempt #{vendor_attempt_count})")
+        logger.debug("Attempting %s vendor '%s' for %s (attempt #%d)", vendor_type, vendor, method, vendor_attempt_count)
 
         if isinstance(vendor_impl, list):
             vendor_methods = [(impl, vendor) for impl in vendor_impl]
-            print(f"DEBUG: Vendor '{vendor}' has multiple implementations: {len(vendor_methods)} functions")
+            logger.debug("Vendor '%s' has multiple implementations: %d functions", vendor, len(vendor_methods))
         else:
             vendor_methods = [(vendor_impl, vendor)]
 
         vendor_results = []
         for impl_func, vendor_name in vendor_methods:
             try:
-                print(f"DEBUG: Calling {impl_func.__name__} from vendor '{vendor_name}'...")
+                logger.debug("Calling %s from vendor '%s'...", impl_func.__name__, vendor_name)
                 result = impl_func(*args, **kwargs)
                 vendor_results.append(result)
-                print(f"SUCCESS: {impl_func.__name__} from vendor '{vendor_name}' completed successfully")
+                logger.info("%s from vendor '%s' completed successfully", impl_func.__name__, vendor_name)
 
             except AlphaVantageRateLimitError as e:
                 if vendor == "alpha_vantage":
-                    print(f"RATE_LIMIT: Alpha Vantage rate limit exceeded, falling back to next available vendor")
-                    print(f"DEBUG: Rate limit details: {e}")
+                    logger.warning("Alpha Vantage rate limit exceeded, falling back to next available vendor")
+                    logger.debug("Rate limit details: %s", e)
                 continue
             except Exception as e:
-                print(f"FAILED: {impl_func.__name__} from vendor '{vendor_name}' failed: {e}")
+                logger.error("%s from vendor '%s' failed: %s", impl_func.__name__, vendor_name, e)
                 continue
 
         if vendor_results:
             results.extend(vendor_results)
             successful_vendor = vendor
             result_summary = f"Got {len(vendor_results)} result(s)"
-            print(f"SUCCESS: Vendor '{vendor}' succeeded - {result_summary}")
+            logger.info("Vendor '%s' succeeded - %s", vendor, result_summary)
 
             if len(primary_vendors) == 1:
-                print(f"DEBUG: Stopping after successful vendor '{vendor}' (single-vendor config)")
+                logger.debug("Stopping after successful vendor '%s' (single-vendor config)", vendor)
                 break
         else:
-            print(f"FAILED: Vendor '{vendor}' produced no results")
+            logger.error("Vendor '%s' produced no results", vendor)
 
     if not results:
-        print(f"FAILURE: All {vendor_attempt_count} vendor attempts failed for method '{method}'")
+        logger.error("All %d vendor attempts failed for method '%s'", vendor_attempt_count, method)
         raise RuntimeError(f"All vendor implementations failed for method '{method}'")
     else:
-        print(f"FINAL: Method '{method}' completed with {len(results)} result(s) from {vendor_attempt_count} vendor attempt(s)")
+        logger.info("Method '%s' completed with %d result(s) from %d vendor attempt(s)", method, len(results), vendor_attempt_count)
 
     if len(results) == 1:
         return results[0]

@@ -1,4 +1,7 @@
+import logging
 from .alpha_vantage_common import _make_api_request
+
+logger = logging.getLogger(__name__)
 
 def get_indicator(
     symbol: str,
@@ -9,21 +12,6 @@ def get_indicator(
     time_period: int = 14,
     series_type: str = "close"
 ) -> str:
-    """
-    Returns Alpha Vantage technical indicator values over a time window.
-
-    Args:
-        symbol: ticker symbol of the company
-        indicator: technical indicator to get the analysis and report of
-        curr_date: The current trading date you are trading on, YYYY-mm-dd
-        look_back_days: how many days to look back
-        interval: Time interval (daily, weekly, monthly)
-        time_period: Number of data points for calculation
-        series_type: The desired price type (close, open, high, low)
-
-    Returns:
-        String containing indicator values and description
-    """
     from datetime import datetime
     from dateutil.relativedelta import relativedelta
 
@@ -65,15 +53,12 @@ def get_indicator(
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     before = curr_date_dt - relativedelta(days=look_back_days)
 
-    # Get the full data for the period instead of making individual calls
     _, required_series_type = supported_indicators[indicator]
 
-    # Use the provided series_type or fall back to the required one
     if required_series_type:
         series_type = required_series_type
 
     try:
-        # Get indicator data for the period
         if indicator == "close_50_sma":
             data = _make_api_request("SMA", {
                 "symbol": symbol,
@@ -143,25 +128,20 @@ def get_indicator(
                 "datatype": "csv"
             })
         elif indicator == "vwma":
-            # Alpha Vantage doesn't have direct VWMA, so we'll return an informative message
-            # In a real implementation, this would need to be calculated from OHLCV data
             return f"## VWMA (Volume Weighted Moving Average) for {symbol}:\n\nVWMA calculation requires OHLCV data and is not directly available from Alpha Vantage API.\nThis indicator would need to be calculated from the raw stock data using volume-weighted price averaging.\n\n{indicator_descriptions.get('vwma', 'No description available.')}"
         else:
             return f"Error: Indicator {indicator} not implemented yet."
 
-        # Parse CSV data and extract values for the date range
         lines = data.strip().split('\n')
         if len(lines) < 2:
             return f"Error: No data returned for {indicator}"
 
-        # Parse header and data
         header = [col.strip() for col in lines[0].split(',')]
         try:
             date_col_idx = header.index('time')
         except ValueError:
             return f"Error: 'time' column not found in data for {indicator}. Available columns: {header}"
 
-        # Map internal indicator names to expected CSV column names from Alpha Vantage
         col_name_map = {
             "macd": "MACD", "macds": "MACD_Signal", "macdh": "MACD_Hist",
             "boll": "Real Middle Band", "boll_ub": "Real Upper Band", "boll_lb": "Real Lower Band",
@@ -172,7 +152,6 @@ def get_indicator(
         target_col_name = col_name_map.get(indicator)
 
         if not target_col_name:
-            # Default to the second column if no specific mapping exists
             value_col_idx = 1
         else:
             try:
@@ -188,17 +167,14 @@ def get_indicator(
             if len(values) > value_col_idx:
                 try:
                     date_str = values[date_col_idx].strip()
-                    # Parse the date
                     date_dt = datetime.strptime(date_str, "%Y-%m-%d")
 
-                    # Check if date is in our range
                     if before <= date_dt <= curr_date_dt:
                         value = values[value_col_idx].strip()
                         result_data.append((date_dt, value))
                 except (ValueError, IndexError):
                     continue
 
-        # Sort by date and format output
         result_data.sort(key=lambda x: x[0])
 
         ind_string = ""
@@ -218,5 +194,5 @@ def get_indicator(
         return result_str
 
     except Exception as e:
-        print(f"Error getting Alpha Vantage indicator data for {indicator}: {e}")
+        logger.error("Error getting Alpha Vantage indicator data for %s: %s", indicator, e)
         return f"Error retrieving {indicator} data: {str(e)}"

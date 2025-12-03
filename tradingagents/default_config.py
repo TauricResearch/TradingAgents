@@ -31,4 +31,8 @@ DEFAULT_CONFIG = {
     "bulk_news_vendor_order": ["tavily", "brave", "alpha_vantage", "openai", "google"],
     "bulk_news_timeout": 30,
     "bulk_news_max_retries": 3,
+    "log_level": os.getenv("TRADINGAGENTS_LOG_LEVEL", "INFO"),
+    "log_dir": os.getenv("TRADINGAGENTS_LOG_DIR", "./logs"),
+    "log_console_enabled": os.getenv("TRADINGAGENTS_LOG_CONSOLE", "true").lower() in ("true", "1", "yes", "on"),
+    "log_file_enabled": os.getenv("TRADINGAGENTS_LOG_FILE", "true").lower() in ("true", "1", "yes", "on"),
 }

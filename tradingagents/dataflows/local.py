@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 import pandas as pd
 import os
@@ -8,17 +9,17 @@ import json
 from .reddit_utils import fetch_top_from_category
 from tqdm import tqdm
 
+logger = logging.getLogger(__name__)
+
 def get_YFin_data_window(
     symbol: Annotated[str, "ticker symbol of the company"],
     curr_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
-    # calculate past days
     date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
     before = date_obj - relativedelta(days=look_back_days)
     start_date = before.strftime("%Y-%m-%d")
 
-    # read in data
     data = pd.read_csv(
         os.path.join(
             DATA_DIR,
@@ -26,18 +27,14 @@ def get_YFin_data_window(
         )
     )
 
-    # Extract just the date part for comparison
     data["DateOnly"] = data["Date"].str[:10]
 
-    # Filter data between the start and end dates (inclusive)
     filtered_data = data[
         (data["DateOnly"] >= start_date) & (data["DateOnly"] <= curr_date)
     ]
 
-    # Drop the temporary column we created
     filtered_data = filtered_data.drop("DateOnly", axis=1)
 
-    # Set pandas display options to show the full DataFrame
     with pd.option_context(
         "display.max_rows", None, "display.max_columns", None, "display.width", None
     ):
@@ -53,7 +50,6 @@ def get_YFin_data(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
-    # read in data
     data = pd.read_csv(
         os.path.join(
             DATA_DIR,
@@ -66,18 +62,14 @@ def get_YFin_data(
             f"Get_YFin_Data: {end_date} is outside of the data range of 2015-01-01 to 2025-03-25"
         )
 
-    # Extract just the date part for comparison
     data["DateOnly"] = data["Date"].str[:10]
 
-    # Filter data between the start and end dates (inclusive)
     filtered_data = data[
         (data["DateOnly"] >= start_date) & (data["DateOnly"] <= end_date)
     ]
 
-    # Drop the temporary column we created
     filtered_data = filtered_data.drop("DateOnly", axis=1)
 
-    # remove the index from the dataframe
     filtered_data = filtered_data.reset_index(drop=True)
 
     return filtered_data
@@ -87,17 +79,6 @@ def get_finnhub_news(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ):
-    """
-    Retrieve news about a company within a time frame
-
-    Args
-        query (str): Search query or ticker symbol
-        start_date (str): Start date in yyyy-mm-dd format
-        end_date (str): End date in yyyy-mm-dd format
-    Returns
-        str: dataframe containing the news of the company in the time frame
-
-    """
 
     result = get_data_in_range(query, start_date, end_date, "news_data", DATA_DIR)
 
@@ -121,17 +102,9 @@ def get_finnhub_company_insider_sentiment(
     ticker: Annotated[str, "ticker symbol for the company"],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
 ):
-    """
-    Retrieve insider sentiment about a company (retrieved from public SEC information) for the past 15 days
-    Args:
-        ticker (str): ticker symbol of the company
-        curr_date (str): current date you are trading on, yyyy-mm-dd
-    Returns:
-        str: a report of the sentiment in the past 15 days starting at curr_date
-    """
 
     date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = date_obj - relativedelta(days=15)  # Default 15 days lookback
+    before = date_obj - relativedelta(days=15)
     before = before.strftime("%Y-%m-%d")
 
     data = get_data_in_range(ticker, before, curr_date, "insider_senti", DATA_DIR)
@@ -158,17 +131,9 @@ def get_finnhub_company_insider_transactions(
     ticker: Annotated[str, "ticker symbol"],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
 ):
-    """
-    Retrieve insider transcaction information about a company (retrieved from public SEC information) for the past 15 days
-    Args:
-        ticker (str): ticker symbol of the company
-        curr_date (str): current date you are trading at, yyyy-mm-dd
-    Returns:
-        str: a report of the company's insider transaction/trading informtaion in the past 15 days
-    """
 
     date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
-    before = date_obj - relativedelta(days=15)  # Default 15 days lookback
+    before = date_obj - relativedelta(days=15)
     before = before.strftime("%Y-%m-%d")
 
     data = get_data_in_range(ticker, before, curr_date, "insider_trans", DATA_DIR)
@@ -192,15 +157,6 @@ def get_finnhub_company_insider_transactions(
     )
 
 def get_data_in_range(ticker, start_date, end_date, data_type, data_dir, period=None):
-    """
-    Gets finnhub data saved and processed on disk.
-    Args:
-        start_date (str): Start date in YYYY-MM-DD format.
-        end_date (str): End date in YYYY-MM-DD format.
-        data_type (str): Type of data from finnhub to fetch. Can be insider_trans, SEC_filings, news_data, insider_senti, or fin_as_reported.
-        data_dir (str): Directory where the data is saved.
-        period (str): Default to none, if there is a period specified, should be annual or quarterly.
-    """
 
     if period:
         data_path = os.path.join(
@@ -217,7 +173,6 @@ def get_data_in_range(ticker, start_date, end_date, data_type, data_dir, period=
     data = open(data_path, "r")
     data = json.load(data)
 
-    # filter keys (date, str in format YYYY-MM-DD) by the date range (str, str in format YYYY-MM-DD)
     filtered_data = {}
     for key, value in data.items():
         if start_date <= key <= end_date and len(value) > 0:
@@ -243,25 +198,19 @@ def get_simfin_balance_sheet(
     )
     df = pd.read_csv(data_path, sep=";")
 
-    # Convert date strings to datetime objects and remove any time components
     df["Report Date"] = pd.to_datetime(df["Report Date"], utc=True).dt.normalize()
     df["Publish Date"] = pd.to_datetime(df["Publish Date"], utc=True).dt.normalize()
 
-    # Convert the current date to datetime and normalize
     curr_date_dt = pd.to_datetime(curr_date, utc=True).normalize()
 
-    # Filter the DataFrame for the given ticker and for reports that were published on or before the current date
     filtered_df = df[(df["Ticker"] == ticker) & (df["Publish Date"] <= curr_date_dt)]
 
-    # Check if there are any available reports; if not, return a notification
     if filtered_df.empty:
-        print("No balance sheet available before the given current date.")
+        logger.info("No balance sheet available before the given current date.")
         return ""
 
-    # Get the most recent balance sheet by selecting the row with the latest Publish Date
     latest_balance_sheet = filtered_df.loc[filtered_df["Publish Date"].idxmax()]
 
-    # drop the SimFinID column
     latest_balance_sheet = latest_balance_sheet.drop("SimFinId")
 
     return (
@@ -290,25 +239,19 @@ def get_simfin_cashflow(
     )
     df = pd.read_csv(data_path, sep=";")
 
-    # Convert date strings to datetime objects and remove any time components
     df["Report Date"] = pd.to_datetime(df["Report Date"], utc=True).dt.normalize()
     df["Publish Date"] = pd.to_datetime(df["Publish Date"], utc=True).dt.normalize()
 
-    # Convert the current date to datetime and normalize
     curr_date_dt = pd.to_datetime(curr_date, utc=True).normalize()
 
-    # Filter the DataFrame for the given ticker and for reports that were published on or before the current date
     filtered_df = df[(df["Ticker"] == ticker) & (df["Publish Date"] <= curr_date_dt)]
 
-    # Check if there are any available reports; if not, return a notification
     if filtered_df.empty:
-        print("No cash flow statement available before the given current date.")
+        logger.info("No cash flow statement available before the given current date.")
         return ""
 
-    # Get the most recent cash flow statement by selecting the row with the latest Publish Date
     latest_cash_flow = filtered_df.loc[filtered_df["Publish Date"].idxmax()]
 
-    # drop the SimFinID column
     latest_cash_flow = latest_cash_flow.drop("SimFinId")
 
     return (
@@ -337,25 +280,19 @@ def get_simfin_income_statements(
     )
     df = pd.read_csv(data_path, sep=";")
 
-    # Convert date strings to datetime objects and remove any time components
     df["Report Date"] = pd.to_datetime(df["Report Date"], utc=True).dt.normalize()
     df["Publish Date"] = pd.to_datetime(df["Publish Date"], utc=True).dt.normalize()
 
-    # Convert the current date to datetime and normalize
     curr_date_dt = pd.to_datetime(curr_date, utc=True).normalize()
 
-    # Filter the DataFrame for the given ticker and for reports that were published on or before the current date
     filtered_df = df[(df["Ticker"] == ticker) & (df["Publish Date"] <= curr_date_dt)]
 
-    # Check if there are any available reports; if not, return a notification
     if filtered_df.empty:
-        print("No income statement available before the given current date.")
+        logger.info("No income statement available before the given current date.")
         return ""
 
-    # Get the most recent income statement by selecting the row with the latest Publish Date
     latest_income = filtered_df.loc[filtered_df["Publish Date"].idxmax()]
 
-    # drop the SimFinID column
     latest_income = latest_income.drop("SimFinId")
 
     return (
@@ -370,22 +307,12 @@ def get_reddit_global_news(
     look_back_days: Annotated[int, "Number of days to look back"] = 7,
     limit: Annotated[int, "Maximum number of articles to return"] = 5,
 ) -> str:
-    """
-    Retrieve the latest top reddit news
-    Args:
-        curr_date: Current date in yyyy-mm-dd format
-        look_back_days: Number of days to look back (default 7)
-        limit: Maximum number of articles to return (default 5)
-    Returns:
-        str: A formatted string containing the latest news articles posts on reddit
-    """
 
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     before = curr_date_dt - relativedelta(days=look_back_days)
     before = before.strftime("%Y-%m-%d")
 
     posts = []
-    # iterate from before to curr_date
     curr_iter_date = datetime.strptime(before, "%Y-%m-%d")
 
     total_iterations = (curr_date_dt - curr_iter_date).days + 1
@@ -423,21 +350,11 @@ def get_reddit_company_news(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
-    """
-    Retrieve the latest top reddit news
-    Args:
-        query: Search query or ticker symbol
-        start_date: Start date in yyyy-mm-dd format
-        end_date: End date in yyyy-mm-dd format
-    Returns:
-        str: A formatted string containing news articles posts on reddit
-    """
 
     start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
     posts = []
-    # iterate from start_date to end_date
     curr_date = start_date_dt
 
     total_iterations = (end_date_dt - curr_date).days + 1
@@ -451,7 +368,7 @@ def get_reddit_company_news(
         fetch_result = fetch_top_from_category(
             "company_news",
             curr_date_str,
-            10,  # max limit per day
+            10,
             query,
             data_path=os.path.join(DATA_DIR, "reddit_data"),
         )

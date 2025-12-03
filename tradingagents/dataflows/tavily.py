@@ -1,7 +1,10 @@
+import logging
 import os
 import time
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
+
+logger = logging.getLogger(__name__)
 
 try:
     from tavily import TavilyClient
@@ -37,17 +40,17 @@ def _search_with_retry(client, query: str, search_depth: str, topic: str, time_r
             error_str = str(e).lower()
             if "rate" in error_str or "limit" in error_str or "429" in error_str:
                 wait_time = RETRY_BACKOFF * (attempt + 1) * 2
-                print(f"DEBUG: Tavily rate limited, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                logger.debug("Tavily rate limited, waiting %ds before retry %d/%d", wait_time, attempt + 1, max_retries)
                 time.sleep(wait_time)
                 last_exception = e
             elif "timeout" in error_str or "timed out" in error_str:
                 wait_time = RETRY_BACKOFF * (attempt + 1)
-                print(f"DEBUG: Tavily timeout, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                logger.debug("Tavily timeout, waiting %ds before retry %d/%d", wait_time, attempt + 1, max_retries)
                 time.sleep(wait_time)
                 last_exception = e
             elif "connection" in error_str or "network" in error_str:
                 wait_time = RETRY_BACKOFF * (attempt + 1)
-                print(f"DEBUG: Tavily connection error, waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                logger.debug("Tavily connection error, waiting %ds before retry %d/%d", wait_time, attempt + 1, max_retries)
                 time.sleep(wait_time)
                 last_exception = e
             else:
@@ -57,13 +60,13 @@ def _search_with_retry(client, query: str, search_depth: str, topic: str, time_r
 
 def get_bulk_news_tavily(lookback_hours: int) -> List[Dict[str, Any]]:
     if not TAVILY_AVAILABLE:
-        print("DEBUG: Tavily library not installed")
+        logger.debug("Tavily library not installed")
         return []
 
     try:
         client = TavilyClient(api_key=get_api_key())
     except ValueError as e:
-        print(f"DEBUG: Tavily API key not configured: {e}")
+        logger.debug("Tavily API key not configured: %s", e)
         return []
 
     queries = [
@@ -121,8 +124,8 @@ def get_bulk_news_tavily(lookback_hours: int) -> List[Dict[str, Any]]:
                     all_articles.append(article)
 
         except Exception as e:
-            print(f"DEBUG: Tavily search failed for query '{query}': {e}")
+            logger.debug("Tavily search failed for query '%s': %s", query, e)
             continue
 
-    print(f"DEBUG: Tavily returned {len(all_articles)} articles")
+    logger.debug("Tavily returned %d articles", len(all_articles))
     return all_articles

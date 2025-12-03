@@ -1,7 +1,10 @@
 import json
+import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
+
+logger = logging.getLogger(__name__)
 
 def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
     params = {
@@ -40,19 +43,19 @@ def get_bulk_news_alpha_vantage(lookback_hours: int) -> List[Dict[str, Any]]:
         try:
             response = json.loads(response)
         except json.JSONDecodeError:
-            print(f"DEBUG: Alpha Vantage JSON decode failed")
+            logger.debug("Alpha Vantage JSON decode failed")
             return []
 
     if not isinstance(response, dict):
-        print(f"DEBUG: Alpha Vantage response not a dict: {type(response)}")
+        logger.debug("Alpha Vantage response not a dict: %s", type(response))
         return []
 
     if "Information" in response:
-        print(f"DEBUG: Alpha Vantage info message: {response.get('Information')}")
+        logger.debug("Alpha Vantage info message: %s", response.get("Information"))
 
     feed = response.get("feed", [])
     if not feed:
-        print(f"DEBUG: Alpha Vantage feed empty. Keys in response: {list(response.keys())}")
+        logger.debug("Alpha Vantage feed empty. Keys in response: %s", list(response.keys()))
 
     articles = []
     for item in feed:

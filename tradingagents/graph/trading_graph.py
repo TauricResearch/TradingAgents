@@ -1,3 +1,4 @@
+import logging
 import os
 import signal
 import threading
@@ -53,6 +54,8 @@ from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class DiscoveryTimeoutException(Exception):
@@ -164,7 +167,7 @@ class TradingAgentsGraph:
                 if len(chunk["messages"]) == 0:
                     pass
                 else:
-                    chunk["messages"][-1].pretty_print()
+                    logger.debug("Agent message: %s", chunk["messages"][-1])
                     trace.append(chunk)
 
             final_state = trace[-1]

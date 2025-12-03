@@ -1,3 +1,4 @@
+import logging
 import json
 import requests
 from bs4 import BeautifulSoup
@@ -12,9 +13,10 @@ from tenacity import (
     retry_if_result,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def is_rate_limited(response):
-    """Check if the response indicates rate limiting (status code 429)"""
     return response.status_code == 429
 
 
@@ -24,20 +26,12 @@ def is_rate_limited(response):
     stop=stop_after_attempt(5),
 )
 def make_request(url, headers):
-    """Make a request with retry logic for rate limiting"""
-    # Random delay before each request to avoid detection
     time.sleep(random.uniform(2, 6))
     response = requests.get(url, headers=headers)
     return response
 
 
 def getNewsData(query, start_date, end_date):
-    """
-    Scrape Google News search results for a given query and date range.
-    query: str - search query
-    start_date: str - start date in the format yyyy-mm-dd or mm/dd/yyyy
-    end_date: str - end date in the format yyyy-mm-dd or mm/dd/yyyy
-    """
     if "-" in start_date:
         start_date = datetime.strptime(start_date, "%Y-%m-%d")
         start_date = start_date.strftime("%m/%d/%Y")
@@ -69,7 +63,7 @@ def getNewsData(query, start_date, end_date):
             results_on_page = soup.select("div.SoaBEf")
 
             if not results_on_page:
-                break  # No more results found
+                break
 
             for el in results_on_page:
                 try:
@@ -88,13 +82,9 @@ def getNewsData(query, start_date, end_date):
                         }
                     )
                 except Exception as e:
-                    print(f"Error processing result: {e}")
-                    # If one of the fields is not found, skip this result
+                    logger.debug("Error processing result: %s", e)
                     continue
 
-            # Update the progress bar with the current count of results scraped
-
-            # Check for the "Next" link (pagination)
             next_link = soup.find("a", id="pnnext")
             if not next_link:
                 break
@@ -102,7 +92,7 @@ def getNewsData(query, start_date, end_date):
             page += 1
 
         except Exception as e:
-            print(f"Failed after multiple retries: {e}")
+            logger.debug("Failed after multiple retries: %s", e)
             break
 
     return news_results
