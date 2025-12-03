@@ -1,7 +1,7 @@
 import logging
 import threading
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from tradingagents.agents.discovery import NewsArticle
 
@@ -137,6 +137,52 @@ CACHE_TTL_SECONDS = 300
 
 _bulk_news_cache: dict[str, dict[str, Any]] = {}
 _bulk_news_cache_lock = threading.Lock()
+
+
+def _is_db_cache_enabled() -> bool:
+    config = get_config()
+    return config.get("database_enabled", False) and config.get(
+        "db_cache_enabled", True
+    )
+
+
+def _get_db_cached_data(method: str, ticker: str | None = None, **kwargs: Any) -> Any:
+    if not _is_db_cache_enabled():
+        return None
+
+    try:
+        from tradingagents.database import MarketDataService, get_db_session
+
+        with get_db_session() as session:
+            service = MarketDataService(session)
+            return service.get_cached_data(method, ticker, **kwargs)
+    except (ImportError, RuntimeError, ConnectionError) as e:
+        logger.debug("DB cache lookup failed: %s", e)
+        return None
+
+
+def _set_db_cached_data(
+    method: str,
+    data: Any,
+    ticker: str | None = None,
+    **kwargs: Any,
+) -> None:
+    if not _is_db_cache_enabled():
+        return
+
+    try:
+        from tradingagents.database import (
+            MarketDataService,
+            get_db_session,
+            get_default_ttl,
+        )
+
+        ttl_hours = get_default_ttl(method)
+        with get_db_session() as session:
+            service = MarketDataService(session)
+            service.set_cached_data(method, data, ticker, ttl_hours=ttl_hours, **kwargs)
+    except (ImportError, RuntimeError, ConnectionError) as e:
+        logger.debug("DB cache write failed: %s", e)
 
 
 def parse_lookback_period(lookback: str) -> int:
@@ -277,6 +323,14 @@ def get_vendor(category: str, method: str = None) -> str:
 
 
 def route_to_vendor(method: str, *args, **kwargs):
+    ticker = kwargs.get("ticker") or (args[0] if args else None)
+    date = kwargs.get("date") or (args[1] if len(args) > 1 else None)
+
+    cached_result = _get_db_cached_data(method, ticker, date=date)
+    if cached_result is not None:
+        logger.info("DB cache hit for %s (ticker=%s)", method, ticker)
+        return cached_result
+
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
 
@@ -407,6 +461,10 @@ def route_to_vendor(method: str, *args, **kwargs):
         )
 
     if len(results) == 1:
-        return results[0]
+        final_result = results[0]
     else:
-        return "\n".join(str(result) for result in results)
+        final_result = "\n".join(str(result) for result in results)
+
+    _set_db_cached_data(method, final_result, ticker, date=date)
+
+    return final_result
