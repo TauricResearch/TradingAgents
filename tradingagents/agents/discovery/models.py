@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from tradingagents.agents.discovery.quantitative_models import QuantitativeMetrics
 
 
 class DiscoveryStatus(Enum):
@@ -50,7 +55,7 @@ class NewsArticle:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "NewsArticle":
+    def from_dict(cls, data: dict[str, Any]) -> NewsArticle:
         return cls(
             title=data["title"],
             source=data["source"],
@@ -72,9 +77,11 @@ class TrendingStock:
     event_type: EventCategory
     news_summary: str
     source_articles: list[NewsArticle]
+    quantitative_metrics: QuantitativeMetrics | None = None
+    conviction_score: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "ticker": self.ticker,
             "company_name": self.company_name,
             "score": self.score,
@@ -85,9 +92,24 @@ class TrendingStock:
             "news_summary": self.news_summary,
             "source_articles": [article.to_dict() for article in self.source_articles],
         }
+        if self.quantitative_metrics is not None:
+            result["quantitative_metrics"] = self.quantitative_metrics.to_dict()
+        if self.conviction_score is not None:
+            result["conviction_score"] = self.conviction_score
+        return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TrendingStock":
+    def from_dict(cls, data: dict[str, Any]) -> TrendingStock:
+        from tradingagents.agents.discovery.quantitative_models import (
+            QuantitativeMetrics,
+        )
+
+        quantitative_metrics = None
+        if data.get("quantitative_metrics"):
+            quantitative_metrics = QuantitativeMetrics.from_dict(
+                data["quantitative_metrics"]
+            )
+
         return cls(
             ticker=data["ticker"],
             company_name=data["company_name"],
@@ -100,6 +122,8 @@ class TrendingStock:
             source_articles=[
                 NewsArticle.from_dict(article) for article in data["source_articles"]
             ],
+            quantitative_metrics=quantitative_metrics,
+            conviction_score=data.get("conviction_score"),
         )
 
 
@@ -125,7 +149,7 @@ class DiscoveryRequest:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DiscoveryRequest":
+    def from_dict(cls, data: dict[str, Any]) -> DiscoveryRequest:
         return cls(
             lookback_period=data["lookback_period"],
             sector_filter=(
@@ -165,7 +189,7 @@ class DiscoveryResult:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DiscoveryResult":
+    def from_dict(cls, data: dict[str, Any]) -> DiscoveryResult:
         return cls(
             request=DiscoveryRequest.from_dict(data["request"]),
             trending_stocks=[

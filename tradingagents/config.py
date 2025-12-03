@@ -1,7 +1,7 @@
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -10,6 +10,39 @@ class DataVendorsConfig(BaseModel):
     technical_indicators: str = "yfinance"
     fundamental_data: str = "alpha_vantage"
     news_data: str = "alpha_vantage"
+
+
+class QuantitativeWeightsConfig(BaseModel):
+    news_sentiment_weight: float = Field(default=0.50, ge=0.0, le=1.0)
+    quantitative_weight: float = Field(default=0.50, ge=0.0, le=1.0)
+
+    momentum_weight: float = Field(default=0.30, ge=0.0, le=1.0)
+    volume_weight: float = Field(default=0.25, ge=0.0, le=1.0)
+    relative_strength_weight: float = Field(default=0.25, ge=0.0, le=1.0)
+    risk_reward_weight: float = Field(default=0.20, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_weights_sum(self) -> "QuantitativeWeightsConfig":
+        top_level_sum = self.news_sentiment_weight + self.quantitative_weight
+        if abs(top_level_sum - 1.0) > 0.01:
+            raise ValueError(
+                f"Top-level weights (news_sentiment_weight + quantitative_weight) "
+                f"must sum to 1.0, got {top_level_sum}"
+            )
+
+        sub_weights_sum = (
+            self.momentum_weight
+            + self.volume_weight
+            + self.relative_strength_weight
+            + self.risk_reward_weight
+        )
+        if abs(sub_weights_sum - 1.0) > 0.01:
+            raise ValueError(
+                f"Sub-weights (momentum + volume + relative_strength + risk_reward) "
+                f"must sum to 1.0, got {sub_weights_sum}"
+            )
+
+        return self
 
 
 class TradingAgentsSettings(BaseSettings):
@@ -58,6 +91,14 @@ class TradingAgentsSettings(BaseSettings):
     data_vendors: DataVendorsConfig = Field(default_factory=DataVendorsConfig)
     tool_vendors: dict[str, Any] = Field(default_factory=dict)
 
+    quantitative_weights: QuantitativeWeightsConfig = Field(
+        default_factory=QuantitativeWeightsConfig
+    )
+    quantitative_max_stocks: int = Field(default=50, ge=10, le=100)
+    quantitative_cache_ttl_intraday: int = Field(default=1, ge=1)
+    quantitative_cache_ttl_relative_strength: int = Field(default=4, ge=1)
+    min_dollar_volume: float = Field(default=1_000_000.0, ge=0.0)
+
     model_config = {
         "env_prefix": "TRADINGAGENTS_",
         "env_nested_delimiter": "__",
@@ -104,6 +145,7 @@ class TradingAgentsSettings(BaseSettings):
     def to_dict(self) -> dict[str, Any]:
         result = self.model_dump()
         result["data_vendors"] = self.data_vendors.model_dump()
+        result["quantitative_weights"] = self.quantitative_weights.model_dump()
         return result
 
     def get_api_key(self, vendor: str) -> str | None:

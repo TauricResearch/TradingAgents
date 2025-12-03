@@ -22,6 +22,9 @@ from tradingagents.agents.discovery import (
     calculate_trending_scores,
     extract_entities,
 )
+from tradingagents.agents.discovery.quantitative_scorer import (
+    enhance_with_quantitative_scores,
+)
 from tradingagents.agents.utils.agent_utils import (
     get_balance_sheet,
     get_cashflow,
@@ -303,12 +306,17 @@ class TradingAgentsGraph:
         )
 
         hard_timeout = self.config.get("discovery_hard_timeout", 120)
+        enable_quantitative = self.config.get("enable_quantitative_filtering", True)
+        quantitative_max_stocks = self.config.get("quantitative_max_stocks", 50)
 
         discovery_result = {"stocks": [], "error": None}
 
         def run_discovery():
             try:
                 articles = get_bulk_news(request.lookback_period)
+                if not articles:
+                    discovery_result["error"] = "No articles returned from news sources"
+                    return
 
                 mentions = extract_entities(articles, self.config)
 
@@ -325,6 +333,19 @@ class TradingAgentsGraph:
                     max_results=max_results,
                     min_mentions=min_mentions,
                 )
+
+                if enable_quantitative and trending_stocks:
+                    curr_date = date.today().strftime("%Y-%m-%d")
+                    logger.info(
+                        "Enhancing %d stocks with quantitative scores (max: %d)",
+                        len(trending_stocks),
+                        quantitative_max_stocks,
+                    )
+                    trending_stocks = enhance_with_quantitative_scores(
+                        trending_stocks,
+                        curr_date,
+                        max_stocks=quantitative_max_stocks,
+                    )
 
                 discovery_result["stocks"] = trending_stocks
             except (

@@ -132,6 +132,11 @@ DEFAULT_TTL_HOURS = {
     "get_insider_sentiment": 24,
     "get_insider_transactions": 24,
     "get_bulk_news": 1,
+    "quant_indicators": 1,
+    "volume_analysis": 1,
+    "relative_strength": 4,
+    "support_resistance": 1,
+    "risk_reward": 1,
 }
 
 

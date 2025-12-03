@@ -124,8 +124,9 @@ class TestResultsTableDisplay:
             "Rank",
             "Ticker",
             "Company",
-            "Score",
-            "Mentions",
+            "Conv.",
+            "Signal",
+            "News",
             "Event Type",
         ]
         for expected in expected_columns:

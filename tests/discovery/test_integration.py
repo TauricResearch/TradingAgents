@@ -89,7 +89,9 @@ class TestEndToEndDiscoveryFlow:
                 "discovery_cache_ttl": 300,
                 "discovery_max_results": 20,
                 "discovery_min_mentions": 2,
+                "enable_quantitative_filtering": False,
             }
+            graph.db_enabled = False
 
             request = DiscoveryRequest(lookback_period="24h")
             result = graph.discover_trending(request)
@@ -259,7 +261,9 @@ class TestNoTrendingStocksFound:
                 "discovery_cache_ttl": 300,
                 "discovery_max_results": 20,
                 "discovery_min_mentions": 2,
+                "enable_quantitative_filtering": False,
             }
+            graph.db_enabled = False
 
             result = graph.discover_trending()
 
@@ -274,7 +278,16 @@ class TestAllStocksFilteredOutBySectorFilter:
     def test_all_stocks_filtered_out_by_sector_filter(
         self, mock_scores, mock_extract, mock_bulk_news
     ):
-        mock_bulk_news.return_value = []
+        mock_bulk_news.return_value = [
+            NewsArticle(
+                title="Test article",
+                source="Test",
+                url="https://test.com",
+                published_at=datetime.now(),
+                content_snippet="Test content",
+                ticker_mentions=["AAPL"],
+            )
+        ]
         mock_extract.return_value = []
         mock_scores.return_value = [
             TrendingStock(
@@ -311,7 +324,9 @@ class TestAllStocksFilteredOutBySectorFilter:
                 "discovery_cache_ttl": 300,
                 "discovery_max_results": 20,
                 "discovery_min_mentions": 2,
+                "enable_quantitative_filtering": False,
             }
+            graph.db_enabled = False
 
             request = DiscoveryRequest(
                 lookback_period="24h",
@@ -330,7 +345,16 @@ class TestAllStocksFilteredOutByEventFilter:
     def test_all_stocks_filtered_out_by_event_filter(
         self, mock_scores, mock_extract, mock_bulk_news
     ):
-        mock_bulk_news.return_value = []
+        mock_bulk_news.return_value = [
+            NewsArticle(
+                title="Test article",
+                source="Test",
+                url="https://test.com",
+                published_at=datetime.now(),
+                content_snippet="Test content",
+                ticker_mentions=["AAPL"],
+            )
+        ]
         mock_extract.return_value = []
         mock_scores.return_value = [
             TrendingStock(
@@ -356,7 +380,9 @@ class TestAllStocksFilteredOutByEventFilter:
                 "discovery_cache_ttl": 300,
                 "discovery_max_results": 20,
                 "discovery_min_mentions": 2,
+                "enable_quantitative_filtering": False,
             }
+            graph.db_enabled = False
 
             request = DiscoveryRequest(
                 lookback_period="24h",
@@ -375,7 +401,16 @@ class TestMultipleSectorsAndEventsFiltering:
     def test_combined_sector_and_event_filtering(
         self, mock_scores, mock_extract, mock_bulk_news
     ):
-        mock_bulk_news.return_value = []
+        mock_bulk_news.return_value = [
+            NewsArticle(
+                title="Test article",
+                source="Test",
+                url="https://test.com",
+                published_at=datetime.now(),
+                content_snippet="Test content",
+                ticker_mentions=["AAPL"],
+            )
+        ]
         mock_extract.return_value = []
         mock_scores.return_value = [
             TrendingStock(
@@ -423,7 +458,9 @@ class TestMultipleSectorsAndEventsFiltering:
                 "discovery_cache_ttl": 300,
                 "discovery_max_results": 20,
                 "discovery_min_mentions": 2,
+                "enable_quantitative_filtering": False,
             }
+            graph.db_enabled = False
 
             request = DiscoveryRequest(
                 lookback_period="24h",

@@ -22,6 +22,7 @@ from .persistence import (
     generate_markdown_summary,
     save_discovery_result,
 )
+from .quantitative_models import QuantitativeMetrics
 from .scorer import (
     DEFAULT_DECAY_RATE,
     DEFAULT_MAX_RESULTS,
@@ -50,4 +51,5 @@ __all__ = [
     "DEFAULT_MIN_MENTIONS",
     "save_discovery_result",
     "generate_markdown_summary",
+    "QuantitativeMetrics",
 ]

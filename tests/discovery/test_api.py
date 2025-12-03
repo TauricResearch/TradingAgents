@@ -67,7 +67,9 @@ class TestDiscoverTrendingReturnsDiscoveryResult:
                 "discovery_cache_ttl": 300,
                 "discovery_max_results": 20,
                 "discovery_min_mentions": 2,
+                "enable_quantitative_filtering": False,
             }
+            graph.db_enabled = False
 
             result = graph.discover_trending()
 
@@ -118,7 +120,9 @@ class TestSectorFilterParameter:
                 "discovery_cache_ttl": 300,
                 "discovery_max_results": 20,
                 "discovery_min_mentions": 2,
+                "enable_quantitative_filtering": False,
             }
+            graph.db_enabled = False
 
             request = DiscoveryRequest(
                 lookback_period="24h",
@@ -162,7 +166,9 @@ class TestEventFilterParameter:
                 "discovery_cache_ttl": 300,
                 "discovery_max_results": 20,
                 "discovery_min_mentions": 2,
+                "enable_quantitative_filtering": False,
             }
+            graph.db_enabled = False
 
             request = DiscoveryRequest(
                 lookback_period="24h",

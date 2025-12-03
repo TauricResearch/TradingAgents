@@ -153,6 +153,35 @@ def select_event_filter() -> list[EventCategory] | None:
     return choices
 
 
+def _get_conviction_display(stock: TrendingStock) -> tuple[str, str]:
+    if stock.conviction_score is None:
+        return "-", "dim"
+    score = stock.conviction_score
+    if score >= 0.7:
+        return f"{score:.2f}", "bold green"
+    elif score >= 0.5:
+        return f"{score:.2f}", "yellow"
+    else:
+        return f"{score:.2f}", "red"
+
+
+def _get_signal_display(stock: TrendingStock) -> str:
+    if stock.quantitative_metrics is None:
+        return "-"
+    alignment = stock.quantitative_metrics.timeframe_alignment
+    if alignment == "aligned_bullish":
+        return "[bold green]+++[/bold green]"
+    elif alignment == "aligned_bearish":
+        return "[bold red]---[/bold red]"
+    elif alignment == "mixed":
+        strength = stock.quantitative_metrics.signal_strength or 0.5
+        if strength > 0.5:
+            return "[yellow]++[/yellow]"
+        else:
+            return "[yellow]--[/yellow]"
+    return "[dim]~[/dim]"
+
+
 def create_discovery_results_table(trending_stocks: list[TrendingStock]) -> Table:
     table = Table(
         show_header=True,
@@ -164,11 +193,12 @@ def create_discovery_results_table(trending_stocks: list[TrendingStock]) -> Tabl
     )
 
     table.add_column("Rank", style="cyan", justify="center", width=6)
-    table.add_column("Ticker", style="bold yellow", justify="center", width=10)
-    table.add_column("Company", style="white", justify="left", width=25)
-    table.add_column("Score", style="green", justify="right", width=10)
-    table.add_column("Mentions", style="blue", justify="center", width=10)
-    table.add_column("Event Type", style="magenta", justify="center", width=18)
+    table.add_column("Ticker", style="bold yellow", justify="center", width=8)
+    table.add_column("Company", style="white", justify="left", width=20)
+    table.add_column("Conv.", justify="right", width=6)
+    table.add_column("Signal", justify="center", width=7)
+    table.add_column("News", style="blue", justify="right", width=6)
+    table.add_column("Event Type", style="magenta", justify="center", width=15)
 
     for rank, stock in enumerate(trending_stocks, 1):
         if rank <= 3:
@@ -178,18 +208,52 @@ def create_discovery_results_table(trending_stocks: list[TrendingStock]) -> Tabl
             rank_display = str(rank)
             ticker_display = stock.ticker
 
+        conviction_text, conviction_style = _get_conviction_display(stock)
+        signal_display = _get_signal_display(stock)
+
         table.add_row(
             rank_display,
             ticker_display,
-            stock.company_name[:25]
-            if len(stock.company_name) > 25
+            stock.company_name[:20]
+            if len(stock.company_name) > 20
             else stock.company_name,
-            f"{stock.score:.2f}",
-            str(stock.mention_count),
-            stock.event_type.value.replace("_", " ").title(),
+            f"[{conviction_style}]{conviction_text}[/{conviction_style}]",
+            signal_display,
+            f"{stock.score:.1f}",
+            stock.event_type.value.replace("_", " ").title()[:15],
         )
 
     return table
+
+
+def _format_timeframe_signals(stock: TrendingStock) -> str:
+    if stock.quantitative_metrics is None:
+        return "[dim]No quantitative data available[/dim]"
+
+    qm = stock.quantitative_metrics
+    short_color = (
+        "green"
+        if qm.short_term_signal == "bullish"
+        else "red"
+        if qm.short_term_signal == "bearish"
+        else "yellow"
+    )
+    med_color = (
+        "green"
+        if qm.medium_term_signal == "bullish"
+        else "red"
+        if qm.medium_term_signal == "bearish"
+        else "yellow"
+    )
+    long_color = (
+        "green"
+        if qm.long_term_signal == "bullish"
+        else "red"
+        if qm.long_term_signal == "bearish"
+        else "yellow"
+    )
+
+    return f"[{short_color}]Short: {(qm.short_term_signal or 'N/A').upper()}[/{short_color}] | [{med_color}]Med: {(qm.medium_term_signal or 'N/A').upper()}[/{med_color}] | [{long_color}]Long: {(qm.long_term_signal or 'N/A').upper()}[/{long_color}]"
 
 
 def create_stock_detail_panel(stock: TrendingStock, rank: int) -> Panel:
@@ -208,13 +272,63 @@ def create_stock_detail_panel(stock: TrendingStock, rank: int) -> Panel:
         else "yellow"
     )
 
+    conviction_text = (
+        f"{stock.conviction_score:.2f}" if stock.conviction_score is not None else "N/A"
+    )
+    conviction_color = (
+        "green"
+        if stock.conviction_score and stock.conviction_score >= 0.7
+        else "yellow"
+        if stock.conviction_score and stock.conviction_score >= 0.5
+        else "red"
+    )
+
     content = f"""[bold]Rank #{rank}: {stock.ticker} - {stock.company_name}[/bold]
 
-[cyan]Score:[/cyan] {stock.score:.2f}
+[cyan]Conviction Score:[/cyan] [{conviction_color}]{conviction_text}[/{conviction_color}]
+[cyan]News Score:[/cyan] {stock.score:.2f}
 [cyan]Sentiment:[/cyan] [{sentiment_color}]{stock.sentiment:.2f} ({sentiment_label})[/{sentiment_color}]
 [cyan]Sector:[/cyan] {stock.sector.value.replace("_", " ").title()}
 [cyan]Event Type:[/cyan] {stock.event_type.value.replace("_", " ").title()}
 [cyan]Mentions:[/cyan] {stock.mention_count}
+
+[bold]Timeframe Signals:[/bold]
+{_format_timeframe_signals(stock)}"""
+
+    if stock.quantitative_metrics is not None:
+        qm = stock.quantitative_metrics
+        alignment_color = (
+            "green"
+            if qm.timeframe_alignment == "aligned_bullish"
+            else "red"
+            if qm.timeframe_alignment == "aligned_bearish"
+            else "yellow"
+        )
+        content += f"""
+
+[bold]Quantitative Metrics:[/bold]
+[cyan]Timeframe Alignment:[/cyan] [{alignment_color}]{(qm.timeframe_alignment or 'N/A').replace('_', ' ').upper()}[/{alignment_color}]
+[cyan]Momentum Score:[/cyan] {qm.momentum_score:.2f}  [cyan]Volume Score:[/cyan] {qm.volume_score:.2f}
+[cyan]Relative Strength:[/cyan] {qm.relative_strength_score:.2f}  [cyan]Risk/Reward:[/cyan] {qm.risk_reward_score:.2f}"""
+
+        if qm.rsi is not None:
+            rsi_color = "green" if qm.rsi < 35 else "red" if qm.rsi > 65 else "yellow"
+            content += f"\n[cyan]RSI:[/cyan] [{rsi_color}]{qm.rsi:.1f}[/{rsi_color}]"
+
+        if qm.support_level is not None and qm.resistance_level is not None:
+            content += f"  [cyan]Support:[/cyan] ${qm.support_level:.2f}  [cyan]Resistance:[/cyan] ${qm.resistance_level:.2f}"
+
+        if qm.risk_reward_ratio is not None:
+            rr_color = (
+                "green"
+                if qm.risk_reward_ratio >= 2.0
+                else "yellow"
+                if qm.risk_reward_ratio >= 1.0
+                else "red"
+            )
+            content += f"\n[cyan]Risk/Reward Ratio:[/cyan] [{rr_color}]{qm.risk_reward_ratio:.2f}:1[/{rr_color}]"
+
+    content += f"""
 
 [bold]News Summary:[/bold]
 {stock.news_summary}
