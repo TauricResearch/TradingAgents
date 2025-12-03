@@ -18,10 +18,14 @@ RETRY_BACKOFF = 1.0
 
 
 def get_api_key() -> str:
-    api_key = os.getenv("TAVILY_API_KEY")
-    if not api_key:
-        raise ValueError("TAVILY_API_KEY environment variable is not set.")
-    return api_key
+    try:
+        from tradingagents.config import get_settings
+        return get_settings().require_api_key("tavily")
+    except ImportError:
+        api_key = os.getenv("TAVILY_API_KEY")
+        if not api_key:
+            raise ValueError("TAVILY_API_KEY environment variable is not set.")
+        return api_key
 
 
 def _search_with_retry(client, query: str, search_depth: str, topic: str, time_range: str, max_results: int, max_retries: int = MAX_RETRIES) -> Dict[str, Any]:

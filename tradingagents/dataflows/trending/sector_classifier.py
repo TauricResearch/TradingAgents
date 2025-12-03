@@ -205,11 +205,12 @@ _sector_cache: Dict[str, str] = {}
 def _llm_classify_sector(ticker: str) -> str:
     from langchain_openai import ChatOpenAI
     from langchain_core.messages import HumanMessage, SystemMessage
-    from tradingagents.default_config import DEFAULT_CONFIG
+    from tradingagents.dataflows.config import get_config
 
-    llm_name = DEFAULT_CONFIG.get("quick_think_llm", "gpt-4o-mini")
-    llm_provider = DEFAULT_CONFIG.get("llm_provider", "openai")
-    backend_url = DEFAULT_CONFIG.get("backend_url", "https://api.openai.com/v1")
+    config = get_config()
+    llm_name = config.get("quick_think_llm", "gpt-4o-mini")
+    llm_provider = config.get("llm_provider", "openai")
+    backend_url = config.get("backend_url", "https://api.openai.com/v1")
 
     llm = ChatOpenAI(
         model=llm_name,

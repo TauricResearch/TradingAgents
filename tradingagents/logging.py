@@ -4,8 +4,6 @@ import os
 import json
 from datetime import datetime
 
-LOG_LEVEL_DEFAULT = "INFO"
-LOG_DIR_DEFAULT = "./logs"
 LOG_FILE_NAME = "tradingagents.log"
 LOG_MAX_BYTES = 10 * 1024 * 1024
 LOG_BACKUP_COUNT = 5
@@ -31,44 +29,29 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_record)
 
 
-def _parse_bool(value):
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.lower() in ("true", "1", "yes", "on")
-    return bool(value)
-
-
-def _get_config_value(key, default):
+def _get_settings():
     try:
-        from tradingagents.default_config import DEFAULT_CONFIG
-        return DEFAULT_CONFIG.get(key, default)
+        from tradingagents.config import get_settings
+        return get_settings()
     except ImportError:
-        return default
+        return None
 
 
 def setup_logging():
     global _logging_initialized
 
-    log_level_str = os.getenv("TRADINGAGENTS_LOG_LEVEL")
-    if log_level_str is None:
-        log_level_str = _get_config_value("log_level", LOG_LEVEL_DEFAULT)
+    settings = _get_settings()
 
-    log_dir = os.getenv("TRADINGAGENTS_LOG_DIR")
-    if log_dir is None:
-        log_dir = _get_config_value("log_dir", LOG_DIR_DEFAULT)
-
-    console_enabled_env = os.getenv("TRADINGAGENTS_LOG_CONSOLE")
-    if console_enabled_env is not None:
-        console_enabled = _parse_bool(console_enabled_env)
+    if settings:
+        log_level_str = settings.log_level
+        log_dir = settings.log_dir
+        console_enabled = settings.log_console_enabled
+        file_enabled = settings.log_file_enabled
     else:
-        console_enabled = _get_config_value("log_console_enabled", True)
-
-    file_enabled_env = os.getenv("TRADINGAGENTS_LOG_FILE")
-    if file_enabled_env is not None:
-        file_enabled = _parse_bool(file_enabled_env)
-    else:
-        file_enabled = _get_config_value("log_file_enabled", True)
+        log_level_str = os.getenv("TRADINGAGENTS_LOG_LEVEL", "INFO")
+        log_dir = os.getenv("TRADINGAGENTS_LOG_DIR", "./logs")
+        console_enabled = os.getenv("TRADINGAGENTS_LOG_CONSOLE", "true").lower() in ("true", "1", "yes", "on")
+        file_enabled = os.getenv("TRADINGAGENTS_LOG_FILE", "true").lower() in ("true", "1", "yes", "on")
 
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
 

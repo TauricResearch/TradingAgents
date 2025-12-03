@@ -14,10 +14,14 @@ RETRY_BACKOFF = 1.0
 
 
 def get_api_key() -> str:
-    api_key = os.getenv("BRAVE_API_KEY")
-    if not api_key:
-        raise ValueError("BRAVE_API_KEY environment variable is not set.")
-    return api_key
+    try:
+        from tradingagents.config import get_settings
+        return get_settings().require_api_key("brave")
+    except ImportError:
+        api_key = os.getenv("BRAVE_API_KEY")
+        if not api_key:
+            raise ValueError("BRAVE_API_KEY environment variable is not set.")
+        return api_key
 
 
 def _make_request_with_retry(url: str, headers: Dict, params: Dict, max_retries: int = MAX_RETRIES) -> requests.Response:

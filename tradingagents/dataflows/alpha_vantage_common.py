@@ -11,10 +11,14 @@ logger = logging.getLogger(__name__)
 API_BASE_URL = "https://www.alphavantage.co/query"
 
 def get_api_key() -> str:
-    api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
-    if not api_key:
-        raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
-    return api_key
+    try:
+        from tradingagents.config import get_settings
+        return get_settings().require_api_key("alpha_vantage")
+    except ImportError:
+        api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
+        if not api_key:
+            raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
+        return api_key
 
 def format_datetime_for_api(date_input) -> str:
     if isinstance(date_input, str):

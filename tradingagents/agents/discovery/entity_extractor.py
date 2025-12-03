@@ -6,7 +6,7 @@ from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.dataflows.config import get_config
 from tradingagents.agents.discovery.models import NewsArticle, EventCategory
 
 
@@ -37,7 +37,7 @@ class ExtractionResponse(BaseModel):
 
 
 def _get_llm(config: Optional[dict] = None):
-    cfg = config or DEFAULT_CONFIG
+    cfg = config or get_config()
     provider = cfg.get("llm_provider", "openai").lower()
     model = cfg.get("quick_think_llm", "gpt-4o-mini")
     backend_url = cfg.get("backend_url", "https://api.openai.com/v1")
