@@ -51,13 +51,13 @@ def get_bulk_news_alpha_vantage(lookback_hours: int) -> List[Dict[str, Any]]:
     for item in feed:
         try:
             time_published = item.get("time_published", "")
-            if time_published:
-                try:
-                    published_at = datetime.strptime(time_published, "%Y%m%dT%H%M%S")
-                except ValueError:
-                    published_at = datetime.now()
-            else:
-                published_at = datetime.now()
+            if not time_published:
+                continue
+
+            try:
+                published_at = datetime.strptime(time_published, "%Y%m%dT%H%M%S")
+            except ValueError:
+                continue
 
             article = {
                 "title": item.get("title", ""),
