@@ -1,5 +1,6 @@
 from typing import Annotated, List, Dict, Any, Optional
 from datetime import datetime, timedelta
+import threading
 
 from .local import get_YFin_data, get_finnhub_news, get_finnhub_company_insider_sentiment, get_finnhub_company_insider_transactions, get_simfin_balance_sheet, get_simfin_cashflow, get_simfin_income_statements, get_reddit_global_news, get_reddit_company_news
 from .y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions
@@ -121,6 +122,7 @@ VENDOR_METHODS = {
 CACHE_TTL_SECONDS = 300
 
 _bulk_news_cache: Dict[str, Dict[str, Any]] = {}
+_bulk_news_cache_lock = threading.Lock()
 
 
 def parse_lookback_period(lookback: str) -> int:
@@ -140,20 +142,22 @@ def parse_lookback_period(lookback: str) -> int:
 
 def _get_cached_bulk_news(lookback_period: str) -> Optional[List[NewsArticle]]:
     cache_key = lookback_period
-    if cache_key in _bulk_news_cache:
-        cached = _bulk_news_cache[cache_key]
-        cached_time = cached.get("timestamp")
-        if cached_time and (datetime.now() - cached_time).total_seconds() < CACHE_TTL_SECONDS:
-            return cached.get("articles")
+    with _bulk_news_cache_lock:
+        if cache_key in _bulk_news_cache:
+            cached = _bulk_news_cache[cache_key]
+            cached_time = cached.get("timestamp")
+            if cached_time and (datetime.now() - cached_time).total_seconds() < CACHE_TTL_SECONDS:
+                return cached.get("articles")
     return None
 
 
 def _set_cached_bulk_news(lookback_period: str, articles: List[NewsArticle]) -> None:
     cache_key = lookback_period
-    _bulk_news_cache[cache_key] = {
-        "timestamp": datetime.now(),
-        "articles": articles,
-    }
+    with _bulk_news_cache_lock:
+        _bulk_news_cache[cache_key] = {
+            "timestamp": datetime.now(),
+            "articles": articles,
+        }
 
 
 def _convert_to_news_articles(raw_articles: List[Dict[str, Any]]) -> List[NewsArticle]:
