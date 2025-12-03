@@ -7,6 +7,7 @@ from uuid import uuid4
 from tradingagents.models.backtest import (
     BacktestConfig,
     BacktestResult,
+    BacktestStatus,
     EquityCurvePoint,
     TradeLog,
 )
@@ -69,7 +70,7 @@ class BacktestEngine:
                 daily_returns=self.daily_returns,
                 started_at=started_at,
                 completed_at=completed_at,
-                status="completed",
+                status=BacktestStatus.COMPLETED,
             )
 
         except (ValueError, KeyError, RuntimeError, FileNotFoundError, OSError) as e:
@@ -84,7 +85,7 @@ class BacktestEngine:
                 daily_returns=self.daily_returns,
                 started_at=started_at,
                 completed_at=completed_at,
-                status="failed",
+                status=BacktestStatus.FAILED,
                 error_message=str(e),
             )
 

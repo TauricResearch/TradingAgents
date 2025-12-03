@@ -1,6 +1,7 @@
 from typing import Optional, Dict, Any
 
 from rich.console import Console
+from cli.models import AgentStatus
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.markdown import Markdown
@@ -72,34 +73,34 @@ def update_display(layout: Layout, spinner_text: Optional[str] = None) -> None:
     for team, agents in teams.items():
         first_agent = agents[0]
         status = message_buffer.agent_status[first_agent]
-        if status == "in_progress":
+        if status == AgentStatus.IN_PROGRESS:
             spinner = Spinner(
                 "dots", text="[blue]in_progress[/blue]", style="bold cyan"
             )
             status_cell = spinner
         else:
             status_color = {
-                "pending": "yellow",
-                "completed": "green",
-                "error": "red",
+                AgentStatus.PENDING: "yellow",
+                AgentStatus.COMPLETED: "green",
+                AgentStatus.ERROR: "red",
             }.get(status, "white")
-            status_cell = f"[{status_color}]{status}[/{status_color}]"
+            status_cell = f"[{status_color}]{status.value}[/{status_color}]"
         progress_table.add_row(team, first_agent, status_cell)
 
         for agent in agents[1:]:
             status = message_buffer.agent_status[agent]
-            if status == "in_progress":
+            if status == AgentStatus.IN_PROGRESS:
                 spinner = Spinner(
                     "dots", text="[blue]in_progress[/blue]", style="bold cyan"
                 )
                 status_cell = spinner
             else:
                 status_color = {
-                    "pending": "yellow",
-                    "completed": "green",
-                    "error": "red",
+                    AgentStatus.PENDING: "yellow",
+                    AgentStatus.COMPLETED: "green",
+                    AgentStatus.ERROR: "red",
                 }.get(status, "white")
-                status_cell = f"[{status_color}]{status}[/{status_color}]"
+                status_cell = f"[{status_color}]{status.value}[/{status_color}]"
             progress_table.add_row("", agent, status_cell)
 
         progress_table.add_row("-" * 20, "-" * 20, "-" * 20, style="dim")
@@ -383,7 +384,7 @@ def display_complete_report(final_state: Dict[str, Any]) -> None:
             )
 
 
-def update_research_team_status(status: str) -> None:
+def update_research_team_status(status: AgentStatus) -> None:
     research_team = ["Bull Researcher", "Bear Researcher", "Research Manager", "Trader"]
     for agent in research_team:
         message_buffer.update_agent_status(agent, status)

@@ -9,7 +9,7 @@ from rich.table import Table
 from rich import box
 
 from tradingagents.backtesting import SimpleBacktestEngine, DataLoader
-from tradingagents.models.backtest import BacktestConfig
+from tradingagents.models.backtest import BacktestConfig, BacktestStatus
 from tradingagents.models.portfolio import PortfolioConfig
 
 from cli.display import create_question_box
@@ -158,7 +158,7 @@ def run_backtest(
 
     console.print()
 
-    if result.status == "failed":
+    if result.status == BacktestStatus.FAILED:
         console.print(f"[red]Backtest failed: {result.error_message}[/red]")
         return
 

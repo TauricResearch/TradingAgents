@@ -6,6 +6,7 @@ import pytest
 from tradingagents.models.backtest import (
     BacktestConfig,
     BacktestResult,
+    BacktestStatus,
     BacktestMetrics,
     EquityCurvePoint,
     TradeLog,
@@ -287,7 +288,7 @@ class TestBacktestResult:
         )
 
         assert result.duration_seconds == 330.0
-        assert result.status == "completed"
+        assert result.status == BacktestStatus.COMPLETED
 
     def test_to_dict(self):
         config = BacktestConfig(

@@ -13,7 +13,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.dataflows.config import get_config
 
 from cli.state import message_buffer
-from cli.models import AnalystType
+from cli.models import AnalystType, AgentStatus
 from cli.display import (
     create_layout,
     update_display,
@@ -138,32 +138,32 @@ def get_user_selections() -> dict:
 def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType]) -> None:
     if "market_report" in chunk and chunk["market_report"]:
         message_buffer.update_report_section("market_report", chunk["market_report"])
-        message_buffer.update_agent_status("Market Analyst", "completed")
+        message_buffer.update_agent_status("Market Analyst", AgentStatus.COMPLETED)
         if AnalystType.SOCIAL in selected_analysts:
-            message_buffer.update_agent_status("Social Analyst", "in_progress")
+            message_buffer.update_agent_status("Social Analyst", AgentStatus.IN_PROGRESS)
 
     if "sentiment_report" in chunk and chunk["sentiment_report"]:
         message_buffer.update_report_section("sentiment_report", chunk["sentiment_report"])
-        message_buffer.update_agent_status("Social Analyst", "completed")
+        message_buffer.update_agent_status("Social Analyst", AgentStatus.COMPLETED)
         if AnalystType.NEWS in selected_analysts:
-            message_buffer.update_agent_status("News Analyst", "in_progress")
+            message_buffer.update_agent_status("News Analyst", AgentStatus.IN_PROGRESS)
 
     if "news_report" in chunk and chunk["news_report"]:
         message_buffer.update_report_section("news_report", chunk["news_report"])
-        message_buffer.update_agent_status("News Analyst", "completed")
+        message_buffer.update_agent_status("News Analyst", AgentStatus.COMPLETED)
         if AnalystType.FUNDAMENTALS in selected_analysts:
-            message_buffer.update_agent_status("Fundamentals Analyst", "in_progress")
+            message_buffer.update_agent_status("Fundamentals Analyst", AgentStatus.IN_PROGRESS)
 
     if "fundamentals_report" in chunk and chunk["fundamentals_report"]:
         message_buffer.update_report_section("fundamentals_report", chunk["fundamentals_report"])
-        message_buffer.update_agent_status("Fundamentals Analyst", "completed")
-        update_research_team_status("in_progress")
+        message_buffer.update_agent_status("Fundamentals Analyst", AgentStatus.COMPLETED)
+        update_research_team_status(AgentStatus.IN_PROGRESS)
 
     if "investment_debate_state" in chunk and chunk["investment_debate_state"]:
         debate_state = chunk["investment_debate_state"]
 
         if "bull_history" in debate_state and debate_state["bull_history"]:
-            update_research_team_status("in_progress")
+            update_research_team_status(AgentStatus.IN_PROGRESS)
             bull_responses = debate_state["bull_history"].split("\n")
             latest_bull = bull_responses[-1] if bull_responses else ""
             if latest_bull:
@@ -174,7 +174,7 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
                 )
 
         if "bear_history" in debate_state and debate_state["bear_history"]:
-            update_research_team_status("in_progress")
+            update_research_team_status(AgentStatus.IN_PROGRESS)
             bear_responses = debate_state["bear_history"].split("\n")
             latest_bear = bear_responses[-1] if bear_responses else ""
             if latest_bear:
@@ -185,7 +185,7 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
                 )
 
         if "judge_decision" in debate_state and debate_state["judge_decision"]:
-            update_research_team_status("in_progress")
+            update_research_team_status(AgentStatus.IN_PROGRESS)
             message_buffer.add_message(
                 "Reasoning",
                 f"Research Manager: {debate_state['judge_decision']}",
@@ -194,18 +194,18 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
                 "investment_plan",
                 f"{message_buffer.report_sections['investment_plan']}\n\n### Research Manager Decision\n{debate_state['judge_decision']}",
             )
-            update_research_team_status("completed")
-            message_buffer.update_agent_status("Risky Analyst", "in_progress")
+            update_research_team_status(AgentStatus.COMPLETED)
+            message_buffer.update_agent_status("Risky Analyst", AgentStatus.IN_PROGRESS)
 
     if "trader_investment_plan" in chunk and chunk["trader_investment_plan"]:
         message_buffer.update_report_section("trader_investment_plan", chunk["trader_investment_plan"])
-        message_buffer.update_agent_status("Risky Analyst", "in_progress")
+        message_buffer.update_agent_status("Risky Analyst", AgentStatus.IN_PROGRESS)
 
     if "risk_debate_state" in chunk and chunk["risk_debate_state"]:
         risk_state = chunk["risk_debate_state"]
 
         if "current_risky_response" in risk_state and risk_state["current_risky_response"]:
-            message_buffer.update_agent_status("Risky Analyst", "in_progress")
+            message_buffer.update_agent_status("Risky Analyst", AgentStatus.IN_PROGRESS)
             message_buffer.add_message(
                 "Reasoning",
                 f"Risky Analyst: {risk_state['current_risky_response']}",
@@ -216,7 +216,7 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
             )
 
         if "current_safe_response" in risk_state and risk_state["current_safe_response"]:
-            message_buffer.update_agent_status("Safe Analyst", "in_progress")
+            message_buffer.update_agent_status("Safe Analyst", AgentStatus.IN_PROGRESS)
             message_buffer.add_message(
                 "Reasoning",
                 f"Safe Analyst: {risk_state['current_safe_response']}",
@@ -227,7 +227,7 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
             )
 
         if "current_neutral_response" in risk_state and risk_state["current_neutral_response"]:
-            message_buffer.update_agent_status("Neutral Analyst", "in_progress")
+            message_buffer.update_agent_status("Neutral Analyst", AgentStatus.IN_PROGRESS)
             message_buffer.add_message(
                 "Reasoning",
                 f"Neutral Analyst: {risk_state['current_neutral_response']}",
@@ -238,7 +238,7 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
             )
 
         if "judge_decision" in risk_state and risk_state["judge_decision"]:
-            message_buffer.update_agent_status("Portfolio Manager", "in_progress")
+            message_buffer.update_agent_status("Portfolio Manager", AgentStatus.IN_PROGRESS)
             message_buffer.add_message(
                 "Reasoning",
                 f"Portfolio Manager: {risk_state['judge_decision']}",
@@ -247,10 +247,10 @@ def process_chunk_for_display(chunk: dict, selected_analysts: List[AnalystType])
                 "final_trade_decision",
                 f"### Portfolio Manager Decision\n{risk_state['judge_decision']}",
             )
-            message_buffer.update_agent_status("Risky Analyst", "completed")
-            message_buffer.update_agent_status("Safe Analyst", "completed")
-            message_buffer.update_agent_status("Neutral Analyst", "completed")
-            message_buffer.update_agent_status("Portfolio Manager", "completed")
+            message_buffer.update_agent_status("Risky Analyst", AgentStatus.COMPLETED)
+            message_buffer.update_agent_status("Safe Analyst", AgentStatus.COMPLETED)
+            message_buffer.update_agent_status("Neutral Analyst", AgentStatus.COMPLETED)
+            message_buffer.update_agent_status("Portfolio Manager", AgentStatus.COMPLETED)
 
 
 def setup_logging_decorators(report_dir, log_file) -> tuple:
@@ -383,7 +383,7 @@ def _run_analysis_with_config(ticker: str, analysis_date: str, selected_analysts
         update_display(layout)
 
         for agent in message_buffer.agent_status:
-            message_buffer.update_agent_status(agent, "pending")
+            message_buffer.update_agent_status(agent, AgentStatus.PENDING)
 
         for section in message_buffer.report_sections:
             message_buffer.report_sections[section] = None
@@ -391,7 +391,7 @@ def _run_analysis_with_config(ticker: str, analysis_date: str, selected_analysts
         message_buffer.final_report = None
 
         first_analyst = f"{selected_analysts[0].value.capitalize()} Analyst"
-        message_buffer.update_agent_status(first_analyst, "in_progress")
+        message_buffer.update_agent_status(first_analyst, AgentStatus.IN_PROGRESS)
         update_display(layout)
 
         spinner_text = f"Analyzing {ticker} on {analysis_date}..."
@@ -430,7 +430,7 @@ def _run_analysis_with_config(ticker: str, analysis_date: str, selected_analysts
         decision = graph.process_signal(final_state["final_trade_decision"])
 
         for agent in message_buffer.agent_status:
-            message_buffer.update_agent_status(agent, "completed")
+            message_buffer.update_agent_status(agent, AgentStatus.COMPLETED)
 
         message_buffer.add_message("Analysis", f"Completed analysis for {analysis_date}")
 

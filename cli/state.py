@@ -2,6 +2,8 @@ import datetime
 from collections import deque
 from typing import Optional, Dict, Any, Deque
 
+from cli.models import AgentStatus
+
 
 class MessageBuffer:
     def __init__(self, max_length: int = 100) -> None:
@@ -9,19 +11,19 @@ class MessageBuffer:
         self.tool_calls: Deque = deque(maxlen=max_length)
         self.current_report = None
         self.final_report = None
-        self.agent_status = {
-            "Market Analyst": "pending",
-            "Social Analyst": "pending",
-            "News Analyst": "pending",
-            "Fundamentals Analyst": "pending",
-            "Bull Researcher": "pending",
-            "Bear Researcher": "pending",
-            "Research Manager": "pending",
-            "Trader": "pending",
-            "Risky Analyst": "pending",
-            "Neutral Analyst": "pending",
-            "Safe Analyst": "pending",
-            "Portfolio Manager": "pending",
+        self.agent_status: Dict[str, AgentStatus] = {
+            "Market Analyst": AgentStatus.PENDING,
+            "Social Analyst": AgentStatus.PENDING,
+            "News Analyst": AgentStatus.PENDING,
+            "Fundamentals Analyst": AgentStatus.PENDING,
+            "Bull Researcher": AgentStatus.PENDING,
+            "Bear Researcher": AgentStatus.PENDING,
+            "Research Manager": AgentStatus.PENDING,
+            "Trader": AgentStatus.PENDING,
+            "Risky Analyst": AgentStatus.PENDING,
+            "Neutral Analyst": AgentStatus.PENDING,
+            "Safe Analyst": AgentStatus.PENDING,
+            "Portfolio Manager": AgentStatus.PENDING,
         }
         self.current_agent = None
         self.report_sections = {
@@ -42,7 +44,7 @@ class MessageBuffer:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         self.tool_calls.append((timestamp, tool_name, args))
 
-    def update_agent_status(self, agent: str, status: str) -> None:
+    def update_agent_status(self, agent: str, status: AgentStatus) -> None:
         if agent in self.agent_status:
             self.agent_status[agent] = status
             self.current_agent = agent
@@ -123,7 +125,7 @@ class MessageBuffer:
 
     def reset(self) -> None:
         for agent in self.agent_status:
-            self.agent_status[agent] = "pending"
+            self.agent_status[agent] = AgentStatus.PENDING
         for section in self.report_sections:
             self.report_sections[section] = None
         self.current_report = None

@@ -10,6 +10,13 @@ from .portfolio import PortfolioConfig
 from .trading import Trade
 
 
+class BacktestStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class BacktestConfig(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str = Field(default="Backtest")
@@ -212,7 +219,7 @@ class BacktestResult(BaseModel):
     daily_returns: list[Decimal] = Field(default_factory=list)
     started_at: datetime
     completed_at: datetime
-    status: str = Field(default="completed")
+    status: BacktestStatus = Field(default=BacktestStatus.COMPLETED)
     error_message: Optional[str] = None
 
     @computed_field
