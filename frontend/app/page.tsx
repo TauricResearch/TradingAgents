@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AgentFlowDiagram } from "@/components/AgentFlowDiagram";
 
 export default function HomePage() {
   return (
@@ -195,6 +196,15 @@ export default function HomePage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Agent Flow Diagram Section */}
+      <div className="mb-16">
+        <h2 className="text-3xl font-bold text-center mb-4">🔄 分析師協作流程</h2>
+        <p className="text-center text-gray-600 dark:text-gray-400 mb-8 max-w-3xl mx-auto">
+          四大分析師代理如何從不同資料來源收集資訊，並產生綜合分析報告
+        </p>
+        <AgentFlowDiagram />
       </div>
 
       {/* LLM Support Section */}
