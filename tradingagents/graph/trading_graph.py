@@ -33,7 +33,20 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_insider_sentiment,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_market_movers,
+    get_earnings_calendar,
+    get_trending_social,
+)
+
+# Import pump detection tools
+from tradingagents.agents.utils.pump_detection_tools import (
+    detect_volume_spike,
+    detect_price_acceleration,
+    detect_social_sentiment_surge,
+    detect_oversold_bounce,
+    detect_catalyst_event,
+    calculate_pump_score,
 )
 
 from .conditional_logic import ConditionalLogic
@@ -51,6 +64,8 @@ class TradingAgentsGraph:
         selected_analysts=["market", "social", "news", "fundamentals"],
         debug=False,
         config: Dict[str, Any] = None,
+        include_screening=False,
+        include_pump_detection=False,
     ):
         """Initialize the trading agents graph and components.
 
@@ -58,6 +73,8 @@ class TradingAgentsGraph:
             selected_analysts: List of analyst types to include
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
+            include_screening: Whether to include market screening agent
+            include_pump_detection: Whether to include pump detection agent
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
@@ -117,11 +134,15 @@ class TradingAgentsGraph:
         self.ticker = None
         self.log_states_dict = {}  # date to full state dict
 
-        # Set up the graph
-        self.graph = self.graph_setup.setup_graph(selected_analysts)
+        # Set up the graph with optional screening and pump detection
+        self.graph = self.graph_setup.setup_graph(
+            selected_analysts,
+            include_screening=include_screening,
+            include_pump_detection=include_pump_detection,
+        )
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
-        """Create tool nodes for different data sources using abstract methods."""
+        """Create tool nodes for different data sources and agents using abstract methods."""
         return {
             "market": ToolNode(
                 [
@@ -153,6 +174,27 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                ]
+            ),
+            "screening": ToolNode(
+                [
+                    # Market screening tools
+                    get_market_movers,
+                    get_earnings_calendar,
+                    get_insider_transactions,
+                    get_indicators,
+                    get_trending_social,
+                ]
+            ),
+            "pump_detection": ToolNode(
+                [
+                    # Pump detection tools
+                    detect_volume_spike,
+                    detect_price_acceleration,
+                    detect_social_sentiment_surge,
+                    detect_oversold_bounce,
+                    detect_catalyst_event,
+                    calculate_pump_score,
                 ]
             ),
         }

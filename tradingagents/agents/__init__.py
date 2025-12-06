@@ -19,6 +19,9 @@ from .managers.risk_manager import create_risk_manager
 
 from .trader.trader import create_trader
 
+from .screeners.screening_agent import create_screening_agent
+from .signal_detectors.pump_detection_agent import create_pump_detection_agent
+
 __all__ = [
     "FinancialSituationMemory",
     "AgentState",
@@ -37,4 +40,6 @@ __all__ = [
     "create_safe_debator",
     "create_social_media_analyst",
     "create_trader",
+    "create_screening_agent",
+    "create_pump_detection_agent",
 ]
