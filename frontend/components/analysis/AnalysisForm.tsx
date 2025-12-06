@@ -108,10 +108,11 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
   });
 
   // Load API settings from localStorage and update when models change
+  const quickThinkLlm = form.watch("quick_think_llm");
+  const deepThinkLlm = form.watch("deep_think_llm");
+  
   useEffect(() => {
     const savedSettings = getApiSettings();
-    const quickThinkLlm = form.getValues("quick_think_llm");
-    const deepThinkLlm = form.getValues("deep_think_llm");
 
     // Set base URLs based on selected models (custom URL takes precedence)
     form.setValue("quick_think_base_url", getBaseUrlForModel(quickThinkLlm, savedSettings.custom_base_url));
@@ -123,7 +124,8 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
     form.setValue("deep_think_api_key", getApiKeyForModel(deepThinkLlm, savedSettings));
     form.setValue("embedding_api_key", savedSettings.custom_api_key || savedSettings.openai_api_key);
     form.setValue("alpha_vantage_api_key", savedSettings.alpha_vantage_api_key);
-  }, [form, form.watch("quick_think_llm"), form.watch("deep_think_llm")]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickThinkLlm, deepThinkLlm]);
 
   // 全選/取消全選
   const toggleSelectAll = () => {
@@ -355,6 +357,9 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           </SelectItem>
 
                           {/* Google */}
+                          <SelectItem value="gemini-3-pro-preview">
+                            Google: Gemini 3 Pro Preview
+                          </SelectItem>
                           <SelectItem value="gemini-2.5-pro">
                             Google: Gemini 2.5 Pro
                           </SelectItem>
@@ -466,6 +471,9 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           </SelectItem>
 
                           {/* Google */}
+                          <SelectItem value="gemini-3-pro-preview">
+                            Google: Gemini 3 Pro Preview
+                          </SelectItem>
                           <SelectItem value="gemini-2.5-pro">
                             Google: Gemini 2.5 Pro
                           </SelectItem>

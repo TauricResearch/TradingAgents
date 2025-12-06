@@ -216,7 +216,7 @@ export default function HomePage() {
           />
           <LLMProviderCard
             name="Google Gemini"
-            models={["Gemini 2.5 Pro/Flash", "Gemini 2.0 Flash"]}
+            models={["Gemini 3 Pro Preview", "Gemini 2.5 Pro/Flash", "Gemini 2.0 Flash"]}
             icon="🔵"
           />
           <LLMProviderCard
