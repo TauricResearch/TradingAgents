@@ -54,6 +54,8 @@ def get_stock_stats_indicators_window(
     ],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
+    # Normalize indicator to lowercase
+    indicator = indicator.lower()
 
     best_ind_params = {
         # Moving Averages

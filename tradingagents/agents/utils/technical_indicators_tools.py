@@ -20,4 +20,6 @@ def get_indicators(
     Returns:
         str: A formatted dataframe containing the technical indicators for the specified ticker symbol and indicator.
     """
+    # Normalize indicator to lowercase to handle LLM-generated uppercase values
+    indicator = indicator.lower()
     return route_to_vendor("get_indicators", symbol, indicator, curr_date, look_back_days)

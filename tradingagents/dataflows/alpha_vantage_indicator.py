@@ -27,6 +27,9 @@ def get_indicator(
     from datetime import datetime
     from dateutil.relativedelta import relativedelta
 
+    # Normalize indicator to lowercase
+    indicator = indicator.lower()
+
     supported_indicators = {
         "close_50_sma": ("50 SMA", "close"),
         "close_200_sma": ("200 SMA", "close"),
