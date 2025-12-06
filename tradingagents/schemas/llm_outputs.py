@@ -26,11 +26,20 @@ class TradeDecision(BaseModel):
     )
 
 
+
 class TickerList(BaseModel):
     """Structured output for ticker symbol lists."""
     
     tickers: List[str] = Field(
         description="List of valid stock ticker symbols (1-5 uppercase letters)"
+    )
+
+
+class ThemeList(BaseModel):
+    """Structured output for market themes."""
+    
+    themes: List[str] = Field(
+        description="List of trending market themes or sectors"
     )
 
 

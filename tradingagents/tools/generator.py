@@ -54,6 +54,10 @@ def generate_langchain_tool(tool_name: str, metadata: Dict[str, Any]) -> Callabl
     # Use **kwargs to handle all parameters
     def tool_function(**kwargs):
         """Dynamically generated tool function."""
+        # Ensure defaults are applied for missing parameters
+        for param_name, param_info in parameters.items():
+            if param_name not in kwargs and "default" in param_info:
+                kwargs[param_name] = param_info["default"]
         return execute_tool(tool_name, **kwargs)
 
     # Set function metadata

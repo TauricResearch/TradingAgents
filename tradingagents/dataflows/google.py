@@ -5,13 +5,23 @@ from .googlenews_utils import getNewsData
 
 
 def get_google_news(
-    query: Annotated[str, "Query to search with"],
+    query: Annotated[str, "Query to search with"] = None,
+    ticker: Annotated[str, "Ticker symbol (alias for query)"] = None,
     curr_date: Annotated[str, "Curr date in yyyy-mm-dd format"] = None,
     look_back_days: Annotated[int, "how many days to look back"] = None,
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"] = None,
     end_date: Annotated[str, "End date in yyyy-mm-dd format"] = None,
 ) -> str:
-    query = query.replace(" ", "+")
+    # Handle parameter aliasing (query or ticker)
+    if query:
+        search_query = query
+    elif ticker:
+        # Format ticker as a natural language query for better results
+        search_query = f"latest news on {ticker} stock"
+    else:
+        raise ValueError("Must provide either 'query' or 'ticker' parameter")
+
+    search_query = search_query.replace(" ", "+")
 
     # Determine date range
     if start_date and end_date:
@@ -24,7 +34,7 @@ def get_google_news(
     else:
         raise ValueError("Must provide either (start_date, end_date) or (curr_date, look_back_days)")
 
-    news_results = getNewsData(query, before, target_date)
+    news_results = getNewsData(search_query, before, target_date)
 
     news_str = ""
 
@@ -36,7 +46,7 @@ def get_google_news(
     if len(news_results) == 0:
         return ""
 
-    return f"## {query} Google News, from {before} to {target_date}:\n\n{news_str}"
+    return f"## {search_query} Google News, from {before} to {target_date}:\n\n{news_str}"
 
 
 def get_global_news_google(

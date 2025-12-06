@@ -1,6 +1,7 @@
+from typing import Union, Dict, Optional
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
 
-def get_news(ticker: str = None, start_date: str = None, end_date: str = None, query: str = None) -> dict[str, str] | str:
+def get_news(ticker: str = None, start_date: str = None, end_date: str = None, query: str = None) -> Union[Dict[str, str], str]:
     """Returns live and historical market news & sentiment data.
 
     Args:
@@ -28,7 +29,7 @@ def get_news(ticker: str = None, start_date: str = None, end_date: str = None, q
     return _make_api_request("NEWS_SENTIMENT", params)
 
 
-def get_global_news(date: str, look_back_days: int = 7, limit: int = 5) -> dict[str, str] | str:
+def get_global_news(date: str, look_back_days: int = 7, limit: int = 5) -> Union[Dict[str, str], str]:
     """Returns global market news & sentiment data.
 
     Args:
@@ -48,7 +49,7 @@ def get_global_news(date: str, look_back_days: int = 7, limit: int = 5) -> dict[
 
     return _make_api_request("NEWS_SENTIMENT", params)
 
-def get_insider_transactions(symbol: str = None, ticker: str = None, curr_date: str = None) -> dict[str, str] | str:
+def get_insider_transactions(symbol: str = None, ticker: str = None, curr_date: str = None) -> Union[Dict[str, str], str]:
     """Returns latest and historical insider transactions.
 
     Args:

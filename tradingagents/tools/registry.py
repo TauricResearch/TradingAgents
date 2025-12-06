@@ -53,6 +53,8 @@ from tradingagents.dataflows.reddit_api import (
 )
 from tradingagents.dataflows.finnhub_api import (
     get_recommendation_trends as get_finnhub_recommendation_trends,
+    get_earnings_calendar as get_finnhub_earnings_calendar,
+    get_ipo_calendar as get_finnhub_ipo_calendar,
 )
 from tradingagents.dataflows.twitter_data import (
     get_tweets as get_twitter_tweets,
@@ -109,6 +111,8 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
             "alpha_vantage": get_alpha_vantage_indicator,
         },
         "vendor_priority": ["yfinance", "alpha_vantage"],
+        "execution_mode": "aggregate",
+        "aggregate_vendors": ["yfinance", "alpha_vantage"],
         "parameters": {
             "symbol": {"type": "str", "description": "Ticker symbol"},
             "indicator": {"type": "str", "description": "Technical indicator (rsi, macd, sma, ema, etc.)"},
@@ -208,6 +212,8 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
             "google": get_google_news,
         },
         "vendor_priority": ["alpha_vantage", "reddit", "openai", "google"],
+        "execution_mode": "aggregate",
+        "aggregate_vendors": ["alpha_vantage", "reddit", "google"],
         "parameters": {
             "query": {"type": "str", "description": "Search query or ticker symbol"},
             "start_date": {"type": "str", "description": "Start date, yyyy-mm-dd"},
@@ -227,6 +233,7 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
             "alpha_vantage": get_alpha_vantage_global_news,
         },
         "vendor_priority": ["openai", "google", "reddit", "alpha_vantage"],
+        "execution_mode": "aggregate",
         "parameters": {
             "date": {"type": "str", "description": "Date for news, yyyy-mm-dd"},
             "look_back_days": {"type": "int", "description": "Days to look back", "default": 7},
@@ -308,6 +315,36 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
             "count": {"type": "int", "description": "Number of tweets", "default": 20},
         },
         "returns": "str: Tweets matching the query",
+    },
+
+    "get_earnings_calendar": {
+        "description": "Get upcoming earnings announcements (catalysts for volatility)",
+        "category": "discovery",
+        "agents": [],
+        "vendors": {
+            "finnhub": get_finnhub_earnings_calendar,
+        },
+        "vendor_priority": ["finnhub"],
+        "parameters": {
+            "from_date": {"type": "str", "description": "Start date in yyyy-mm-dd format"},
+            "to_date": {"type": "str", "description": "End date in yyyy-mm-dd format"},
+        },
+        "returns": "str: Formatted earnings calendar with EPS and revenue estimates",
+    },
+
+    "get_ipo_calendar": {
+        "description": "Get upcoming and recent IPOs (new listing opportunities)",
+        "category": "discovery",
+        "agents": [],
+        "vendors": {
+            "finnhub": get_finnhub_ipo_calendar,
+        },
+        "vendor_priority": ["finnhub"],
+        "parameters": {
+            "from_date": {"type": "str", "description": "Start date in yyyy-mm-dd format"},
+            "to_date": {"type": "str", "description": "End date in yyyy-mm-dd format"},
+        },
+        "returns": "str: Formatted IPO calendar with pricing and share details",
     },
 
     "get_reddit_discussions": {
@@ -464,6 +501,26 @@ def validate_registry() -> List[str]:
         # Check parameters
         if not isinstance(metadata.get("parameters"), dict):
             issues.append(f"{tool_name}: Parameters must be a dictionary")
+
+        # Validate execution_mode if present
+        if "execution_mode" in metadata:
+            execution_mode = metadata["execution_mode"]
+            if execution_mode not in ["fallback", "aggregate"]:
+                issues.append(f"{tool_name}: Invalid execution_mode '{execution_mode}', must be 'fallback' or 'aggregate'")
+
+        # Validate aggregate_vendors if present
+        if "aggregate_vendors" in metadata:
+            aggregate_vendors = metadata["aggregate_vendors"]
+            if not isinstance(aggregate_vendors, list):
+                issues.append(f"{tool_name}: aggregate_vendors must be a list")
+            else:
+                for vendor_name in aggregate_vendors:
+                    if vendor_name not in vendors:
+                        issues.append(f"{tool_name}: aggregate_vendor '{vendor_name}' not in vendors dict")
+
+            # Warn if aggregate_vendors specified but execution_mode is not aggregate
+            if metadata.get("execution_mode") != "aggregate":
+                issues.append(f"{tool_name}: aggregate_vendors specified but execution_mode is not 'aggregate'")
 
     return issues
 

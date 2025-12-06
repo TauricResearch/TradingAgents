@@ -11,7 +11,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_indicators
 )
 from tradingagents.tools.executor import execute_tool
-from tradingagents.schemas import TickerList, MarketMovers
+from tradingagents.schemas import TickerList, MarketMovers, ThemeList
 
 class DiscoveryGraph:
     def __init__(self, config=None):
@@ -76,6 +76,66 @@ class DiscoveryGraph:
         
         candidates = []
         
+        # 0. Macro Theme Discovery (Top-Down)
+        try:
+            from datetime import datetime
+            today = datetime.now().strftime("%Y-%m-%d")
+            
+            # Get Global News
+            global_news = execute_tool("get_global_news", date=today, limit=5)
+            
+            # Extract Themes
+            prompt = f"""Based on this global news, identify 3 trending market themes or sectors (e.g., 'Artificial Intelligence', 'Oil', 'Biotech').
+            Return a JSON object with a 'themes' array of strings.
+            
+            News:
+            {global_news}
+            """
+            
+            structured_llm = self.quick_thinking_llm.with_structured_output(
+                schema=ThemeList.model_json_schema(),
+                method="json_schema"
+            )
+            response = structured_llm.invoke([HumanMessage(content=prompt)])
+            themes = response.get("themes", [])
+            
+            print(f"   Identified Macro Themes: {themes}")
+            
+            # Find tickers for each theme
+            for theme in themes:
+                try:
+                    tweets_report = execute_tool("get_tweets", query=f"{theme} stocks", count=15)
+                    
+                    prompt = f"""Extract ONLY valid stock ticker symbols related to the theme '{theme}' from this report.
+                    Return a comma-separated list of tickers (1-5 uppercase letters).
+                    
+                    Report:
+                    {tweets_report}
+                    
+                    Return a JSON object with a 'tickers' array."""
+                    
+                    structured_llm = self.quick_thinking_llm.with_structured_output(
+                        schema=TickerList.model_json_schema(),
+                        method="json_schema"
+                    )
+                    response = structured_llm.invoke([HumanMessage(content=prompt)])
+                    theme_tickers = response.get("tickers", [])
+                    
+                    for t in theme_tickers:
+                        t = t.upper().strip()
+                        if re.match(r'^[A-Z]{1,5}$', t):
+                             # Use validate_ticker tool logic (via execute_tool)
+                            try:
+                                if execute_tool("validate_ticker", symbol=t):
+                                    candidates.append({"ticker": t, "source": f"macro_theme_{theme}", "sentiment": "unknown"})
+                            except Exception:
+                                continue
+                except Exception as e:
+                    print(f"   Error fetching tickers for theme {theme}: {e}")
+                    
+        except Exception as e:
+            print(f"   Error in Macro Theme Discovery: {e}")
+
         # 1. Get Reddit Trending (Social Sentiment)
         try:
             reddit_report = execute_tool("get_trending_tickers", limit=self.reddit_trending_limit)
@@ -188,7 +248,73 @@ Data:
 
         except Exception as e:
             print(f"   Error fetching Market Movers: {e}")
-            
+
+        # 3. Get Earnings Calendar (Event-based Discovery)
+        try:
+            from datetime import datetime, timedelta
+            today = datetime.now()
+            from_date = today.strftime("%Y-%m-%d")
+            to_date = (today + timedelta(days=7)).strftime("%Y-%m-%d")  # Next 7 days
+
+            earnings_report = execute_tool("get_earnings_calendar", from_date=from_date, to_date=to_date)
+
+            # Extract tickers from earnings calendar
+            prompt = """Extract ONLY valid stock ticker symbols from this earnings calendar.
+Return a comma-separated list of tickers (1-5 uppercase letters).
+Only include actual stock tickers, not indexes or other symbols.
+
+Earnings Calendar:
+{report}
+
+Return a JSON object with a 'tickers' array containing only valid stock ticker symbols.""".format(report=earnings_report)
+
+            structured_llm = self.quick_thinking_llm.with_structured_output(
+                schema=TickerList.model_json_schema(),
+                method="json_schema"
+            )
+            response = structured_llm.invoke([HumanMessage(content=prompt)])
+
+            earnings_tickers = response.get("tickers", [])
+            for t in earnings_tickers:
+                t = t.upper().strip()
+                if re.match(r'^[A-Z]{1,5}$', t):
+                    candidates.append({"ticker": t, "source": "earnings_catalyst", "sentiment": "unknown"})
+        except Exception as e:
+            print(f"   Error fetching Earnings Calendar: {e}")
+
+        # 4. Get IPO Calendar (New Listings Discovery)
+        try:
+            from datetime import datetime, timedelta
+            today = datetime.now()
+            from_date = (today - timedelta(days=7)).strftime("%Y-%m-%d")  # Past 7 days
+            to_date = (today + timedelta(days=14)).strftime("%Y-%m-%d")   # Next 14 days
+
+            ipo_report = execute_tool("get_ipo_calendar", from_date=from_date, to_date=to_date)
+
+            # Extract tickers from IPO calendar
+            prompt = """Extract ONLY valid stock ticker symbols from this IPO calendar.
+Return a comma-separated list of tickers (1-5 uppercase letters).
+Only include actual stock tickers that are listed or about to be listed.
+
+IPO Calendar:
+{report}
+
+Return a JSON object with a 'tickers' array containing only valid stock ticker symbols.""".format(report=ipo_report)
+
+            structured_llm = self.quick_thinking_llm.with_structured_output(
+                schema=TickerList.model_json_schema(),
+                method="json_schema"
+            )
+            response = structured_llm.invoke([HumanMessage(content=prompt)])
+
+            ipo_tickers = response.get("tickers", [])
+            for t in ipo_tickers:
+                t = t.upper().strip()
+                if re.match(r'^[A-Z]{1,5}$', t):
+                    candidates.append({"ticker": t, "source": "ipo_listing", "sentiment": "unknown"})
+        except Exception as e:
+            print(f"   Error fetching IPO Calendar: {e}")
+
         # Deduplicate
         unique_candidates = {}
         for c in candidates:
@@ -232,8 +358,30 @@ Data:
                     strategy = "contrarian_value"
                 elif source == "social_trending" or source == "twitter_sentiment":
                     strategy = "social_hype"
+                elif source == "earnings_catalyst":
+                    strategy = "earnings_play"
+                elif source == "ipo_listing":
+                    strategy = "ipo_opportunity"
                 
                 cand['strategy'] = strategy
+                
+                # Technical Analysis Check (New)
+                try:
+                    from datetime import datetime
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    
+                    # Get RSI
+                    rsi_data = execute_tool("get_indicators", symbol=ticker, indicator="rsi", curr_date=today, look_back_days=14)
+                    
+                    # Simple parsing of the string report to find the latest value
+                    # The report format is usually "## rsi values...\n\nDATE: VALUE"
+                    # We'll just store the report for the LLM to analyze in deep dive if needed, 
+                    # OR we can try to parse it here. For now, let's just add it to metadata.
+                    cand['technical_indicators'] = rsi_data
+                    
+                except Exception as e:
+                    print(f"   Error getting technicals for {ticker}: {e}")
+                
                 filtered_candidates.append(cand)
                 
             except Exception as e:
@@ -276,8 +424,9 @@ Data:
                 # 1. Get News Sentiment
                 news = execute_tool("get_news", ticker=ticker, start_date=start_date, end_date=end_date)
                 
-                # 2. Get Insider Transactions
+                # 2. Get Insider Transactions & Sentiment
                 insider = execute_tool("get_insider_transactions", ticker=ticker)
+                insider_sentiment = execute_tool("get_insider_sentiment", ticker=ticker)
                 
                 # 3. Get Fundamentals (for the Contrarian check)
                 fundamentals = execute_tool("get_fundamentals", ticker=ticker, curr_date=end_date)
@@ -290,6 +439,7 @@ Data:
                     "strategy": strategy,
                     "news": news,
                     "insider_transactions": insider,
+                    "insider_sentiment": insider_sentiment,
                     "fundamentals": fundamentals,
                     "recommendations": recommendations
                 })
@@ -313,6 +463,7 @@ Data:
                 "strategy": opp["strategy"],
                 # Truncate to ~1000 chars each (roughly 250 tokens)
                 "news": opp["news"][:1000] + "..." if len(opp["news"]) > 1000 else opp["news"],
+                "insider_sentiment": opp.get("insider_sentiment", "")[:500],
                 "insider_transactions": opp["insider_transactions"][:1000] + "..." if len(opp["insider_transactions"]) > 1000 else opp["insider_transactions"],
                 "fundamentals": opp["fundamentals"][:1000] + "..." if len(opp["fundamentals"]) > 1000 else opp["fundamentals"],
                 "recommendations": opp["recommendations"][:1000] + "..." if len(opp["recommendations"]) > 1000 else opp["recommendations"],

@@ -6,14 +6,16 @@ registry-based approach. All routing decisions are driven by the tool registry.
 
 Key improvements over old system:
 - Single registry lookup instead of multiple dictionary lookups
-- Clear fallback logic per tool (optional, not mandatory)
+- Supports both fallback and aggregate execution modes
+- Parallel vendor execution for aggregate mode
 - Better error messages and debugging
 - No dual registry systems
 """
 
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Dict
 import logging
-from tradingagents.tools.registry import TOOL_REGISTRY, get_vendor_config
+import concurrent.futures
+from tradingagents.tools.registry import TOOL_REGISTRY, get_vendor_config, get_tool_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -28,43 +30,30 @@ class VendorNotFoundError(Exception):
     pass
 
 
-def execute_tool(tool_name: str, *args, **kwargs) -> Any:
-    """Execute a tool using the registry-based routing system.
+def _execute_fallback(tool_name: str, vendor_config: Dict, *args, **kwargs) -> Any:
+    """Execute vendors sequentially with fallback (original behavior).
 
-    This is the simplified replacement for route_to_vendor().
+    Tries vendors in priority order and returns the first successful result.
 
     Args:
-        tool_name: Name of the tool to execute (e.g., "get_stock_data")
-        *args: Positional arguments to pass to the tool
-        **kwargs: Keyword arguments to pass to the tool
+        tool_name: Name of the tool
+        vendor_config: Vendor configuration from registry
+        *args: Positional arguments for vendor function
+        **kwargs: Keyword arguments for vendor function
 
     Returns:
-        Result from the vendor function
+        Result from first successful vendor
 
     Raises:
-        VendorNotFoundError: If tool or vendor implementation not found
-        ToolExecutionError: If all vendors fail to execute the tool
+        ToolExecutionError: If all vendors fail
     """
-
-    # Step 1: Get vendor configuration from registry
-    vendor_config = get_vendor_config(tool_name)
-
-    if not vendor_config["vendor_priority"]:
-        raise VendorNotFoundError(
-            f"Tool '{tool_name}' not found in registry or has no vendors configured"
-        )
-
-    # Step 2: Get vendor functions and priority list
     vendor_functions = vendor_config["vendors"]
     vendors_to_try = vendor_config["vendor_priority"]
-
-    logger.debug(f"Executing tool '{tool_name}' with vendors: {vendors_to_try}")
-
-    # Step 3: Try each vendor in priority order
     errors = []
 
+    logger.debug(f"Executing tool '{tool_name}' in fallback mode with vendors: {vendors_to_try}")
+
     for vendor_name in vendors_to_try:
-        # Get the vendor function directly from registry
         vendor_func = vendor_functions.get(vendor_name)
 
         if not vendor_func:
@@ -80,14 +69,129 @@ def execute_tool(tool_name: str, *args, **kwargs) -> Any:
             error_msg = f"Vendor '{vendor_name}' failed: {str(e)}"
             logger.warning(f"Tool '{tool_name}': {error_msg}")
             errors.append(error_msg)
-
-            # Continue to next vendor (fallback)
             continue
 
-    # Step 4: All vendors failed
+    # All vendors failed
     error_summary = f"Tool '{tool_name}' failed with all vendors:\n" + "\n".join(f"  - {err}" for err in errors)
     logger.error(error_summary)
     raise ToolExecutionError(error_summary)
+
+
+def _execute_aggregate(tool_name: str, vendor_config: Dict, metadata: Dict, *args, **kwargs) -> str:
+    """Execute multiple vendors in parallel and aggregate results.
+
+    Executes all specified vendors simultaneously using ThreadPoolExecutor,
+    collects successful results, and combines them with vendor labels.
+
+    Args:
+        tool_name: Name of the tool
+        vendor_config: Vendor configuration from registry
+        metadata: Tool metadata from registry
+        *args: Positional arguments for vendor functions
+        **kwargs: Keyword arguments for vendor functions
+
+    Returns:
+        Aggregated results from all successful vendors, formatted with labels
+
+    Raises:
+        ToolExecutionError: If all vendors fail
+    """
+    vendor_functions = vendor_config["vendors"]
+
+    # Get list of vendors to aggregate (default to all in priority list)
+    vendors_to_aggregate = metadata.get("aggregate_vendors") or vendor_config["vendor_priority"]
+
+    logger.debug(f"Executing tool '{tool_name}' in aggregate mode with vendors: {vendors_to_aggregate}")
+
+    results = []
+    errors = []
+
+    # Execute vendors in parallel using ThreadPoolExecutor
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(vendors_to_aggregate)) as executor:
+        # Submit all vendor calls
+        future_to_vendor = {}
+        for vendor_name in vendors_to_aggregate:
+            vendor_func = vendor_functions.get(vendor_name)
+            if vendor_func:
+                future = executor.submit(vendor_func, *args, **kwargs)
+                future_to_vendor[future] = vendor_name
+            else:
+                logger.warning(f"Vendor '{vendor_name}' not found in vendors dict for tool '{tool_name}'")
+
+        # Collect results as they complete
+        for future in concurrent.futures.as_completed(future_to_vendor):
+            vendor_name = future_to_vendor[future]
+            try:
+                result = future.result()
+                results.append({
+                    "vendor": vendor_name,
+                    "data": result
+                })
+                logger.debug(f"Tool '{tool_name}': vendor '{vendor_name}' succeeded")
+            except Exception as e:
+                error_msg = f"Vendor '{vendor_name}' failed: {str(e)}"
+                errors.append(error_msg)
+                logger.warning(f"Tool '{tool_name}': {error_msg}")
+
+    # Check if we got any results
+    if not results:
+        error_summary = f"Tool '{tool_name}' aggregate mode: all vendors failed:\n" + "\n".join(f"  - {err}" for err in errors)
+        logger.error(error_summary)
+        raise ToolExecutionError(error_summary)
+
+    # Format aggregated results with clear vendor labels
+    formatted_results = []
+    for item in results:
+        vendor_label = f"=== {item['vendor'].upper()} ==="
+        formatted_results.append(f"{vendor_label}\n{item['data']}")
+
+    # Log partial success if some vendors failed
+    if errors:
+        logger.info(f"Tool '{tool_name}': {len(results)} vendors succeeded, {len(errors)} failed")
+
+    return "\n\n".join(formatted_results)
+
+
+def execute_tool(tool_name: str, *args, **kwargs) -> Any:
+    """Execute a tool using fallback or aggregate mode based on configuration.
+
+    This is the main entry point for tool execution. It dispatches to either
+    fallback mode (sequential with early return) or aggregate mode (parallel
+    with result combination) based on the tool's execution_mode setting.
+
+    Args:
+        tool_name: Name of the tool to execute (e.g., "get_stock_data")
+        *args: Positional arguments to pass to the tool
+        **kwargs: Keyword arguments to pass to the tool
+
+    Returns:
+        Result from vendor function(s). String for aggregate mode (formatted
+        with vendor labels), Any for fallback mode (raw vendor result).
+
+    Raises:
+        VendorNotFoundError: If tool or vendor implementation not found
+        ToolExecutionError: If all vendors fail to execute the tool
+    """
+    # Get vendor configuration and metadata from registry
+    vendor_config = get_vendor_config(tool_name)
+    metadata = get_tool_metadata(tool_name)
+
+    if not vendor_config["vendor_priority"]:
+        raise VendorNotFoundError(
+            f"Tool '{tool_name}' not found in registry or has no vendors configured"
+        )
+
+    if not metadata:
+        raise VendorNotFoundError(f"Tool '{tool_name}' metadata not found in registry")
+
+    # Check execution mode (defaults to fallback for backward compatibility)
+    execution_mode = metadata.get("execution_mode", "fallback")
+
+    # Dispatch to appropriate execution strategy
+    if execution_mode == "aggregate":
+        return _execute_aggregate(tool_name, vendor_config, metadata, *args, **kwargs)
+    else:
+        return _execute_fallback(tool_name, vendor_config, *args, **kwargs)
 
 
 def get_tool_info(tool_name: str) -> Optional[dict]:

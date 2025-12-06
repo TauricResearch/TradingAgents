@@ -2,7 +2,24 @@ from openai import OpenAI
 from .config import get_config
 
 
-def get_stock_news_openai(query, start_date, end_date):
+def get_stock_news_openai(query=None, ticker=None, start_date=None, end_date=None):
+    """Get stock news from OpenAI web search.
+
+    Args:
+        query: Search query or ticker symbol
+        ticker: Ticker symbol (alias for query)
+        start_date: Start date yyyy-mm-dd
+        end_date: End date yyyy-mm-dd
+    """
+    # Handle parameter aliasing
+    if query:
+        search_query = query
+    elif ticker:
+        # Format ticker as a natural language query for better results
+        search_query = f"latest news and market analysis on {ticker} stock"
+    else:
+        raise ValueError("Must provide either 'query' or 'ticker' parameter")
+
     config = get_config()
     client = OpenAI(base_url=config["backend_url"])
 
@@ -10,7 +27,7 @@ def get_stock_news_openai(query, start_date, end_date):
         response = client.responses.create(
             model="gpt-4o-mini",
             tools=[{"type": "web_search_preview"}],
-            input=f"Search Social Media for {query} from {start_date} to {end_date}. Make sure you only get the data posted during that period."
+            input=f"Search Social Media and news sources for {search_query} from {start_date} to {end_date}. Make sure you only get the data posted during that period."
         )
         return response.output_text
     except Exception as e:
