@@ -182,11 +182,74 @@ class TradingService:
             
         except Exception as e:
             logger.error(f"Analysis failed for {ticker}: {str(e)}", exc_info=True)
+            
+            # Check if it's a rate limit error
+            error_message = str(e)
+            error_type = "general"
+            retry_after = None
+            quota_limit = None
+            quota_metric = None
+            
+            # Detect OpenAI/Gemini Rate Limit Errors
+            if "Error code: 429" in error_message or "RateLimitError" in str(type(e).__name__):
+                error_type = "rate_limit"
+                
+                # Extract quota details from error message
+                import re
+                
+                # Extract limit (e.g., "limit: 20")
+                limit_match = re.search(r'limit:\s*(\d+)', error_message)
+                if limit_match:
+                    quota_limit = int(limit_match.group(1))
+                
+                # Extract model name
+                model_match = re.search(r'model:\s*([\w\-\.]+)', error_message)
+                model_name = model_match.group(1) if model_match else "unknown"
+                
+                # Extract retry time (e.g., "retry in 37.312655565s" or "retryDelay": "37s")
+                retry_match = re.search(r'retry in ([\d\.]+)s', error_message)
+                if not retry_match:
+                    retry_match = re.search(r'"retryDelay":\s*"(\d+)s"', error_message)
+                
+                if retry_match:
+                    retry_after = int(float(retry_match.group(1)))
+                
+                # Extract quota metric name
+                metric_match = re.search(r'quotaMetric["\']:\s*["\']([^"\']+)', error_message)
+                if metric_match:
+                    quota_metric = metric_match.group(1)
+                
+                # Create user-friendly message
+                if quota_limit and model_name:
+                    error_message = (
+                        f"API Rate Limit Exceeded: You've reached the quota limit of {quota_limit} requests "
+                        f"for model '{model_name}'. "
+                    )
+                    if retry_after:
+                        minutes = retry_after // 60
+                        seconds = retry_after % 60
+                        if minutes > 0:
+                            error_message += f"Please retry in {minutes} minute(s) and {seconds} second(s). "
+                        else:
+                            error_message += f"Please retry in {seconds} second(s). "
+                    error_message += (
+                        "Consider upgrading to a paid plan for higher limits, or reduce the number of "
+                        "analysts/research depth to minimize API calls."
+                    )
+                else:
+                    error_message = (
+                        "API Rate Limit Exceeded: You've exceeded your quota. "
+                        "Please wait before retrying, or consider upgrading to a paid plan."
+                    )
+            
             return {
                 "status": "error",
                 "ticker": ticker,
                 "analysis_date": analysis_date,
-                "error": str(e),
+                "error": error_message,
+                "error_type": error_type,
+                "retry_after": retry_after,
+                "quota_limit": quota_limit,
             }
     
     def get_available_analysts(self) -> List[str]:

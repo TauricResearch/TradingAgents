@@ -47,6 +47,9 @@ export interface AnalysisResponse {
   decision?: any;
   reports?: any;
   error?: string;
+  error_type?: string;
+  retry_after?: number;
+  quota_limit?: number;
   price_data?: PriceData[];
   price_stats?: PriceStats;
 }

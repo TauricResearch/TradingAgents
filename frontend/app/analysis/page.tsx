@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnalysisForm } from "@/components/analysis/AnalysisForm";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useAnalysisContext } from "@/context/AnalysisContext";
 import type { AnalysisRequest } from "@/lib/types";
@@ -62,12 +63,7 @@ export default function AnalysisPage() {
           <LoadingSpinner message="正在執行分析... 這可能需要幾分鐘時間。" />
         )}
 
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <h3 className="text-red-800 dark:text-red-300 font-semibold mb-2">錯誤</h3>
-            <p className="text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        )}
+        {error && <ErrorAlert error={error} />}
         </div>
       </div>
     </div>

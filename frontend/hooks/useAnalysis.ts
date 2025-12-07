@@ -9,7 +9,12 @@ import type { AnalysisRequest, AnalysisResponse } from "@/lib/types";
 
 export function useAnalysis() {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | {
+    error: string;
+    error_type?: string;
+    retry_after?: number;
+    quota_limit?: number;
+  } | null>(null);
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -42,7 +47,17 @@ export function useAnalysis() {
       
       // Check if failed
       if (status.status === "failed") {
-        setError(status.error || "Analysis failed");
+        // Check if we have structured error data from result
+        if (status.result && status.result.error) {
+          setError({
+            error: status.result.error,
+            error_type: status.result.error_type,
+            retry_after: status.result.retry_after,
+            quota_limit: status.result.quota_limit,
+          });
+        } else {
+          setError(status.error || "Analysis failed");
+        }
         setLoading(false);
         setProgress(null);
         // Stop polling
