@@ -52,6 +52,10 @@ const formSchema = z.object({
   research_depth: z.number().int().min(1).max(5),
   quick_think_llm: z.string().min(1, "請選擇快速思維模型"),
   deep_think_llm: z.string().min(1, "請選擇深層思維模型"),
+  
+  // Custom model names (when "custom" is selected)
+  custom_quick_think_model: z.string().optional(),
+  custom_deep_think_model: z.string().optional(),
 
   // API Configuration (hidden from UI, populated from localStorage)
   quick_think_base_url: z
@@ -97,6 +101,8 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
       research_depth: 3, // 預設中等層級
       quick_think_llm: "gpt-5-mini-2025-08-07",
       deep_think_llm: "gpt-5-mini-2025-08-07",
+      custom_quick_think_model: "",
+      custom_deep_think_model: "",
       quick_think_base_url: "https://api.openai.com/v1",
       deep_think_base_url: "https://api.openai.com/v1",
       quick_think_api_key: "",
@@ -110,22 +116,34 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
   // Load API settings from localStorage and update when models change
   const quickThinkLlm = form.watch("quick_think_llm");
   const deepThinkLlm = form.watch("deep_think_llm");
+  const isQuickThinkCustom = quickThinkLlm === "custom";
+  const isDeepThinkCustom = deepThinkLlm === "custom";
   
   useEffect(() => {
     const savedSettings = getApiSettings();
 
-    // Set base URLs based on selected models (custom URL takes precedence)
-    form.setValue("quick_think_base_url", getBaseUrlForModel(quickThinkLlm, savedSettings.custom_base_url));
-    form.setValue("deep_think_base_url", getBaseUrlForModel(deepThinkLlm, savedSettings.custom_base_url));
-    form.setValue("embedding_base_url", savedSettings.custom_base_url || "https://api.openai.com/v1");
+    // For custom models, always use custom base URL and API key
+    if (isQuickThinkCustom) {
+      form.setValue("quick_think_base_url", savedSettings.custom_base_url || "");
+      form.setValue("quick_think_api_key", savedSettings.custom_api_key || "");
+    } else {
+      form.setValue("quick_think_base_url", getBaseUrlForModel(quickThinkLlm, savedSettings.custom_base_url));
+      form.setValue("quick_think_api_key", getApiKeyForModel(quickThinkLlm, savedSettings));
+    }
+    
+    if (isDeepThinkCustom) {
+      form.setValue("deep_think_base_url", savedSettings.custom_base_url || "");
+      form.setValue("deep_think_api_key", savedSettings.custom_api_key || "");
+    } else {
+      form.setValue("deep_think_base_url", getBaseUrlForModel(deepThinkLlm, savedSettings.custom_base_url));
+      form.setValue("deep_think_api_key", getApiKeyForModel(deepThinkLlm, savedSettings));
+    }
 
-    // Set API keys based on selected models
-    form.setValue("quick_think_api_key", getApiKeyForModel(quickThinkLlm, savedSettings));
-    form.setValue("deep_think_api_key", getApiKeyForModel(deepThinkLlm, savedSettings));
+    form.setValue("embedding_base_url", savedSettings.custom_base_url || "https://api.openai.com/v1");
     form.setValue("embedding_api_key", savedSettings.custom_api_key || savedSettings.openai_api_key);
     form.setValue("alpha_vantage_api_key", savedSettings.alpha_vantage_api_key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quickThinkLlm, deepThinkLlm]);
+  }, [quickThinkLlm, deepThinkLlm, isQuickThinkCustom, isDeepThinkCustom]);
 
   // 全選/取消全選
   const toggleSelectAll = () => {
@@ -141,8 +159,36 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
   };
 
   function handleSubmit(values: z.infer<typeof formSchema>) {
+    // Use custom model names if "custom" is selected
+    const finalQuickThinkLlm = values.quick_think_llm === "custom" 
+      ? values.custom_quick_think_model || ""
+      : values.quick_think_llm;
+    
+    const finalDeepThinkLlm = values.deep_think_llm === "custom"
+      ? values.custom_deep_think_model || ""
+      : values.deep_think_llm;
+    
+    // Validate custom model names
+    if (values.quick_think_llm === "custom" && !values.custom_quick_think_model) {
+      form.setError("custom_quick_think_model", {
+        type: "manual",
+        message: "請輸入快速思維模型的完整名稱"
+      });
+      return;
+    }
+    
+    if (values.deep_think_llm === "custom" && !values.custom_deep_think_model) {
+      form.setError("custom_deep_think_model", {
+        type: "manual",
+        message: "請輸入深層思維模型的完整名稱"
+      });
+      return;
+    }
+    
     const request: AnalysisRequest = {
       ...values,
+      quick_think_llm: finalQuickThinkLlm,
+      deep_think_llm: finalDeepThinkLlm,
     };
     onSubmit(request);
   }
@@ -406,6 +452,11 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           <SelectItem value="qwen-flash">
                             Qwen: Flash
                           </SelectItem>
+                          
+                          {/* Custom Model */}
+                          <SelectItem value="custom">
+                            Other（自訂模型）
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>快速回應模型</FormDescription>
@@ -413,6 +464,29 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     </FormItem>
                   )}
                 />
+                
+                {/* Custom Quick Think Model Input */}
+                {isQuickThinkCustom && (
+                  <FormField
+                    control={form.control}
+                    name="custom_quick_think_model"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-3 animate-scale-up">
+                        <FormLabel>自訂快速思維模型名稱</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="例如：deepseek-chat" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          請輸入完整的模型名稱（此模型將使用自訂端點）
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}
@@ -517,6 +591,11 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           <SelectItem value="qwen-flash">
                             Qwen: Flash
                           </SelectItem>
+                          
+                          {/* Custom Model */}
+                          <SelectItem value="custom">
+                            Other（自訂模型）
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>複雜推理模型</FormDescription>
@@ -524,6 +603,29 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     </FormItem>
                   )}
                 />
+                
+                {/* Custom Deep Think Model Input */}
+                {isDeepThinkCustom && (
+                  <FormField
+                    control={form.control}
+                    name="custom_deep_think_model"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-3 animate-scale-up">
+                        <FormLabel>自訂深層思維模型名稱</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="例如：deepseek-chat" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          請輸入完整的模型名稱（此模型將使用自訂端點）
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
             </div>
 

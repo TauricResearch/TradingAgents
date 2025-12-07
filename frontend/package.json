@@ -28,7 +28,7 @@
     "react": "19.2.0",
     "react-day-picker": "^9.11.3",
     "react-dom": "19.2.0",
-    "react-hook-form": "^7.67.0",
+    "react-hook-form": "^7.68.0",
     "react-markdown": "^10.1.0",
     "recharts": "^3.4.1",
     "rehype-raw": "^7.0.0",
