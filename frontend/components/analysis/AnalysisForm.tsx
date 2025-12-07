@@ -357,9 +357,6 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           </SelectItem>
 
                           {/* Google */}
-                          <SelectItem value="gemini-3-pro-preview">
-                            Google: Gemini 3 Pro Preview
-                          </SelectItem>
                           <SelectItem value="gemini-2.5-pro">
                             Google: Gemini 2.5 Pro
                           </SelectItem>
@@ -471,9 +468,6 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           </SelectItem>
 
                           {/* Google */}
-                          <SelectItem value="gemini-3-pro-preview">
-                            Google: Gemini 3 Pro Preview
-                          </SelectItem>
                           <SelectItem value="gemini-2.5-pro">
                             Google: Gemini 2.5 Pro
                           </SelectItem>

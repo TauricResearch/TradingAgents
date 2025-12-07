@@ -259,12 +259,14 @@ function DataSourceCard({
   };
 
   return (
-    <Card className={`p-3 text-center hover-lift animate-slide-up border-2 ${colorClasses[color]}`}>
-      <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br ${colorClasses[color].split(' ')[0]} ${colorClasses[color].split(' ')[1]} text-white mb-2 shadow-lg`}>
-        {icon}
+    <Card className={`p-3 hover-lift animate-slide-up border-2 ${colorClasses[color]}`}>
+      <div className="flex flex-col items-center justify-center">
+        <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br ${colorClasses[color].split(' ')[0]} ${colorClasses[color].split(' ')[1]} text-white mb-2 shadow-lg`}>
+          {icon}
+        </div>
+        <h4 className="font-semibold text-xs mb-0.5">{name}</h4>
+        <p className="text-xs text-gray-600 dark:text-gray-400">{description}</p>
       </div>
-      <h4 className="font-semibold text-xs mb-0.5">{name}</h4>
-      <p className="text-xs text-gray-600 dark:text-gray-400">{description}</p>
     </Card>
   );
 }
