@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -23,8 +23,58 @@ interface PriceChartProps {
   ticker: string;
 }
 
+// Heikin Ashi data structure
+interface HeikinAshiData extends PriceData {
+  HA_Open: number;
+  HA_Close: number;
+  HA_High: number;
+  HA_Low: number;
+}
+
+// Calculate Heikin Ashi values from regular OHLC data
+function calculateHeikinAshi(data: PriceData[]): HeikinAshiData[] {
+  const haData: HeikinAshiData[] = [];
+  
+  for (let i = 0; i < data.length; i++) {
+    const current = data[i];
+    const { Open, High, Low, Close } = current;
+    const adjClose = current["Adj Close"] ?? Close;
+    
+    // HA Close = (Open + High + Low + Close) / 4
+    const HA_Close = (Open + High + Low + adjClose) / 4;
+    
+    // HA Open = (previous HA Open + previous HA Close) / 2
+    let HA_Open: number;
+    if (i === 0) {
+      // For the first candle, use regular Open
+      HA_Open = Open;
+    } else {
+      HA_Open = (haData[i - 1].HA_Open + haData[i - 1].HA_Close) / 2;
+    }
+    
+    // HA High = max(High, HA Open, HA Close)
+    const HA_High = Math.max(High, HA_Open, HA_Close);
+    
+    // HA Low = min(Low, HA Open, HA Close)
+    const HA_Low = Math.min(Low, HA_Open, HA_Close);
+    
+    haData.push({
+      ...current,
+      HA_Open,
+      HA_Close,
+      HA_High,
+      HA_Low,
+    });
+  }
+  
+  return haData;
+}
+
 export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
   const [chartType, setChartType] = useState<"line" | "candlestick">("line");
+
+  // Calculate Heikin Ashi data
+  const heikinAshiData = useMemo(() => calculateHeikinAshi(priceData), [priceData]);
 
   // 格式化數字
   const formatNumber = (num: number) => {
@@ -37,8 +87,13 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
     return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
+  // Get the close field to use (prefer Adj Close)
+  const getCloseValue = (data: PriceData) => {
+    return data["Adj Close"] ?? data.Close;
+  };
+
   // 計算價格範圍用於標準化
-  const priceValues = priceData.flatMap(d => [d.High, d.Low]);
+  const priceValues = heikinAshiData.flatMap(d => [d.HA_High, d.HA_Low]);
   const minPrice = Math.min(...priceValues);
   const maxPrice = Math.max(...priceValues);
   const priceRange = maxPrice - minPrice;
@@ -51,7 +106,7 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
           <Tabs value={chartType} onValueChange={(v: string) => setChartType(v as "line" | "candlestick")}>
             <TabsList>
               <TabsTrigger value="line">折線圖</TabsTrigger>
-              <TabsTrigger value="candlestick">K線圖</TabsTrigger>
+              <TabsTrigger value="candlestick">平均K線圖</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -104,7 +159,7 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                 />
                 <Line 
                   type="monotone" 
-                  dataKey="Close" 
+                  dataKey={(data: PriceData) => getCloseValue(data)}
                   stroke="#93c5fd" 
                   strokeWidth={2}
                   name="收盤價" 
@@ -112,8 +167,8 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                 />
               </LineChart>
             ) : (
-              // K線圖：真正的蠟燭圖實現
-              <BarChart data={priceData} barCategoryGap="20%">
+              // 平均K線圖（Heikin Ashi）
+              <BarChart data={heikinAshiData} barCategoryGap="20%">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="Date" 
@@ -127,22 +182,29 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                 <Tooltip 
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      const isUp = data.Close >= data.Open;
+                      const data = payload[0].payload as HeikinAshiData;
+                      const isUp = data.HA_Close > data.HA_Open;
+                      const isDown = data.HA_Close < data.HA_Open;
+                      const isNeutral = data.HA_Close === data.HA_Open;
+                      
+                      // Color coding: green for up, red for down, gray for neutral
+                      const color = isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-gray-600';
+                      const direction = isUp ? '↑ 上漲' : isDown ? '↓ 下跌' : '→ 無變化';
+                      
                       return (
                         <div className="bg-background border border-border p-3 rounded-lg shadow-lg">
                           <p className="text-sm font-semibold mb-2">日期: {data.Date}</p>
                           <div className="space-y-1 text-sm">
-                            <p className={isUp ? 'text-green-600' : 'text-red-600'}>
-                              開: ${formatNumber(data.Open)}
+                            <p className={color}>
+                              開: ${formatNumber(data.HA_Open)}
                             </p>
-                            <p className={isUp ? 'text-green-600' : 'text-red-600'}>
-                              收: ${formatNumber(data.Close)}
+                            <p className={color}>
+                              收: ${formatNumber(data.HA_Close)}
                             </p>
-                            <p className="text-blue-600">高: ${formatNumber(data.High)}</p>
-                            <p className="text-orange-600">低: ${formatNumber(data.Low)}</p>
-                            <p className="text-sm text-muted-foreground mt-2">
-                              {isUp ? '↑ 上漲' : '↓ 下跌'} ${formatNumber(Math.abs(data.Close - data.Open))}
+                            <p className="text-blue-600">高: ${formatNumber(data.HA_High)}</p>
+                            <p className="text-orange-600">低: ${formatNumber(data.HA_Low)}</p>
+                            <p className={`text-sm mt-2 ${color}`}>
+                              {direction} ${formatNumber(Math.abs(data.HA_Close - data.HA_Open))}
                             </p>
                           </div>
                         </div>
@@ -151,10 +213,10 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                     return null;
                   }}
                 />
-                {/* 使用自定義 shape 來繪製蠟燭 */}
+                {/* 使用自定義 shape 來繪製平均蠟燭 */}
                 <Bar 
-                  dataKey="High"
-                  shape={(props: any) => <CandlestickShape {...props} minPrice={minPrice} maxPrice={maxPrice} />}
+                  dataKey="HA_High"
+                  shape={(props: any) => <HeikinAshiCandlestickShape {...props} minPrice={minPrice} maxPrice={maxPrice} />}
                 />
               </BarChart>
             )}
@@ -192,55 +254,51 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
   );
 }
 
-// 自定義蠟燭圖形狀組件
-interface CandlestickShapeProps {
+// 自定義平均蠟燭圖形狀組件（Heikin Ashi）
+interface HeikinAshiCandlestickShapeProps {
   x?: number;
   y?: number;
   width?: number;
   height?: number;
-  payload?: PriceData;
+  payload?: HeikinAshiData;
   minPrice: number;
   maxPrice: number;
 }
 
-const CandlestickShape: React.FC<CandlestickShapeProps> = (props) => {
+const HeikinAshiCandlestickShape: React.FC<HeikinAshiCandlestickShapeProps> = (props) => {
   const { x = 0, y = 0, width = 0, height = 0, payload, minPrice, maxPrice } = props;
   
   if (!payload) return null;
   
-  const { Open, Close, High, Low } = payload;
-  const isUp = Close >= Open;
+  const { HA_Open, HA_Close, HA_High, HA_Low } = payload;
+  const isUp = HA_Close > HA_Open;
+  const isDown = HA_Close < HA_Open;
+  const isNeutral = HA_Close === HA_Open;
   
-  // 粉綠色（上漲）和粉紅色（下跌）
-  const fillColor = isUp ? '#86efac' : '#fca5a5'; // soft pastel green / soft pastel pink
-  const strokeColor = isUp ? '#22c55e' : '#ef4444'; // darker green / darker red
+  // Color coding: green for up, red for down, gray for neutral
+  let fillColor: string;
+  let strokeColor: string;
+  
+  if (isUp) {
+    fillColor = '#86efac'; // soft pastel green
+    strokeColor = '#22c55e'; // darker green
+  } else if (isDown) {
+    fillColor = '#fca5a5'; // soft pastel pink/red
+    strokeColor = '#ef4444'; // darker red
+  } else {
+    fillColor = '#d1d5db'; // soft gray
+    strokeColor = '#6b7280'; // darker gray
+  }
   
   // 計算實際的 Y 坐標位置
   const priceRange = maxPrice - minPrice;
-  // The height prop passed to shape is the full height of the chart area for the Y-axis.
-  // We need to calculate the actual chart drawing height based on the Y-axis domain.
-  // The Y-axis in recharts is typically inverted, so higher values are lower Y coordinates.
-  // The 'y' prop passed to shape is the y-coordinate of the data point (High in this case).
-  // We need to adjust calculations based on the actual Y-axis scale.
-
-  // Recharts Y-axis is inverted: higher price -> lower Y coordinate.
-  // The 'y' prop for the Bar is typically the y-coordinate of the dataKey (High).
-  // The 'height' prop for the Bar is the height of the bar if it were a standard bar chart.
-  // For a candlestick, we need to map prices to the chart's pixel height.
-
-  // Let's assume 'y' is the top of the plotting area and 'y + height' is the bottom.
-  // The total pixel height available for the price range is 'height'.
-  // We need to map minPrice to y + height and maxPrice to y.
-
-  // Calculate the pixel value per price unit
   const pixelsPerPriceUnit = height / priceRange;
 
-  // Calculate Y coordinates for Open, Close, High, Low
-  // Note: Y-axis is inverted, so (maxPrice - price) gives distance from top.
-  const highY = y + (maxPrice - High) * pixelsPerPriceUnit;
-  const lowY = y + (maxPrice - Low) * pixelsPerPriceUnit;
-  const openY = y + (maxPrice - Open) * pixelsPerPriceUnit;
-  const closeY = y + (maxPrice - Close) * pixelsPerPriceUnit;
+  // Calculate Y coordinates for HA values
+  const highY = y + (maxPrice - HA_High) * pixelsPerPriceUnit;
+  const lowY = y + (maxPrice - HA_Low) * pixelsPerPriceUnit;
+  const openY = y + (maxPrice - HA_Open) * pixelsPerPriceUnit;
+  const closeY = y + (maxPrice - HA_Close) * pixelsPerPriceUnit;
   
   // 蠟燭主體
   const bodyTop = Math.min(openY, closeY);

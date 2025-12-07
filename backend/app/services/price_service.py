@@ -159,8 +159,11 @@ class PriceService:
         Returns:
             Dictionary with statistics
         """
-        start_price = float(df.row(0, named=True)["Close"])
-        end_price = float(df.row(-1, named=True)["Close"])
+        # Use Adj Close if available, otherwise use Close
+        close_field = "Adj Close" if "Adj Close" in df.columns else "Close"
+        
+        start_price = float(df.row(0, named=True)[close_field])
+        end_price = float(df.row(-1, named=True)[close_field])
         growth_rate = ((end_price - start_price) / start_price) * 100
         duration_days = (df.row(-1, named=True)["Date"] - df.row(0, named=True)["Date"]).days
         
@@ -188,16 +191,25 @@ class PriceService:
         # Get recent data
         recent_df = df.tail(limit)
         
+        # Check if 'Adj Close' column exists
+        has_adj_close = "Adj Close" in recent_df.columns
+        
         # Convert to list of dicts using polars to_dicts()
         data = []
         for row in recent_df.iter_rows(named=True):
-            data.append({
+            item = {
                 "Date": row['Date'].strftime('%Y-%m-%d'),
                 "Open": round(float(row['Open']), 2),
                 "High": round(float(row['High']), 2),
                 "Low": round(float(row['Low']), 2),
                 "Close": round(float(row['Close']), 2),
                 "Volume": int(row['Volume']),
-            })
+            }
+            
+            # Add Adj Close if available
+            if has_adj_close:
+                item["Adj Close"] = round(float(row['Adj Close']), 2)
+            
+            data.append(item)
         
         return data

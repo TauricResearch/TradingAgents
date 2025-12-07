@@ -28,6 +28,7 @@ export interface PriceData {
   High: number;
   Low: number;
   Close: number;
+  "Adj Close"?: number; // Optional adjusted close price
   Volume: number;
 }
 
