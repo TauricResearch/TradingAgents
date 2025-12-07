@@ -187,23 +187,23 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                       const isDown = data.HA_Close < data.HA_Open;
                       const isNeutral = data.HA_Close === data.HA_Open;
                       
-                      // Color coding: green for up, red for down, gray for neutral
-                      const color = isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-gray-600';
+                      // Trend color coding for the direction indicator
+                      const trendColor = isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-gray-600';
                       const direction = isUp ? '↑ 上漲' : isDown ? '↓ 下跌' : '→ 無變化';
                       
                       return (
                         <div className="bg-background border border-border p-3 rounded-lg shadow-lg">
                           <p className="text-sm font-semibold mb-2">日期: {data.Date}</p>
                           <div className="space-y-1 text-sm">
-                            <p className={color}>
+                            <p className="text-purple-600">
                               開: ${formatNumber(data.HA_Open)}
                             </p>
-                            <p className={color}>
+                            <p className="text-cyan-600">
                               收: ${formatNumber(data.HA_Close)}
                             </p>
-                            <p className="text-blue-600">高: ${formatNumber(data.HA_High)}</p>
-                            <p className="text-orange-600">低: ${formatNumber(data.HA_Low)}</p>
-                            <p className={`text-sm mt-2 ${color}`}>
+                            <p className="text-pink-600">高: ${formatNumber(data.HA_High)}</p>
+                            <p className="text-amber-600">低: ${formatNumber(data.HA_Low)}</p>
+                            <p className={`text-sm mt-2 ${trendColor}`}>
                               {direction} ${formatNumber(Math.abs(data.HA_Close - data.HA_Open))}
                             </p>
                           </div>
