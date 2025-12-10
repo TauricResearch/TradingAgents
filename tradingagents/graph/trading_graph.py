@@ -95,26 +95,14 @@ class TradingAgentsXGraph:
         
         # Helper to initialize LLM based on URL/Provider
         def _create_llm(model: str, base_url: str, api_key: str):
-            # Determine provider based on Base URL
-            if "anthropic.com" in base_url:
-                # Claude 4.5 API restriction: cannot use both temperature and top_p
-                # Only use temperature, set top_p to None explicitly
-                return ChatAnthropic(
-                    model=model, 
-                    base_url=base_url, 
-                    api_key=api_key,
-                    max_tokens=16000,  # Prevent report truncation
-                    temperature=0.7,   # Use temperature for randomness control
-                    top_p=None         # Explicitly set to None to avoid conflict
-                )
-            else:
-                # Default to ChatOpenAI for OpenAI, Grok, DeepSeek, Qwen, and other OpenAI-compatible APIs
-                return ChatOpenAI(
-                    model=model,
-                    base_url=base_url,
-                    openai_api_key=api_key,
-                    max_tokens=16000  # Prevent report truncation
-                )
+            # Use ChatOpenAI for all providers including Anthropic's OpenAI-compatible endpoint
+            # Anthropic's /v1 endpoint is OpenAI-compatible, so we use ChatOpenAI
+            return ChatOpenAI(
+                model=model,
+                base_url=base_url,
+                openai_api_key=api_key,
+                max_tokens=16000  # Prevent report truncation
+            )
 
         # Initialize LLMs independently
         print(f"DEBUG: Initializing Deep Thinking LLM: Model={self.config['deep_think_llm']}, BaseURL={deep_base_url}, Key={deep_api_key[:10]}...")
