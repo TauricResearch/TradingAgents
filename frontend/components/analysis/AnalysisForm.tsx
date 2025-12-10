@@ -385,15 +385,18 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                             OpenAI: o4-mini
                           </SelectItem>
 
-                          {/* Anthropic */}
-                          <SelectItem value="claude-haiku-4-5">
-                            Anthropic: Claude Haiku 4.5
-                          </SelectItem>
-                          <SelectItem value="claude-sonnet-4-5">
+                          {/* Anthropic (Official model IDs) */}
+                          <SelectItem value="claude-sonnet-4-5-20250929">
                             Anthropic: Claude Sonnet 4.5
                           </SelectItem>
-                          <SelectItem value="claude-sonnet-4-0">
+                          <SelectItem value="claude-haiku-4-5-20250929">
+                            Anthropic: Claude Haiku 4.5
+                          </SelectItem>
+                          <SelectItem value="claude-sonnet-4-20250514">
                             Anthropic: Claude Sonnet 4
+                          </SelectItem>
+                          <SelectItem value="claude-3-5-sonnet-20241022">
+                            Anthropic: Claude 3.5 Sonnet
                           </SelectItem>
                           <SelectItem value="claude-3-5-haiku-20241022">
                             Anthropic: Claude 3.5 Haiku
@@ -524,15 +527,18 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                             OpenAI: o4-mini
                           </SelectItem>
 
-                          {/* Anthropic */}
-                          <SelectItem value="claude-haiku-4-5">
-                            Anthropic: Claude Haiku 4.5
-                          </SelectItem>
-                          <SelectItem value="claude-sonnet-4-5">
+                          {/* Anthropic (Official model IDs) */}
+                          <SelectItem value="claude-sonnet-4-5-20250929">
                             Anthropic: Claude Sonnet 4.5
                           </SelectItem>
-                          <SelectItem value="claude-sonnet-4-0">
+                          <SelectItem value="claude-haiku-4-5-20250929">
+                            Anthropic: Claude Haiku 4.5
+                          </SelectItem>
+                          <SelectItem value="claude-sonnet-4-20250514">
                             Anthropic: Claude Sonnet 4
+                          </SelectItem>
+                          <SelectItem value="claude-3-5-sonnet-20241022">
+                            Anthropic: Claude 3.5 Sonnet
                           </SelectItem>
                           <SelectItem value="claude-3-5-haiku-20241022">
                             Anthropic: Claude 3.5 Haiku

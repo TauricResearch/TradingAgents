@@ -266,10 +266,11 @@ class TradingService:
             "gpt-4.1-mini",
             "gpt-4.1-nano",
             "o4-mini-2025-04-16",
-            # Anthropic
-            "claude-haiku-4-5",
-            "claude-sonnet-4-5",
-            "claude-sonnet-4-0",
+            # Anthropic (Official model IDs)
+            "claude-sonnet-4-5-20250929",
+            "claude-haiku-4-5-20250929",
+            "claude-sonnet-4-20250514",
+            "claude-3-5-sonnet-20241022",
             "claude-3-5-haiku-20241022",
             "claude-3-haiku-20240307",
             # Google
