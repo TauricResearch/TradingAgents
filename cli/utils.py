@@ -195,11 +195,11 @@ def select_shallow_thinking_agent(provider=None) -> str:
             ("o4-mini", "o4-mini"),
         ],
         "Anthropic": [
-            ("Claude Sonnet 4.5", "claude-sonnet-4-5"),
-            ("Claude Haiku 4.5", "claude-haiku-4-5"),
-            ("Claude Sonnet 4", "claude-sonnet-4-0"),
-            ("Claude 3.5 Sonnet", "claude-3-7-sonnet-latest"),
-            ("Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
+            ("Claude Sonnet 4.5", "claude-sonnet-4-5-20250929"),
+            ("Claude Haiku 4.5", "claude-haiku-4-5-20251001"),
+            ("Claude Sonnet 4", "claude-sonnet-4-20250514"),
+            ("Claude 3.7 Sonnet", "claude-3-7-sonnet-20250219"),
+            ("Claude 3.5 Haiku", "claude-3-5-haiku-20241022"),
             ("Claude 3 Haiku", "claude-3-haiku-20240307"),
         ],
         "Google": [
@@ -320,11 +320,11 @@ def select_deep_thinking_agent(provider=None) -> str:
             ("o4-mini", "o4-mini"),
         ],
         "Anthropic": [
-            ("Claude Sonnet 4.5", "claude-sonnet-4-5"),
-            ("Claude Haiku 4.5", "claude-haiku-4-5"),
-            ("Claude Sonnet 4", "claude-sonnet-4-0"),
-            ("Claude 3.5 Sonnet", "claude-3-7-sonnet-latest"),
-            ("Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
+            ("Claude Sonnet 4.5", "claude-sonnet-4-5-20250929"),
+            ("Claude Haiku 4.5", "claude-haiku-4-5-20251001"),
+            ("Claude Sonnet 4", "claude-sonnet-4-20250514"),
+            ("Claude 3.7 Sonnet", "claude-3-7-sonnet-20250219"),
+            ("Claude 3.5 Haiku", "claude-3-5-haiku-20241022"),
             ("Claude 3 Haiku", "claude-3-haiku-20240307"),
         ],
         "Google": [
