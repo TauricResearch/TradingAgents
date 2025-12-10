@@ -4,7 +4,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
@@ -99,8 +99,8 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
       analysis_date: format(new Date(), "yyyy-MM-dd"),
       analysts: ["market", "social", "news", "fundamentals"], // 預設全選
       research_depth: 3, // 預設中等層級
-      quick_think_llm: "gpt-5-mini-2025-08-07",
-      deep_think_llm: "gpt-5-mini-2025-08-07",
+      quick_think_llm: "gpt-5-mini",
+      deep_think_llm: "gpt-5-mini",
       custom_quick_think_model: "",
       custom_deep_think_model: "",
       quick_think_base_url: "https://api.openai.com/v1",
@@ -366,13 +366,13 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                         </FormControl>
                         <SelectContent>
                           {/* OpenAI */}
-                          <SelectItem value="gpt-5.1-2025-11-13">
+                          <SelectItem value="gpt-5.1">
                             OpenAI: GPT-5.1
                           </SelectItem>
-                          <SelectItem value="gpt-5-mini-2025-08-07">
+                          <SelectItem value="gpt-5-mini">
                             OpenAI: GPT-5 Mini
                           </SelectItem>
-                          <SelectItem value="gpt-5-nano-2025-08-07">
+                          <SelectItem value="gpt-5-nano">
                             OpenAI: GPT-5 Nano
                           </SelectItem>
                           <SelectItem value="gpt-4.1-mini">
@@ -381,24 +381,24 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           <SelectItem value="gpt-4.1-nano">
                             OpenAI: GPT-4.1 Nano
                           </SelectItem>
-                          <SelectItem value="o4-mini-2025-04-16">
+                          <SelectItem value="o4-mini">
                             OpenAI: o4-mini
                           </SelectItem>
 
                           {/* Anthropic (Official model IDs) */}
-                          <SelectItem value="claude-sonnet-4-5-20250929">
+                          <SelectItem value="claude-sonnet-4-5">
                             Anthropic: Claude Sonnet 4.5
                           </SelectItem>
-                          <SelectItem value="claude-haiku-4-5-20250929">
+                          <SelectItem value="claude-haiku-4-5">
                             Anthropic: Claude Haiku 4.5
                           </SelectItem>
-                          <SelectItem value="claude-sonnet-4-20250514">
+                          <SelectItem value="claude-sonnet-4-0">
                             Anthropic: Claude Sonnet 4
                           </SelectItem>
-                          <SelectItem value="claude-3-5-sonnet-20241022">
+                          <SelectItem value="claude-3-7-sonnet-latest">
                             Anthropic: Claude 3.5 Sonnet
                           </SelectItem>
-                          <SelectItem value="claude-3-5-haiku-20241022">
+                          <SelectItem value="claude-3-5-haiku-latest">
                             Anthropic: Claude 3.5 Haiku
                           </SelectItem>
                           <SelectItem value="claude-3-haiku-20240307">
@@ -508,13 +508,13 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                         </FormControl>
                         <SelectContent>
                           {/* OpenAI */}
-                          <SelectItem value="gpt-5.1-2025-11-13">
+                          <SelectItem value="gpt-5.1">
                             OpenAI: GPT-5.1
                           </SelectItem>
-                          <SelectItem value="gpt-5-mini-2025-08-07">
+                          <SelectItem value="gpt-5-mini">
                             OpenAI: GPT-5 Mini
                           </SelectItem>
-                          <SelectItem value="gpt-5-nano-2025-08-07">
+                          <SelectItem value="gpt-5-nano">
                             OpenAI: GPT-5 Nano
                           </SelectItem>
                           <SelectItem value="gpt-4.1-mini">
@@ -523,24 +523,24 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           <SelectItem value="gpt-4.1-nano">
                             OpenAI: GPT-4.1 Nano
                           </SelectItem>
-                          <SelectItem value="o4-mini-2025-04-16">
+                          <SelectItem value="o4-mini">
                             OpenAI: o4-mini
                           </SelectItem>
 
                           {/* Anthropic (Official model IDs) */}
-                          <SelectItem value="claude-sonnet-4-5-20250929">
+                          <SelectItem value="claude-sonnet-4-5">
                             Anthropic: Claude Sonnet 4.5
                           </SelectItem>
-                          <SelectItem value="claude-haiku-4-5-20250929">
+                          <SelectItem value="claude-haiku-4-5">
                             Anthropic: Claude Haiku 4.5
                           </SelectItem>
-                          <SelectItem value="claude-sonnet-4-20250514">
+                          <SelectItem value="claude-sonnet-4-0">
                             Anthropic: Claude Sonnet 4
                           </SelectItem>
-                          <SelectItem value="claude-3-5-sonnet-20241022">
+                          <SelectItem value="claude-3-7-sonnet-latest">
                             Anthropic: Claude 3.5 Sonnet
                           </SelectItem>
-                          <SelectItem value="claude-3-5-haiku-20241022">
+                          <SelectItem value="claude-3-5-haiku-latest">
                             Anthropic: Claude 3.5 Haiku
                           </SelectItem>
                           <SelectItem value="claude-3-haiku-20240307">

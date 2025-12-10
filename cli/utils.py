@@ -187,19 +187,19 @@ def select_shallow_thinking_agent(provider=None) -> str:
     # 定義不同供應商的淺層思維 LLM 引擎選項
     SHALLOW_AGENT_OPTIONS = {
         "OpenAI": [
-            ("GPT-5.1", "gpt-5.1-2025-11-13"),
-            ("GPT-5-mini","gpt-5-mini-2025-08-07"),
-            ("GPT-5-nano","gpt-5-nano-2025-08-07"),
+            ("GPT-5.1", "gpt-5.1"),
+            ("GPT-5-mini","gpt-5-mini"),
+            ("GPT-5-nano","gpt-5-nano"),
             ("GPT-4.1-mini", "gpt-4.1-mini"),
             ("GPT-4.1-nano", "gpt-4.1-nano"),
-            ("o4-mini", "o4-mini-2025-04-16"),
+            ("o4-mini", "o4-mini"),
         ],
         "Anthropic": [
-            ("Claude Sonnet 4.5", "claude-sonnet-4-5-20250929"),
-            ("Claude Haiku 4.5", "claude-haiku-4-5-20250929"),
-            ("Claude Sonnet 4", "claude-sonnet-4-20250514"),
-            ("Claude 3.5 Sonnet", "claude-3-5-sonnet-20241022"),
-            ("Claude 3.5 Haiku", "claude-3-5-haiku-20241022"),
+            ("Claude Sonnet 4.5", "claude-sonnet-4-5"),
+            ("Claude Haiku 4.5", "claude-haiku-4-5"),
+            ("Claude Sonnet 4", "claude-sonnet-4-0"),
+            ("Claude 3.5 Sonnet", "claude-3-7-sonnet-latest"),
+            ("Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
             ("Claude 3 Haiku", "claude-3-haiku-20240307"),
         ],
         "Google": [
@@ -312,19 +312,19 @@ def select_deep_thinking_agent(provider=None) -> str:
     # 定義不同供應商的深層思維 LLM 引擎選項
     DEEP_AGENT_OPTIONS = {
         "OpenAI": [
-            ("GPT-5.1", "gpt-5.1-2025-11-13"),
-            ("GPT-5-mini","gpt-5-mini-2025-08-07"),
-            ("GPT-5-nano","gpt-5-nano-2025-08-07"),
+            ("GPT-5.1", "gpt-5.1"),
+            ("GPT-5-mini","gpt-5-mini"),
+            ("GPT-5-nano","gpt-5-nano"),
             ("GPT-4.1-mini", "gpt-4.1-mini"),
             ("GPT-4.1-nano", "gpt-4.1-nano"),
-            ("o4-mini", "o4-mini-2025-04-16"),
+            ("o4-mini", "o4-mini"),
         ],
         "Anthropic": [
-            ("Claude Sonnet 4.5", "claude-sonnet-4-5-20250929"),
-            ("Claude Haiku 4.5", "claude-haiku-4-5-20250929"),
-            ("Claude Sonnet 4", "claude-sonnet-4-20250514"),
-            ("Claude 3.5 Sonnet", "claude-3-5-sonnet-20241022"),
-            ("Claude 3.5 Haiku", "claude-3-5-haiku-20241022"),
+            ("Claude Sonnet 4.5", "claude-sonnet-4-5"),
+            ("Claude Haiku 4.5", "claude-haiku-4-5"),
+            ("Claude Sonnet 4", "claude-sonnet-4-0"),
+            ("Claude 3.5 Sonnet", "claude-3-7-sonnet-latest"),
+            ("Claude 3.5 Haiku", "claude-3-5-haiku-latest"),
             ("Claude 3 Haiku", "claude-3-haiku-20240307"),
         ],
         "Google": [

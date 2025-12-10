@@ -26,8 +26,8 @@ class TradingService:
     def create_config(
         self,
         research_depth: int = 1,
-        deep_think_llm: str = "gpt-5-mini-2025-08-07",
-        quick_think_llm: str = "gpt-5-mini-2025-08-07",
+        deep_think_llm: str = "gpt-5-mini",
+        quick_think_llm: str = "gpt-5-mini",
     ) -> Dict[str, Any]:
         """Create configuration for TradingAgentsX"""
         config = self.default_config.copy()
@@ -53,8 +53,8 @@ class TradingService:
         alpha_vantage_api_key: Optional[str] = None,
         analysts: Optional[List[str]] = None,
         research_depth: int = 1,
-        deep_think_llm: str = "gpt-5-mini-2025-08-07",
-        quick_think_llm: str = "gpt-5-mini-2025-08-07",
+        deep_think_llm: str = "gpt-5-mini",
+        quick_think_llm: str = "gpt-5-mini",
     ) -> Dict[str, Any]:
         """
         Run trading analysis for a given ticker and date with user-provided API keys
@@ -260,18 +260,18 @@ class TradingService:
         """Get list of available OpenAI LLM models"""
         return [
             # OpenAI
-            "gpt-5.1-2025-11-13",
-            "gpt-5-mini-2025-08-07",
-            "gpt-5-nano-2025-08-07",
+            "gpt-5.1",
+            "gpt-5-mini",
+            "gpt-5-nano",
             "gpt-4.1-mini",
             "gpt-4.1-nano",
-            "o4-mini-2025-04-16",
+            "o4-mini",
             # Anthropic (Official model IDs)
-            "claude-sonnet-4-5-20250929",
-            "claude-haiku-4-5-20250929",
-            "claude-sonnet-4-20250514",
-            "claude-3-5-sonnet-20241022",
-            "claude-3-5-haiku-20241022",
+            "claude-sonnet-4-5",
+            "claude-haiku-4-5",
+            "claude-sonnet-4-0",
+            "claude-3-7-sonnet-latest",
+            "claude-3-5-haiku-latest",
             "claude-3-haiku-20240307",
             # Google
             "gemini-2.5-pro",
@@ -300,8 +300,8 @@ class TradingService:
         """Get default configuration"""
         return {
             "research_depth": 1,
-            "deep_think_llm": "gpt-5-mini-2025-08-07",
-            "quick_think_llm": "gpt-5-mini-2025-08-07",
+            "deep_think_llm": "gpt-5-mini",
+            "quick_think_llm": "gpt-5-mini",
             "max_debate_rounds": 1,
             "max_risk_discuss_rounds": 1,
         }

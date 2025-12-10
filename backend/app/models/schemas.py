@@ -15,8 +15,8 @@ class AnalysisRequest(BaseModel):
         description="List of analysts to include in analysis"
     )
     research_depth: Optional[int] = Field(default=1, ge=1, le=5, description="Research depth (1-5)")
-    deep_think_llm: Optional[str] = Field(default="gpt-5-mini-2025-08-07", description="Deep thinking LLM model")
-    quick_think_llm: Optional[str] = Field(default="gpt-5-mini-2025-08-07", description="Quick thinking LLM model")
+    deep_think_llm: Optional[str] = Field(default="gpt-5-mini", description="Deep thinking LLM model")
+    quick_think_llm: Optional[str] = Field(default="gpt-5-mini", description="Quick thinking LLM model")
     
     # API Configuration
     openai_api_key: Optional[str] = Field(None, description="OpenAI API Key (optional if set on server)", min_length=0)

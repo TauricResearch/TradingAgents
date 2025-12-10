@@ -10,8 +10,8 @@ DEFAULT_CONFIG = {
     )),
     # LLM 設定
     "llm_provider": "openai",
-    "deep_think_llm": "gpt-5-mini-2025-08-07",
-    "quick_think_llm": "gpt-5-mini-2025-08-07",
+    "deep_think_llm": "gpt-5-mini",
+    "quick_think_llm": "gpt-5-mini",
     "backend_url": "https://api.openai.com/v1",
     # 辯論與討論設定
     "max_debate_rounds": 1,

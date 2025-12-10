@@ -476,7 +476,7 @@ docker compose down -v
    **配置示例：**
 
    ```
-   快速思維模型: gpt-5-mini-2025-08-07
+   快速思維模型: gpt-5-mini
    快速思維 Base URL: https://api.openai.com/v1
    快速思維 API Key: sk-your-openai-key
 
@@ -566,7 +566,7 @@ curl -X POST http://localhost:8000/api/analyze \
     "analysis_date": "2024-01-15",
     "research_depth": 2,
     "deep_think_llm": "claude-sonnet-4-5",
-    "quick_think_llm": "gpt-5-mini-2025-08-07",
+    "quick_think_llm": "gpt-5-mini",
     "analysts": ["market", "sentiment", "news", "fundamental"],
     "quick_think_base_url": "https://api.openai.com/v1",
     "deep_think_base_url": "https://api.anthropic.com/v1",

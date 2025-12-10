@@ -8,8 +8,8 @@ load_dotenv(override=True)
 
 # 建立自訂設定
 config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-5-mini-2025-08-07"  # 使用不同的模型
-config["quick_think_llm"] = "gpt-5-mini-2025-08-07"  # 使用不同的模型
+config["deep_think_llm"] = "gpt-5-mini"  # 使用不同的模型
+config["quick_think_llm"] = "gpt-5-mini"  # 使用不同的模型
 config["max_debate_rounds"] = 1  # 增加辯論回合
 
 # 設定資料供應商 (預設使用 yfinance 和 alpha_vantage)
