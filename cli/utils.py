@@ -430,7 +430,7 @@ def select_llm_provider() -> tuple[str, str]:
     # 定義 LLM 供應商及其 API 基礎 URL
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
-        ("Anthropic", "https://api.anthropic.com"),
+        ("Anthropic", "https://api.anthropic.com/v1"),
         ("Google", "https://generativelanguage.googleapis.com/v1beta/openai"),
         ("Grok", "https://api.x.ai/v1"),
         ("DeepSeek", "https://api.deepseek.com/v1"),
