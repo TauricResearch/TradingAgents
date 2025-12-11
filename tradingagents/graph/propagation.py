@@ -41,6 +41,9 @@ class Propagator:
         Returns:
             Dict[str, Any]: 初始狀態的字典。
         """
+        # 防呆：將股票代碼轉換為大寫並去除空白
+        company_name = company_name.strip().upper()
+        
         # 獲取真實公司名稱（從Alpha Vantage獲取公司概況）
         ticker = company_name  # company_name實際上是ticker
         actual_company_name = ticker  # 預設值為ticker

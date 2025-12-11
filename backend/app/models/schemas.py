@@ -1,7 +1,7 @@
 """
 Pydantic models for request/response schemas
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any, Literal, Union
 from datetime import date
 
@@ -9,6 +9,12 @@ from datetime import date
 class AnalysisRequest(BaseModel):
     """Request model for trading analysis"""
     ticker: str = Field(..., description="Stock ticker symbol (e.g., 'NVDA', 'AAPL')", min_length=1, max_length=10)
+    
+    # 防呆：自動將股票代碼轉換為大寫
+    @field_validator('ticker')
+    @classmethod
+    def uppercase_ticker(cls, v: str) -> str:
+        return v.strip().upper()
     analysis_date: str = Field(..., description="Analysis date in YYYY-MM-DD format")
     analysts: Optional[List[str]] = Field(
         default=["market", "social", "news", "fundamentals"],
@@ -140,3 +146,10 @@ class DownloadRequest(BaseModel):
     analysis_date: str = Field(..., description="Analysis date in YYYY-MM-DD format")
     task_id: str = Field(..., description="Task ID of the completed analysis")
     analysts: List[str] = Field(..., description="List of analyst keys to download", min_length=1)
+    
+    # 防呆：自動將股票代碼轉換為大寫
+    @field_validator('ticker')
+    @classmethod
+    def uppercase_ticker(cls, v: str) -> str:
+        return v.strip().upper()
+

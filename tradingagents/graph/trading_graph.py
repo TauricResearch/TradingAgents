@@ -203,7 +203,9 @@ class TradingAgentsXGraph:
         Returns:
             tuple: 包含最終狀態和處理後信號的元組。
         """
-
+        # 防呆：將股票代碼轉換為大寫並去除空白
+        company_name = company_name.strip().upper()
+        
         self.ticker = company_name
 
         # 初始化狀態

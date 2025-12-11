@@ -559,7 +559,10 @@ def get_user_selections():
 
 def get_ticker():
     """從使用者輸入中獲取股票代碼。"""
-    return typer.prompt("", default="SPY")
+    ticker = typer.prompt("", default="SPY")
+    # 防呆：將股票代碼轉換為大寫
+    ticker = ticker.strip().upper()
+    return ticker
 
 
 def get_analysis_date():
