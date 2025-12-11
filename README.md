@@ -301,11 +301,11 @@ DEEPSEEK_API_KEY=your-deepseek-key
 # Qwen / Alibaba Cloud (可選)
 DASHSCOPE_API_KEY=your-qwen-key
 
-# Alpha Vantage (強烈建議 - 用於美股基本面數據)
-ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
+# Alpha Vantage (建議配置)
+ALPHA_VANTAGE_API_KEY=
 
-# FinMind (選填 - 用於台股數據)
-FINMIND_API_KEY=your-finmind-key
+# FinMind (選填 - 用於台股)
+FINMIND_API_KEY=
 
 # ============ 後端服務配置 ============
 BACKEND_HOST=0.0.0.0
