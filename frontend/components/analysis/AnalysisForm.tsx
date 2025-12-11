@@ -54,7 +54,7 @@ const formSchema = z.object({
   deep_think_llm: z.string().min(1, "請選擇深層思維模型"),
   
   // Market type selection: us=美股, twse=上市, tpex=上櫃/興櫃
-  market_type: z.enum(["us", "twse", "tpex"]).default("us"),
+  market_type: z.enum(["us", "twse", "tpex"]),
   
   // Custom model names (when "custom" is selected)
   custom_quick_think_model: z.string().optional(),
