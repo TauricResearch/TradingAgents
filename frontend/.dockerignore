@@ -7,7 +7,8 @@ npm-debug.log*
 out/
 
 # Environment files
-.env*.local
+.env
+.env.*
 
 # Build files
 dist/

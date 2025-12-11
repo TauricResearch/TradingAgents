@@ -18,6 +18,10 @@ __pycache__/
 .pytest_cache/
 .coverage
 
+# Environment files
+.env
+.env.*
+
 # Ignore development files
 .vscode/
 .idea/
