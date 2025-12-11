@@ -51,6 +51,8 @@ class TradingService:
         embedding_base_url: str = "https://api.openai.com/v1",
         embedding_api_key: Optional[str] = None,
         alpha_vantage_api_key: Optional[str] = None,
+        finmind_api_key: Optional[str] = None,  # 台灣股市資料 API
+        market_type: str = "us",  # 市場類型：us (美股) 或 tw (台股)
         analysts: Optional[List[str]] = None,
         research_depth: int = 1,
         deep_think_llm: str = "gpt-5-mini",
@@ -66,7 +68,9 @@ class TradingService:
             openai_base_url: OpenAI API Base URL (optional, deprecated)
             quick_think_base_url: Base URL for Quick Thinking Model
             deep_think_base_url: Base URL for Deep Thinking Model
-            alpha_vantage_api_key: Alpha Vantage API Key (optional)
+            alpha_vantage_api_key: Alpha Vantage API Key (optional, for US stocks)
+            finmind_api_key: FinMind API Token (optional, for Taiwan stocks)
+            market_type: Market type - 'us' for US stocks, 'tw' for Taiwan stocks
             analysts: List of analyst types to include
             research_depth: Research depth (1-5)
             deep_think_llm: Deep thinking LLM model
@@ -84,11 +88,16 @@ class TradingService:
             import os
             original_openai_key = os.environ.get("OPENAI_API_KEY")
             original_alpha_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
+            original_finmind_key = os.environ.get("FINMIND_API_TOKEN")
             
             try:
                 # Set Alpha Vantage API key if provided
                 if alpha_vantage_api_key:
                     os.environ["ALPHA_VANTAGE_API_KEY"] = alpha_vantage_api_key
+                
+                # Set FinMind API token if provided
+                if finmind_api_key:
+                    os.environ["FINMIND_API_TOKEN"] = finmind_api_key
                 
                 # Set OpenAI API key for dataflows (openai.py reads from env var)
                 if openai_api_key:
@@ -125,6 +134,36 @@ class TradingService:
                 config["deep_think_api_key"] = deep_think_api_key if deep_think_api_key else openai_api_key
                 config["embedding_base_url"] = normalize_base_url(embedding_base_url)
                 config["embedding_api_key"] = embedding_api_key if embedding_api_key else openai_api_key
+                
+                # 根據 market_type 設定資料供應商
+                if market_type in ["twse", "tpex"]:
+                    # 台股（上市/上櫃/興櫃）：使用 FinMind 作為所有資料來源
+                    market_label = "上市" if market_type == "twse" else "上櫃/興櫃"
+                    logger.info(f"Market type: Taiwan stocks ({market_label}) - using FinMind data provider")
+                    config["data_vendors"] = {
+                        "core_stock_apis": "finmind",
+                        "technical_indicators": "finmind",
+                        "fundamental_data": "finmind",
+                        "news_data": "finmind",
+                    }
+                    # 所有工具也使用 finmind
+                    config["tool_vendors"] = {
+                        "get_stock_data": "finmind",
+                        "get_indicators": "finmind",
+                        "get_fundamentals": "finmind",
+                        "get_balance_sheet": "finmind",
+                        "get_cashflow": "finmind",
+                        "get_income_statement": "finmind",
+                        "get_news": "finmind",
+                        "get_global_news": "finmind",
+                        "get_insider_sentiment": "finmind",
+                        "get_insider_transactions": "finmind",
+                    }
+                    # 儲存市場類型供 price_service 使用
+                    config["market_type"] = market_type
+                else:
+                    # 美股：維持原有邏輯（不修改 data_vendors 和 tool_vendors）
+                    logger.info(f"Market type: US stocks - using default data providers")
                 
                 # Initialize TradingAgentsX graph
                 graph = TradingAgentsXGraph(analysts, config=config, debug=True)
@@ -172,7 +211,6 @@ class TradingService:
                 
             finally:
                 # Clean up environment variables after request
-                # Clean up environment variables after request
                 if original_openai_key is not None:
                     os.environ["OPENAI_API_KEY"] = original_openai_key
                 elif openai_api_key and "OPENAI_API_KEY" in os.environ:
@@ -181,8 +219,13 @@ class TradingService:
                     
                 if original_alpha_key is not None:
                     os.environ["ALPHA_VANTAGE_API_KEY"] = original_alpha_key
-                elif "ALPHA_VANTAGE_API_KEY" in os.environ:
+                elif alpha_vantage_api_key and "ALPHA_VANTAGE_API_KEY" in os.environ:
                     del os.environ["ALPHA_VANTAGE_API_KEY"]
+                
+                if original_finmind_key is not None:
+                    os.environ["FINMIND_API_TOKEN"] = original_finmind_key
+                elif finmind_api_key and "FINMIND_API_TOKEN" in os.environ:
+                    del os.environ["FINMIND_API_TOKEN"]
             
         except Exception as e:
             logger.error(f"Analysis failed for {ticker}: {str(e)}", exc_info=True)

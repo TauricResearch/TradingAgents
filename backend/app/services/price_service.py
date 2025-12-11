@@ -2,6 +2,7 @@
 Price data service for loading and processing stock price data
 """
 import polars as pl
+import pandas as pd
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import logging
@@ -101,13 +102,34 @@ class PriceService:
         end_date = datetime.now()
         start_date = end_date - timedelta(days=365 * 15)  # 15 years of data
         
+        # 處理台股代碼
+        yf_ticker = ticker
+        original_ticker = ticker
+        
+        # 檢查是否為台股代碼（4-6位數字）
+        clean_ticker = ticker.replace(".TW", "").replace(".TWO", "").strip()
+        if clean_ticker.isdigit() and 4 <= len(clean_ticker) <= 6:
+            # 嘗試從傳入的 market_type 判斷（如果有的話）
+            # 否則使用 FinMind API 判斷
+            try:
+                from tradingagents.dataflows.finmind_common import get_yfinance_ticker
+                yf_ticker = get_yfinance_ticker(clean_ticker)
+                logger.info(f"台股代碼 {ticker} 轉換為 Yahoo Finance 格式: {yf_ticker}")
+            except ImportError:
+                # 如果無法導入 FinMind，預設使用 .TW
+                yf_ticker = f"{clean_ticker}.TW"
+                logger.info(f"無法導入 FinMind，預設使用上市後綴: {yf_ticker}")
+            except Exception as e:
+                logger.warning(f"獲取市場類型失敗，嘗試 .TW: {e}")
+                yf_ticker = f"{clean_ticker}.TW"
+        
         for attempt in range(1, max_retries + 1):
             try:
-                logger.info(f"嘗試從 Yahoo Finance 獲取 {ticker} 數據（第 {attempt} 次嘗試）...")
+                logger.info(f"嘗試從 Yahoo Finance 獲取 {yf_ticker} 數據（第 {attempt} 次嘗試）...")
                 
                 # Download data with timeout
                 data = yf.download(
-                    ticker,
+                    yf_ticker,
                     start=start_date.strftime("%Y-%m-%d"),
                     end=end_date.strftime("%Y-%m-%d"),
                     progress=False,
@@ -115,24 +137,83 @@ class PriceService:
                 )
                 
                 if data.empty:
-                    logger.error(f"{ticker} 無可用數據")
-                    return None
+                    # 如果是台股，嘗試另一個後綴
+                    if ".TW" in yf_ticker:
+                        alt_ticker = yf_ticker.replace(".TW", ".TWO")
+                        logger.info(f"嘗試上櫃代碼: {alt_ticker}")
+                        data = yf.download(
+                            alt_ticker,
+                            start=start_date.strftime("%Y-%m-%d"),
+                            end=end_date.strftime("%Y-%m-%d"),
+                            progress=False,
+                            timeout=30
+                        )
+                        if not data.empty:
+                            yf_ticker = alt_ticker
+                    elif ".TWO" in yf_ticker:
+                        alt_ticker = yf_ticker.replace(".TWO", ".TW")
+                        logger.info(f"嘗試上市代碼: {alt_ticker}")
+                        data = yf.download(
+                            alt_ticker,
+                            start=start_date.strftime("%Y-%m-%d"),
+                            end=end_date.strftime("%Y-%m-%d"),
+                            progress=False,
+                            timeout=30
+                        )
+                        if not data.empty:
+                            yf_ticker = alt_ticker
+                    
+                    if data.empty:
+                        logger.error(f"{yf_ticker} 無可用數據")
+                        return None
+                
+                # 處理 yfinance 多索引 DataFrame
+                # yfinance 可能返回多層索引的 DataFrame
+                if isinstance(data.columns, pd.MultiIndex):
+                    # 移除多層索引，只保留第一層
+                    data.columns = data.columns.get_level_values(0)
+                    logger.info("已處理 yfinance 多索引 DataFrame")
                 
                 # Reset index to make Date a column
                 data = data.reset_index()
                 
+                # 確保 Date 欄位名稱正確
+                if 'Date' not in data.columns and 'date' in data.columns:
+                    data = data.rename(columns={'date': 'Date'})
+                elif 'Date' not in data.columns:
+                    # 如果第一個欄位是日期，重命名它
+                    first_col = data.columns[0]
+                    data = data.rename(columns={first_col: 'Date'})
+                
+                # 標準化欄位名稱
+                column_mapping = {
+                    'open': 'Open', 'high': 'High', 'low': 'Low', 
+                    'close': 'Close', 'volume': 'Volume', 'adj close': 'Adj Close'
+                }
+                data = data.rename(columns={k: v for k, v in column_mapping.items() if k in data.columns})
+                
                 # Ensure cache directory exists
                 Path(data_cache_dir).mkdir(parents=True, exist_ok=True)
                 
-                # Save to cache
-                cache_file = Path(data_cache_dir) / f"{ticker}-YFin-data-{start_date.strftime('%Y-%m-%d')}-{end_date.strftime('%Y-%m-%d')}.csv"
+                # Save to cache - 使用原始代碼作為檔名（不含後綴）
+                cache_file = Path(data_cache_dir) / f"{original_ticker}-YFin-data-{start_date.strftime('%Y-%m-%d')}-{end_date.strftime('%Y-%m-%d')}.csv"
                 data.to_csv(cache_file, index=False)
                 
-                logger.info(f"成功獲取並緩存 {ticker} 數據到 {cache_file}")
+                logger.info(f"成功獲取並緩存 {yf_ticker} 數據到 {cache_file}")
                 
                 # Prepare and return DataFrame - convert to polars
                 df = pl.read_csv(str(cache_file))
-                df = df.with_columns(pl.col("Date").str.to_datetime())
+                
+                # 嘗試轉換 Date 欄位
+                try:
+                    df = df.with_columns(pl.col("Date").str.to_datetime())
+                except Exception as date_err:
+                    logger.warning(f"日期轉換失敗: {date_err}，嘗試其他格式")
+                    try:
+                        df = df.with_columns(pl.col("Date").cast(pl.Datetime))
+                    except:
+                        pass
+                
                 return df.sort("Date")
                 
             except Exception as e:
@@ -142,7 +223,7 @@ class PriceService:
                     logger.info(f"將在 {wait_time} 秒後重試...")
                     time_module.sleep(wait_time)
                 else:
-                    logger.error(f"在 {max_retries} 次嘗試後仍無法獲取 {ticker} 數據")
+                    logger.error(f"在 {max_retries} 次嘗試後仍無法獲取 {yf_ticker} 數據")
                     return None
         
         return None

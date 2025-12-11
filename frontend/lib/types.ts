@@ -7,6 +7,7 @@ export interface AnalysisRequest {
   analysis_date: string;
   analysts?: string[];
   research_depth?: number;
+  market_type?: "us" | "twse" | "tpex";  // 市場類型：美股、上市、上櫃/興櫃
   quick_think_llm?: string;
   deep_think_llm?: string;
 
@@ -20,6 +21,7 @@ export interface AnalysisRequest {
   embedding_base_url?: string;
   embedding_api_key?: string;
   alpha_vantage_api_key?: string;
+  finmind_api_key?: string;  // 台灣股市資料 API
 }
 
 export interface PriceData {

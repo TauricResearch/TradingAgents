@@ -21,6 +21,10 @@ class AnalysisRequest(BaseModel):
         description="List of analysts to include in analysis"
     )
     research_depth: Optional[int] = Field(default=1, ge=1, le=5, description="Research depth (1-5)")
+    market_type: Optional[Literal["us", "twse", "tpex"]] = Field(
+        default="us",
+        description="Market type: 'us' for US stocks, 'twse' for Taiwan TWSE (上市), 'tpex' for Taiwan TPEx/ROTC (上櫃/興櫃)"
+    )
     deep_think_llm: Optional[str] = Field(default="gpt-5-mini", description="Deep thinking LLM model")
     quick_think_llm: Optional[str] = Field(default="gpt-5-mini", description="Quick thinking LLM model")
     
@@ -45,10 +49,15 @@ class AnalysisRequest(BaseModel):
         description="Base URL for Embedding Model"
     )
     embedding_api_key: Optional[str] = Field(None, description="API Key for Embedding Model", min_length=0)
-    alpha_vantage_api_key: str = Field(
-        ...,
-        description="Alpha Vantage API Key (required for fundamental data)",
-        min_length=1
+    alpha_vantage_api_key: Optional[str] = Field(
+        None,
+        description="Alpha Vantage API Key (optional, for US stock fundamental data)",
+        min_length=0
+    )
+    finmind_api_key: Optional[str] = Field(
+        None,
+        description="FinMind API Token (optional, for Taiwan stock data)",
+        min_length=0
     )
 
 

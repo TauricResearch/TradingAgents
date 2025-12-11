@@ -13,6 +13,7 @@ export interface ApiSettings {
   grok_api_key: string;
   deepseek_api_key: string;
   qwen_api_key: string;
+  finmind_api_key: string;  // 台灣股市資料 API
   
   // Custom endpoint
   custom_base_url: string;
@@ -29,6 +30,7 @@ export const DEFAULT_API_SETTINGS: ApiSettings = {
   grok_api_key: "",
   deepseek_api_key: "",
   qwen_api_key: "",
+  finmind_api_key: "",  // 台灣股市資料 API
   custom_base_url: "",
   custom_api_key: "",
 };

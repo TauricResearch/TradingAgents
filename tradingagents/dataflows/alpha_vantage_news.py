@@ -4,7 +4,7 @@ import json
 import os
 
 
-def get_news(ticker, start_date, end_date, use_toon: bool = None) -> dict[str, str] | str:
+def get_news(ticker, start_date, end_date, use_toon: bool = True) -> dict[str, str] | str:
     """
     返回全球主要新聞機構的即時和歷史市場新聞與情緒數據。
 
@@ -14,14 +14,11 @@ def get_news(ticker, start_date, end_date, use_toon: bool = None) -> dict[str, s
         ticker: 新聞文章的股票代碼。
         start_date: 新聞搜索的開始日期。
         end_date: 新聞搜索的結束日期。
-        use_toon (bool): 是否使用toon格式（減少token消耗）。默認從環境變量讀取
+        use_toon (bool): 是否使用toon格式。默認為 True
 
     Returns:
         包含新聞情緒數據的字典或 JSON/Toon 字串。
     """
-    # 從環境變量或參數決定是否使用toon
-    if use_toon is None:
-        use_toon = os.getenv("USE_TOON_FORMAT", "true").lower() == "true"
 
     params = {
         "tickers": ticker,
@@ -97,7 +94,7 @@ def get_news(ticker, start_date, end_date, use_toon: bool = None) -> dict[str, s
         print(f"警告：無法總結新聞數據：{e}")
         return response
 
-def get_insider_transactions(symbol: str) -> dict[str, str] | str:
+def get_insider_transactions(symbol: str, use_toon: bool = True) -> dict[str, str] | str:
     """
     返回主要利益相關者的最新和歷史內部交易。
 
@@ -105,9 +102,10 @@ def get_insider_transactions(symbol: str) -> dict[str, str] | str:
 
     Args:
         symbol: 股票代碼。範例："IBM"。
+        use_toon (bool): 是否使用toon格式。默認為 True
 
     Returns:
-        包含內部交易數據的字典或 JSON 字串。
+        包含內部交易數據的字典或 JSON/Toon 字串。
     """
 
     params = {
@@ -125,7 +123,16 @@ def get_insider_transactions(symbol: str) -> dict[str, str] | str:
             if isinstance(data["data"], list):
                 data["data"] = data["data"][:15]
             
-            return json.dumps(data, ensure_ascii=False, indent=2)
+            # 使用toon格式或JSON格式返回
+            if use_toon:
+                try:
+                    from tradingagents.utils.toon_converter import convert_json_to_toon
+                    return convert_json_to_toon(data)
+                except Exception as e:
+                    print(f"警告：toon轉換失敗：{e}，使用JSON格式")
+                    return json.dumps(data, ensure_ascii=False, indent=2)
+            else:
+                return json.dumps(data, ensure_ascii=False, indent=2)
         
         return response
         

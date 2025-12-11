@@ -53,6 +53,9 @@ const formSchema = z.object({
   quick_think_llm: z.string().min(1, "請選擇快速思維模型"),
   deep_think_llm: z.string().min(1, "請選擇深層思維模型"),
   
+  // Market type selection: us=美股, twse=上市, tpex=上櫃/興櫃
+  market_type: z.enum(["us", "twse", "tpex"]).default("us"),
+  
   // Custom model names (when "custom" is selected)
   custom_quick_think_model: z.string().optional(),
   custom_deep_think_model: z.string().optional(),
@@ -76,7 +79,8 @@ const formSchema = z.object({
     .optional()
     .or(z.literal("")),
   embedding_api_key: z.string().min(1, "請輸入嵌入模型 API Key"),
-  alpha_vantage_api_key: z.string().min(1, "請輸入 Alpha Vantage API Key"),
+  alpha_vantage_api_key: z.string().optional().or(z.literal("")),  // 選填
+  finmind_api_key: z.string().optional().or(z.literal("")),  // 選填
 });
 
 interface AnalysisFormProps {
@@ -99,6 +103,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
       analysis_date: format(new Date(), "yyyy-MM-dd"),
       analysts: ["market", "social", "news", "fundamentals"], // 預設全選
       research_depth: 3, // 預設中等層級
+      market_type: "us", // 預設美股
       quick_think_llm: "gpt-5-mini",
       deep_think_llm: "gpt-5-mini",
       custom_quick_think_model: "",
@@ -110,12 +115,14 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
       embedding_base_url: "https://api.openai.com/v1",
       embedding_api_key: "",
       alpha_vantage_api_key: "",
+      finmind_api_key: "",
     },
   });
 
   // Load API settings from localStorage and update when models change
   const quickThinkLlm = form.watch("quick_think_llm");
   const deepThinkLlm = form.watch("deep_think_llm");
+  const marketType = form.watch("market_type");
   const isQuickThinkCustom = quickThinkLlm === "custom";
   const isDeepThinkCustom = deepThinkLlm === "custom";
   
@@ -141,9 +148,26 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
 
     form.setValue("embedding_base_url", savedSettings.custom_base_url || "https://api.openai.com/v1");
     form.setValue("embedding_api_key", savedSettings.custom_api_key || savedSettings.openai_api_key);
-    form.setValue("alpha_vantage_api_key", savedSettings.alpha_vantage_api_key);
+    form.setValue("alpha_vantage_api_key", savedSettings.alpha_vantage_api_key || "");
+    form.setValue("finmind_api_key", savedSettings.finmind_api_key || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quickThinkLlm, deepThinkLlm, isQuickThinkCustom, isDeepThinkCustom]);
+
+  // 當市場類型改變時，更新預設股票代碼和提示
+  useEffect(() => {
+    const currentTicker = form.getValues("ticker");
+    // 只在用戶未修改預設值時才自動切換
+    const isTwStock = marketType === "twse" || marketType === "tpex";
+    const isDefaultUsTicker = currentTicker === "NVDA" || currentTicker === "AAPL";
+    const isDefaultTwTicker = currentTicker === "2330" || currentTicker === "2317" || currentTicker === "6488";
+    
+    if (isTwStock && isDefaultUsTicker) {
+      form.setValue("ticker", marketType === "twse" ? "2330" : "6488");
+    } else if (marketType === "us" && isDefaultTwTicker) {
+      form.setValue("ticker", "NVDA");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marketType]);
 
   // 全選/取消全選
   const toggleSelectAll = () => {
@@ -270,8 +294,45 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                 />
               </div>
 
-              {/* 第一行：股票代碼、分析日期（2列） */}
-              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 第一行：市場類型、股票代碼、分析日期（3列） */}
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 市場類型選擇 */}
+                <FormField
+                  control={form.control}
+                  name="market_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>市場類型</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="選擇市場" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="us" className="py-3 cursor-pointer">
+                            🇺🇸 美股
+                          </SelectItem>
+                          <SelectItem value="twse" className="py-3 cursor-pointer">
+                            🇹🇼 台股上市
+                          </SelectItem>
+                          <SelectItem value="tpex" className="py-3 cursor-pointer">
+                            🇹🇼 台股上櫃/興櫃
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        選擇分析的股票市場
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* 股票代碼 */}
                 <FormField
                   control={form.control}
                   name="ticker"
@@ -279,10 +340,21 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     <FormItem>
                       <FormLabel>股票代碼</FormLabel>
                       <FormControl>
-                        <Input placeholder="NVDA" {...field} />
+                        <Input 
+                          placeholder={
+                            marketType === "us" ? "NVDA" : 
+                            marketType === "twse" ? "2330" : "6488"
+                          } 
+                          {...field} 
+                        />
                       </FormControl>
                       <FormDescription>
-                        輸入股票代碼（例如：NVDA、AAPL）
+                        {marketType === "us" 
+                          ? "輸入美股代碼（例如：NVDA、AAPL）" 
+                          : marketType === "twse"
+                          ? "輸入上市股票代碼（例如：2330、2317）"
+                          : "輸入上櫃/興櫃股票代碼（例如：6488、5765）"
+                        }
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

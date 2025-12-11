@@ -17,6 +17,21 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 
+# FinMind 台灣股市資料供應商
+from .finmind import (
+    get_stock as get_finmind_stock,
+    get_indicator as get_finmind_indicator,
+    get_fundamentals as get_finmind_fundamentals,
+    get_balance_sheet as get_finmind_balance_sheet,
+    get_cashflow as get_finmind_cashflow,
+    get_income_statement as get_finmind_income_statement,
+    get_news as get_finmind_news,
+    get_global_news as get_finmind_global_news,
+    get_insider_sentiment as get_finmind_insider_sentiment,
+    get_insider_transactions as get_finmind_insider_transactions,
+    FinMindRateLimitError,
+)
+
 # 設定和路由邏輯
 from .config import get_config
 
@@ -58,7 +73,9 @@ VENDOR_LIST = [
     "local",
     "yfinance",
     "openai",
-    "google"
+    "google",
+    "alpha_vantage",
+    "finmind",  # 台灣股市資料供應商
 ]
 
 # 方法與其特定供應商實現的映射
@@ -68,33 +85,39 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
         "local": get_YFin_data,
+        "finmind": get_finmind_stock,  # 台股資料
     },
     # 技術指標
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
-        "local": get_stock_stats_indicators_window
+        "local": get_stock_stats_indicators_window,
+        "finmind": get_finmind_indicator,  # 台股技術指標/籌碼面
     },
     # 基本面數據
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "openai": get_fundamentals_openai,
         "yfinance": get_yfinance_fundamentals,
+        "finmind": get_finmind_fundamentals,  # 台股基本面
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
         "local": get_simfin_balance_sheet,
+        "finmind": get_finmind_balance_sheet,  # 台股資產負債表
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
         "local": get_simfin_cashflow,
+        "finmind": get_finmind_cashflow,  # 台股現金流量表
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
         "local": get_simfin_income_statements,
+        "finmind": get_finmind_income_statement,  # 台股損益表
     },
     # 新聞數據
     "get_news": {
@@ -102,18 +125,22 @@ VENDOR_METHODS = {
         "openai": get_stock_news_openai,
         "google": get_google_news,
         "local": [get_finnhub_news, get_reddit_company_news, get_google_news],
+        "finmind": get_finmind_news,  # 台股公告/法人動態
     },
     "get_global_news": {
         "openai": get_global_news_openai,
-        "local": get_reddit_global_news
+        "local": get_reddit_global_news,
+        "finmind": get_finmind_global_news,  # 台股市場動態
     },
     "get_insider_sentiment": {
-        "local": get_finnhub_company_insider_sentiment
+        "local": get_finnhub_company_insider_sentiment,
+        "finmind": get_finmind_insider_sentiment,  # 台股法人情緒
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
         "local": get_finnhub_company_insider_transactions,
+        "finmind": get_finmind_insider_transactions,  # 台股法人交易
     },
 }
 
@@ -210,6 +237,12 @@ def route_to_vendor(method: str, *args, **kwargs):
             except AlphaVantageRateLimitError as e:
                 if vendor == "alpha_vantage":
                     print(f"速率限制：超過 Alpha Vantage 速率限制，將備援至下一個可用供應商")
+                    print(f"調試：速率限制詳細資訊：{e}")
+                # 繼續到下一個供應商進行備援
+                continue
+            except FinMindRateLimitError as e:
+                if vendor == "finmind":
+                    print(f"速率限制：超過 FinMind 速率限制，將備援至下一個可用供應商")
                     print(f"調試：速率限制詳細資訊：{e}")
                 # 繼續到下一個供應商進行備援
                 continue

@@ -90,6 +90,7 @@ async def run_analysis(
                 analysis_date=request.analysis_date,
                 analysts=request.analysts,
                 research_depth=request.research_depth,
+                market_type=request.market_type or "us",  # 預設美股
                 deep_think_llm=request.deep_think_llm,
                 quick_think_llm=request.quick_think_llm,
                 openai_api_key=request.openai_api_key or "",  # Pass empty string if None, service handles it
@@ -100,7 +101,8 @@ async def run_analysis(
                 deep_think_api_key=request.deep_think_api_key or "",
                 embedding_base_url=request.embedding_base_url,
                 embedding_api_key=request.embedding_api_key or "",
-                alpha_vantage_api_key=request.alpha_vantage_api_key,
+                alpha_vantage_api_key=request.alpha_vantage_api_key or "",
+                finmind_api_key=request.finmind_api_key or "",
             ))
             
             # Check for errors in result

@@ -50,7 +50,7 @@ export function AgentFlowDiagram() {
           />
           <DataSourceCard
             icon={<DollarSign className="w-5 h-5" />}
-            name="Alpha Vantage"
+            name="Alpha Vantage / FinMind"
             description="財務數據"
             color="purple"
           />

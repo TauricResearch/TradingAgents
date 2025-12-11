@@ -39,9 +39,10 @@ import {
 const formSchema = z.object({
   // Required
   openai_api_key: z.string().min(1, "OpenAI API Key 為必填"),
-  alpha_vantage_api_key: z.string().min(1, "Alpha Vantage API Key 為必填"),
   
   // Optional
+  alpha_vantage_api_key: z.string().optional().or(z.literal("")),  // 美股基本面資料
+  finmind_api_key: z.string().optional().or(z.literal("")),  // 台灣股市資料
   anthropic_api_key: z.string().optional().or(z.literal("")),
   google_api_key: z.string().optional().or(z.literal("")),
   grok_api_key: z.string().optional().or(z.literal("")),
@@ -136,14 +137,43 @@ export function ApiSettingsDialog() {
                   </FormItem>
                 )}
               />
+            </div>
 
-              {/* Alpha Vantage API Key */}
+            {/* Stock Market Data APIs Section */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-lg font-semibold text-muted-foreground">
+                股市資料 API（依分析市場選擇填寫）
+              </h3>
+
+              {/* FinMind API Key - Taiwan Stocks */}
+              <FormField
+                control={form.control}
+                name="finmind_api_key"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>FinMind API Token（台股）</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="輸入 FinMind Token"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      用於獲取台灣股市資料（在 finmindtrade.com 註冊取得）
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Alpha Vantage API Key - US Stocks */}
               <FormField
                 control={form.control}
                 name="alpha_vantage_api_key"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Alpha Vantage API Key *</FormLabel>
+                    <FormLabel>Alpha Vantage API Key（美股）</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
@@ -152,7 +182,7 @@ export function ApiSettingsDialog() {
                       />
                     </FormControl>
                     <FormDescription>
-                      用於獲取市場基本面數據（必填）
+                      用於獲取美股基本面數據（分析美股時建議填寫）
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -160,10 +190,10 @@ export function ApiSettingsDialog() {
               />
             </div>
 
-            {/* Optional Section */}
+            {/* Optional LLM Providers Section */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-lg font-semibold text-muted-foreground">
-                選填項目（依需求填寫）
+                選填項目（其他 LLM 供應商）
               </h3>
 
               {/* Anthropic API Key */}
