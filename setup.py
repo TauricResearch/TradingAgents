@@ -18,11 +18,9 @@ setup(
     # 套件的簡短描述
     description="多代理 LLM 金融交易框架",
     # 作者名稱
-    author="TradingAgentsX 團隊",
-    # 作者的電子郵件地址
-    author_email="yijia.xiao@cs.ucla.edu",
+    author="TradingAgentsX",
     # 專案的首頁 URL
-    url="https://github.com/TauricResearch",
+    url="https://github.com/MarkLo127/TradingAgentsX",
     # 自動尋找專案中的所有套件
     packages=find_packages(),
     # 套件的安裝依賴項
