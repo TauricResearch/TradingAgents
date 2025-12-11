@@ -90,6 +90,10 @@ class TradingService:
                 if alpha_vantage_api_key:
                     os.environ["ALPHA_VANTAGE_API_KEY"] = alpha_vantage_api_key
                 
+                # Set OpenAI API key for dataflows (openai.py reads from env var)
+                if openai_api_key:
+                    os.environ["OPENAI_API_KEY"] = openai_api_key
+                
                 # Create configuration
                 logger.info(f"Initializing TradingAgentsX for {ticker} on {analysis_date}")
                 config = self.create_config(research_depth, deep_think_llm, quick_think_llm)

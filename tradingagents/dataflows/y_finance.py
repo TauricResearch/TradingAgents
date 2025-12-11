@@ -466,6 +466,79 @@ def get_income_statement(
         return f"檢索 {ticker} 的損益表時出錯：{str(e)}"
 
 
+def get_fundamentals(
+    ticker: Annotated[str, "公司的股票代碼"],
+    curr_date: Annotated[str, "當前日期 (yfinance 未使用)"] = None
+):
+    """從 yfinance 獲取公司基本面數據。"""
+    try:
+        ticker_obj = yf.Ticker(ticker.upper())
+        info = ticker_obj.info
+        
+        if not info or len(info) == 0:
+            return f"找不到 '{ticker}' 的基本面數據"
+        
+        # 提取關鍵基本面指標（與 alpha_vantage 格式相似）
+        fundamentals = {
+            # 基本資訊
+            "Symbol": info.get("symbol", ticker.upper()),
+            "Name": info.get("longName", info.get("shortName", "")),
+            "Description": (info.get("longBusinessSummary", "") or "")[:300],
+            "Sector": info.get("sector", ""),
+            "Industry": info.get("industry", ""),
+            "MarketCapitalization": info.get("marketCap", ""),
+            
+            # 關鍵財務指標
+            "EBITDA": info.get("ebitda", ""),
+            "PERatio": info.get("trailingPE", info.get("forwardPE", "")),
+            "PEGRatio": info.get("pegRatio", ""),
+            "BookValue": info.get("bookValue", ""),
+            "DividendPerShare": info.get("dividendRate", ""),
+            "DividendYield": info.get("dividendYield", ""),
+            "EPS": info.get("trailingEps", ""),
+            "RevenuePerShareTTM": info.get("revenuePerShare", ""),
+            "ProfitMargin": info.get("profitMargins", ""),
+            "OperatingMarginTTM": info.get("operatingMargins", ""),
+            "ReturnOnAssetsTTM": info.get("returnOnAssets", ""),
+            "ReturnOnEquityTTM": info.get("returnOnEquity", ""),
+            "RevenueTTM": info.get("totalRevenue", ""),
+            "GrossProfitTTM": info.get("grossProfits", ""),
+            
+            # 交易指標
+            "52WeekHigh": info.get("fiftyTwoWeekHigh", ""),
+            "52WeekLow": info.get("fiftyTwoWeekLow", ""),
+            "50DayMovingAverage": info.get("fiftyDayAverage", ""),
+            "200DayMovingAverage": info.get("twoHundredDayAverage", ""),
+            
+            # 財務健康指標
+            "QuarterlyEarningsGrowthYOY": info.get("earningsQuarterlyGrowth", ""),
+            "QuarterlyRevenueGrowthYOY": info.get("revenueGrowth", ""),
+            "AnalystTargetPrice": info.get("targetMeanPrice", ""),
+            "Beta": info.get("beta", ""),
+            
+            # 額外的 yfinance 特有指標
+            "CurrentPrice": info.get("currentPrice", info.get("regularMarketPrice", "")),
+            "DebtToEquity": info.get("debtToEquity", ""),
+            "CurrentRatio": info.get("currentRatio", ""),
+            "QuickRatio": info.get("quickRatio", ""),
+            "FreeCashFlow": info.get("freeCashflow", ""),
+        }
+        
+        # 過濾掉空值和 None
+        fundamentals = {k: v for k, v in fundamentals.items() if v not in (None, "", "None")}
+        
+        import json
+        
+        # 新增標頭資訊
+        header = f"# {ticker.upper()} 的基本面數據 (來源: yfinance)\n"
+        header += f"# 數據檢索時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        return header + json.dumps(fundamentals, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        return f"檢索 {ticker} 的基本面數據時出錯：{str(e)}"
+
+
 def get_insider_transactions(
     ticker: Annotated[str, "公司的股票代碼"]
 ):
