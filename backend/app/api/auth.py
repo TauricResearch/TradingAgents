@@ -15,10 +15,15 @@ from backend.app.services.auth_utils import create_access_token
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
-# Google OAuth Configuration
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# Google OAuth Configuration - read at request time for dynamic updates
+def get_google_client_id():
+    return os.getenv("GOOGLE_CLIENT_ID", "")
+
+def get_google_client_secret():
+    return os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+def get_frontend_url():
+    return os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 # Google OAuth URLs
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -31,17 +36,20 @@ async def google_login():
     """
     Redirect to Google OAuth login page
     """
-    if not GOOGLE_CLIENT_ID:
+    client_id = get_google_client_id()
+    frontend_url = get_frontend_url()
+    
+    if not client_id:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
     
     # Build the authorization URL
-    redirect_uri = f"{FRONTEND_URL}/api/auth/callback/google"
+    redirect_uri = f"{frontend_url}/api/auth/callback/google"
     
     # For backend-handled callback (alternative):
     # redirect_uri = f"{os.getenv('BACKEND_URL', 'http://localhost:8000')}/api/auth/google/callback"
     
     params = {
-        "client_id": GOOGLE_CLIENT_ID,
+        "client_id": client_id,
         "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": "openid email profile",
@@ -64,7 +72,11 @@ async def google_callback(
     Handle Google OAuth callback (backend-handled flow)
     Exchange authorization code for tokens and create/update user
     """
-    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+    client_id = get_google_client_id()
+    client_secret = get_google_client_secret()
+    frontend_url = get_frontend_url()
+    
+    if not client_id or not client_secret:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
     
     # Determine redirect URI (must match what was used in the login request)
@@ -76,8 +88,8 @@ async def google_callback(
             GOOGLE_TOKEN_URL,
             data={
                 "code": code,
-                "client_id": GOOGLE_CLIENT_ID,
-                "client_secret": GOOGLE_CLIENT_SECRET,
+                "client_id": client_id,
+                "client_secret": client_secret,
                 "redirect_uri": redirect_uri,
                 "grant_type": "authorization_code",
             }
@@ -143,7 +155,7 @@ async def google_callback(
     })
     
     # Redirect to frontend with token
-    redirect_url = f"{FRONTEND_URL}/auth/callback?token={jwt_token}"
+    redirect_url = f"{frontend_url}/auth/callback?token={jwt_token}"
     return RedirectResponse(url=redirect_url)
 
 
@@ -157,7 +169,10 @@ async def exchange_google_token(
     Exchange Google authorization code for JWT token (frontend-handled flow)
     This is called by the frontend after receiving the code from Google
     """
-    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+    client_id = get_google_client_id()
+    client_secret = get_google_client_secret()
+    
+    if not client_id or not client_secret:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
     
     # Exchange code for tokens
@@ -166,8 +181,8 @@ async def exchange_google_token(
             GOOGLE_TOKEN_URL,
             data={
                 "code": code,
-                "client_id": GOOGLE_CLIENT_ID,
-                "client_secret": GOOGLE_CLIENT_SECRET,
+                "client_id": client_id,
+                "client_secret": client_secret,
                 "redirect_uri": redirect_uri,
                 "grant_type": "authorization_code",
             }
