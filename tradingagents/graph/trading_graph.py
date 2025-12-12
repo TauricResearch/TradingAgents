@@ -105,14 +105,14 @@ class TradingAgentsXGraph:
             )
 
         # Initialize LLMs independently
-        print(f"DEBUG: Initializing Deep Thinking LLM: Model={self.config['deep_think_llm']}, BaseURL={deep_base_url}, Key={deep_api_key[:10]}...")
+        print(f"DEBUG: Initializing Deep Thinking LLM: Model={self.config['deep_think_llm']}, BaseURL={deep_base_url}, Key=**********")
         self.deep_thinking_llm = _create_llm(
             self.config["deep_think_llm"],
             deep_base_url,
             deep_api_key
         )
         
-        print(f"DEBUG: Initializing Quick Thinking LLM: Model={self.config['quick_think_llm']}, BaseURL={quick_base_url}, Key={quick_api_key[:10]}...")
+        print(f"DEBUG: Initializing Quick Thinking LLM: Model={self.config['quick_think_llm']}, BaseURL={quick_base_url}, Key=**********")
         self.quick_thinking_llm = _create_llm(
             self.config["quick_think_llm"],
             quick_base_url,

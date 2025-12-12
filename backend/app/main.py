@@ -108,7 +108,7 @@ class SensitiveDataFilter(logging.Filter):
                     import re
                     msg = re.sub(
                         rf'({pattern}["\']?\s*[=:]\s*["\']?)([^"\'\s,}}]+)',
-                        r'\1***MASKED***',
+                        r'\1**********',
                         msg,
                         flags=re.IGNORECASE
                     )
@@ -163,7 +163,7 @@ async def global_exception_handler(request, exc):
     for pattern in patterns:
         error_msg = re.sub(
             rf'{pattern}[a-zA-Z0-9_-]+',
-            f'{pattern}***MASKED***',
+            f'{pattern}**********',
             error_msg
         )
     
