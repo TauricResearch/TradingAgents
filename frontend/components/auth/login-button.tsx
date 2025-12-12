@@ -53,7 +53,11 @@ export function LoginButton() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="gap-2 bg-white/20 hover:bg-white/30 text-white border-white/30 border"
+          >
             {user.avatar_url ? (
               <img
                 src={user.avatar_url}
@@ -66,7 +70,7 @@ export function LoginButton() {
             <span className="hidden sm:inline max-w-[100px] truncate">
               {user.name || user.email}
             </span>
-            <Cloud className="w-3 h-3 text-green-500" />
+            <Cloud className="w-3 h-3 text-green-300" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
@@ -90,10 +94,15 @@ export function LoginButton() {
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={login} className="gap-2">
+    <Button 
+      variant="ghost" 
+      size="sm" 
+      onClick={login} 
+      className="gap-2 bg-white/20 hover:bg-white/30 text-white border-white/30 border"
+    >
       <GoogleIcon />
       <span className="hidden sm:inline">登入</span>
-      <CloudOff className="w-3 h-3 text-gray-400 sm:hidden" />
+      <CloudOff className="w-3 h-3 text-white/60 sm:hidden" />
     </Button>
   );
 }

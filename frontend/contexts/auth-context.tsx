@@ -31,12 +31,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Token storage key
 const TOKEN_KEY = "tradingagents_auth_token";
 
-// Google OAuth client ID from environment
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-
-// Backend URL
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
 /**
  * Auth Provider Component
  */
@@ -44,6 +38,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [googleClientId, setGoogleClientId] = useState<string>("");
+
+  // Fetch Google Client ID from API (runtime)
+  useEffect(() => {
+    fetch("/api/config")
+      .then(res => res.json())
+      .then(data => {
+        setGoogleClientId(data.googleClientId || "");
+      })
+      .catch(err => {
+        console.error("Failed to fetch config:", err);
+      });
+  }, []);
 
   // Parse JWT token to get user info
   const parseToken = useCallback((token: string): User | null => {
@@ -102,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Login - redirect to Google OAuth
   const login = useCallback(() => {
-    if (!GOOGLE_CLIENT_ID) {
+    if (!googleClientId) {
       console.error("Google Client ID not configured");
       alert("Google 登入尚未設定。請聯繫管理員。");
       return;
@@ -113,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const scope = "openid email profile";
     
     const params = new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID,
+      client_id: googleClientId,
       redirect_uri: redirectUri,
       response_type: "code",
       scope: scope,
@@ -122,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-  }, []);
+  }, [googleClientId]);
 
   // Logout
   const logout = useCallback(() => {
