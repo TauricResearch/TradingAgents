@@ -51,7 +51,14 @@ function AuthCallbackContent() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.detail || "Failed to exchange token");
+          // Handle various error response formats
+          const errorMessage = 
+            typeof errorData.detail === 'string' ? errorData.detail :
+            typeof errorData.error === 'string' ? errorData.error :
+            errorData.message || 
+            JSON.stringify(errorData) || 
+            "Failed to exchange token";
+          throw new Error(errorMessage);
         }
 
         const data = await response.json();
@@ -59,7 +66,8 @@ function AuthCallbackContent() {
         router.replace("/");
       } catch (err: any) {
         console.error("Auth callback error:", err);
-        setError(err.message || "Authentication failed");
+        const msg = err.message || "Authentication failed";
+        setError(typeof msg === 'string' ? msg : "Authentication failed");
         setIsProcessing(false);
       }
     };

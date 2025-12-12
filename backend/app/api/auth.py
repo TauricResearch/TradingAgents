@@ -163,11 +163,15 @@ async def google_callback(
     redirect_url = f"{frontend_url}/auth/callback?token={jwt_token}"
     return RedirectResponse(url=redirect_url)
 
+from pydantic import BaseModel
+
+class TokenExchangeRequest(BaseModel):
+    code: str
+    redirect_uri: str
 
 @router.post("/google/token")
 async def exchange_google_token(
-    code: str,
-    redirect_uri: str,
+    request: TokenExchangeRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -185,10 +189,10 @@ async def exchange_google_token(
         token_response = await client.post(
             GOOGLE_TOKEN_URL,
             data={
-                "code": code,
+                "code": request.code,
                 "client_id": client_id,
                 "client_secret": client_secret,
-                "redirect_uri": redirect_uri,
+                "redirect_uri": request.redirect_uri,
                 "grant_type": "authorization_code",
             }
         )
