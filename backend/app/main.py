@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 from backend.app.core.config import settings
 from backend.app.core.cors import setup_cors
 from backend.app.api.routes import router
+from backend.app.api.auth import router as auth_router
+from backend.app.api.user import router as user_router
 
 # Configure logging
 logging.basicConfig(
@@ -139,6 +141,26 @@ setup_cors(app)
 
 # Include API routes
 app.include_router(router)
+app.include_router(auth_router)
+app.include_router(user_router)
+
+
+# Database initialization on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    try:
+        from backend.app.db import init_db, check_db_connection
+        
+        # Check if database is configured
+        if await check_db_connection():
+            logger.info("Database connection successful")
+            await init_db()
+            logger.info("Database tables initialized")
+        else:
+            logger.warning("Database not configured or connection failed - running without database")
+    except Exception as e:
+        logger.warning(f"Database initialization failed: {e} - running without database")
 
 
 @app.get("/")

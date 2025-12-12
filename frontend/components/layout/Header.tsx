@@ -1,9 +1,12 @@
 /**
  * Header component
  */
+"use client";
+
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { ApiSettingsDialog } from "@/components/settings/ApiSettingsDialog";
+import { LoginButton } from "@/components/auth/login-button";
 
 export function Header() {
   return (
@@ -37,6 +40,7 @@ export function Header() {
             </Link>
             <ApiSettingsDialog />
             <ThemeToggle />
+            <LoginButton />
           </nav>
         </div>
       </div>

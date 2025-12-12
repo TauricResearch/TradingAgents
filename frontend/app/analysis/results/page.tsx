@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAnalysisContext } from "@/context/AnalysisContext";
+import { useAuth } from "@/contexts/auth-context";
 import { PriceChart } from "@/components/analysis/PriceChart";
 import { DownloadReports } from "@/components/analysis/DownloadReports";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChevronLeft, Save, Check, AlertCircle } from "lucide-react";
+import { ChevronLeft, Save, Check, AlertCircle, Cloud } from "lucide-react";
 import { saveReport, checkDuplicateReport } from "@/lib/reports-db";
+import { saveCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
 
 const ANALYSTS = [
   // === 分析師團隊 ===
@@ -103,12 +105,14 @@ const getNestedValue = (obj: any, path: string) => {
 export default function AnalysisResultsPage() {
   const router = useRouter();
   const { analysisResult, taskId, marketType } = useAnalysisContext();
+  const { isAuthenticated } = useAuth();
   const [selectedAnalyst, setSelectedAnalyst] = useState("market");
   
   // Save report states
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedToCloud, setSavedToCloud] = useState(false);
 
   // 如果沒有結果，重定向到分析頁面
   useEffect(() => {
@@ -124,9 +128,10 @@ export default function AnalysisResultsPage() {
     setSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
+    setSavedToCloud(false);
     
     try {
-      // Check for duplicate
+      // Check for duplicate in local storage
       const duplicate = await checkDuplicateReport(
         analysisResult.ticker,
         analysisResult.analysis_date
@@ -138,6 +143,7 @@ export default function AnalysisResultsPage() {
         return;
       }
       
+      // Save to local IndexedDB
       await saveReport(
         analysisResult.ticker,
         marketType,
@@ -146,9 +152,25 @@ export default function AnalysisResultsPage() {
         taskId || undefined
       );
       
+      // If authenticated, also save to cloud
+      if (isAuthenticated && isCloudSyncEnabled()) {
+        const cloudId = await saveCloudReport({
+          ticker: analysisResult.ticker,
+          market_type: marketType,
+          analysis_date: analysisResult.analysis_date,
+          result: analysisResult,
+        });
+        if (cloudId) {
+          setSavedToCloud(true);
+        }
+      }
+      
       setSaveSuccess(true);
       // Reset success message after 3 seconds
-      setTimeout(() => setSaveSuccess(false), 3000);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        setSavedToCloud(false);
+      }, 3000);
     } catch (error) {
       console.error("Save report error:", error);
       setSaveError("儲存失敗，請稍後再試");

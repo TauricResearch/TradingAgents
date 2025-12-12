@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AnalysisProvider } from "@/context/AnalysisContext";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { AuthProvider } from "@/contexts/auth-context";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,13 +23,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider>
-          <AnalysisProvider>
-            <div className="flex flex-col min-h-screen gradient-page-bg">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
-          </AnalysisProvider>
+          <AuthProvider>
+            <AnalysisProvider>
+              <div className="flex flex-col min-h-screen gradient-page-bg">
+                <Header />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </div>
+            </AnalysisProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

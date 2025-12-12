@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useAnalysisContext } from "@/context/AnalysisContext";
+import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -26,13 +27,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Eye, RefreshCw, TrendingUp } from "lucide-react";
+import { Trash2, Eye, RefreshCw, TrendingUp, Cloud, CloudOff } from "lucide-react";
 import {
   getReportsByMarketType,
   deleteReport,
   getReportCountByMarketType,
   type SavedReport,
 } from "@/lib/reports-db";
+import { getCloudReports, deleteCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
+import { LoginPrompt } from "@/components/auth/login-button";
 
 // Market type labels
 const MARKET_LABELS = {
@@ -104,11 +107,13 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
 export default function HistoryPage() {
   const router = useRouter();
   const { setAnalysisResult, setTaskId, setMarketType } = useAnalysisContext();
+  const { isAuthenticated } = useAuth();
 
   const [activeTab, setActiveTab] = useState<"us" | "twse" | "tpex">("us");
   const [reports, setReports] = useState<SavedReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState({ us: 0, twse: 0, tpex: 0 });
+  const [isCloudData, setIsCloudData] = useState(false);
 
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -117,23 +122,51 @@ export default function HistoryPage() {
   );
   const [deleting, setDeleting] = useState(false);
 
-  // Load reports when tab changes
+  // Load reports when tab changes or auth state changes
   useEffect(() => {
     loadReports();
-  }, [activeTab]);
+  }, [activeTab, isAuthenticated]);
 
-  // Load counts on mount
+  // Load counts on mount or auth change
   useEffect(() => {
     loadCounts();
-  }, []);
+  }, [isAuthenticated]);
 
   const loadReports = async () => {
     setLoading(true);
     try {
+      // If authenticated, try to load from cloud first
+      if (isAuthenticated && isCloudSyncEnabled()) {
+        const cloudReports = await getCloudReports();
+        if (cloudReports.length > 0) {
+          // Convert cloud reports to SavedReport format and filter by market type
+          const filtered = cloudReports
+            .filter(r => r.market_type === activeTab)
+            .map(r => ({
+              id: parseInt(r.id.replace(/-/g, '').slice(0, 8), 16), // Convert UUID to number
+              cloudId: r.id, // Keep cloud ID for deletion
+              ticker: r.ticker,
+              market_type: r.market_type as "us" | "twse" | "tpex",
+              analysis_date: r.analysis_date,
+              saved_at: new Date(r.created_at),
+              result: r.result,
+            })) as (SavedReport & { cloudId?: string })[];
+          setReports(filtered);
+          setIsCloudData(true);
+          return;
+        }
+      }
+      
+      // Fall back to local IndexedDB
       const data = await getReportsByMarketType(activeTab);
       setReports(data);
+      setIsCloudData(false);
     } catch (error) {
       console.error("Failed to load reports:", error);
+      // Fall back to local on error
+      const data = await getReportsByMarketType(activeTab);
+      setReports(data);
+      setIsCloudData(false);
     } finally {
       setLoading(false);
     }
@@ -141,6 +174,19 @@ export default function HistoryPage() {
 
   const loadCounts = async () => {
     try {
+      if (isAuthenticated && isCloudSyncEnabled()) {
+        const cloudReports = await getCloudReports();
+        const cloudCounts = {
+          us: cloudReports.filter(r => r.market_type === "us").length,
+          twse: cloudReports.filter(r => r.market_type === "twse").length,
+          tpex: cloudReports.filter(r => r.market_type === "tpex").length,
+        };
+        if (cloudReports.length > 0) {
+          setCounts(cloudCounts);
+          return;
+        }
+      }
+      
       const data = await getReportCountByMarketType();
       setCounts(data);
     } catch (error) {
@@ -163,11 +209,19 @@ export default function HistoryPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!reportToDelete?.id) return;
+    if (!reportToDelete) return;
 
     setDeleting(true);
     try {
-      await deleteReport(reportToDelete.id);
+      // If this is cloud data, delete from cloud
+      const cloudId = (reportToDelete as any).cloudId;
+      if (isCloudData && cloudId) {
+        await deleteCloudReport(cloudId);
+      } else if (reportToDelete.id) {
+        // Delete from local IndexedDB
+        await deleteReport(reportToDelete.id);
+      }
+      
       // Refresh reports and counts
       await loadReports();
       await loadCounts();

@@ -4,7 +4,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings } from "lucide-react";
+import { Settings, Cloud, CloudOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,6 +36,8 @@ import {
   type ApiSettings,
   DEFAULT_API_SETTINGS,
 } from "@/lib/storage";
+import { useAuth } from "@/contexts/auth-context";
+import { getCloudSettings, saveCloudSettings, isCloudSyncEnabled } from "@/lib/user-api";
 
 const formSchema = z.object({
   // Required
@@ -61,6 +63,8 @@ export function ApiSettingsDialog() {
   const [open, setOpen] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"local" | "cloud" | "syncing">("local");
+  const { isAuthenticated } = useAuth();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -73,25 +77,51 @@ export function ApiSettingsDialog() {
       setLoading(true);
       setSaveSuccess(false);
       
-      // First try to migrate legacy settings
-      migrateToEncrypted().then(() => {
-        // Then load decrypted settings
-        return getApiSettingsAsync();
-      }).then((settings) => {
-        form.reset(settings);
-      }).catch((error) => {
-        console.error("Failed to load settings:", error);
-      }).finally(() => {
-        setLoading(false);
-      });
+      const loadSettings = async () => {
+        try {
+          // First try to migrate legacy settings
+          await migrateToEncrypted();
+          
+          // If authenticated, try to load from cloud first
+          if (isAuthenticated && isCloudSyncEnabled()) {
+            setSyncStatus("syncing");
+            const cloudSettings = await getCloudSettings();
+            if (cloudSettings) {
+              form.reset(cloudSettings);
+              setSyncStatus("cloud");
+              return;
+            }
+          }
+          
+          // Fall back to local storage
+          const localSettings = await getApiSettingsAsync();
+          form.reset(localSettings);
+          setSyncStatus(isAuthenticated ? "cloud" : "local");
+        } catch (error) {
+          console.error("Failed to load settings:", error);
+          setSyncStatus("local");
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      loadSettings();
     }
-  }, [open, form]);
+  }, [open, form, isAuthenticated]);
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
     try {
-      // Encrypt and save settings
+      // Encrypt and save settings locally
       await saveApiSettingsAsync(values as ApiSettings);
+      
+      // If authenticated, also save to cloud
+      if (isAuthenticated && isCloudSyncEnabled()) {
+        setSyncStatus("syncing");
+        const cloudSaved = await saveCloudSettings(values as ApiSettings);
+        setSyncStatus(cloudSaved ? "cloud" : "local");
+      }
+      
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);

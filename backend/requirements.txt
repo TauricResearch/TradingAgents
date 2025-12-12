@@ -12,6 +12,16 @@ python-multipart==0.0.6
 # Environment and configuration
 python-dotenv==1.0.0
 
+# Database (PostgreSQL)
+sqlalchemy>=2.0.0
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
+
+# Authentication
+PyJWT>=2.8.0
+cryptography>=41.0.0
+httpx>=0.25.0
+
 # Existing TradingAgentsX dependencies
 typing-extensions
 langchain-openai
@@ -45,3 +55,4 @@ markdown>=3.5.0
 
 # Toon format for token optimization
 git+https://github.com/toon-format/toon-python.git
+
