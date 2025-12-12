@@ -323,8 +323,11 @@ TRADINGAGENTS_RESULTS_DIR=./results
 ##### 2.4 啟動後端服務
 
 ```bash
-# 從專案根目錄執行
+# 從專案根目錄執行（開發模式，啟用 hot reload）
 python -m backend
+
+# 生產模式（停用 hot reload，避免任務丟失）
+python -m backend --reload false
 ```
 
 ✅ 後端服務成功啟動後，您可以訪問：

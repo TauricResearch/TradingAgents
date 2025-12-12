@@ -29,6 +29,12 @@ export function Header() {
             >
               分析
             </Link>
+            <Link
+              href="/history"
+              className="hover:opacity-80 transition-opacity font-medium"
+            >
+              歷史報告
+            </Link>
             <ApiSettingsDialog />
             <ThemeToggle />
           </nav>

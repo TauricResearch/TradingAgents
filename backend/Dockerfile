@@ -26,8 +26,8 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy application code from backend directory
-COPY backend/app ./backend/app
+# Copy application code from backend directory (including __main__.py for python -m)
+COPY backend ./backend
 
 # Copy tradingagents package from project root
 COPY tradingagents ./tradingagents
@@ -40,4 +40,5 @@ EXPOSE 8000
 
 # Run the application
 # Run the application using the PORT environment variable (required by Railway)
-CMD ["sh", "-c", "uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Using --reload false to prevent hot-reload issues in production
+CMD ["sh", "-c", "python -m backend --reload false --port ${PORT:-8000}"]

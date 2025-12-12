@@ -8,6 +8,8 @@ interface AnalysisContextType {
   setAnalysisResult: (result: AnalysisResponse | null) => void;
   taskId: string | null;
   setTaskId: (taskId: string | null) => void;
+  marketType: "us" | "twse" | "tpex";
+  setMarketType: (type: "us" | "twse" | "tpex") => void;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(
@@ -19,9 +21,17 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     null
   );
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [marketType, setMarketType] = useState<"us" | "twse" | "tpex">("us");
 
   return (
-    <AnalysisContext.Provider value={{ analysisResult, setAnalysisResult, taskId, setTaskId }}>
+    <AnalysisContext.Provider value={{ 
+      analysisResult, 
+      setAnalysisResult, 
+      taskId, 
+      setTaskId,
+      marketType,
+      setMarketType,
+    }}>
       {children}
     </AnalysisContext.Provider>
   );

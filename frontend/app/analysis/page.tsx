@@ -14,7 +14,7 @@ import type { AnalysisRequest } from "@/lib/types";
 
 export default function AnalysisPage() {
   const router = useRouter();
-  const { setAnalysisResult, setTaskId } = useAnalysisContext();
+  const { setAnalysisResult, setTaskId, setMarketType } = useAnalysisContext();
   const { runAnalysis, loading, error, result, taskId } = useAnalysis();
 
   // 當分析完成時自動跳轉到結果頁面
@@ -30,6 +30,10 @@ export default function AnalysisPage() {
 
   const handleSubmit = async (data: AnalysisRequest) => {
     try {
+      // Store the market type for later use when saving the report
+      if (data.market_type) {
+        setMarketType(data.market_type);
+      }
       await runAnalysis(data);
     } catch (err) {
       // Error is handled by the hook

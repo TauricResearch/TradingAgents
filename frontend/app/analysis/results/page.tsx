@@ -10,7 +10,8 @@ import { DownloadReports } from "@/components/analysis/DownloadReports";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Save, Check, AlertCircle } from "lucide-react";
+import { saveReport, checkDuplicateReport } from "@/lib/reports-db";
 
 const ANALYSTS = [
   // === 分析師團隊 ===
@@ -101,8 +102,13 @@ const getNestedValue = (obj: any, path: string) => {
 
 export default function AnalysisResultsPage() {
   const router = useRouter();
-  const { analysisResult, taskId } = useAnalysisContext();
+  const { analysisResult, taskId, marketType } = useAnalysisContext();
   const [selectedAnalyst, setSelectedAnalyst] = useState("market");
+  
+  // Save report states
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // 如果沒有結果，重定向到分析頁面
   useEffect(() => {
@@ -110,6 +116,46 @@ export default function AnalysisResultsPage() {
       router.push("/analysis");
     }
   }, [analysisResult, router]);
+
+  // Handle save report
+  const handleSaveReport = async () => {
+    if (!analysisResult) return;
+    
+    setSaving(true);
+    setSaveError(null);
+    setSaveSuccess(false);
+    
+    try {
+      // Check for duplicate
+      const duplicate = await checkDuplicateReport(
+        analysisResult.ticker,
+        analysisResult.analysis_date
+      );
+      
+      if (duplicate) {
+        setSaveError("此報告已存在（相同股票代碼與分析日期）");
+        setSaving(false);
+        return;
+      }
+      
+      await saveReport(
+        analysisResult.ticker,
+        marketType,
+        analysisResult.analysis_date,
+        analysisResult,
+        taskId || undefined
+      );
+      
+      setSaveSuccess(true);
+      // Reset success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error("Save report error:", error);
+      setSaveError("儲存失敗，請稍後再試");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!analysisResult) {
     return (
@@ -143,14 +189,52 @@ export default function AnalysisResultsPage() {
               分析日期：{analysisResult.analysis_date}
             </p>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={() => router.push("/analysis")}
-            className="gap-2 hover-lift"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            返回分析
-          </Button>
+          <div className="flex gap-2 items-center">
+            {/* Save success/error feedback */}
+            {saveSuccess && (
+              <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm animate-fade-in">
+                <Check className="h-4 w-4" />
+                已儲存
+              </span>
+            )}
+            {saveError && (
+              <span className="flex items-center gap-1 text-red-500 text-sm animate-fade-in">
+                <AlertCircle className="h-4 w-4" />
+                {saveError}
+              </span>
+            )}
+            
+            {/* Save Report Button */}
+            <Button
+              variant="default"
+              onClick={handleSaveReport}
+              disabled={saving || saveSuccess}
+              className="gap-2 hover-lift bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+            >
+              {saving ? (
+                <>儲存中...</>
+              ) : saveSuccess ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  已儲存
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  儲存報告
+                </>
+              )}
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              onClick={() => router.push("/analysis")}
+              className="gap-2 hover-lift"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              返回分析
+            </Button>
+          </div>
         </div>
 
         {/* 分析師選擇 Tabs */}

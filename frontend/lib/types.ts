@@ -47,6 +47,7 @@ export interface AnalysisResponse {
   status: string;
   ticker: string;
   analysis_date: string;
+  market_type?: "us" | "twse" | "tpex";  // 市場類型：美股、上市、上櫃/興櫃
   decision?: any;
   reports?: any;
   error?: string;
