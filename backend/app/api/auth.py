@@ -2,6 +2,7 @@
 Google OAuth authentication routes
 """
 import os
+import logging
 import httpx
 from datetime import datetime
 from typing import Optional
@@ -13,6 +14,8 @@ from sqlalchemy import select
 from backend.app.db import get_db, User, UserSettings
 from backend.app.services.auth_utils import create_access_token
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 # Google OAuth Configuration - read at request time for dynamic updates
@@ -23,7 +26,9 @@ def get_google_client_secret():
     return os.getenv("GOOGLE_CLIENT_SECRET", "")
 
 def get_frontend_url():
-    return os.getenv("FRONTEND_URL", "http://localhost:3000")
+    url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    logger.info(f"FRONTEND_URL resolved to: {url}")
+    return url
 
 # Google OAuth URLs
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
