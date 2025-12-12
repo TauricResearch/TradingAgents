@@ -438,6 +438,9 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                         </FormControl>
                         <SelectContent>
                           {/* OpenAI */}
+                          <SelectItem value="gpt-5.2-2025-12-11">
+                            OpenAI: GPT-5.2 (2025-12-11)
+                          </SelectItem>
                           <SelectItem value="gpt-5.1">
                             OpenAI: GPT-5.1
                           </SelectItem>
@@ -580,6 +583,9 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                         </FormControl>
                         <SelectContent>
                           {/* OpenAI */}
+                          <SelectItem value="gpt-5.2-2025-12-11">
+                            OpenAI: GPT-5.2 (2025-12-11)
+                          </SelectItem>
                           <SelectItem value="gpt-5.1">
                             OpenAI: GPT-5.1
                           </SelectItem>
