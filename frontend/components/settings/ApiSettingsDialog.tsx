@@ -29,9 +29,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-  getApiSettings,
-  saveApiSettings,
+  getApiSettingsAsync,
+  saveApiSettingsAsync,
   clearApiSettings,
+  migrateToEncrypted,
   type ApiSettings,
   DEFAULT_API_SETTINGS,
 } from "@/lib/storage";
@@ -59,25 +60,38 @@ type FormValues = z.infer<typeof formSchema>;
 export function ApiSettingsDialog() {
   const [open, setOpen] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: getApiSettings(),
+    defaultValues: DEFAULT_API_SETTINGS,
   });
 
-  // Load settings when dialog opens
+  // Load and decrypt settings when dialog opens
   useEffect(() => {
     if (open) {
-      const settings = getApiSettings();
-      form.reset(settings);
+      setLoading(true);
       setSaveSuccess(false);
+      
+      // First try to migrate legacy settings
+      migrateToEncrypted().then(() => {
+        // Then load decrypted settings
+        return getApiSettingsAsync();
+      }).then((settings) => {
+        form.reset(settings);
+      }).catch((error) => {
+        console.error("Failed to load settings:", error);
+      }).finally(() => {
+        setLoading(false);
+      });
     }
   }, [open, form]);
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = async (values: FormValues) => {
+    setLoading(true);
     try {
-      // Type assertion since our form values match ApiSettings structure
-      saveApiSettings(values as ApiSettings);
+      // Encrypt and save settings
+      await saveApiSettingsAsync(values as ApiSettings);
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);
@@ -85,6 +99,8 @@ export function ApiSettingsDialog() {
       }, 1500);
     } catch (error) {
       console.error("Failed to save settings:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -110,7 +126,10 @@ export function ApiSettingsDialog() {
         <DialogHeader>
           <DialogTitle>API 配置</DialogTitle>
           <DialogDescription>
-            設定您的 API 金鑰。這些資訊會儲存在瀏覽器的本機儲存空間中。
+            設定您的 API 金鑰。這些資訊會以加密形式儲存在瀏覽器中。
+            <span className="block mt-1 text-xs text-green-600 dark:text-green-400">
+              🔒 已啟用 AES-256-GCM 加密保護
+            </span>
           </DialogDescription>
         </DialogHeader>
 
@@ -335,8 +354,8 @@ export function ApiSettingsDialog() {
             )}
 
             <div className="flex gap-2 pt-4">
-              <Button type="submit" className="flex-1">
-                儲存設定
+              <Button type="submit" className="flex-1" disabled={loading}>
+                {loading ? "處理中..." : "儲存設定"}
               </Button>
               <Button
                 type="button"
