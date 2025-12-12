@@ -121,6 +121,41 @@
   }
 }
 
+/* Safari mobile touch fixes */
+@layer base {
+  /* Fix for Safari iOS touch events on buttons and interactive elements */
+  button,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  .cursor-pointer {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+  }
+
+  /* Ensure form elements are properly interactive on iOS */
+  select,
+  input,
+  textarea {
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Fix for Radix UI popover/select on iOS Safari */
+  [data-radix-popper-content-wrapper] {
+    touch-action: auto !important;
+  }
+
+  /* Ensure buttons inside forms work on iOS */
+  form button[type="submit"] {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}
+
 /* Custom animations */
 @keyframes fadeIn {
   from {
@@ -186,7 +221,8 @@
 
 /* Heartbeat animation for buttons */
 @keyframes heartbeat {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   10% {
@@ -283,19 +319,19 @@
 
 /* Gradient Backgrounds - Blue/Pink in light, Blue/Purple in dark */
 .gradient-bg-primary {
-  background: linear-gradient(135deg, #3B82F6 0%, #EC4899 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #ec4899 100%);
 }
 
 .dark .gradient-bg-primary {
-  background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
 }
 
 .gradient-bg-secondary {
-  background: linear-gradient(135deg, #60A5FA 0%, #F472B6 100%);
+  background: linear-gradient(135deg, #60a5fa 0%, #f472b6 100%);
 }
 
 .dark .gradient-bg-secondary {
-  background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%);
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
 }
 
 .gradient-bg-accent {
@@ -436,28 +472,28 @@
 
 /* Gradient Text - Blue/Pink in light, Blue/Purple in dark */
 .gradient-text-primary {
-  background: linear-gradient(135deg, #3B82F6 0%, #EC4899 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #ec4899 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .dark .gradient-text-primary {
-  background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .gradient-text-secondary {
-  background: linear-gradient(135deg, #60A5FA 0%, #F472B6 100%);
+  background: linear-gradient(135deg, #60a5fa 0%, #f472b6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .dark .gradient-text-secondary {
-  background: linear-gradient(135deg, #60A5FA 0%, #A78BFA 100%);
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -635,5 +671,3 @@
   box-shadow: 0 4px 20px 0 rgba(147, 51, 234, 0.2),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
 }
-
-

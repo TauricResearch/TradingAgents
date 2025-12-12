@@ -52,10 +52,10 @@ const formSchema = z.object({
   research_depth: z.number().int().min(1).max(5),
   quick_think_llm: z.string().min(1, "請選擇快速思維模型"),
   deep_think_llm: z.string().min(1, "請選擇深層思維模型"),
-  
+
   // Market type selection: us=美股, twse=上市, tpex=上櫃/興櫃
   market_type: z.enum(["us", "twse", "tpex"]),
-  
+
   // Custom model names (when "custom" is selected)
   custom_quick_think_model: z.string().optional(),
   custom_deep_think_model: z.string().optional(),
@@ -79,8 +79,8 @@ const formSchema = z.object({
     .optional()
     .or(z.literal("")),
   embedding_api_key: z.string().min(1, "請輸入嵌入模型 API Key"),
-  alpha_vantage_api_key: z.string().optional().or(z.literal("")),  // 選填
-  finmind_api_key: z.string().optional().or(z.literal("")),  // 選填
+  alpha_vantage_api_key: z.string().optional().or(z.literal("")), // 選填
+  finmind_api_key: z.string().optional().or(z.literal("")), // 選填
 });
 
 interface AnalysisFormProps {
@@ -125,7 +125,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
   const marketType = form.watch("market_type");
   const isQuickThinkCustom = quickThinkLlm === "custom";
   const isDeepThinkCustom = deepThinkLlm === "custom";
-  
+
   useEffect(() => {
     // Use async version to get decrypted API keys
     const loadSettings = async () => {
@@ -133,27 +133,57 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
 
       // For custom models, always use custom base URL and API key
       if (isQuickThinkCustom) {
-        form.setValue("quick_think_base_url", savedSettings.custom_base_url || "");
-        form.setValue("quick_think_api_key", savedSettings.custom_api_key || "");
+        form.setValue(
+          "quick_think_base_url",
+          savedSettings.custom_base_url || ""
+        );
+        form.setValue(
+          "quick_think_api_key",
+          savedSettings.custom_api_key || ""
+        );
       } else {
-        form.setValue("quick_think_base_url", getBaseUrlForModel(quickThinkLlm, savedSettings.custom_base_url));
-        form.setValue("quick_think_api_key", getApiKeyForModel(quickThinkLlm, savedSettings));
-      }
-      
-      if (isDeepThinkCustom) {
-        form.setValue("deep_think_base_url", savedSettings.custom_base_url || "");
-        form.setValue("deep_think_api_key", savedSettings.custom_api_key || "");
-      } else {
-        form.setValue("deep_think_base_url", getBaseUrlForModel(deepThinkLlm, savedSettings.custom_base_url));
-        form.setValue("deep_think_api_key", getApiKeyForModel(deepThinkLlm, savedSettings));
+        form.setValue(
+          "quick_think_base_url",
+          getBaseUrlForModel(quickThinkLlm, savedSettings.custom_base_url)
+        );
+        form.setValue(
+          "quick_think_api_key",
+          getApiKeyForModel(quickThinkLlm, savedSettings)
+        );
       }
 
-      form.setValue("embedding_base_url", savedSettings.custom_base_url || "https://api.openai.com/v1");
-      form.setValue("embedding_api_key", savedSettings.custom_api_key || savedSettings.openai_api_key);
-      form.setValue("alpha_vantage_api_key", savedSettings.alpha_vantage_api_key || "");
+      if (isDeepThinkCustom) {
+        form.setValue(
+          "deep_think_base_url",
+          savedSettings.custom_base_url || ""
+        );
+        form.setValue("deep_think_api_key", savedSettings.custom_api_key || "");
+      } else {
+        form.setValue(
+          "deep_think_base_url",
+          getBaseUrlForModel(deepThinkLlm, savedSettings.custom_base_url)
+        );
+        form.setValue(
+          "deep_think_api_key",
+          getApiKeyForModel(deepThinkLlm, savedSettings)
+        );
+      }
+
+      form.setValue(
+        "embedding_base_url",
+        savedSettings.custom_base_url || "https://api.openai.com/v1"
+      );
+      form.setValue(
+        "embedding_api_key",
+        savedSettings.custom_api_key || savedSettings.openai_api_key
+      );
+      form.setValue(
+        "alpha_vantage_api_key",
+        savedSettings.alpha_vantage_api_key || ""
+      );
       form.setValue("finmind_api_key", savedSettings.finmind_api_key || "");
     };
-    
+
     loadSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quickThinkLlm, deepThinkLlm, isQuickThinkCustom, isDeepThinkCustom]);
@@ -163,9 +193,13 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
     const currentTicker = form.getValues("ticker");
     // 只在用戶未修改預設值時才自動切換
     const isTwStock = marketType === "twse" || marketType === "tpex";
-    const isDefaultUsTicker = currentTicker === "NVDA" || currentTicker === "AAPL";
-    const isDefaultTwTicker = currentTicker === "2330" || currentTicker === "2317" || currentTicker === "6488";
-    
+    const isDefaultUsTicker =
+      currentTicker === "NVDA" || currentTicker === "AAPL";
+    const isDefaultTwTicker =
+      currentTicker === "2330" ||
+      currentTicker === "2317" ||
+      currentTicker === "6488";
+
     if (isTwStock && isDefaultUsTicker) {
       form.setValue("ticker", marketType === "twse" ? "2330" : "6488");
     } else if (marketType === "us" && isDefaultTwTicker) {
@@ -189,31 +223,36 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
 
   function handleSubmit(values: z.infer<typeof formSchema>) {
     // Use custom model names if "custom" is selected
-    const finalQuickThinkLlm = values.quick_think_llm === "custom" 
-      ? values.custom_quick_think_model || ""
-      : values.quick_think_llm;
-    
-    const finalDeepThinkLlm = values.deep_think_llm === "custom"
-      ? values.custom_deep_think_model || ""
-      : values.deep_think_llm;
-    
+    const finalQuickThinkLlm =
+      values.quick_think_llm === "custom"
+        ? values.custom_quick_think_model || ""
+        : values.quick_think_llm;
+
+    const finalDeepThinkLlm =
+      values.deep_think_llm === "custom"
+        ? values.custom_deep_think_model || ""
+        : values.deep_think_llm;
+
     // Validate custom model names
-    if (values.quick_think_llm === "custom" && !values.custom_quick_think_model) {
+    if (
+      values.quick_think_llm === "custom" &&
+      !values.custom_quick_think_model
+    ) {
       form.setError("custom_quick_think_model", {
         type: "manual",
-        message: "請輸入快速思維模型的完整名稱"
+        message: "請輸入快速思維模型的完整名稱",
       });
       return;
     }
-    
+
     if (values.deep_think_llm === "custom" && !values.custom_deep_think_model) {
       form.setError("custom_deep_think_model", {
         type: "manual",
-        message: "請輸入深層思維模型的完整名稱"
+        message: "請輸入深層思維模型的完整名稱",
       });
       return;
     }
-    
+
     const request: AnalysisRequest = {
       ...values,
       quick_think_llm: finalQuickThinkLlm,
@@ -255,17 +294,18 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     <FormItem>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {ANALYSTS.map((analyst) => {
-                          const isSelected = field.value?.includes(analyst.value);
+                          const isSelected = field.value?.includes(
+                            analyst.value
+                          );
                           return (
-                            <FormItem
-                              key={analyst.value}
-                              className="space-y-0"
-                            >
+                            <FormItem key={analyst.value} className="space-y-0">
                               <FormControl>
                                 <div
                                   onClick={() => {
                                     const newValue = isSelected
-                                      ? field.value?.filter((v: string) => v !== analyst.value)
+                                      ? field.value?.filter(
+                                          (v: string) => v !== analyst.value
+                                        )
                                       : [...(field.value ?? []), analyst.value];
                                     field.onChange(newValue);
                                   }}
@@ -284,9 +324,13 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                                         : "border-muted-foreground"
                                     )}
                                   >
-                                    {isSelected && <CheckIcon className="h-3.5 w-3.5" />}
+                                    {isSelected && (
+                                      <CheckIcon className="h-3.5 w-3.5" />
+                                    )}
                                   </div>
-                                  <span className="font-medium select-none">{analyst.label}</span>
+                                  <span className="font-medium select-none">
+                                    {analyst.label}
+                                  </span>
                                 </div>
                               </FormControl>
                             </FormItem>
@@ -318,20 +362,27 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="us" className="py-3 cursor-pointer">
+                          <SelectItem
+                            value="us"
+                            className="py-3 cursor-pointer"
+                          >
                             🇺🇸 美股
                           </SelectItem>
-                          <SelectItem value="twse" className="py-3 cursor-pointer">
+                          <SelectItem
+                            value="twse"
+                            className="py-3 cursor-pointer"
+                          >
                             🇹🇼 台股上市
                           </SelectItem>
-                          <SelectItem value="tpex" className="py-3 cursor-pointer">
+                          <SelectItem
+                            value="tpex"
+                            className="py-3 cursor-pointer"
+                          >
                             🇹🇼 台股上櫃/興櫃
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription>
-                        選擇分析的股票市場
-                      </FormDescription>
+                      <FormDescription>選擇分析的股票市場</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -345,21 +396,23 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     <FormItem>
                       <FormLabel>股票代碼</FormLabel>
                       <FormControl>
-                        <Input 
+                        <Input
                           placeholder={
-                            marketType === "us" ? "NVDA" : 
-                            marketType === "twse" ? "2330" : "6488"
-                          } 
-                          {...field} 
+                            marketType === "us"
+                              ? "NVDA"
+                              : marketType === "twse"
+                              ? "2330"
+                              : "6488"
+                          }
+                          {...field}
                         />
                       </FormControl>
                       <FormDescription>
-                        {marketType === "us" 
-                          ? "輸入美股代碼（例如：NVDA、AAPL）" 
+                        {marketType === "us"
+                          ? "輸入美股代碼（例如：NVDA、AAPL）"
                           : marketType === "twse"
                           ? "輸入上市股票代碼（例如：2330、2317）"
-                          : "輸入上櫃/興櫃股票代碼（例如：6488、5765）"
-                        }
+                          : "輸入上櫃/興櫃股票代碼（例如：6488、5765）"}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -376,7 +429,9 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                         <DatePicker
                           date={field.value ? new Date(field.value) : undefined}
                           onDateChange={(date) => {
-                            field.onChange(date ? format(date, "yyyy-MM-dd") : "")
+                            field.onChange(
+                              date ? format(date, "yyyy-MM-dd") : ""
+                            );
                           }}
                           placeholder="選擇分析日期"
                           className="w-full"
@@ -535,7 +590,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           <SelectItem value="qwen-flash">
                             Qwen: Flash
                           </SelectItem>
-                          
+
                           {/* Custom Model */}
                           <SelectItem value="custom">
                             Other（自訂模型）
@@ -547,7 +602,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Custom Quick Think Model Input */}
                 {isQuickThinkCustom && (
                   <FormField
@@ -557,10 +612,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                       <FormItem className="md:col-span-3 animate-scale-up">
                         <FormLabel>自訂快速思維模型名稱</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="例如：deepseek-chat" 
-                            {...field} 
-                          />
+                          <Input placeholder="例如：deepseek-chat" {...field} />
                         </FormControl>
                         <FormDescription>
                           請輸入完整的模型名稱（此模型將使用自訂端點）
@@ -680,7 +732,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                           <SelectItem value="qwen-flash">
                             Qwen: Flash
                           </SelectItem>
-                          
+
                           {/* Custom Model */}
                           <SelectItem value="custom">
                             Other（自訂模型）
@@ -692,7 +744,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Custom Deep Think Model Input */}
                 {isDeepThinkCustom && (
                   <FormField
@@ -702,10 +754,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                       <FormItem className="md:col-span-3 animate-scale-up">
                         <FormLabel>自訂深層思維模型名稱</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="例如：deepseek-chat" 
-                            {...field} 
-                          />
+                          <Input placeholder="例如：deepseek-chat" {...field} />
                         </FormControl>
                         <FormDescription>
                           請輸入完整的模型名稱（此模型將使用自訂端點）
@@ -723,6 +772,14 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
               className="w-full bg-gradient-to-r from-blue-500 to-pink-500 dark:from-blue-600 dark:to-purple-600 hover:from-blue-600 hover:to-pink-600 dark:hover:from-blue-700 dark:hover:to-purple-700 shadow-lg hover:shadow-xl transition-all animate-heartbeat"
               disabled={loading}
               size="lg"
+              style={{
+                touchAction: "manipulation",
+                WebkitTapHighlightColor: "transparent",
+              }}
+              onClick={(e) => {
+                // Ensure touch events work on Safari mobile
+                e.currentTarget.blur();
+              }}
             >
               {loading ? "執行分析中..." : "執行分析"}
             </Button>
