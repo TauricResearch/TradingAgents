@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
 import { CheckIcon } from "lucide-react";
-import { getApiSettings } from "@/lib/storage";
+import { getApiSettingsAsync } from "@/lib/storage";
 import { getBaseUrlForModel, getApiKeyForModel } from "@/lib/api-helpers";
 
 import { cn } from "@/lib/utils";
@@ -127,29 +127,34 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
   const isDeepThinkCustom = deepThinkLlm === "custom";
   
   useEffect(() => {
-    const savedSettings = getApiSettings();
+    // Use async version to get decrypted API keys
+    const loadSettings = async () => {
+      const savedSettings = await getApiSettingsAsync();
 
-    // For custom models, always use custom base URL and API key
-    if (isQuickThinkCustom) {
-      form.setValue("quick_think_base_url", savedSettings.custom_base_url || "");
-      form.setValue("quick_think_api_key", savedSettings.custom_api_key || "");
-    } else {
-      form.setValue("quick_think_base_url", getBaseUrlForModel(quickThinkLlm, savedSettings.custom_base_url));
-      form.setValue("quick_think_api_key", getApiKeyForModel(quickThinkLlm, savedSettings));
-    }
+      // For custom models, always use custom base URL and API key
+      if (isQuickThinkCustom) {
+        form.setValue("quick_think_base_url", savedSettings.custom_base_url || "");
+        form.setValue("quick_think_api_key", savedSettings.custom_api_key || "");
+      } else {
+        form.setValue("quick_think_base_url", getBaseUrlForModel(quickThinkLlm, savedSettings.custom_base_url));
+        form.setValue("quick_think_api_key", getApiKeyForModel(quickThinkLlm, savedSettings));
+      }
+      
+      if (isDeepThinkCustom) {
+        form.setValue("deep_think_base_url", savedSettings.custom_base_url || "");
+        form.setValue("deep_think_api_key", savedSettings.custom_api_key || "");
+      } else {
+        form.setValue("deep_think_base_url", getBaseUrlForModel(deepThinkLlm, savedSettings.custom_base_url));
+        form.setValue("deep_think_api_key", getApiKeyForModel(deepThinkLlm, savedSettings));
+      }
+
+      form.setValue("embedding_base_url", savedSettings.custom_base_url || "https://api.openai.com/v1");
+      form.setValue("embedding_api_key", savedSettings.custom_api_key || savedSettings.openai_api_key);
+      form.setValue("alpha_vantage_api_key", savedSettings.alpha_vantage_api_key || "");
+      form.setValue("finmind_api_key", savedSettings.finmind_api_key || "");
+    };
     
-    if (isDeepThinkCustom) {
-      form.setValue("deep_think_base_url", savedSettings.custom_base_url || "");
-      form.setValue("deep_think_api_key", savedSettings.custom_api_key || "");
-    } else {
-      form.setValue("deep_think_base_url", getBaseUrlForModel(deepThinkLlm, savedSettings.custom_base_url));
-      form.setValue("deep_think_api_key", getApiKeyForModel(deepThinkLlm, savedSettings));
-    }
-
-    form.setValue("embedding_base_url", savedSettings.custom_base_url || "https://api.openai.com/v1");
-    form.setValue("embedding_api_key", savedSettings.custom_api_key || savedSettings.openai_api_key);
-    form.setValue("alpha_vantage_api_key", savedSettings.alpha_vantage_api_key || "");
-    form.setValue("finmind_api_key", savedSettings.finmind_api_key || "");
+    loadSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quickThinkLlm, deepThinkLlm, isQuickThinkCustom, isDeepThinkCustom]);
 
