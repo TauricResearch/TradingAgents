@@ -3,18 +3,18 @@
  * Uses Dexie.js for a cleaner API
  */
 
-import Dexie, { type Table } from 'dexie';
-import type { AnalysisResponse } from './types';
+import Dexie, { type Table } from "dexie";
+import type { AnalysisResponse } from "./types";
 
 // Saved report interface
 export interface SavedReport {
-  id?: number;                              // Auto-generated primary key
-  ticker: string;                           // Stock ticker symbol
-  market_type: "us" | "twse" | "tpex";      // Market type
-  analysis_date: string;                    // Analysis date (YYYY-MM-DD)
-  saved_at: Date;                           // Save timestamp
-  task_id?: string;                         // Original task ID
-  result: AnalysisResponse;                 // Full analysis result
+  id?: number; // Auto-generated primary key
+  ticker: string; // Stock ticker symbol
+  market_type: "us" | "twse" | "tpex"; // Market type
+  analysis_date: string; // Analysis date (YYYY-MM-DD)
+  saved_at: Date; // Save timestamp
+  task_id?: string; // Original task ID
+  result: AnalysisResponse; // Full analysis result
 }
 
 // Database class extending Dexie
@@ -22,10 +22,10 @@ class ReportsDatabase extends Dexie {
   reports!: Table<SavedReport>;
 
   constructor() {
-    super('TradingAgentsReports');
+    super("TradingAgentsReports");
     this.version(1).stores({
       // Define indexes: ++id = auto-increment, others are indexed fields
-      reports: '++id, ticker, market_type, analysis_date, saved_at'
+      reports: "++id, ticker, market_type, analysis_date, saved_at",
     });
   }
 }
@@ -51,7 +51,7 @@ export async function saveReport(
     task_id,
     result,
   };
-  
+
   return await db.reports.add(report);
 }
 
@@ -62,26 +62,25 @@ export async function getReportsByMarketType(
   market_type: "us" | "twse" | "tpex"
 ): Promise<SavedReport[]> {
   return await db.reports
-    .where('market_type')
+    .where("market_type")
     .equals(market_type)
     .reverse()
-    .sortBy('saved_at');
+    .sortBy("saved_at");
 }
 
 /**
  * Get all saved reports, sorted by saved_at descending
  */
 export async function getAllReports(): Promise<SavedReport[]> {
-  return await db.reports
-    .orderBy('saved_at')
-    .reverse()
-    .toArray();
+  return await db.reports.orderBy("saved_at").reverse().toArray();
 }
 
 /**
  * Get a single report by ID
  */
-export async function getReportById(id: number): Promise<SavedReport | undefined> {
+export async function getReportById(
+  id: number
+): Promise<SavedReport | undefined> {
   return await db.reports.get(id);
 }
 
@@ -108,11 +107,11 @@ export async function getReportCountByMarketType(): Promise<{
   tpex: number;
 }> {
   const [us, twse, tpex] = await Promise.all([
-    db.reports.where('market_type').equals('us').count(),
-    db.reports.where('market_type').equals('twse').count(),
-    db.reports.where('market_type').equals('tpex').count(),
+    db.reports.where("market_type").equals("us").count(),
+    db.reports.where("market_type").equals("twse").count(),
+    db.reports.where("market_type").equals("tpex").count(),
   ]);
-  
+
   return { us, twse, tpex };
 }
 
@@ -124,10 +123,17 @@ export async function checkDuplicateReport(
   analysis_date: string
 ): Promise<SavedReport | undefined> {
   return await db.reports
-    .where('ticker')
+    .where("ticker")
     .equals(ticker)
-    .and(report => report.analysis_date === analysis_date)
+    .and((report) => report.analysis_date === analysis_date)
     .first();
+}
+
+/**
+ * Clear all reports from the database (for logout)
+ */
+export async function clearAllReports(): Promise<void> {
+  await db.reports.clear();
 }
 
 // Export the db instance for advanced usage

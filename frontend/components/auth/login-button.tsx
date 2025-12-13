@@ -3,6 +3,7 @@
  */
 "use client";
 
+import React from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,11 +41,22 @@ function GoogleIcon({ className }: { className?: string }) {
 
 export function LoginButton() {
   const { user, isLoading, isAuthenticated, login, logout } = useAuth();
+  const [loggingOut, setLoggingOut] = React.useState(false);
 
-  if (isLoading) {
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  if (isLoading || loggingOut) {
     return (
       <Button variant="outline" size="sm" disabled>
         <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+        {loggingOut && <span className="ml-2 hidden sm:inline">登出中...</span>}
       </Button>
     );
   }
@@ -84,7 +96,7 @@ export function LoginButton() {
             雲端同步已啟用
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={logout} className="text-red-600">
+          <DropdownMenuItem onClick={handleLogout} className="text-red-600">
             <LogOut className="w-4 h-4 mr-2" />
             登出
           </DropdownMenuItem>

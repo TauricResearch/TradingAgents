@@ -5,6 +5,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { clearApiSettings, saveApiSettingsAsync } from "@/lib/storage";
+import { clearAllReports, saveReport } from "@/lib/reports-db";
+import { getCloudSettings, getCloudReports } from "@/lib/user-api";
 
 // User interface
 export interface User {
@@ -21,8 +24,8 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: () => void;
-  logout: () => void;
-  setAuthFromCallback: (token: string) => void;
+  logout: () => Promise<void>;
+  setAuthFromCallback: (token: string) => Promise<void>;
 }
 
 // Create context
@@ -107,6 +110,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, [parseToken, isTokenExpired]);
 
+  // Auto-clear local data when unauthenticated user leaves the page
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleBeforeUnload = () => {
+      // Only clear data if user is not authenticated
+      const currentToken = localStorage.getItem(TOKEN_KEY);
+      if (!currentToken) {
+        // Clear API settings (synchronous)
+        clearApiSettings();
+        
+        // Clear reports - use synchronous approach for beforeunload
+        // IndexedDB operations are async, but we can at least attempt it
+        clearAllReports().catch(() => {
+          // Ignore errors during unload
+        });
+        
+        console.log("Cleared local data for unauthenticated user on page leave");
+      }
+    };
+
+    // Use both beforeunload and pagehide for better browser compatibility
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handleBeforeUnload);
+    };
+  }, []); // No dependencies - we check localStorage directly
+
   // Login - redirect to Google OAuth
   const login = useCallback(() => {
     if (!googleClientId) {
@@ -131,22 +165,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }, [googleClientId]);
 
-  // Logout
-  const logout = useCallback(() => {
+  // Logout - clear auth and all local data
+  const logout = useCallback(async () => {
+    // Clear auth token
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setUser(null);
+    
+    // Clear all local data
+    clearApiSettings();
+    await clearAllReports();
+    
+    console.log("Logged out and cleared all local data");
+  }, []);
+
+  // Restore cloud data to local storage
+  const restoreCloudData = useCallback(async (authToken: string) => {
+    try {
+      // Temporarily set token for API calls
+      localStorage.setItem(TOKEN_KEY, authToken);
+      
+      // Fetch and restore cloud settings
+      const cloudSettings = await getCloudSettings();
+      if (cloudSettings) {
+        await saveApiSettingsAsync(cloudSettings);
+        console.log("Restored API settings from cloud");
+      }
+      
+      // Fetch and restore cloud reports
+      const cloudReports = await getCloudReports();
+      if (cloudReports && cloudReports.length > 0) {
+        // Clear existing local reports first
+        await clearAllReports();
+        
+        // Save each cloud report to local IndexedDB
+        for (const report of cloudReports) {
+          await saveReport(
+            report.ticker,
+            report.market_type,
+            report.analysis_date,
+            report.result,
+            (report as any).task_id
+          );
+        }
+        console.log(`Restored ${cloudReports.length} reports from cloud`);
+      }
+    } catch (error) {
+      console.error("Failed to restore cloud data:", error);
+    }
   }, []);
 
   // Set auth from callback (after OAuth redirect)
-  const setAuthFromCallback = useCallback((newToken: string) => {
+  const setAuthFromCallback = useCallback(async (newToken: string) => {
     const userData = parseToken(newToken);
     if (userData) {
+      // First restore cloud data, then set the auth state
+      await restoreCloudData(newToken);
+      
       localStorage.setItem(TOKEN_KEY, newToken);
       setToken(newToken);
       setUser(userData);
+      
+      console.log("Login complete, cloud data restored");
     }
-  }, [parseToken]);
+  }, [parseToken, restoreCloudData]);
 
   const value: AuthContextType = {
     user,
