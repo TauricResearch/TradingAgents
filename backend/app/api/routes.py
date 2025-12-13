@@ -245,6 +245,10 @@ async def download_reports(request: DownloadRequest):
     if not reports_to_download:
         raise HTTPException(status_code=404, detail="No reports found for selected analysts")
     
+    # Extract price data for cover page
+    price_data = result.get("price_data")
+    price_stats = result.get("price_stats")
+    
     # Single report - return PDF
     if len(reports_to_download) == 1:
         pdf_bytes, filename = download_service.create_single_pdf(
@@ -252,6 +256,8 @@ async def download_reports(request: DownloadRequest):
             ticker=request.ticker,
             analysis_date=request.analysis_date,
             report_content=reports_to_download[0]["report_content"],
+            price_data=price_data,
+            price_stats=price_stats,
         )
         
         return Response(
@@ -267,6 +273,8 @@ async def download_reports(request: DownloadRequest):
         ticker=request.ticker,
         analysis_date=request.analysis_date,
         reports=reports_to_download,
+        price_data=price_data,
+        price_stats=price_stats,
     )
     
     return Response(

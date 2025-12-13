@@ -62,6 +62,8 @@ class DownloadService:
         ticker: str,
         analysis_date: str,
         report_content: str,
+        price_data: list = None,
+        price_stats: dict = None,
     ) -> tuple[bytes, str]:
         """
         Create a PDF for a single analyst report
@@ -71,6 +73,8 @@ class DownloadService:
             ticker: Stock ticker symbol
             analysis_date: Date of analysis (YYYY-MM-DD)
             report_content: Markdown formatted report content
+            price_data: Optional list of price data for cover page
+            price_stats: Optional price statistics for cover page
             
         Returns:
             Tuple of (PDF bytes, filename)
@@ -81,6 +85,8 @@ class DownloadService:
             ticker=ticker,
             analysis_date=analysis_date,
             report_content=report_content,
+            price_data=price_data,
+            price_stats=price_stats,
         )
         
         # Generate filename with English name: TICKER_English_Name_DATE.pdf
@@ -94,6 +100,8 @@ class DownloadService:
         ticker: str,
         analysis_date: str,
         reports: List[Dict[str, str]],
+        price_data: list = None,
+        price_stats: dict = None,
     ) -> tuple[bytes, str]:
         """
         Create a ZIP file containing multiple analyst report PDFs
@@ -102,6 +110,8 @@ class DownloadService:
             ticker: Stock ticker symbol
             analysis_date: Date of analysis (YYYY-MM-DD)
             reports: List of dicts with keys 'analyst_name' and 'report_content'
+            price_data: Optional list of price data for cover page
+            price_stats: Optional price statistics for cover page
             
         Returns:
             Tuple of (ZIP bytes, filename)
@@ -124,6 +134,8 @@ class DownloadService:
                     ticker=ticker,
                     analysis_date=analysis_date,
                     report_content=report_content,
+                    price_data=price_data,
+                    price_stats=price_stats,
                 )
                 
                 # Add to ZIP with English filename

@@ -168,6 +168,8 @@ class PDFGenerator:
         ticker: str,
         analysis_date: str,
         report_content: str,
+        price_data: list = None,
+        price_stats: dict = None,
     ) -> bytes:
         """
         Generate a PDF from analyst report content
@@ -177,6 +179,8 @@ class PDFGenerator:
             ticker: Stock ticker symbol
             analysis_date: Date of analysis
             report_content: Markdown formatted report content
+            price_data: Optional list of price data dicts with Date, Open, High, Low, Close, Volume
+            price_stats: Optional dict with growth_rate, duration_days, start_date, end_date, start_price, end_price
             
         Returns:
             PDF file content as bytes
@@ -247,6 +251,115 @@ class PDFGenerator:
             allowWidows=0,
         )
         
+        # === PAGE 1: Price Information (if price data is provided) ===
+        if price_stats and price_data:
+            # Page 1 Title
+            price_title = f"{ticker} 價格資訊"
+            elements.append(Paragraph(price_title, title_style))
+            elements.append(Spacer(1, 0.3*cm))
+            
+            # Analysis date
+            elements.append(Paragraph(f"分析日期：{analysis_date}", subtitle_style))
+            elements.append(Spacer(1, 0.8*cm))
+            
+            # Price statistics style
+            stat_style = ParagraphStyle(
+                'StatStyle',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=12,
+                leading=18,
+                textColor=HexColor('#333333'),
+                spaceAfter=6,
+                wordWrap='CJK',
+            )
+            
+            stat_label_style = ParagraphStyle(
+                'StatLabelStyle',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=10,
+                textColor=HexColor('#666666'),
+                spaceAfter=2,
+                wordWrap='CJK',
+            )
+            
+            stat_value_style = ParagraphStyle(
+                'StatValueStyle',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=16,
+                textColor=HexColor('#1a1a1a'),
+                spaceAfter=12,
+                wordWrap='CJK',
+            )
+            
+            # Growth rate with color
+            growth_rate = price_stats.get('growth_rate', 0)
+            growth_color = '#22c55e' if growth_rate >= 0 else '#ef4444'  # green/red
+            growth_text = f"+{growth_rate:.2f}%" if growth_rate >= 0 else f"{growth_rate:.2f}%"
+            
+            growth_value_style = ParagraphStyle(
+                'GrowthValueStyle',
+                parent=stat_value_style,
+                fontSize=20,
+                textColor=HexColor(growth_color),
+            )
+            
+            # Add price statistics
+            elements.append(Paragraph("總報酬率", stat_label_style))
+            elements.append(Paragraph(growth_text, growth_value_style))
+            elements.append(Spacer(1, 0.3*cm))
+            
+            duration_days = price_stats.get('duration_days', 0)
+            elements.append(Paragraph("分析期間", stat_label_style))
+            elements.append(Paragraph(f"{duration_days} 天", stat_value_style))
+            
+            start_date = price_stats.get('start_date', 'N/A')
+            end_date = price_stats.get('end_date', 'N/A')
+            elements.append(Paragraph("日期區間", stat_label_style))
+            elements.append(Paragraph(f"{start_date} ~ {end_date}", stat_style))
+            elements.append(Spacer(1, 0.3*cm))
+            
+            start_price = price_stats.get('start_price', 0)
+            end_price = price_stats.get('end_price', 0)
+            elements.append(Paragraph("起始價格", stat_label_style))
+            elements.append(Paragraph(f"${start_price:.2f}", stat_value_style))
+            
+            elements.append(Paragraph("結束價格", stat_label_style))
+            elements.append(Paragraph(f"${end_price:.2f}", stat_value_style))
+            
+            # Add latest price data summary if available
+            if price_data and len(price_data) > 0:
+                elements.append(Spacer(1, 0.5*cm))
+                elements.append(Paragraph("最近交易數據", heading_style))
+                elements.append(Spacer(1, 0.2*cm))
+                
+                # Show last 5 trading days
+                recent_data = price_data[-5:] if len(price_data) >= 5 else price_data
+                for day in reversed(recent_data):
+                    date = day.get('Date', 'N/A')
+                    close = day.get('Close', 0)
+                    adj_close = day.get('Adj Close', close)
+                    volume = day.get('Volume', 0)
+                    
+                    # Format volume
+                    if volume >= 1000000000:
+                        vol_str = f"{volume/1000000000:.2f}B"
+                    elif volume >= 1000000:
+                        vol_str = f"{volume/1000000:.2f}M"
+                    elif volume >= 1000:
+                        vol_str = f"{volume/1000:.2f}K"
+                    else:
+                        vol_str = str(volume)
+                    
+                    day_text = f"{date}：收盤 ${adj_close:.2f}，成交量 {vol_str}"
+                    elements.append(Paragraph(day_text, stat_style))
+            
+            # Page break before analyst content
+            elements.append(PageBreak())
+        
+        # === PAGE 2+: Analyst Report Content ===
         # Add title
         title = f"{analyst_name}"
         elements.append(Paragraph(title, title_style))
