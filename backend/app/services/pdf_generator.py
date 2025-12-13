@@ -6,6 +6,7 @@ Includes Heikin Ashi candlestick charts and volume bar charts
 """
 import io
 import re
+import warnings
 from typing import Optional, List, Dict
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
@@ -18,6 +19,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import HexColor
 import markdown
 
+# Suppress matplotlib font warnings globally
+warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
+import logging
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+
 # Matplotlib for chart generation
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend for server
@@ -25,6 +31,11 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
 import numpy as np
+
+# Configure matplotlib to use available system fonts
+plt.rcParams['font.family'] = 'sans-serif'
+plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Liberation Sans', 'FreeSans', 'Helvetica', 'Arial', 'sans-serif']
+plt.rcParams['axes.unicode_minus'] = False
 
 
 class PDFGenerator:
@@ -258,10 +269,6 @@ class PDFGenerator:
                                         gridspec_kw={'height_ratios': [3, 1]},
                                         sharex=True)
         fig.patch.set_facecolor('white')
-        
-        # Set Chinese font for matplotlib
-        plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'STSong', 'sans-serif']
-        plt.rcParams['axes.unicode_minus'] = False
         
         # Plot Heikin Ashi candlesticks
         width = 0.8
