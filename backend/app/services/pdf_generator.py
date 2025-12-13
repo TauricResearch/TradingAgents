@@ -2,20 +2,29 @@
 """
 PDF Generation Service for Analyst Reports
 Converts markdown reports to PDF format with Chinese character support
+Includes Heikin Ashi candlestick charts and volume bar charts
 """
 import io
 import re
-from typing import Optional
+from typing import Optional, List, Dict
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Image
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import HexColor
 import markdown
+
+# Matplotlib for chart generation
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for server
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.patches import Rectangle
+import numpy as np
 
 
 class PDFGenerator:
@@ -161,6 +170,178 @@ class PDFGenerator:
         
         # Set primary font
         self.primary_font = self.custom_font if self.custom_font else self.chinese_font
+    
+    def _calculate_heikin_ashi(self, price_data: List[Dict]) -> List[Dict]:
+        """
+        Calculate Heikin Ashi values from regular OHLC data
+        
+        Args:
+            price_data: List of dicts with Open, High, Low, Close
+            
+        Returns:
+            List of dicts with HA_Open, HA_High, HA_Low, HA_Close
+        """
+        if not price_data:
+            return []
+        
+        ha_data = []
+        
+        for i, candle in enumerate(price_data):
+            open_price = candle.get('Open', 0)
+            high_price = candle.get('High', 0)
+            low_price = candle.get('Low', 0)
+            close_price = candle.get('Adj Close', candle.get('Close', 0))
+            
+            # Current HA Close = (Open + High + Low + Close) / 4
+            ha_close = (open_price + high_price + low_price + close_price) / 4
+            
+            if i == 0:
+                # First candle: HA Open = (Open + Close) / 2
+                ha_open = (open_price + close_price) / 2
+            else:
+                # HA Open = (Previous HA Open + Previous HA Close) / 2
+                prev_ha = ha_data[i - 1]
+                ha_open = (prev_ha['HA_Open'] + prev_ha['HA_Close']) / 2
+            
+            # HA High = Max(High, HA Open, HA Close)
+            ha_high = max(high_price, ha_open, ha_close)
+            
+            # HA Low = Min(Low, HA Open, HA Close)
+            ha_low = min(low_price, ha_open, ha_close)
+            
+            ha_data.append({
+                'Date': candle.get('Date', ''),
+                'HA_Open': ha_open,
+                'HA_High': ha_high,
+                'HA_Low': ha_low,
+                'HA_Close': ha_close,
+                'Volume': candle.get('Volume', 0),
+            })
+        
+        return ha_data
+    
+    def _generate_price_chart(self, price_data: List[Dict], ticker: str) -> bytes:
+        """
+        Generate Heikin Ashi candlestick chart and volume bar chart as PNG image
+        
+        Args:
+            price_data: List of price data dicts
+            ticker: Stock ticker symbol
+            
+        Returns:
+            PNG image as bytes
+        """
+        if not price_data or len(price_data) < 2:
+            return None
+        
+        # Calculate Heikin Ashi data
+        ha_data = self._calculate_heikin_ashi(price_data)
+        
+        # Prepare data for plotting
+        dates = []
+        ha_opens = []
+        ha_highs = []
+        ha_lows = []
+        ha_closes = []
+        volumes = []
+        
+        for i, d in enumerate(ha_data):
+            dates.append(i)  # Use index for x-axis
+            ha_opens.append(d['HA_Open'])
+            ha_highs.append(d['HA_High'])
+            ha_lows.append(d['HA_Low'])
+            ha_closes.append(d['HA_Close'])
+            volumes.append(d['Volume'])
+        
+        # Create figure with two subplots
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), 
+                                        gridspec_kw={'height_ratios': [3, 1]},
+                                        sharex=True)
+        fig.patch.set_facecolor('white')
+        
+        # Set Chinese font for matplotlib
+        plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'STSong', 'sans-serif']
+        plt.rcParams['axes.unicode_minus'] = False
+        
+        # Plot Heikin Ashi candlesticks
+        width = 0.8
+        for i in range(len(dates)):
+            # Determine color: green if close > open (bullish), red otherwise
+            if ha_closes[i] >= ha_opens[i]:
+                color = '#22c55e'  # Green for bullish
+                body_color = '#22c55e'
+            else:
+                color = '#ef4444'  # Red for bearish
+                body_color = '#ef4444'
+            
+            # Draw the wick (high-low line)
+            ax1.plot([dates[i], dates[i]], [ha_lows[i], ha_highs[i]], 
+                    color=color, linewidth=1)
+            
+            # Draw the body (open-close rectangle)
+            body_bottom = min(ha_opens[i], ha_closes[i])
+            body_height = abs(ha_closes[i] - ha_opens[i])
+            rect = Rectangle((dates[i] - width/2, body_bottom), width, body_height,
+                            facecolor=body_color, edgecolor=color, linewidth=0.5)
+            ax1.add_patch(rect)
+        
+        # Style price chart
+        ax1.set_ylabel('Price ($)', fontsize=10)
+        ax1.set_title(f'{ticker} Heikin Ashi Chart', fontsize=12, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        ax1.set_facecolor('#fafafa')
+        
+        # Plot volume bars
+        volume_colors = ['#22c55e' if ha_closes[i] >= ha_opens[i] else '#ef4444' 
+                        for i in range(len(dates))]
+        ax2.bar(dates, volumes, width=width, color=volume_colors, alpha=0.7)
+        
+        # Style volume chart
+        ax2.set_ylabel('Volume', fontsize=10)
+        ax2.set_xlabel('Trading Days', fontsize=10)
+        ax2.grid(True, alpha=0.3)
+        ax2.set_facecolor('#fafafa')
+        
+        # Format volume y-axis
+        ax2.yaxis.set_major_formatter(plt.FuncFormatter(
+            lambda x, p: f'{x/1e6:.1f}M' if x >= 1e6 else f'{x/1e3:.0f}K' if x >= 1e3 else f'{x:.0f}'
+        ))
+        
+        # Add date labels at intervals
+        if len(ha_data) > 0:
+            # Show first, middle, and last date labels
+            label_indices = [0, len(ha_data)//2, len(ha_data)-1]
+            labels = []
+            positions = []
+            for idx in label_indices:
+                if idx < len(ha_data):
+                    date_str = ha_data[idx].get('Date', '')
+                    if date_str:
+                        # Format date to show only month/day
+                        try:
+                            if len(date_str) >= 10:
+                                labels.append(date_str[5:10])  # MM-DD
+                            else:
+                                labels.append(date_str)
+                        except:
+                            labels.append(date_str)
+                        positions.append(idx)
+            
+            if positions and labels:
+                ax2.set_xticks(positions)
+                ax2.set_xticklabels(labels)
+        
+        # Tight layout
+        plt.tight_layout()
+        
+        # Save to bytes buffer
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
+                   facecolor='white', edgecolor='none')
+        plt.close(fig)
+        buf.seek(0)
+        
+        return buf.getvalue()
     
     def generate_analyst_report_pdf(
         self,
@@ -329,32 +510,51 @@ class PDFGenerator:
             elements.append(Paragraph("結束價格", stat_label_style))
             elements.append(Paragraph(f"${end_price:.2f}", stat_value_style))
             
-            # Add latest price data summary if available
-            if price_data and len(price_data) > 0:
-                elements.append(Spacer(1, 0.5*cm))
-                elements.append(Paragraph("最近交易數據", heading_style))
-                elements.append(Spacer(1, 0.2*cm))
-                
-                # Show last 5 trading days
-                recent_data = price_data[-5:] if len(price_data) >= 5 else price_data
-                for day in reversed(recent_data):
-                    date = day.get('Date', 'N/A')
-                    close = day.get('Close', 0)
-                    adj_close = day.get('Adj Close', close)
-                    volume = day.get('Volume', 0)
+            # Add Heikin Ashi Chart and Volume Chart
+            if price_data and len(price_data) >= 5:
+                try:
+                    # Generate chart image
+                    chart_bytes = self._generate_price_chart(price_data, ticker)
                     
-                    # Format volume
-                    if volume >= 1000000000:
-                        vol_str = f"{volume/1000000000:.2f}B"
-                    elif volume >= 1000000:
-                        vol_str = f"{volume/1000000:.2f}M"
-                    elif volume >= 1000:
-                        vol_str = f"{volume/1000:.2f}K"
-                    else:
-                        vol_str = str(volume)
+                    if chart_bytes:
+                        elements.append(Spacer(1, 0.5*cm))
+                        elements.append(Paragraph("價格走勢與交易量", heading_style))
+                        elements.append(Spacer(1, 0.3*cm))
+                        
+                        # Create image from bytes
+                        chart_buffer = io.BytesIO(chart_bytes)
+                        
+                        # Add chart image to PDF (width fits A4 page with margins)
+                        chart_img = Image(chart_buffer, width=17*cm, height=10.2*cm)
+                        elements.append(chart_img)
+                        
+                except Exception as e:
+                    # If chart generation fails, fall back to text summary
+                    print(f"Chart generation failed: {e}")
+                    elements.append(Spacer(1, 0.5*cm))
+                    elements.append(Paragraph("最近交易數據", heading_style))
+                    elements.append(Spacer(1, 0.2*cm))
                     
-                    day_text = f"{date}：收盤 ${adj_close:.2f}，成交量 {vol_str}"
-                    elements.append(Paragraph(day_text, stat_style))
+                    # Show last 5 trading days as text fallback
+                    recent_data = price_data[-5:] if len(price_data) >= 5 else price_data
+                    for day in reversed(recent_data):
+                        date = day.get('Date', 'N/A')
+                        close = day.get('Close', 0)
+                        adj_close = day.get('Adj Close', close)
+                        volume = day.get('Volume', 0)
+                        
+                        # Format volume
+                        if volume >= 1000000000:
+                            vol_str = f"{volume/1000000000:.2f}B"
+                        elif volume >= 1000000:
+                            vol_str = f"{volume/1000000:.2f}M"
+                        elif volume >= 1000:
+                            vol_str = f"{volume/1000:.2f}K"
+                        else:
+                            vol_str = str(volume)
+                        
+                        day_text = f"{date}：收盤 ${adj_close:.2f}，成交量 {vol_str}"
+                        elements.append(Paragraph(day_text, stat_style))
             
             # Page break before analyst content
             elements.append(PageBreak())

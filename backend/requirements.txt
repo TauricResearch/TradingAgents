@@ -52,6 +52,7 @@ tenacity>=8.2.0
 # PDF and document generation
 reportlab>=4.0.0
 markdown>=3.5.0
+matplotlib>=3.8.0
 
 # Toon format for token optimization
 git+https://github.com/toon-format/toon-python.git
