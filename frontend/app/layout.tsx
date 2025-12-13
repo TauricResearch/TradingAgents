@@ -12,6 +12,20 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "TradingAgentsX - 多代理 LLM 金融交易",
   description: "由 AI 驅動的多代理 LLM 金融交易框架",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icon.png", sizes: "1024x1024", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
+    shortcut: "/favicon.ico",
+  },
+  openGraph: {
+    title: "TradingAgentsX - 多代理 LLM 金融交易",
+    description: "由 AI 驅動的多代理 LLM 金融交易框架",
+    siteName: "TradingAgentsX",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
