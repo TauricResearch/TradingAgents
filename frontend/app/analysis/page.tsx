@@ -3,30 +3,105 @@
  */
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AnalysisForm } from "@/components/analysis/AnalysisForm";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useAnalysisContext } from "@/context/AnalysisContext";
+import { useAuth } from "@/contexts/auth-context";
+import { saveReport, checkDuplicateReport } from "@/lib/reports-db";
+import { saveCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
 import type { AnalysisRequest } from "@/lib/types";
 
 export default function AnalysisPage() {
   const router = useRouter();
-  const { setAnalysisResult, setTaskId, setMarketType } = useAnalysisContext();
+  const { setAnalysisResult, setTaskId, setMarketType, marketType } = useAnalysisContext();
   const { runAnalysis, loading, error, result, taskId } = useAnalysis();
+  const { isAuthenticated } = useAuth();
+  
+  // Ref to track if we've already saved (to prevent duplicate saves)
+  const hasSavedRef = useRef(false);
+
+  // Auto-save function
+  const autoSaveReport = useCallback(async () => {
+    if (!result || hasSavedRef.current) return;
+    
+    try {
+      // Check for duplicate
+      const duplicate = await checkDuplicateReport(result.ticker, result.analysis_date);
+      if (duplicate) {
+        console.log("Report already saved, skipping auto-save");
+        return;
+      }
+      
+      // Mark as saved to prevent duplicate saves
+      hasSavedRef.current = true;
+      
+      // Save to local IndexedDB
+      await saveReport(
+        result.ticker,
+        marketType,
+        result.analysis_date,
+        result,
+        taskId || undefined
+      );
+      console.log("📁 Auto-saved report to local storage");
+      
+      // If authenticated, also save to cloud
+      if (isAuthenticated && isCloudSyncEnabled()) {
+        const cloudId = await saveCloudReport({
+          ticker: result.ticker,
+          market_type: marketType,
+          analysis_date: result.analysis_date,
+          result: result,
+        });
+        if (cloudId) {
+          console.log("☁️ Auto-saved report to cloud");
+        }
+      }
+    } catch (error) {
+      console.error("Auto-save failed:", error);
+    }
+  }, [result, marketType, taskId, isAuthenticated]);
+
+  // Auto-save when page unloads (closing tab, navigating away, etc.)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (result && !hasSavedRef.current) {
+        // Trigger auto-save synchronously (best effort)
+        autoSaveReport();
+        
+        // Show browser's default "Leave site?" dialog only if there's unsaved analysis
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    // Add listener when we have a result
+    if (result) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [result, autoSaveReport]);
 
   // 當分析完成時自動跳轉到結果頁面
   useEffect(() => {
     if (result && !loading && !error) {
+      // Auto-save before navigating to results
+      autoSaveReport();
+      
       setAnalysisResult(result);
       if (taskId) {
         setTaskId(taskId);
       }
       router.push("/analysis/results");
     }
-  }, [result, loading, error, router, setAnalysisResult, taskId, setTaskId]);
+  }, [result, loading, error, router, setAnalysisResult, taskId, setTaskId, autoSaveReport]);
 
   const handleSubmit = async (data: AnalysisRequest) => {
     try {

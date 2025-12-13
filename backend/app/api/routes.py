@@ -177,8 +177,12 @@ async def download_reports(request: DownloadRequest):
     """
     Download analyst reports as PDF or ZIP
     
+    Supports two modes:
+    1. Task-based: If task_id is provided, lookup reports from task manager
+    2. Direct mode: If no task_id, use the directly provided reports data (for saved history)
+    
     Args:
-        request: Download request with ticker, date, task_id, and analyst list
+        request: Download request with ticker, date, analysts, and either task_id or direct reports
         
     Returns:
         PDF file (single analyst) or ZIP file (multiple analysts)
@@ -186,20 +190,32 @@ async def download_reports(request: DownloadRequest):
     from fastapi.responses import Response
     from backend.app.services.download_service import download_service
     
-    # Get task result
-    task = task_manager.get_task_status(request.task_id)
-    
-    if not task:
-        raise HTTPException(status_code=404, detail=f"Task {request.task_id} not found")
-    
-    if task.get("status") != "completed":
-        raise HTTPException(status_code=400, detail="Task is not completed yet")
-    
-    result = task.get("result")
-    if not result:
-        raise HTTPException(status_code=404, detail="No analysis result found")
-    
-    reports_data = result.get("reports", {})
+    # Determine data source: task-based or direct mode
+    if request.task_id:
+        # Task-based mode: lookup from task manager
+        task = task_manager.get_task_status(request.task_id)
+        
+        if not task:
+            raise HTTPException(status_code=404, detail=f"Task {request.task_id} not found")
+        
+        if task.get("status") != "completed":
+            raise HTTPException(status_code=400, detail="Task is not completed yet")
+        
+        result = task.get("result")
+        if not result:
+            raise HTTPException(status_code=404, detail="No analysis result found")
+        
+        reports_data = result.get("reports", {})
+        price_data = result.get("price_data")
+        price_stats = result.get("price_stats")
+    else:
+        # Direct mode: use provided reports data
+        if not request.reports:
+            raise HTTPException(status_code=400, detail="Either task_id or reports data is required")
+        
+        reports_data = request.reports
+        price_data = request.price_data
+        price_stats = request.price_stats
     
     # Analyst name mapping
     ANALYST_MAPPING = {
@@ -244,10 +260,6 @@ async def download_reports(request: DownloadRequest):
     
     if not reports_to_download:
         raise HTTPException(status_code=404, detail="No reports found for selected analysts")
-    
-    # Extract price data for cover page
-    price_data = result.get("price_data")
-    price_stats = result.get("price_stats")
     
     # Single report - return PDF
     if len(reports_to_download) == 1:

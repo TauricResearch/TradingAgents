@@ -153,8 +153,15 @@ class DownloadRequest(BaseModel):
     """Request model for downloading analyst reports"""
     ticker: str = Field(..., description="Stock ticker symbol")
     analysis_date: str = Field(..., description="Analysis date in YYYY-MM-DD format")
-    task_id: str = Field(..., description="Task ID of the completed analysis")
     analysts: List[str] = Field(..., description="List of analyst keys to download", min_length=1)
+    
+    # Task-based mode: lookup reports from task
+    task_id: Optional[str] = Field(None, description="Task ID of the completed analysis (optional)")
+    
+    # Direct mode: reports data passed directly (for history/saved reports)
+    reports: Optional[Dict[str, Any]] = Field(None, description="Direct reports data (if no task_id)")
+    price_data: Optional[List[Dict[str, Any]]] = Field(None, description="Price data for PDF chart")
+    price_stats: Optional[Dict[str, Any]] = Field(None, description="Price stats for PDF cover page")
     
     # 防呆：自動將股票代碼轉換為大寫
     @field_validator('ticker')

@@ -318,13 +318,15 @@ export default function AnalysisResultsPage() {
         </Tabs>
 
         {/* Download Reports Section - 放在分析報告下方 */}
-        {taskId && analysisResult.reports && (
+        {analysisResult.reports && (
           <DownloadReports
             ticker={analysisResult.ticker}
             analysisDate={analysisResult.analysis_date}
             taskId={taskId}
             analysts={ANALYSTS}
             reports={analysisResult.reports}
+            priceData={analysisResult.price_data}
+            priceStats={analysisResult.price_stats}
           />
         )}
         </div>

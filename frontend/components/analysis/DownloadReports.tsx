@@ -22,9 +22,11 @@ interface AnalystInfo {
 interface DownloadReportsProps {
   ticker: string;
   analysisDate: string;
-  taskId: string;
+  taskId?: string | null;  // Now optional - if not provided, use direct data mode
   analysts: AnalystInfo[];
   reports: any;
+  priceData?: any[];  // For direct download mode
+  priceStats?: any;   // For direct download mode
 }
 
 export function DownloadReports({
@@ -33,6 +35,8 @@ export function DownloadReports({
   taskId,
   analysts,
   reports,
+  priceData,
+  priceStats,
 }: DownloadReportsProps) {
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -74,17 +78,29 @@ export function DownloadReports({
 
     setIsDownloading(true);
     try {
+      // Build request body - use taskId if available, otherwise send direct data
+      const requestBody: any = {
+        ticker,
+        analysis_date: analysisDate,
+        analysts: selectedAnalysts,
+      };
+      
+      if (taskId) {
+        // Task-based mode: API will look up reports from task
+        requestBody.task_id = taskId;
+      } else {
+        // Direct mode: send report data directly
+        requestBody.reports = reports;
+        requestBody.price_data = priceData;
+        requestBody.price_stats = priceStats;
+      }
+      
       const response = await fetch('/api/download/reports', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ticker,
-          analysis_date: analysisDate,
-          task_id: taskId,
-          analysts: selectedAnalysts,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
