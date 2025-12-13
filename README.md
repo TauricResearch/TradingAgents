@@ -185,6 +185,9 @@ docker compose up -d --build
 
 # 查看日誌
 docker compose logs -f
+
+# 停止服務
+docker compose down -v
 ```
 
 服務端口：
