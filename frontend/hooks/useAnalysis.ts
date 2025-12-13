@@ -37,6 +37,11 @@ export function useAnalysis() {
         }
         setLoading(false);
         setProgress(null);
+        
+        // Clear pending task since it's completed
+        const { clearPendingTask } = await import('@/lib/pending-task');
+        clearPendingTask();
+        
         // Stop polling
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
@@ -60,6 +65,11 @@ export function useAnalysis() {
         }
         setLoading(false);
         setProgress(null);
+        
+        // Clear pending task since it failed
+        const { clearPendingTask } = await import('@/lib/pending-task');
+        clearPendingTask();
+        
         // Stop polling
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
@@ -113,6 +123,16 @@ export function useAnalysis() {
       const taskResponse = await api.runAnalysis(request);
       setTaskId(taskResponse.task_id);
       setProgress("Analysis started, waiting for results...");
+      
+      // Save pending task to localStorage for recovery if page closes
+      const { savePendingTask } = await import('@/lib/pending-task');
+      savePendingTask({
+        taskId: taskResponse.task_id,
+        ticker: request.ticker,
+        marketType: request.market_type || 'us',
+        analysisDate: request.analysis_date,
+        startedAt: new Date().toISOString(),
+      });
       
       // Start polling for status
       startPolling(taskResponse.task_id);

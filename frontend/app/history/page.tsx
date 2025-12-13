@@ -36,6 +36,7 @@ import {
 } from "@/lib/reports-db";
 import { getCloudReports, deleteCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
 import { LoginPrompt } from "@/components/auth/login-button";
+import { PendingTaskRecovery } from "@/components/PendingTaskRecovery";
 
 // Market type labels
 const MARKET_LABELS = {
@@ -248,6 +249,9 @@ export default function HistoryPage() {
               瀏覽已儲存的分析報告
             </p>
           </div>
+
+          {/* Pending Task Recovery Notice */}
+          <PendingTaskRecovery />
 
           {/* Market Type Tabs */}
           <Tabs
