@@ -111,11 +111,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [parseToken, isTokenExpired]);
 
   // Auto-clear local data when unauthenticated user leaves the page
+  // Only applies in production environment (not localhost)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Check if running in local development mode
+    const isLocalDevelopment = 
+      window.location.hostname === "localhost" || 
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname.startsWith("192.168.") ||
+      window.location.hostname.startsWith("10.");
+    
+    // Skip auto-clear in local development to preserve data
+    if (isLocalDevelopment) {
+      console.log("Local development mode: data will be preserved on page leave");
+      return;
+    }
+
     const handleBeforeUnload = () => {
-      // Only clear data if user is not authenticated
+      // Only clear data if user is not authenticated (production only)
       const currentToken = localStorage.getItem(TOKEN_KEY);
       if (!currentToken) {
         // Clear API settings (synchronous)

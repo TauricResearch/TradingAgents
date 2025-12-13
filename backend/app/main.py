@@ -165,13 +165,9 @@ async def startup_event():
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
-    return {
-        "message": "Welcome to TradingAgentsX API",
-        "version": settings.app_version,
-        "docs": "/docs",
-        "health": "/api/health",
-    }
+    """Root endpoint - redirect to API documentation"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/docs")
 
 
 @app.exception_handler(Exception)
