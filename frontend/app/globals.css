@@ -119,6 +119,39 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* iOS PWA Safe Area Support */
+  html {
+    /* Extend background color to safe areas */
+    background-color: var(--background);
+  }
+
+  /* PWA standalone mode adjustments */
+  @supports (padding-top: env(safe-area-inset-top)) {
+    /* Header safe area */
+    .pwa-safe-header {
+      padding-top: env(safe-area-inset-top);
+    }
+
+    /* Footer/bottom safe area */
+    .pwa-safe-footer {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Full page safe area */
+    .pwa-safe-page {
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+  }
+
+  /* iOS Safari standalone mode detection */
+  @media all and (display-mode: standalone) {
+    body {
+      /* Prevent rubber-banding on iOS */
+      overscroll-behavior-y: none;
+    }
+  }
 }
 
 /* Safari mobile touch fixes */
