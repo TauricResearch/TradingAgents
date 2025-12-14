@@ -9,6 +9,7 @@ from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
 
 from .conditional_logic import ConditionalLogic
+from .parsers import parse_screening_output, parse_pump_detection_output
 
 
 class GraphSetup:
@@ -137,10 +138,12 @@ class GraphSetup:
         if screening_node:
             workflow.add_node("Screening Agent", screening_node)
             workflow.add_node("tools_screening", tool_nodes["screening"])
+            workflow.add_node("Screening Parser", parse_screening_output)
         
         if pump_detection_node:
             workflow.add_node("Pump Detection Agent", pump_detection_node)
             workflow.add_node("tools_pump_detection", tool_nodes["pump_detection"])
+            workflow.add_node("Pump Parser", parse_pump_detection_output)
 
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
@@ -153,28 +156,39 @@ class GraphSetup:
 
         # Define edges
         # Determine starting node
+        first_analyst = selected_analysts[0]
+        first_analyst_node = f"{first_analyst.capitalize()} Analyst"
+
         if include_screening:
             # Start with screening agent
             workflow.add_edge(START, "Screening Agent")
             workflow.add_conditional_edges(
                 "Screening Agent",
-                self.conditional_logic.should_continue_market,
-                ["tools_screening", "Bull Researcher"],
+                self.conditional_logic.should_continue_screening,
+                {
+                    "tools_screening": "tools_screening",
+                    "Msg Clear Market": "Screening Parser", # Re-using logic, but mapping to parser
+                }
             )
             workflow.add_edge("tools_screening", "Screening Agent")
+            workflow.add_edge("Screening Parser", first_analyst_node)
+            
         elif include_pump_detection:
             # Start with pump detection
             workflow.add_edge(START, "Pump Detection Agent")
             workflow.add_conditional_edges(
                 "Pump Detection Agent",
-                self.conditional_logic.should_continue_market,
-                ["tools_pump_detection", "Bull Researcher"],
+                self.conditional_logic.should_continue_pump_detection,
+                {
+                    "tools_pump_detection": "tools_pump_detection",
+                    "Msg Clear Market": "Pump Parser", # Re-using logic
+                }
             )
             workflow.add_edge("tools_pump_detection", "Pump Detection Agent")
+            workflow.add_edge("Pump Parser", first_analyst_node)
         else:
             # Start with the first analyst
-            first_analyst = selected_analysts[0]
-            workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+            workflow.add_edge(START, first_analyst_node)
 
         # Connect analysts in sequence
         for i, analyst_type in enumerate(selected_analysts):

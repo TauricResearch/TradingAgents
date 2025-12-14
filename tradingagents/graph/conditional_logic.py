@@ -19,6 +19,46 @@ class ConditionalLogic:
             return "tools_market"
         return "Msg Clear Market"
 
+    def should_continue_screening(self, state: AgentState):
+        """Determine if screening should continue."""
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        # Check for tool call limit to prevent recursion errors
+        tool_call_count = 0
+        for m in reversed(messages):
+            if m.type == "human":
+                break
+            if m.type == "ai" and m.tool_calls:
+                tool_call_count += 1
+        
+        if last_message.tool_calls:
+            if tool_call_count > 3:
+                print(f"--- Screening Agent Tool Limit Reached ({tool_call_count}) ---")
+                return "Msg Clear Market" # Force move to Parser
+            return "tools_screening"
+        return "Msg Clear Market" # Re-using this to map to Parser in setup.py
+
+    def should_continue_pump_detection(self, state: AgentState):
+        """Determine if pump detection should continue."""
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        # Check for tool call limit
+        tool_call_count = 0
+        for m in reversed(messages):
+            if m.type == "human":
+                break
+            if m.type == "ai" and m.tool_calls:
+                tool_call_count += 1
+                
+        if last_message.tool_calls:
+            if tool_call_count > 3:
+                print(f"--- Pump Discovery Tool Limit Reached ({tool_call_count}) ---")
+                return "Msg Clear Market" # Force move to Parser
+            return "tools_pump_detection"
+        return "Msg Clear Market" # Re-using this to map to Parser in setup.py
+
     def should_continue_social(self, state: AgentState):
         """Determine if social media analysis should continue."""
         messages = state["messages"]

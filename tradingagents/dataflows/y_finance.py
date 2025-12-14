@@ -10,15 +10,38 @@ def get_YFin_data_online(
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ):
+    from .config import get_config
+    import pandas as pd
+    
+    config = get_config()
+    os.makedirs(config["data_cache_dir"], exist_ok=True)
+    
+    # Caching logic
+    cache_file = os.path.join(
+        config["data_cache_dir"], 
+        f"{symbol.upper()}-YFin-OHLCV-{start_date}-{end_date}.csv"
+    )
+    
+    data = None
+    if os.path.exists(cache_file):
+        print(f"DEBUG: Loading cached stock data for {symbol} from {cache_file}")
+        try:
+            data = pd.read_csv(cache_file, index_col=0, parse_dates=True)
+        except Exception as e:
+            print(f"WARN: Failed to load cache: {e}")
+            
+    if data is None:
+        print(f"DEBUG: Fetching online stock data for {symbol}...")
+        # Create ticker object
+        ticker = yf.Ticker(symbol.upper())
 
-    datetime.strptime(start_date, "%Y-%m-%d")
-    datetime.strptime(end_date, "%Y-%m-%d")
-
-    # Create ticker object
-    ticker = yf.Ticker(symbol.upper())
-
-    # Fetch historical data for the specified date range
-    data = ticker.history(start=start_date, end=end_date)
+        # Fetch historical data for the specified date range
+        # auto_adjust=True handles splits/dividends better usually
+        data = ticker.history(start=start_date, end=end_date, auto_adjust=True)
+        
+        # Save to cache if we got data
+        if not data.empty:
+            data.to_csv(cache_file)
 
     # Check if data is empty
     if data.empty:
@@ -31,9 +54,10 @@ def get_YFin_data_online(
         data.index = data.index.tz_localize(None)
 
     # Round numerical values to 2 decimal places for cleaner display
-    numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
+    numeric_columns = ["Open", "High", "Low", "Close", "Adj Close", "Volume"]
     for col in numeric_columns:
         if col in data.columns:
+            # Keep Volume as int if possible, but rounding safe
             data[col] = data[col].round(2)
 
     # Convert DataFrame to CSV string
