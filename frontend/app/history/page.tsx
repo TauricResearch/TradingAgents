@@ -45,9 +45,9 @@ const MARKET_LABELS = {
   tpex: { label: "🇹🇼 上櫃/興櫃", description: "台灣櫃買中心上櫃/興櫃股票" },
 };
 
-// Helper function to extract decision from trader report
+// Helper function to extract decision from Risk Manager's final decision
 const extractDecisionFromReport = (report: SavedReport): { action: string; color: string } => {
-  // First try the decision.action field
+  // First try the decision.action field (processed decision)
   if (report.result.decision?.action) {
     const action = report.result.decision.action;
     const actionLower = action.toLowerCase();
@@ -59,7 +59,35 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
     return { action, color };
   }
   
-  // Fallback: try to extract from trader_investment_plan
+  // Priority: try to extract from Risk Manager's final_trade_decision (最終決策)
+  const finalDecision = report.result.reports?.final_trade_decision;
+  if (finalDecision) {
+    const text = finalDecision.toLowerCase();
+    
+    // Look for Chinese decision keywords first
+    if (text.includes("最終決策：買入") || text.includes("最終建議：買入") || text.includes("建議：買入")) {
+      return { action: "買入", color: "text-green-600" };
+    }
+    if (text.includes("最終決策：賣出") || text.includes("最終建議：賣出") || text.includes("建議：賣出")) {
+      return { action: "賣出", color: "text-red-600" };
+    }
+    if (text.includes("最終決策：持有") || text.includes("最終建議：持有") || text.includes("建議：持有")) {
+      return { action: "持有", color: "text-yellow-600" };
+    }
+    
+    // Look for English keywords
+    if (text.includes("buy") || text.includes("買入")) {
+      return { action: "買入", color: "text-green-600" };
+    }
+    if (text.includes("sell") || text.includes("賣出")) {
+      return { action: "賣出", color: "text-red-600" };
+    }
+    if (text.includes("hold") || text.includes("持有")) {
+      return { action: "持有", color: "text-yellow-600" };
+    }
+  }
+  
+  // Fallback: try trader_investment_plan if final_trade_decision not available
   const traderReport = report.result.reports?.trader_investment_plan;
   if (traderReport) {
     const text = traderReport.toLowerCase();
@@ -84,21 +112,6 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
     }
     if (text.includes("hold")) {
       return { action: "持有 (HOLD)", color: "text-yellow-600" };
-    }
-  }
-  
-  // Fallback: try final_trade_decision
-  const finalDecision = report.result.reports?.final_trade_decision;
-  if (finalDecision) {
-    const text = finalDecision.toLowerCase();
-    if (text.includes("buy") || text.includes("買入")) {
-      return { action: "買入", color: "text-green-600" };
-    }
-    if (text.includes("sell") || text.includes("賣出")) {
-      return { action: "賣出", color: "text-red-600" };
-    }
-    if (text.includes("hold") || text.includes("持有")) {
-      return { action: "持有", color: "text-yellow-600" };
     }
   }
   
