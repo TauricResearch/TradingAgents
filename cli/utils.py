@@ -131,6 +131,51 @@ def select_analysts() -> List[AnalystType]:
     return choices
 
 
+def select_market() -> tuple[str, str]:
+    """
+    使用互動式選單選擇市場類型。
+
+    返回:
+        tuple[str, str]: 包含市場類型代碼和預設股票代碼的元組。
+            市場類型: "us" (美股) 或 "tw" (台股)
+            預設股票: "SPY" (美股) 或 "2330" (台股)
+    """
+    # 定義市場選項
+    MARKET_OPTIONS = [
+        ("🇺🇸 美股 (US Stocks)", ("us", "SPY")),
+        ("🇹🇼 台股 (Taiwan Stocks)", ("tw", "2330")),
+    ]
+
+    choice = questionary.select(
+        "選擇您要分析的市場：",
+        # 設定可選項
+        choices=[
+            questionary.Choice(display, value=value) for display, value in MARKET_OPTIONS
+        ],
+        # 提供操作說明
+        instruction="\n- 使用方向鍵導覽\n- 按下 Enter 鍵選擇",
+        # 設定提示的樣式
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
+    ).ask()
+
+    # 如果使用者沒有選擇，則退出程式
+    if choice is None:
+        console.print("\n[red]未選擇市場。正在結束程式...[/red]")
+        exit(1)
+
+    market_type, default_ticker = choice
+    console.print(f"[green]已選擇：{'美股' if market_type == 'us' else '台股'}[/green]")
+    
+    # 返回市場類型和預設股票代碼
+    return market_type, default_ticker
+
+
 def select_research_depth() -> int:
     """
     使用互動式選單選擇研究深度。

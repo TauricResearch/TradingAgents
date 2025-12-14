@@ -29,6 +29,7 @@ from tradingagents.graph.trading_graph import TradingAgentsXGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
+from cli.utils import select_market
 
 # 初始化 rich Console
 console = Console()
@@ -447,29 +448,37 @@ def get_user_selections():
             box_content += f"\n[dim]預設值: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # 步驟 1：股票代碼
+    # 步驟 1：選擇市場
     console.print(
         create_question_box(
-            "步驟 1：股票代碼", "輸入要分析的股票代碼", "SPY"
+            "步驟 1：選擇市場", "選擇要分析的股票市場"
         )
     )
-    selected_ticker = get_ticker()
+    selected_market, default_ticker = select_market()
 
-    # 步驟 2：分析日期
+    # 步驟 2：股票代碼
+    console.print(
+        create_question_box(
+            "步驟 2：股票代碼", "輸入要分析的股票代碼", default_ticker
+        )
+    )
+    selected_ticker = get_ticker(default_ticker)
+
+    # 步驟 3：分析日期
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
     console.print(
         create_question_box(
-            "步驟 2：分析日期",
+            "步驟 3：分析日期",
             "輸入分析日期 (YYYY-MM-DD)",
             default_date,
         )
     )
     analysis_date = get_analysis_date()
 
-    # 步驟 3：選擇分析師
+    # 步驟 4：選擇分析師
     console.print(
         create_question_box(
-            "步驟 3：分析師團隊", "為分析選擇您的 LLM 分析師代理"
+            "步驟 4：分析師團隊", "為分析選擇您的 LLM 分析師代理"
         )
     )
     selected_analysts = select_analysts()
@@ -477,59 +486,100 @@ def get_user_selections():
         f"[green]已選分析師：[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
     )
 
-    # 步驟 4：研究深度
+    # 步驟 5：研究深度
     console.print(
         create_question_box(
-            "步驟 4：研究深度", "選擇您的研究深度等級"
+            "步驟 5：研究深度", "選擇您的研究深度等級"
         )
     )
     selected_research_depth = select_research_depth()
 
-    # 步驟 5：LLM 供應商
+    # 步驟 6：LLM 供應商
     console.print(
         create_question_box(
-            "步驟 5：LLM 供應商", "選擇要對話的服務"
+            "步驟 6：LLM 供應商", "選擇要對話的服務"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
     
-    # 步驟 6：思維代理
+    # 步驟 7：思維代理
     console.print(
         create_question_box(
-            "步驟 6：思維代理", "為分析選擇您的思維代理"
+            "步驟 7：思維代理", "為分析選擇您的思維代理"
         )
     )
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
-    # 步驟 7：嵌入模型供應商
+    # 步驟 8：嵌入模型供應商
     console.print(
         create_question_box(
-            "步驟 7：嵌入模型供應商", "選擇嵌入模型服務（用於記憶體系統）"
+            "步驟 8：嵌入模型供應商", "選擇嵌入模型服務（用於記憶體系統）"
         )
     )
     embedding_provider, embedding_url = select_embedding_provider()
     
-    # 步驟 8：API Keys
+    # 步驟 9：API Keys
     console.print(
         create_question_box(
-            "步驟 8：API Keys", "輸入 API Keys（可留空使用 .env 中的設定）"
+            "步驟 9：API Keys", "輸入 API Keys（可留空使用 .env 中的設定）"
         )
     )
     
     import os
     
-    # 從 .env 讀取 API Key
-    default_openai_key = os.getenv("OPENAI_API_KEY")
+    # 定義供應商對應的環境變數名稱
+    PROVIDER_API_KEY_MAP = {
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "google": "GEMINI_API_KEY",
+        "grok": "XAI_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "qwen": "DASHSCOPE_API_KEY",
+        "自訂供應商": "OPENAI_API_KEY",  # 自訂供應商預設使用 OpenAI 格式
+    }
+    
+    # 根據選擇的供應商獲取對應的 API Key 環境變數名稱
+    def get_provider_api_key(provider_name: str) -> str:
+        """根據供應商名稱從 .env 讀取對應的 API Key"""
+        provider_lower = provider_name.lower()
+        env_var_name = PROVIDER_API_KEY_MAP.get(provider_lower, "OPENAI_API_KEY")
+        return os.getenv(env_var_name)
+    
+    # 從選擇的快速思維模型名稱推斷供應商
+    def infer_provider_from_model(model_name: str) -> str:
+        """根據模型名稱推斷供應商"""
+        model_lower = model_name.lower()
+        if "gpt" in model_lower or model_lower.startswith("o4"):
+            return "openai"
+        elif "claude" in model_lower:
+            return "anthropic"
+        elif "gemini" in model_lower:
+            return "google"
+        elif "grok" in model_lower:
+            return "grok"
+        elif "deepseek" in model_lower:
+            return "deepseek"
+        elif "qwen" in model_lower:
+            return "qwen"
+        return "openai"  # 預設
+    
+    # 根據模型推斷供應商並獲取對應的 API Key
+    quick_think_provider = infer_provider_from_model(selected_shallow_thinker)
+    deep_think_provider = infer_provider_from_model(selected_deep_thinker)
+    
+    default_quick_think_key = get_provider_api_key(quick_think_provider)
+    default_deep_think_key = get_provider_api_key(deep_think_provider)
+    default_embedding_key = get_provider_api_key(embedding_provider)
     
     # 快速思維模型 API Key
-    quick_think_api_key = get_api_key("快速思維模型", default_openai_key)
+    quick_think_api_key = get_api_key("快速思維模型", default_quick_think_key)
     
     # 深度思維模型 API Key
-    deep_think_api_key = get_api_key("深度思維模型", default_openai_key)
+    deep_think_api_key = get_api_key("深度思維模型", default_deep_think_key)
     
     # 嵌入模型 API Key
-    embedding_api_key = get_api_key("嵌入模型", default_openai_key)
+    embedding_api_key = get_api_key("嵌入模型", default_embedding_key)
     
     # Alpha Vantage API Key（必填）
     alpha_vantage_key = os.getenv("ALPHA_VANTAGE_API_KEY")
@@ -548,6 +598,7 @@ def get_user_selections():
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
+        "market_type": selected_market,
         "embedding_provider": embedding_provider,
         "embedding_url": embedding_url,
         "quick_think_api_key": quick_think_api_key,
@@ -557,9 +608,13 @@ def get_user_selections():
     }
 
 
-def get_ticker():
-    """從使用者輸入中獲取股票代碼。"""
-    ticker = typer.prompt("", default="SPY")
+def get_ticker(default: str = "SPY"):
+    """從使用者輸入中獲取股票代碼。
+    
+    參數:
+        default (str): 預設的股票代碼（美股預設 SPY，台股預設 2330）
+    """
+    ticker = typer.prompt("", default=default)
     # 防呆：將股票代碼轉換為大寫
     ticker = ticker.strip().upper()
     return ticker
@@ -819,10 +874,40 @@ def run_analysis():
     config["embedding_api_key"] = selections["embedding_api_key"]
     config["embedding_base_url"] = selections["embedding_url"]
     
+    # 根據市場類型設定資料供應商
+    market_type = selections.get("market_type", "us")
+    if market_type == "tw":
+        # 台股使用 FinMind API
+        console.print("[cyan]📊 使用 FinMind API 獲取台股資料[/cyan]")
+        config["data_vendors"] = {
+            "core_stock_apis": "finmind",       # 使用 FinMind 獲取股價
+            "technical_indicators": "finmind",  # 使用 FinMind 獲取技術指標
+            "fundamental_data": "finmind",      # 使用 FinMind 獲取基本面資料
+            "news_data": "finmind",             # 使用 FinMind 獲取新聞
+        }
+    else:
+        # 美股使用 yfinance 和 Alpha Vantage
+        console.print("[cyan]📊 使用 yfinance / Alpha Vantage 獲取美股資料[/cyan]")
+        config["data_vendors"] = {
+            "core_stock_apis": "yfinance",
+            "technical_indicators": "yfinance",
+            "fundamental_data": "alpha_vantage",
+            "news_data": "openai",
+        }
+    
     # 設置環境變數（某些工具可能需要）
     import os
     os.environ["OPENAI_API_KEY"] = selections["quick_think_api_key"]
     os.environ["ALPHA_VANTAGE_API_KEY"] = selections["alpha_vantage_api_key"]
+    
+    # 如果是台股，還需要設置 FinMind API Key
+    if market_type == "tw":
+        finmind_key = os.getenv("FINMIND_API_KEY", "")
+        if finmind_key:
+            os.environ["FINMIND_API_KEY"] = finmind_key
+            console.print("[green]✓ 已載入 FinMind API Key[/green]")
+        else:
+            console.print("[yellow]⚠ 未找到 FINMIND_API_KEY，部分功能可能受限[/yellow]")
 
     # 初始化圖
     graph = TradingAgentsXGraph(
