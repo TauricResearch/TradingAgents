@@ -121,66 +121,58 @@ class PDFGenerator:
     """Generate PDF reports from markdown content"""
     
     def __init__(self):
-        """Initialize PDF generator with Chinese font support"""
+        """Initialize PDF generator with Chinese font support using Noto Serif TC"""
         import os
-        from reportlab.pdfbase.cidfonts import UnicodeCIDFont
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
         
         # Initialize font variables
         self.custom_font = None
-        self.chinese_font = None
+        self.custom_font_bold = None
         
-        # CRITICAL FIX: Use ReportLab's built-in CID fonts for proper character spacing
-        # CID fonts (Adobe-GB1, Adobe-CNS1) are specifically designed for PDF rendering
-        # and don't have the character spacing issues that TTC files have
-        try:
-            # Method 1: Try using built-in CID fonts (best for Chinese PDFs)
-            # These fonts have PERFECT character spacing without gaps
+        # Get the base path for fonts
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        font_dir = os.path.join(base_dir, 'Cactus_Classical_Serif,Noto_Serif_TC', 'Noto_Serif_TC', 'static')
+        
+        # Try to register Noto Serif TC fonts (best for Chinese with proper spacing)
+        font_paths = [
+            (os.path.join(font_dir, 'NotoSerifTC-Regular.ttf'), 'NotoSerifTC'),
+            (os.path.join(font_dir, 'NotoSerifTC-Bold.ttf'), 'NotoSerifTC-Bold'),
+        ]
+        
+        fonts_registered = False
+        for font_path, font_name in font_paths:
+            if os.path.exists(font_path):
+                try:
+                    pdfmetrics.registerFont(TTFont(font_name, font_path))
+                    if font_name == 'NotoSerifTC':
+                        self.custom_font = font_name
+                    elif font_name == 'NotoSerifTC-Bold':
+                        self.custom_font_bold = font_name
+                    fonts_registered = True
+                    print(f"✅ Registered font: {font_name}")
+                except Exception as e:
+                    print(f"⚠️ Failed to register {font_name}: {e}")
+        
+        if fonts_registered and self.custom_font:
+            print(f"✅ Using NotoSerifTC fonts - Proper Chinese character spacing")
+        else:
+            # Fallback to CID fonts
             try:
-                # Try STSong-Light (for Traditional + Simplified Chinese)
+                from reportlab.pdfbase.cidfonts import UnicodeCIDFont
                 pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
                 self.custom_font = 'STSong-Light'
-                self.chinese_font = 'STSong-Light'
-                print(f"✅ Using STSong-Light CID font - Perfect Chinese character spacing")
+                self.custom_font_bold = 'STSong-Light'
+                print(f"✅ Using STSong-Light CID font as fallback")
             except:
-                # Fallback to MSung-Light (Traditional Chinese)
-                try:
-                    pdfmetrics.registerFont(UnicodeCIDFont('MSung-Light'))
-                    self.custom_font = 'MSung-Light'
-                    self.chinese_font = 'MSung-Light'
-                    print(f"✅ Using MSung-Light CID font - Perfect Traditional Chinese spacing")
-                except:
-                    # Last CID font attempt: STSongStd-Light
-                    try:
-                        pdfmetrics.registerFont(UnicodeCIDFont('STSongStd-Light'))
-                        self.custom_font = 'STSongStd-Light'
-                        self.chinese_font = 'STSongStd-Light'
-                        print(f"✅ Using STSongStd-Light CID font")
-                    except:
-                        raise Exception("No CID fonts available")
-        except:
-            # Method 2: Fallback to TTF fonts if CID fonts fail
-            print("⚠️  CID fonts not available, trying TTF fonts...")
-            try:
-                # Try Arial Unicode MS (TTF file, not TTC)
-                arial_unicode_path = '/System/Library/Fonts/Supplemental/Arial Unicode.ttf'
-                if os.path.exists(arial_unicode_path):
-                    pdfmetrics.registerFont(TTFont('ArialUnicode', arial_unicode_path))
-                    self.custom_font = 'ArialUnicode'
-                    self.chinese_font = 'ArialUnicode'
-                    print(f"✅ Using Arial Unicode MS (TTF) - Good Chinese support")
-                else:
-                    raise Exception("Arial Unicode not found")
-            except Exception as e:
-                # Final fallback: Use built-in Helvetica
-                print(f"❌ Font registration failed: {e}")
-                print(f"⚠️  Using Helvetica (limited Chinese character support)")
+                # Final fallback
                 self.custom_font = 'Helvetica'
-                self.chinese_font = 'Helvetica'
+                self.custom_font_bold = 'Helvetica-Bold'
+                print(f"⚠️ Using Helvetica as final fallback")
         
         # Set primary font
-        self.primary_font = self.custom_font if self.custom_font else self.chinese_font
+        self.primary_font = self.custom_font
+        self.bold_font = self.custom_font_bold if self.custom_font_bold else self.custom_font
     
     def _calculate_heikin_ashi(self, price_data: List[Dict]) -> List[Dict]:
         """
@@ -773,15 +765,22 @@ class PDFGenerator:
         elements = []
         styles = self._get_styles()
         
-        # === COVER PAGE ===
+        # === COVER PAGE (Page 1) ===
         elements.extend(self._create_cover_page(ticker, analysis_date, styles))
         elements.append(PageBreak())
         
-        # === TABLE OF CONTENTS PAGE ===
-        elements.extend(self._create_toc_page(ticker, analysis_date, reports, price_data, price_stats, styles))
+        # === TABLE OF CONTENTS PAGE (Page 2) ===
+        # Pass has_chart flag to TOC so it knows to include chart page entry
+        has_chart = price_data and len(price_data) >= 5
+        elements.extend(self._create_toc_page(ticker, analysis_date, reports, price_data, price_stats, styles, has_chart))
         elements.append(PageBreak())
         
-        # === ANALYST REPORTS ===
+        # === PRICE CHART PAGE (Page 3, if data available) ===
+        if has_chart:
+            elements.extend(self._create_chart_page(ticker, price_data, price_stats, styles))
+            elements.append(PageBreak())
+        
+        # === ANALYST REPORTS (Starting from Page 3 or 4) ===
         for i, report in enumerate(reports):
             analyst_name = report.get('analyst_name', 'Unknown')
             report_content = report.get('report_content', '')
@@ -828,6 +827,7 @@ class PDFGenerator:
                 alignment=TA_CENTER,
                 spaceAfter=20,
                 wordWrap='CJK',
+                leading=60,  # Line height
             ),
             'cover_subtitle': ParagraphStyle(
                 'CoverSubtitle',
@@ -952,10 +952,12 @@ class PDFGenerator:
         # Add vertical space to center content
         elements.append(Spacer(1, 6*cm))
         
-        # Main title: Stock ticker
-        elements.append(Paragraph(ticker, styles['cover_title']))
+        # Main title: Stock ticker with letter spacing
+        # Add spaces between letters for better visual appeal
+        spaced_ticker = '  '.join(ticker)  # Insert double space between each letter
+        elements.append(Paragraph(spaced_ticker, styles['cover_title']))
         
-        # Subtitle: Analysis date
+        # Subtitle: Analysis date with spacing
         elements.append(Paragraph(analysis_date, styles['cover_subtitle']))
         
         # Additional info
@@ -972,81 +974,269 @@ class PDFGenerator:
         reports: list,
         price_data: list,
         price_stats: dict,
-        styles: dict
+        styles: dict,
+        has_chart: bool = False
     ) -> list:
-        """Create table of contents page with price chart"""
-        from reportlab.platypus import Spacer, Image
+        """Create a clean table of contents page with page numbers"""
+        from reportlab.platypus import Spacer, Table, TableStyle
         from reportlab.lib.units import cm
-        from reportlab.lib.colors import HexColor
+        from reportlab.lib.colors import HexColor, black, lightgrey
         from reportlab.lib.styles import ParagraphStyle
         
         elements = []
         
         # TOC Title
-        elements.append(Paragraph("目錄", styles['toc_title']))
+        elements.append(Paragraph("目 錄", styles['toc_title']))
+        elements.append(Spacer(1, 1*cm))
         
-        # === Price Chart Section ===
-        if price_data and len(price_data) >= 5:
-            elements.append(Paragraph("價格走勢圖 \u0026 交易量柱狀圖", styles['toc_section']))
+        # Calculate page numbers for each section
+        # Cover page = 1, TOC = 2
+        # If has_chart: Chart page = 3, analysts start from page 4
+        # If no chart: analysts start from page 3
+        current_page = 3
+        
+        # Build TOC table data
+        table_data = []
+        table_data.append([
+            Paragraph('<b>章 節</b>', styles['toc_item']),
+            Paragraph('<b>頁 碼</b>', styles['toc_item'])
+        ])
+        
+        # Add chart page entry if available
+        if has_chart:
+            table_data.append([
+                Paragraph('價格走勢圖 & 交易量柱狀圖', styles['toc_item']),
+                Paragraph(f'{current_page}', styles['toc_item'])
+            ])
+            current_page += 1
+        
+        # Add separator
+        table_data.append([
+            Paragraph('<b>分析報告</b>', styles['toc_section']),
+            ''
+        ])
+        
+        # Group analysts by category with page numbers
+        analyst_categories = [
+            ('分析師組', ['市場分析師', '基本面分析師', '社群媒體分析師', '新聞分析師']),
+            ('研究員組', ['看漲研究員', '看跌研究員']),
+            ('風險辯論組', ['激進分析師', '保守分析師', '中立分析師']),
+            ('決策組', ['研究經理', '風險經理', '交易員']),
+        ]
+        
+        # Track which analysts are in the reports
+        report_analyst_names = [r.get('analyst_name', '') for r in reports]
+        
+        for category, analysts in analyst_categories:
+            # Check if any analyst in this category exists
+            category_has_analysts = any(name in report_analyst_names for name in analysts)
+            if not category_has_analysts:
+                continue
+                
+            # Add category header
+            table_data.append([
+                Paragraph(f'  <b>{category}</b>', styles['toc_item']),
+                ''
+            ])
             
+            # Add each analyst
+            for analyst_name in analysts:
+                if analyst_name in report_analyst_names:
+                    table_data.append([
+                        Paragraph(f'      {analyst_name}', styles['toc_item']),
+                        Paragraph(f'{current_page}', styles['toc_item'])
+                    ])
+                    current_page += 1
+        
+        # Create table
+        col_widths = [14*cm, 2*cm]
+        toc_table = Table(table_data, colWidths=col_widths)
+        
+        # Style the table
+        table_style = TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), self.primary_font),
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, black),  # Header line
+            ('LINEBELOW', (0, -1), (-1, -1), 0.5, lightgrey),  # Bottom line
+        ])
+        toc_table.setStyle(table_style)
+        
+        elements.append(toc_table)
+        
+        return elements
+    
+    def _create_chart_page(
+        self,
+        ticker: str,
+        price_data: list,
+        price_stats: dict,
+        styles: dict
+    ) -> list:
+        """Create a dedicated price chart page"""
+        from reportlab.platypus import Spacer, Image, Table, TableStyle
+        from reportlab.lib.units import cm
+        from reportlab.lib.colors import HexColor, black, lightgrey
+        from reportlab.lib.styles import ParagraphStyle
+        
+        elements = []
+        
+        # Page title
+        elements.append(Paragraph("價格走勢圖 & 交易量柱狀圖", styles['section_title']))
+        elements.append(Spacer(1, 0.5*cm))
+        
+        # Generate and add chart
+        if price_data and len(price_data) >= 5:
             try:
                 chart_bytes = self._generate_price_chart(price_data, ticker)
                 if chart_bytes:
                     chart_buffer = io.BytesIO(chart_bytes)
-                    chart_img = Image(chart_buffer, width=16*cm, height=9.6*cm)
+                    chart_img = Image(chart_buffer, width=17*cm, height=10.2*cm)
                     elements.append(chart_img)
-                    elements.append(Spacer(1, 0.5*cm))
+                    elements.append(Spacer(1, 0.8*cm))
             except Exception as e:
-                print(f"Chart generation failed in TOC: {e}")
+                print(f"Chart generation failed: {e}")
+                elements.append(Paragraph("圖表生成失敗", styles['body']))
         
-        # === Price Statistics ===
+        # Add price statistics table
         if price_stats:
+            elements.append(Paragraph("價格統計", styles['heading']))
+            elements.append(Spacer(1, 0.3*cm))
+            
             growth_rate = price_stats.get('growth_rate', 0)
-            growth_color = '#22c55e' if growth_rate >= 0 else '#ef4444'
             growth_text = f"+{growth_rate:.2f}%" if growth_rate >= 0 else f"{growth_rate:.2f}%"
             
-            growth_style = ParagraphStyle(
-                'GrowthRate',
-                fontName=self.primary_font,
-                fontSize=16,
-                textColor=HexColor(growth_color),
-                spaceAfter=5,
-            )
+            stats_data = [
+                ['項 目', '數 值'],
+                ['總報酬率', growth_text],
+                ['分析期間', f"{price_stats.get('duration_days', 'N/A')} 天"],
+                ['開始日期', price_stats.get('start_date', 'N/A')],
+                ['結束日期', price_stats.get('end_date', 'N/A')],
+            ]
             
-            elements.append(Paragraph(f"總報酬率：{growth_text}", growth_style))
-            elements.append(Paragraph(
-                f"分析期間：{price_stats.get('duration_days', 'N/A')} 天 "
-                f"({price_stats.get('start_date', 'N/A')} ~ {price_stats.get('end_date', 'N/A')})",
-                styles['toc_item']
-            ))
-            elements.append(Spacer(1, 0.3*cm))
-        
-        # === Analyst List Section ===
-        elements.append(Paragraph("分析師報告", styles['toc_section']))
-        
-        # Group analysts by category
-        analyst_categories = {
-            '分析師組': ['市場分析師', '基本面分析師', '社群媒體分析師', '新聞分析師'],
-            '研究員組': ['看漲研究員', '看跌研究員'],
-            '風險辯論組': ['激進分析師', '保守分析師', '中立分析師'],
-            '決策組': ['研究經理', '風險經理', '交易員'],
-        }
-        
-        # Flatten list for page number tracking
-        analyst_order = []
-        for category, analysts in analyst_categories.items():
-            analyst_order.extend(analysts)
-        
-        # Create TOC items grouped by category
-        for category, analysts in analyst_categories.items():
-            category_analysts = [r for r in reports if r.get('analyst_name') in analysts]
-            if category_analysts:
-                elements.append(Paragraph(f"• {category}", styles['toc_item']))
-                for report in category_analysts:
-                    analyst_name = report.get('analyst_name', 'Unknown')
-                    elements.append(Paragraph(f"    - {analyst_name}", styles['toc_item']))
+            # Add start/end prices if available
+            if 'start_price' in price_stats:
+                stats_data.append(['起始價格', f"${price_stats.get('start_price', 0):.2f}"])
+            if 'end_price' in price_stats:
+                stats_data.append(['結束價格', f"${price_stats.get('end_price', 0):.2f}"])
+            
+            # Create table
+            col_widths = [8*cm, 8*cm]
+            stats_table = Table(stats_data, colWidths=col_widths)
+            
+            # Style the table
+            table_style = TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#e5e7eb')),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, -1), self.primary_font),
+                ('FONTSIZE', (0, 0), (-1, -1), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 0.5, lightgrey),
+                ('LINEBELOW', (0, 0), (-1, 0), 1, black),
+            ])
+            stats_table.setStyle(table_style)
+            
+            elements.append(stats_table)
         
         return elements
+    
+    def _parse_markdown_table(self, lines: list, start_idx: int) -> tuple:
+        """
+        Parse markdown table starting at start_idx
+        Returns (table_data, end_idx) where table_data is list of rows
+        """
+        table_rows = []
+        i = start_idx
+        
+        while i < len(lines):
+            line = lines[i].strip()
+            
+            # Check if line is a table row
+            if line.startswith('|') and line.endswith('|'):
+                # Parse cells
+                cells = [cell.strip() for cell in line.split('|')[1:-1]]
+                
+                # Skip separator rows (like |---|---|---)
+                is_separator = all(cell.replace('-', '').replace(':', '').strip() == '' for cell in cells)
+                if not is_separator:
+                    table_rows.append(cells)
+                i += 1
+            elif '|' in line and not line.startswith('#'):
+                # Handle tables without leading |
+                cells = [cell.strip() for cell in line.split('|')]
+                is_separator = all(cell.replace('-', '').replace(':', '').strip() == '' for cell in cells)
+                if not is_separator and cells:
+                    table_rows.append(cells)
+                i += 1
+            else:
+                break
+        
+        return table_rows, i
+    
+    def _create_pdf_table(self, table_data: list, styles: dict):
+        """Create a PDF table from parsed markdown table data"""
+        from reportlab.platypus import Table, TableStyle
+        from reportlab.lib.units import cm
+        from reportlab.lib.colors import black, lightgrey, white, HexColor
+        
+        if not table_data or len(table_data) == 0:
+            return None
+        
+        # Convert text to Paragraphs for word wrapping
+        pdf_data = []
+        for row_idx, row in enumerate(table_data):
+            pdf_row = []
+            for cell in row:
+                cell_text = self._escape_html(str(cell))
+                if row_idx == 0:  # Header row
+                    pdf_row.append(Paragraph(f'<b>{cell_text}</b>', styles['body']))
+                else:
+                    pdf_row.append(Paragraph(cell_text, styles['body']))
+            pdf_data.append(pdf_row)
+        
+        if not pdf_data:
+            return None
+        
+        # Calculate column widths based on number of columns
+        num_cols = len(pdf_data[0]) if pdf_data else 3
+        available_width = 17 * cm
+        col_width = available_width / num_cols
+        col_widths = [col_width] * num_cols
+        
+        # Create table
+        table = Table(pdf_data, colWidths=col_widths)
+        
+        # Style the table
+        style_commands = [
+            ('BACKGROUND', (0, 0), (-1, 0), HexColor('#e5e7eb')),  # Header bg
+            ('TEXTCOLOR', (0, 0), (-1, 0), black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), self.primary_font),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, lightgrey),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, black),  # Header bottom line
+        ]
+        
+        # Alternate row colors
+        for i in range(1, len(pdf_data)):
+            if i % 2 == 0:
+                style_commands.append(('BACKGROUND', (0, i), (-1, i), HexColor('#f9fafb')))
+        
+        table.setStyle(TableStyle(style_commands))
+        
+        return table
     
     def _create_analyst_section(
         self,
@@ -1056,7 +1246,7 @@ class PDFGenerator:
         report_content: str,
         styles: dict
     ) -> list:
-        """Create a single analyst report section"""
+        """Create a single analyst report section with proper table support"""
         from reportlab.platypus import Spacer
         from reportlab.lib.units import cm
         
@@ -1071,29 +1261,56 @@ class PDFGenerator:
         
         # Process report content
         report_content = self._replace_emojis(report_content)
-        content = self._clean_markdown(report_content)
         
-        # Split into paragraphs
-        paragraphs = content.split('\n')
+        # Split into lines for table detection
+        lines = report_content.split('\n')
         
-        for para in paragraphs:
-            para = para.strip()
-            if not para:
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            
+            if not line:
                 elements.append(Spacer(1, 0.2*cm))
+                i += 1
                 continue
             
+            # Check if this is the start of a table
+            if '|' in line and not line.startswith('#'):
+                table_data, end_idx = self._parse_markdown_table(lines, i)
+                if table_data and len(table_data) > 1:  # At least header + 1 row
+                    pdf_table = self._create_pdf_table(table_data, styles)
+                    if pdf_table:
+                        elements.append(Spacer(1, 0.3*cm))
+                        elements.append(pdf_table)
+                        elements.append(Spacer(1, 0.3*cm))
+                    i = end_idx
+                    continue
+            
             # Check heading levels
-            if para.startswith('### '):
-                text = para[4:]
-                elements.append(Paragraph(text, styles['heading']))
-            elif para.startswith('## '):
-                text = para[3:]
-                elements.append(Paragraph(text, styles['heading']))
-            elif para.startswith('# '):
-                text = para[2:]
-                elements.append(Paragraph(text, styles['heading']))
+            if line.startswith('### '):
+                text = line[4:]
+                elements.append(Paragraph(self._escape_html(text), styles['heading']))
+            elif line.startswith('## '):
+                text = line[3:]
+                elements.append(Paragraph(self._escape_html(text), styles['heading']))
+            elif line.startswith('# '):
+                text = line[2:]
+                elements.append(Paragraph(self._escape_html(text), styles['heading']))
+            elif line.startswith('**') and line.endswith('**'):
+                # Bold text as heading
+                text = line[2:-2]
+                elements.append(Paragraph(self._escape_html(text), styles['heading']))
+            elif line.startswith('- ') or line.startswith('* '):
+                # Bullet points
+                text = '  ●  ' + line[2:]
+                elements.append(Paragraph(self._escape_html(text), styles['body']))
             else:
-                text = self._escape_html(para)
+                # Clean any remaining markdown
+                text = self._clean_markdown(line)
+                text = self._escape_html(text)
                 elements.append(Paragraph(text, styles['body']))
+            
+            i += 1
         
         return elements
+

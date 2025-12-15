@@ -32,6 +32,9 @@ COPY backend ./backend
 # Copy tradingagents package from project root
 COPY tradingagents ./tradingagents
 
+# Copy fonts for PDF generation (Noto Serif TC for Chinese)
+COPY Cactus_Classical_Serif,Noto_Serif_TC ./Cactus_Classical_Serif,Noto_Serif_TC
+
 # Create results directory
 RUN mkdir -p /app/results
 
