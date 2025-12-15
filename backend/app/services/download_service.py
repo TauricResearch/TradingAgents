@@ -1,9 +1,8 @@
 """
 Download Service for Analyst Reports
-Handles single PDF and multiple PDF ZIP downloads
+Generates combined PDF reports with all analyst analyses
 """
 import io
-import zipfile
 from typing import List, Dict, Optional
 from datetime import datetime
 
@@ -43,59 +42,7 @@ class DownloadService:
         """Initialize download service"""
         self.pdf_generator = PDFGenerator()
     
-    def _get_english_name(self, analyst_name: str) -> str:
-        """
-        獲取分析師的英文名稱
-        
-        Args:
-            analyst_name: 中文分析師名稱
-            
-        Returns:
-            英文分析師名稱
-        """
-        # 使用對照表，如果找不到則使用原名稱並替換空格
-        return ANALYST_NAME_MAPPING.get(analyst_name, analyst_name.replace(" ", "_"))
-    
-    def create_single_pdf(
-        self,
-        analyst_name: str,
-        ticker: str,
-        analysis_date: str,
-        report_content: str,
-        price_data: list = None,
-        price_stats: dict = None,
-    ) -> tuple[bytes, str]:
-        """
-        Create a PDF for a single analyst report
-        
-        Args:
-            analyst_name: Name of the analyst
-            ticker: Stock ticker symbol
-            analysis_date: Date of analysis (YYYY-MM-DD)
-            report_content: Markdown formatted report content
-            price_data: Optional list of price data for cover page
-            price_stats: Optional price statistics for cover page
-            
-        Returns:
-            Tuple of (PDF bytes, filename)
-        """
-        # Generate PDF
-        pdf_bytes = self.pdf_generator.generate_analyst_report_pdf(
-            analyst_name=analyst_name,
-            ticker=ticker,
-            analysis_date=analysis_date,
-            report_content=report_content,
-            price_data=price_data,
-            price_stats=price_stats,
-        )
-        
-        # Generate filename with English name: TICKER_English_Name_DATE.pdf
-        english_name = self._get_english_name(analyst_name)
-        filename = f"{ticker}_{english_name}_{analysis_date}.pdf"
-        
-        return pdf_bytes, filename
-    
-    def create_multiple_pdfs_zip(
+    def create_combined_pdf(
         self,
         ticker: str,
         analysis_date: str,
@@ -104,53 +51,62 @@ class DownloadService:
         price_stats: dict = None,
     ) -> tuple[bytes, str]:
         """
-        Create a ZIP file containing multiple analyst report PDFs
+        Create a single combined PDF containing all analyst reports
+        
+        Features:
+        - Cover page with ticker and analysis date
+        - Table of contents with price chart and analyst list
+        - All analyst reports as separate sections
         
         Args:
             ticker: Stock ticker symbol
             analysis_date: Date of analysis (YYYY-MM-DD)
             reports: List of dicts with keys 'analyst_name' and 'report_content'
-            price_data: Optional list of price data for cover page
-            price_stats: Optional price statistics for cover page
+            price_data: Optional list of price data for chart
+            price_stats: Optional price statistics for TOC
             
         Returns:
-            Tuple of (ZIP bytes, filename)
+            Tuple of (PDF bytes, filename)
         """
-        # Create in-memory ZIP file
-        zip_buffer = io.BytesIO()
+        # Define the preferred order for analysts
+        analyst_order = [
+            '市場分析師',
+            '基本面分析師', 
+            '社群媒體分析師',
+            '新聞分析師',
+            '看漲研究員',
+            '看跌研究員',
+            '激進分析師',
+            '保守分析師',
+            '中立分析師',
+            '研究經理',
+            '風險經理',
+            '交易員',
+        ]
         
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for report in reports:
-                analyst_name = report.get('analyst_name', 'Unknown')
-                report_content = report.get('report_content', '')
-                
-                # Skip if no content
-                if not report_content:
-                    continue
-                
-                # Generate PDF for this analyst
-                pdf_bytes = self.pdf_generator.generate_analyst_report_pdf(
-                    analyst_name=analyst_name,
-                    ticker=ticker,
-                    analysis_date=analysis_date,
-                    report_content=report_content,
-                    price_data=price_data,
-                    price_stats=price_stats,
-                )
-                
-                # Add to ZIP with English filename
-                english_name = self._get_english_name(analyst_name)
-                pdf_filename = f"{ticker}_{english_name}_{analysis_date}.pdf"
-                zip_file.writestr(pdf_filename, pdf_bytes)
+        # Sort reports by preferred order
+        def get_order(report):
+            analyst_name = report.get('analyst_name', '')
+            try:
+                return analyst_order.index(analyst_name)
+            except ValueError:
+                return len(analyst_order)  # Unknown analysts go to the end
         
-        # Get ZIP content
-        zip_bytes = zip_buffer.getvalue()
-        zip_buffer.close()
+        sorted_reports = sorted(reports, key=get_order)
         
-        # Generate ZIP filename: TICKER_DATE.zip
-        zip_filename = f"{ticker}_{analysis_date}.zip"
+        # Generate combined PDF
+        pdf_bytes = self.pdf_generator.generate_combined_report_pdf(
+            ticker=ticker,
+            analysis_date=analysis_date,
+            reports=sorted_reports,
+            price_data=price_data,
+            price_stats=price_stats,
+        )
         
-        return zip_bytes, zip_filename
+        # Generate filename: TICKER_Combined_Report_DATE.pdf
+        filename = f"{ticker}_Combined_Report_{analysis_date}.pdf"
+        
+        return pdf_bytes, filename
 
 
 # Singleton instance

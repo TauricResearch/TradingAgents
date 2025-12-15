@@ -175,7 +175,12 @@ async def get_tickers():
 @router.post("/download/reports")
 async def download_reports(request: DownloadRequest):
     """
-    Download analyst reports as PDF or ZIP
+    Download all analyst reports as a single combined PDF
+    
+    Creates a professional PDF with:
+    - Cover page: Ticker + Analysis Date
+    - Table of Contents: Price chart + Analyst list
+    - All analyst reports as separate sections
     
     Supports two modes:
     1. Task-based: If task_id is provided, lookup reports from task manager
@@ -185,7 +190,7 @@ async def download_reports(request: DownloadRequest):
         request: Download request with ticker, date, analysts, and either task_id or direct reports
         
     Returns:
-        PDF file (single analyst) or ZIP file (multiple analysts)
+        Single combined PDF file (e.g., AVGO_Combined_Report_2025-12-16.pdf)
     """
     from fastapi.responses import Response
     from backend.app.services.download_service import download_service
@@ -261,27 +266,8 @@ async def download_reports(request: DownloadRequest):
     if not reports_to_download:
         raise HTTPException(status_code=404, detail="No reports found for selected analysts")
     
-    # Single report - return PDF
-    if len(reports_to_download) == 1:
-        pdf_bytes, filename = download_service.create_single_pdf(
-            analyst_name=reports_to_download[0]["analyst_name"],
-            ticker=request.ticker,
-            analysis_date=request.analysis_date,
-            report_content=reports_to_download[0]["report_content"],
-            price_data=price_data,
-            price_stats=price_stats,
-        )
-        
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
-    
-    # Multiple reports - return ZIP
-    zip_bytes, filename = download_service.create_multiple_pdfs_zip(
+    # Always generate combined PDF
+    pdf_bytes, filename = download_service.create_combined_pdf(
         ticker=request.ticker,
         analysis_date=request.analysis_date,
         reports=reports_to_download,
@@ -290,9 +276,10 @@ async def download_reports(request: DownloadRequest):
     )
     
     return Response(
-        content=zip_bytes,
-        media_type="application/zip",
+        content=pdf_bytes,
+        media_type="application/pdf",
         headers={
             "Content-Disposition": f"attachment; filename={filename}"
         }
     )
+

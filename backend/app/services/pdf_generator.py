@@ -728,3 +728,372 @@ class PDFGenerator:
             text = text.replace(emoji, unicode_symbol)
         
         return text
+    
+    def generate_combined_report_pdf(
+        self,
+        ticker: str,
+        analysis_date: str,
+        reports: list,
+        price_data: list = None,
+        price_stats: dict = None,
+    ) -> bytes:
+        """
+        Generate a combined PDF containing all analyst reports with cover page and table of contents
+        
+        Args:
+            ticker: Stock ticker symbol
+            analysis_date: Date of analysis
+            reports: List of dicts with 'analyst_name' and 'report_content'
+            price_data: Optional list of price data dicts
+            price_stats: Optional dict with price statistics
+            
+        Returns:
+            PDF file content as bytes
+        """
+        from reportlab.platypus import TableOfContents, Paragraph, Spacer, PageBreak, Image
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.colors import HexColor
+        from reportlab.lib.units import cm
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        
+        buffer = io.BytesIO()
+        
+        # Create PDF document
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=1.5*cm,
+            leftMargin=1.5*cm,
+            topMargin=1.5*cm,
+            bottomMargin=1.5*cm,
+        )
+        
+        elements = []
+        styles = self._get_styles()
+        
+        # === COVER PAGE ===
+        elements.extend(self._create_cover_page(ticker, analysis_date, styles))
+        elements.append(PageBreak())
+        
+        # === TABLE OF CONTENTS PAGE ===
+        elements.extend(self._create_toc_page(ticker, analysis_date, reports, price_data, price_stats, styles))
+        elements.append(PageBreak())
+        
+        # === ANALYST REPORTS ===
+        for i, report in enumerate(reports):
+            analyst_name = report.get('analyst_name', 'Unknown')
+            report_content = report.get('report_content', '')
+            
+            if not report_content:
+                continue
+            
+            # Add analyst report section
+            elements.extend(self._create_analyst_section(
+                analyst_name=analyst_name,
+                ticker=ticker,
+                analysis_date=analysis_date,
+                report_content=report_content,
+                styles=styles,
+            ))
+            
+            # Page break between analysts (except for the last one)
+            if i < len(reports) - 1:
+                elements.append(PageBreak())
+        
+        # Build PDF
+        doc.build(elements)
+        
+        pdf_content = buffer.getvalue()
+        buffer.close()
+        
+        return pdf_content
+    
+    def _get_styles(self):
+        """Get all paragraph styles for the combined PDF"""
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        from reportlab.lib.colors import HexColor
+        
+        styles = getSampleStyleSheet()
+        
+        custom_styles = {
+            'cover_title': ParagraphStyle(
+                'CoverTitle',
+                parent=styles['Heading1'],
+                fontName=self.primary_font,
+                fontSize=48,
+                textColor=HexColor('#1a1a1a'),
+                alignment=TA_CENTER,
+                spaceAfter=20,
+                wordWrap='CJK',
+            ),
+            'cover_subtitle': ParagraphStyle(
+                'CoverSubtitle',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=24,
+                textColor=HexColor('#666666'),
+                alignment=TA_CENTER,
+                spaceAfter=40,
+                wordWrap='CJK',
+            ),
+            'cover_info': ParagraphStyle(
+                'CoverInfo',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=14,
+                textColor=HexColor('#888888'),
+                alignment=TA_CENTER,
+                spaceAfter=10,
+                wordWrap='CJK',
+            ),
+            'toc_title': ParagraphStyle(
+                'TOCTitle',
+                parent=styles['Heading1'],
+                fontName=self.primary_font,
+                fontSize=28,
+                textColor=HexColor('#1a1a1a'),
+                alignment=TA_CENTER,
+                spaceAfter=30,
+                wordWrap='CJK',
+            ),
+            'toc_section': ParagraphStyle(
+                'TOCSection',
+                parent=styles['Heading2'],
+                fontName=self.primary_font,
+                fontSize=16,
+                textColor=HexColor('#2c3e50'),
+                spaceAfter=15,
+                spaceBefore=20,
+                wordWrap='CJK',
+            ),
+            'toc_item': ParagraphStyle(
+                'TOCItem',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=12,
+                textColor=HexColor('#444444'),
+                spaceAfter=8,
+                leftIndent=20,
+                wordWrap='CJK',
+            ),
+            'section_title': ParagraphStyle(
+                'SectionTitle',
+                parent=styles['Heading1'],
+                fontName=self.primary_font,
+                fontSize=24,
+                textColor=HexColor('#1a1a1a'),
+                spaceAfter=20,
+                alignment=TA_CENTER,
+                wordWrap='CJK',
+            ),
+            'section_subtitle': ParagraphStyle(
+                'SectionSubtitle',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=12,
+                textColor=HexColor('#666666'),
+                spaceAfter=15,
+                alignment=TA_CENTER,
+                wordWrap='CJK',
+            ),
+            'heading': ParagraphStyle(
+                'CustomHeading',
+                parent=styles['Heading2'],
+                fontName=self.primary_font,
+                fontSize=16,
+                textColor=HexColor('#2c3e50'),
+                spaceAfter=12,
+                spaceBefore=16,
+                wordWrap='CJK',
+            ),
+            'body': ParagraphStyle(
+                'CustomBody',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=9,
+                leading=14,
+                textColor=HexColor('#333333'),
+                spaceAfter=8,
+                wordWrap='CJK',
+                splitLongWords=True,
+            ),
+            'stats_label': ParagraphStyle(
+                'StatsLabel',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=10,
+                textColor=HexColor('#666666'),
+                spaceAfter=2,
+                wordWrap='CJK',
+            ),
+            'stats_value': ParagraphStyle(
+                'StatsValue',
+                parent=styles['Normal'],
+                fontName=self.primary_font,
+                fontSize=14,
+                textColor=HexColor('#1a1a1a'),
+                spaceAfter=10,
+                wordWrap='CJK',
+            ),
+        }
+        
+        return custom_styles
+    
+    def _create_cover_page(self, ticker: str, analysis_date: str, styles: dict) -> list:
+        """Create cover page elements"""
+        from reportlab.platypus import Spacer
+        from reportlab.lib.units import cm
+        
+        elements = []
+        
+        # Add vertical space to center content
+        elements.append(Spacer(1, 6*cm))
+        
+        # Main title: Stock ticker
+        elements.append(Paragraph(ticker, styles['cover_title']))
+        
+        # Subtitle: Analysis date
+        elements.append(Paragraph(analysis_date, styles['cover_subtitle']))
+        
+        # Additional info
+        elements.append(Spacer(1, 2*cm))
+        elements.append(Paragraph("TradingAgentsX 分析報告", styles['cover_info']))
+        elements.append(Paragraph("AI 驅動的多角度投資分析", styles['cover_info']))
+        
+        return elements
+    
+    def _create_toc_page(
+        self,
+        ticker: str,
+        analysis_date: str,
+        reports: list,
+        price_data: list,
+        price_stats: dict,
+        styles: dict
+    ) -> list:
+        """Create table of contents page with price chart"""
+        from reportlab.platypus import Spacer, Image
+        from reportlab.lib.units import cm
+        from reportlab.lib.colors import HexColor
+        from reportlab.lib.styles import ParagraphStyle
+        
+        elements = []
+        
+        # TOC Title
+        elements.append(Paragraph("目錄", styles['toc_title']))
+        
+        # === Price Chart Section ===
+        if price_data and len(price_data) >= 5:
+            elements.append(Paragraph("價格走勢圖 \u0026 交易量柱狀圖", styles['toc_section']))
+            
+            try:
+                chart_bytes = self._generate_price_chart(price_data, ticker)
+                if chart_bytes:
+                    chart_buffer = io.BytesIO(chart_bytes)
+                    chart_img = Image(chart_buffer, width=16*cm, height=9.6*cm)
+                    elements.append(chart_img)
+                    elements.append(Spacer(1, 0.5*cm))
+            except Exception as e:
+                print(f"Chart generation failed in TOC: {e}")
+        
+        # === Price Statistics ===
+        if price_stats:
+            growth_rate = price_stats.get('growth_rate', 0)
+            growth_color = '#22c55e' if growth_rate >= 0 else '#ef4444'
+            growth_text = f"+{growth_rate:.2f}%" if growth_rate >= 0 else f"{growth_rate:.2f}%"
+            
+            growth_style = ParagraphStyle(
+                'GrowthRate',
+                fontName=self.primary_font,
+                fontSize=16,
+                textColor=HexColor(growth_color),
+                spaceAfter=5,
+            )
+            
+            elements.append(Paragraph(f"總報酬率：{growth_text}", growth_style))
+            elements.append(Paragraph(
+                f"分析期間：{price_stats.get('duration_days', 'N/A')} 天 "
+                f"({price_stats.get('start_date', 'N/A')} ~ {price_stats.get('end_date', 'N/A')})",
+                styles['toc_item']
+            ))
+            elements.append(Spacer(1, 0.3*cm))
+        
+        # === Analyst List Section ===
+        elements.append(Paragraph("分析師報告", styles['toc_section']))
+        
+        # Group analysts by category
+        analyst_categories = {
+            '分析師組': ['市場分析師', '基本面分析師', '社群媒體分析師', '新聞分析師'],
+            '研究員組': ['看漲研究員', '看跌研究員'],
+            '風險辯論組': ['激進分析師', '保守分析師', '中立分析師'],
+            '決策組': ['研究經理', '風險經理', '交易員'],
+        }
+        
+        # Flatten list for page number tracking
+        analyst_order = []
+        for category, analysts in analyst_categories.items():
+            analyst_order.extend(analysts)
+        
+        # Create TOC items grouped by category
+        for category, analysts in analyst_categories.items():
+            category_analysts = [r for r in reports if r.get('analyst_name') in analysts]
+            if category_analysts:
+                elements.append(Paragraph(f"• {category}", styles['toc_item']))
+                for report in category_analysts:
+                    analyst_name = report.get('analyst_name', 'Unknown')
+                    elements.append(Paragraph(f"    - {analyst_name}", styles['toc_item']))
+        
+        return elements
+    
+    def _create_analyst_section(
+        self,
+        analyst_name: str,
+        ticker: str,
+        analysis_date: str,
+        report_content: str,
+        styles: dict
+    ) -> list:
+        """Create a single analyst report section"""
+        from reportlab.platypus import Spacer
+        from reportlab.lib.units import cm
+        
+        elements = []
+        
+        # Section title
+        elements.append(Paragraph(analyst_name, styles['section_title']))
+        
+        # Subtitle with ticker and date
+        elements.append(Paragraph(f"{ticker} | {analysis_date}", styles['section_subtitle']))
+        elements.append(Spacer(1, 0.5*cm))
+        
+        # Process report content
+        report_content = self._replace_emojis(report_content)
+        content = self._clean_markdown(report_content)
+        
+        # Split into paragraphs
+        paragraphs = content.split('\n')
+        
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                elements.append(Spacer(1, 0.2*cm))
+                continue
+            
+            # Check heading levels
+            if para.startswith('### '):
+                text = para[4:]
+                elements.append(Paragraph(text, styles['heading']))
+            elif para.startswith('## '):
+                text = para[3:]
+                elements.append(Paragraph(text, styles['heading']))
+            elif para.startswith('# '):
+                text = para[2:]
+                elements.append(Paragraph(text, styles['heading']))
+            else:
+                text = self._escape_html(para)
+                elements.append(Paragraph(text, styles['body']))
+        
+        return elements
