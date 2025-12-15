@@ -752,53 +752,143 @@ class PDFGenerator:
         
         buffer = io.BytesIO()
         
-        # Create PDF document
-        doc = SimpleDocTemplate(
+        # Define team structure
+        TEAMS = [
+            {
+                'name': '分析師團隊',
+                'count': 4,
+                'members': ['市場分析師', '社群媒體分析師', '新聞分析師', '基本面分析師'],
+            },
+            {
+                'name': '研究團隊',
+                'count': 3,
+                'members': ['看漲研究員', '看跌研究員', '研究經理'],
+            },
+            {
+                'name': '交易與風險團隊',
+                'count': 5,
+                'members': ['交易員', '激進分析師', '保守分析師', '中立分析師', '風險經理'],
+            },
+        ]
+        
+        # Create a mapping of analyst names to their reports
+        report_map = {r.get('analyst_name', ''): r.get('report_content', '') for r in reports}
+        
+        # Create PDF document with custom page numbering
+        # Cover and TOC don't have page numbers
+        # Page numbering starts from chart page = Page 1
+        
+        buffer = io.BytesIO()
+        
+        from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, NextPageTemplate, PageBreak as PB
+        from reportlab.lib.pagesizes import A4
+        from io import BytesIO
+        
+        # Track pages for numbering (pages after TOC)
+        self._page_offset = 2  # Cover + TOC = 2 pages without numbers
+        
+        def add_page_number(canvas, doc):
+            """Add page number to footer for content pages"""
+            page_num = doc.page - self._page_offset
+            if page_num > 0:
+                canvas.saveState()
+                canvas.setFont(self.primary_font, 10)
+                page_text = f"- {page_num} -"
+                canvas.drawCentredString(A4[0] / 2, 1 * cm, page_text)
+                canvas.restoreState()
+        
+        def no_page_number(canvas, doc):
+            """No page number for cover and TOC"""
+            pass
+        
+        # Create document
+        doc = BaseDocTemplate(
             buffer,
             pagesize=A4,
             rightMargin=1.5*cm,
             leftMargin=1.5*cm,
             topMargin=1.5*cm,
-            bottomMargin=1.5*cm,
+            bottomMargin=2*cm,
         )
+        
+        # Define frames
+        frame = Frame(
+            doc.leftMargin,
+            doc.bottomMargin,
+            doc.width,
+            doc.height,
+            id='normal'
+        )
+        
+        # Define page templates
+        # 'cover' and 'toc' templates have no page numbers
+        # 'content' template has page numbers
+        doc.addPageTemplates([
+            PageTemplate(id='cover', frames=frame, onPage=no_page_number),
+            PageTemplate(id='toc', frames=frame, onPage=no_page_number),
+            PageTemplate(id='content', frames=frame, onPage=add_page_number),
+        ])
         
         elements = []
         styles = self._get_styles()
         
-        # === COVER PAGE (Page 1) ===
+        # === COVER PAGE (no page number) ===
+        elements.append(NextPageTemplate('cover'))
         elements.extend(self._create_cover_page(ticker, analysis_date, styles))
+        elements.append(NextPageTemplate('toc'))
         elements.append(PageBreak())
         
-        # === TABLE OF CONTENTS PAGE (Page 2) ===
-        # Pass has_chart flag to TOC so it knows to include chart page entry
+        # Check if we have chart data
         has_chart = price_data and len(price_data) >= 5
-        elements.extend(self._create_toc_page(ticker, analysis_date, reports, price_data, price_stats, styles, has_chart))
+        
+        # === TABLE OF CONTENTS PAGE (no page number) ===
+        elements.extend(self._create_toc_page(ticker, analysis_date, reports, price_data, price_stats, styles, has_chart, TEAMS))
+        elements.append(NextPageTemplate('content'))
         elements.append(PageBreak())
         
-        # === PRICE CHART PAGE (Page 3, if data available) ===
+        # ========================================
+        # CONTENT PAGES WITH PAGE NUMBERS
+        # ========================================
+        
+        # === PRICE CHART PAGE (Page 1, if data available) ===
         if has_chart:
             elements.extend(self._create_chart_page(ticker, price_data, price_stats, styles))
             elements.append(PageBreak())
         
-        # === ANALYST REPORTS (Starting from Page 3 or 4) ===
-        for i, report in enumerate(reports):
-            analyst_name = report.get('analyst_name', 'Unknown')
-            report_content = report.get('report_content', '')
+        # === ANALYST REPORTS BY TEAM ===
+        for team_idx, team in enumerate(TEAMS):
+            # Get reports for this team
+            team_reports = []
+            for member_name in team['members']:
+                if member_name in report_map and report_map[member_name]:
+                    team_reports.append({
+                        'analyst_name': member_name,
+                        'report_content': report_map[member_name]
+                    })
             
-            if not report_content:
+            # Skip team if no reports
+            if not team_reports:
                 continue
             
-            # Add analyst report section
-            elements.extend(self._create_analyst_section(
-                analyst_name=analyst_name,
-                ticker=ticker,
-                analysis_date=analysis_date,
-                report_content=report_content,
-                styles=styles,
-            ))
+            # Add team separator page
+            elements.extend(self._create_team_separator(team['name'], len(team_reports), styles))
+            elements.append(PageBreak())
             
-            # Page break between analysts (except for the last one)
-            if i < len(reports) - 1:
+            # Add each analyst report in this team
+            for report_idx, report in enumerate(team_reports):
+                analyst_name = report.get('analyst_name', 'Unknown')
+                report_content = report.get('report_content', '')
+                
+                # Add analyst report section
+                elements.extend(self._create_analyst_section(
+                    analyst_name=analyst_name,
+                    ticker=ticker,
+                    analysis_date=analysis_date,
+                    report_content=report_content,
+                    styles=styles,
+                ))
+                
+                # Page break after each analyst
                 elements.append(PageBreak())
         
         # Build PDF
@@ -975,7 +1065,8 @@ class PDFGenerator:
         price_data: list,
         price_stats: dict,
         styles: dict,
-        has_chart: bool = False
+        has_chart: bool = False,
+        teams: list = None
     ) -> list:
         """Create a clean table of contents page with page numbers"""
         from reportlab.platypus import Spacer, Table, TableStyle
@@ -987,13 +1078,14 @@ class PDFGenerator:
         
         # TOC Title
         elements.append(Paragraph("目 錄", styles['toc_title']))
-        elements.append(Spacer(1, 1*cm))
+        elements.append(Spacer(1, 0.5*cm))
         
-        # Calculate page numbers for each section
-        # Cover page = 1, TOC = 2
-        # If has_chart: Chart page = 3, analysts start from page 4
-        # If no chart: analysts start from page 3
-        current_page = 3
+        # Track which analysts are in the reports
+        report_analyst_names = [r.get('analyst_name', '') for r in reports]
+        
+        # Page numbering: Page 1 starts from chart page
+        # Cover and TOC don't have page numbers
+        current_page = 1
         
         # Build TOC table data
         table_data = []
@@ -1005,48 +1097,37 @@ class PDFGenerator:
         # Add chart page entry if available
         if has_chart:
             table_data.append([
-                Paragraph('價格走勢圖 & 交易量柱狀圖', styles['toc_item']),
+                Paragraph('  價格走勢圖 & 交易量柱狀圖', styles['toc_item']),
                 Paragraph(f'{current_page}', styles['toc_item'])
             ])
             current_page += 1
         
-        # Add separator
-        table_data.append([
-            Paragraph('<b>分析報告</b>', styles['toc_section']),
-            ''
-        ])
-        
-        # Group analysts by category with page numbers
-        analyst_categories = [
-            ('分析師組', ['市場分析師', '基本面分析師', '社群媒體分析師', '新聞分析師']),
-            ('研究員組', ['看漲研究員', '看跌研究員']),
-            ('風險辯論組', ['激進分析師', '保守分析師', '中立分析師']),
-            ('決策組', ['研究經理', '風險經理', '交易員']),
-        ]
-        
-        # Track which analysts are in the reports
-        report_analyst_names = [r.get('analyst_name', '') for r in reports]
-        
-        for category, analysts in analyst_categories:
-            # Check if any analyst in this category exists
-            category_has_analysts = any(name in report_analyst_names for name in analysts)
-            if not category_has_analysts:
-                continue
+        # Use teams if provided
+        if teams:
+            for team in teams:
+                team_name = team['name']
+                team_members = team['members']
                 
-            # Add category header
-            table_data.append([
-                Paragraph(f'  <b>{category}</b>', styles['toc_item']),
-                ''
-            ])
-            
-            # Add each analyst
-            for analyst_name in analysts:
-                if analyst_name in report_analyst_names:
-                    table_data.append([
-                        Paragraph(f'      {analyst_name}', styles['toc_item']),
-                        Paragraph(f'{current_page}', styles['toc_item'])
-                    ])
-                    current_page += 1
+                # Count how many members have reports
+                team_report_count = sum(1 for m in team_members if m in report_analyst_names)
+                if team_report_count == 0:
+                    continue
+                
+                # Add team separator entry
+                table_data.append([
+                    Paragraph(f'<b>{team_name} ({team_report_count} 位)</b>', styles['toc_section']),
+                    Paragraph(f'{current_page}', styles['toc_item'])
+                ])
+                current_page += 1  # Team separator page
+                
+                # Add each analyst in this team
+                for analyst_name in team_members:
+                    if analyst_name in report_analyst_names:
+                        table_data.append([
+                            Paragraph(f'      {analyst_name}', styles['toc_item']),
+                            Paragraph(f'{current_page}', styles['toc_item'])
+                        ])
+                        current_page += 1
         
         # Create table
         col_widths = [14*cm, 2*cm]
@@ -1059,14 +1140,60 @@ class PDFGenerator:
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, -1), self.primary_font),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('LINEBELOW', (0, 0), (-1, 0), 1, black),  # Header line
             ('LINEBELOW', (0, -1), (-1, -1), 0.5, lightgrey),  # Bottom line
         ])
         toc_table.setStyle(table_style)
         
         elements.append(toc_table)
+        
+        return elements
+    
+    def _create_team_separator(
+        self,
+        team_name: str,
+        member_count: int,
+        styles: dict
+    ) -> list:
+        """Create a team separator page"""
+        from reportlab.platypus import Spacer
+        from reportlab.lib.units import cm
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER
+        from reportlab.lib.colors import HexColor
+        
+        elements = []
+        
+        # Center the team name vertically
+        elements.append(Spacer(1, 8*cm))
+        
+        # Team name with member count
+        team_style = ParagraphStyle(
+            'TeamSeparator',
+            fontName=self.primary_font,
+            fontSize=36,
+            textColor=HexColor('#2c3e50'),
+            alignment=TA_CENTER,
+            spaceAfter=20,
+            leading=50,
+        )
+        
+        # Add spaces for better letter spacing
+        spaced_name = ' '.join(team_name)
+        elements.append(Paragraph(spaced_name, team_style))
+        
+        # Member count
+        count_style = ParagraphStyle(
+            'TeamCount',
+            fontName=self.primary_font,
+            fontSize=24,
+            textColor=HexColor('#7f8c8d'),
+            alignment=TA_CENTER,
+            spaceAfter=10,
+        )
+        elements.append(Paragraph(f"({member_count} 位)", count_style))
         
         return elements
     
@@ -1301,8 +1428,8 @@ class PDFGenerator:
                 text = line[2:-2]
                 elements.append(Paragraph(self._escape_html(text), styles['heading']))
             elif line.startswith('- ') or line.startswith('* '):
-                # Bullet points
-                text = '  ●  ' + line[2:]
+                # Bullet points - use simple dash instead of Unicode bullet
+                text = '  -  ' + line[2:]
                 elements.append(Paragraph(self._escape_html(text), styles['body']))
             else:
                 # Clean any remaining markdown
