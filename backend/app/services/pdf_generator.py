@@ -1456,13 +1456,22 @@ class PDFGenerator:
             text = self._escape_html(text)
             
             # Detect different content types for styling
-            # 1. Report title - contains "報告" and is typically on its own line
-            if '報告' in text and len(text) < 50:
+            # 1. Report title - contains "報告" but must be a SHORT standalone title
+            #    NOT a full sentence (should not contain commas or end with 。)
+            is_report_title = (
+                '報告' in text and 
+                len(text) < 35 and 
+                ',' not in text and 
+                '，' not in text and
+                not text.endswith('。')
+            )
+            if is_report_title:
                 elements.append(Paragraph(text, styles['report_title']))
-            # 2. Numbered section heading - starts with "數字." pattern
-            elif re.match(r'^\d+[\.\、]', text):
+            # 2. Numbered section heading - SHORT lines that start with "數字." pattern
+            #    Only treat as heading if line is SHORT (< 20 chars) - otherwise it's body text
+            elif re.match(r'^\d+[\.\、]', text) and len(text) < 20:
                 elements.append(Paragraph(text, styles['numbered_heading']))
-            # 3. Regular body text
+            # 3. Regular body text (including long paragraphs that start with numbers)
             else:
                 elements.append(Paragraph(text, styles['body']))
             
