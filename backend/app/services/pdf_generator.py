@@ -612,14 +612,14 @@ class PDFGenerator:
     
     def _clean_markdown(self, text: str) -> str:
         """
-        Clean markdown formatting for PDF - IMPROVED VERSION
-        Simplified regex patterns to prevent encoding artifacts
+        Clean markdown formatting for PDF - AGGRESSIVE VERSION
+        Removes ALL markdown syntax to produce clean text
         
         Args:
             text: Markdown text
             
         Returns:
-            Cleaned text
+            Cleaned text with no markdown syntax
         """
         import unicodedata
         
@@ -629,48 +629,53 @@ class PDFGenerator:
         # 1. Remove markdown links but keep text
         text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
         
-        # 2. Remove bold markers (simplified version)
-        text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
-        text = re.sub(r'__(.+?)__', r'\1', text)
+        # 2. Remove bold markers - MULTIPLE PASSES for nested cases
+        # Handle **text** pattern (greedy removal)
+        for _ in range(3):  # Multiple passes to handle nested/adjacent
+            text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+            text = re.sub(r'__([^_]+)__', r'\1', text)
         
-        # 3. Remove italic markers (SIMPLIFIED - avoid complex lookahead/lookbehind)
-        # Only match single * or _ that are NOT part of ** or __
-        text = re.sub(r'(?<![\*])\*([^\*]+?)\*(?![\*])', r'\1', text)
+        # 3. Handle remaining isolated ** or __ 
+        text = re.sub(r'\*\*', '', text)
+        text = re.sub(r'__', '', text)
+        
+        # 4. Remove italic markers (single * or _)
+        text = re.sub(r'(?<![*])\*([^*]+?)\*(?![*])', r'\1', text)
         text = re.sub(r'(?<![_])_([^_]+?)_(?![_])', r'\1', text)
         
-        # 4. Remove code blocks
+        # 5. Remove remaining isolated * that aren't bullet points
+        # Keep * at start of line (bullet points)
+        text = re.sub(r'(?<!^)(?<!\n)\*(?![*\s])', '', text)
+        
+        # 6. Remove code blocks
         text = re.sub(r'```[^`]*?```', '', text, flags=re.DOTALL)
         text = re.sub(r'`([^`]+?)`', r'\1', text)
         
-        # 5. Clean up bullet points - USE ASCII DASH, NOT UNICODE BULLET
-        # Unicode bullet • (U+2022) renders as '煉' in STSong-Light font!
+        # 7. Clean up bullet points - normalize to simple dash
         text = re.sub(r'^\s*[\*\-\+]\s+', '- ', text, flags=re.MULTILINE)
         
-        # 6. Remove horizontal rules
+        # 8. Remove horizontal rules
         text = re.sub(r'^[\-\*_]{3,}\s*$', '', text, flags=re.MULTILINE)
         
-        # 7. Clean table separators (simplified)
+        # 9. Clean table separators
         text = re.sub(r'^\s*\|?\s*:?-+:?\s*\|?\s*$', '', text, flags=re.MULTILINE)
         
-        # 8. Remove table | symbols (keep content)
+        # 10. Remove table | symbols but keep content
         text = re.sub(r'^\s*\|', '', text, flags=re.MULTILINE)
         text = re.sub(r'\|\s*$', '', text, flags=re.MULTILINE)
         text = re.sub(r'\|', ' | ', text)
         
-        # 9. Clean excess spaces
+        # 11. Remove heading markers (# ## ### etc)
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+        
+        # 12. Clean excess spaces
         text = re.sub(r' {2,}', ' ', text)
         
-        # 10. Clean excess blank lines
+        # 13. Clean excess blank lines
         text = re.sub(r'\n{3,}', '\n\n', text)
         
-        # 11. Remove isolated markdown symbols (SIMPLIFIED - no complex patterns)
-        # Remove lines that only contain markdown symbols
+        # 14. Remove isolated markdown symbols on their own lines
         text = re.sub(r'^[\*_`~#\-\+]+\s*$', '', text, flags=re.MULTILINE)
-        
-        # 12. REMOVED problematic Unicode filter that was corrupting Chinese characters
-        # The string comparison '\u4e00' <= char <= '\u9fff' was comparing UTF-8 bytes,
-        # not Unicode code points, causing characters like '經' to be corrupted.
-        # Unicode normalization at the start (line 237) is sufficient.
         
         return text.strip()
     
@@ -1083,24 +1088,17 @@ class PDFGenerator:
         # Track which analysts are in the reports
         report_analyst_names = [r.get('analyst_name', '') for r in reports]
         
-        # Page numbering: Page 1 starts from chart page
-        # Cover and TOC don't have page numbers
-        current_page = 1
-        
-        # Build TOC table data
+        # Build TOC as simple list (no page numbers since reports span multiple pages)
         table_data = []
         table_data.append([
-            Paragraph('<b>章 節</b>', styles['toc_item']),
-            Paragraph('<b>頁 碼</b>', styles['toc_item'])
+            Paragraph('<b>報告內容</b>', styles['toc_section']),
         ])
         
         # Add chart page entry if available
         if has_chart:
             table_data.append([
                 Paragraph('  價格走勢圖 & 交易量柱狀圖', styles['toc_item']),
-                Paragraph(f'{current_page}', styles['toc_item'])
             ])
-            current_page += 1
         
         # Use teams if provided
         if teams:
@@ -1113,37 +1111,31 @@ class PDFGenerator:
                 if team_report_count == 0:
                     continue
                 
-                # Add team separator entry
+                # Add team separator entry  
                 table_data.append([
                     Paragraph(f'<b>{team_name} ({team_report_count} 位)</b>', styles['toc_section']),
-                    Paragraph(f'{current_page}', styles['toc_item'])
                 ])
-                current_page += 1  # Team separator page
                 
                 # Add each analyst in this team
                 for analyst_name in team_members:
                     if analyst_name in report_analyst_names:
                         table_data.append([
-                            Paragraph(f'      {analyst_name}', styles['toc_item']),
-                            Paragraph(f'{current_page}', styles['toc_item'])
+                            Paragraph(f'      - {analyst_name}', styles['toc_item']),
                         ])
-                        current_page += 1
         
-        # Create table
-        col_widths = [14*cm, 2*cm]
+        # Create table (single column)
+        col_widths = [16*cm]
         toc_table = Table(table_data, colWidths=col_widths)
         
         # Style the table
         table_style = TableStyle([
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, -1), self.primary_font),
             ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
             ('LINEBELOW', (0, 0), (-1, 0), 1, black),  # Header line
-            ('LINEBELOW', (0, -1), (-1, -1), 0.5, lightgrey),  # Bottom line
         ])
         toc_table.setStyle(table_style)
         
@@ -1413,23 +1405,30 @@ class PDFGenerator:
                     i = end_idx
                     continue
             
-            # Check heading levels
+            # Check heading levels (### ## #)
             if line.startswith('### '):
-                text = line[4:]
+                text = self._clean_markdown(line[4:])
                 elements.append(Paragraph(self._escape_html(text), styles['heading']))
             elif line.startswith('## '):
-                text = line[3:]
+                text = self._clean_markdown(line[3:])
                 elements.append(Paragraph(self._escape_html(text), styles['heading']))
             elif line.startswith('# '):
-                text = line[2:]
+                text = self._clean_markdown(line[2:])
                 elements.append(Paragraph(self._escape_html(text), styles['heading']))
-            elif line.startswith('**') and line.endswith('**'):
-                # Bold text as heading
-                text = line[2:-2]
+            # Numbered headings like "1. Title" or "**1. Title**"
+            elif re.match(r'^\*?\*?\d+\.', line):
+                # Extract the content, clean markdown
+                text = self._clean_markdown(line)
                 elements.append(Paragraph(self._escape_html(text), styles['heading']))
+            # Bold text as heading **text**
+            elif line.startswith('**') and '**' in line[2:]:
+                text = self._clean_markdown(line)
+                elements.append(Paragraph(self._escape_html(text), styles['heading']))
+            # Bullet points
             elif line.startswith('- ') or line.startswith('* '):
-                # Bullet points - use simple dash instead of Unicode bullet
-                text = '  -  ' + line[2:]
+                # Clean markdown from bullet content
+                bullet_content = self._clean_markdown(line[2:])
+                text = '  -  ' + bullet_content
                 elements.append(Paragraph(self._escape_html(text), styles['body']))
             else:
                 # Clean any remaining markdown
