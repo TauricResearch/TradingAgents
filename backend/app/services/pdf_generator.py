@@ -1405,7 +1405,7 @@ class PDFGenerator:
                     i = end_idx
                     continue
             
-            # Check heading levels (### ## #)
+            # Only treat actual markdown headings as headings (# ## ###)
             if line.startswith('### '):
                 text = self._clean_markdown(line[4:])
                 elements.append(Paragraph(self._escape_html(text), styles['heading']))
@@ -1415,15 +1415,6 @@ class PDFGenerator:
             elif line.startswith('# '):
                 text = self._clean_markdown(line[2:])
                 elements.append(Paragraph(self._escape_html(text), styles['heading']))
-            # Numbered headings like "1. Title" or "**1. Title**"
-            elif re.match(r'^\*?\*?\d+\.', line):
-                # Extract the content, clean markdown
-                text = self._clean_markdown(line)
-                elements.append(Paragraph(self._escape_html(text), styles['heading']))
-            # Bold text as heading **text**
-            elif line.startswith('**') and '**' in line[2:]:
-                text = self._clean_markdown(line)
-                elements.append(Paragraph(self._escape_html(text), styles['heading']))
             # Bullet points
             elif line.startswith('- ') or line.startswith('* '):
                 # Clean markdown from bullet content
@@ -1431,7 +1422,8 @@ class PDFGenerator:
                 text = '  -  ' + bullet_content
                 elements.append(Paragraph(self._escape_html(text), styles['body']))
             else:
-                # Clean any remaining markdown
+                # All other content uses body style (consistent font size)
+                # This includes numbered items, bold text, etc.
                 text = self._clean_markdown(line)
                 text = self._escape_html(text)
                 elements.append(Paragraph(text, styles['body']))
