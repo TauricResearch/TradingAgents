@@ -52,6 +52,28 @@ class PDFGenerator:
         '⚡': '*',
         '🔔': 'o',
         
+        # Checkbox symbols - common in reports
+        '☒': '[X]',  # Ballot box with X
+        '☑': '[V]',  # Ballot box with check
+        '☐': '[ ]',  # Empty ballot box
+        '✓': 'V',    # Check mark
+        '✔': 'V',    # Heavy check mark
+        '✗': 'X',    # Ballot X
+        '✘': 'X',    # Heavy ballot X
+        
+        # Special notation symbols
+        '※': '*',    # Reference mark
+        '△': '^',    # Triangle up
+        '▽': 'v',    # Triangle down
+        '▲': '^',    # Black triangle up
+        '▼': 'v',    # Black triangle down
+        '◆': '*',    # Diamond
+        '◇': '*',    # White diamond
+        '○': 'o',    # White circle
+        '●': '*',    # Black circle
+        '□': '[ ]',  # White square
+        '■': '[*]',  # Black square
+        
         # Rating & Quality - ASCII only
         '⭐': '*',
         '🌟': '*',
@@ -1313,7 +1335,9 @@ class PDFGenerator:
         for row_idx, row in enumerate(table_data):
             pdf_row = []
             for cell in row:
-                cell_text = self._escape_html(str(cell))
+                # Clean markdown from cell content first
+                cell_cleaned = self._clean_markdown(str(cell))
+                cell_text = self._escape_html(cell_cleaned)
                 if row_idx == 0:  # Header row
                     pdf_row.append(Paragraph(f'<b>{cell_text}</b>', styles['body']))
                 else:
