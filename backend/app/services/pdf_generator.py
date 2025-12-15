@@ -750,7 +750,7 @@ class PDFGenerator:
         Returns:
             PDF file content as bytes
         """
-        from reportlab.platypus import TableOfContents, Paragraph, Spacer, PageBreak, Image
+        from reportlab.platypus import Paragraph, Spacer, PageBreak, Image
         from reportlab.lib.styles import ParagraphStyle
         from reportlab.lib.colors import HexColor
         from reportlab.lib.units import cm
