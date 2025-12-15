@@ -1026,6 +1026,28 @@ class PDFGenerator:
                 spaceBefore=16,
                 wordWrap='CJK',
             ),
+            # Report title - for lines like "ORCL(甲骨文公司)技術分析報告"
+            'report_title': ParagraphStyle(
+                'ReportTitle',
+                parent=styles['Heading2'],
+                fontName=self.primary_font,
+                fontSize=14,
+                textColor=HexColor('#1a5276'),  # Dark blue
+                spaceAfter=15,
+                spaceBefore=10,
+                wordWrap='CJK',
+            ),
+            # Numbered heading - for lines like "1. 市場概況", "2. 技術分析"
+            'numbered_heading': ParagraphStyle(
+                'NumberedHeading',
+                parent=styles['Heading3'],
+                fontName=self.primary_font,
+                fontSize=11,
+                textColor=HexColor('#117864'),  # Dark green
+                spaceAfter=8,
+                spaceBefore=12,
+                wordWrap='CJK',
+            ),
             'body': ParagraphStyle(
                 'CustomBody',
                 parent=styles['Normal'],
@@ -1429,27 +1451,19 @@ class PDFGenerator:
                     i = end_idx
                     continue
             
-            # Only treat actual markdown headings as headings (# ## ###)
-            if line.startswith('### '):
-                text = self._clean_markdown(line[4:])
-                elements.append(Paragraph(self._escape_html(text), styles['heading']))
-            elif line.startswith('## '):
-                text = self._clean_markdown(line[3:])
-                elements.append(Paragraph(self._escape_html(text), styles['heading']))
-            elif line.startswith('# '):
-                text = self._clean_markdown(line[2:])
-                elements.append(Paragraph(self._escape_html(text), styles['heading']))
-            # Bullet points
-            elif line.startswith('- ') or line.startswith('* '):
-                # Clean markdown from bullet content
-                bullet_content = self._clean_markdown(line[2:])
-                text = '  -  ' + bullet_content
-                elements.append(Paragraph(self._escape_html(text), styles['body']))
+            # Clean markdown from the line
+            text = self._clean_markdown(line)
+            text = self._escape_html(text)
+            
+            # Detect different content types for styling
+            # 1. Report title - contains "報告" and is typically on its own line
+            if '報告' in text and len(text) < 50:
+                elements.append(Paragraph(text, styles['report_title']))
+            # 2. Numbered section heading - starts with "數字." pattern
+            elif re.match(r'^\d+[\.\、]', text):
+                elements.append(Paragraph(text, styles['numbered_heading']))
+            # 3. Regular body text
             else:
-                # All other content uses body style (consistent font size)
-                # This includes numbered items, bold text, etc.
-                text = self._clean_markdown(line)
-                text = self._escape_html(text)
                 elements.append(Paragraph(text, styles['body']))
             
             i += 1
