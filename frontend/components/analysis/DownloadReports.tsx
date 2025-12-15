@@ -1,16 +1,12 @@
 /**
  * Download Reports Component
- * Allows users to select and download analyst reports
+ * Simple unified PDF download button
  */
 "use client";
 
 import { useState } from "react";
-import { Download, FileDown, CheckIcon } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 
 interface AnalystInfo {
   key: string;
@@ -22,11 +18,13 @@ interface AnalystInfo {
 interface DownloadReportsProps {
   ticker: string;
   analysisDate: string;
-  taskId?: string | null;  // Now optional - if not provided, use direct data mode
+  taskId?: string | null;
   analysts: AnalystInfo[];
   reports: any;
-  priceData?: any[];  // For direct download mode
-  priceStats?: any;   // For direct download mode
+  priceData?: any[];
+  priceStats?: any;
+  /** Compact mode - just the button, no card wrapper */
+  compact?: boolean;
 }
 
 export function DownloadReports({
@@ -37,8 +35,8 @@ export function DownloadReports({
   reports,
   priceData,
   priceStats,
+  compact = false,
 }: DownloadReportsProps) {
-  const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
 
   // Helper to get nested value from reports object
@@ -46,43 +44,25 @@ export function DownloadReports({
     return path.split('.').reduce((current, key) => current?.[key], obj);
   };
 
-  // Filter analysts that have actual reports
-  const availableAnalysts = analysts.filter(analyst => {
-    const reportContent = getNestedValue(reports, analyst.reportKey);
-    return reportContent && reportContent.trim().length > 0;
-  });
+  // Get all available analyst keys (those with actual reports)
+  const availableAnalystKeys = analysts
+    .filter(analyst => {
+      const reportContent = getNestedValue(reports, analyst.reportKey);
+      return reportContent && reportContent.trim().length > 0;
+    })
+    .map(a => a.key);
 
-  // Handle select all
-  const handleSelectAll = () => {
-    if (selectedAnalysts.length === availableAnalysts.length) {
-      setSelectedAnalysts([]);
-    } else {
-      setSelectedAnalysts(availableAnalysts.map(a => a.key));
-    }
-  };
-
-  // Handle individual selection
-  const handleToggleAnalyst = (analystKey: string) => {
-    setSelectedAnalysts(prev => {
-      if (prev.includes(analystKey)) {
-        return prev.filter(key => key !== analystKey);
-      } else {
-        return [...prev, analystKey];
-      }
-    });
-  };
-
-  // Handle download
+  // Handle download - always download all available reports as combined PDF
   const handleDownload = async () => {
-    if (selectedAnalysts.length === 0) return;
+    if (availableAnalystKeys.length === 0) return;
 
     setIsDownloading(true);
     try {
-      // Build request body - use taskId if available, otherwise send direct data
+      // Build request body with all available analysts
       const requestBody: any = {
         ticker,
         analysis_date: analysisDate,
-        analysts: selectedAnalysts,
+        analysts: availableAnalystKeys,  // Always include all available analysts
       };
       
       if (taskId) {
@@ -114,15 +94,13 @@ export function DownloadReports({
       
       // Get filename from Content-Disposition header if available
       const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = `${ticker}_${analysisDate}.pdf`;
+      let filename = `${ticker}_Combined_Report_${analysisDate}.pdf`;
       
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename=(.+)/);
         if (filenameMatch) {
           filename = filenameMatch[1];
         }
-      } else if (selectedAnalysts.length > 1) {
-        filename = `${ticker}_${analysisDate}.zip`;
       }
 
       // Create download link
@@ -144,94 +122,55 @@ export function DownloadReports({
     }
   };
 
-  if (availableAnalysts.length === 0) {
+  if (availableAnalystKeys.length === 0) {
     return null;
   }
 
-  const isAllSelected = selectedAnalysts.length === availableAnalysts.length && availableAnalysts.length > 0;
+  // Compact mode - just the button
+  if (compact) {
+    return (
+      <Button
+        onClick={handleDownload}
+        disabled={isDownloading}
+        variant="outline"
+        className="gap-2 hover-lift"
+      >
+        {isDownloading ? (
+          <>
+            <Download className="h-4 w-4 animate-bounce" />
+            下載中...
+          </>
+        ) : (
+          <>
+            <FileText className="h-4 w-4" />
+            下載 PDF
+          </>
+        )}
+      </Button>
+    );
+  }
 
+  // Full mode - with description
   return (
-    <Card className="hover-lift animate-scale-up">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileDown className="h-5 w-5" />
-          下載報告
-        </CardTitle>
-        <CardDescription>
-          選擇要下載的分析師報告（支援單一PDF或多個ZIP）
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Select All */}
-        <div className="flex items-center space-x-2 pb-2 border-b">
-          <Checkbox
-            id="select-all"
-            checked={isAllSelected}
-            onCheckedChange={handleSelectAll}
-          />
-          <Label
-            htmlFor="select-all"
-            className="text-sm font-medium cursor-pointer"
-          >
-            全選 ({availableAnalysts.length} 個報告)
-          </Label>
-        </div>
-
-        {/* Analyst List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {availableAnalysts.map(analyst => {
-            const isSelected = selectedAnalysts.includes(analyst.key);
-            return (
-              <div
-                key={analyst.key}
-                onClick={() => handleToggleAnalyst(analyst.key)}
-                className={cn(
-                  "relative flex cursor-pointer flex-col gap-2 rounded-lg border-2 p-4 transition-all hover:bg-accent",
-                  isSelected
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-muted-foreground/25 bg-card text-muted-foreground"
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={cn(
-                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border transition-colors",
-                      isSelected
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-muted-foreground"
-                    )}
-                  >
-                    {isSelected && <CheckIcon className="h-3.5 w-3.5" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium select-none">
-                      {analyst.label}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground pl-8">
-                  {analyst.description}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Download Button */}
-        <div className="flex items-center justify-between pt-4 border-t">
-          <div className="text-sm text-muted-foreground">
-            已選擇 {selectedAnalysts.length} 個報告
-          </div>
-          <Button
-            onClick={handleDownload}
-            disabled={selectedAnalysts.length === 0 || isDownloading}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            {isDownloading ? '下載中...' : selectedAnalysts.length === 1 ? '下載 PDF' : '下載 ZIP'}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center justify-center p-4">
+      <Button
+        onClick={handleDownload}
+        disabled={isDownloading}
+        size="lg"
+        className="gap-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+      >
+        {isDownloading ? (
+          <>
+            <Download className="h-5 w-5 animate-bounce" />
+            生成報告中...
+          </>
+        ) : (
+          <>
+            <FileText className="h-5 w-5" />
+            下載完整分析報告 PDF
+          </>
+        )}
+      </Button>
+    </div>
   );
 }

@@ -27,7 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Eye, RefreshCw, TrendingUp, Cloud, CloudOff } from "lucide-react";
+import { Trash2, Eye, RefreshCw, TrendingUp, Cloud, CloudOff, FileText, Download } from "lucide-react";
 import {
   getReportsByMarketType,
   deleteReport,
@@ -37,6 +37,22 @@ import {
 import { getCloudReports, deleteCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
 import { LoginPrompt } from "@/components/auth/login-button";
 import { PendingTaskRecovery } from "@/components/PendingTaskRecovery";
+
+// Analyst definitions for download
+const ANALYSTS = [
+  { key: "market", label: "市場分析師", reportKey: "market_report", description: "技術分析與市場趨勢評估" },
+  { key: "social", label: "社群媒體分析師", reportKey: "sentiment_report", description: "社群情緒與市場氛圍分析" },
+  { key: "news", label: "新聞分析師", reportKey: "news_report", description: "新聞事件與影響分析" },
+  { key: "fundamentals", label: "基本面分析師", reportKey: "fundamentals_report", description: "財務數據與基本面分析" },
+  { key: "bull", label: "看漲研究員", reportKey: "investment_debate_state.bull_history", description: "看漲觀點與投資論據" },
+  { key: "bear", label: "看跌研究員", reportKey: "investment_debate_state.bear_history", description: "看跌觀點與風險警告" },
+  { key: "research_manager", label: "研究經理", reportKey: "investment_debate_state.judge_decision", description: "研究團隊綜合決策" },
+  { key: "trader", label: "交易員", reportKey: "trader_investment_plan", description: "交易執行計劃與策略" },
+  { key: "risky", label: "激進分析師", reportKey: "risk_debate_state.risky_history", description: "高風險高回報策略分析" },
+  { key: "safe", label: "保守分析師", reportKey: "risk_debate_state.safe_history", description: "穩健保守策略分析" },
+  { key: "neutral", label: "中立分析師", reportKey: "risk_debate_state.neutral_history", description: "中立平衡策略分析" },
+  { key: "risk_manager", label: "風險經理", reportKey: "risk_debate_state.judge_decision", description: "風險管理綜合決策" },
+];
 
 // Market type labels
 const MARKET_LABELS = {
@@ -248,6 +264,84 @@ export default function HistoryPage() {
     }
   };
 
+  // Download PDF handler
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  
+  const handleDownloadPdf = async (report: SavedReport) => {
+    setDownloadingId(report.id ?? null);
+    try {
+      // Get all available analyst keys
+      const getNestedValue = (obj: any, path: string) => {
+        return path.split('.').reduce((current, key) => current?.[key], obj);
+      };
+      
+      const availableAnalystKeys = ANALYSTS
+        .filter(analyst => {
+          const reportContent = getNestedValue(report.result.reports, analyst.reportKey);
+          return reportContent && reportContent.trim().length > 0;
+        })
+        .map(a => a.key);
+      
+      if (availableAnalystKeys.length === 0) {
+        alert('此報告沒有可下載的分析師報告');
+        return;
+      }
+      
+      // Build request body
+      const requestBody = {
+        ticker: report.ticker,
+        analysis_date: report.analysis_date,
+        analysts: availableAnalystKeys,
+        reports: report.result.reports,
+        price_data: report.result.price_data,
+        price_stats: report.result.price_stats,
+      };
+      
+      const response = await fetch('/api/download/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `下載失敗 (${response.status})`);
+      }
+
+      // Get the blob
+      const blob = await response.blob();
+      
+      // Get filename from header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${report.ticker}_Combined_Report_${report.analysis_date}.pdf`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Download error:', error);
+      alert(error.message || '下載失敗，請稍後再試');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50/30 via-pink-50/20 to-purple-50/30 dark:from-gray-950 dark:via-purple-950/40 dark:to-gray-950">
       <div className="container mx-auto px-4 py-12">
@@ -375,7 +469,7 @@ export default function HistoryPage() {
                                 );
                               })()}
                             </CardContent>
-                            <CardFooter className="flex gap-2">
+                            <CardFooter className="flex gap-2 flex-wrap">
                               <Button
                                 variant="default"
                                 size="sm"
@@ -384,6 +478,25 @@ export default function HistoryPage() {
                               >
                                 <Eye className="h-4 w-4" />
                                 檢視
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => handleDownloadPdf(report)}
+                                disabled={downloadingId === report.id}
+                              >
+                                {downloadingId === report.id ? (
+                                  <>
+                                    <Download className="h-4 w-4 animate-bounce" />
+                                    下載中
+                                  </>
+                                ) : (
+                                  <>
+                                    <FileText className="h-4 w-4" />
+                                    PDF
+                                  </>
+                                )}
                               </Button>
                               <Button
                                 variant="destructive"

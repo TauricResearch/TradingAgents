@@ -211,7 +211,7 @@ export default function AnalysisResultsPage() {
               分析日期：{analysisResult.analysis_date}
             </p>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap">
             {/* Save success/error feedback */}
             {saveSuccess && (
               <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm animate-fade-in">
@@ -224,6 +224,20 @@ export default function AnalysisResultsPage() {
                 <AlertCircle className="h-4 w-4" />
                 {saveError}
               </span>
+            )}
+            
+            {/* Download PDF Button */}
+            {analysisResult.reports && (
+              <DownloadReports
+                ticker={analysisResult.ticker}
+                analysisDate={analysisResult.analysis_date}
+                taskId={taskId}
+                analysts={ANALYSTS}
+                reports={analysisResult.reports}
+                priceData={analysisResult.price_data}
+                priceStats={analysisResult.price_stats}
+                compact={true}
+              />
             )}
             
             {/* Save Report Button */}
@@ -316,19 +330,6 @@ export default function AnalysisResultsPage() {
             </TabsContent>
           ))}
         </Tabs>
-
-        {/* Download Reports Section - 放在分析報告下方 */}
-        {analysisResult.reports && (
-          <DownloadReports
-            ticker={analysisResult.ticker}
-            analysisDate={analysisResult.analysis_date}
-            taskId={taskId}
-            analysts={ANALYSTS}
-            reports={analysisResult.reports}
-            priceData={analysisResult.price_data}
-            priceStats={analysisResult.price_stats}
-          />
-        )}
         </div>
       </div>
     </div>
