@@ -409,7 +409,6 @@ GET /api/task/{task_id}
 
 ### 研究經理報告
 
-綜合看漲與看跌觀點的研究團隊決策
 
 ![研究經理報告](web_screenshot/13.png)
 
