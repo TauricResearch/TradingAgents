@@ -64,6 +64,25 @@ const MARKET_LABELS = {
 // Helper function to extract decision from Risk Manager's final decision
 const extractDecisionFromReport = (report: SavedReport): { action: string; color: string } => {
   
+  // DEBUG: Log the actual data structure to diagnose issues
+  console.log("📊 DEBUG extractDecisionFromReport for:", report.ticker);
+  console.log("  - result type:", typeof report.result);
+  console.log("  - result.reports exists:", !!report.result?.reports);
+  console.log("  - trader_investment_plan exists:", !!report.result?.reports?.trader_investment_plan);
+  console.log("  - decision.action exists:", !!report.result?.decision?.action);
+  
+  if (report.result?.reports?.trader_investment_plan) {
+    const traderText = report.result.reports.trader_investment_plan;
+    console.log("  - trader_investment_plan type:", typeof traderText);
+    console.log("  - trader_investment_plan length:", traderText.length);
+    // Show last 150 chars to see the final decision
+    console.log("  - last 150 chars:", traderText.slice(-150));
+    // Check if it contains the key phrase
+    const hasProposal = traderText.includes("最終交易提案");
+    console.log("  - contains '最終交易提案':", hasProposal);
+  } else {
+    console.log("  - trader_investment_plan is NULL or undefined");
+  }
   // Helper function to find "最終交易提案" specifically
   const findFinalProposal = (text: string): { action: string; color: string } | null => {
     if (!text || typeof text !== 'string') return null;
