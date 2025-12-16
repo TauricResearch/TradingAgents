@@ -3,7 +3,7 @@
  */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
@@ -34,7 +34,7 @@ import {
   getReportCountByMarketType,
   type SavedReport,
 } from "@/lib/reports-db";
-import { getCloudReports, deleteCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
+import { getCloudReports, deleteCloudReport, saveCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
 import { LoginPrompt } from "@/components/auth/login-button";
 import { PendingTaskRecovery } from "@/components/PendingTaskRecovery";
 
@@ -151,6 +151,11 @@ export default function HistoryPage() {
     null
   );
   const [deleting, setDeleting] = useState(false);
+  
+  // Sync state
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ success: number; failed: number } | null>(null);
+  const hasAutoSyncedRef = useRef(false);
 
   // Load reports when tab changes or auth state changes
   useEffect(() => {
@@ -160,6 +165,75 @@ export default function HistoryPage() {
   // Load counts on mount or auth change
   useEffect(() => {
     loadCounts();
+  }, [isAuthenticated]);
+  
+  // Auto-sync local reports to cloud when page loads (if authenticated)
+  useEffect(() => {
+    const autoSync = async () => {
+      // Only sync once per session, and only if authenticated
+      if (hasAutoSyncedRef.current || !isAuthenticated || !isCloudSyncEnabled()) {
+        return;
+      }
+      
+      hasAutoSyncedRef.current = true;
+      
+      try {
+        // Get all local reports
+        const [usLocal, twseLocal, tpexLocal] = await Promise.all([
+          getReportsByMarketType("us"),
+          getReportsByMarketType("twse"),
+          getReportsByMarketType("tpex"),
+        ]);
+        const allLocal = [...usLocal, ...twseLocal, ...tpexLocal];
+        
+        if (allLocal.length === 0) return;
+        
+        // Get cloud reports to check for duplicates
+        const cloudReports = await getCloudReports();
+        const cloudKeys = new Set(
+          cloudReports.map(r => `${r.ticker}_${r.analysis_date}`)
+        );
+        
+        // Find local-only reports to upload
+        const toUpload = allLocal.filter(
+          r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`)
+        );
+        
+        if (toUpload.length === 0) {
+          console.log("☁️ Auto-sync: All reports already in cloud");
+          return;
+        }
+        
+        console.log(`☁️ Auto-sync: Uploading ${toUpload.length} local reports to cloud...`);
+        
+        // Upload each report silently
+        let success = 0;
+        for (const report of toUpload) {
+          try {
+            const cloudId = await saveCloudReport({
+              ticker: report.ticker,
+              market_type: report.market_type,
+              analysis_date: report.analysis_date,
+              result: report.result,
+            });
+            if (cloudId) success++;
+          } catch (e) {
+            // Silently continue on error
+          }
+        }
+        
+        if (success > 0) {
+          console.log(`☁️ Auto-sync: Successfully uploaded ${success} reports`);
+          // Reload to show updated data
+          await loadReports();
+          await loadCounts();
+        }
+      } catch (error) {
+        console.error("☁️ Auto-sync failed:", error);
+      }
+    };
+    
+    autoSync();
   }, [isAuthenticated]);
 
   const loadReports = async () => {
@@ -227,23 +301,131 @@ export default function HistoryPage() {
 
   const loadCounts = async () => {
     try {
+      // Always get local counts first
+      const localCounts = await getReportCountByMarketType();
+      
       if (isAuthenticated && isCloudSyncEnabled()) {
         const cloudReports = await getCloudReports();
-        const cloudCounts = {
-          us: cloudReports.filter(r => r.market_type === "us").length,
-          twse: cloudReports.filter(r => r.market_type === "twse").length,
-          tpex: cloudReports.filter(r => r.market_type === "tpex").length,
-        };
+        
         if (cloudReports.length > 0) {
-          setCounts(cloudCounts);
+          // Get local reports to check for duplicates
+          const [usLocal, twseLocal, tpexLocal] = await Promise.all([
+            getReportsByMarketType("us"),
+            getReportsByMarketType("twse"),
+            getReportsByMarketType("tpex"),
+          ]);
+          
+          // Cloud report keys for deduplication
+          const cloudKeys = new Set(
+            cloudReports.map(r => `${r.ticker}_${r.analysis_date}_${r.market_type}`)
+          );
+          
+          // Count local-only reports (not in cloud)
+          const usLocalOnly = usLocal.filter(
+            r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}_us`)
+          ).length;
+          const twseLocalOnly = twseLocal.filter(
+            r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}_twse`)
+          ).length;
+          const tpexLocalOnly = tpexLocal.filter(
+            r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}_tpex`)
+          ).length;
+          
+          // Cloud counts
+          const usCoud = cloudReports.filter(r => r.market_type === "us").length;
+          const twseCloud = cloudReports.filter(r => r.market_type === "twse").length;
+          const tpexCloud = cloudReports.filter(r => r.market_type === "tpex").length;
+          
+          // Merged counts: cloud + local-only
+          setCounts({
+            us: usCoud + usLocalOnly,
+            twse: twseCloud + twseLocalOnly,
+            tpex: tpexCloud + tpexLocalOnly,
+          });
           return;
         }
       }
       
-      const data = await getReportCountByMarketType();
-      setCounts(data);
+      setCounts(localCounts);
     } catch (error) {
       console.error("Failed to load counts:", error);
+    }
+  };
+
+  // Sync local reports to cloud
+  const handleSyncToCloud = async () => {
+    if (!isAuthenticated || !isCloudSyncEnabled()) {
+      alert("請先登入以啟用雲端同步");
+      return;
+    }
+    
+    setSyncing(true);
+    setSyncResult(null);
+    
+    try {
+      // Get all local reports
+      const [usLocal, twseLocal, tpexLocal] = await Promise.all([
+        getReportsByMarketType("us"),
+        getReportsByMarketType("twse"),
+        getReportsByMarketType("tpex"),
+      ]);
+      const allLocal = [...usLocal, ...twseLocal, ...tpexLocal];
+      
+      // Get cloud reports to check for duplicates
+      const cloudReports = await getCloudReports();
+      const cloudKeys = new Set(
+        cloudReports.map(r => `${r.ticker}_${r.analysis_date}`)
+      );
+      
+      // Find local-only reports to upload
+      const toUpload = allLocal.filter(
+        r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`)
+      );
+      
+      if (toUpload.length === 0) {
+        setSyncResult({ success: 0, failed: 0 });
+        alert("所有報告已同步到雲端！");
+        return;
+      }
+      
+      // Upload each report
+      let success = 0;
+      let failed = 0;
+      
+      for (const report of toUpload) {
+        try {
+          const cloudId = await saveCloudReport({
+            ticker: report.ticker,
+            market_type: report.market_type,
+            analysis_date: report.analysis_date,
+            result: report.result,
+          });
+          if (cloudId) {
+            success++;
+          } else {
+            failed++;
+          }
+        } catch (e) {
+          failed++;
+        }
+      }
+      
+      setSyncResult({ success, failed });
+      
+      // Reload data after sync
+      await loadReports();
+      await loadCounts();
+      
+      if (failed === 0) {
+        alert(`成功同步 ${success} 份報告到雲端！`);
+      } else {
+        alert(`同步完成：${success} 成功，${failed} 失敗`);
+      }
+    } catch (error) {
+      console.error("Sync failed:", error);
+      alert("同步失敗，請稍後再試");
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -410,8 +592,25 @@ export default function HistoryPage() {
               (marketType) => (
                 <TabsContent key={marketType} value={marketType} className="mt-6">
                   <div className="space-y-4">
-                    {/* Refresh button */}
-                    <div className="flex justify-end">
+                    {/* Action buttons */}
+                    <div className="flex justify-end gap-2">
+                      {/* Sync to Cloud button - only show when authenticated */}
+                      {isAuthenticated && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSyncToCloud}
+                          disabled={syncing || loading}
+                          className="gap-2"
+                        >
+                          <Cloud
+                            className={`h-4 w-4 ${syncing ? "animate-pulse" : ""}`}
+                          />
+                          {syncing ? "同步中..." : "同步到雲端"}
+                        </Button>
+                      )}
+                      
+                      {/* Refresh button */}
                       <Button
                         variant="outline"
                         size="sm"
