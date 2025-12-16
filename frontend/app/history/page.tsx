@@ -165,31 +165,54 @@ export default function HistoryPage() {
   const loadReports = async () => {
     setLoading(true);
     try {
-      // If authenticated, try to load from cloud first
+      // Always load local IndexedDB reports first
+      const localData = await getReportsByMarketType(activeTab);
+      
+      // If authenticated, also load from cloud and merge
       if (isAuthenticated && isCloudSyncEnabled()) {
         const cloudReports = await getCloudReports();
-        if (cloudReports.length > 0) {
-          // Convert cloud reports to SavedReport format and filter by market type
-          const filtered = cloudReports
-            .filter(r => r.market_type === activeTab)
-            .map(r => ({
-              id: parseInt(r.id.replace(/-/g, '').slice(0, 8), 16), // Convert UUID to number
-              cloudId: r.id, // Keep cloud ID for deletion
-              ticker: r.ticker,
-              market_type: r.market_type as "us" | "twse" | "tpex",
-              analysis_date: r.analysis_date,
-              saved_at: new Date(r.created_at),
-              result: r.result,
-            })) as (SavedReport & { cloudId?: string })[];
-          setReports(filtered);
+        
+        // Convert cloud reports to SavedReport format and filter by market type
+        const cloudFiltered = cloudReports
+          .filter(r => r.market_type === activeTab)
+          .map(r => ({
+            id: parseInt(r.id.replace(/-/g, '').slice(0, 8), 16), // Convert UUID to number
+            cloudId: r.id, // Keep cloud ID for deletion
+            ticker: r.ticker,
+            market_type: r.market_type as "us" | "twse" | "tpex",
+            analysis_date: r.analysis_date,
+            saved_at: new Date(r.created_at),
+            result: r.result,
+          })) as (SavedReport & { cloudId?: string })[];
+        
+        if (cloudFiltered.length > 0) {
+          // Merge: prefer cloud data, but include local-only reports
+          // Create a Set of cloud report keys (ticker + date) for deduplication
+          const cloudKeys = new Set(
+            cloudFiltered.map(r => `${r.ticker}_${r.analysis_date}`)
+          );
+          
+          // Find local reports that don't exist in cloud
+          const localOnly = localData.filter(
+            r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`)
+          );
+          
+          // Combine: cloud reports + local-only reports
+          const merged = [...cloudFiltered, ...localOnly];
+          
+          // Sort by saved_at descending
+          merged.sort((a, b) => 
+            new Date(b.saved_at).getTime() - new Date(a.saved_at).getTime()
+          );
+          
+          setReports(merged);
           setIsCloudData(true);
           return;
         }
       }
       
-      // Fall back to local IndexedDB
-      const data = await getReportsByMarketType(activeTab);
-      setReports(data);
+      // If no cloud data or not authenticated, use local only
+      setReports(localData);
       setIsCloudData(false);
     } catch (error) {
       console.error("Failed to load reports:", error);

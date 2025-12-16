@@ -103,9 +103,14 @@ export async function saveCloudReport(report: {
   analysis_date: string;
   result: any;
 }): Promise<string | null> {
-  if (!isCloudSyncEnabled()) return null;
+  if (!isCloudSyncEnabled()) {
+    console.warn("☁️ Cloud sync not enabled (no auth token)");
+    return null;
+  }
 
   try {
+    console.log(`☁️ Attempting to save report to cloud: ${report.ticker}`);
+    
     const response = await fetch(`${API_BASE}/api/user/reports`, {
       method: "POST",
       headers: {
@@ -116,13 +121,16 @@ export async function saveCloudReport(report: {
     });
 
     if (!response.ok) {
-      throw new Error("Failed to save report");
+      const errorText = await response.text().catch(() => "Unknown error");
+      console.error(`☁️ Cloud save failed: HTTP ${response.status} - ${errorText}`);
+      return null;
     }
 
     const data = await response.json();
+    console.log(`☁️ Report saved to cloud successfully: ${data.report_id}`);
     return data.report_id;
   } catch (error) {
-    console.error("Failed to save cloud report:", error);
+    console.error("☁️ Failed to save cloud report:", error);
     return null;
   }
 }
