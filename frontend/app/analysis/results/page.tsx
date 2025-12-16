@@ -164,6 +164,8 @@ export default function AnalysisResultsPage() {
           setSavedToCloud(true);
         }
       }
+      // Note: Redis cleanup is handled immediately when analysis completes
+      // in useAnalysis hook, so no need to cleanup here
       
       setSaveSuccess(true);
       // Reset success message after 3 seconds

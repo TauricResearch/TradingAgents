@@ -42,6 +42,16 @@ export function useAnalysis() {
         const { clearPendingTask } = await import('@/lib/pending-task');
         clearPendingTask();
         
+        // 🧹 Immediately cleanup Redis cache after receiving result
+        // The result is already stored in React state, so Redis data is no longer needed
+        try {
+          await api.cleanupTask(id);
+          console.log("🧹 Redis cache cleaned up immediately after analysis completed");
+        } catch (cleanupErr) {
+          // Silently fail - cleanup is optional, task will auto-expire anyway
+          console.warn("Redis cleanup failed (will auto-expire):", cleanupErr);
+        }
+        
         // Stop polling
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
@@ -69,6 +79,14 @@ export function useAnalysis() {
         // Clear pending task since it failed
         const { clearPendingTask } = await import('@/lib/pending-task');
         clearPendingTask();
+        
+        // 🧹 Cleanup Redis cache for failed task
+        try {
+          await api.cleanupTask(id);
+          console.log("🧹 Redis cache cleaned up after analysis failed");
+        } catch (cleanupErr) {
+          console.warn("Redis cleanup failed (will auto-expire):", cleanupErr);
+        }
         
         // Stop polling
         if (pollingIntervalRef.current) {

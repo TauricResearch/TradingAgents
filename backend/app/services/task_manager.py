@@ -39,7 +39,8 @@ class HybridTaskManager:
         self._tasks: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.RLock()
         self._cleanup_interval = 3600  # 1 hour
-        self._task_expiry = 86400  # 24 hours
+        self._task_expiry = 86400  # 24 hours for pending/running tasks
+        self._completed_task_expiry = 600  # 10 minutes for completed/failed tasks (auto cleanup)
         
         # Check Redis availability on startup
         if is_redis_available():
@@ -79,15 +80,23 @@ class HybridTaskManager:
             for key in expired_keys:
                 del self._tasks[key]
     
-    def _save_to_storage(self, task_id: str, task_data: dict):
-        """Save task to both Redis (if available) and in-memory"""
+    def _save_to_storage(self, task_id: str, task_data: dict, use_short_expiry: bool = False):
+        """
+        Save task to both Redis (if available) and in-memory.
+        
+        Args:
+            task_id: Task ID
+            task_data: Task data dictionary
+            use_short_expiry: If True, use shorter TTL for completed/failed tasks
+        """
         # Always save to in-memory (fast access)
         with self._lock:
             self._tasks[task_id] = task_data
         
         # Also save to Redis if available (persistence)
         if is_redis_available():
-            save_task_to_redis(task_id, task_data, self._task_expiry)
+            expiry = self._completed_task_expiry if use_short_expiry else self._task_expiry
+            save_task_to_redis(task_id, task_data, expiry)
     
     def _get_from_storage(self, task_id: str) -> Optional[dict]:
         """Get task from in-memory first, then Redis"""
@@ -165,7 +174,10 @@ class HybridTaskManager:
     
     def set_task_result(self, task_id: str, result: Any):
         """
-        Set task result and mark as completed
+        Set task result and mark as completed.
+        
+        Note: Completed tasks will be automatically cleaned up from Redis
+        after a short TTL (10 minutes by default) to free up space.
         
         Args:
             task_id: Task ID
@@ -177,11 +189,16 @@ class HybridTaskManager:
             task_data["result"] = result
             task_data["progress"] = "Analysis completed"
             task_data["completed_at"] = datetime.now().isoformat()
-            self._save_to_storage(task_id, task_data)
+            # Save with shorter TTL for auto cleanup
+            self._save_to_storage(task_id, task_data, use_short_expiry=True)
+            logger.info(f"✅ Task {task_id} completed, will be auto-cleaned from Redis in {self._completed_task_expiry} seconds")
     
     def set_task_error(self, task_id: str, error: str):
         """
-        Set task error and mark as failed
+        Set task error and mark as failed.
+        
+        Note: Failed tasks will be automatically cleaned up from Redis
+        after a short TTL (10 minutes by default) to free up space.
         
         Args:
             task_id: Task ID
@@ -193,7 +210,9 @@ class HybridTaskManager:
             task_data["error"] = error
             task_data["progress"] = "Analysis failed"
             task_data["failed_at"] = datetime.now().isoformat()
-            self._save_to_storage(task_id, task_data)
+            # Save with shorter TTL for auto cleanup
+            self._save_to_storage(task_id, task_data, use_short_expiry=True)
+            logger.info(f"❌ Task {task_id} failed, will be auto-cleaned from Redis in {self._completed_task_expiry} seconds")
     
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """

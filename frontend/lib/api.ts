@@ -63,4 +63,21 @@ export const api = {
     const response = await apiClient.get<{ tickers: Ticker[] }>("/api/tickers");
     return response.data;
   },
+
+  /**
+   * Cleanup task from Redis storage after saving results
+   * This helps keep Redis memory usage low
+   */
+  async cleanupTask(taskId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await apiClient.delete<{ success: boolean; message: string; task_id: string }>(
+        `/api/task/${taskId}/cleanup`
+      );
+      return response.data;
+    } catch (error) {
+      // Silently fail - cleanup is optional, task will auto-expire anyway
+      console.warn("Task cleanup failed (will auto-expire in 10 minutes):", error);
+      return { success: false, message: "Cleanup failed silently" };
+    }
+  },
 };

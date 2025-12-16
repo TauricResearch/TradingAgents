@@ -61,6 +61,8 @@ export default function AnalysisPage() {
           console.log("☁️ Auto-saved report to cloud");
         }
       }
+      // Note: Redis cleanup is handled immediately when analysis completes
+      // in useAnalysis hook, so no need to cleanup here
     } catch (error) {
       console.error("Auto-save failed:", error);
     }

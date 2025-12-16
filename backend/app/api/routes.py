@@ -157,6 +157,50 @@ async def get_task_status(task_id: str):
     return TaskStatusResponse(**task)
 
 
+@router.delete("/task/{task_id}/cleanup")
+async def cleanup_task(task_id: str):
+    """
+    Manually cleanup a completed/failed task from Redis storage.
+    
+    This endpoint allows the frontend to proactively delete task data
+    after the user has saved the results locally or to cloud storage.
+    This helps keep Redis storage clean and reduces memory usage.
+    
+    Note: Tasks are also automatically cleaned up 10 minutes after
+    completion/failure, so calling this endpoint is optional but recommended.
+    
+    Args:
+        task_id: Task identifier
+    
+    Returns:
+        Success message
+    
+    Raises:
+        HTTPException: If task not found
+    """
+    task = task_manager.get_task_status(task_id)
+    
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    
+    # Only allow cleanup of completed or failed tasks
+    if task.get("status") not in ["completed", "failed"]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Can only cleanup completed or failed tasks. Current status: {task.get('status')}"
+        )
+    
+    # Delete from both Redis and in-memory storage
+    task_manager.delete_task(task_id)
+    logger.info(f"🧹 Task {task_id} manually cleaned up from storage")
+    
+    return {
+        "success": True,
+        "message": f"Task {task_id} has been cleaned up from storage",
+        "task_id": task_id
+    }
+
+
 @router.get("/tickers")
 async def get_tickers():
     """Get list of popular tickers (example endpoint)"""
