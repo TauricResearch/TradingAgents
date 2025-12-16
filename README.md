@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="frontend/public/icon.png" alt="TradingAgentsX Logo" width="150" />
+
 **基於 LangGraph 的 AI 股票交易分析平台，結合多個專業 AI 代理進行協作決策**
 
 [![GitHub](https://img.shields.io/badge/GitHub-MarkLo127/TradingAgentsX-blue?logo=github)](https://github.com/MarkLo127/TradingAgentsX)
@@ -249,7 +251,13 @@ docker compose down -v
 
 ### 5. 儲存與下載
 - **儲存報告** - 保存到本地 / 雲端
-- **下載報告** - 匯出為 JSON 檔案
+- **下載 PDF 報告** - 匯出完整 PDF 分析報告
+
+### 📄 範例報告
+
+查看完整的 PDF 分析報告範例：
+
+📥 **[AVGO 博通公司分析報告 (2025-12-15)](report/AVGO_Combined_Report_2025-12-15.pdf)**
 
 ---
 
@@ -316,19 +324,20 @@ GET /api/task/{task_id}
 
 ## 📸 應用截圖
 
-### 首頁 - 系統介紹
-
-展示 TradingAgentsX 的核心功能與多代理協作工作流程
+### 首頁
 
 ![首頁](web_screenshot/1.png)
 
 ---
 
-### 分析配置頁面
+### API配置頁面
 
-直觀的表單介面，支援完整的 LLM 多模型配置與自訂端點設定
+![API配置頁面](web_screenshot/2.png)
 
-![分析配置頁面](web_screenshot/2.png)
+---
+### 任務配置頁面
+
+![任務配置頁面](web_screenshot/3.png)
 
 ---
 
@@ -341,71 +350,60 @@ GET /api/task/{task_id}
 - **交易團隊 (1)**: 交易員
 - **風險管理團隊 (4)**: 激進分析師、保守分析師、中立分析師、風險經理
 
-![代理觀點選擇](web_screenshot/3.png)
+![代理觀點選擇](web_screenshot/4.png)
 
 ---
 
 ### 股價走勢圖表 (K 線圖)
 
-互動式價格走勢與成交量圖表(K 線圖)，清晰呈現股票歷史數據
-
-![股價走勢圖表 - K線圖](web_screenshot/4.png)
+![股價走勢圖表 - K線圖](web_screenshot/5.png)
 
 ---
 
 ### 股價走勢圖表 (折線圖)
 
-互動式價格走勢與成交量圖表(折線圖)，清晰呈現股票歷史數據
-
-![股價走勢圖表 - 折線圖](web_screenshot/5.png)
+![股價走勢圖表 - 折線圖](web_screenshot/6.png)
 
 ---
 
 ### 市場分析師報告
 
-技術面深度分析，包含技術指標、價格走勢、支撐阻力位評估
-
-![市場分析師報告](web_screenshot/6.png)
+![市場分析師報告](web_screenshot/7.png)
 
 ---
 
 ### 社群媒體分析師報告
 
-社交媒體情緒指標與投資者信心評估
 
-![社群媒體分析師報告](web_screenshot/7.png)
+![社群媒體分析師報告](web_screenshot/8.png)
 
 ---
 
 ### 新聞分析師報告
 
-最新財經新聞摘要與事件影響分析
 
-![新聞分析師報告](web_screenshot/8.png)
+![新聞分析師報告](web_screenshot/9.png)
 
 ---
 
 ### 基本面分析師報告
 
-詳細的財務數據解析與價值評估
 
-![基本面分析師報告](web_screenshot/9.png)
+![基本面分析師報告](web_screenshot/10.png)
 
 ---
 
 ### 看漲研究員報告
 
-多頭觀點論證、上漲催化劑分析與目標價位預測
 
-![看漲研究員報告](web_screenshot/10.png)
+![看漲研究員報告](web_screenshot/11.png)
 
 ---
 
 ### 看跌研究員報告
 
-空頭觀點論證、下跌風險警告與防守策略建議
 
-![看跌研究員報告](web_screenshot/11.png)
+![看跌研究員報告](web_screenshot/12.png)
 
 ---
 
@@ -413,53 +411,42 @@ GET /api/task/{task_id}
 
 綜合看漲與看跌觀點的研究團隊決策
 
-![研究經理報告](web_screenshot/12.png)
+![研究經理報告](web_screenshot/13.png)
 
 ---
 
 ### 交易員報告
 
-整合所有分析師報告後的交易執行計劃與策略
 
-![交易員報告](web_screenshot/13.png)
+![交易員報告](web_screenshot/14.png)
 
 ---
 
 ### 激進分析師報告
 
-高風險高回報策略的分析與評估
 
-![激進分析師報告](web_screenshot/14.png)
+![激進分析師報告](web_screenshot/15.png)
 
 ---
 
 ### 保守分析師報告
 
-穩健保守策略的分析與風險控制建議
 
-![保守分析師報告](web_screenshot/15.png)
+![保守分析師報告](web_screenshot/16.png)
 
 ---
 
 ### 中立分析師報告
 
-中立平衡策略的分析與風險評估
 
-![中立分析師報告](web_screenshot/16.png)
+![中立分析師報告](web_screenshot/17.png)
 
 ---
 
 ### 風險經理報告
 
-風險管理團隊的綜合決策與最終交易建議
 
-![風險經理報告](web_screenshot/17.png)
-
----
-
-### 下載報告
-
-![下載報告](web_screenshot/18.png)
+![風險經理報告](web_screenshot/18.png)
 
 ---
 
