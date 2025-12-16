@@ -87,10 +87,17 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
   const findFinalProposal = (text: string): { action: string; color: string } | null => {
     if (!text || typeof text !== 'string') return null;
     
-    // Match "最終交易提案：持有" - this is the ONLY pattern we care about for trader's decision
-    const match = text.match(/最終交易提案[：:]\s*(買入|賣出|持有)/);
-    if (match) {
-      const decision = match[1];
+    // Match "最終交易提案：持有" - handle markdown ** bold markers
+    // Pattern handles: 最終交易提案：持有, 最終交易提案：**持有**, **最終交易提案：持有**
+    // Use global flag to find ALL matches, then take the LAST one (final decision)
+    const regex = /\*{0,2}最終交易提案[：:]\s*\*{0,2}(買入|賣出|持有)\*{0,2}/g;
+    const matches = [...text.matchAll(regex)];
+    
+    if (matches.length > 0) {
+      // Take the LAST match (the final decision at the end of the report)
+      const lastMatch = matches[matches.length - 1];
+      const decision = lastMatch[1];
+      console.log(`  ✅ Matched pattern: "${lastMatch[0]}" -> decision: "${decision}"`);
       if (decision === "買入") return { action: "買入", color: "text-green-600" };
       if (decision === "賣出") return { action: "賣出", color: "text-red-600" };
       if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
