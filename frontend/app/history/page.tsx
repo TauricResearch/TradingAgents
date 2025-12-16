@@ -77,6 +77,8 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
   
   // Helper function to find decision in text
   const findDecision = (text: string): { action: string; color: string } | null => {
+    if (!text) return null;
+    
     // Keep original text for Chinese matching
     const originalText = text;
     const lowerText = text.toLowerCase();
@@ -99,7 +101,19 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
       if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
     }
     
-    // Priority 3: Look for "建議：" prefix
+    // Priority 3: Simple text search for common patterns (more flexible)
+    // Check for "賣出" patterns
+    if (originalText.includes("最終交易提案") && originalText.includes("賣出")) {
+      return { action: "賣出", color: "text-red-600" };
+    }
+    if (originalText.includes("最終交易提案") && originalText.includes("買入")) {
+      return { action: "買入", color: "text-green-600" };
+    }
+    if (originalText.includes("最終交易提案") && originalText.includes("持有")) {
+      return { action: "持有", color: "text-yellow-600" };
+    }
+    
+    // Priority 4: Look for "建議：" prefix
     const suggestionMatch = originalText.match(/建議[：:]\s*(買入|賣出|持有)/);
     if (suggestionMatch) {
       const decision = suggestionMatch[1];
@@ -108,8 +122,16 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
       if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
     }
     
-    // Priority 4: English keywords (case insensitive)
-    // Check for explicit BUY/SELL/HOLD patterns
+    // Priority 5: Search for standalone Chinese keywords near end of text (last 500 chars)
+    const lastPart = originalText.slice(-500);
+    if (lastPart.includes("賣出") && !lastPart.includes("買入")) {
+      return { action: "賣出", color: "text-red-600" };
+    }
+    if (lastPart.includes("買入") && !lastPart.includes("賣出")) {
+      return { action: "買入", color: "text-green-600" };
+    }
+    
+    // Priority 6: English keywords (case insensitive)
     if (lowerText.match(/\b(buy|long)\b/) && !lowerText.match(/\b(sell|short)\b/)) {
       return { action: "買入", color: "text-green-600" };
     }
@@ -125,23 +147,42 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
   
   // Priority 1: Check trader's investment plan FIRST (交易員建議最優先)
   const traderReport = report.result.reports?.trader_investment_plan;
-  if (traderReport) {
+  if (traderReport && typeof traderReport === 'string') {
     const decision = findDecision(traderReport);
     if (decision) return decision;
   }
   
   // Priority 2: Check risk manager's final decision
   const finalDecision = report.result.reports?.final_trade_decision;
-  if (finalDecision) {
+  if (finalDecision && typeof finalDecision === 'string') {
     const decision = findDecision(finalDecision);
     if (decision) return decision;
   }
   
   // Priority 3: Check risk debate state judge decision
   const riskJudge = report.result.reports?.risk_debate_state?.judge_decision;
-  if (riskJudge) {
+  if (riskJudge && typeof riskJudge === 'string') {
     const decision = findDecision(riskJudge);
     if (decision) return decision;
+  }
+  
+  // Priority 4: Check any field that might contain decision
+  const allReports = report.result.reports;
+  if (allReports) {
+    // Try to find decision in any report text
+    const reportTexts = [
+      allReports.market_report,
+      allReports.sentiment_report,
+      allReports.news_report,
+      allReports.fundamentals_report,
+    ].filter(t => t && typeof t === 'string');
+    
+    for (const text of reportTexts) {
+      if (text.includes("最終交易提案")) {
+        const decision = findDecision(text);
+        if (decision) return decision;
+      }
+    }
   }
   
   return { action: "N/A", color: "text-gray-500" };
