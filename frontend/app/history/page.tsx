@@ -84,6 +84,7 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
     const lowerText = text.toLowerCase();
     
     // Priority 1: Look for "最終交易提案" (Trader's final proposal) - HIGHEST PRIORITY
+    // Use more flexible regex to handle various whitespace/formatting
     const finalProposalMatch = originalText.match(/最終交易提案[：:]\s*(買入|賣出|持有)/);
     if (finalProposalMatch) {
       const decision = finalProposalMatch[1];
@@ -101,20 +102,8 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
       if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
     }
     
-    // Priority 3: Simple text search for common patterns (more flexible)
-    // Check for "賣出" patterns
-    if (originalText.includes("最終交易提案") && originalText.includes("賣出")) {
-      return { action: "賣出", color: "text-red-600" };
-    }
-    if (originalText.includes("最終交易提案") && originalText.includes("買入")) {
-      return { action: "買入", color: "text-green-600" };
-    }
-    if (originalText.includes("最終交易提案") && originalText.includes("持有")) {
-      return { action: "持有", color: "text-yellow-600" };
-    }
-    
-    // Priority 4: Look for "建議：" prefix
-    const suggestionMatch = originalText.match(/建議[：:]\s*(買入|賣出|持有)/);
+    // Priority 3: Look for "建議：" at the END of a line (to avoid mid-sentence matches)
+    const suggestionMatch = originalText.match(/建議[：:]\s*(買入|賣出|持有)\s*$/m);
     if (suggestionMatch) {
       const decision = suggestionMatch[1];
       if (decision === "買入") return { action: "買入", color: "text-green-600" };
@@ -122,23 +111,15 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
       if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
     }
     
-    // Priority 5: Search for standalone Chinese keywords near end of text (last 500 chars)
-    const lastPart = originalText.slice(-500);
-    if (lastPart.includes("賣出") && !lastPart.includes("買入")) {
-      return { action: "賣出", color: "text-red-600" };
-    }
-    if (lastPart.includes("買入") && !lastPart.includes("賣出")) {
+    // Priority 4: English keywords with word boundaries (case insensitive)
+    // Only match if it's a clear recommendation pattern
+    if (lowerText.match(/(?:final|recommendation|decision)[:\s]*(buy|long)/i)) {
       return { action: "買入", color: "text-green-600" };
     }
-    
-    // Priority 6: English keywords (case insensitive)
-    if (lowerText.match(/\b(buy|long)\b/) && !lowerText.match(/\b(sell|short)\b/)) {
-      return { action: "買入", color: "text-green-600" };
-    }
-    if (lowerText.match(/\b(sell|short)\b/) && !lowerText.match(/\b(buy|long)\b/)) {
+    if (lowerText.match(/(?:final|recommendation|decision)[:\s]*(sell|short)/i)) {
       return { action: "賣出", color: "text-red-600" };
     }
-    if (lowerText.match(/\bhold\b/)) {
+    if (lowerText.match(/(?:final|recommendation|decision)[:\s]*(hold)/i)) {
       return { action: "持有", color: "text-yellow-600" };
     }
     
