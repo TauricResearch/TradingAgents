@@ -450,6 +450,12 @@ GET /api/task/{task_id}
 
 ---
 
+## 歷史報告（需登錄才能查看）
+
+![歷史報告](web_screenshot/19.png)
+
+---
+
 ## 🙏 致謝
 
 - [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) - 原始專案
