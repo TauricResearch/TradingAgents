@@ -27,7 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Eye, RefreshCw, TrendingUp, Cloud, CloudOff, FileText, Download } from "lucide-react";
+import { Trash2, Eye, RefreshCw, TrendingUp, CloudOff, FileText, Download } from "lucide-react";
 import {
   getReportsByMarketType,
   deleteReport,
@@ -152,9 +152,7 @@ export default function HistoryPage() {
   );
   const [deleting, setDeleting] = useState(false);
   
-  // Sync state
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ success: number; failed: number } | null>(null);
+  // Auto-sync tracking ref
   const hasAutoSyncedRef = useRef(false);
 
   // Load reports when tab changes or auth state changes
@@ -352,83 +350,6 @@ export default function HistoryPage() {
     }
   };
 
-  // Sync local reports to cloud
-  const handleSyncToCloud = async () => {
-    if (!isAuthenticated || !isCloudSyncEnabled()) {
-      alert("請先登入以啟用雲端同步");
-      return;
-    }
-    
-    setSyncing(true);
-    setSyncResult(null);
-    
-    try {
-      // Get all local reports
-      const [usLocal, twseLocal, tpexLocal] = await Promise.all([
-        getReportsByMarketType("us"),
-        getReportsByMarketType("twse"),
-        getReportsByMarketType("tpex"),
-      ]);
-      const allLocal = [...usLocal, ...twseLocal, ...tpexLocal];
-      
-      // Get cloud reports to check for duplicates
-      const cloudReports = await getCloudReports();
-      const cloudKeys = new Set(
-        cloudReports.map(r => `${r.ticker}_${r.analysis_date}`)
-      );
-      
-      // Find local-only reports to upload
-      const toUpload = allLocal.filter(
-        r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`)
-      );
-      
-      if (toUpload.length === 0) {
-        setSyncResult({ success: 0, failed: 0 });
-        alert("所有報告已同步到雲端！");
-        return;
-      }
-      
-      // Upload each report
-      let success = 0;
-      let failed = 0;
-      
-      for (const report of toUpload) {
-        try {
-          const cloudId = await saveCloudReport({
-            ticker: report.ticker,
-            market_type: report.market_type,
-            analysis_date: report.analysis_date,
-            result: report.result,
-          });
-          if (cloudId) {
-            success++;
-          } else {
-            failed++;
-          }
-        } catch (e) {
-          failed++;
-        }
-      }
-      
-      setSyncResult({ success, failed });
-      
-      // Reload data after sync
-      await loadReports();
-      await loadCounts();
-      
-      if (failed === 0) {
-        alert(`成功同步 ${success} 份報告到雲端！`);
-      } else {
-        alert(`同步完成：${success} 成功，${failed} 失敗`);
-      }
-    } catch (error) {
-      console.error("Sync failed:", error);
-      alert("同步失敗，請稍後再試");
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   const handleViewReport = (report: SavedReport) => {
     // Set the context with the saved report data
     setAnalysisResult(report.result);
@@ -592,25 +513,8 @@ export default function HistoryPage() {
               (marketType) => (
                 <TabsContent key={marketType} value={marketType} className="mt-6">
                   <div className="space-y-4">
-                    {/* Action buttons */}
-                    <div className="flex justify-end gap-2">
-                      {/* Sync to Cloud button - only show when authenticated */}
-                      {isAuthenticated && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleSyncToCloud}
-                          disabled={syncing || loading}
-                          className="gap-2"
-                        >
-                          <Cloud
-                            className={`h-4 w-4 ${syncing ? "animate-pulse" : ""}`}
-                          />
-                          {syncing ? "同步中..." : "同步到雲端"}
-                        </Button>
-                      )}
-                      
-                      {/* Refresh button */}
+                    {/* Refresh button */}
+                    <div className="flex justify-end">
                       <Button
                         variant="outline"
                         size="sm"

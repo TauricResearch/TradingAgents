@@ -30,10 +30,13 @@ router = APIRouter(prefix="/api", tags=["TradingAgentsX"])
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint"""
+    from backend.app.services.redis_client import is_redis_available
+    
     return HealthResponse(
         status="healthy",
         version=settings.app_version,
         timestamp=datetime.now().isoformat(),
+        redis_connected=is_redis_available(),
     )
 
 

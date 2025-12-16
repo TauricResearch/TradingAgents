@@ -105,6 +105,7 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="API health status")
     version: str = Field(..., description="API version")
     timestamp: str = Field(..., description="Current server timestamp")
+    redis_connected: bool = Field(False, description="Whether Redis is connected")
 
 
 class ErrorResponse(BaseModel):
