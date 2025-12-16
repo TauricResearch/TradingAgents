@@ -8,22 +8,22 @@
   "theme_color": "#6B21A8",
   "icons": [
     {
-      "src": "/favicon.ico",
+      "src": "/favicon.ico?v=2",
       "sizes": "32x32",
       "type": "image/x-icon"
     },
     {
-      "src": "/icon-192.png",
+      "src": "/icon-192.png?v=2",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icon-512.png?v=2",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "/icon.png",
+      "src": "/icon.png?v=2",
       "sizes": "1024x1024",
       "type": "image/png"
     }
