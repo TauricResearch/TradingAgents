@@ -75,60 +75,73 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
     return { action, color };
   }
   
-  // Priority: try to extract from Risk Manager's final_trade_decision (最終決策)
-  const finalDecision = report.result.reports?.final_trade_decision;
-  if (finalDecision) {
-    const text = finalDecision.toLowerCase();
+  // Helper function to find decision in text
+  const findDecision = (text: string): { action: string; color: string } | null => {
+    // Keep original text for Chinese matching
+    const originalText = text;
+    const lowerText = text.toLowerCase();
     
-    // Look for Chinese decision keywords first
-    if (text.includes("最終決策：買入") || text.includes("最終建議：買入") || text.includes("建議：買入")) {
+    // Priority 1: Look for "最終交易提案" (Trader's final proposal) - HIGHEST PRIORITY
+    const finalProposalMatch = originalText.match(/最終交易提案[：:]\s*(買入|賣出|持有)/);
+    if (finalProposalMatch) {
+      const decision = finalProposalMatch[1];
+      if (decision === "買入") return { action: "買入", color: "text-green-600" };
+      if (decision === "賣出") return { action: "賣出", color: "text-red-600" };
+      if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
+    }
+    
+    // Priority 2: Look for "最終決策" or "最終建議"
+    const finalDecisionMatch = originalText.match(/最終(?:決策|建議)[：:]\s*(買入|賣出|持有)/);
+    if (finalDecisionMatch) {
+      const decision = finalDecisionMatch[1];
+      if (decision === "買入") return { action: "買入", color: "text-green-600" };
+      if (decision === "賣出") return { action: "賣出", color: "text-red-600" };
+      if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
+    }
+    
+    // Priority 3: Look for "建議：" prefix
+    const suggestionMatch = originalText.match(/建議[：:]\s*(買入|賣出|持有)/);
+    if (suggestionMatch) {
+      const decision = suggestionMatch[1];
+      if (decision === "買入") return { action: "買入", color: "text-green-600" };
+      if (decision === "賣出") return { action: "賣出", color: "text-red-600" };
+      if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
+    }
+    
+    // Priority 4: English keywords (case insensitive)
+    // Check for explicit BUY/SELL/HOLD patterns
+    if (lowerText.match(/\b(buy|long)\b/) && !lowerText.match(/\b(sell|short)\b/)) {
       return { action: "買入", color: "text-green-600" };
     }
-    if (text.includes("最終決策：賣出") || text.includes("最終建議：賣出") || text.includes("建議：賣出")) {
+    if (lowerText.match(/\b(sell|short)\b/) && !lowerText.match(/\b(buy|long)\b/)) {
       return { action: "賣出", color: "text-red-600" };
     }
-    if (text.includes("最終決策：持有") || text.includes("最終建議：持有") || text.includes("建議：持有")) {
+    if (lowerText.match(/\bhold\b/)) {
       return { action: "持有", color: "text-yellow-600" };
     }
     
-    // Look for English keywords
-    if (text.includes("buy") || text.includes("買入")) {
-      return { action: "買入", color: "text-green-600" };
-    }
-    if (text.includes("sell") || text.includes("賣出")) {
-      return { action: "賣出", color: "text-red-600" };
-    }
-    if (text.includes("hold") || text.includes("持有")) {
-      return { action: "持有", color: "text-yellow-600" };
-    }
-  }
+    return null;
+  };
   
-  // Fallback: try trader_investment_plan if final_trade_decision not available
+  // Priority 1: Check trader's investment plan FIRST (交易員建議最優先)
   const traderReport = report.result.reports?.trader_investment_plan;
   if (traderReport) {
-    const text = traderReport.toLowerCase();
-    
-    // Look for Chinese decision keywords first
-    if (text.includes("最終交易提案：買入") || text.includes("建議：買入")) {
-      return { action: "買入", color: "text-green-600" };
-    }
-    if (text.includes("最終交易提案：賣出") || text.includes("建議：賣出")) {
-      return { action: "賣出", color: "text-red-600" };
-    }
-    if (text.includes("最終交易提案：持有") || text.includes("建議：持有")) {
-      return { action: "持有", color: "text-yellow-600" };
-    }
-    
-    // Look for English keywords
-    if (text.includes("buy") && !text.includes("sell")) {
-      return { action: "買入 (BUY)", color: "text-green-600" };
-    }
-    if (text.includes("sell") && !text.includes("buy")) {
-      return { action: "賣出 (SELL)", color: "text-red-600" };
-    }
-    if (text.includes("hold")) {
-      return { action: "持有 (HOLD)", color: "text-yellow-600" };
-    }
+    const decision = findDecision(traderReport);
+    if (decision) return decision;
+  }
+  
+  // Priority 2: Check risk manager's final decision
+  const finalDecision = report.result.reports?.final_trade_decision;
+  if (finalDecision) {
+    const decision = findDecision(finalDecision);
+    if (decision) return decision;
+  }
+  
+  // Priority 3: Check risk debate state judge decision
+  const riskJudge = report.result.reports?.risk_debate_state?.judge_decision;
+  if (riskJudge) {
+    const decision = findDecision(riskJudge);
+    if (decision) return decision;
   }
   
   return { action: "N/A", color: "text-gray-500" };
