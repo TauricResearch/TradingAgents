@@ -43,45 +43,100 @@
 
 ```
 TradingAgentsX/
-├── frontend/                 # Next.js 16 前端應用
-│   ├── app/                  # App Router 頁面
-│   │   ├── page.tsx          # 首頁
-│   │   ├── analysis/         # 分析功能
-│   │   ├── history/          # 歷史報告
-│   │   ├── auth/             # OAuth 回調
-│   │   └── api/              # API 路由（config, auth）
-│   ├── components/           # React 組件
-│   │   ├── analysis/         # 分析相關組件
-│   │   ├── auth/             # 登入按鈕、登入提示
-│   │   ├── layout/           # Header、Footer
-│   │   ├── settings/         # API 設定對話框
-│   │   └── ui/               # shadcn/ui 基礎組件
-│   ├── contexts/             # React Context（認證狀態）
-│   ├── hooks/                # 自定義 Hooks
-│   └── lib/                  # 工具函式（API、加密、儲存）
+├── frontend/                   # Next.js 前端應用
+│   ├── app/                    # App Router 頁面
+│   │   ├── page.tsx            # 首頁
+│   │   ├── layout.tsx          # 根佈局
+│   │   ├── globals.css         # 全域樣式
+│   │   ├── analysis/           # 分析功能頁面
+│   │   ├── history/            # 歷史報告頁面
+│   │   ├── auth/               # OAuth 回調
+│   │   └── api/                # API 路由（config, auth）
+│   ├── components/             # React 組件
+│   │   ├── AgentFlowDiagram.tsx    # 代理流程圖組件
+│   │   ├── PendingTaskRecovery.tsx # 任務恢復組件
+│   │   ├── analysis/           # 分析相關組件
+│   │   ├── auth/               # 登入按鈕
+│   │   ├── layout/             # Header、Footer
+│   │   ├── settings/           # API 設定對話框
+│   │   ├── shared/             # 共用組件
+│   │   ├── theme/              # 主題相關組件
+│   │   └── ui/                 # shadcn/ui 基礎組件（16 個）
+│   ├── contexts/               # React Context（認證狀態）
+│   ├── hooks/                  # 自定義 Hooks
+│   └── lib/                    # 工具函式
+│       ├── api.ts              # API 調用
+│       ├── api-helpers.ts      # API 輔助函式
+│       ├── crypto.ts           # 加密工具
+│       ├── storage.ts          # 本地儲存
+│       ├── reports-db.ts       # IndexedDB 報告儲存
+│       ├── pending-task.ts     # 待處理任務管理
+│       ├── user-api.ts         # 使用者 API
+│       ├── types.ts            # TypeScript 類型定義
+│       └── utils.ts            # 通用工具
 │
-├── backend/                  # FastAPI 後端服務
+├── backend/                    # FastAPI 後端服務
+│   ├── __main__.py             # 應用啟動入口
 │   └── app/
-│       ├── main.py           # 應用入口（中間件、路由）
-│       ├── api/              # API 路由
-│       │   ├── routes.py     # 分析 API
-│       │   ├── auth.py       # Google OAuth
-│       │   └── user.py       # 使用者資料同步
-│       ├── core/             # 配置、CORS
-│       ├── db/               # PostgreSQL 資料庫
-│       ├── models/           # Pydantic 模型
-│       └── services/         # 業務邏輯
+│       ├── main.py             # FastAPI 應用（中間件、路由）
+│       ├── api/                # API 路由
+│       │   ├── routes.py       # 分析 API
+│       │   ├── auth.py         # Google OAuth
+│       │   ├── user.py         # 使用者資料同步
+│       │   └── dependencies.py # 依賴注入
+│       ├── core/               # 核心配置
+│       ├── db/                 # PostgreSQL 資料庫
+│       ├── models/             # Pydantic 模型
+│       └── services/           # 業務邏輯
+│           ├── trading_service.py  # 交易分析服務
+│           ├── task_manager.py     # 任務管理器
+│           ├── pdf_generator.py    # PDF 報告生成
+│           ├── price_service.py    # 股價數據服務
+│           ├── download_service.py # 下載服務
+│           ├── redis_client.py     # Redis 客戶端
+│           └── auth_utils.py       # 認證工具
 │
-└── tradingagents/           # 核心 AI 代理套件
-    ├── agents/               # AI 代理定義
-    │   ├── analysts/         # 分析師團隊
-    │   ├── researchers/      # 研究團隊
-    │   ├── trader/           # 交易員
-    │   ├── risk_mgmt/        # 風險管理團隊
-    │   └── managers/         # 經理決策者
-    ├── dataflows/            # 資料獲取與處理
-    ├── graph/                # LangGraph 工作流
-    └── default_config.py     # 預設配置
+└── tradingagents/              # 核心 AI 代理套件
+    ├── agents/                 # AI 代理定義
+    │   ├── analysts/           # 分析師團隊
+    │   │   ├── market_analyst.py       # 市場分析師
+    │   │   ├── news_analyst.py         # 新聞分析師
+    │   │   ├── social_media_analyst.py # 社群媒體分析師
+    │   │   └── fundamentals_analyst.py # 基本面分析師
+    │   ├── researchers/        # 研究團隊
+    │   │   ├── bull_researcher.py      # 看漲研究員
+    │   │   └── bear_researcher.py      # 看跌研究員
+    │   ├── trader/             # 交易員
+    │   │   └── trader.py               # 交易員代理
+    │   ├── risk_mgmt/          # 風險管理團隊
+    │   │   ├── aggresive_debator.py    # 激進分析師
+    │   │   ├── conservative_debator.py # 保守分析師
+    │   │   └── neutral_debator.py      # 中立分析師
+    │   ├── managers/           # 經理決策者
+    │   │   ├── research_manager.py     # 研究經理
+    │   │   └── risk_manager.py         # 風險經理
+    │   └── utils/              # 代理工具函式
+    ├── dataflows/              # 資料獲取與處理
+    │   ├── interface.py        # 統一資料介面
+    │   ├── config.py           # 資料流配置
+    │   ├── y_finance.py        # Yahoo Finance 資料
+    │   ├── yfin_utils.py       # Yahoo Finance 工具
+    │   ├── alpha_vantage*.py   # Alpha Vantage 系列（5 個）
+    │   ├── finmind*.py         # FinMind 台股資料（6 個）
+    │   ├── google.py           # Google 搜尋
+    │   ├── googlenews_utils.py # Google 新聞工具
+    │   ├── reddit_utils.py     # Reddit 資料
+    │   ├── openai.py           # OpenAI 嵌入
+    │   └── retry_utils.py      # 重試工具
+    ├── graph/                  # LangGraph 工作流
+    │   ├── trading_graph.py    # 交易分析圖
+    │   ├── setup.py            # 圖設置
+    │   ├── propagation.py      # 狀態傳播
+    │   ├── reflection.py       # 反思機制
+    │   ├── conditional_logic.py    # 條件邏輯
+    │   └── signal_processing.py    # 信號處理
+    ├── utils/                  # 通用工具
+    └── default_config.py       # 預設配置
 ```
 
 ---
