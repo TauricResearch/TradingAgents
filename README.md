@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="frontend/public/icon.png" alt="TradingAgentsX Logo" width="300" />
+<img src="frontend/public/icon-v5.png" alt="TradingAgentsX Logo" width="300" />
 
 **基於 LangGraph 的 AI 股票交易分析平台，結合多個專業 AI 代理進行協作決策**
 
