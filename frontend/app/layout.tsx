@@ -61,7 +61,7 @@ export default function RootLayout({
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
-        <link rel="manifest" href="/manifest.json?v=20241217" />
+        <link rel="manifest" href="/manifest.json?v=20241218" />
         <meta name="theme-color" content="#6B21A8" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
