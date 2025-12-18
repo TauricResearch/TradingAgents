@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   backend:
     build:
@@ -15,7 +13,7 @@ services:
       - TRADINGAGENTS_DATA_CACHE_DIR=/app/results/data_cache
     volumes:
       - ./results:/app/results
-      - ./tradingagents:/app/tradingagents:ro
+      - ./tradingagents:/app/tradingagents
     networks:
       - tradingagents-network
     restart: unless-stopped
