@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="frontend/public/icon-v5.png" alt="TradingAgentsX Logo" width="300" />
+<img src="frontend/public/icon-v7.png" alt="TradingAgentsX Logo" width="300" />
 
 **基於 LangGraph 的 AI 股票交易分析平台，結合多個專業 AI 代理進行協作決策**
 
@@ -26,16 +26,16 @@
 
 ### 🎯 核心特色
 
-| 功能 | 說明 |
-|------|------|
-| 🤖 **多代理協作架構** | 12 個專業化 AI 代理（分析師、研究員、交易員、風險管理）協同工作 |
-| 🌐 **多模型支援** | OpenAI、Anthropic、Gemini、Grok、DeepSeek、Qwen 等 LLM 提供商 |
-| 🔒 **Google OAuth 登入** | 雲端同步 API 設定與歷史報告，支援多裝置同步 |
-| 📊 **美股與台股支援** | 完整支援美股（Yahoo Finance）與台股（FinMind）資料 |
-| 🔑 **BYOK 模式** | 使用者自帶 API 金鑰，前端加密儲存，保障隱私 |
-| 🛡️ **安全防護** | Rate Limiting、Security Headers、API Key 遮罩 |
-| 📱 **響應式設計** | 支援桌面與手機瀏覽器 |
-| 🐳 **Docker 部署** | 一鍵啟動前後端服務 |
+| 功能                     | 說明                                                            |
+| ------------------------ | --------------------------------------------------------------- |
+| 🤖 **多代理協作架構**    | 12 個專業化 AI 代理（分析師、研究員、交易員、風險管理）協同工作 |
+| 🌐 **多模型支援**        | OpenAI、Anthropic、Gemini、Grok、DeepSeek、Qwen 等 LLM 提供商   |
+| 🔒 **Google OAuth 登入** | 雲端同步 API 設定與歷史報告，支援多裝置同步                     |
+| 📊 **美股與台股支援**    | 完整支援美股（Yahoo Finance）與台股（FinMind）資料              |
+| 🔑 **BYOK 模式**         | 使用者自帶 API 金鑰，前端加密儲存，保障隱私                     |
+| 🛡️ **安全防護**          | Rate Limiting、Security Headers、API Key 遮罩                   |
+| 📱 **響應式設計**        | 支援桌面與手機瀏覽器                                            |
+| 🐳 **Docker 部署**       | 一鍵啟動前後端服務                                              |
 
 ---
 
@@ -144,28 +144,31 @@ TradingAgentsX/
 ## 🤖 AI 代理團隊
 
 ### 分析師團隊 (4 位)
-| 代理 | 職責 | 輸出 |
-|------|------|------|
-| 市場分析師 | 技術分析 | RSI、MACD、布林通道、支撐阻力位 |
+
+| 代理           | 職責     | 輸出                                |
+| -------------- | -------- | ----------------------------------- |
+| 市場分析師     | 技術分析 | RSI、MACD、布林通道、支撐阻力位     |
 | 社群媒體分析師 | 情緒評估 | Reddit/Twitter 情緒指標、投資者信心 |
-| 新聞分析師 | 新聞分析 | 最新新聞摘要、事件影響評估 |
-| 基本面分析師 | 財務分析 | 財報數據、P/E、P/B、盈利能力 |
+| 新聞分析師     | 新聞分析 | 最新新聞摘要、事件影響評估          |
+| 基本面分析師   | 財務分析 | 財報數據、P/E、P/B、盈利能力        |
 
 ### 研究團隊 (3 位)
-| 代理 | 職責 |
-|------|------|
+
+| 代理       | 職責                         |
+| ---------- | ---------------------------- |
 | 看漲研究員 | 多頭觀點論證、上漲催化劑分析 |
-| 看跌研究員 | 空頭觀點論證、下跌風險警告 |
-| 研究經理 | 綜合看漲與看跌觀點的決策 |
+| 看跌研究員 | 空頭觀點論證、下跌風險警告   |
+| 研究經理   | 綜合看漲與看跌觀點的決策     |
 
 ### 交易與風險團隊 (5 位)
-| 代理 | 職責 |
-|------|------|
-| 交易員 | 整合所有報告，制定交易計劃 |
-| 激進分析師 | 高風險高回報策略分析 |
-| 保守分析師 | 穩健保守策略與風險控制 |
-| 中立分析師 | 中立平衡策略評估 |
-| 風險經理 | 風險管理綜合決策與最終建議 |
+
+| 代理       | 職責                       |
+| ---------- | -------------------------- |
+| 交易員     | 整合所有報告，制定交易計劃 |
+| 激進分析師 | 高風險高回報策略分析       |
+| 保守分析師 | 穩健保守策略與風險控制     |
+| 中立分析師 | 中立平衡策略評估           |
+| 風險經理   | 風險管理綜合決策與最終建議 |
 
 ---
 
@@ -179,11 +182,11 @@ TradingAgentsX/
 
 ### 必要的 API 金鑰
 
-| API | 用途 | 申請網址 |
-|-----|------|----------|
-| OpenAI | GPT 模型 | https://platform.openai.com/api-keys |
+| API                   | 用途           | 申請網址                                     |
+| --------------------- | -------------- | -------------------------------------------- |
+| OpenAI                | GPT 模型       | https://platform.openai.com/api-keys         |
 | Alpha Vantage（選填） | 美股基本面資料 | https://www.alphavantage.co/support/#api-key |
-| FinMind（選填） | 台股資料 | https://finmindtrade.com/ |
+| FinMind（選填）       | 台股資料       | https://finmindtrade.com/                    |
 
 ### 安裝步驟
 
@@ -214,6 +217,7 @@ python -m backend
 ```
 
 後端服務：
+
 - API: http://localhost:8000
 - Swagger 文檔: http://localhost:8000/docs
 
@@ -248,6 +252,7 @@ docker compose down -v
 ```
 
 服務端口：
+
 - 後端: http://localhost:8000
 - 前端: http://localhost:3000
 
@@ -257,13 +262,13 @@ docker compose down -v
 
 ### 本地開發 vs 生產環境
 
-| 功能 | 本地開發 (localhost) | 生產環境 (Railway 等) |
-|------|----------------------|----------------------|
-| Google 登入 | 選用（可不設定） | 建議啟用 |
-| 資料自動清除 | ❌ 不會清除 | ✅ 未登入時離開會清除 |
-| PostgreSQL | 選用 | 必需 |
-| API 設定儲存 | 永久保留 | 登入後雲端同步 |
-| 歷史報告儲存 | 永久保留 | 登入後雲端同步 |
+| 功能         | 本地開發 (localhost) | 生產環境 (Railway 等) |
+| ------------ | -------------------- | --------------------- |
+| Google 登入  | 選用（可不設定）     | 建議啟用              |
+| 資料自動清除 | ❌ 不會清除          | ✅ 未登入時離開會清除 |
+| PostgreSQL   | 選用                 | 必需                  |
+| API 設定儲存 | 永久保留             | 登入後雲端同步        |
+| 歷史報告儲存 | 永久保留             | 登入後雲端同步        |
 
 ### 前端安全
 
@@ -272,12 +277,14 @@ docker compose down -v
 - **Safari 觸控優化** - 修復 iOS Safari 的觸控事件問題
 
 ### 後端安全
+
 - **Rate Limiting** - 每分鐘 30 次請求限制
 - **Security Headers** - X-Content-Type-Options、X-Frame-Options 等
 - **敏感資料遮罩** - API Key 在日誌中自動遮罩
 - **CORS 配置** - 限制跨域請求來源
 
 ### 雲端同步
+
 - **Google OAuth 2.0** - 安全的第三方登入
 - **JWT Token** - 無狀態認證
 - **雲端備份** - API 設定與歷史報告同步到伺服器
@@ -287,9 +294,11 @@ docker compose down -v
 ## 📱 使用指南
 
 ### 1. 配置 API 金鑰
+
 點擊右上角「設定」按鈕，輸入您的 API 金鑰。
 
 ### 2. 選擇分析參數
+
 - **市場類型**: 美股 / 台股上市 / 台股上櫃
 - **股票代碼**: 如 NVDA、2330
 - **分析師團隊**: 選擇需要的分析師
@@ -297,14 +306,17 @@ docker compose down -v
 - **LLM 模型**: 快速思維模型 + 深層思維模型
 
 ### 3. 執行分析
+
 點擊「執行分析」，等待 1-5 分鐘（依研究深度而定）。
 
 ### 4. 查看結果
+
 - **交易決策摘要** - BUY / SELL / HOLD 建議
 - **股價走勢圖** - 折線圖 / K 線圖切換
 - **12 位代理報告** - 點擊標籤查看詳細分析
 
 ### 5. 儲存與下載
+
 - **儲存報告** - 保存到本地 / 雲端
 - **下載 PDF 報告** - 匯出完整 PDF 分析報告
 
@@ -319,11 +331,13 @@ docker compose down -v
 ## 🔌 API 文檔
 
 ### 健康檢查
+
 ```bash
 GET /api/health
 ```
 
 ### 執行分析
+
 ```bash
 POST /api/analyze
 Content-Type: application/json
@@ -344,6 +358,7 @@ Content-Type: application/json
 ```
 
 ### 查詢任務狀態
+
 ```bash
 GET /api/task/{task_id}
 ```
@@ -355,25 +370,27 @@ GET /api/task/{task_id}
 ## 🛠️ 技術棧
 
 ### 後端
-| 技術 | 用途 |
-|------|------|
-| FastAPI | 異步 Web 框架 |
-| LangGraph | 多代理工作流編排 |
-| LangChain | LLM 應用開發 |
-| ChromaDB | 向量資料庫（記憶系統）|
-| PostgreSQL | 使用者資料儲存 |
-| SQLAlchemy + asyncpg | 異步資料庫 ORM |
-| Pydantic | 資料驗證 |
+
+| 技術                 | 用途                   |
+| -------------------- | ---------------------- |
+| FastAPI              | 異步 Web 框架          |
+| LangGraph            | 多代理工作流編排       |
+| LangChain            | LLM 應用開發           |
+| ChromaDB             | 向量資料庫（記憶系統） |
+| PostgreSQL           | 使用者資料儲存         |
+| SQLAlchemy + asyncpg | 異步資料庫 ORM         |
+| Pydantic             | 資料驗證               |
 
 ### 前端
-| 技術 | 用途 |
-|------|------|
-| Next.js 16 | React 全端框架 |
-| TypeScript | 靜態型別 |
-| Tailwind CSS | 樣式框架 |
-| shadcn/ui | UI 組件庫 |
-| Dexie.js | IndexedDB 封裝 |
-| Recharts | 資料視覺化 |
+
+| 技術         | 用途           |
+| ------------ | -------------- |
+| Next.js 16   | React 全端框架 |
+| TypeScript   | 靜態型別       |
+| Tailwind CSS | 樣式框架       |
+| shadcn/ui    | UI 組件庫      |
+| Dexie.js     | IndexedDB 封裝 |
+| Recharts     | 資料視覺化     |
 
 ---
 
@@ -385,11 +402,12 @@ GET /api/task/{task_id}
 
 ---
 
-### API配置頁面
+### API 配置頁面
 
 ![API配置頁面](web_screenshot/2.png)
 
 ---
+
 ### 任務配置頁面
 
 ![任務配置頁面](web_screenshot/3.png)
@@ -429,13 +447,11 @@ GET /api/task/{task_id}
 
 ### 社群媒體分析師報告
 
-
 ![社群媒體分析師報告](web_screenshot/8.png)
 
 ---
 
 ### 新聞分析師報告
-
 
 ![新聞分析師報告](web_screenshot/9.png)
 
@@ -443,13 +459,11 @@ GET /api/task/{task_id}
 
 ### 基本面分析師報告
 
-
 ![基本面分析師報告](web_screenshot/10.png)
 
 ---
 
 ### 看漲研究員報告
-
 
 ![看漲研究員報告](web_screenshot/11.png)
 
@@ -457,13 +471,11 @@ GET /api/task/{task_id}
 
 ### 看跌研究員報告
 
-
 ![看跌研究員報告](web_screenshot/12.png)
 
 ---
 
 ### 研究經理報告
-
 
 ![研究經理報告](web_screenshot/13.png)
 
@@ -471,13 +483,11 @@ GET /api/task/{task_id}
 
 ### 交易員報告
 
-
 ![交易員報告](web_screenshot/14.png)
 
 ---
 
 ### 激進分析師報告
-
 
 ![激進分析師報告](web_screenshot/15.png)
 
@@ -485,20 +495,17 @@ GET /api/task/{task_id}
 
 ### 保守分析師報告
 
-
 ![保守分析師報告](web_screenshot/16.png)
 
 ---
 
 ### 中立分析師報告
 
-
 ![中立分析師報告](web_screenshot/17.png)
 
 ---
 
 ### 風險經理報告
-
 
 ![風險經理報告](web_screenshot/18.png)
 

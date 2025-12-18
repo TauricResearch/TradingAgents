@@ -17,6 +17,16 @@ export default function HomePage() {
         {/* Hero Section */}
         <div className="text-center mb-16 animate-fade-in relative py-8">
           <div className="absolute inset-0 gradient-bg-radial -z-10" />
+          <div className="mb-6">
+            <Image
+              src="/logo.png"
+              alt="TradingAgentsX Logo"
+              width={120}
+              height={120}
+              className="mx-auto rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-300"
+              priority
+            />
+          </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 gradient-text-primary leading-tight">
             TradingAgentsX
           </h1>
