@@ -40,12 +40,14 @@ import { useAuth } from "@/contexts/auth-context";
 import { getCloudSettings, saveCloudSettings, isCloudSyncEnabled } from "@/lib/user-api";
 
 const formSchema = z.object({
-  // Required
-  openai_api_key: z.string().min(1, "OpenAI API Key 為必填"),
+  // All API keys are optional - users only need the ones for their selected models
+  openai_api_key: z.string().optional().or(z.literal("")),
   
-  // Optional
+  // Stock market data APIs
   alpha_vantage_api_key: z.string().optional().or(z.literal("")),  // 美股基本面資料
   finmind_api_key: z.string().optional().or(z.literal("")),  // 台灣股市資料
+  
+  // LLM Providers
   anthropic_api_key: z.string().optional().or(z.literal("")),
   google_api_key: z.string().optional().or(z.literal("")),
   grok_api_key: z.string().optional().or(z.literal("")),
@@ -165,27 +167,11 @@ export function ApiSettingsDialog() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Required Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-primary">必填項目</h3>
-              
-              {/* OpenAI API Key */}
-              <FormField
-                control={form.control}
-                name="openai_api_key"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>OpenAI API Key *</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="sk-..." {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      用於 OpenAI 模型（GPT-4, GPT-5, o4 等）
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* 注意事項 */}
+            <div className="space-y-2">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-blue-800 dark:text-blue-300 text-sm">
+                💡 僅需填寫您選擇的模型供應商的 API。例如，若使用 Claude 模型，只需填寫 Claude API。
+              </div>
             </div>
 
             {/* Stock Market Data APIs Section */}
@@ -239,13 +225,29 @@ export function ApiSettingsDialog() {
               />
             </div>
 
-            {/* Optional LLM Providers Section */}
+            {/* LLM Providers Section */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-lg font-semibold text-muted-foreground">
-                選填項目（其他 LLM 供應商）
+                LLM 模型供應商（依選擇的模型填寫）
               </h3>
 
-              {/* Anthropic API Key */}
+              {/* OpenAI API Key */}
+              <FormField
+                control={form.control}
+                name="openai_api_key"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>OpenAI API Key</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="sk-..." {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      用於 OpenAI 模型（GPT-4, GPT-5, o4 等）及 OpenAI 嵌入式模型
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="anthropic_api_key"

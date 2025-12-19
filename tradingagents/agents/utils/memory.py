@@ -1,12 +1,59 @@
 import os
 import chromadb
 from chromadb.config import Settings
-from openai import OpenAI
 
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        self.embedding = "text-embedding-3-small"
+        """
+        Initialize the memory with configurable embedding provider.
+        
+        Config options:
+            embedding_provider: "local" (default) or "openai"
+            embedding_model: Model name for the embedding provider
+                - For local: "all-MiniLM-L6-v2" (default), "all-mpnet-base-v2", etc.
+                - For OpenAI: "text-embedding-3-small" (default), "text-embedding-3-large", etc.
+            embedding_base_url: Base URL for OpenAI-compatible API (only used when provider is "openai")
+            embedding_api_key: API key for OpenAI (only used when provider is "openai")
+        """
+        self.provider = config.get("embedding_provider", "local").lower()
+        
+        if self.provider == "local":
+            self._init_local_embedding(config)
+        elif self.provider == "openai":
+            self._init_openai_embedding(config)
+        else:
+            raise ValueError(f"Unsupported embedding provider: {self.provider}. Use 'local' or 'openai'.")
+        
+        self.chroma_client = chromadb.Client(Settings(allow_reset=True))
+        self.situation_collection = self.chroma_client.get_or_create_collection(name=name)
+
+    def _init_local_embedding(self, config):
+        """Initialize local embedding using sentence-transformers."""
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise ImportError(
+                "sentence-transformers is required for local embeddings. "
+                "Install it with: pip install sentence-transformers"
+            )
+        
+        # Default to all-MiniLM-L6-v2 - a lightweight and efficient model
+        model_name = config.get("embedding_model", "all-MiniLM-L6-v2")
+        
+        import logging
+        logging.info(f"Loading local embedding model: {model_name}")
+        
+        self.model = SentenceTransformer(model_name)
+        self.embedding_dim = self.model.get_sentence_embedding_dimension()
+        
+        logging.info(f"Local embedding model loaded. Dimension: {self.embedding_dim}")
+
+    def _init_openai_embedding(self, config):
+        """Initialize OpenAI embedding client."""
+        from openai import OpenAI
+        
+        self.embedding_model = config.get("embedding_model", "text-embedding-3-small")
         
         # Get embedding configuration from config, with fallbacks
         embedding_base_url = config.get("embedding_base_url", "https://api.openai.com/v1")
@@ -23,23 +70,37 @@ class FinancialSituationMemory:
                     import logging
                     logging.warning("Using LLM API key for embeddings. Consider setting embedding_api_key or OPENAI_API_KEY.")
         
+        if not embedding_api_key:
+            raise ValueError(
+                "OpenAI API key is required for OpenAI embeddings. "
+                "Set 'embedding_api_key' in config or OPENAI_API_KEY environment variable, "
+                "or use 'embedding_provider': 'local' for local embeddings without API key."
+            )
+        
         # Use configured endpoint for embeddings
         self.client = OpenAI(base_url=embedding_base_url, api_key=embedding_api_key)
-        self.chroma_client = chromadb.Client(Settings(allow_reset=True))
-        self.situation_collection = self.chroma_client.get_or_create_collection(name=name)
 
     def get_embedding(self, text):
-        """Get OpenAI embedding for a text"""
+        """Get embedding for a text using the configured provider."""
         # Truncate text to avoid exceeding embedding model's token limit
-        # text-embedding-3-small has 8192 token limit
-        # For mixed Chinese/English text, estimate ~1.5-2 tokens per character
-        # Target: ~4000 characters to stay well under 8192 tokens
         max_chars = 4000
         if len(text) > max_chars:
             text = text[:max_chars]
         
+        if self.provider == "local":
+            return self._get_local_embedding(text)
+        else:
+            return self._get_openai_embedding(text)
+
+    def _get_local_embedding(self, text):
+        """Get embedding using local sentence-transformers model."""
+        embedding = self.model.encode(text, normalize_embeddings=True)
+        return embedding.tolist()
+
+    def _get_openai_embedding(self, text):
+        """Get embedding using OpenAI API."""
         response = self.client.embeddings.create(
-            model=self.embedding, input=text
+            model=self.embedding_model, input=text
         )
         return response.data[0].embedding
 
@@ -67,7 +128,7 @@ class FinancialSituationMemory:
         )
 
     def get_memories(self, current_situation, n_matches=1):
-        """Find matching recommendations using OpenAI embeddings"""
+        """Find matching recommendations using embeddings"""
         query_embedding = self.get_embedding(current_situation)
 
         results = self.situation_collection.query(
@@ -90,8 +151,13 @@ class FinancialSituationMemory:
 
 
 if __name__ == "__main__":
-    # Example usage
-    matcher = FinancialSituationMemory()
+    # Example usage with local embedding (no API key required!)
+    config = {
+        "embedding_provider": "local",  # Use local model, no API key needed
+        "embedding_model": "all-MiniLM-L6-v2",  # Lightweight and efficient
+    }
+    
+    matcher = FinancialSituationMemory("test_memory", config)
 
     # Example data
     example_data = [
@@ -114,7 +180,9 @@ if __name__ == "__main__":
     ]
 
     # Add the example situations and recommendations
+    print("Adding example situations...")
     matcher.add_situations(example_data)
+    print("Done!")
 
     # Example query
     current_situation = """
@@ -123,6 +191,7 @@ if __name__ == "__main__":
     """
 
     try:
+        print("\nSearching for recommendations...")
         recommendations = matcher.get_memories(current_situation, n_matches=2)
 
         for i, rec in enumerate(recommendations, 1):

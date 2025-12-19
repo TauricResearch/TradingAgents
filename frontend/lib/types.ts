@@ -20,6 +20,7 @@ export interface AnalysisRequest {
   deep_think_api_key?: string;
   embedding_base_url?: string;
   embedding_api_key?: string;
+  embedding_model?: string;  // Embedding model: 'all-MiniLM-L6-v2' (local), 'text-embedding-3-small' (OpenAI), etc.
   alpha_vantage_api_key?: string;
   finmind_api_key?: string;  // 台灣股市資料 API
 }

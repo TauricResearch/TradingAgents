@@ -46,9 +46,13 @@ class AnalysisRequest(BaseModel):
     deep_think_api_key: Optional[str] = Field(None, description="API Key for Deep Thinking Model", min_length=0)
     embedding_base_url: Optional[str] = Field(
         default="https://api.openai.com/v1",
-        description="Base URL for Embedding Model"
+        description="Base URL for Embedding Model (only used for OpenAI embeddings)"
     )
-    embedding_api_key: Optional[str] = Field(None, description="API Key for Embedding Model", min_length=0)
+    embedding_api_key: Optional[str] = Field(None, description="API Key for Embedding Model (only used for OpenAI embeddings)", min_length=0)
+    embedding_model: Optional[str] = Field(
+        default="all-MiniLM-L6-v2",
+        description="Embedding model: 'all-MiniLM-L6-v2' (local, no API key), 'text-embedding-3-small' (OpenAI), etc."
+    )
     alpha_vantage_api_key: Optional[str] = Field(
         None,
         description="Alpha Vantage API Key (optional, for US stock fundamental data)",

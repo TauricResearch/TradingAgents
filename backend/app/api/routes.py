@@ -104,6 +104,7 @@ async def run_analysis(
                 deep_think_api_key=request.deep_think_api_key or "",
                 embedding_base_url=request.embedding_base_url,
                 embedding_api_key=request.embedding_api_key or "",
+                embedding_model=request.embedding_model or "all-MiniLM-L6-v2",
                 alpha_vantage_api_key=request.alpha_vantage_api_key or "",
                 finmind_api_key=request.finmind_api_key or "",
             ))
@@ -166,7 +167,7 @@ async def cleanup_task(task_id: str):
     after the user has saved the results locally or to cloud storage.
     This helps keep Redis storage clean and reduces memory usage.
     
-    Note: Tasks are also automatically cleaned up 10 minutes after
+    Note: Tasks are also automatically cleaned up 1 hour after
     completion/failure, so calling this endpoint is optional but recommended.
     
     Args:

@@ -50,6 +50,7 @@ class TradingService:
         deep_think_api_key: Optional[str] = None,
         embedding_base_url: str = "https://api.openai.com/v1",
         embedding_api_key: Optional[str] = None,
+        embedding_model: str = "all-MiniLM-L6-v2",  # Default to local model
         alpha_vantage_api_key: Optional[str] = None,
         finmind_api_key: Optional[str] = None,  # 台灣股市資料 API
         market_type: str = "us",  # 市場類型：us (美股) 或 tw (台股)
@@ -132,8 +133,23 @@ class TradingService:
                 # Note: For non-OpenAI providers, the user MUST provide the specific key if it differs from the shared one.
                 config["quick_think_api_key"] = quick_think_api_key if quick_think_api_key else openai_api_key
                 config["deep_think_api_key"] = deep_think_api_key if deep_think_api_key else openai_api_key
-                config["embedding_base_url"] = normalize_base_url(embedding_base_url)
-                config["embedding_api_key"] = embedding_api_key if embedding_api_key else openai_api_key
+                
+                # Embedding configuration: determine provider based on model name
+                local_embedding_models = ["all-MiniLM-L6-v2", "all-mpnet-base-v2"]
+                is_local_embedding = embedding_model in local_embedding_models
+                
+                if is_local_embedding:
+                    # Local embedding: use sentence-transformers (no API key needed)
+                    config["embedding_provider"] = "local"
+                    config["embedding_model"] = embedding_model
+                    logger.info(f"Using local embedding model: {embedding_model}")
+                else:
+                    # OpenAI embedding: requires API key
+                    config["embedding_provider"] = "openai"
+                    config["embedding_model"] = embedding_model
+                    config["embedding_base_url"] = normalize_base_url(embedding_base_url)
+                    config["embedding_api_key"] = embedding_api_key if embedding_api_key else openai_api_key
+                    logger.info(f"Using OpenAI embedding model: {embedding_model}")
                 
                 # 根據 market_type 設定資料供應商
                 if market_type in ["twse", "tpex"]:

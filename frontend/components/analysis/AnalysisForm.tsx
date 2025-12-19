@@ -52,6 +52,7 @@ const formSchema = z.object({
   research_depth: z.number().int().min(1).max(5),
   quick_think_llm: z.string().min(1, "請選擇快速思維模型"),
   deep_think_llm: z.string().min(1, "請選擇深層思維模型"),
+  embedding_model: z.string().min(1, "請選擇嵌入式模型"),
 
   // Market type selection: us=美股, twse=上市, tpex=上櫃/興櫃
   market_type: z.enum(["us", "twse", "tpex"]),
@@ -71,14 +72,14 @@ const formSchema = z.object({
     .url("請輸入有效的 URL")
     .optional()
     .or(z.literal("")),
-  quick_think_api_key: z.string().min(1, "請輸入快速思維模型 API Key"),
-  deep_think_api_key: z.string().min(1, "請輸入深層思維模型 API Key"),
+  quick_think_api_key: z.string().optional().or(z.literal("")),
+  deep_think_api_key: z.string().optional().or(z.literal("")),
   embedding_base_url: z
     .string()
     .url("請輸入有效的 URL")
     .optional()
     .or(z.literal("")),
-  embedding_api_key: z.string().min(1, "請輸入嵌入模型 API Key"),
+  embedding_api_key: z.string().optional().or(z.literal("")), // 本地模型不需要 API Key
   alpha_vantage_api_key: z.string().optional().or(z.literal("")), // 選填
   finmind_api_key: z.string().optional().or(z.literal("")), // 選填
 });
@@ -106,6 +107,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
       market_type: "us", // 預設美股
       quick_think_llm: "gpt-5-mini",
       deep_think_llm: "gpt-5-mini",
+      embedding_model: "all-MiniLM-L6-v2", // 預設使用本地開源模型
       custom_quick_think_model: "",
       custom_deep_think_model: "",
       quick_think_base_url: "https://api.openai.com/v1",
@@ -122,9 +124,11 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
   // Load API settings from localStorage and update when models change
   const quickThinkLlm = form.watch("quick_think_llm");
   const deepThinkLlm = form.watch("deep_think_llm");
+  const embeddingModel = form.watch("embedding_model");
   const marketType = form.watch("market_type");
   const isQuickThinkCustom = quickThinkLlm === "custom";
   const isDeepThinkCustom = deepThinkLlm === "custom";
+  const isLocalEmbedding = ["all-MiniLM-L6-v2", "all-mpnet-base-v2"].includes(embeddingModel);
 
   useEffect(() => {
     // Use async version to get decrypted API keys
@@ -169,14 +173,20 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
         );
       }
 
-      form.setValue(
-        "embedding_base_url",
-        savedSettings.custom_base_url || "https://api.openai.com/v1"
-      );
-      form.setValue(
-        "embedding_api_key",
-        savedSettings.custom_api_key || savedSettings.openai_api_key
-      );
+      // 本地模型不需要設定 API Key 和 Base URL
+      if (!isLocalEmbedding) {
+        form.setValue(
+          "embedding_base_url",
+          savedSettings.custom_base_url || "https://api.openai.com/v1"
+        );
+        form.setValue(
+          "embedding_api_key",
+          savedSettings.custom_api_key || savedSettings.openai_api_key
+        );
+      } else {
+        form.setValue("embedding_base_url", "");
+        form.setValue("embedding_api_key", "");
+      }
       form.setValue(
         "alpha_vantage_api_key",
         savedSettings.alpha_vantage_api_key || ""
@@ -186,7 +196,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
 
     loadSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quickThinkLlm, deepThinkLlm, isQuickThinkCustom, isDeepThinkCustom]);
+  }, [quickThinkLlm, deepThinkLlm, embeddingModel, isQuickThinkCustom, isDeepThinkCustom, isLocalEmbedding]);
 
   // 當市場類型改變時，更新預設股票代碼和提示
   useEffect(() => {
@@ -250,6 +260,17 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
         type: "manual",
         message: "請輸入深層思維模型的完整名稱",
       });
+      return;
+    }
+
+    // Validate API keys are set (they come from localStorage/settings)
+    if (!values.quick_think_api_key) {
+      alert("請先在右上角「設定」中設定您的 API Key。\n\n快速思維模型需要對應的 API Key 才能運作。");
+      return;
+    }
+    
+    if (!values.deep_think_api_key) {
+      alert("請先在右上角「設定」中設定您的 API Key。\n\n深層思維模型需要對應的 API Key 才能運作。");
       return;
     }
 
@@ -444,8 +465,8 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                 />
               </div>
 
-              {/* 第二行：研究深度、快速思維模型、深層思維模型（3列） */}
-              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* 第二行：研究深度、快速思維模型、深層思維模型、嵌入式模型（4列） */}
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-4 gap-6">
                 <FormField
                   control={form.control}
                   name="research_depth"
@@ -764,6 +785,50 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     )}
                   />
                 )}
+
+                {/* 嵌入式模型 */}
+                <FormField
+                  control={form.control}
+                  name="embedding_model"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>嵌入式模型</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="選擇嵌入式模型" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {/* 本地開源模型 (不需要 API Key) */}
+                          <SelectItem value="all-MiniLM-L6-v2">
+                            🖥️ 本地: all-MiniLM-L6-v2 (推薦)
+                          </SelectItem>
+                          <SelectItem value="all-mpnet-base-v2">
+                            🖥️ 本地: all-mpnet-base-v2
+                          </SelectItem>
+                          
+                          {/* OpenAI API 模型 (需要 API Key) */}
+                          <SelectItem value="text-embedding-3-small">
+                            ☁️ OpenAI: text-embedding-3-small
+                          </SelectItem>
+                          <SelectItem value="text-embedding-3-large">
+                            ☁️ OpenAI: text-embedding-3-large
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {isLocalEmbedding 
+                          ? "🆓 本地模型不需 API Key" 
+                          : "☁️ 需要 OpenAI API Key"}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
 
