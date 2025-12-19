@@ -1,0 +1,71 @@
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import time
+import json
+from tradingagents.agents.utils.seeking_alpha_tools import get_seeking_alpha_pdfs
+from tradingagents.dataflows.config import get_config
+
+
+def create_seeking_alpha_analyst(llm):
+    def seeking_alpha_analyst_node(state):
+        current_date = state["trade_date"]
+        ticker = state["company_of_interest"]
+        company_name = state["company_of_interest"]
+
+        tools = [
+            get_seeking_alpha_pdfs,
+        ]
+
+        system_message = (
+            "You are a research analyst specializing in analyzing Seeking Alpha reports and research documents. "
+            "Your role is to extract and analyze key insights from PDF research documents about companies. "
+            "These documents typically contain detailed analysis, financial projections, investment theses, and expert opinions. "
+            "Please read through the PDF documents carefully and write a comprehensive report that includes:\n"
+            "- Key investment theses and arguments presented\n"
+            "- Financial analysis and projections mentioned\n"
+            "- Risk factors and concerns highlighted\n"
+            "- Expert opinions and recommendations\n"
+            "- Any quantitative metrics or data points\n"
+            "- Overall sentiment and outlook\n\n"
+            "Make sure to provide detailed and nuanced analysis. Do not simply state that the information is mixed - "
+            "provide specific insights, numbers, and detailed analysis that may help traders make decisions. "
+            "Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
+        )
+
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are a helpful AI assistant, collaborating with other assistants."
+                    " Use the provided tools to progress towards answering the question."
+                    " If you are unable to fully answer, that's OK; another assistant with different tools"
+                    " will help where you left off. Execute what you can to make progress."
+                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
+                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
+                    " You have access to the following tools: {tool_names}.\n{system_message}"
+                    "For your reference, the current date is {current_date}. The company we want to look at is {ticker}",
+                ),
+                MessagesPlaceholder(variable_name="messages"),
+            ]
+        )
+
+        prompt = prompt.partial(system_message=system_message)
+        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
+        prompt = prompt.partial(current_date=current_date)
+        prompt = prompt.partial(ticker=ticker)
+
+        chain = prompt | llm.bind_tools(tools)
+
+        result = chain.invoke(state["messages"])
+
+        report = ""
+
+        if len(result.tool_calls) == 0:
+            report = result.content
+       
+        return {
+            "messages": [result],
+            "seeking_alpha_report": report,
+        }
+
+    return seeking_alpha_analyst_node
+
