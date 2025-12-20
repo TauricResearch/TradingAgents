@@ -2,30 +2,30 @@
   "name": "TradingAgentsX",
   "short_name": "TAX",
   "description": "由 AI 驅動的多代理 LLM 金融交易框架",
-  "start_url": "/?v=1766059957",
+  "start_url": "/?v=1734660000",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#6B21A8",
   "icons": [
     {
-      "src": "/favicon-v7.png?t=1766059957",
+      "src": "/favicon-v8.png?t=1734660000",
       "sizes": "32x32",
       "type": "image/png"
     },
     {
-      "src": "/icon-192-v7.png?t=1766059957",
+      "src": "/icon-192-v8.png?t=1734660000",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512-v7.png?t=1766059957",
+      "src": "/icon-512-v8.png?t=1734660000",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-v7.png?t=1766059957",
+      "src": "/icon-v8.png?t=1734660000",
       "sizes": "1024x1024",
       "type": "image/png"
     }
