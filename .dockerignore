@@ -2,12 +2,15 @@
 .git
 .gitignore
 
-# Ignore backend files from root
-
+# Ignore frontend files (not needed for backend)
+frontend/node_modules
+frontend/.next
+frontend/out
+frontend/.turbo
 
 # Ignore documentation
 README.md
-*.md
+docs/
 
 # Ignore results and cache
 results/
@@ -17,10 +20,13 @@ __pycache__/
 *.pyd
 .pytest_cache/
 .coverage
+.mypy_cache/
+.ruff_cache/
 
 # Environment files
 .env
 .env.*
+!.env.example
 
 # Ignore development files
 .vscode/
@@ -30,3 +36,22 @@ __pycache__/
 
 # Ignore Mac files
 .DS_Store
+
+# Ignore test files
+**/tests/
+**/test_*.py
+**/*_test.py
+
+# Ignore assets not needed for backend
+assets/
+web_screenshot/
+llm_logo/
+report/
+
+# Ignore lock files (use requirements.txt)
+uv.lock
+poetry.lock
+
+# Ignore CLI (if not needed)
+cli/
+
