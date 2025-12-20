@@ -70,6 +70,11 @@ export default function RootLayout({
         />
         <meta name="apple-mobile-web-app-title" content="TAgentsX" />
         {/* Timestamp forces iOS Safari to reload new icons */}
+        {/* Precomposed version for iOS Safari Favorites */}
+        <link
+          rel="apple-touch-icon-precomposed"
+          href="/apple-touch-icon-v7.png?t=20241220"
+        />
         <link
           rel="apple-touch-icon"
           href="/apple-touch-icon-v7.png?t=20241220"
