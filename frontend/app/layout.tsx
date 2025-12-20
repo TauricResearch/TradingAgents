@@ -14,27 +14,27 @@ export const metadata: Metadata = {
   description: "由 AI 驅動的多代理 LLM 金融交易框架",
   icons: {
     icon: [
-      { url: "/favicon-v7.png?t=20241218", sizes: "32x32" },
+      { url: "/favicon-v7.png?t=20241220", sizes: "32x32" },
       {
-        url: "/icon-192-v7.png?t=20241218",
+        url: "/icon-192-v7.png?t=20241220",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        url: "/icon-512-v7.png?t=20241218",
+        url: "/icon-512-v7.png?t=20241220",
         sizes: "512x512",
         type: "image/png",
       },
-      { url: "/icon-v7.png?t=20241218", sizes: "1024x1024", type: "image/png" },
+      { url: "/icon-v7.png?t=20241220", sizes: "1024x1024", type: "image/png" },
     ],
     apple: [
       {
-        url: "/apple-touch-icon-v7.png?t=20241218",
+        url: "/apple-touch-icon-v7.png?t=20241220",
         sizes: "180x180",
         type: "image/png",
       },
     ],
-    shortcut: "/favicon-v7.png?t=20241218",
+    shortcut: "/favicon-v7.png?t=20241220",
   },
   appleWebApp: {
     capable: true,
@@ -61,7 +61,7 @@ export default function RootLayout({
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
-        <link rel="manifest" href="/manifest.json?v=20241218" />
+        <link rel="manifest" href="/manifest.json?v=20241220" />
         <meta name="theme-color" content="#6B21A8" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
@@ -72,40 +72,40 @@ export default function RootLayout({
         {/* Timestamp forces iOS Safari to reload new icons */}
         <link
           rel="apple-touch-icon"
-          href="/apple-touch-icon-v7.png?t=20241218"
+          href="/apple-touch-icon-v7.png?t=20241220"
         />
         <link
           rel="apple-touch-icon"
           sizes="180x180"
-          href="/apple-touch-icon-v7.png?t=20241218"
+          href="/apple-touch-icon-v7.png?t=20241220"
         />
         <link
           rel="apple-touch-icon"
           sizes="152x152"
-          href="/apple-touch-icon-v7.png?t=20241218"
+          href="/apple-touch-icon-v7.png?t=20241220"
         />
         <link
           rel="apple-touch-icon"
           sizes="120x120"
-          href="/apple-touch-icon-v7.png?t=20241218"
+          href="/apple-touch-icon-v7.png?t=20241220"
         />
         <link
           rel="icon"
           type="image/png"
           sizes="32x32"
-          href="/favicon-v7.png?t=20241218"
+          href="/favicon-v7.png?t=20241220"
         />
         <link
           rel="icon"
           type="image/png"
           sizes="192x192"
-          href="/icon-192-v7.png?t=20241218"
+          href="/icon-192-v7.png?t=20241220"
         />
         <link
           rel="icon"
           type="image/png"
           sizes="512x512"
-          href="/icon-512-v7.png?t=20241218"
+          href="/icon-512-v7.png?t=20241220"
         />
       </head>
       <body className={inter.className}>
