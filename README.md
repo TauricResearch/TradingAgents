@@ -36,6 +36,7 @@
 | 🛡️ **安全防護**          | Rate Limiting、Security Headers、API Key 遮罩                   |
 | 📱 **響應式設計**        | 支援桌面與手機瀏覽器                                            |
 | 🐳 **Docker 部署**       | 一鍵啟動前後端服務                                              |
+| 🧠 **Embeddings 模型選擇** | 支援 sentence-transformers（本地免費）或 OpenAI embeddings      |
 
 ---
 

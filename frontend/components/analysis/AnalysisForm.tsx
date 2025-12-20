@@ -805,18 +805,18 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                         <SelectContent>
                           {/* 本地開源模型 (不需要 API Key) */}
                           <SelectItem value="all-MiniLM-L6-v2">
-                            🖥️ 本地: all-MiniLM-L6-v2 (推薦)
+                            🖥️：all-MiniLM-L6-v2
                           </SelectItem>
                           <SelectItem value="all-mpnet-base-v2">
-                            🖥️ 本地: all-mpnet-base-v2
+                            🖥️：all-mpnet-base-v2
                           </SelectItem>
                           
                           {/* OpenAI API 模型 (需要 API Key) */}
                           <SelectItem value="text-embedding-3-small">
-                            ☁️ OpenAI: text-embedding-3-small
+                            ☁️：text-embedding-3-small
                           </SelectItem>
                           <SelectItem value="text-embedding-3-large">
-                            ☁️ OpenAI: text-embedding-3-large
+                            ☁️：text-embedding-3-large
                           </SelectItem>
                         </SelectContent>
                       </Select>
