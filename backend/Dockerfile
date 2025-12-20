@@ -21,7 +21,7 @@ COPY backend/requirements.txt .
 
 # Install Python dependencies with BuildKit cache mount
 # This caches downloaded packages between builds, dramatically speeding up rebuilds
-RUN --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     pip install --prefer-binary -r requirements.txt
 
 # Production stage
