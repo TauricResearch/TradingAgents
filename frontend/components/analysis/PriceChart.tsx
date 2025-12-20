@@ -154,7 +154,10 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                   tickFormatter={(value) => `$${value.toFixed(0)}`}
                 />
                 <Tooltip 
-                  formatter={(value: number) => [`$${formatNumber(value)}`, '收盤價']}
+                  formatter={(value: number | undefined) => [
+                    value !== undefined ? `$${formatNumber(value)}` : '-', 
+                    '收盤價'
+                  ]}
                   labelFormatter={(label) => `日期: ${label}`}
                 />
                 <Line 
@@ -242,7 +245,10 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                 }}
               />
               <Tooltip 
-                formatter={(value: number) => [value.toLocaleString(), '交易量']}
+                formatter={(value: number | undefined) => [
+                  value !== undefined ? value.toLocaleString() : '-', 
+                  '交易量'
+                ]}
                 labelFormatter={(label) => `日期: ${label}`}
               />
               <Bar dataKey="Volume" fill="#93c5fd" name="交易量" />
