@@ -29,7 +29,7 @@ from tradingagents.graph.trading_graph import TradingAgentsXGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
-from cli.utils import select_market
+from cli.utils import select_market, select_embedding_model
 
 # 初始化 rich Console
 console = Console()
@@ -519,6 +519,14 @@ def get_user_selections():
     )
     embedding_provider, embedding_url = select_embedding_provider()
     
+    # 步驟 8.5：選擇具體的嵌入模型
+    console.print(
+        create_question_box(
+            "步驟 8.5：嵌入模型", "選擇具體的嵌入模型"
+        )
+    )
+    selected_embedding_model = select_embedding_model(embedding_provider)
+    
     # 步驟 9：API Keys
     console.print(
         create_question_box(
@@ -570,7 +578,15 @@ def get_user_selections():
     
     default_quick_think_key = get_provider_api_key(quick_think_provider)
     default_deep_think_key = get_provider_api_key(deep_think_provider)
-    default_embedding_key = get_provider_api_key(embedding_provider)
+    
+    # 本地嵌入模型不需要 API Key
+    is_local_embedding = embedding_url == "local"
+    if is_local_embedding:
+        console.print("\n[green]✓ 本地嵌入模型無需 API Key[/green]")
+        default_embedding_key = None
+        embedding_api_key = None
+    else:
+        default_embedding_key = get_provider_api_key(embedding_provider)
     
     # 快速思維模型 API Key
     quick_think_api_key = get_api_key("快速思維模型", default_quick_think_key)
@@ -578,8 +594,9 @@ def get_user_selections():
     # 深度思維模型 API Key
     deep_think_api_key = get_api_key("深度思維模型", default_deep_think_key)
     
-    # 嵌入模型 API Key
-    embedding_api_key = get_api_key("嵌入模型", default_embedding_key)
+    # 嵌入模型 API Key（僅在非本地模型時詢問）
+    if not is_local_embedding:
+        embedding_api_key = get_api_key("嵌入模型", default_embedding_key)
     
     # Alpha Vantage API Key（必填）
     alpha_vantage_key = os.getenv("ALPHA_VANTAGE_API_KEY")
@@ -601,6 +618,7 @@ def get_user_selections():
         "market_type": selected_market,
         "embedding_provider": embedding_provider,
         "embedding_url": embedding_url,
+        "embedding_model": selected_embedding_model,
         "quick_think_api_key": quick_think_api_key,
         "deep_think_api_key": deep_think_api_key,
         "embedding_api_key": embedding_api_key,
