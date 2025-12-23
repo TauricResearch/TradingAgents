@@ -27,7 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Eye, RefreshCw, TrendingUp, CloudOff, FileText, Download } from "lucide-react";
+import { Trash2, Eye, RefreshCw, TrendingUp, FileText, Download } from "lucide-react";
 import {
   getReportsByMarketType,
   deleteReport,
@@ -35,7 +35,7 @@ import {
   type SavedReport,
 } from "@/lib/reports-db";
 import { getCloudReports, deleteCloudReport, saveCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
-import { LoginPrompt } from "@/components/auth/login-button";
+// import { LoginPrompt } from "@/components/auth/login-button";
 import { PendingTaskRecovery } from "@/components/PendingTaskRecovery";
 
 // Analyst definitions for download
@@ -424,13 +424,29 @@ export default function HistoryPage() {
 
     setDeleting(true);
     try {
-      // If this is cloud data, delete from cloud
       const cloudId = (reportToDelete as any).cloudId;
-      if (isCloudData && cloudId) {
+      
+      // IMPORTANT: Delete from BOTH cloud AND local to prevent re-sync issues
+      // 1. If cloud ID exists, delete from cloud
+      if (cloudId) {
+        console.log("🗑️ Deleting from cloud:", cloudId);
         await deleteCloudReport(cloudId);
-      } else if (reportToDelete.id) {
-        // Delete from local IndexedDB
-        await deleteReport(reportToDelete.id);
+      }
+      
+      // 2. Always try to delete from local IndexedDB as well
+      // Find matching local report by ticker + analysis_date
+      try {
+        const localReports = await getReportsByMarketType(reportToDelete.market_type);
+        const matchingLocal = localReports.find(
+          r => r.ticker === reportToDelete.ticker && 
+               r.analysis_date === reportToDelete.analysis_date
+        );
+        if (matchingLocal && matchingLocal.id) {
+          console.log("🗑️ Deleting from local IndexedDB:", matchingLocal.id);
+          await deleteReport(matchingLocal.id);
+        }
+      } catch (localError) {
+        console.warn("Could not delete local copy:", localError);
       }
       
       // Refresh reports and counts
