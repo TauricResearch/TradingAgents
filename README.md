@@ -178,8 +178,7 @@ TradingAgentsX/
 ### 前置要求
 
 - **Python** 3.10+
-- **Node.js** 18.x+
-- **pnpm** 或 npm
+- **Node.js** 18.x+ 或 **Bun** 1.x+
 
 ### 必要的 API 金鑰
 
@@ -225,11 +224,11 @@ python -m backend
 #### 3️⃣ 前端設置
 
 ```bash
-# 安裝依賴
-pnpm -C frontend install
+# 安裝依賴（從專案根目錄執行）
+bun install --cwd frontend
 
 # 啟動開發伺服器
-pnpm -C frontend dev
+bun run --cwd frontend dev
 ```
 
 前端應用: http://localhost:3000
