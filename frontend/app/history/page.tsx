@@ -506,6 +506,46 @@ export default function HistoryPage() {
         return;
       }
       
+      // Detect report language based on trader's final decision keywords
+      // This ensures PDF language matches the report content, not UI language
+      const detectReportLanguage = (reports: any): 'zh-TW' | 'en' => {
+        const traderPlan = reports?.trader_investment_plan;
+        if (!traderPlan || typeof traderPlan !== 'string') {
+          return 'zh-TW'; // Default to Chinese
+        }
+        
+        // Chinese decision keywords: 買入, 賣出, 持有
+        const chineseKeywords = ['買入', '賣出', '持有'];
+        // English decision keywords: buy, sell, hold (case insensitive)
+        const englishKeywords = ['buy', 'sell', 'hold'];
+        
+        const lowerPlan = traderPlan.toLowerCase();
+        
+        // Check for Chinese keywords first
+        for (const keyword of chineseKeywords) {
+          if (traderPlan.includes(keyword)) {
+            return 'zh-TW';
+          }
+        }
+        
+        // Check for English keywords
+        for (const keyword of englishKeywords) {
+          if (lowerPlan.includes(keyword)) {
+            return 'en';
+          }
+        }
+        
+        // Fallback: check for any Chinese characters
+        const chineseRegex = /[\u4e00-\u9fa5]/;
+        if (chineseRegex.test(traderPlan)) {
+          return 'zh-TW';
+        }
+        
+        return 'en';
+      };
+      
+      const reportLanguage = detectReportLanguage(report.result.reports);
+      
       // Build request body
       const requestBody = {
         ticker: report.ticker,
@@ -514,7 +554,7 @@ export default function HistoryPage() {
         reports: report.result.reports,
         price_data: report.result.price_data,
         price_stats: report.result.price_stats,
-        language: locale,  // Pass current language for PDF generation
+        language: reportLanguage,  // Use detected language based on trader decision
       };
       
       const response = await fetch('/api/download/reports', {

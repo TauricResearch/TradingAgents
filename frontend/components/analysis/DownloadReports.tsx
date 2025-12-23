@@ -49,15 +49,43 @@ export function DownloadReports({
     return path.split('.').reduce((current, key) => current?.[key], obj);
   };
 
-  // Helper to detect if content contains Chinese characters
-  const detectContentLanguage = (data: any): 'zh-TW' | 'en' | null => {
+  // Helper to detect report language based on trader's final decision keywords
+  // This ensures PDF language matches the report content language, not UI language
+  const detectReportLanguage = (data: any): 'zh-TW' | 'en' | null => {
     try {
-      const contentStr = JSON.stringify(data);
-      // Check for Chinese characters (Unicode range \u4e00-\u9fa5)
+      // Get trader's investment plan (final decision)
+      const traderPlan = data?.trader_investment_plan;
+      if (!traderPlan || typeof traderPlan !== 'string') {
+        return null;
+      }
+
+      // Chinese decision keywords: 買入, 賣出, 持有
+      const chineseKeywords = ['買入', '賣出', '持有'];
+      // English decision keywords: buy, sell, hold (case insensitive)
+      const englishKeywords = ['buy', 'sell', 'hold'];
+
+      const lowerPlan = traderPlan.toLowerCase();
+
+      // Check for Chinese keywords first
+      for (const keyword of chineseKeywords) {
+        if (traderPlan.includes(keyword)) {
+          return 'zh-TW';
+        }
+      }
+
+      // Check for English keywords
+      for (const keyword of englishKeywords) {
+        if (lowerPlan.includes(keyword)) {
+          return 'en';
+        }
+      }
+
+      // Fallback: check for any Chinese characters as secondary detection
       const chineseRegex = /[\u4e00-\u9fa5]/;
-      if (chineseRegex.test(contentStr)) {
+      if (chineseRegex.test(traderPlan)) {
         return 'zh-TW';
       }
+
       return 'en';
     } catch (e) {
       return null;
@@ -80,8 +108,8 @@ export function DownloadReports({
     try {
       // Build request body with all available analysts
       // Always use direct mode when reports data is available (task may be cleaned up from Redis)
-      // Detect content language
-      const contentLang = detectContentLanguage(reports);
+      // Detect report language based on trader's final decision keywords
+      const contentLang = detectReportLanguage(reports);
       // Use detected language if available, otherwise fallback to prop or current locale
       // This ensures that if reports are in Chinese, the PDF headers will also be in Chinese
       // even if the UI is in English
