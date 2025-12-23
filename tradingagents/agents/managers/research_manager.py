@@ -12,39 +12,26 @@ from tenacity import (
 )
 from anthropic._exceptions import OverloadedError
 from tradingagents.agents.utils.output_filter import fix_common_llm_errors, validate_and_warn
+from tradingagents.agents.utils.prompts import get_research_manager_prompt
 
-# 設置日誌記錄器
 logger = logging.getLogger(__name__)
 
 
-def create_research_manager(llm, memory):
+def create_research_manager(llm, memory, language: str = "zh-TW"):
     """
     建立一個研究管理員（裁判）節點。
-
-    這個節點扮演投資組合經理和辯論主持人的角色。
-    其任務是評估看漲和看跌分析師之間的辯論，並做出最終的投資決策
-    （與看跌方一致、與看漲方一致，或在有充分理由時選擇持有）。
-    它還需要制定一個詳細的投資計畫給交易員。
 
     Args:
         llm: 用於生成決策和計畫的語言模型。
         memory: 儲存過去情況和反思的記憶體物件。
+        language: 報告語言 ('en' 或 'zh-TW')
 
     Returns:
-        function: 一個代表研究管理員節點的函式，可在 langgraph 中使用。
+        function: 一個代表研究管理員節點的函式。
     """
 
     def research_manager_node(state) -> dict:
-        """
-        研究管理員節點的執行函式。
-
-        Args:
-            state (dict): 當前的圖狀態。
-
-        Returns:
-            dict: 更新後的狀態，包含裁判的決策和投資計畫。
-        """
-        # 從狀態中獲取所需資訊
+        """研究管理員節點的執行函式。"""
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
         
@@ -53,115 +40,52 @@ def create_research_manager(llm, memory):
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        # 定義文本截斷函數以避免超過 token 限制 - 移除截斷邏輯以保留完整報告內容
-        # 為每個報告設置合理的字符限制 - 移除，保留完整報告
-        
-        # 整合當前情況
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         
-        # 從記憶體中獲取過去相似情況的經驗
         past_memories = memory.get_memories(curr_situation, n_matches=2)
-
-        # 將過去的經驗格式化為字串
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
             recommendation = rec["recommendation"]
             past_memory_str += recommendation + "\n\n"
+
+        # Get language-specific prompt
+        base_prompt = get_research_manager_prompt(language)
         
-        # 截斷辯論歷史 - 這是最容易超過限制的部分 - 移除截斷以保留完整內容
+        if language == "en":
+            prompt = f"""{base_prompt}
 
-        # 建立提示 (prompt)
-        prompt = f"""**重要：您必須使用繁體中文（Traditional Chinese）回覆所有內容。**
-**嚴格禁止：請勿在回覆中使用任何 emoji 表情符號（如 ✅ ❌ 📊 📈 🚀 等）。**
-**請只使用純文字、數字、標點符號和必要的 Unicode 符號（如 ↑ ↓ ★ ●等）。**
+【Available Information】
+- Past Reflections: "{past_memory_str}"
+- Debate History: {history}
 
-【專業身份】
-您是投資決策經理，負責評估多空辯論並做出最終投資決策。**您必須保持嚴格中立觀點，公正評估看漲與看跌雙方論據，基於證據做出獨立決策。**
-
-【職責】
-1. **評估論證**：客觀權衡看漲與看跌方的論據強度，不偏袒任何一方
-2. **做出決策**：基於證據明確判斷買入/賣出/持有，展現獨立判斷
-3. **制定計畫**：提供交易員可執行的詳細操作指引
-4. **中立裁判**：**作為中立裁判，綜合雙方論點後做出獨立決策，不受任何一方影響**
+Please provide your investment decision report."""
+        else:
+            prompt = f"""{base_prompt}
 
 【可用資訊】
 - 過去反思："{past_memory_str}"
 - 辯論歷史：{history}
 
-【輸出要求】
-**字數要求**：**800-1500字**
-**嚴格遵守字數限制，少於800字或超過1500字的報告將被退回**
-**內容結構**：
-1. 決策摘要（150字以上）：明確的買入/賣出/持有決策與核心理由
-2. 論證評估（200字以上）：公正評估雙方最強論點與分歧點，不偏袒任何一方
-3. 決策依據（300字以上）：選擇此立場的關鍵證據與邏輯推理
-4. 操作指引（100字以上）：部位規模、目標價位、停損設定等具體參數
-5. 風險提示（50字以上）：主要風險與監控重點
-
-**撰寫原則**：
-- **嚴格中立**：作為中立裁判，不偏向看漲或看跌任何一方
-- **獨立決策**：基於證據與邏輯做出獨立判斷，展現決策自主性
-- 決策明確，避免模稜兩可，必須給出清晰立場
-- 提供具體量化的操作參數，確保可執行性
-- 邏輯清晰，證據充分，說服力強
-
-**結尾提示**：
-請在報告最後加上以下結尾：
-「---
-👔 **本報告為研究經理的投資決策，綜合看漲與看跌雙方論據後做出。建議交易團隊執行前再次確認市場狀況。投資決策需獨立判斷，請謹慎評估。**」
-
-請提供專業且可執行的投資決策報告。"""
-        
-        # 定義帶重試機制的 LLM 調用函數
-        # 基於 Cursor IDE 博客建議的最佳實踐：
-        # 1. 使用指數退避策略（exponential backoff）
-        # 2. 添加隨機因子（jitter）避免多個客戶端同步重試
-        # 3. 增加重試次數和最大延遲時間
-        import random
+請提供您的投資決策報告。"""
         
         @retry(
             retry=retry_if_exception_type(OverloadedError),
-            wait=wait_exponential(multiplier=1, min=2, max=60),  # 增加最大延遲到 60 秒
-            stop=stop_after_attempt(5),  # 增加重試次數到 5 次
+            wait=wait_exponential(multiplier=1, min=2, max=60),
+            stop=stop_after_attempt(5),
             before_sleep=before_sleep_log(logger, logging.WARNING)
         )
         def invoke_llm_with_retry(llm_instance, prompt_text):
-            """
-            調用 LLM 並在遇到 529 錯誤時自動重試。
-            
-            使用指數退避策略加隨機因子（jitter）：
-            - 第 1 次重試：等待 2-4 秒（2 * 2^0 + jitter）
-            - 第 2 次重試：等待 4-8 秒（2 * 2^1 + jitter）
-            - 第 3 次重試：等待 8-16 秒（2 * 2^2 + jitter）
-            - 第 4 次重試：等待 16-32 秒（2 * 2^3 + jitter）
-            - 第 5 次重試：等待 32-60 秒（2 * 2^4 + jitter，最大 60 秒）
-            
-            Args:
-                llm_instance: LLM 實例
-                prompt_text: 提示文本
-            
-            Returns:
-                LLM 的回應
-            
-            Raises:
-                OverloadedError: 如果 5 次重試後仍然失敗
-            """
-            # 添加小量隨機延遲（jitter）避免同步重試
             jitter = random.uniform(0, 0.5)
             if jitter > 0:
                 time.sleep(jitter)
-            
             logger.info("正在調用 Research Manager LLM...")
             return llm_instance.invoke(prompt_text)
         
-        # 使用帶重試機制的函數調用 LLM
         response = invoke_llm_with_retry(llm, prompt)
         
-        # CRITICAL FIX: Apply output filtering
         response.content = fix_common_llm_errors(response.content)
         validate_and_warn(response.content, "Research_Manager")
 
-        # 更新投資辯論狀態
         new_investment_debate_state = {
             "judge_decision": response.content,
             "history": investment_debate_state.get("history", ""),
@@ -171,7 +95,6 @@ def create_research_manager(llm, memory):
             "count": investment_debate_state["count"],
         }
 
-        # 返回更新後的狀態，包括裁判的決策和投資計畫
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": response.content,

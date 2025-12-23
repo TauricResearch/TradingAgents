@@ -6,6 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { AnalysisProvider } from "@/context/AnalysisContext";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { AuthProvider } from "@/contexts/auth-context";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -115,15 +116,17 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider>
-          <AuthProvider>
-            <AnalysisProvider>
-              <div className="flex flex-col min-h-screen gradient-page-bg">
-                <Header />
-                <main className="flex-1">{children}</main>
-                <Footer />
-              </div>
-            </AnalysisProvider>
-          </AuthProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <AnalysisProvider>
+                <div className="flex flex-col min-h-screen gradient-page-bg">
+                  <Header />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
+                </div>
+              </AnalysisProvider>
+            </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

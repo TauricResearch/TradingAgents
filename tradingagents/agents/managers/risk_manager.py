@@ -2,118 +2,69 @@
 import time
 import json
 from tradingagents.agents.utils.output_filter import fix_common_llm_errors, validate_and_warn
+from tradingagents.agents.utils.prompts import get_risk_manager_prompt
 
 
-def create_risk_manager(llm, memory):
+def create_risk_manager(llm, memory, language: str = "zh-TW"):
     """
     建立一個風險管理員（裁判）節點。
-
-    這個節點扮演風險管理裁判和辯論主持人的角色。
-    其目標是評估激進、中立和保守三位風險分析師之間的辯論，
-    並根據辯論內容、分析報告以及過去的經驗，對交易員的計畫做出最終的、
-    經過風險調整的決策（買入、賣出或持有）。
 
     Args:
         llm: 用於生成決策的語言模型。
         memory: 儲存過去情況和反思的記憶體物件。
+        language: 報告語言 ('en' 或 'zh-TW')
 
     Returns:
-        function: 一個代表風險管理員節點的函式，可在 langgraph 中使用。
+        function: 一個代表風險管理員節點的函式。
     """
 
     def risk_manager_node(state) -> dict:
-        """
-        風險管理員節點的執行函式。
-
-        Args:
-            state (dict): 當前的圖狀態。
-
-        Returns:
-            dict: 更新後的狀態，包含最終的交易決策。
-        """
-        # 從狀態中獲取所需資訊
+        """風險管理員節點的執行函式。"""
         company_name = state["company_of_interest"]
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state["history"]
         
         market_research_report = state["market_report"]
         news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"] # 這裡原文似乎有誤，應為 fundamentals_report
+        fundamentals_report = state["fundamentals_report"]
         sentiment_report = state["sentiment_report"]
         trader_plan = state["investment_plan"]
 
-        # 移除截斷邏輯以保留完整報告內容
-        
-        # 整合當前情況
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         
-        # 從記憶體中獲取過去相似情況的經驗
         past_memories = memory.get_memories(curr_situation, n_matches=2)
-
-        # 將過去的經驗格式化為字串
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
             recommendation = rec["recommendation"]
             past_memory_str += recommendation + "\n\n"
+
+        # Get language-specific prompt
+        base_prompt = get_risk_manager_prompt(language)
         
-        # 截斷辯論歷史 - 這是最容易超過限制的部分
-        # 增加限制以容納更長的辯論內容（風險辯論通常有3方，比投資辯論更長）
-        history = history # 移除截斷，保留完整歷史
+        if language == "en":
+            prompt = f"""{base_prompt}
 
-        
-        # 建立提示 (prompt)
-        prompt = f"""**重要：您必須使用繁體中文（Traditional Chinese）回覆所有內容。**
-**嚴格禁止：請勿在回覆中使用任何 emoji 表情符號（如 ✅ ❌ 📊 📈 🚀 等）。**
-**請只使用純文字、數字、標點符號和必要的 Unicode 符號（如 ↑ ↓ ★ ●等）。**
+【Available Information】
+- Past Reflections: "{past_memory_str}"
+- Trader Plan: {trader_plan}
+- Debate History: {history}
 
-【專業身份】
-您是風險管理經理，負責評估投資計畫的風險並做出最終風控決策。**您必須保持嚴格中立觀點，綜合評估積極、中立、保守三方風險觀點，基於風險調整做出最終決策。**
-
-【職責】
-1. **評估辯論**：綜合積極、中立、保守三方的風險觀點，不偏袒任何一方
-2. **識別風險**：系統性評估市場、財務、營運等多維度風險
-3. **最終決策**：基於風險調整後的買入/賣出/持有決策，展現獨立判斷
-4. **風控設定**：建立明確的風險管理框架與具體參數
-5. **中立裁判**：**作為風險中立裁判，綜合三方觀點後做出獨立決策**
+Please provide your risk management decision report."""
+        else:
+            prompt = f"""{base_prompt}
 
 【可用資訊】
 - 過去反思："{past_memory_str}"
 - 交易員計畫：{trader_plan}
 - 辯論歷史：{history}
 
-【輸出要求】
-**字數要求**：**800-1500字**
-**嚴格遵守字數限制，少於800字或超過1500字的報告將被退回**
-**內容結構**：
-1. 風控結論（150字以上）：風險評級與最終決策的明確陳述
-2. 論證評估（200字以上）：三方風險觀點的綜合評估，公正分析
-3. 風險分析（300字以上）：主要風險因素與量化評估，多維度分析
-4. 最終決策（100字以上）：經風險調整的操作建議與部位規模
-5. 風控措施（50字以上）：停損、監控指標、應急預案等具體措施
+請提供您的風險管理決策報告。"""
 
-**撰寫原則**：
-- **嚴格中立**：綜合評估積極、保守、中立三方觀點，不偏袒任何一方
-- **獨立決策**：基於風險評估做出獨立判斷，展現決策自主性
-- 決策明確，風控參數具體，確保可執行性
-- 保守謹慎，但避免過度保守影響報酬
-- 提供完整的風險管理框架與具體措施
-
-**結尾提示**：
-請在報告最後加上以下結尾：
-「---
-※ 本報告為風險管理經理的最終決策，綜合三方風險觀點（積極、保守、平衡）後做出。風控框架需嚴格執行。投資有風險，請謹慎評估。」
-
-請提供專業且全面的風險管理決策報告。"""
-        
-
-        # 呼叫 LLM 生成決策
         response = llm.invoke(prompt)
         
-        # CRITICAL FIX: Apply output filtering to fix common LLM errors
         response.content = fix_common_llm_errors(response.content)
         validate_and_warn(response.content, "Risk_Manager")
 
-        # 更新風險辯論狀態
         new_risk_debate_state = {
             "judge_decision": response.content,
             "history": risk_debate_state["history"],
@@ -127,7 +78,6 @@ def create_risk_manager(llm, memory):
             "count": risk_debate_state["count"],
         }
 
-        # 返回更新後的狀態，包括最終交易決策
         return {
             "risk_debate_state": new_risk_debate_state,
             "final_trade_decision": response.content,

@@ -11,6 +11,7 @@ import { ErrorAlert } from "@/components/shared/ErrorAlert";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useAnalysisContext } from "@/context/AnalysisContext";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { saveReport, checkDuplicateReport } from "@/lib/reports-db";
 import { saveCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
 import type { AnalysisRequest } from "@/lib/types";
@@ -20,6 +21,7 @@ export default function AnalysisPage() {
   const { setAnalysisResult, setTaskId, setMarketType, marketType } = useAnalysisContext();
   const { runAnalysis, loading, error, result, taskId } = useAnalysis();
   const { isAuthenticated } = useAuth();
+  const { t } = useLanguage();
   
   // Ref to track if we've already saved (to prevent duplicate saves)
   const hasSavedRef = useRef(false);
@@ -132,16 +134,16 @@ export default function AnalysisPage() {
         {/* 標題區域 - 置中對齊 */}
         <div className="text-center relative">
           <div className="absolute inset-0 gradient-bg-radial opacity-40 -z-10" />
-          <h1 className="text-4xl font-bold mb-2 gradient-text-primary">交易分析</h1>
+          <h1 className="text-4xl font-bold mb-2 gradient-text-primary">{t.form.analysisTitle}</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            配置並執行全面的多代理交易分析
+            {t.form.analysisSubtitle}
           </p>
         </div>
 
         <AnalysisForm onSubmit={handleSubmit} loading={loading} />
 
         {loading && (
-          <LoadingSpinner message="正在執行分析... 這可能需要幾分鐘時間。" />
+          <LoadingSpinner message={t.form.analysisLoading} />
         )}
 
         {error && <ErrorAlert error={error} />}

@@ -5,6 +5,7 @@
 
 import React from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -41,6 +42,7 @@ function GoogleIcon({ className }: { className?: string }) {
 
 export function LoginButton() {
   const { user, isLoading, isAuthenticated, login, logout } = useAuth();
+  const { t } = useLanguage();
   const [loggingOut, setLoggingOut] = React.useState(false);
 
   const handleLogout = async () => {
@@ -56,7 +58,7 @@ export function LoginButton() {
     return (
       <Button variant="outline" size="sm" disabled>
         <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-        {loggingOut && <span className="ml-2 hidden sm:inline">登出中...</span>}
+        {loggingOut && <span className="ml-2 hidden sm:inline">{t.auth.loggingOut}</span>}
       </Button>
     );
   }
@@ -93,12 +95,12 @@ export function LoginButton() {
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-green-600">
             <Cloud className="w-4 h-4 mr-2" />
-            雲端同步已啟用
+            {t.auth.cloudSyncEnabled}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleLogout} className="text-red-600">
             <LogOut className="w-4 h-4 mr-2" />
-            登出
+            {t.auth.logout}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -113,7 +115,7 @@ export function LoginButton() {
       className="gap-2 bg-white/20 hover:bg-white/30 text-white border-white/30 border"
     >
       <GoogleIcon />
-      <span className="hidden sm:inline">登入</span>
+      <span className="hidden sm:inline">{t.auth.login}</span>
       <CloudOff className="w-3 h-3 text-white/60 sm:hidden" />
     </Button>
   );
@@ -124,6 +126,7 @@ export function LoginButton() {
  */
 export function LoginPrompt() {
   const { login, isAuthenticated } = useAuth();
+  const { t } = useLanguage();
 
   if (isAuthenticated) return null;
 
@@ -133,15 +136,15 @@ export function LoginPrompt() {
         <div className="flex items-center gap-3">
           <CloudOff className="w-5 h-5 text-gray-400" />
           <div>
-            <p className="text-sm font-medium">目前使用本地儲存</p>
+            <p className="text-sm font-medium">{t.auth.usingLocalStorage}</p>
             <p className="text-xs text-muted-foreground">
-              登入 Google 帳號以同步 API 設定和歷史報告
+              {t.auth.loginToSync}
             </p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={login} className="gap-2 shrink-0">
           <GoogleIcon />
-          登入同步
+          {t.auth.loginSync}
         </Button>
       </div>
     </div>

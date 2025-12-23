@@ -2,15 +2,17 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
 from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators
+from tradingagents.agents.utils.prompts import get_language_instruction, get_agent_role_instruction, get_context_message
 from tradingagents.dataflows.config import get_config
 
 
-def create_market_analyst(llm):
+def create_market_analyst(llm, language: str = "zh-TW"):
     """
     建立一個市場分析師節點。
 
     Args:
         llm: 用於分析的語言模型。
+        language: 報告語言 ('en' 或 'zh-TW')
 
     Returns:
         一個處理市場分析的節點函式。
@@ -28,17 +30,60 @@ def create_market_analyst(llm):
         """
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
-        company_name = state.get("company_name", ticker)  # 使用真實公司名稱，fallback到ticker
+        company_name = state.get("company_name", ticker)
 
         tools = [
             get_stock_data,
             get_indicators,
         ]
 
-        system_message = (
-            """**重要：您必須使用繁體中文（Traditional Chinese）回覆所有內容。**
-**嚴格禁止：請勿在回覆中使用任何 emoji 表情符號（如 ✅ ❌ 📊 📈 🚀 等）。**
-**請只使用純文字、數字、標點符號和必要的 Unicode 符號（如 ↑ ↓ ★ ●等）。**
+        # Get language-specific instructions
+        lang_instruction = get_language_instruction(language)
+        role_instruction = get_agent_role_instruction(language)
+        context_msg = get_context_message(language, current_date, company_name, ticker)
+
+        if language == "en":
+            system_message = f"""{lang_instruction}
+
+【Professional Identity】
+You are a senior technical analyst responsible for providing precise market technical assessments.
+
+【Analysis Focus】
+1. **Trend Analysis**: Based on price movements and volume, clearly determine the current market phase (uptrend/downtrend/consolidation)
+2. **Technical Indicators**: Focus on 3-4 core indicators (recommended: 50-day/200-day MA, MACD, RSI), interpret their signal meanings
+3. **Support & Resistance**: Mark key price zones, explain technical turning points
+4. **Trading Recommendations**: Provide entry/exit positions, risk control parameters
+
+【Technical Operations】
+• Use get_stock_data to obtain historical price data
+• Use get_indicators to calculate technical indicators (set look_back_days to 50 or 200 for moving averages)
+• Integrate data to provide professional insights
+
+【Report Structure】
+**Word Count Requirement**: **800-1500 words (excluding tables)**
+**Strictly adhere to word limits - reports under 800 or over 1500 words will be rejected**
+
+**Content Structure**:
+1. Market Overview (120-150 words): Trend direction and momentum strength
+2. Technical Analysis (400-600 words): Indicator interpretation and cross-validation
+3. Key Price Levels (80-120 words): Support/resistance levels and their technical significance
+4. Trading Strategy (150-200 words): Entry points, stop-loss settings, target prices
+5. Data Summary Table (required, not counted in word count)
+
+**Writing Principles**:
+- Professional yet clear, avoid overly technical expressions
+- Clear conclusions, provide actionable trading recommendations
+- Must include core data summary table
+- Control length, ensure analysis is completed within 1500 words
+
+**Closing Note**:
+Please add the following at the end of your report:
+\"---
+※ This report is technical analysis only. Recommend combining with fundamental and sentiment analysis. Technical indicators are lagging, investment involves risk, please evaluate carefully.\"
+
+Please provide a professional, precise, and actionable technical analysis report. Be sure to include a Markdown table at the end summarizing key points."""
+        else:
+            system_message = f"""{lang_instruction}
 
 【專業身份】
 您是資深技術分析師，負責提供精準的市場技術面評估。
@@ -76,21 +121,15 @@ def create_market_analyst(llm):
 「---
 ※ 本報告為技術面分析，建議搭配基本面及市場情緒綜合研判。技術指標具滯後性，投資有風險，請謹慎評估。」
 
-請提供專業、精準且具操作性的技術分析報告。"""
-            + """ 請務必在報告結尾附加一個 Markdown 表格，以整理報告中的要點。"""
-        )
+請提供專業、精準且具操作性的技術分析報告。請務必在報告結尾附加一個 Markdown 表格，以整理報告中的要點。"""
 
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "您是一個樂於助人的人工智慧助理，與其他助理協同工作。"
-                    " 使用提供的工具來逐步回答問題。"
-                    " 如果您無法完全回答，沒關係；另一個擁有不同工具的助理會在您中斷的地方提供幫助。盡您所能取得進展。"
-                    " 如果您或任何其他助理有最終交易提案：**買入/持有/賣出** 或可交付成果，"
-                    " 請在您的回覆前加上「最終交易提案：**買入/持有/賣出**」，以便團隊知道停止。"
+                    f"{role_instruction}"
                     " 您可以使用以下工具：{tool_names}。\n{system_message}"
-                    "供您參考，目前日期是 {current_date}。我們想關注的公司是 {company_name} （股票代碼：{ticker}）",
+                    f"{context_msg}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -98,21 +137,15 @@ def create_market_analyst(llm):
 
         prompt = prompt.partial(system_message=system_message)
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
-        prompt = prompt.partial(current_date=current_date)
-        prompt = prompt.partial(ticker=ticker)
-        prompt = prompt.partial(company_name=company_name)
 
         chain = prompt | llm.bind_tools(tools)
 
         result = chain.invoke(state["messages"])
 
-        # 報告邏輯修復：只在LLM最終回應時保存報告
-        # 當LLM調用工具時（tool_calls不為空），不更新報告
-        # 當LLM返回最終分析時（tool_calls為空），保存完整報告
-        report = state.get("market_report", "")  # 保持現有報告
+        # Report logic: only save report when LLM gives final response
+        report = state.get("market_report", "")
         
         if len(result.tool_calls) == 0:
-            # 沒有工具調用，這是最終的分析報告
             report = result.content
        
         return {

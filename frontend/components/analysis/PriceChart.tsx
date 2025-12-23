@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { PriceData, PriceStats } from "@/lib/types";
 
 interface PriceChartProps {
@@ -71,6 +72,7 @@ function calculateHeikinAshi(data: PriceData[]): HeikinAshiData[] {
 }
 
 export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
+  const { t, locale } = useLanguage();
   const [chartType, setChartType] = useState<"line" | "candlestick">("line");
 
   // Calculate Heikin Ashi data
@@ -78,7 +80,7 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
 
   // 格式化數字
   const formatNumber = (num: number) => {
-    return num.toLocaleString('zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return num.toLocaleString(locale === 'en' ? 'en-US' : 'zh-TW', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // 格式化日期（只顯示月-日）
@@ -98,15 +100,37 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
   const maxPrice = Math.max(...priceValues);
   const priceRange = maxPrice - minPrice;
 
+  // Localized labels
+  const labels = {
+    priceTitle: t.results.priceSection.title,
+    growth: t.results.priceSection.growth,
+    duration: t.results.priceSection.duration,
+    days: t.results.priceSection.days,
+    startPrice: t.results.priceSection.startPrice,
+    endPrice: t.results.priceSection.endPrice,
+    lineChart: t.results.priceSection.lineChart,
+    candlestick: t.results.priceSection.candlestick,
+    volume: t.results.volumeChart,
+    closePrice: locale === 'en' ? 'Close' : '收盤價',
+    date: locale === 'en' ? 'Date' : '日期',
+    open: locale === 'en' ? 'Open' : '開',
+    close: locale === 'en' ? 'Close' : '收',
+    high: locale === 'en' ? 'High' : '高',
+    low: locale === 'en' ? 'Low' : '低',
+    up: locale === 'en' ? '↑ Up' : '↑ 上漲',
+    down: locale === 'en' ? '↓ Down' : '↓ 下跌',
+    noChange: locale === 'en' ? '→ No Change' : '→ 無變化',
+  };
+
   return (
     <Card className="w-full hover-lift animate-scale-up">
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle className="text-2xl">{ticker} 價格走勢</CardTitle>
+          <CardTitle className="text-2xl">{ticker} {labels.priceTitle}</CardTitle>
           <Tabs value={chartType} onValueChange={(v: string) => setChartType(v as "line" | "candlestick")}>
             <TabsList>
-              <TabsTrigger value="line">折線圖</TabsTrigger>
-              <TabsTrigger value="candlestick">平均K線圖</TabsTrigger>
+              <TabsTrigger value="line">{labels.lineChart}</TabsTrigger>
+              <TabsTrigger value="candlestick">{labels.candlestick}</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -114,22 +138,22 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
         {/* 統計資訊 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
-            <p className="text-sm text-muted-foreground">增長率</p>
+            <p className="text-sm text-muted-foreground">{labels.growth}</p>
             <p className={`text-2xl font-bold ${priceStats.growth_rate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {priceStats.growth_rate >= 0 ? '+' : ''}{priceStats.growth_rate}%
             </p>
           </div>
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-muted-foreground">時長</p>
-            <p className="text-2xl font-bold">{priceStats.duration_days} 天</p>
+            <p className="text-sm text-muted-foreground">{labels.duration}</p>
+            <p className="text-2xl font-bold">{priceStats.duration_days} {labels.days}</p>
           </div>
           <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
-            <p className="text-sm text-muted-foreground">起始價格</p>
+            <p className="text-sm text-muted-foreground">{labels.startPrice}</p>
             <p className="text-lg font-semibold">${formatNumber(priceStats.start_price)}</p>
             <p className="text-xs text-muted-foreground">{priceStats.start_date}</p>
           </div>
           <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
-            <p className="text-sm text-muted-foreground">結束價格</p>
+            <p className="text-sm text-muted-foreground">{labels.endPrice}</p>
             <p className="text-lg font-semibold">${formatNumber(priceStats.end_price)}</p>
             <p className="text-xs text-muted-foreground">{priceStats.end_date}</p>
           </div>
@@ -139,7 +163,7 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
       <CardContent className="space-y-6">
         {/* 價格圖表 */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">價格走勢</h3>
+          <h3 className="text-lg font-semibold mb-4">{labels.priceTitle}</h3>
           <ResponsiveContainer width="100%" height={400}>
             {chartType === "line" ? (
               <LineChart data={priceData}>
@@ -156,16 +180,16 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                 <Tooltip 
                   formatter={(value: number | undefined) => [
                     value !== undefined ? `$${formatNumber(value)}` : '-', 
-                    '收盤價'
+                    labels.closePrice
                   ]}
-                  labelFormatter={(label) => `日期: ${label}`}
+                  labelFormatter={(label) => `${labels.date}: ${label}`}
                 />
                 <Line 
                   type="monotone" 
                   dataKey={(data: PriceData) => getCloseValue(data)}
                   stroke="#93c5fd" 
                   strokeWidth={2}
-                  name="收盤價" 
+                  name={labels.closePrice} 
                   dot={false}
                 />
               </LineChart>
@@ -192,20 +216,20 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                       
                       // Trend color coding for the direction indicator
                       const trendColor = isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-gray-600';
-                      const direction = isUp ? '↑ 上漲' : isDown ? '↓ 下跌' : '→ 無變化';
+                      const direction = isUp ? labels.up : isDown ? labels.down : labels.noChange;
                       
                       return (
                         <div className="bg-background border border-border p-3 rounded-lg shadow-lg">
-                          <p className="text-sm font-semibold mb-2">日期: {data.Date}</p>
+                          <p className="text-sm font-semibold mb-2">{labels.date}: {data.Date}</p>
                           <div className="space-y-1 text-sm">
                             <p className="text-purple-600">
-                              開: ${formatNumber(data.HA_Open)}
+                              {labels.open}: ${formatNumber(data.HA_Open)}
                             </p>
                             <p className="text-cyan-600">
-                              收: ${formatNumber(data.HA_Close)}
+                              {labels.close}: ${formatNumber(data.HA_Close)}
                             </p>
-                            <p className="text-pink-600">高: ${formatNumber(data.HA_High)}</p>
-                            <p className="text-amber-600">低: ${formatNumber(data.HA_Low)}</p>
+                            <p className="text-pink-600">{labels.high}: ${formatNumber(data.HA_High)}</p>
+                            <p className="text-amber-600">{labels.low}: ${formatNumber(data.HA_Low)}</p>
                             <p className={`text-sm mt-2 ${trendColor}`}>
                               {direction} ${formatNumber(Math.abs(data.HA_Close - data.HA_Open))}
                             </p>
@@ -228,7 +252,7 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
 
         {/* 交易量圖表 */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">交易量</h3>
+          <h3 className="text-lg font-semibold mb-4">{labels.volume}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={priceData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -247,11 +271,11 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
               <Tooltip 
                 formatter={(value: number | undefined) => [
                   value !== undefined ? value.toLocaleString() : '-', 
-                  '交易量'
+                  labels.volume
                 ]}
-                labelFormatter={(label) => `日期: ${label}`}
+                labelFormatter={(label) => `${labels.date}: ${label}`}
               />
-              <Bar dataKey="Volume" fill="#93c5fd" name="交易量" />
+              <Bar dataKey="Volume" fill="#93c5fd" name={labels.volume} />
             </BarChart>
           </ResponsiveContainer>
         </div>

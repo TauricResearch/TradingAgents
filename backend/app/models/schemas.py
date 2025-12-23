@@ -63,7 +63,10 @@ class AnalysisRequest(BaseModel):
         description="FinMind API Token (optional, for Taiwan stock data)",
         min_length=0
     )
-
+    language: Optional[Literal["en", "zh-TW"]] = Field(
+        default="zh-TW",
+        description="Language for agent reports: 'en' for English, 'zh-TW' for Traditional Chinese"
+    )
 
 class PriceData(BaseModel):
     """Stock price data model"""
@@ -167,6 +170,12 @@ class DownloadRequest(BaseModel):
     reports: Optional[Dict[str, Any]] = Field(None, description="Direct reports data (if no task_id)")
     price_data: Optional[List[Dict[str, Any]]] = Field(None, description="Price data for PDF chart")
     price_stats: Optional[Dict[str, Any]] = Field(None, description="Price stats for PDF cover page")
+    
+    # Language for PDF labels (defaults to zh-TW)
+    language: Optional[Literal["en", "zh-TW"]] = Field(
+        default="zh-TW",
+        description="Language for PDF labels: 'en' for English, 'zh-TW' for Traditional Chinese"
+    )
     
     # 防呆：自動將股票代碼轉換為大寫
     @field_validator('ticker')

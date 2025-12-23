@@ -108,8 +108,10 @@ class ConditionalLogic:
             state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
         ):
             return "Research Manager"
-        # 檢查中文前綴（因為研究員使用中文格式化響應）
-        if state["investment_debate_state"]["current_response"].startswith("看漲"):
+        # 檢查中文或英文前綴（根據報告語言）
+        current_response = state["investment_debate_state"]["current_response"]
+        # Chinese: "看漲" (Bullish), English: "Bull" or "Bullish"
+        if current_response.startswith("看漲") or current_response.lower().startswith("bull"):
             return "Bear Researcher"
         return "Bull Researcher"
 

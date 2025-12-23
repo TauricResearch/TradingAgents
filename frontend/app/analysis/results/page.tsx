@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAnalysisContext } from "@/context/AnalysisContext";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { PriceChart } from "@/components/analysis/PriceChart";
 import { DownloadReports } from "@/components/analysis/DownloadReports";
 import { Button } from "@/components/ui/button";
@@ -15,86 +16,24 @@ import { ChevronLeft, Save, Check, AlertCircle, Cloud } from "lucide-react";
 import { saveReport, checkDuplicateReport } from "@/lib/reports-db";
 import { saveCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
 
-const ANALYSTS = [
-  // === 分析師團隊 ===
-  { 
-    key: "market", 
-    label: "市場分析師", 
-    reportKey: "market_report",
-    description: "技術分析與市場趨勢評估"
-  },
-  { 
-    key: "social", 
-    label: "社群媒體分析師", 
-    reportKey: "sentiment_report",
-    description: "社群情緒與市場氛圍分析"
-  },
-  { 
-    key: "news", 
-    label: "新聞分析師", 
-    reportKey: "news_report",
-    description: "新聞事件與影響分析"
-  },
-  { 
-    key: "fundamentals", 
-    label: "基本面分析師", 
-    reportKey: "fundamentals_report",
-    description: "財務數據與基本面分析"
-  },
-  
-  // === 研究團隊 ===
-  { 
-    key: "bull", 
-    label: "看漲研究員", 
-    reportKey: "investment_debate_state.bull_history",
-    description: "看漲觀點與投資論據"
-  },
-  { 
-    key: "bear", 
-    label: "看跌研究員", 
-    reportKey: "investment_debate_state.bear_history",
-    description: "看跌觀點與風險警告"
-  },
-  { 
-    key: "research_manager", 
-    label: "研究經理", 
-    reportKey: "investment_debate_state.judge_decision",
-    description: "研究團隊綜合決策"
-  },
-  
-  // === 交易員 ===
-  { 
-    key: "trader", 
-    label: "交易員", 
-    reportKey: "trader_investment_plan",
-    description: "交易執行計劃與策略"
-  },
-  
-  // === 風險管理團隊 ===
-  { 
-    key: "risky", 
-    label: "激進分析師", 
-    reportKey: "risk_debate_state.risky_history",
-    description: "高風險高回報策略分析"
-  },
-  { 
-    key: "safe", 
-    label: "保守分析師", 
-    reportKey: "risk_debate_state.safe_history",
-    description: "穩健保守策略分析"
-  },
-  { 
-    key: "neutral", 
-    label: "中立分析師", 
-    reportKey: "risk_debate_state.neutral_history",
-    description: "中立平衡策略分析"
-  },
-  { 
-    key: "risk_manager", 
-    label: "風險經理", 
-    reportKey: "risk_debate_state.judge_decision",
-    description: "風險管理綜合決策"
-  },
+// Analyst keys for mapping to translation keys
+const ANALYST_KEYS = [
+  // === Analysts Team ===
+  { key: "market", reportKey: "market_report" },
+  { key: "social", reportKey: "sentiment_report" },
+  { key: "news", reportKey: "news_report" },
+  { key: "fundamentals", reportKey: "fundamentals_report" },
+  // === Research Team ===
+  { key: "bull", reportKey: "investment_debate_state.bull_history" },
+  { key: "bear", reportKey: "investment_debate_state.bear_history" },
+  { key: "research_manager", reportKey: "investment_debate_state.judge_decision" },
+  // === Trader ===
+  { key: "trader", reportKey: "trader_investment_plan" },
+  // === Risk Management Team ===
+  { key: "risky", reportKey: "risk_debate_state.risky_history" },
+  { key: "safe", reportKey: "risk_debate_state.safe_history" },
+  { key: "neutral", reportKey: "risk_debate_state.neutral_history" },
+  { key: "risk_manager", reportKey: "risk_debate_state.judge_decision" },
 ];
 
 // 獲取嵌套對象的值
@@ -106,6 +45,7 @@ export default function AnalysisResultsPage() {
   const router = useRouter();
   const { analysisResult, taskId, marketType } = useAnalysisContext();
   const { isAuthenticated } = useAuth();
+  const { t, locale } = useLanguage();
   const [selectedAnalyst, setSelectedAnalyst] = useState("market");
   
   // Save report states
@@ -113,6 +53,14 @@ export default function AnalysisResultsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedToCloud, setSavedToCloud] = useState(false);
+
+  // Build analysts array with translations
+  const ANALYSTS = useMemo(() => ANALYST_KEYS.map(analyst => ({
+    key: analyst.key,
+    label: t.results.analysts[analyst.key as keyof typeof t.results.analysts] || analyst.key,
+    description: t.results.analysts[`${analyst.key}Desc` as keyof typeof t.results.analysts] || "",
+    reportKey: analyst.reportKey,
+  })), [t]);
 
   // 如果沒有結果，重定向到分析頁面
   useEffect(() => {
@@ -138,7 +86,7 @@ export default function AnalysisResultsPage() {
       );
       
       if (duplicate) {
-        setSaveError("此報告已存在（相同股票代碼與分析日期）");
+        setSaveError(t.results.duplicateReport);
         setSaving(false);
         return;
       }
@@ -164,8 +112,6 @@ export default function AnalysisResultsPage() {
           setSavedToCloud(true);
         }
       }
-      // Note: Redis cleanup is handled immediately when analysis completes
-      // in useAnalysis hook, so no need to cleanup here
       
       setSaveSuccess(true);
       // Reset success message after 3 seconds
@@ -175,7 +121,7 @@ export default function AnalysisResultsPage() {
       }, 3000);
     } catch (error) {
       console.error("Save report error:", error);
-      setSaveError("儲存失敗，請稍後再試");
+      setSaveError(t.results.saveError);
     } finally {
       setSaving(false);
     }
@@ -185,10 +131,10 @@ export default function AnalysisResultsPage() {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">沒有分析結果</h1>
-          <p className="text-gray-600 mb-4">請先執行分析</p>
+          <h1 className="text-2xl font-bold mb-4">{t.results.noResults}</h1>
+          <p className="text-gray-600 mb-4">{t.results.runAnalysisFirst}</p>
           <Button onClick={() => router.push("/analysis")}>
-            返回分析頁面
+            {t.results.backToAnalysis}
           </Button>
         </div>
       </div>
@@ -207,10 +153,10 @@ export default function AnalysisResultsPage() {
           <div className="absolute inset-0 gradient-bg-radial opacity-30 -z-10 rounded-lg" />
           <div>
             <h1 className="text-4xl font-bold mb-2 gradient-text-primary">
-              {analysisResult.ticker} 詳細分析結果
+              {analysisResult.ticker} {t.results.detailedResults}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              分析日期：{analysisResult.analysis_date}
+              {t.results.analysisDate}：{analysisResult.analysis_date}
             </p>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
@@ -218,7 +164,7 @@ export default function AnalysisResultsPage() {
             {saveSuccess && (
               <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm animate-fade-in">
                 <Check className="h-4 w-4" />
-                已儲存
+                {t.results.saved}
               </span>
             )}
             {saveError && (
@@ -239,6 +185,7 @@ export default function AnalysisResultsPage() {
                 priceData={analysisResult.price_data}
                 priceStats={analysisResult.price_stats}
                 compact={true}
+                language={locale}
               />
             )}
             
@@ -250,16 +197,16 @@ export default function AnalysisResultsPage() {
               className="gap-2 hover-lift bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
             >
               {saving ? (
-                <>儲存中...</>
+                <>{t.results.saving}</>
               ) : saveSuccess ? (
                 <>
                   <Check className="h-4 w-4" />
-                  已儲存
+                  {t.results.saved}
                 </>
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  儲存報告
+                  {t.results.saveReport}
                 </>
               )}
             </Button>
@@ -270,7 +217,7 @@ export default function AnalysisResultsPage() {
               className="gap-2 hover-lift"
             >
               <ChevronLeft className="h-4 w-4" />
-              返回分析
+              {t.results.backButton}
             </Button>
           </div>
         </div>
@@ -304,7 +251,7 @@ export default function AnalysisResultsPage() {
                 {/* 分析師報告 */}
                 <Card className="animate-scale-up hover-lift">
                   <CardHeader>
-                    <CardTitle>{analyst.label} 報告</CardTitle>
+                    <CardTitle>{analyst.label} {t.results.report}</CardTitle>
                     <CardDescription>
                       {analyst.description}
                     </CardDescription>
@@ -319,10 +266,10 @@ export default function AnalysisResultsPage() {
                     ) : (
                       <div className="text-center py-8">
                         <p className="text-gray-500 dark:text-gray-400">
-                          此分析師沒有生成報告
+                          {t.results.noReportGenerated}
                         </p>
                         <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
-                          可能此分析師未被選擇或分析過程中未產生報告
+                          {t.results.notSelectedOrNoReport}
                         </p>
                       </div>
                     )}

@@ -37,6 +37,104 @@ plt.rcParams['font.family'] = 'sans-serif'
 plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Liberation Sans', 'FreeSans', 'Helvetica', 'Arial', 'sans-serif']
 plt.rcParams['axes.unicode_minus'] = False
 
+# ============================================
+# PDF LABELS FOR INTERNATIONALIZATION
+# ============================================
+PDF_LABELS = {
+    'en': {
+        # Cover page
+        'cover_title': 'TradingAgentsX Analysis Report',
+        'cover_subtitle': 'AI-Powered Multi-Perspective Investment Analysis',
+        
+        # TOC
+        'toc_title': 'Table of Contents',
+        'report_content': 'Report Content',
+        'price_chart': 'Price Chart & Volume',
+        
+        # Stats
+        'price_stats': 'Price Statistics',
+        'item': 'Item',
+        'value': 'Value',
+        'total_return': 'Total Return',
+        'analysis_period': 'Analysis Period',
+        'days': 'days',
+        'start_date': 'Start Date',
+        'end_date': 'End Date',
+        'start_price': 'Start Price',
+        'end_price': 'End Price',
+        'chart_failed': 'Chart generation failed',
+        
+        # Teams
+        'analysts_team': 'Analysts Team',
+        'research_team': 'Research Team',
+        'trading_risk_team': 'Trading & Risk Team',
+        'members': 'members',
+        
+        # Analyst names
+        'market_analyst': 'Market Analyst',
+        'fundamentals_analyst': 'Fundamentals Analyst',
+        'social_analyst': 'Social Media Analyst',
+        'news_analyst': 'News Analyst',
+        'bull_researcher': 'Bull Researcher',
+        'bear_researcher': 'Bear Researcher',
+        'research_manager': 'Research Manager',
+        'aggressive_debator': 'Aggressive Analyst',
+        'conservative_debator': 'Conservative Analyst',
+        'neutral_debator': 'Neutral Analyst',
+        'risk_manager': 'Risk Manager',
+        'trader': 'Trader',
+    },
+    'zh-TW': {
+        # Cover page
+        'cover_title': 'TradingAgentsX 分析報告',
+        'cover_subtitle': 'AI 驅動的多角度投資分析',
+        
+        # TOC
+        'toc_title': '目錄',
+        'report_content': '報告內容',
+        'price_chart': '價格走勢圖 & 交易量柱狀圖',
+        
+        # Stats
+        'price_stats': '價格統計',
+        'item': '項目',
+        'value': '數值',
+        'total_return': '總報酬率',
+        'analysis_period': '分析期間',
+        'days': '天',
+        'start_date': '開始日期',
+        'end_date': '結束日期',
+        'start_price': '起始價格',
+        'end_price': '結束價格',
+        'chart_failed': '圖表生成失敗',
+        
+        # Teams
+        'analysts_team': '分析師團隊',
+        'research_team': '研究團隊',
+        'trading_risk_team': '交易與風險團隊',
+        'members': '位',
+        
+        # Analyst names
+        'market_analyst': '市場分析師',
+        'fundamentals_analyst': '基本面分析師',
+        'social_analyst': '社群媒體分析師',
+        'news_analyst': '新聞分析師',
+        'bull_researcher': '看漲研究員',
+        'bear_researcher': '看跌研究員',
+        'research_manager': '研究經理',
+        'aggressive_debator': '激進分析師',
+        'conservative_debator': '保守分析師',
+        'neutral_debator': '中立分析師',
+        'risk_manager': '風險經理',
+        'trader': '交易員',
+    }
+}
+
+# Helper to get label by language
+def get_pdf_label(key: str, language: str = 'zh-TW') -> str:
+    """Get PDF label by key and language."""
+    labels = PDF_LABELS.get(language, PDF_LABELS['zh-TW'])
+    return labels.get(key, key)
+
 
 class PDFGenerator:
     """Generate PDF reports from markdown content"""
@@ -755,6 +853,7 @@ class PDFGenerator:
         reports: list,
         price_data: list = None,
         price_stats: dict = None,
+        language: str = "zh-TW",
     ) -> bytes:
         """
         Generate a combined PDF containing all analyst reports with cover page and table of contents
@@ -765,6 +864,7 @@ class PDFGenerator:
             reports: List of dicts with 'analyst_name' and 'report_content'
             price_data: Optional list of price data dicts
             price_stats: Optional dict with price statistics
+            language: Language for PDF labels ('en' or 'zh-TW')
             
         Returns:
             PDF file content as bytes
@@ -779,24 +879,53 @@ class PDFGenerator:
         
         buffer = io.BytesIO()
         
-        # Define team structure
-        TEAMS = [
-            {
-                'name': '分析師團隊',
-                'count': 4,
-                'members': ['市場分析師', '社群媒體分析師', '新聞分析師', '基本面分析師'],
-            },
-            {
-                'name': '研究團隊',
-                'count': 3,
-                'members': ['看漲研究員', '看跌研究員', '研究經理'],
-            },
-            {
-                'name': '交易與風險團隊',
-                'count': 5,
-                'members': ['交易員', '激進分析師', '保守分析師', '中立分析師', '風險經理'],
-            },
-        ]
+        # Store language for use in helper methods
+        self._current_language = language
+        
+        # Define team structure with bilingual support
+        # Note: 'members' must match the analyst_name keys sent from routes.py
+        if language == "en":
+            TEAMS = [
+                {
+                    'name': 'Analysts Team',
+                    'count': 4,
+                    'members': ['Market Analyst', 'Social Media Analyst', 'News Analyst', 'Fundamentals Analyst'],
+                    'display_members': ['Market Analyst', 'Social Media Analyst', 'News Analyst', 'Fundamentals Analyst'],
+                },
+                {
+                    'name': 'Research Team',
+                    'count': 3,
+                    'members': ['Bull Researcher', 'Bear Researcher', 'Research Manager'],
+                    'display_members': ['Bull Researcher', 'Bear Researcher', 'Research Manager'],
+                },
+                {
+                    'name': 'Trading & Risk Team',
+                    'count': 5,
+                    'members': ['Trader', 'Aggressive Analyst', 'Conservative Analyst', 'Neutral Analyst', 'Risk Manager'],
+                    'display_members': ['Trader', 'Aggressive Analyst', 'Conservative Analyst', 'Neutral Analyst', 'Risk Manager'],
+                },
+            ]
+        else:
+            TEAMS = [
+                {
+                    'name': '分析師團隊',
+                    'count': 4,
+                    'members': ['市場分析師', '社群媒體分析師', '新聞分析師', '基本面分析師'],
+                    'display_members': ['市場分析師', '社群媒體分析師', '新聞分析師', '基本面分析師'],
+                },
+                {
+                    'name': '研究團隊',
+                    'count': 3,
+                    'members': ['看漲研究員', '看跌研究員', '研究經理'],
+                    'display_members': ['看漲研究員', '看跌研究員', '研究經理'],
+                },
+                {
+                    'name': '交易與風險團隊',
+                    'count': 5,
+                    'members': ['交易員', '激進分析師', '保守分析師', '中立分析師', '風險經理'],
+                    'display_members': ['交易員', '激進分析師', '保守分析師', '中立分析師', '風險經理'],
+                },
+            ]
         
         # Create a mapping of analyst names to their reports
         report_map = {r.get('analyst_name', ''): r.get('report_content', '') for r in reports}
@@ -861,7 +990,7 @@ class PDFGenerator:
         
         # === COVER PAGE (no page number) ===
         elements.append(NextPageTemplate('cover'))
-        elements.extend(self._create_cover_page(ticker, analysis_date, styles))
+        elements.extend(self._create_cover_page(ticker, analysis_date, styles, language))
         elements.append(NextPageTemplate('toc'))
         elements.append(PageBreak())
         
@@ -869,7 +998,7 @@ class PDFGenerator:
         has_chart = price_data and len(price_data) >= 5
         
         # === TABLE OF CONTENTS PAGE (no page number) ===
-        elements.extend(self._create_toc_page(ticker, analysis_date, reports, price_data, price_stats, styles, has_chart, TEAMS))
+        elements.extend(self._create_toc_page(ticker, analysis_date, reports, price_data, price_stats, styles, has_chart, TEAMS, language))
         elements.append(NextPageTemplate('content'))
         elements.append(PageBreak())
         
@@ -879,7 +1008,7 @@ class PDFGenerator:
         
         # === PRICE CHART PAGE (Page 1, if data available) ===
         if has_chart:
-            elements.extend(self._create_chart_page(ticker, price_data, price_stats, styles))
+            elements.extend(self._create_chart_page(ticker, price_data, price_stats, styles, language))
             elements.append(PageBreak())
         
         # === ANALYST REPORTS BY TEAM ===
@@ -888,8 +1017,15 @@ class PDFGenerator:
             team_reports = []
             for member_name in team['members']:
                 if member_name in report_map and report_map[member_name]:
+                    # Use display name if available (for English mode)
+                    display_name = member_name
+                    if 'display_members' in team:
+                        idx = team['members'].index(member_name)
+                        if idx < len(team['display_members']):
+                            display_name = team['display_members'][idx]
                     team_reports.append({
                         'analyst_name': member_name,
+                        'display_name': display_name,
                         'report_content': report_map[member_name]
                     })
             
@@ -898,17 +1034,18 @@ class PDFGenerator:
                 continue
             
             # Add team separator page
-            elements.extend(self._create_team_separator(team['name'], len(team_reports), styles))
+            elements.extend(self._create_team_separator(team['name'], len(team_reports), styles, language))
             elements.append(PageBreak())
             
             # Add each analyst report in this team
             for report_idx, report in enumerate(team_reports):
                 analyst_name = report.get('analyst_name', 'Unknown')
+                display_name = report.get('display_name', analyst_name)
                 report_content = report.get('report_content', '')
                 
-                # Add analyst report section
+                # Add analyst report section (use display_name for header)
                 elements.extend(self._create_analyst_section(
-                    analyst_name=analyst_name,
+                    analyst_name=display_name,
                     ticker=ticker,
                     analysis_date=analysis_date,
                     report_content=report_content,
@@ -1081,7 +1218,7 @@ class PDFGenerator:
         
         return custom_styles
     
-    def _create_cover_page(self, ticker: str, analysis_date: str, styles: dict) -> list:
+    def _create_cover_page(self, ticker: str, analysis_date: str, styles: dict, language: str = 'zh-TW') -> list:
         """Create cover page elements"""
         from reportlab.platypus import Spacer
         from reportlab.lib.units import cm
@@ -1101,8 +1238,8 @@ class PDFGenerator:
         
         # Additional info
         elements.append(Spacer(1, 2*cm))
-        elements.append(Paragraph("TradingAgentsX 分析報告", styles['cover_info']))
-        elements.append(Paragraph("AI 驅動的多角度投資分析", styles['cover_info']))
+        elements.append(Paragraph(get_pdf_label('cover_title', language), styles['cover_info']))
+        elements.append(Paragraph(get_pdf_label('cover_subtitle', language), styles['cover_info']))
         
         return elements
     
@@ -1115,7 +1252,8 @@ class PDFGenerator:
         price_stats: dict,
         styles: dict,
         has_chart: bool = False,
-        teams: list = None
+        teams: list = None,
+        language: str = 'zh-TW'
     ) -> list:
         """Create a clean table of contents page with page numbers"""
         from reportlab.platypus import Spacer, Table, TableStyle
@@ -1126,7 +1264,7 @@ class PDFGenerator:
         elements = []
         
         # TOC Title
-        elements.append(Paragraph("目 錄", styles['toc_title']))
+        elements.append(Paragraph(get_pdf_label('toc_title', language), styles['toc_title']))
         elements.append(Spacer(1, 0.5*cm))
         
         # Track which analysts are in the reports
@@ -1135,13 +1273,13 @@ class PDFGenerator:
         # Build TOC as simple list (no page numbers since reports span multiple pages)
         table_data = []
         table_data.append([
-            Paragraph('<b>報告內容</b>', styles['toc_section']),
+            Paragraph(f'<b>{get_pdf_label("report_content", language)}</b>', styles['toc_section']),
         ])
         
         # Add chart page entry if available
         if has_chart:
             table_data.append([
-                Paragraph('  價格走勢圖 & 交易量柱狀圖', styles['toc_item']),
+                Paragraph(f'  {get_pdf_label("price_chart", language)}', styles['toc_item']),
             ])
         
         # Use teams if provided
@@ -1155,9 +1293,10 @@ class PDFGenerator:
                 if team_report_count == 0:
                     continue
                 
-                # Add team separator entry  
+                # Add team separator entry
+                members_label = get_pdf_label('members', language)
                 table_data.append([
-                    Paragraph(f'<b>{team_name} ({team_report_count} 位)</b>', styles['toc_section']),
+                    Paragraph(f'<b>{team_name} ({team_report_count} {members_label})</b>', styles['toc_section']),
                 ])
                 
                 # Add each analyst in this team
@@ -1191,7 +1330,8 @@ class PDFGenerator:
         self,
         team_name: str,
         member_count: int,
-        styles: dict
+        styles: dict,
+        language: str = 'zh-TW'
     ) -> list:
         """Create a team separator page"""
         from reportlab.platypus import Spacer
@@ -1216,8 +1356,11 @@ class PDFGenerator:
             leading=50,
         )
         
-        # Add spaces for better letter spacing
-        spaced_name = ' '.join(team_name)
+        # Add spaces for better letter spacing (only for Chinese)
+        if language == 'zh-TW':
+            spaced_name = ' '.join(team_name)
+        else:
+            spaced_name = team_name
         elements.append(Paragraph(spaced_name, team_style))
         
         # Member count
@@ -1229,7 +1372,8 @@ class PDFGenerator:
             alignment=TA_CENTER,
             spaceAfter=10,
         )
-        elements.append(Paragraph(f"({member_count} 位)", count_style))
+        members_label = get_pdf_label('members', language)
+        elements.append(Paragraph(f"({member_count} {members_label})", count_style))
         
         return elements
     
@@ -1238,7 +1382,8 @@ class PDFGenerator:
         ticker: str,
         price_data: list,
         price_stats: dict,
-        styles: dict
+        styles: dict,
+        language: str = 'zh-TW'
     ) -> list:
         """Create a dedicated price chart page"""
         from reportlab.platypus import Spacer, Image, Table, TableStyle
@@ -1249,7 +1394,7 @@ class PDFGenerator:
         elements = []
         
         # Page title
-        elements.append(Paragraph("價格走勢圖 & 交易量柱狀圖", styles['section_title']))
+        elements.append(Paragraph(get_pdf_label('price_chart', language), styles['section_title']))
         elements.append(Spacer(1, 0.5*cm))
         
         # Generate and add chart
@@ -1263,29 +1408,31 @@ class PDFGenerator:
                     elements.append(Spacer(1, 0.8*cm))
             except Exception as e:
                 print(f"Chart generation failed: {e}")
-                elements.append(Paragraph("圖表生成失敗", styles['body']))
+                elements.append(Paragraph(get_pdf_label('chart_failed', language), styles['body']))
         
         # Add price statistics table
         if price_stats:
-            elements.append(Paragraph("價格統計", styles['heading']))
+            elements.append(Paragraph(get_pdf_label('price_stats', language), styles['heading']))
             elements.append(Spacer(1, 0.3*cm))
             
             growth_rate = price_stats.get('growth_rate', 0)
             growth_text = f"+{growth_rate:.2f}%" if growth_rate >= 0 else f"{growth_rate:.2f}%"
             
+            # Build stats data with localized labels
+            days_label = get_pdf_label('days', language)
             stats_data = [
-                ['項 目', '數 值'],
-                ['總報酬率', growth_text],
-                ['分析期間', f"{price_stats.get('duration_days', 'N/A')} 天"],
-                ['開始日期', price_stats.get('start_date', 'N/A')],
-                ['結束日期', price_stats.get('end_date', 'N/A')],
+                [get_pdf_label('item', language), get_pdf_label('value', language)],
+                [get_pdf_label('total_return', language), growth_text],
+                [get_pdf_label('analysis_period', language), f"{price_stats.get('duration_days', 'N/A')} {days_label}"],
+                [get_pdf_label('start_date', language), price_stats.get('start_date', 'N/A')],
+                [get_pdf_label('end_date', language), price_stats.get('end_date', 'N/A')],
             ]
             
             # Add start/end prices if available
             if 'start_price' in price_stats:
-                stats_data.append(['起始價格', f"${price_stats.get('start_price', 0):.2f}"])
+                stats_data.append([get_pdf_label('start_price', language), f"${price_stats.get('start_price', 0):.2f}"])
             if 'end_price' in price_stats:
-                stats_data.append(['結束價格', f"${price_stats.get('end_price', 0):.2f}"])
+                stats_data.append([get_pdf_label('end_price', language), f"${price_stats.get('end_price', 0):.2f}"])
             
             # Create table
             col_widths = [8*cm, 8*cm]

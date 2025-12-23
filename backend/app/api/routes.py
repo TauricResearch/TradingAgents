@@ -107,6 +107,7 @@ async def run_analysis(
                 embedding_model=request.embedding_model or "all-MiniLM-L6-v2",
                 alpha_vantage_api_key=request.alpha_vantage_api_key or "",
                 finmind_api_key=request.finmind_api_key or "",
+                language=request.language or "zh-TW",  # Pass language for agent reports
             ))
             
             # Check for errors in result
@@ -270,21 +271,40 @@ async def download_reports(request: DownloadRequest):
         price_data = request.price_data
         price_stats = request.price_stats
     
-    # Analyst name mapping
-    ANALYST_MAPPING = {
-        "market": ("市場分析師", "market_report"),
-        "social": ("社群媒體分析師", "sentiment_report"),
-        "news": ("新聞分析師", "news_report"),
-        "fundamentals": ("基本面分析師", "fundamentals_report"),
-        "bull": ("看漲研究員", "investment_debate_state.bull_history"),
-        "bear": ("看跌研究員", "investment_debate_state.bear_history"),
-        "research_manager": ("研究經理", "investment_debate_state.judge_decision"),
-        "trader": ("交易員", "trader_investment_plan"),
-        "risky": ("激進分析師", "risk_debate_state.risky_history"),
-        "safe": ("保守分析師", "risk_debate_state.safe_history"),
-        "neutral": ("中立分析師", "risk_debate_state.neutral_history"),
-        "risk_manager": ("風險經理", "risk_debate_state.judge_decision"),
-    }
+    # Analyst name mapping - bilingual support
+    language = request.language or "zh-TW"
+    print(f"📄 PDF Download - Received language: '{request.language}', Using: '{language}'")
+    
+    if language == "en":
+        ANALYST_MAPPING = {
+            "market": ("Market Analyst", "market_report"),
+            "social": ("Social Media Analyst", "sentiment_report"),
+            "news": ("News Analyst", "news_report"),
+            "fundamentals": ("Fundamentals Analyst", "fundamentals_report"),
+            "bull": ("Bull Researcher", "investment_debate_state.bull_history"),
+            "bear": ("Bear Researcher", "investment_debate_state.bear_history"),
+            "research_manager": ("Research Manager", "investment_debate_state.judge_decision"),
+            "trader": ("Trader", "trader_investment_plan"),
+            "risky": ("Aggressive Analyst", "risk_debate_state.risky_history"),
+            "safe": ("Conservative Analyst", "risk_debate_state.safe_history"),
+            "neutral": ("Neutral Analyst", "risk_debate_state.neutral_history"),
+            "risk_manager": ("Risk Manager", "risk_debate_state.judge_decision"),
+        }
+    else:
+        ANALYST_MAPPING = {
+            "market": ("市場分析師", "market_report"),
+            "social": ("社群媒體分析師", "sentiment_report"),
+            "news": ("新聞分析師", "news_report"),
+            "fundamentals": ("基本面分析師", "fundamentals_report"),
+            "bull": ("看漲研究員", "investment_debate_state.bull_history"),
+            "bear": ("看跌研究員", "investment_debate_state.bear_history"),
+            "research_manager": ("研究經理", "investment_debate_state.judge_decision"),
+            "trader": ("交易員", "trader_investment_plan"),
+            "risky": ("激進分析師", "risk_debate_state.risky_history"),
+            "safe": ("保守分析師", "risk_debate_state.safe_history"),
+            "neutral": ("中立分析師", "risk_debate_state.neutral_history"),
+            "risk_manager": ("風險經理", "risk_debate_state.judge_decision"),
+        }
     
     # Helper function to get nested value
     def get_nested_value(obj: dict, path: str):
@@ -321,6 +341,7 @@ async def download_reports(request: DownloadRequest):
         reports=reports_to_download,
         price_data=price_data,
         price_stats=price_stats,
+        language=request.language or "zh-TW",
     )
     
     return Response(

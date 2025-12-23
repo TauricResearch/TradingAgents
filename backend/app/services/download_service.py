@@ -49,6 +49,7 @@ class DownloadService:
         reports: List[Dict[str, str]],
         price_data: list = None,
         price_stats: dict = None,
+        language: str = "zh-TW",
     ) -> tuple[bytes, str]:
         """
         Create a single combined PDF containing all analyst reports
@@ -64,25 +65,42 @@ class DownloadService:
             reports: List of dicts with keys 'analyst_name' and 'report_content'
             price_data: Optional list of price data for chart
             price_stats: Optional price statistics for TOC
+            language: Language for PDF labels ('en' or 'zh-TW')
             
         Returns:
             Tuple of (PDF bytes, filename)
         """
-        # Define the preferred order for analysts
-        analyst_order = [
-            '市場分析師',
-            '基本面分析師', 
-            '社群媒體分析師',
-            '新聞分析師',
-            '看漲研究員',
-            '看跌研究員',
-            '激進分析師',
-            '保守分析師',
-            '中立分析師',
-            '研究經理',
-            '風險經理',
-            '交易員',
-        ]
+        # Define the preferred order for analysts (based on language)
+        if language == "en":
+            analyst_order = [
+                'Market Analyst',
+                'Fundamentals Analyst', 
+                'Social Media Analyst',
+                'News Analyst',
+                'Bull Researcher',
+                'Bear Researcher',
+                'Aggressive Analyst',
+                'Conservative Analyst',
+                'Neutral Analyst',
+                'Research Manager',
+                'Risk Manager',
+                'Trader',
+            ]
+        else:
+            analyst_order = [
+                '市場分析師',
+                '基本面分析師', 
+                '社群媒體分析師',
+                '新聞分析師',
+                '看漲研究員',
+                '看跌研究員',
+                '激進分析師',
+                '保守分析師',
+                '中立分析師',
+                '研究經理',
+                '風險經理',
+                '交易員',
+            ]
         
         # Sort reports by preferred order
         def get_order(report):
@@ -101,6 +119,7 @@ class DownloadService:
             reports=sorted_reports,
             price_data=price_data,
             price_stats=price_stats,
+            language=language,
         )
         
         # Generate filename: TICKER_Combined_Report_DATE.pdf

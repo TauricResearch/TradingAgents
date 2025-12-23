@@ -20,217 +20,220 @@ import {
   Target,
   BarChart3
 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function AgentFlowDiagram() {
+  const { t } = useLanguage();
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
       {/* Data Sources Layer */}
       <div>
         <h3 className="text-center text-sm font-semibold text-gray-500 dark:text-gray-400 mb-4">
-          📥 第一層：資料來源
+          📥 {t.flowDiagram.layer1}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <DataSourceCard
             icon={<Database className="w-5 h-5" />}
             name="yfinance"
-            description="股價數據"
+            description={t.flowDiagram.stockData}
             color="blue"
           />
           <DataSourceCard
             icon={<MessageSquare className="w-5 h-5" />}
             name="Reddit API"
-            description="社群情緒"
+            description={t.flowDiagram.socialSentiment}
             color="orange"
           />
           <DataSourceCard
             icon={<Newspaper className="w-5 h-5" />}
             name="RSS Feed"
-            description="新聞資訊"
+            description={t.flowDiagram.newsInfo}
             color="green"
           />
           <DataSourceCard
             icon={<DollarSign className="w-5 h-5" />}
             name="Alpha Vantage / FinMind"
-            description="財務數據"
+            description={t.flowDiagram.financialData}
             color="purple"
           />
         </div>
       </div>
 
       {/* Arrow */}
-      <FlowArrow label="資料擷取與清理" color="blue" />
+      <FlowArrow label={t.flowDiagram.dataFetch} color="blue" />
 
       {/* Analysts Layer - 4 agents */}
       <div>
         <h3 className="text-center text-sm font-semibold text-gray-500 dark:text-gray-400 mb-4">
-          🤖 第二層：分析師代理 (4位)
+          🤖 {t.flowDiagram.layer2}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <AgentCard
-            name="市場分析師"
+            name={t.agents.market_analyst}
             icon={<BarChart3 className="w-5 h-5" />}
             gradient="from-blue-500 to-cyan-500"
-            description="技術面分析"
-            tasks={["RSI 指標", "MACD 動能", "價格走勢"]}
+            description={t.flowDiagram.technicalAnalysis}
+            tasks={[t.flowDiagram.rsiIndicator, t.flowDiagram.macdMomentum, t.flowDiagram.priceTrend]}
           />
           <AgentCard
-            name="社群媒體分析師"
+            name={t.agents.social_analyst}
             icon={<MessageSquare className="w-5 h-5" />}
             gradient="from-orange-500 to-red-500"
-            description="情緒面分析"
-            tasks={["NLP 情緒", "討論熱度", "投資者信心"]}
+            description={t.flowDiagram.sentimentAnalysis}
+            tasks={[t.flowDiagram.nlpSentiment, t.flowDiagram.discussionHeat, t.flowDiagram.investorConfidence]}
           />
           <AgentCard
-            name="新聞分析師"
+            name={t.agents.news_analyst}
             icon={<Newspaper className="w-5 h-5" />}
             gradient="from-green-500 to-emerald-500"
-            description="新聞面分析"
-            tasks={["新聞摘要", "事件評估", "影響預測"]}
+            description={t.flowDiagram.newsAnalysis}
+            tasks={[t.flowDiagram.newsSummary, t.flowDiagram.eventAssessment, t.flowDiagram.impactPrediction]}
           />
           <AgentCard
-            name="基本面分析師"
+            name={t.agents.fundamentals_analyst}
             icon={<DollarSign className="w-5 h-5" />}
             gradient="from-purple-500 to-pink-500"
-            description="基本面分析"
-            tasks={["財報分析", "估值指標", "盈利評估"]}
+            description={t.flowDiagram.fundamentalsAnalysis}
+            tasks={[t.flowDiagram.financialAnalysis, t.flowDiagram.valuationMetrics, t.flowDiagram.profitEvaluation]}
           />
         </div>
       </div>
 
       {/* Arrow */}
-      <FlowArrow label="分析報告整合" color="purple" />
+      <FlowArrow label={t.flowDiagram.reportIntegration} color="purple" />
 
       {/* Researchers Layer - 2 agents */}
       <div>
         <h3 className="text-center text-sm font-semibold text-gray-500 dark:text-gray-400 mb-4">
-          🔍 第三層：研究員代理 (2位)
+          🔍 {t.flowDiagram.layer3}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
           <AgentCard
-            name="多頭研究員"
+            name={t.agents.bull_researcher}
             icon={<TrendingUp className="w-5 h-5" />}
             gradient="from-green-500 to-emerald-500"
-            description="看多觀點研究"
-            tasks={["正面因素分析", "成長機會評估", "買入理由整理"]}
+            description={t.flowDiagram.bullishResearch}
+            tasks={[t.flowDiagram.positiveFactors, t.flowDiagram.growthOpportunities, t.flowDiagram.buyReasons]}
           />
           <AgentCard
-            name="空頭研究員"
+            name={t.agents.bear_researcher}
             icon={<TrendingDown className="w-5 h-5" />}
             gradient="from-red-500 to-rose-500"
-            description="看空觀點研究"
-            tasks={["負面因素分析", "風險評估", "賣出理由整理"]}
+            description={t.flowDiagram.bearishResearch}
+            tasks={[t.flowDiagram.negativeFactors, t.flowDiagram.riskAssessment, t.flowDiagram.sellReasons]}
           />
         </div>
       </div>
 
       {/* Arrow */}
-      <FlowArrow label="研究整合與辯論準備" color="green" />
+      <FlowArrow label={t.flowDiagram.researchPrep} color="green" />
 
       {/* Research Manager */}
       <div className="max-w-md mx-auto">
         <ManagerCard
-          name="研究經理"
+          name={t.flowDiagram.researchManager}
           icon={<Users className="w-6 h-6" />}
           gradient="from-indigo-500 to-purple-500"
-          description="整合多空研究觀點"
-          tasks={["平衡雙方論點", "綜合投資建議", "制定初步策略"]}
+          description={t.flowDiagram.integrateViews}
+          tasks={[t.flowDiagram.balanceArguments, t.flowDiagram.comprehensiveAdvice, t.flowDiagram.preliminaryStrategy]}
         />
       </div>
 
       {/* Arrow */}
-      <FlowArrow label="進入風險辯論階段" color="orange" />
+      <FlowArrow label={t.flowDiagram.riskDebate} color="orange" />
 
       {/* Risk Debators Layer - 3 agents */}
       <div>
         <h3 className="text-center text-sm font-semibold text-gray-500 dark:text-gray-400 mb-4">
-          ⚖️ 第四層：風險辯論者 (3位)
+          ⚖️ {t.flowDiagram.layer4}
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <AgentCard
-            name="激進辯論者"
+            name={t.agents.aggressive_debator}
             icon={<ShieldAlert className="w-5 h-5" />}
             gradient="from-red-500 to-orange-500"
-            description="高風險高報酬"
-            tasks={["積極投資策略", "最大化收益", "承擔計算風險"]}
+            description={t.flowDiagram.highRiskReward}
+            tasks={[t.flowDiagram.aggressiveStrategy, t.flowDiagram.maximizeReturns, t.flowDiagram.calculatedRisk]}
           />
           <AgentCard
-            name="中立辯論者"
+            name={t.agents.neutral_debator}
             icon={<Shield className="w-5 h-5" />}
             gradient="from-blue-500 to-indigo-500"
-            description="平衡風險報酬"
-            tasks={["穩健投資策略", "風險平衡", "理性決策"]}
+            description={t.flowDiagram.balancedRisk}
+            tasks={[t.flowDiagram.prudentStrategy, t.flowDiagram.riskBalance, t.flowDiagram.rationalDecision]}
           />
           <AgentCard
-            name="保守辯論者"
+            name={t.agents.conservative_debator}
             icon={<ShieldCheck className="w-5 h-5" />}
             gradient="from-green-500 to-teal-500"
-            description="低風險低波動"
-            tasks={["保守投資策略", "資本保護", "降低風險"]}
+            description={t.flowDiagram.lowRiskVol}
+            tasks={[t.flowDiagram.conservativeStrategy, t.flowDiagram.capitalProtection, t.flowDiagram.riskReduction]}
           />
         </div>
       </div>
 
       {/* Arrow */}
-      <FlowArrow label="風險評估與管理" color="red" />
+      <FlowArrow label={t.flowDiagram.riskDebate} color="red" />
 
       {/* Risk Manager */}
       <div className="max-w-md mx-auto">
         <ManagerCard
-          name="風險經理"
+          name={t.flowDiagram.riskManager}
           icon={<Shield className="w-6 h-6" />}
           gradient="from-red-500 to-pink-500"
-          description="整合風險辯論結果"
-          tasks={["風險等級評定", "止損止盈設定", "最終風險控制"]}
+          description={t.flowDiagram.integrateRisk}
+          tasks={[t.flowDiagram.riskRating, t.flowDiagram.stopLossSettings, t.flowDiagram.finalRiskControl]}
         />
       </div>
 
       {/* Arrow */}
-      <FlowArrow label="制定最終交易決策" color="green" />
+      <FlowArrow label={t.flowDiagram.finalDecision} color="green" />
 
       {/* Trader */}
       <div className="max-w-md mx-auto">
         <TraderCard
-          name="交易員"
+          name={t.flowDiagram.trader}
           icon={<Target className="w-7 h-7" />}
           gradient="from-blue-600 via-purple-600 to-pink-600"
-          description="執行最終交易決策"
-          outputs={["交易訊號 (BUY/SELL/HOLD)", "目標價位", "交易數量", "風險參數"]}
+          description={t.flowDiagram.executeTrade}
+          outputs={[t.flowDiagram.tradeSignal, t.flowDiagram.targetPrice, t.flowDiagram.tradeQuantity, t.flowDiagram.riskParams]}
         />
       </div>
 
       {/* Final Arrow */}
-      <FlowArrow label="生成完整投資報告" color="blue" />
+      <FlowArrow label={t.flowDiagram.generateReport} color="blue" />
 
       {/* Output Layer */}
       <div>
         <h3 className="text-center text-sm font-semibold text-gray-500 dark:text-gray-400 mb-4">
-          📊 最終輸出：12 份詳細報告
+          📊 {t.flowDiagram.finalOutput}
         </h3>
         <Card className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 dark:from-blue-600/20 dark:via-purple-600/20 dark:to-pink-600/20 border-2 border-dashed border-blue-300 dark:border-blue-700 p-6">
           <div className="text-center mb-4">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg mb-3">
               <BarChart3 className="w-8 h-8" />
             </div>
-            <h4 className="font-bold text-lg mb-2 gradient-text-primary">完整分析報告集合</h4>
+            <h4 className="font-bold text-lg mb-2 gradient-text-primary">{t.flowDiagram.completeReportSet}</h4>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              整合 12 位專業代理的深度分析，提供全方位投資決策支援
+              {t.flowDiagram.comprehensiveSupport}
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <ReportSection
-              title="分析師報告 (4份)"
-              items={["技術面分析", "社群情緒分析", "新聞面分析", "基本面分析"]}
+              title={t.flowDiagram.analystReports}
+              items={[t.flowDiagram.technicalReport, t.flowDiagram.sentimentReport, t.flowDiagram.newsReport, t.flowDiagram.fundamentalsReport]}
               color="blue"
             />
             <ReportSection
-              title="研究報告 (3份)"
-              items={["多頭研究報告", "空頭研究報告", "研究經理整合"]}
+              title={t.flowDiagram.researchReports}
+              items={[t.flowDiagram.bullReport, t.flowDiagram.bearReport, t.flowDiagram.researchManagerReport]}
               color="green"
             />
             <ReportSection
-              title="風險與交易 (5份)"
-              items={["激進策略評估", "中立策略評估", "保守策略評估", "風險經理整合", "最終交易決策"]}
+              title={t.flowDiagram.riskTrading}
+              items={[t.flowDiagram.aggressiveEval, t.flowDiagram.balancedEval, t.flowDiagram.conservativeEval, t.flowDiagram.riskManagerReport, t.flowDiagram.finalTradeDecision]}
               color="red"
             />
           </div>

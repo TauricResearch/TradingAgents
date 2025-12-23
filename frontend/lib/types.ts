@@ -23,6 +23,7 @@ export interface AnalysisRequest {
   embedding_model?: string;  // Embedding model: 'all-MiniLM-L6-v2' (local), 'text-embedding-3-small' (OpenAI), etc.
   alpha_vantage_api_key?: string;
   finmind_api_key?: string;  // 台灣股市資料 API
+  language?: "en" | "zh-TW";  // Language for agent reports
 }
 
 export interface PriceData {

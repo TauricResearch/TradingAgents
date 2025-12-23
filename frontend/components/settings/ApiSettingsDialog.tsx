@@ -8,6 +8,7 @@ import { Settings, Cloud, CloudOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import {
   Dialog,
@@ -67,6 +68,7 @@ export function ApiSettingsDialog() {
   const [loading, setLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"local" | "cloud" | "syncing">("local");
   const { isAuthenticated } = useAuth();
+  const { t } = useLanguage();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -149,35 +151,34 @@ export function ApiSettingsDialog() {
           variant="ghost"
           size="icon"
           className="text-white hover:bg-white/20"
-          title="API 設定"
+          title={t.settings.title}
         >
           <Settings className="h-5 w-5" />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>API 配置</DialogTitle>
+          <DialogTitle>{t.settings.apiConfiguration}</DialogTitle>
           <DialogDescription>
-            設定您的 API 金鑰。這些資訊會以加密形式儲存在瀏覽器中。
+            {t.settings.description}
             <span className="block mt-1 text-xs text-green-600 dark:text-green-400">
-              🔒 已啟用 AES-256-GCM 加密保護
+              {t.settings.encryptionEnabled}
             </span>
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* 注意事項 */}
             <div className="space-y-2">
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-blue-800 dark:text-blue-300 text-sm">
-                💡 僅需填寫您選擇的模型供應商的 API。例如，若使用 Claude 模型，只需填寫 Claude API。
+                {t.settings.onlyFillNeeded}
               </div>
             </div>
 
             {/* Stock Market Data APIs Section */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-lg font-semibold text-muted-foreground">
-                股市資料 API（依分析市場選擇填寫）
+                {t.settings.stockMarketApis}
               </h3>
 
               {/* FinMind API Key - Taiwan Stocks */}
@@ -186,16 +187,16 @@ export function ApiSettingsDialog() {
                 name="finmind_api_key"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>FinMind API Token（台股）</FormLabel>
+                    <FormLabel>{t.settings.finmindToken}</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder="輸入 FinMind Token"
+                        placeholder={t.settings.finmindPlaceholder}
                         {...field}
                       />
                     </FormControl>
                     <FormDescription>
-                      用於獲取台灣股市資料（在 finmindtrade.com 註冊取得）
+                      {t.settings.finmindDesc}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -208,16 +209,16 @@ export function ApiSettingsDialog() {
                 name="alpha_vantage_api_key"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Alpha Vantage API Key（美股）</FormLabel>
+                    <FormLabel>{t.settings.alphaVantageKey}</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder="輸入 Alpha Vantage API Key"
+                        placeholder={t.settings.alphaVantagePlaceholder}
                         {...field}
                       />
                     </FormControl>
                     <FormDescription>
-                      用於獲取美股基本面數據（分析美股時建議填寫）
+                      {t.settings.alphaVantageDesc}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -228,7 +229,7 @@ export function ApiSettingsDialog() {
             {/* LLM Providers Section */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-lg font-semibold text-muted-foreground">
-                LLM 模型供應商（依選擇的模型填寫）
+                {t.settings.llmProviders}
               </h3>
 
               {/* OpenAI API Key */}
@@ -242,7 +243,7 @@ export function ApiSettingsDialog() {
                       <Input type="password" placeholder="sk-..." {...field} />
                     </FormControl>
                     <FormDescription>
-                      用於 OpenAI 模型（GPT-4, GPT-5, o4 等）及 OpenAI 嵌入式模型
+                      {t.settings.openaiDesc}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -257,7 +258,7 @@ export function ApiSettingsDialog() {
                     <FormControl>
                       <Input type="password" placeholder="sk-..." {...field} />
                     </FormControl>
-                    <FormDescription>用於 Claude 模型</FormDescription>
+                    <FormDescription>{t.settings.anthropicDesc}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -273,7 +274,7 @@ export function ApiSettingsDialog() {
                     <FormControl>
                       <Input type="password" placeholder="..." {...field} />
                     </FormControl>
-                    <FormDescription>用於 Gemini 模型</FormDescription>
+                    <FormDescription>{t.settings.googleDesc}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -289,7 +290,7 @@ export function ApiSettingsDialog() {
                     <FormControl>
                       <Input type="password" placeholder="xai-..." {...field} />
                     </FormControl>
-                    <FormDescription>用於 Grok 模型</FormDescription>
+                    <FormDescription>{t.settings.grokDesc}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -305,7 +306,7 @@ export function ApiSettingsDialog() {
                     <FormControl>
                       <Input type="password" placeholder="sk-..." {...field} />
                     </FormControl>
-                    <FormDescription>用於 DeepSeek 模型</FormDescription>
+                    <FormDescription>{t.settings.deepseekDesc}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -321,7 +322,7 @@ export function ApiSettingsDialog() {
                     <FormControl>
                       <Input type="password" placeholder="sk-..." {...field} />
                     </FormControl>
-                    <FormDescription>用於 Qwen 模型</FormDescription>
+                    <FormDescription>{t.settings.qwenDesc}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -331,7 +332,7 @@ export function ApiSettingsDialog() {
             {/* Custom Endpoint Section */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-lg font-semibold text-muted-foreground">
-                自訂端點（進階選項）
+                {t.settings.customEndpoint}
               </h3>
 
               {/* Custom Base URL */}
@@ -340,7 +341,7 @@ export function ApiSettingsDialog() {
                 name="custom_base_url"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>自訂 Base URL</FormLabel>
+                    <FormLabel>{t.settings.customBaseUrl}</FormLabel>
                     <FormControl>
                       <Input
                         type="text"
@@ -349,7 +350,7 @@ export function ApiSettingsDialog() {
                       />
                     </FormControl>
                     <FormDescription>
-                      若設定此項，將覆蓋所有模型的預設端點
+                      {t.settings.customBaseUrlDesc}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -362,16 +363,16 @@ export function ApiSettingsDialog() {
                 name="custom_api_key"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>自訂端點 API Key</FormLabel>
+                    <FormLabel>{t.settings.customApiKey}</FormLabel>
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder="輸入自訂端點的 API Key"
+                        placeholder={t.settings.customApiKeyPlaceholder}
                         {...field}
                       />
                     </FormControl>
                     <FormDescription>
-                      配合自訂 Base URL 使用的 API Key
+                      {t.settings.customApiKeyDesc}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -381,13 +382,13 @@ export function ApiSettingsDialog() {
 
             {saveSuccess && (
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-green-800 dark:text-green-300 text-sm">
-                ✓ 設定已成功儲存
+                {t.settings.settingsSaved}
               </div>
             )}
 
             <div className="flex gap-2 pt-4">
               <Button type="submit" className="flex-1" disabled={loading}>
-                {loading ? "處理中..." : "儲存設定"}
+                {loading ? t.settings.processing : t.settings.saveSettings}
               </Button>
               <Button
                 type="button"
@@ -395,7 +396,7 @@ export function ApiSettingsDialog() {
                 onClick={handleClear}
                 className="flex-1"
               >
-                清除設定
+                {t.settings.clearSettings}
               </Button>
             </div>
           </form>

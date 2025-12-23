@@ -10,10 +10,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { t } = useLanguage();
 
   // Avoid hydration mismatch
   useEffect(() => {
@@ -35,21 +37,21 @@ export function ThemeToggle() {
           {theme === "light" && <Sun className="h-4 w-4" />}
           {theme === "dark" && <Moon className="h-4 w-4" />}
           {theme === "system" && <Monitor className="h-4 w-4" />}
-          <span className="sr-only">切換主題</span>
+          <span className="sr-only">{t.theme.toggle}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setTheme("light")}>
           <Sun className="mr-2 h-4 w-4" />
-          <span>亮色</span>
+          <span>{t.theme.light}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("dark")}>
           <Moon className="mr-2 h-4 w-4" />
-          <span>暗色</span>
+          <span>{t.theme.dark}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme("system")}>
           <Monitor className="mr-2 h-4 w-4" />
-          <span>系統</span>
+          <span>{t.theme.system}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

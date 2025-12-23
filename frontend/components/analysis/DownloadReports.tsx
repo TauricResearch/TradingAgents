@@ -1,12 +1,13 @@
 /**
  * Download Reports Component
- * Simple unified PDF download button
+ * Simple unified PDF download button with i18n support
  */
 "use client";
 
 import { useState } from "react";
 import { Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AnalystInfo {
   key: string;
@@ -25,19 +26,23 @@ interface DownloadReportsProps {
   priceStats?: any;
   /** Compact mode - just the button, no card wrapper */
   compact?: boolean;
+  /** Language for report generation */
+  language?: string;
 }
 
 export function DownloadReports({
   ticker,
   analysisDate,
-  taskId,
+  taskId: _taskId,  // Kept for API compatibility, but direct mode is now preferred
   analysts,
   reports,
   priceData,
   priceStats,
   compact = false,
+  language,
 }: DownloadReportsProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const { t, locale } = useLanguage();
 
   // Helper to get nested value from reports object
   const getNestedValue = (obj: any, path: string) => {
@@ -59,21 +64,17 @@ export function DownloadReports({
     setIsDownloading(true);
     try {
       // Build request body with all available analysts
+      // Always use direct mode when reports data is available (task may be cleaned up from Redis)
       const requestBody: any = {
         ticker,
         analysis_date: analysisDate,
         analysts: availableAnalystKeys,  // Always include all available analysts
+        language: language || locale,  // Pass language for PDF generation
+        // Direct mode: send report data directly (more reliable than task-based)
+        reports: reports,
+        price_data: priceData,
+        price_stats: priceStats,
       };
-      
-      if (taskId) {
-        // Task-based mode: API will look up reports from task
-        requestBody.task_id = taskId;
-      } else {
-        // Direct mode: send report data directly
-        requestBody.reports = reports;
-        requestBody.price_data = priceData;
-        requestBody.price_stats = priceStats;
-      }
       
       const response = await fetch('/api/download/reports', {
         method: 'POST',
@@ -85,7 +86,7 @@ export function DownloadReports({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.detail || `下載失敗 (${response.status})`;
+        const errorMessage = errorData.detail || `${t.download.failed} (${response.status})`;
         throw new Error(errorMessage);
       }
 
@@ -116,7 +117,7 @@ export function DownloadReports({
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
       console.error('Download error:', error);
-      alert(error.message || '下載失敗，請稍後再試');
+      alert(error.message || t.download.failed);
     } finally {
       setIsDownloading(false);
     }
@@ -138,12 +139,12 @@ export function DownloadReports({
         {isDownloading ? (
           <>
             <Download className="h-4 w-4 animate-bounce" />
-            下載中...
+            {t.download.generating}
           </>
         ) : (
           <>
             <FileText className="h-4 w-4" />
-            下載 PDF
+            {t.common.download} PDF
           </>
         )}
       </Button>
@@ -162,12 +163,12 @@ export function DownloadReports({
         {isDownloading ? (
           <>
             <Download className="h-5 w-5 animate-bounce" />
-            生成報告中...
+            {t.download.generating}
           </>
         ) : (
           <>
             <FileText className="h-5 w-5" />
-            下載完整分析報告 PDF
+            {t.download.fullReport}
           </>
         )}
       </Button>

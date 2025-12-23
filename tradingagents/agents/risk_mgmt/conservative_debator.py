@@ -1,69 +1,52 @@
 # -*- coding: utf-8 -*-
-from langchain_core.messages import AIMessage
 import time
 import json
 from tradingagents.agents.utils.output_filter import fix_common_llm_errors, validate_and_warn
+from tradingagents.agents.utils.prompts import get_conservative_debator_prompt
 
 
-def create_safe_debator(llm):
+def create_safe_debator(llm, language: str = "zh-TW"):
     """
-    建立一個安全/保守的風險辯論員節點。
-
-    這個節點在風險評估辯論中扮演保守派的角色。
-    其主要目標是保護資產、最小化波動性並確保穩定可靠的增長。
-    它會優先考慮穩定性、安全性和風險緩解，並對交易員的決策提出謹慎的調整建議。
+    建立一個保守的風險辯論員節點。
 
     Args:
         llm: 用於生成回應的語言模型。
+        language: 報告語言 ('en' 或 'zh-TW')
 
     Returns:
-        function: 一個代表保守辯論員節點的函式，可在 langgraph 中使用。
+        function: 一個代表保守辯論員節點的函式。
     """
 
     def safe_node(state) -> dict:
-        """
-        保守辯論員節點的執行函式。
-
-        Args:
-            state (dict): 當前的圖狀態。
-
-        Returns:
-            dict: 更新後的狀態，包含新的風險辯論狀態。
-        """
-        # 從狀態中獲取風險辯論的相關資訊
+        """保守辯論員節點的執行函式。"""
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state.get("history", "")
         safe_history = risk_debate_state.get("safe_history", "")
 
-        # 獲取其他辯論者的最新回應
         current_risky_response = risk_debate_state.get("current_risky_response", "")
         current_neutral_response = risk_debate_state.get("current_neutral_response", "")
 
-        # 從狀態中獲取各類分析報告
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
-
-        # 獲取交易員的決策
         trader_decision = state["trader_investment_plan"]
 
-        # 移除截斷邏輯以保留完整報告內容
+        # Get language-specific prompt
+        base_prompt = get_conservative_debator_prompt(language)
         
-        # 建立提示 (prompt)
-        prompt = f"""**重要：您必須使用繁體中文（Traditional Chinese）回覆所有內容。**
-**嚴格禁止：請勿在回覆中使用任何 emoji 表情符號（如 ✅ ❌ 📊 📈 🚀 等）。**
-**請只使用純文字、數字、標點符號和必要的 Unicode 符號（如 ↑ ↓ ★ ●等）。**
+        if language == "en":
+            prompt = f"""{base_prompt}
 
-【專業身份】
-您是保守型風險策略師，優先考量資本保全，評估下檔風險。**您必須採取極度保守立場，全力維護資本安全，並強力反駁激進派的盲目樂觀。**
+【Available Information】
+- Trader Plan: {trader_decision}
+- Reports: {market_research_report}, {sentiment_report}, {news_report}, {fundamentals_report}
+- Debate History: {history}
+- Opponent Views: {current_risky_response}, {current_neutral_response}
 
-【論證重點】
-1. **下檔風險**：量化分析最壞情境下的潛在損失，放大風險威脅
-2. **隱藏風險**：識別市場尚未充分反應的威脅因素，揭露潛在地雷
-3. **估值疑慮**：評估股價相對基本面的偏離程度，強調高估風險
-4. **激進盲點**：**強力反駁激進派觀點，指出其盲目樂觀忽略的重大風險因子**
-5. **資本保全**：主張穩健策略優先於激進追逐報酬
+Please provide your conservative risk analysis."""
+        else:
+            prompt = f"""{base_prompt}
 
 【可用資訊】
 - 交易員計畫：{trader_decision}
@@ -71,53 +54,27 @@ def create_safe_debator(llm):
 - 辯論歷史：{history}
 - 對手觀點：{current_risky_response}, {current_neutral_response}
 
-【輸出要求】
-**字數要求**：**800-1500字**
-**嚴格遵守字數限制，少於800字或超過1500字的報告將被退回**
-**內容結構**：
-1. 核心警示（150字以上）：清晰且強勢地陳述保守建議的理由，展現堅定立場
-2. 風險盤點（450-500字）：詳細分析下檔風險，層層揭露隱患
-3. 反駁激進（100字以上）：**激進地反駁激進派的論點，指出其盲目樂觀與被忽略的風險**
-4. 操作建議（100字以上）：明確的保守風控建議，建議謹慎或減倉
+請提供您的保守風險分析。"""
 
-**撰寫原則**：
-- **極度保守**：採取最謹慎立場，優先資本保全
-- **強力反駁**：對激進派論點窮追猛打，揭露其盲目樂觀與被忽視的風險
-- 量化評估，避免過度悲觀，但解讀偏向謹慎
-- 直接回應機會論述，但強調風險管理的重要性
-- 強調穩健增長優於激進追逐
-
-**結尾提示**：
-請在報告最後加上以下結尾：
-「---
-※ 本報告為保守型風險策略分析，立場優先資本保全。建議搭配積極與平衡觀點綜合研判。風險控制為投資首要，請謹慎評估。」
-
-請提供專業且具說服力的保守策略分析。"""
-
-        # 呼叫 LLM 生成回應
         response = llm.invoke(prompt)
         
-        # CRITICAL FIX: Apply output filtering
         response.content = fix_common_llm_errors(response.content)
         validate_and_warn(response.content, "Conservative_Debator")
 
-        # 格式化論點
-        argument = f"安全分析師：{response.content}"
+        if language == "en":
+            argument = f"Conservative Analyst: {response.content}"
+        else:
+            argument = f"保守分析師：{response.content}"
 
-        # 更新風險辯論狀態
         new_risk_debate_state = {
             "history": history + "\n" + argument,
-            "risky_history": risk_debate_state.get("risky_history", ""),
             "safe_history": safe_history + "\n" + argument,
+            "risky_history": risk_debate_state.get("risky_history", ""),
             "neutral_history": risk_debate_state.get("neutral_history", ""),
-            "latest_speaker": "Safe",  # 記錄最新的發言者
-            "current_risky_response": risk_debate_state.get(
-                "current_risky_response", ""
-            ),
+            "latest_speaker": "Safe",
             "current_safe_response": argument,
-            "current_neutral_response": risk_debate_state.get(
-                "current_neutral_response", ""
-            ),
+            "current_risky_response": risk_debate_state.get("current_risky_response", ""),
+            "current_neutral_response": risk_debate_state.get("current_neutral_response", ""),
             "count": risk_debate_state["count"] + 1,
         }
 

@@ -3,7 +3,7 @@
  */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm, ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,6 +12,7 @@ import { CheckIcon } from "lucide-react";
 import { getApiSettingsAsync } from "@/lib/storage";
 import { getBaseUrlForModel, getApiKeyForModel } from "@/lib/api-helpers";
 import Image from "next/image";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import { cn } from "@/lib/utils";
 
@@ -90,14 +91,19 @@ interface AnalysisFormProps {
   loading?: boolean;
 }
 
-const ANALYSTS = [
-  { value: "market", label: "市場分析師" },
-  { value: "social", label: "社群媒體分析師" },
-  { value: "news", label: "新聞分析師" },
-  { value: "fundamentals", label: "基本面分析師" },
-];
+// ANALYSTS is now defined inside the component using translations
 
 export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
+  const { t, locale } = useLanguage();
+  
+  // Define ANALYSTS using translations
+  const ANALYSTS = useMemo(() => [
+    { value: "market", label: t.agents.market_analyst },
+    { value: "social", label: t.agents.social_analyst },
+    { value: "news", label: t.agents.news_analyst },
+    { value: "fundamentals", label: t.agents.fundamentals_analyst },
+  ], [t]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -279,6 +285,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
       ...values,
       quick_think_llm: finalQuickThinkLlm,
       deep_think_llm: finalDeepThinkLlm,
+      language: locale as "en" | "zh-TW",  // Pass current UI language to backend
     };
     onSubmit(request);
   }
@@ -296,7 +303,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
               <div className="md:col-span-2 border-b pb-6">
                 <div className="flex justify-between items-center mb-4">
                   <FormLabel className="text-base font-semibold">
-                    分析師團隊
+                    {t.form.analysts}
                   </FormLabel>
                   <Button
                     type="button"
@@ -305,8 +312,8 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     onClick={toggleSelectAll}
                   >
                     {form.watch("analysts").length === ANALYSTS.length
-                      ? "取消全選"
-                      : "全選"}
+                      ? t.form.deselectAll
+                      : t.form.selectAll}
                   </Button>
                 </div>
                 <FormField
@@ -373,14 +380,14 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                   name="market_type"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>市場類型</FormLabel>
+                      <FormLabel>{t.form.marketType}</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="選擇市場" />
+                            <SelectValue placeholder={t.form.selectMarket} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -388,23 +395,23 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                             value="us"
                             className="py-3 cursor-pointer"
                           >
-                            🇺🇸 美股
+                            🇺🇸 {t.form.usMarket}
                           </SelectItem>
                           <SelectItem
                             value="twse"
                             className="py-3 cursor-pointer"
                           >
-                            🇹🇼 台股上市
+                            🇹🇼 {t.form.twseMarket}
                           </SelectItem>
                           <SelectItem
                             value="tpex"
                             className="py-3 cursor-pointer"
                           >
-                            🇹🇼 台股上櫃/興櫃
+                            🇹🇼 {t.form.tpexMarket}
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription>選擇分析的股票市場</FormDescription>
+                      <FormDescription>{t.form.selectMarketDesc}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -416,7 +423,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                   name="ticker"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>股票代碼</FormLabel>
+                      <FormLabel>{t.form.ticker}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder={
@@ -431,10 +438,10 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                       </FormControl>
                       <FormDescription>
                         {marketType === "us"
-                          ? "輸入美股代碼（例如：NVDA、AAPL）"
+                          ? t.form.tickerDescUS
                           : marketType === "twse"
-                          ? "輸入上市股票代碼（例如：2330、2317）"
-                          : "輸入上櫃/興櫃股票代碼（例如：6488、5765）"}
+                          ? t.form.tickerDescTWSE
+                          : t.form.tickerDescTPEX}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -446,7 +453,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                   name="analysis_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>分析日期</FormLabel>
+                      <FormLabel>{t.form.analysisDate}</FormLabel>
                       <FormControl>
                         <DatePicker
                           date={field.value ? new Date(field.value) : undefined}
@@ -455,11 +462,11 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                               date ? format(date, "yyyy-MM-dd") : ""
                             );
                           }}
-                          placeholder="選擇分析日期"
+                          placeholder={t.form.selectDate}
                           className="w-full"
                         />
                       </FormControl>
-                      <FormDescription>選擇分析日期</FormDescription>
+                      <FormDescription>{t.form.selectDate}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -473,7 +480,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                   name="research_depth"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>研究深度</FormLabel>
+                      <FormLabel>{t.form.researchDepth}</FormLabel>
                       <Select
                         onValueChange={(value) =>
                           field.onChange(parseInt(value))
@@ -482,22 +489,22 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="選擇研究深度" />
+                            <SelectValue placeholder={t.form.selectDepth} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="max-h-80">
                           <SelectItem value="1" className="py-3 cursor-pointer">
-                            淺層 - 快速研究
+                            {t.form.depthShallowLabel}
                           </SelectItem>
                           <SelectItem value="3" className="py-3 cursor-pointer">
-                            中等 - 適度討論
+                            {t.form.depthMediumLabel}
                           </SelectItem>
                           <SelectItem value="5" className="py-3 cursor-pointer">
-                            深層 - 深入研究
+                            {t.form.depthDeepLabel}
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription>選擇分析深度</FormDescription>
+                      <FormDescription>{t.form.selectDepth}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -508,7 +515,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                   name="quick_think_llm"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>快速思維模型</FormLabel>
+                      <FormLabel>{t.form.quickThinkModel}</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
@@ -713,11 +720,11 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
 
                           {/* Custom Model */}
                           <SelectItem value="custom">
-                            Other（自訂模型）
+                            {t.form.otherCustomModel}
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription>快速回應模型</FormDescription>
+                      <FormDescription>{t.form.quickResponseModel}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -748,7 +755,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                   name="deep_think_llm"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>深層思維模型</FormLabel>
+                      <FormLabel>{t.form.deepThinkModel}</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
@@ -953,11 +960,11 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
 
                           {/* Custom Model */}
                           <SelectItem value="custom">
-                            Other（自訂模型）
+                            {t.form.otherCustomModel}
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription>複雜推理模型</FormDescription>
+                      <FormDescription>{t.form.complexReasoningModel}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -970,7 +977,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                     name="custom_deep_think_model"
                     render={({ field }) => (
                       <FormItem className="md:col-span-3 animate-scale-up">
-                        <FormLabel>自訂深層思維模型名稱</FormLabel>
+                        <FormLabel>{t.form.customDeepThinkModelName}</FormLabel>
                         <FormControl>
                           <Input placeholder="例如：deepseek-chat" {...field} />
                         </FormControl>
@@ -989,7 +996,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                   name="embedding_model"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>嵌入式模型</FormLabel>
+                      <FormLabel>{t.form.embeddingModel}</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
@@ -1031,8 +1038,8 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                       </Select>
                       <FormDescription>
                         {isLocalEmbedding 
-                          ? "🆓 本地模型不需 API Key" 
-                          : "☁️ 需要 OpenAI API Key"}
+                          ? t.form.localModelNoApiKey 
+                          : t.form.needsOpenAiApiKey}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -1055,7 +1062,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                 e.currentTarget.blur();
               }}
             >
-              {loading ? "執行分析中..." : "執行分析"}
+              {loading ? t.form.analyzing : t.form.executeAnalysis}
             </Button>
           </form>
         </Form>

@@ -128,6 +128,9 @@ class TradingAgentsXGraph:
 
         # 建立工具節點
         self.tool_nodes = self._create_tool_nodes()
+        
+        # Extract language from config (default: zh-TW for backward compatibility)
+        self.language = self.config.get("language", "zh-TW")
 
         # 初始化組件
         self.conditional_logic = ConditionalLogic()
@@ -141,6 +144,7 @@ class TradingAgentsXGraph:
             self.invest_judge_memory,
             self.risk_manager_memory,
             self.conditional_logic,
+            self.language,  # Pass language for agent reports
         )
 
         self.propagator = Propagator()

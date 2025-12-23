@@ -1,5 +1,5 @@
 /**
- * Header component with mobile-responsive design
+ * Header component with mobile-responsive design and i18n support
  */
 "use client";
 
@@ -8,11 +8,14 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { ApiSettingsDialog } from "@/components/settings/ApiSettingsDialog";
+import { LanguageSwitcher } from "@/components/settings/LanguageSwitcher";
 import { LoginButton } from "@/components/auth/login-button";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <header className="border-b bg-gradient-to-r from-blue-500 to-pink-500 dark:from-blue-600 dark:to-purple-600 text-white pwa-safe-header">
@@ -22,7 +25,7 @@ export function Header() {
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <div className="text-xl md:text-3xl font-bold">TradingAgentsX</div>
             <div className="hidden lg:block text-sm font-light opacity-90">
-              多代理 LLM 金融交易框架
+              {t.nav.tagline}
             </div>
           </Link>
 
@@ -32,27 +35,29 @@ export function Header() {
               href="/"
               className="hover:opacity-80 transition-opacity font-medium text-sm lg:text-base"
             >
-              首頁
+              {t.nav.home}
             </Link>
             <Link
               href="/analysis"
               className="hover:opacity-80 transition-opacity font-medium text-sm lg:text-base"
             >
-              分析
+              {t.nav.analysis}
             </Link>
             <Link
               href="/history"
               className="hover:opacity-80 transition-opacity font-medium text-sm lg:text-base"
             >
-              歷史報告
+              {t.nav.history}
             </Link>
             <ApiSettingsDialog />
+            <LanguageSwitcher />
             <ThemeToggle />
             <LoginButton />
           </nav>
 
           {/* Mobile Menu Button */}
           <div className="flex md:hidden items-center gap-2">
+            <LanguageSwitcher />
             <ThemeToggle />
             <Button
               variant="ghost"
@@ -73,21 +78,21 @@ export function Header() {
               className="block py-2 hover:opacity-80 transition-opacity font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
-              首頁
+              {t.nav.home}
             </Link>
             <Link
               href="/analysis"
               className="block py-2 hover:opacity-80 transition-opacity font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
-              分析
+              {t.nav.analysis}
             </Link>
             <Link
               href="/history"
               className="block py-2 hover:opacity-80 transition-opacity font-medium"
               onClick={() => setMobileMenuOpen(false)}
             >
-              歷史報告
+              {t.nav.history}
             </Link>
             <div className="flex items-center gap-3 pt-2">
               <ApiSettingsDialog />

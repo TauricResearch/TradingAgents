@@ -8,12 +8,15 @@ import remarkGfm from "remark-gfm";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Reports } from "@/lib/types";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AnalystReportProps {
   reports: Reports;
 }
 
 export function AnalystReport({ reports }: AnalystReportProps) {
+  const { t } = useLanguage();
+
   const hasAnalystReports =
     reports.market_report ||
     reports.sentiment_report ||
@@ -37,49 +40,49 @@ export function AnalystReport({ reports }: AnalystReportProps) {
   return (
     <Card className="shadow-lg hover-lift animate-scale-up">
       <CardHeader>
-        <CardTitle>分析報告</CardTitle>
-        <CardDescription>來自所有代理團隊的詳細報告</CardDescription>
+        <CardTitle>{t.results.title}</CardTitle>
+        <CardDescription>{t.home.professionalAgentsDesc}</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="analysts" className="w-full">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="analysts">分析師</TabsTrigger>
-            <TabsTrigger value="research">研究</TabsTrigger>
-            <TabsTrigger value="trader">交易員</TabsTrigger>
-            <TabsTrigger value="risk">風險</TabsTrigger>
+            <TabsTrigger value="analysts">{t.tabs.analysts}</TabsTrigger>
+            <TabsTrigger value="research">{t.tabs.researchers}</TabsTrigger>
+            <TabsTrigger value="trader">{t.tabs.trader}</TabsTrigger>
+            <TabsTrigger value="risk">{t.tabs.risk}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="analysts" className="space-y-4">
             {reports.market_report && (
-              <ReportSection title="市場分析" content={reports.market_report} />
+              <ReportSection title={t.agents.market_analyst} content={reports.market_report} />
             )}
             {reports.sentiment_report && (
-              <ReportSection title="情緒分析" content={reports.sentiment_report} />
+              <ReportSection title={t.agents.social_analyst} content={reports.sentiment_report} />
             )}
             {reports.news_report && (
-              <ReportSection title="新聞分析" content={reports.news_report} />
+              <ReportSection title={t.agents.news_analyst} content={reports.news_report} />
             )}
             {reports.fundamentals_report && (
-              <ReportSection title="基本面分析" content={reports.fundamentals_report} />
+              <ReportSection title={t.agents.fundamentals_analyst} content={reports.fundamentals_report} />
             )}
           </TabsContent>
 
           <TabsContent value="research" className="space-y-4">
             {reports.investment_debate_state?.bull_history && (
               <ReportSection
-                title="看漲研究員"
+                title={t.agents.bull_researcher}
                 content={reports.investment_debate_state.bull_history}
               />
             )}
             {reports.investment_debate_state?.bear_history && (
               <ReportSection
-                title="看跌研究員"
+                title={t.agents.bear_researcher}
                 content={reports.investment_debate_state.bear_history}
               />
             )}
             {reports.investment_debate_state?.judge_decision && (
               <ReportSection
-                title="研究經理決策"
+                title={t.agents.research_manager}
                 content={reports.investment_debate_state.judge_decision}
               />
             )}
@@ -87,32 +90,32 @@ export function AnalystReport({ reports }: AnalystReportProps) {
 
           <TabsContent value="trader" className="space-y-4">
             {reports.trader_investment_plan && (
-              <ReportSection title="交易員計劃" content={reports.trader_investment_plan} />
+              <ReportSection title={t.agents.trader} content={reports.trader_investment_plan} />
             )}
           </TabsContent>
 
           <TabsContent value="risk" className="space-y-4">
             {reports.risk_debate_state?.risky_history && (
               <ReportSection
-                title="激進分析師"
+                title={t.agents.aggressive_debator}
                 content={reports.risk_debate_state.risky_history}
               />
             )}
             {reports.risk_debate_state?.safe_history && (
               <ReportSection
-                title="保守分析師"
+                title={t.agents.conservative_debator}
                 content={reports.risk_debate_state.safe_history}
               />
             )}
             {reports.risk_debate_state?.neutral_history && (
               <ReportSection
-                title="中立分析師"
+                title={t.agents.neutral_debator}
                 content={reports.risk_debate_state.neutral_history}
               />
             )}
             {reports.risk_debate_state?.judge_decision && (
               <ReportSection
-                title="投資組合經理決策"
+                title={t.agents.risk_manager}
                 content={reports.risk_debate_state.judge_decision}
               />
             )}

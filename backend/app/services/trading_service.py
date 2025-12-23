@@ -58,6 +58,7 @@ class TradingService:
         research_depth: int = 1,
         deep_think_llm: str = "gpt-5-mini",
         quick_think_llm: str = "gpt-5-mini",
+        language: str = "zh-TW",  # Language for agent reports: 'en' or 'zh-TW'
     ) -> Dict[str, Any]:
         """
         Run trading analysis for a given ticker and date with user-provided API keys
@@ -180,6 +181,10 @@ class TradingService:
                 else:
                     # 美股：維持原有邏輯（不修改 data_vendors 和 tool_vendors）
                     logger.info(f"Market type: US stocks - using default data providers")
+                
+                # Set language for agent reports
+                config["language"] = language
+                logger.info(f"Language for reports: {language}")
                 
                 # Initialize TradingAgentsX graph
                 graph = TradingAgentsXGraph(analysts, config=config, debug=True)

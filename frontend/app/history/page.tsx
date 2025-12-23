@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { useAnalysisContext } from "@/context/AnalysisContext";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -54,12 +55,12 @@ const ANALYSTS = [
   { key: "risk_manager", label: "風險經理", reportKey: "risk_debate_state.judge_decision", description: "風險管理綜合決策" },
 ];
 
-// Market type labels
-const MARKET_LABELS = {
-  us: { label: "🇺🇸 美股", description: "美國股市分析報告" },
-  twse: { label: "🇹🇼 上市", description: "台灣證券交易所上市股票" },
-  tpex: { label: "🇹🇼 上櫃/興櫃", description: "台灣櫃買中心上櫃/興櫃股票" },
-};
+// Market type labels - dynamic function to support translations
+const getMarketLabels = (t: ReturnType<typeof useLanguage>['t']) => ({
+  us: { label: `🇺🇸 ${t.form.usMarket}`, description: t.form.tickerDescUS },
+  twse: { label: `🇹🇼 ${t.form.twseMarket}`, description: t.form.tickerDescTWSE },
+  tpex: { label: `🇹🇼 ${t.form.tpexMarket}`, description: t.form.tickerDescTPEX },
+});
 
 // Helper function to extract decision from Risk Manager's final decision
 const extractDecisionFromReport = (report: SavedReport): { action: string; color: string } => {
@@ -83,25 +84,42 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
   } else {
     console.log("  - trader_investment_plan is NULL or undefined");
   }
-  // Helper function to find "最終交易提案" specifically
+  // Helper function to find "最終交易提案" or "Final Trading Proposal"
   const findFinalProposal = (text: string): { action: string; color: string } | null => {
     if (!text || typeof text !== 'string') return null;
     
+    // === CHINESE PATTERN ===
     // Match "最終交易提案：持有" - handle markdown ** bold markers
     // Pattern handles: 最終交易提案：持有, 最終交易提案：**持有**, **最終交易提案：持有**
     // Use global flag to find ALL matches, then take the LAST one (final decision)
-    const regex = /\*{0,2}最終交易提案[：:]\s*\*{0,2}(買入|賣出|持有)\*{0,2}/g;
-    const matches = [...text.matchAll(regex)];
+    const zhRegex = /\*{0,2}最終交易提案[：:]\s*\*{0,2}(買入|賣出|持有)\*{0,2}/g;
+    const zhMatches = [...text.matchAll(zhRegex)];
     
-    if (matches.length > 0) {
+    if (zhMatches.length > 0) {
       // Take the LAST match (the final decision at the end of the report)
-      const lastMatch = matches[matches.length - 1];
+      const lastMatch = zhMatches[zhMatches.length - 1];
       const decision = lastMatch[1];
-      console.log(`  ✅ Matched pattern: "${lastMatch[0]}" -> decision: "${decision}"`);
+      console.log(`  ✅ Matched ZH pattern: "${lastMatch[0]}" -> decision: "${decision}"`);
       if (decision === "買入") return { action: "買入", color: "text-green-600" };
       if (decision === "賣出") return { action: "賣出", color: "text-red-600" };
       if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
     }
+    
+    // === ENGLISH PATTERN ===
+    // Match "Final Trading Proposal: BUY/SELL/HOLD" - handle markdown ** bold markers
+    // Pattern handles: Final Trading Proposal: Buy, **Final Trading Proposal**: Hold, etc.
+    const enRegex = /\*{0,2}Final Trading Proposal\*{0,2}[：:]\s*\*{0,2}(BUY|SELL|HOLD|Buy|Sell|Hold)\*{0,2}/gi;
+    const enMatches = [...text.matchAll(enRegex)];
+    
+    if (enMatches.length > 0) {
+      const lastMatch = enMatches[enMatches.length - 1];
+      const decision = lastMatch[1].toUpperCase();
+      console.log(`  ✅ Matched EN pattern: "${lastMatch[0]}" -> decision: "${decision}"`);
+      if (decision === "BUY") return { action: "BUY", color: "text-green-600" };
+      if (decision === "SELL") return { action: "SELL", color: "text-red-600" };
+      if (decision === "HOLD") return { action: "HOLD", color: "text-yellow-600" };
+    }
+    
     return null;
   };
   
@@ -193,6 +211,10 @@ export default function HistoryPage() {
   const router = useRouter();
   const { setAnalysisResult, setTaskId, setMarketType } = useAnalysisContext();
   const { isAuthenticated } = useAuth();
+  const { t, locale } = useLanguage();
+  
+  // Dynamic market labels based on language
+  const MARKET_LABELS = getMarketLabels(t);
 
   const [activeTab, setActiveTab] = useState<"us" | "twse" | "tpex">("us");
   const [reports, setReports] = useState<SavedReport[]>([]);
@@ -492,6 +514,7 @@ export default function HistoryPage() {
         reports: report.result.reports,
         price_data: report.result.price_data,
         price_stats: report.result.price_stats,
+        language: locale,  // Pass current language for PDF generation
       };
       
       const response = await fetch('/api/download/reports', {
@@ -547,10 +570,10 @@ export default function HistoryPage() {
           <div className="text-center relative animate-fade-in">
             <div className="absolute inset-0 gradient-bg-radial opacity-40 -z-10" />
             <h1 className="text-4xl font-bold mb-2 gradient-text-primary">
-              歷史報告
+              {t.history.title}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              瀏覽已儲存的分析報告
+              {t.history.noHistory.replace("尚無分析紀錄", "瀏覽已儲存的分析報告")}
             </p>
           </div>
 
@@ -596,7 +619,7 @@ export default function HistoryPage() {
                         <RefreshCw
                           className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
                         />
-                        重新整理
+                        {t.history.refresh}
                       </Button>
                     </div>
 
@@ -604,24 +627,24 @@ export default function HistoryPage() {
                     {loading ? (
                       <div className="text-center py-12">
                         <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                        <p className="text-gray-500 mt-4">載入中...</p>
+                        <p className="text-gray-500 mt-4">{t.history.loading}</p>
                       </div>
                     ) : reports.length === 0 ? (
                       <Card className="animate-fade-in">
                         <CardContent className="py-12 text-center">
                           <TrendingUp className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
                           <p className="text-gray-500 dark:text-gray-400">
-                            尚無{MARKET_LABELS[marketType].label}的分析報告
+                            {t.history.noReportsFor} {MARKET_LABELS[marketType].label}
                           </p>
                           <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
-                            執行分析後，可在結果頁面儲存報告
+                            {t.history.afterAnalysisSave}
                           </p>
                           <Button
                             variant="outline"
                             className="mt-4"
                             onClick={() => router.push("/analysis")}
                           >
-                            開始分析
+                            {t.home.startAnalysis}
                           </Button>
                         </CardContent>
                       </Card>
@@ -642,12 +665,12 @@ export default function HistoryPage() {
                                 </span>
                               </CardTitle>
                               <CardDescription>
-                                分析日期：{report.analysis_date}
+                                {t.history.analysisDate}：{report.analysis_date}
                               </CardDescription>
                             </CardHeader>
                             <CardContent>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
-                                儲存時間：
+                                {t.history.savedAt}：
                                 {format(
                                   new Date(report.saved_at),
                                   "yyyy/MM/dd HH:mm",
@@ -658,7 +681,7 @@ export default function HistoryPage() {
                                 const decision = extractDecisionFromReport(report);
                                 return (
                                   <p className="text-sm mt-2">
-                                    <span className="font-medium">決策：</span>
+                                    <span className="font-medium">{t.history.decision}：</span>
                                     <span className={`ml-1 font-semibold ${decision.color}`}>
                                       {decision.action}
                                     </span>
@@ -674,7 +697,7 @@ export default function HistoryPage() {
                                 onClick={() => handleViewReport(report)}
                               >
                                 <Eye className="h-4 w-4" />
-                                檢視
+                                {t.history.view}
                               </Button>
                               <Button
                                 variant="outline"
@@ -686,7 +709,7 @@ export default function HistoryPage() {
                                 {downloadingId === report.id ? (
                                   <>
                                     <Download className="h-4 w-4 animate-bounce" />
-                                    下載中
+                                    {t.history.downloading}
                                   </>
                                 ) : (
                                   <>
@@ -702,7 +725,7 @@ export default function HistoryPage() {
                                 onClick={() => handleDeleteClick(report)}
                               >
                                 <Trash2 className="h-4 w-4" />
-                                刪除
+                                {t.history.delete}
                               </Button>
                             </CardFooter>
                           </Card>
@@ -721,12 +744,12 @@ export default function HistoryPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>確認刪除</DialogTitle>
+            <DialogTitle>{t.history.confirmDeleteTitle}</DialogTitle>
             <DialogDescription>
-              確定要刪除 <strong>{reportToDelete?.ticker}</strong> 於{" "}
-              <strong>{reportToDelete?.analysis_date}</strong> 的分析報告嗎？
+              {t.history.confirmDeleteDesc} <strong>{reportToDelete?.ticker}</strong> {t.history.on}{" "}
+              <strong>{reportToDelete?.analysis_date}</strong>?
               <br />
-              <span className="text-red-500">此操作無法復原。</span>
+              <span className="text-red-500">{t.history.cannotUndo}</span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -735,14 +758,14 @@ export default function HistoryPage() {
               onClick={() => setDeleteDialogOpen(false)}
               disabled={deleting}
             >
-              取消
+              {t.history.cancel}
             </Button>
             <Button
               variant="destructive"
               onClick={handleConfirmDelete}
               disabled={deleting}
             >
-              {deleting ? "刪除中..." : "確認刪除"}
+              {deleting ? t.history.deleting : t.history.confirmDeleteBtn}
             </Button>
           </DialogFooter>
         </DialogContent>

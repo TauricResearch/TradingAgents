@@ -3,73 +3,61 @@ from langchain_core.messages import AIMessage
 import time
 import json
 from tradingagents.agents.utils.output_filter import fix_common_llm_errors, validate_and_warn
+from tradingagents.agents.utils.prompts import get_bull_researcher_prompt
 
 
-def create_bull_researcher(llm, memory):
+def create_bull_researcher(llm, memory, language: str = "zh-TW"):
     """
     建立一個看漲研究員節點。
-
-    這個節點在辯論中扮演看漲分析師的角色，主張投資某支股票。
-    它會利用市場研究、情緒分析、新聞和基本面報告，並結合過去的經驗（記憶），
-    來構建一個有說服力的論點，並反駁看跌方的觀點。
 
     Args:
         llm: 用於生成回應的語言模型。
         memory: 儲存過去情況和反思的記憶體物件。
+        language: 報告語言 ('en' 或 'zh-TW')
 
     Returns:
-        function: 一個代表看漲研究員節點的函式，可在 langgraph 中使用。
+        function: 一個代表看漲研究員節點的函式。
     """
 
     def bull_node(state) -> dict:
-        """
-        看漲研究員節點的執行函式。
-
-        Args:
-            state (dict): 當前的圖狀態。
-
-        Returns:
-            dict: 更新後的狀態，包含新的投資辯論狀態。
-        """
-        # 從狀態中獲取投資辯論的相關資訊
+        """看漲研究員節點的執行函式。"""
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
         bull_history = investment_debate_state.get("bull_history", "")
         current_response = investment_debate_state.get("current_response", "")
 
-        # 從狀態中獲取各類分析報告
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
 
-        # 整合當前情況 - 移除截斷邏輯以保留完整報告內容
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         
-        # 從記憶體中獲取過去相似情況的經驗
         past_memories = memory.get_memories(curr_situation, n_matches=2)
-
-        # 將過去的經驗格式化為字串
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
             recommendation = rec["recommendation"]
             past_memory_str += recommendation + "\n\n"
 
-        # 建立提示 (prompt) - 保留完整歷史以確保context完整性
+        # Get language-specific prompt template
+        base_prompt = get_bull_researcher_prompt(language)
         
-        prompt = f"""**重要：您必須使用繁體中文（Traditional Chinese）回覆所有內容。**
-**嚴格禁止：請勿在回覆中使用任何 emoji 表情符號（如 ✅ ❌ 📊 📈 🚀 等）。**
-**請只使用純文字、數字、標點符號和必要的 Unicode 符號（如 ↑ ↓ ★ ●等）。**
+        # Build the full prompt with context
+        if language == "en":
+            prompt = f"""{base_prompt}
 
-【專業身份】
-您是看漲方研究員，負責提出買進論據，強調投資價值與上漲潛力。**您必須採取激進做多立場，不惜一切代價找出所有看漲催化劑，並強力反駁看跌論點。**
+【Available Data】
+- Market Analysis: {market_research_report}
+- Sentiment Report: {sentiment_report}
+- News Report: {news_report}
+- Fundamentals Report: {fundamentals_report}
+- Debate History: {history}
+- Bearish Arguments: {current_response}
+- Past Experience: {past_memory_str}
 
-【分析重點】
-1. **成長動能**：評估營收、盈餘成長的持續性與加速跡象，找出所有成長加速的證據
-2. **競爭優勢**：分析護城河、市場地位與定價能力，強調絕對優勢
-3. **催化因子**：識別可能推升股價的近期事件或結構性改變，放大利多影響
-4. **估值優勢**：說明當前價格相對價值的吸引力，強調被低估的幅度
-5. **反駁看跌**：**強力反駁看跌方論點，不留情面，直指其論據的漏洞與過度悲觀**
+Please provide your bullish analysis now."""
+        else:
+            prompt = f"""{base_prompt}
 
 【可用資料】
 - 市場分析：{market_research_report}
@@ -80,41 +68,19 @@ def create_bull_researcher(llm, memory):
 - 看跌論點：{current_response}
 - 過往經驗：{past_memory_str}
 
-【輸出要求】
-**字數要求**：**800-1500字**
-**嚴格遵守字數限制，少於800字或超過1500字的報告將被退回**
-**內容結構**：
-1. 核心論點（150字以上）：清晰且強勢地陳述看漲理由，展現必勝信心
-2. 成長論證（450-500字）：用詳實數據支撐成長邏輯，層層推進論述
-3. 反駁看跌（100字以上）：**激進地反駁看跌觀點，不留情面，直指對方論據的致命缺陷**
-4. 投資建議（100字以上）：明確且積極的操作建議，鼓勵進場
+請提供您的看漲分析。"""
 
-**撰寫原則**：
-- **激進做多**：採取極度樂觀立場，強調所有利多因素
-- **強力反駁**：對看跌論點窮追猛打，揭露其邏輯漏洞與過度悲觀
-- 論據扎實，以數據與事實為基礎，但解讀偏向樂觀
-- 直接回應對方論點，避免迴避問題
-- 承認風險但強調機會遠大於風險
-
-**結尾提示**：
-請在報告最後加上以下結尾：
-「---
-🐂 **本報告為看漲方研究分析，立場偏向積極樂觀。建議搭配看跌方觀點與風險評估綜合研判。投資有風險，請謹慎評估。**」
-
-請提供有說服力且激進的看漲分析報告。
-"""
-
-        # 呼叫 LLM 生成回應
         response = llm.invoke(prompt)
         
-        # CRITICAL FIX: Apply output filtering to fix common LLM errors
         response.content = fix_common_llm_errors(response.content)
         validate_and_warn(response.content, "Bull_Researcher")
 
-        # 格式化論點
-        argument = f"看漲分析師：{response.content}"
+        # Format argument based on language
+        if language == "en":
+            argument = f"Bull Analyst: {response.content}"
+        else:
+            argument = f"看漲分析師：{response.content}"
 
-        # 更新投資辯論狀態
         new_investment_debate_state = {
             "history": history + "\n" + argument,
             "bull_history": bull_history + "\n" + argument,
