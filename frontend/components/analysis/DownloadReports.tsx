@@ -49,6 +49,21 @@ export function DownloadReports({
     return path.split('.').reduce((current, key) => current?.[key], obj);
   };
 
+  // Helper to detect if content contains Chinese characters
+  const detectContentLanguage = (data: any): 'zh-TW' | 'en' | null => {
+    try {
+      const contentStr = JSON.stringify(data);
+      // Check for Chinese characters (Unicode range \u4e00-\u9fa5)
+      const chineseRegex = /[\u4e00-\u9fa5]/;
+      if (chineseRegex.test(contentStr)) {
+        return 'zh-TW';
+      }
+      return 'en';
+    } catch (e) {
+      return null;
+    }
+  };
+
   // Get all available analyst keys (those with actual reports)
   const availableAnalystKeys = analysts
     .filter(analyst => {
@@ -65,11 +80,18 @@ export function DownloadReports({
     try {
       // Build request body with all available analysts
       // Always use direct mode when reports data is available (task may be cleaned up from Redis)
+      // Detect content language
+      const contentLang = detectContentLanguage(reports);
+      // Use detected language if available, otherwise fallback to prop or current locale
+      // This ensures that if reports are in Chinese, the PDF headers will also be in Chinese
+      // even if the UI is in English
+      const finalLanguage = contentLang || language || locale;
+
       const requestBody: any = {
         ticker,
         analysis_date: analysisDate,
         analysts: availableAnalystKeys,  // Always include all available analysts
-        language: language || locale,  // Pass language for PDF generation
+        language: finalLanguage,  // Pass language for PDF generation
         // Direct mode: send report data directly (more reliable than task-based)
         reports: reports,
         price_data: priceData,
