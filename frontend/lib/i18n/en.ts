@@ -16,7 +16,7 @@ export const en = {
     submit: "Submit",
     close: "Close",
   },
-  
+
   // Theme
   theme: {
     toggle: "Toggle theme",
@@ -24,7 +24,7 @@ export const en = {
     dark: "Dark",
     system: "System",
   },
-  
+
   // Auth / Login
   auth: {
     login: "Login",
@@ -40,34 +40,39 @@ export const en = {
   settings: {
     title: "API Settings",
     apiConfiguration: "API Configuration",
-    description: "Configure your API keys. They are stored encrypted in your browser.",
+    description:
+      "Configure your API keys. They are stored encrypted in your browser.",
     encryptionEnabled: "🔒 AES-256-GCM encryption enabled",
-    onlyFillNeeded: "💡 Only fill in the API keys for the model providers you want to use. For example, if using Claude, only fill in the Claude API key.",
-    
+    onlyFillNeeded:
+      "💡 Only fill in the API keys for the model providers you want to use. For example, if using Claude, only fill in the Claude API key.",
+
     // Sections
     stockMarketApis: "Stock Market Data APIs (fill based on market)",
     llmProviders: "LLM Model Providers (fill based on selected model)",
     customEndpoint: "Custom Endpoint (Advanced)",
-    
+
     // Form labels
     finmindToken: "FinMind API Token (Taiwan Stocks)",
     finmindPlaceholder: "Enter FinMind Token",
     finmindDesc: "For Taiwan stock data (register at finmindtrade.com)",
     alphaVantageKey: "Alpha Vantage API Key (US Stocks)",
     alphaVantagePlaceholder: "Enter Alpha Vantage API Key",
-    alphaVantageDesc: "For US stock fundamental data (recommended for US stocks)",
-    openaiDesc: "For OpenAI models (GPT-4, GPT-5, o4, etc.) and OpenAI embeddings",
+    alphaVantageDesc:
+      "For US stock fundamental data (recommended for US stocks)",
+    openaiDesc:
+      "For OpenAI models (GPT-4, GPT-5, o4, etc.) and OpenAI embeddings",
     anthropicDesc: "For Claude models",
     googleDesc: "For Gemini models",
     grokDesc: "For Grok models",
     deepseekDesc: "For DeepSeek models",
     qwenDesc: "For Qwen models",
     customBaseUrl: "Custom Base URL",
-    customBaseUrlDesc: "If set, this will override the default endpoint for all models",
+    customBaseUrlDesc:
+      "If set, this will override the default endpoint for all models",
     customApiKey: "Custom Endpoint API Key",
     customApiKeyPlaceholder: "Enter custom endpoint API Key",
     customApiKeyDesc: "API Key for use with custom Base URL",
-    
+
     // Buttons and messages
     saveSettings: "Save Settings",
     clearSettings: "Clear Settings",
@@ -88,77 +93,132 @@ export const en = {
   home: {
     title: "TradingAgentsX",
     subtitle: "Multi-Agent LLM Trading Analysis Platform",
-    description: "Powered by multi-agent AI collaboration for comprehensive investment analysis and insights",
+    description:
+      "Powered by multi-agent AI collaboration for comprehensive investment analysis and insights",
     startAnalysis: "Start Analysis",
     viewHistory: "View History",
-    
+
     // Core features section
     coreFeatures: "Core Features",
-    coreFeaturesDesc: "Intelligent stock trading analysis platform based on LangGraph, combining multiple AI agents for collaborative decision-making",
-    
+    coreFeaturesDesc:
+      "Intelligent stock trading analysis platform based on LangGraph, combining multiple AI agents for collaborative decision-making",
+
     // Feature cards
     features: {
       multiAgent: "Multi-Agent Collaboration",
-      multiAgentDesc: "12 specialized AI agent teams working together, simulating real trading firm operations",
+      multiAgentDesc:
+        "12 specialized AI agent teams working together, simulating real trading firm operations",
       multiModel: "Multi-Model Support",
-      multiModelDesc: "Support for OpenAI, Claude, Gemini, Grok, DeepSeek, Qwen and more LLMs",
+      multiModelDesc:
+        "Support for OpenAI, Claude, Gemini, Grok, DeepSeek, Qwen and more LLMs",
       customEndpoint: "Custom Endpoint Configuration",
-      customEndpointDesc: "Full support for custom API endpoints, connect to any OpenAI-compatible service",
+      customEndpointDesc:
+        "Full support for custom API endpoints, connect to any OpenAI-compatible service",
       fullAnalysis: "Comprehensive Market Analysis",
-      fullAnalysisDesc: "Integrated technical, fundamental, sentiment, and news analysis across four dimensions",
+      fullAnalysisDesc:
+        "Integrated technical, fundamental, sentiment, and news analysis across four dimensions",
       structuredDecision: "Structured Decision Process",
-      structuredDecisionDesc: "Bull/Bear debate mechanism reduces bias for more rational decisions",
+      structuredDecisionDesc:
+        "Bull/Bear debate mechanism reduces bias for more rational decisions",
       longTermMemory: "Long-Term Memory System",
-      longTermMemoryDesc: "ChromaDB vector database stores historical decisions for continuous learning",
+      longTermMemoryDesc:
+        "ChromaDB vector database stores historical decisions for continuous learning",
       modernUI: "Modern Web Interface",
       modernUIDesc: "Responsive UI based on Next.js 16, supports dark mode",
       oneClickDeploy: "One-Click Deploy",
-      oneClickDeployDesc: "Docker Compose deployment support, quickly launch complete service",
+      oneClickDeployDesc:
+        "Docker Compose deployment support, quickly launch complete service",
       reportDownload: "Report Download",
-      reportDownloadDesc: "Export full analysis reports to PDF for easy saving and sharing",
+      reportDownloadDesc:
+        "Export full analysis reports to PDF for easy saving and sharing",
     },
-    
+
     // 12 Professional Agents Section
     professionalAgents: "12 Professional Agent Teams",
-    professionalAgentsDesc: "Each agent has specialized responsibilities, collaborating to produce high-quality trading decisions",
+    professionalAgentsDesc:
+      "Each agent has specialized responsibilities, collaborating to produce high-quality trading decisions",
     analystsTeamTitle: "Analysts Team (4)",
     researchTeamTitle: "Research Team (3)",
     tradingTeamTitle: "Trading Team (1)",
     riskTeamTitle: "Risk Management Team (4)",
-    
+
     // Workflow section
     workflowTitle: "Analyst Collaboration Flow",
-    workflowDescription: "How the four analyst agents collect information from different data sources and produce comprehensive analysis reports",
-    
+    workflowDescription:
+      "How the four analyst agents collect information from different data sources and produce comprehensive analysis reports",
+
     // Process steps
     processSteps: {
-      dataCollection: { title: "Data Collection Phase", description: "Gather stock prices, news, social sentiment from yfinance, Reddit, RSS and more" },
-      analysts: { title: "Parallel Analysis by Analysts Team", description: "Market, Sentiment, News, and Fundamentals analysts evaluate simultaneously, producing professional reports" },
-      researchers: { title: "Research Team Debate", description: "Bullish and Bearish researchers conduct structured debate, Research Manager synthesizes both views" },
-      trader: { title: "Trader Integration", description: "Reviews all analyst and research reports, formulates specific trading execution plan" },
-      risk: { title: "Risk Management Assessment", description: "Aggressive, Conservative, and Neutral risk analysts evaluate strategy, Risk Manager makes final call" },
-      finalDecision: { title: "Final Decision Output", description: "Produces complete investment recommendation with trading direction, position size, and risk controls" },
+      dataCollection: {
+        title: "Data Collection Phase",
+        description:
+          "Gather stock prices, news, social sentiment from yfinance, Reddit, RSS and more",
+      },
+      analysts: {
+        title: "Parallel Analysis by Analysts Team",
+        description:
+          "Market, Sentiment, News, and Fundamentals analysts evaluate simultaneously, producing professional reports",
+      },
+      researchers: {
+        title: "Research Team Debate",
+        description:
+          "Bullish and Bearish researchers conduct structured debate, Research Manager synthesizes both views",
+      },
+      trader: {
+        title: "Trader Integration",
+        description:
+          "Reviews all analyst and research reports, formulates specific trading execution plan",
+      },
+      risk: {
+        title: "Risk Management Assessment",
+        description:
+          "Aggressive, Conservative, and Neutral risk analysts evaluate strategy, Risk Manager makes final call",
+      },
+      finalDecision: {
+        title: "Final Decision Output",
+        description:
+          "Produces complete investment recommendation with trading direction, position size, and risk controls",
+      },
     },
-    
+
     // LLM Support Section
     llmSupport: "Multi-Model Support",
-    llmSupportDesc: "Support for multiple industry-leading LLM providers, each model can be configured with independent API Key and Base URL",
-    llmFeatures: "Full custom endpoint support | Three-tier independent config (Quick Think/Deep Think/Embedding) | BYOK mode",
-    
+    llmSupportDesc:
+      "Support for multiple industry-leading LLM providers, each model can be configured with independent API Key and Base URL",
+    llmFeatures:
+      "Full custom endpoint support | Three-tier independent config (Quick Think/Deep Think/Embedding) | BYOK mode",
+
     // Technical Highlights
     techHighlights: "Technical Highlights",
     dynamicResearch: "Dynamic Research Depth",
-    dynamicResearchFeatures: ["Shallow: 1 round quick analysis", "Medium: 2 rounds balanced analysis", "Deep: 3+ rounds comprehensive analysis"],
+    dynamicResearchFeatures: [
+      "Shallow: 1 round quick analysis",
+      "Medium: 2 rounds balanced analysis",
+      "Deep: 3+ rounds comprehensive analysis",
+    ],
     memorySystem: "Long-Term Memory System",
-    memorySystemFeatures: ["ChromaDB vector database", "Historical decision persistence", "Continuous learning and improvement"],
+    memorySystemFeatures: [
+      "ChromaDB vector database",
+      "Historical decision persistence",
+      "Continuous learning and improvement",
+    ],
     realTimeData: "Real-Time Data Integration",
-    realTimeDataFeatures: ["yfinance: Real-time stock data", "Reddit API: Social sentiment", "Alpha Vantage: Financial data"],
+    realTimeDataFeatures: [
+      "yfinance: Real-time stock data",
+      "Reddit API: Social sentiment",
+      "Alpha Vantage: Financial data",
+    ],
     fullApiSupport: "Full API Support",
-    fullApiSupportFeatures: ["RESTful API architecture", "Async task processing", "Swagger interactive docs"],
-    
+    fullApiSupportFeatures: [
+      "RESTful API architecture",
+      "Async task processing",
+      "Swagger interactive docs",
+    ],
+
     // CTA Section
     readyToStart: "Ready to Start Smart Trading Analysis?",
-    ctaDescription: "Experience 12 professional AI agents working together to provide comprehensive stock analysis reports",
+    ctaDescription:
+      "Experience 12 professional AI agents working together to provide comprehensive stock analysis reports",
   },
 
   // Agents
@@ -166,55 +226,67 @@ export const en = {
     // Analysts
     market_analyst: "Market Analyst",
     market_analyst_role: "Technical Analysis",
-    market_analyst_desc: "Technical indicators (RSI, MACD, Bollinger Bands), price trend analysis, support/resistance identification",
-    
+    market_analyst_desc:
+      "Technical indicators (RSI, MACD, Bollinger Bands), price trend analysis, support/resistance identification",
+
     social_analyst: "Social Media Analyst",
     social_analyst_role: "Sentiment Analysis",
-    social_analyst_desc: "Social sentiment monitoring, market atmosphere assessment, trending topic analysis",
-    
+    social_analyst_desc:
+      "Social sentiment monitoring, market atmosphere assessment, trending topic analysis",
+
     news_analyst: "News Analyst",
     news_analyst_role: "News Analysis",
-    news_analyst_desc: "News event tracking, impact assessment, information filtering and prioritization",
-    
+    news_analyst_desc:
+      "News event tracking, impact assessment, information filtering and prioritization",
+
     fundamentals_analyst: "Fundamentals Analyst",
     fundamentals_analyst_role: "Fundamental Analysis",
-    fundamentals_analyst_desc: "Financial data analysis, valuation metrics, company fundamentals evaluation",
-    
+    fundamentals_analyst_desc:
+      "Financial data analysis, valuation metrics, company fundamentals evaluation",
+
     // Researchers
     bull_researcher: "Bull Researcher",
     bull_researcher_role: "Bullish Analysis",
-    bull_researcher_desc: "Identifies upside potential, growth catalysts, and bullish scenarios",
-    
+    bull_researcher_desc:
+      "Identifies upside potential, growth catalysts, and bullish scenarios",
+
     bear_researcher: "Bear Researcher",
     bear_researcher_role: "Bearish Analysis",
-    bear_researcher_desc: "Identifies downside risks, warning signals, and bearish scenarios",
-    
+    bear_researcher_desc:
+      "Identifies downside risks, warning signals, and bearish scenarios",
+
     // Managers
     research_manager: "Research Manager",
     research_manager_role: "Research Synthesis",
-    research_manager_desc: "Synthesizes bull and bear arguments, produces balanced research conclusion",
-    
+    research_manager_desc:
+      "Synthesizes bull and bear arguments, produces balanced research conclusion",
+
     risk_manager: "Risk Manager",
     risk_manager_role: "Risk Decision",
-    risk_manager_desc: "Final risk assessment and position sizing recommendation",
-    
+    risk_manager_desc:
+      "Final risk assessment and position sizing recommendation",
+
     // Risk Debaters
     aggressive_debator: "Aggressive Analyst",
     aggressive_debator_role: "High Risk/Reward",
-    aggressive_debator_desc: "Advocates for higher risk positions with greater potential returns",
-    
+    aggressive_debator_desc:
+      "Advocates for higher risk positions with greater potential returns",
+
     conservative_debator: "Conservative Analyst",
     conservative_debator_role: "Capital Preservation",
-    conservative_debator_desc: "Advocates for safer positions with capital protection focus",
-    
+    conservative_debator_desc:
+      "Advocates for safer positions with capital protection focus",
+
     neutral_debator: "Neutral Analyst",
     neutral_debator_role: "Balanced View",
-    neutral_debator_desc: "Provides balanced perspective between aggressive and conservative views",
-    
+    neutral_debator_desc:
+      "Provides balanced perspective between aggressive and conservative views",
+
     // Trader
     trader: "Trader",
     trader_role: "Trade Execution",
-    trader_desc: "Formulates final trading recommendation with entry, exit, and position sizing",
+    trader_desc:
+      "Formulates final trading recommendation with entry, exit, and position sizing",
   },
 
   // Flow Diagram
@@ -225,13 +297,13 @@ export const en = {
     layer3: "Layer 3: Researcher Agents (2)",
     layer4: "Layer 4: Risk Debaters (3)",
     finalOutput: "Final Output: 12 Detailed Reports",
-    
+
     // Data sources
     stockData: "Stock Data",
     socialSentiment: "Social Sentiment",
     newsInfo: "News Info",
     financialData: "Financial Data",
-    
+
     // Arrow labels
     dataFetch: "Data Fetching & Cleaning",
     reportIntegration: "Report Integration",
@@ -239,7 +311,7 @@ export const en = {
     riskDebate: "Risk Assessment & Management",
     finalDecision: "Final Trading Decision",
     generateReport: "Generate Complete Investment Report",
-    
+
     // Agent descriptions
     technicalAnalysis: "Technical Analysis",
     sentimentAnalysis: "Sentiment Analysis",
@@ -253,7 +325,7 @@ export const en = {
     lowRiskVol: "Low Risk/Low Volatility",
     integrateRisk: "Integrate Risk Debate Results",
     executeTrade: "Execute Final Trading Decision",
-    
+
     // Tasks
     rsiIndicator: "RSI Indicator",
     macdMomentum: "MACD Momentum",
@@ -288,7 +360,7 @@ export const en = {
     riskRating: "Risk Level Rating",
     stopLossSettings: "Stop Loss/Take Profit Settings",
     finalRiskControl: "Final Risk Control",
-    
+
     // Outputs
     tradeSignal: "Trade Signal (BUY/SELL/HOLD)",
     targetPrice: "Target Price",
@@ -296,8 +368,9 @@ export const en = {
     riskParams: "Risk Parameters",
     finalOutput_label: "Final Output:",
     completeReportSet: "Complete Analysis Report Set",
-    comprehensiveSupport: "Integrating 12 professional agents for comprehensive investment decision support",
-    
+    comprehensiveSupport:
+      "Integrating 12 professional agents for comprehensive investment decision support",
+
     // Report sections
     analystReports: "Analyst Reports (4)",
     researchReports: "Research Reports (3)",
@@ -314,7 +387,7 @@ export const en = {
     conservativeEval: "Conservative Strategy Evaluation",
     riskManagerReport: "Risk Manager Integration",
     finalTradeDecision: "Final Trading Decision",
-    
+
     // Manager titles
     researchManager: "Research Manager",
     riskManager: "Risk Manager",
@@ -332,28 +405,29 @@ export const en = {
     deselectAll: "Deselect All",
     startAnalysis: "Start Analysis",
     analyzing: "Analyzing...",
-    
+
     // Analysis page
     analysisTitle: "Trading Analysis",
-    analysisSubtitle: "Configure and execute comprehensive multi-agent trading analysis",
+    analysisSubtitle:
+      "Configure and execute comprehensive multi-agent trading analysis",
     analysisLoading: "Running analysis... This may take a few minutes.",
-    
+
     advancedOptions: "Advanced Options",
     researchDepth: "Research Depth",
     riskDebateRounds: "Risk Debate Rounds",
-    
+
     // Market types
     marketType: "Market Type",
     usMarket: "US Stocks",
-    twseMarket: "TWSE Listed",
-    tpexMarket: "TPEX/Emerging",
+    twseMarket: "TWSE",
+    tpexMarket: "TPEX",
     selectMarket: "Select Market",
     selectMarketDesc: "Select the stock market to analyze",
-    
+
     // LLM Configuration
     llmSettings: "LLM Settings",
     quickThinkModel: "Quick Think Model",
-    deepThinkModel: "Deep Think Model", 
+    deepThinkModel: "Deep Think Model",
     embeddingModel: "Embedding Model",
     customModel: "Custom Model",
     customModelName: "Custom Model Name",
@@ -364,29 +438,29 @@ export const en = {
     complexReasoningModel: "Complex reasoning model",
     localModelNoApiKey: "🆓 Local model - No API Key needed",
     needsOpenAiApiKey: "☁️ Requires OpenAI API Key",
-    
+
     // Depth levels
     depthShallow: "Shallow (1 round)",
     depthMedium: "Medium (2 rounds)",
     depthDeep: "Deep (3+ rounds)",
-    
+
     // API Keys
     apiKeySection: "API Configuration",
     alphaVantageKey: "Alpha Vantage API Key",
     finmindKey: "FinMind API Key",
-    
+
     // Ticker descriptions by market
     tickerDescUS: "Enter US stock symbol (e.g., NVDA, AAPL)",
     tickerDescTWSE: "Enter TWSE stock code (e.g., 2330, 2317)",
     tickerDescTPEX: "Enter TPEx stock code (e.g., 6488, 5765)",
     selectDate: "Select analysis date",
     selectDepth: "Select research depth",
-    
+
     // Depth options
     depthShallowLabel: "Shallow - Quick research",
     depthMediumLabel: "Medium - Moderate discussion",
     depthDeepLabel: "Deep - In-depth research",
-    
+
     // Validation messages
     validation: {
       tickerRequired: "Stock ticker is required",
@@ -422,8 +496,9 @@ export const en = {
     duplicateReport: "This report already exists (same ticker and date)",
     report: "Report",
     noReportGenerated: "No report generated for this analyst",
-    notSelectedOrNoReport: "Analyst may not have been selected or did not produce a report",
-    
+    notSelectedOrNoReport:
+      "Analyst may not have been selected or did not produce a report",
+
     // Analyst tabs
     analysts: {
       market: "Market Analyst",
@@ -451,7 +526,7 @@ export const en = {
       risk_manager: "Risk Manager",
       risk_managerDesc: "Risk management decision",
     },
-    
+
     // Price chart section
     priceSection: {
       title: "Price Trend",
@@ -499,13 +574,15 @@ export const en = {
     refresh: "Refresh",
     loading: "Loading...",
     noReportsFor: "No analysis reports for",
-    afterAnalysisSave: "After running analysis, you can save reports from the results page",
+    afterAnalysisSave:
+      "After running analysis, you can save reports from the results page",
     analysisDate: "Analysis Date",
     savedAt: "Saved",
     decision: "Decision",
     downloading: "Downloading",
     confirmDeleteTitle: "Confirm Delete",
-    confirmDeleteDesc: "Are you sure you want to delete the analysis report for",
+    confirmDeleteDesc:
+      "Are you sure you want to delete the analysis report for",
     on: "on",
     cannotUndo: "This action cannot be undone.",
     cancel: "Cancel",
@@ -542,7 +619,7 @@ export const en = {
     item: "Item",
     value: "Value",
     chartFailed: "Chart generation failed",
-    
+
     // Teams
     analystsTeam: "Analysts Team",
     researchTeam: "Research Team",
