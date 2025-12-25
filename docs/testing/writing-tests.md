@@ -162,6 +162,19 @@ def test_openrouter_initialization(openrouter_config, mock_env_openrouter):
 
 ## Using Fixtures
 
+### Understanding the conftest.py Hierarchy
+
+TradingAgents provides fixtures at three levels:
+
+1. **Root-level** (`tests/conftest.py`) - Available to all tests
+2. **Unit-level** (`tests/unit/conftest.py`) - Only for unit tests
+3. **Integration-level** (`tests/integration/conftest.py`) - Only for integration tests
+
+This hierarchy allows:
+- Shared fixtures (environment, LangChain mocks, ChromaDB mocks) in root
+- Test-type-specific fixtures (data vendors for unit, live DBs for integration)
+- Clean separation of concerns
+
 ### Simple Fixture
 
 ```python
@@ -177,6 +190,95 @@ def sample_stock_data():
 def test_using_fixture(sample_stock_data):
     """Test using a fixture."""
     assert len(sample_stock_data["close"]) == 3
+```
+
+### Using Root-Level Environment Fixtures
+
+```python
+# Available in any test (unit or integration)
+def test_with_openrouter_env(mock_env_openrouter):
+    """Test with OpenRouter API environment."""
+    import os
+    assert os.getenv("OPENROUTER_API_KEY") == "sk-or-test-key-123"
+    # Test OpenRouter initialization
+
+def test_with_openai_env(mock_env_openai):
+    """Test with OpenAI API environment."""
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+    # Environment is isolated to just OPENAI_API_KEY
+    ta = TradingAgentsGraph(config={"llm_provider": "openai"})
+
+def test_without_api_keys(mock_env_empty):
+    """Test error handling when no API keys are available."""
+    import os
+    assert os.getenv("OPENROUTER_API_KEY") is None
+    assert os.getenv("OPENAI_API_KEY") is None
+    # Test error handling
+```
+
+### Using Unit-Specific Data Vendor Fixtures
+
+```python
+# Only available in tests/unit/
+def test_akshare_data_fetch(mock_akshare):
+    """Test data fetching with mocked akshare."""
+    import pandas as pd
+    mock_akshare.stock_us_hist.return_value = pd.DataFrame({
+        'date': ['2024-01-01', '2024-01-02'],
+        'close': [150.0, 151.0]
+    })
+
+    # Your test code that uses akshare
+    result = get_stock_data("AAPL")
+    assert len(result) == 2
+
+def test_yfinance_with_fixture(mock_yfinance):
+    """Test with mocked yfinance."""
+    mock_ticker = Mock()
+    mock_yfinance.Ticker.return_value = mock_ticker
+
+    # Configure the mock with sample data
+    df = pd.DataFrame({
+        'Open': [150.0], 'Close': [151.0],
+        'High': [152.0], 'Low': [149.0]
+    })
+    mock_ticker.history.return_value = df
+
+    # Test code
+
+def test_with_sample_data(sample_dataframe):
+    """Test with pre-built sample stock DataFrame."""
+    assert len(sample_dataframe) == 5
+    assert "Close" in sample_dataframe.columns
+    # Use for testing data processing
+```
+
+### Using Integration-Specific Fixtures
+
+```python
+# Only available in tests/integration/
+def test_chromadb_integration(live_chromadb):
+    """Test with real ChromaDB instance."""
+    from tradingagents.agents.utils.memory import FinancialSituationMemory
+
+    collection = live_chromadb.get_or_create_collection("test_collection")
+    collection.add(
+        ids=["doc1"],
+        documents=["Technical analysis of NVDA"]
+    )
+
+    assert collection.count() == 1
+
+def test_with_integration_temp_dir(integration_temp_dir):
+    """Test with integration temporary directory."""
+    from pathlib import Path
+
+    # Write test files
+    test_file = integration_temp_dir / "test.json"
+    test_file.write_text('{"data": "test"}')
+
+    assert test_file.exists()
+    # Directory is automatically cleaned up after test
 ```
 
 ### Fixture with Cleanup

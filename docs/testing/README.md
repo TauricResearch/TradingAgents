@@ -138,35 +138,103 @@ def test_full_analysis_workflow():
     assert 0.0 <= decision["confidence_score"] <= 1.0
 ```
 
-## Test Fixtures
+## Test Fixtures and conftest.py Hierarchy
 
-Common fixtures are defined in `tests/conftest.py`:
+TradingAgents uses a hierarchical conftest.py structure to organize fixtures by test scope:
+
+### Fixture Organization
+
+```
+tests/
+├── conftest.py              # Root fixtures - accessible to all tests
+│   ├── Environment fixtures (mock_env_openrouter, mock_env_openai, etc.)
+│   ├── LangChain mocking (mock_langchain_classes)
+│   ├── ChromaDB mocking (mock_chromadb)
+│   ├── Memory mocking (mock_memory)
+│   ├── Configuration fixtures (sample_config, openrouter_config)
+│   └── Temporary directory fixtures (temp_output_dir)
+├── unit/conftest.py         # Unit test specific fixtures
+│   ├── Data vendor mocking (mock_akshare, mock_yfinance)
+│   ├── Sample data (sample_dataframe)
+│   ├── Time mocking (mock_time_sleep)
+│   ├── HTTP mocking (mock_requests)
+│   └── Subprocess mocking (mock_subprocess)
+└── integration/conftest.py  # Integration test specific fixtures
+    ├── Live ChromaDB (live_chromadb)
+    └── Integration temp directory (integration_temp_dir)
+```
+
+### Root-Level Fixtures (tests/conftest.py)
+
+Available to all tests in any subdirectory:
+
+**Environment Variable Fixtures**:
+- `mock_env_openrouter` - Sets OPENROUTER_API_KEY, clears others
+- `mock_env_openai` - Sets OPENAI_API_KEY, clears others
+- `mock_env_anthropic` - Sets ANTHROPIC_API_KEY, clears others
+- `mock_env_google` - Sets GOOGLE_API_KEY, clears others
+- `mock_env_empty` - Clears all API keys (for error testing)
+
+**Mocking Fixtures**:
+- `mock_langchain_classes` - Mocks ChatOpenAI, ChatAnthropic, ChatGoogleGenerativeAI
+- `mock_chromadb` - Mocks ChromaDB Client with get_or_create_collection()
+- `mock_memory` - Mocks FinancialSituationMemory
+- `mock_openai_client` - Mocks OpenAI client with embeddings
+
+**Configuration Fixtures**:
+- `sample_config` - Default configuration for testing
+- `openrouter_config` - OpenRouter-specific configuration
+
+**Utility Fixtures**:
+- `temp_output_dir` - Temporary directory for test artifacts
+
+### Unit Test Fixtures (tests/unit/conftest.py)
+
+Only available in `tests/unit/` directory:
+
+- `mock_akshare` - Mocks akshare data vendor
+- `mock_yfinance` - Mocks yfinance data vendor
+- `sample_dataframe` - Sample stock data DataFrame
+- `mock_time_sleep` - Mocks time.sleep for retry tests
+- `mock_requests` - Mocks HTTP requests module
+- `mock_subprocess` - Mocks subprocess module
+
+### Integration Test Fixtures (tests/integration/conftest.py)
+
+Only available in `tests/integration/` directory:
+
+- `live_chromadb` - Live ChromaDB instance (session-scoped)
+- `integration_temp_dir` - Temporary directory with cleanup
+
+### Using Fixtures
 
 ```python
-@pytest.fixture
-def mock_llm():
-    """Mock LLM for testing."""
-    llm = Mock()
-    llm.invoke.return_value = Mock(content="Test response")
-    return llm
+# Root-level fixture available to all tests
+def test_openrouter_env(mock_env_openrouter):
+    """Test using environment fixture."""
+    import os
+    assert os.getenv("OPENROUTER_API_KEY") is not None
 
-@pytest.fixture
-def mock_data_tools():
-    """Mock data access tools."""
-    return {
-        "get_stock_data": Mock(return_value={"close": [150, 151, 152]}),
-        "get_indicators": Mock(return_value={"RSI": {"rsi": [65]}}),
-    }
+# Unit-specific fixture only available in tests/unit/
+def test_akshare_mock(mock_akshare):
+    """Test data vendor mocking."""
+    mock_akshare.stock_us_hist.return_value = pd.DataFrame(...)
+    # Use the mock
 
-@pytest.fixture
-def test_config():
-    """Test configuration."""
-    from tradingagents.default_config import DEFAULT_CONFIG
-
-    config = DEFAULT_CONFIG.copy()
-    config["max_debate_rounds"] = 1
-    return config
+# Integration-specific fixture only available in tests/integration/
+def test_chromadb_integration(live_chromadb):
+    """Test with real ChromaDB instance."""
+    collection = live_chromadb.get_or_create_collection("test")
+    assert collection is not None
 ```
+
+### Fixture Scope and Lifetime
+
+- **function** (default) - Created fresh for each test
+- **session** - Created once for entire test session (only live_chromadb)
+- **module** - Created once per test file
+
+Environment fixtures use `patch.dict()` to automatically restore environment after each test.
 
 ## Writing Tests
 

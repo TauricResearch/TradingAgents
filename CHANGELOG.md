@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- pytest conftest.py hierarchy for organized test fixtures (Issue #49)
+  - Root-level conftest.py with shared fixtures (environment variables, LangChain/ChromaDB mocking, configuration)
+  - Unit-level conftest.py with data vendor mocking (akshare, yfinance, sample DataFrames)
+  - Integration-level conftest.py with live ChromaDB and temporary directory fixtures
+  - Fixture scope management (function, session, module) for test isolation and performance
+  - Comprehensive docstrings for all fixtures with usage examples and scope documentation
+  - pytest.ini configuration with custom markers (unit, integration, e2e, llm, chromadb, slow, requires_api_key)
+  - Test suite validating fixture accessibility across test directories [file:tests/test_conftest_hierarchy.py](tests/test_conftest_hierarchy.py)
+  - Updated testing documentation with conftest.py hierarchy section [file:docs/testing/README.md](docs/testing/README.md)
+  - Fixture usage examples in writing-tests.md [file:docs/testing/writing-tests.md](docs/testing/writing-tests.md)
 - Comprehensive documentation structure (Issue #52)
   - Organized `docs/` directory with structured documentation sections
   - Quick start guide at `docs/QUICKSTART.md`
@@ -39,6 +49,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Error recovery utilities for saving partial analysis state on errors [file:tradingagents/utils/error_recovery.py](tradingagents/utils/error_recovery.py)
   - User-friendly error message formatting for rate limit errors [file:tradingagents/utils/error_messages.py](tradingagents/utils/error_messages.py)
   - Comprehensive test suite for exceptions and logging configuration [file:tests/test_exceptions.py](tests/test_exceptions.py) [file:tests/test_logging_config.py](tests/test_logging_config.py)
+- AKShare data vendor integration for US and Chinese stock market data (Issue #16)
+  - Unified AKShare vendor module with support for both US and Chinese markets [file:tradingagents/dataflows/akshare.py](tradingagents/dataflows/akshare.py)
+  - Date format conversion utility for YYYYMMDD compatibility [file:tradingagents/dataflows/akshare.py:34-67](tradingagents/dataflows/akshare.py)
+  - Exponential backoff retry mechanism with configurable attempts and delays [file:tradingagents/dataflows/akshare.py:70-108](tradingagents/dataflows/akshare.py)
+  - US stock data retrieval via `get_akshare_stock_data_us()` [file:tradingagents/dataflows/akshare.py:114-211](tradingagents/dataflows/akshare.py)
+  - Chinese stock data retrieval via `get_akshare_stock_data_cn()` [file:tradingagents/dataflows/akshare.py:213-320](tradingagents/dataflows/akshare.py)
+  - Auto-market detection with `get_akshare_stock_data()` for automatic routing [file:tradingagents/dataflows/akshare.py:322-372](tradingagents/dataflows/akshare.py)
+  - Rate limit error handling via `AKShareRateLimitError` exception with vendor fallback [file:tradingagents/dataflows/akshare.py:28-30](tradingagents/dataflows/akshare.py)
+  - Integration with interface.py vendor routing system [file:tradingagents/dataflows/interface.py](tradingagents/dataflows/interface.py)
+  - Comprehensive test suite for all AKShare functions [file:tests/test_akshare.py](tests/test_akshare.py)
 - OpenRouter API provider support for unified access to multiple LLM models
   - Support for `provider/model-name` format (e.g., `anthropic/claude-sonnet-4.5`)
   - Proper API key handling with OPENROUTER_API_KEY environment variable
