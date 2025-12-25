@@ -27,6 +27,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
     get_indicators,
     get_fundamentals,
+    get_whitepaper,
+    get_market_cap,
     get_balance_sheet,
     get_cashflow,
     get_income_statement,
@@ -142,17 +144,19 @@ class TradingAgentsGraph:
                     # News and insider information
                     get_news,
                     get_global_news,
-                    get_insider_sentiment,
-                    get_insider_transactions,
+                    # get_insider_sentiment,
+                    # get_insider_transactions,
                 ]
             ),
             "fundamentals": ToolNode(
                 [
                     # Fundamental analysis tools
                     get_fundamentals,
-                    get_balance_sheet,
-                    get_cashflow,
-                    get_income_statement,
+                    get_whitepaper,
+                    get_market_cap,
+                    # get_balance_sheet,
+                    # get_cashflow,
+                    # get_income_statement,
                 ]
             ),
         }

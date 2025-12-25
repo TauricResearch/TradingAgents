@@ -117,7 +117,42 @@ def get_fundamentals_openai(ticker, curr_date):
                 "content": [
                     {
                         "type": "input_text",
-                        "text": f"Can you search Fundamental for discussions on {ticker} during of the month before {curr_date} to the month of {curr_date}. Make sure you only get the data posted during that period. List as a table, with PE/PS/Cash flow/ etc",
+                        # "text": f"Can you search Fundamental for discussions on {ticker} during of the month before {curr_date} to the month of {curr_date}. Make sure you only get the data posted during that period. List as a table, with PE/PS/Cash flow/ etc",
+                        "text": f"Can you search Fundamental data on {ticker} crypto-currency coin before {curr_date} to {curr_date}. Make sure you only get the data posted during that period. The data includes purpose, use case, technology, token utility, tokenomics, team & organization, development activity, ecosystem & adoption, and governance & community.",
+                    }
+                ],
+            }
+        ],
+        text={"format": {"type": "text"}},
+        reasoning={},
+        tools=[
+            {
+                "type": "web_search_preview",
+                "user_location": {"type": "approximate"},
+                "search_context_size": "low",
+            }
+        ],
+        temperature=1,
+        max_output_tokens=4096,
+        top_p=1,
+        store=True,
+    )
+
+    return response.output[1].content[0].text
+
+def get_whitepaper_openai(symbol):
+    config = get_config()
+    client = OpenAI(base_url=config["backend_url"])
+
+    response = client.responses.create(
+        model=config["quick_think_llm"],
+        input=[
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": f"Give me the summary of {symbol} crypto coin white paper.",
                     }
                 ],
             }
