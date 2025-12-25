@@ -112,7 +112,9 @@ def mock_chromadb():
         client_instance = Mock()
         collection_instance = Mock()
         collection_instance.count.return_value = 0
+        # Mock both create_collection (old) and get_or_create_collection (new)
         client_instance.create_collection.return_value = collection_instance
+        client_instance.get_or_create_collection.return_value = collection_instance
         mock.return_value = client_instance
         yield mock
 
@@ -693,7 +695,7 @@ class TestEdgeCases:
         """Test requesting zero matches from memory."""
         # Arrange
         memory = FinancialSituationMemory("test_memory", openrouter_config)
-        collection_mock = mock_chromadb.return_value.create_collection.return_value
+        collection_mock = mock_chromadb.return_value.get_or_create_collection.return_value
         collection_mock.count.return_value = 5  # Non-empty collection
         collection_mock.query.return_value = {
             "documents": [[]],
@@ -706,6 +708,293 @@ class TestEdgeCases:
 
         # Assert: Returns empty list
         assert result == []
+
+
+# ============================================================================
+# ChromaDB Collection Tests
+# ============================================================================
+
+class TestChromaDBCollectionHandling:
+    """Test ChromaDB collection creation and idempotent behavior.
+
+    This test suite addresses Issue #30: Fix ChromaDB collection [bull_memory]
+    already exists error by ensuring get_or_create_collection() is used instead
+    of create_collection().
+    """
+
+    def test_memory_uses_get_or_create_collection(
+        self,
+        openrouter_config,
+        mock_openai_client,
+        mock_chromadb
+    ):
+        """Test that FinancialSituationMemory uses get_or_create_collection().
+
+        This is the primary fix for Issue #30. The method must use
+        get_or_create_collection() to avoid errors when collection already exists.
+        """
+        # Arrange
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            # Act
+            memory = FinancialSituationMemory("bull_memory", openrouter_config)
+
+            # Assert: get_or_create_collection was called, NOT create_collection
+            client_instance = mock_chromadb.return_value
+            client_instance.get_or_create_collection.assert_called_once_with(name="bull_memory")
+            # Verify create_collection was NOT called (old behavior)
+            client_instance.create_collection.assert_not_called()
+
+    def test_idempotent_collection_creation(
+        self,
+        openrouter_config,
+        mock_openai_client,
+        mock_chromadb
+    ):
+        """Test that creating same collection twice does not raise error.
+
+        Key test for Issue #30: Should be able to instantiate
+        FinancialSituationMemory with same name multiple times without error.
+        """
+        # Arrange
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            collection_name = "bull_memory"
+
+            # Act: Create memory instance twice with same name
+            memory1 = FinancialSituationMemory(collection_name, openrouter_config)
+            memory2 = FinancialSituationMemory(collection_name, openrouter_config)
+
+            # Assert: Both instances created successfully
+            assert memory1 is not None
+            assert memory2 is not None
+
+            # Assert: get_or_create_collection called twice (idempotent)
+            client_instance = mock_chromadb.return_value
+            assert client_instance.get_or_create_collection.call_count == 2
+            calls = client_instance.get_or_create_collection.call_args_list
+            assert calls[0][1]["name"] == collection_name
+            assert calls[1][1]["name"] == collection_name
+
+    def test_existing_data_preserved_on_reinitialization(
+        self,
+        openrouter_config,
+        mock_openai_client,
+        mock_chromadb
+    ):
+        """Test that existing collection data is preserved on re-initialization.
+
+        When get_or_create_collection() is used, existing data should not be lost.
+        """
+        # Arrange
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            collection_name = "bull_memory"
+
+            # Mock collection with existing data
+            collection_mock = Mock()
+            collection_mock.count.return_value = 5  # Simulate 5 existing entries
+            collection_mock.query.return_value = {
+                "documents": [["Existing situation"]],
+                "metadatas": [[{"recommendation": "Existing advice"}]],
+                "distances": [[0.1]]
+            }
+
+            client_instance = mock_chromadb.return_value
+            client_instance.get_or_create_collection.return_value = collection_mock
+
+            # Act: Create first instance, add data, create second instance
+            memory1 = FinancialSituationMemory(collection_name, openrouter_config)
+
+            # Simulate that collection now has data
+            collection_mock.count.return_value = 5
+
+            memory2 = FinancialSituationMemory(collection_name, openrouter_config)
+
+            # Assert: Second instance sees existing data (count > 0)
+            assert memory2.situation_collection.count() == 5
+
+    def test_multiple_collections_coexist(
+        self,
+        openrouter_config,
+        mock_openai_client,
+        mock_chromadb
+    ):
+        """Test that different collection names can coexist.
+
+        Should be able to create memory instances with different names.
+        """
+        # Arrange
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            # Act: Create multiple memory instances with different names
+            memory_bull = FinancialSituationMemory("bull_memory", openrouter_config)
+            memory_bear = FinancialSituationMemory("bear_memory", openrouter_config)
+            memory_neutral = FinancialSituationMemory("neutral_memory", openrouter_config)
+
+            # Assert: All instances created successfully
+            assert memory_bull is not None
+            assert memory_bear is not None
+            assert memory_neutral is not None
+
+            # Assert: get_or_create_collection called with correct names
+            client_instance = mock_chromadb.return_value
+            calls = client_instance.get_or_create_collection.call_args_list
+            assert len(calls) == 3
+            assert calls[0][1]["name"] == "bull_memory"
+            assert calls[1][1]["name"] == "bear_memory"
+            assert calls[2][1]["name"] == "neutral_memory"
+
+    def test_collection_creation_without_openrouter(
+        self,
+        mock_openai_client,
+        mock_chromadb
+    ):
+        """Test collection creation works with non-OpenRouter providers."""
+        # Arrange
+        config = DEFAULT_CONFIG.copy()
+        config["llm_provider"] = "openai"
+        config["backend_url"] = "https://api.openai.com/v1"
+
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            # Act
+            memory = FinancialSituationMemory("test_memory", config)
+
+            # Assert: get_or_create_collection still used
+            client_instance = mock_chromadb.return_value
+            client_instance.get_or_create_collection.assert_called_once_with(name="test_memory")
+
+    def test_collection_name_with_special_characters(
+        self,
+        openrouter_config,
+        mock_openai_client,
+        mock_chromadb
+    ):
+        """Test collection names with special characters."""
+        # Arrange
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            special_names = [
+                "bull_memory_v2",
+                "memory-2024",
+                "memory.test",
+                "UPPERCASE_MEMORY",
+            ]
+
+            # Act & Assert: All names should work
+            for name in special_names:
+                memory = FinancialSituationMemory(name, openrouter_config)
+                assert memory is not None
+
+    def test_empty_collection_name_handled(
+        self,
+        openrouter_config,
+        mock_openai_client,
+        mock_chromadb
+    ):
+        """Test behavior with empty collection name."""
+        # Arrange
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            # Act: ChromaDB should handle empty name (may raise ValueError)
+            # We're testing that our code passes it through correctly
+            memory = FinancialSituationMemory("", openrouter_config)
+
+            # Assert: get_or_create_collection called with empty string
+            client_instance = mock_chromadb.return_value
+            client_instance.get_or_create_collection.assert_called_once_with(name="")
+
+    def test_collection_creation_with_ollama(
+        self,
+        mock_chromadb
+    ):
+        """Test collection creation works with Ollama provider."""
+        # Arrange
+        config = DEFAULT_CONFIG.copy()
+        config["llm_provider"] = "ollama"
+        config["backend_url"] = "http://localhost:11434/v1"
+
+        with patch("tradingagents.agents.utils.memory.OpenAI") as mock_openai:
+            # Mock Ollama client
+            client_instance = Mock()
+            mock_openai.return_value = client_instance
+
+            # Act
+            memory = FinancialSituationMemory("ollama_memory", config)
+
+            # Assert: get_or_create_collection used
+            chroma_client = mock_chromadb.return_value
+            chroma_client.get_or_create_collection.assert_called_once_with(name="ollama_memory")
+
+    def test_add_situations_to_reinitialized_collection(
+        self,
+        openrouter_config,
+        mock_openai_client,
+        mock_chromadb
+    ):
+        """Test adding situations after re-initializing collection.
+
+        Ensures that offset calculation works correctly when collection
+        already has data from previous initialization.
+        """
+        # Arrange
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            collection_name = "bull_memory"
+
+            # Mock collection that starts with 3 items
+            collection_mock = Mock()
+            collection_mock.count.return_value = 3
+            collection_mock.add = Mock()  # Track add calls
+
+            client_instance = mock_chromadb.return_value
+            client_instance.get_or_create_collection.return_value = collection_mock
+
+            # Act: Create memory instance and add situations
+            memory = FinancialSituationMemory(collection_name, openrouter_config)
+            new_situations = [
+                ("Market trend positive", "Increase position"),
+                ("Volatility rising", "Reduce exposure"),
+            ]
+            memory.add_situations(new_situations)
+
+            # Assert: IDs start at offset 3 (existing count)
+            collection_mock.add.assert_called_once()
+            call_args = collection_mock.add.call_args[1]
+            assert call_args["ids"] == ["3", "4"]  # Offset by existing count
+
+    def test_get_memories_from_reinitialized_collection(
+        self,
+        openrouter_config,
+        mock_openai_client,
+        mock_chromadb
+    ):
+        """Test querying memories from re-initialized collection.
+
+        Verifies that existing data can be queried after re-initialization.
+        """
+        # Arrange
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            collection_name = "bull_memory"
+
+            # Mock collection with existing data
+            collection_mock = Mock()
+            collection_mock.count.return_value = 5
+            collection_mock.query.return_value = {
+                "documents": [["Previous market analysis"]],
+                "metadatas": [[{"recommendation": "Hold positions"}]],
+                "distances": [[0.15]]
+            }
+
+            client_instance = mock_chromadb.return_value
+            client_instance.get_or_create_collection.return_value = collection_mock
+
+            # Mock embedding
+            mock_openai_client.return_value.embeddings.create.return_value.data = [
+                Mock(embedding=[0.1] * 1536)
+            ]
+
+            # Act: Create new instance and query
+            memory = FinancialSituationMemory(collection_name, openrouter_config)
+            results = memory.get_memories("Current market situation", n_matches=1)
+
+            # Assert: Existing data retrieved
+            assert len(results) == 1
+            assert results[0]["matched_situation"] == "Previous market analysis"
+            assert results[0]["recommendation"] == "Hold positions"
 
 
 # ============================================================================

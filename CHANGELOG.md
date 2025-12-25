@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Main.py now includes OpenRouter configuration example (commented out) for easy reference
 
 ### Fixed
+- ChromaDB collection persistence issue by using `get_or_create_collection()` instead of `create_collection()` to prevent "collection already exists" errors and enable persistent memory across application restarts [file:tradingagents/agents/utils/memory.py:29](tradingagents/agents/utils/memory.py) (Issue #30)
 - Improved error messages for missing OPENROUTER_API_KEY when using openrouter provider
 - Better embedding client initialization for different LLM providers
 
