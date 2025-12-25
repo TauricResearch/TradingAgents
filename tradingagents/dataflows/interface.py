@@ -4,7 +4,7 @@ from typing import Annotated
 from .local import get_YFin_data, get_finnhub_news, get_finnhub_company_insider_sentiment, get_finnhub_company_insider_transactions, get_simfin_balance_sheet, get_simfin_cashflow, get_simfin_income_statements, get_reddit_global_news, get_reddit_company_news
 from .y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions
 from .google import get_google_news
-from .openai import get_crypto_news_openai, get_global_news_openai, get_fundamentals_openai
+from .openai import get_crypto_news_openai, get_global_news_openai, get_fundamentals_openai, get_whitepaper_openai
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
     get_indicator as get_alpha_vantage_indicator,
@@ -17,6 +17,7 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .telegram import get_crypto_news_telegram
+from .coin_gecko_fundamentals import get_market_cap as get_coin_gecko_market_cap
 
 # Configuration and routing logic
 from .config import get_config
@@ -39,9 +40,11 @@ TOOLS_CATEGORIES = {
         "description": "Company fundamentals",
         "tools": [
             "get_fundamentals",
-            "get_balance_sheet",
-            "get_cashflow",
-            "get_income_statement"
+            # "get_balance_sheet",
+            # "get_cashflow",
+            # "get_income_statement",
+            "get_whitepaper",
+            "get_market_cap"
         ]
     },
     "news_data": {
@@ -59,7 +62,10 @@ VENDOR_LIST = [
     "local",
     "yfinance",
     "openai",
-    "google"
+    "google",
+    "telegram",
+    "coin_gecko",
+    "alpha_vantage",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -78,8 +84,14 @@ VENDOR_METHODS = {
     },
     # fundamental_data
     "get_fundamentals": {
-        "alpha_vantage": get_alpha_vantage_fundamentals,
+        # "alpha_vantage": get_alpha_vantage_fundamentals,
         "openai": get_fundamentals_openai,
+    },
+    "get_whitepaper": {
+        "openai": get_whitepaper_openai,
+    },
+    "get_market_cap" : {
+        "coin_gecko": get_coin_gecko_market_cap
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,

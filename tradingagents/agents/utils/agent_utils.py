@@ -11,7 +11,9 @@ from tradingagents.agents.utils.fundamental_data_tools import (
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
-    get_income_statement
+    get_income_statement,
+    get_whitepaper,
+    get_market_cap
 )
 from tradingagents.agents.utils.news_data_tools import (
     get_news,

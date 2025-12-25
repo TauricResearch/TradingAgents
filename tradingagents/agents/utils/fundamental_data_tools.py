@@ -75,3 +75,27 @@ def get_income_statement(
         str: A formatted report containing income statement data
     """
     return route_to_vendor("get_income_statement", ticker, freq, curr_date)
+
+@tool
+def get_whitepaper(
+    ticker: Annotated[str, "ticker symbol"],
+) -> str:
+    """
+    Retrieve the whitepaper for a given ticker symbol.
+    Uses the configured fundamental_data vendor.
+    Args:
+        ticker (str): Ticker symbol of the cryptocurrency
+    Returns:
+        str: A formatted string containing the whitepaper link or content
+    """
+    return route_to_vendor("get_whitepaper", ticker)
+
+@tool
+def get_market_cap() -> str:
+    """
+    Retrieve the market capitalization percentages for cryptocurrencies.
+    Uses the configured fundamental_data vendor.
+    Returns:
+        str: A formatted string containing market capitalization percentages
+    """
+    return route_to_vendor("get_market_cap")
