@@ -1,6 +1,7 @@
 from typing import Annotated
 import pandas as pd
 import os
+import requests
 from .config import DATA_DIR
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -473,3 +474,29 @@ def get_reddit_company_news(
             news_str += f"### {post['title']}\n\n{post['content']}\n\n"
 
     return f"##{query} News Reddit, from {start_date} to {end_date}:\n\n{news_str}"
+
+
+def get_fear_and_greed(
+    look_back_days: Annotated[int, "how many days to look back"] = 30,
+) -> str:
+    """
+    Retrieve the latest Fear and Greed Index.
+    Args:
+        look_back_days (int): How many days to look back, default is 30
+    Returns:
+        str: A formatted string containing the Fear and Greed Index.
+    """
+
+    url = f"https://api.alternative.me/fng/?limit={look_back_days}&date_format=world"
+    response = requests.get(url)
+
+    data = response.json().get("data", [])
+
+    if len(data) == 0:
+        return ""
+
+    result_str = "## Fear and Greed Index Data:\n\n"
+    for entry in data:
+        result_str += f"### Date: {entry['timestamp']}\nFear and Greed Index: {entry['value']}\nClassification: {entry['value_classification']}\n\n"
+
+    return result_str

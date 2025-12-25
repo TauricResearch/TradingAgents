@@ -19,6 +19,9 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.agents.utils.sentiment_tools import (
+    get_fear_and_greed,
+)
 
 def create_msg_delete():
     def delete_messages(state):
