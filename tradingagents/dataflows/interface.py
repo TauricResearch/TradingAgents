@@ -17,12 +17,19 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .telegram import get_crypto_news_telegram
+from .binance import get_market_data as get_binance_crypto_data
 
 # Configuration and routing logic
 from .config import get_config
 
 # Tools organized by category
 TOOLS_CATEGORIES = {
+    "core_crypto_apis": {
+        "description": "OHLCV cryptocurrency price data",
+        "tools": [
+            "get_crypto_data"
+        ]
+    },
     "core_stock_apis": {
         "description": "OHLCV stock price data",
         "tools": [
@@ -65,6 +72,10 @@ VENDOR_LIST = [
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
+    # core_crypto_apis
+    "get_crypto_data": {
+        "binance": get_binance_crypto_data,
+    },
     # core_stock_apis
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
