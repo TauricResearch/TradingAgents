@@ -335,6 +335,17 @@ grep ERROR ./logs/tradingagents.log
 
 If an error occurs during analysis, partial results are automatically saved, allowing you to inspect completed work and resume processing. Partial results are saved to the results directory in JSON format.
 
+## Documentation
+
+For comprehensive documentation, guides, and API references, please visit the [docs/](docs/) directory:
+
+- **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running quickly
+- **[Architecture Documentation](docs/architecture/)** - Understand system design and components
+- **[API Reference](docs/api/)** - Detailed API documentation
+- **[Developer Guides](docs/guides/)** - How-to guides for extending the framework
+- **[Testing Guide](docs/testing/)** - Testing infrastructure and best practices
+- **[Complete Documentation Index](docs/README.md)** - Full table of contents
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).

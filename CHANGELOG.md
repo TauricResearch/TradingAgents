@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Comprehensive documentation structure (Issue #52)
+  - Organized `docs/` directory with structured documentation sections
+  - Quick start guide at `docs/QUICKSTART.md`
+  - Architecture documentation in `docs/architecture/` (multi-agent-system, data-flow, llm-integration)
+  - API reference documentation in `docs/api/` (trading-graph, agents, dataflows)
+  - Developer guides in `docs/guides/` (adding-new-analyst, adding-llm-provider, adding-data-vendor, configuration)
+  - Testing documentation in `docs/testing/` (README, running-tests, writing-tests)
+  - Development setup guide in `docs/development/`
+  - Central documentation index at `docs/README.md` with navigation and key concepts
+  - Updated PROJECT.md DOCUMENTATION MAP section to reference new docs/ structure
+  - Added Documentation section to README.md with links to key guides
 - Export reports to file with metadata (Issue #21)
   - YAML frontmatter formatting for report metadata [file:tradingagents/utils/report_exporter.py:63-111](tradingagents/utils/report_exporter.py)
   - Report creation with combined YAML frontmatter and markdown content [file:tradingagents/utils/report_exporter.py:112-136](tradingagents/utils/report_exporter.py)

@@ -1,53 +1,83 @@
-# PROJECT.md - TradingAgents
+# PROJECT.md - TradingAgents Investment Platform
 
-> Multi-Agent LLM Financial Trading Framework
-> Last Updated: 2025-12-25
+> Multi-Agent LLM Investment Platform with Execution Capabilities
+> Last Updated: 2025-12-26
 
 ---
 
 ## PROJECT VISION
 
-TradingAgents is a multi-agent trading framework that mirrors the dynamics of real-world trading firms. By deploying specialized LLM-powered agents—from fundamental analysts, sentiment experts, and technical analysts to traders and risk management teams—the platform collaboratively evaluates market conditions and informs trading decisions through dynamic agent discussions.
+TradingAgents is evolving from a signal-generation research framework into a **complete investment platform** that:
 
-**Research Focus**: This framework is designed for research purposes to explore how multi-agent LLM systems can approach complex financial decision-making.
+1. **Analyzes markets** using multi-agent LLM collaboration (existing capability)
+2. **Executes trades** via broker APIs (Alpaca, Interactive Brokers)
+3. **Manages portfolios** with performance tracking and Australian CGT compliance
+4. **Simulates strategies** to compare effectiveness before risking capital
+5. **Learns from outcomes** using a layered memory system (FinMem pattern)
+
+**Target Markets:** US Stocks, ETFs, Crypto, Futures, Australian Equities
+
+**Patterns Borrowed From:**
+- **FinMem**: Layered memory system (recency, relevancy, importance scoring)
+- **Microsoft Qlib**: Modular loose-coupled architecture
+- **Alpaca Bots**: Order execution, position tracking, risk controls
 
 ---
 
 ## GOALS
 
-### Primary Goals
-- [x] Provide a modular multi-agent framework for financial trading analysis
-- [x] Support multiple LLM providers (OpenAI, Anthropic, Google, OpenRouter, Ollama)
-- [x] Enable configurable data vendors (yfinance, Alpha Vantage, local)
-- [x] Implement specialized analyst agents (fundamental, sentiment, news, technical)
-- [x] Support researcher debates (bull vs bear perspectives)
-- [x] Include risk management and portfolio approval workflow
+### Phase 1: Foundation (Current)
+- [x] Multi-agent framework for financial analysis
+- [x] Multiple LLM providers (OpenAI, Anthropic, Google, OpenRouter, Ollama)
+- [x] Data vendors (yfinance, Alpha Vantage, Google News)
+- [x] Analyst agents (fundamental, sentiment, news, technical)
+- [x] Researcher debates (bull vs bear)
+- [x] Risk management workflow
+- [ ] **Database layer** for user persistence (#2-7)
+- [ ] **Enhanced data layer** - FRED, multi-timeframe, benchmarks (#8-12)
 
-### Secondary Goals
-- [ ] Expand backtesting capabilities with Tauric TradingDB
-- [ ] Add support for additional asset classes
-- [ ] Improve caching and performance optimization
-- [ ] Enhance CLI experience with more configuration options
+### Phase 2: Enhanced Analysis
+- [ ] **Momentum Analyst** - multi-timeframe momentum, ROC, ADX (#13)
+- [ ] **Macro Analyst** - FRED interpretation, regime detection (#14)
+- [ ] **Correlation Analyst** - cross-asset, sector rotation (#15)
+- [ ] **Position Sizing Manager** - Kelly, risk parity, ATR (#16)
+- [ ] **Memory System** - FinMem pattern for learning (#18-21)
+
+### Phase 3: Execution & Portfolio
+- [ ] **Broker Integration** - Alpaca (US), IBKR (futures, ASX) (#22-28)
+- [ ] **Portfolio Management** - positions, performance, CGT (#29-32)
+- [ ] **Simulation Mode** - strategy comparison without real money (#33-37)
+
+### Phase 4: Alerts & Polish
+- [ ] **Alert System** - Email, Slack, SMS (#38-41)
+- [ ] **Backtest Engine** - historical simulation (#42-44)
+- [ ] **REST API** - external access (#45-48)
 
 ---
 
 ## SCOPE
 
 ### In Scope
-- Stock trading analysis and recommendations
-- Multi-agent collaboration and debate mechanisms
-- Integration with financial data APIs
+- Multi-agent LLM analysis (fundamentals, sentiment, news, technical, momentum, macro)
+- **Live trade execution** via Alpaca and Interactive Brokers
+- **Paper trading / simulation mode** for strategy testing
+- Multi-asset support: US stocks, ETFs, crypto, futures, Australian equities
+- Portfolio tracking with mark-to-market valuation
+- **Australian CGT calculations** with 50% discount for >12 month holdings
+- Multi-timeframe analysis (daily, weekly, monthly)
+- Macro-economic data integration (FRED)
+- User database for profiles, portfolios, settings
+- Alert notifications (email, Slack, SMS)
+- Backtesting with historical data
 - CLI and programmatic Python interfaces
-- Configuration of LLM models and data sources
-- Risk assessment and position management
-- Support for multiple LLM providers (OpenAI, Anthropic, Google, OpenRouter, Ollama)
+- Optional REST API
 
 ### Out of Scope
-- Live trading execution (simulation only)
-- Cryptocurrency or forex trading
-- Real-time streaming data
-- Mobile or web interfaces
-- Financial advice (research purposes only)
+- Mobile or web UI (API only for now)
+- Real-time streaming data (polling-based)
+- Options trading
+- Financial advice (investment decisions are user's responsibility)
+- Tax advice (CGT calculations are informational only)
 
 ---
 
@@ -73,40 +103,67 @@ TradingAgents is a multi-agent trading framework that mirrors the dynamics of re
 
 ## ARCHITECTURE
 
-### System Overview
+### System Overview (Extended)
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      TradingAgents Graph                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────────┐    ┌──────────────────┐                   │
-│  │   Analyst Team   │    │  Researcher Team │                   │
-│  ├──────────────────┤    ├──────────────────┤                   │
-│  │ • Fundamentals   │───▶│ • Bull Researcher│                   │
-│  │ • Sentiment      │    │ • Bear Researcher│                   │
-│  │ • News           │    │   (Debates)      │                   │
-│  │ • Technical      │    └────────┬─────────┘                   │
-│  └──────────────────┘             │                             │
-│                                   ▼                             │
-│  ┌──────────────────┐    ┌──────────────────┐                   │
-│  │   Data Vendors   │    │   Trader Agent   │                   │
-│  ├──────────────────┤    └────────┬─────────┘                   │
-│  │ • yfinance       │             │                             │
-│  │ • Alpha Vantage  │             ▼                             │
-│  │ • OpenAI         │    ┌──────────────────┐                   │
-│  │ • Google         │    │ Risk Management  │                   │
-│  │ • Local          │    ├──────────────────┤                   │
-│  └──────────────────┘    │ • Aggressive     │                   │
-│                          │ • Conservative   │                   │
-│                          │ • Neutral        │                   │
-│                          └────────┬─────────┘                   │
-│                                   │                             │
-│                                   ▼                             │
-│                          ┌──────────────────┐                   │
-│                          │Portfolio Manager │                   │
-│                          │ (Final Decision) │                   │
-│                          └──────────────────┘                   │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                           DATA LAYER                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│  yfinance │ Alpha Vantage │ FRED (NEW) │ Alpaca │ Multi-Timeframe  │
+└─────────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         ANALYSIS LAYER                               │
+├─────────────────────────────────────────────────────────────────────┤
+│  Market  │ Momentum │  Macro   │ Correlation │ News │ Fundamentals │
+│ Analyst  │ Analyst  │ Analyst  │   Analyst   │      │              │
+│          │  (NEW)   │  (NEW)   │    (NEW)    │      │              │
+├─────────────────────────────────────────────────────────────────────┤
+│              Bull ←── Debate ──→ Bear → Research Manager            │
+├─────────────────────────────────────────────────────────────────────┤
+│              Trader → Signal + Confidence Score                     │
+├─────────────────────────────────────────────────────────────────────┤
+│         Risk Debate → Position Sizing Manager (NEW)                 │
+└─────────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                        STRATEGY LAYER (NEW)                          │
+├─────────────────────────────────────────────────────────────────────┤
+│  Signal-to-Order │ Position Sizing │ Timeframe Coordinator          │
+└─────────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                       EXECUTION LAYER (NEW)                          │
+├─────────────────────────────────────────────────────────────────────┤
+│  Order Validator │ Risk Controls │ Broker Router                    │
+│                  │               │ (Paper / Alpaca / IBKR)          │
+└─────────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      PORTFOLIO LAYER (NEW)                           │
+├─────────────────────────────────────────────────────────────────────┤
+│  Position Tracker │ Portfolio State │ Performance │ CGT Calculator  │
+└─────────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    MEMORY & LEARNING (Enhanced)                      │
+├─────────────────────────────────────────────────────────────────────┤
+│  Layered Memory (FinMem) │ Trade History │ Risk Profiles            │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Broker Routing
+```
+Asset Type        →  Broker Selection
+─────────────────────────────────────
+US Stocks/ETFs    →  Alpaca
+Crypto            →  Alpaca
+Futures (GC, SI)  →  Interactive Brokers
+ASX (Australia)   →  Interactive Brokers
 ```
 
 ### Technology Stack
@@ -133,49 +190,121 @@ TradingAgents is a multi-agent trading framework that mirrors the dynamics of re
 
 ```
 TradingAgents/
-├── tradingagents/           # Main package
-│   ├── agents/              # LLM agent implementations
-│   │   ├── analysts/        # Analyst agents (fundamental, sentiment, news, technical)
-│   │   ├── researchers/     # Bull/bear researcher debate agents
-│   │   ├── risk_mgmt/       # Risk management debators
-│   │   ├── trader/          # Trader agent
-│   │   ├── managers/        # Research and risk managers
-│   │   └── utils/           # Agent utilities, tools, states
-│   ├── dataflows/           # Data vendor integrations
-│   │   ├── alpha_vantage*.py  # Alpha Vantage API modules
-│   │   ├── y_finance.py     # yfinance integration
-│   │   ├── google.py        # Google news integration
-│   │   └── local.py         # Local data vendor
-│   ├── graph/               # LangGraph workflow
-│   │   ├── trading_graph.py # Main graph definition
-│   │   ├── propagation.py   # Forward propagation logic
-│   │   ├── reflection.py    # Agent reflection
-│   │   └── signal_processing.py
-│   └── default_config.py    # Default configuration
-├── cli/                     # Command-line interface
-│   ├── main.py              # CLI entry point
-│   ├── models.py            # CLI data models
-│   └── utils.py             # CLI utilities
-├── main.py                  # Quick start example
-├── test.py                  # Basic tests
-├── requirements.txt         # Python dependencies
-├── pyproject.toml           # Project metadata
-└── assets/                  # Documentation images
+├── tradingagents/           # Main package (existing + enhanced)
+│   ├── agents/
+│   │   ├── analysts/        # Analyst agents
+│   │   │   ├── fundamentals_analyst.py
+│   │   │   ├── sentiment_analyst.py
+│   │   │   ├── news_analyst.py
+│   │   │   ├── market_analyst.py (technical)
+│   │   │   ├── momentum_analyst.py   # NEW
+│   │   │   ├── macro_analyst.py      # NEW
+│   │   │   └── correlation_analyst.py # NEW
+│   │   ├── managers/
+│   │   │   └── position_sizing_manager.py  # NEW
+│   │   └── ...
+│   ├── dataflows/
+│   │   ├── fred.py              # NEW - Federal Reserve data
+│   │   ├── multi_timeframe.py   # NEW - Weekly/Monthly
+│   │   ├── benchmark.py         # NEW - SPY, sectors
+│   │   └── ...
+│   └── memory/                  # NEW - FinMem pattern
+│       ├── layered_memory.py
+│       ├── trade_history.py
+│       └── risk_profiles.py
+│
+├── execution/                   # NEW - Broker integration
+│   ├── brokers/
+│   │   ├── base.py
+│   │   ├── broker_router.py
+│   │   ├── alpaca_broker.py
+│   │   ├── ibkr_broker.py
+│   │   └── paper_broker.py
+│   ├── orders/
+│   └── risk_controls/
+│
+├── portfolio/                   # NEW - Portfolio management
+│   ├── portfolio_state.py
+│   ├── position_tracker.py
+│   ├── performance.py
+│   └── tax_calculator.py        # Australian CGT
+│
+├── simulation/                  # NEW - Strategy testing
+│   ├── scenario_runner.py
+│   ├── strategy_comparator.py
+│   └── economic_conditions.py
+│
+├── strategy/                    # NEW
+│   ├── signal_to_order.py
+│   ├── position_sizing.py
+│   └── strategy_executor.py
+│
+├── backtest/                    # NEW
+│   ├── backtest_engine.py
+│   └── results_analyzer.py
+│
+├── alerts/                      # NEW
+│   ├── alert_manager.py
+│   └── channels/
+│
+├── database/                    # NEW - User persistence
+│   ├── models/
+│   │   ├── user.py
+│   │   ├── portfolio.py
+│   │   ├── settings.py
+│   │   └── trade.py
+│   ├── migrations/
+│   └── db.py
+│
+├── api/                         # NEW - REST API (optional)
+│   └── app.py
+│
+├── cli/                         # Existing CLI
+├── main.py
+└── scripts/
+    └── create_issues.py         # GitHub issue creation
 ```
 
 ---
 
 ## TESTING STRATEGY
 
-### Current State
-- Basic test file exists (`test.py`)
-- No formal test framework configured
+### Test Organization (REQUIRED)
+All new code MUST include tests organized as follows:
 
-### Recommended Testing
-- Unit tests for individual agents
-- Integration tests for data vendor APIs
-- End-to-end tests for trading graph propagation
-- Mock LLM responses for deterministic testing
+```
+tests/
+├── conftest.py              # Shared fixtures (LLM mocks, env mocks)
+├── unit/                    # Fast, mocked tests
+│   ├── conftest.py         # Unit-specific fixtures
+│   └── test_*.py
+├── integration/             # Tests with real internal components
+│   ├── conftest.py         # Integration fixtures
+│   └── test_*.py
+└── e2e/                     # End-to-end tests
+    └── test_*.py
+```
+
+### Testing Requirements
+1. **TDD Approach**: Write tests BEFORE implementation
+2. **Unit Tests**: All new functions must have unit tests
+3. **Integration Tests**: All new features must have integration tests
+4. **Mocking**: Use fixtures in conftest.py for LLM and API mocking
+5. **Markers**: Use `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.e2e`
+
+### Test Fixtures (conftest.py)
+Standard fixtures that MUST be used:
+- `mock_env_openrouter`, `mock_env_openai`, `mock_env_anthropic` - Environment isolation
+- `mock_langchain_classes` - LLM class mocking
+- `mock_chromadb` - Database mocking (uses `get_or_create_collection`)
+- `mock_yfinance`, `mock_alpha_vantage` - Data vendor mocking
+
+### Running Tests
+```bash
+pytest tests/unit -m unit           # Fast unit tests only
+pytest tests/integration -m integration  # Integration tests
+pytest tests/ --tb=short           # All tests
+```
 
 ---
 
@@ -183,25 +312,81 @@ TradingAgents/
 
 | Document | Purpose |
 |----------|---------|
-| README.md | Installation, usage, API reference |
+| README.md | Installation, usage, API reference, feature overview |
+| PROJECT.md | This file - project roadmap, architecture, configuration |
 | LICENSE | MIT License |
-| PROJECT.md | This file - project overview |
+| docs/ | Comprehensive documentation structure (see below) |
 | assets/ | Architecture diagrams, CLI screenshots |
+
+### Documentation Structure (`docs/`)
+Located in `/docs/` directory with the following sections:
+
+- **Getting Started**
+  - `QUICKSTART.md` - Get up and running with TradingAgents
+  - `development/setup.md` - Development environment setup
+  - `guides/configuration.md` - Configuration reference for LLM providers and data vendors
+
+- **Architecture & Design**
+  - `architecture/multi-agent-system.md` - Agent roles and collaboration patterns
+  - `architecture/data-flow.md` - System data flow and integrations
+  - `architecture/llm-integration.md` - LLM provider abstraction and selection
+
+- **API Reference**
+  - `api/trading-graph.md` - Core TradingGraph orchestration API
+  - `api/agents.md` - Agent interfaces and implementations
+  - `api/dataflows.md` - Data vendor integrations and APIs
+
+- **Developer Guides**
+  - `guides/adding-new-analyst.md` - Extend framework with custom analysts
+  - `guides/adding-llm-provider.md` - Integrate new LLM providers
+  - `guides/adding-data-vendor.md` - Add new data vendor integrations
+
+- **Testing**
+  - `testing/README.md` - Testing philosophy and overview
+  - `testing/running-tests.md` - Test suite execution guide
+  - `testing/writing-tests.md` - Guidelines for writing new tests
+
+- **Development**
+  - `development/setup.md` - Development environment configuration
+  - `development/contributing.md` - Contributing guidelines
+
+**For full documentation index, see `docs/README.md`**
 
 ---
 
 ## CURRENT SPRINT
 
-<!-- TODO: Define your current sprint goals -->
+### Sprint: Platform Foundation
+
+**Goal:** Build the foundation for the investment platform
 
 ### Active Work
-- [ ] Define sprint goals here
+See [GitHub Issues](https://github.com/akaszubski/TradingAgents/issues) for full backlog.
 
-### Backlog
-- Expand data vendor options
-- Improve caching performance
-- Add more comprehensive testing
-- Enhance CLI configuration options
+**Phase 1: Database (Issues #2-7)**
+- [ ] #2 Database setup - SQLAlchemy + PostgreSQL/SQLite
+- [ ] #3 User model - profiles, tax jurisdiction
+- [ ] #4 Portfolio model - live, paper, backtest
+- [ ] #5 Settings model - risk profiles, alerts
+- [ ] #6 Trade model - CGT tracking
+- [ ] #7 Alembic migrations
+
+**Phase 2: Data Layer (Issues #8-12)**
+- [ ] #8 FRED API integration
+- [ ] #9 Multi-timeframe aggregation
+- [ ] #10 Benchmark data
+- [ ] #11 Interface routing
+- [ ] #12 Data caching
+
+### Backlog (47 total issues)
+- Phase 3: New Analysts (#13-17)
+- Phase 4: Memory System (#18-21)
+- Phase 5: Execution Layer (#22-28)
+- Phase 6: Portfolio Management (#29-32)
+- Phase 7: Simulation (#33-37)
+- Phase 8: Alerts (#38-41)
+- Phase 9: Backtest (#42-44)
+- Phase 10: API & Docs (#45-48)
 
 ---
 
