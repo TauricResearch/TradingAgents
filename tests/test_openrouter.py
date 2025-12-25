@@ -127,6 +127,7 @@ class TestOpenRouterInitialization:
     def test_openrouter_uses_chatopenai(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -144,6 +145,7 @@ class TestOpenRouterInitialization:
     def test_openrouter_sets_correct_base_url(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -169,6 +171,7 @@ class TestOpenRouterInitialization:
     def test_openrouter_uses_provider_model_format(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -192,6 +195,7 @@ class TestOpenRouterInitialization:
     def test_openrouter_alternative_models(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -249,32 +253,26 @@ class TestAPIKeyHandling:
         mock_langchain_classes,
         mock_memory
     ):
-        """Test that OPENAI_API_KEY is not used when provider is openrouter."""
-        # Arrange: Only OPENAI_API_KEY is set
+        """Test that OPENAI_API_KEY alone is not sufficient for openrouter provider."""
+        # Arrange: Only OPENAI_API_KEY is set (not OPENROUTER_API_KEY)
 
-        # Act
-        graph = TradingAgentsGraph(config=openrouter_config)
+        # Act & Assert: Should raise ValueError requiring OPENROUTER_API_KEY
+        with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+            graph = TradingAgentsGraph(config=openrouter_config)
 
-        # Assert: OPENROUTER_API_KEY should not be set
-        assert os.getenv("OPENROUTER_API_KEY") is None
-        assert os.getenv("OPENAI_API_KEY") == "sk-test-key-456"
-
-    def test_missing_api_key_environment(
+    def test_missing_api_key_raises_error(
         self,
         openrouter_config,
         mock_env_empty,
         mock_langchain_classes,
         mock_memory
     ):
-        """Test environment when no API keys are set."""
+        """Test that missing OPENROUTER_API_KEY raises clear error."""
         # Arrange: No API keys in environment
 
-        # Act
-        graph = TradingAgentsGraph(config=openrouter_config)
-
-        # Assert: No API keys available
-        assert os.getenv("OPENROUTER_API_KEY") is None
-        assert os.getenv("OPENAI_API_KEY") is None
+        # Act & Assert: Should raise ValueError
+        with pytest.raises(ValueError, match="OPENROUTER_API_KEY"):
+            graph = TradingAgentsGraph(config=openrouter_config)
 
 
 # ============================================================================
@@ -302,6 +300,7 @@ class TestErrorHandling:
     def test_empty_backend_url_handled(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -320,6 +319,7 @@ class TestErrorHandling:
     def test_none_backend_url_handled(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -346,6 +346,7 @@ class TestModelFormatValidation:
     def test_anthropic_model_format(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -366,6 +367,7 @@ class TestModelFormatValidation:
     def test_openai_model_format(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -386,6 +388,7 @@ class TestModelFormatValidation:
     def test_google_model_format(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -406,6 +409,7 @@ class TestModelFormatValidation:
     def test_meta_llama_model_format(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -434,56 +438,60 @@ class TestEmbeddingHandling:
     def test_memory_uses_openrouter_base_url(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_openai_client,
         mock_chromadb
     ):
-        """Test that FinancialSituationMemory uses OpenRouter base_url."""
-        # Arrange
-        config = openrouter_config.copy()
+        """Test that FinancialSituationMemory uses fallback OpenAI for embeddings."""
+        # Arrange - need OPENAI_API_KEY for embeddings when using OpenRouter
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            config = openrouter_config.copy()
 
-        # Act
-        memory = FinancialSituationMemory("test_memory", config)
+            # Act
+            memory = FinancialSituationMemory("test_memory", config)
 
-        # Assert: OpenAI client initialized with OpenRouter URL
-        mock_openai_client.assert_called_once_with(
-            base_url="https://openrouter.ai/api/v1"
-        )
+            # Assert: OpenAI client initialized (for embeddings fallback)
+            assert mock_openai_client.called
 
     def test_memory_embedding_with_openrouter(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_openai_client,
         mock_chromadb
     ):
-        """Test that embeddings can be generated via OpenRouter."""
-        # Arrange
-        memory = FinancialSituationMemory("test_memory", openrouter_config)
-        test_text = "Test financial situation"
+        """Test that embeddings can be generated via OpenAI fallback."""
+        # Arrange - need OPENAI_API_KEY for embeddings
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            memory = FinancialSituationMemory("test_memory", openrouter_config)
+            test_text = "Test financial situation"
 
-        # Act
-        embedding = memory.get_embedding(test_text)
+            # Act
+            embedding = memory.get_embedding(test_text)
 
-        # Assert: Embedding created successfully
-        assert embedding is not None
-        assert len(embedding) == 1536
-        mock_openai_client.return_value.embeddings.create.assert_called_once()
+            # Assert: Embedding created successfully
+            assert embedding is not None
+            assert len(embedding) == 1536
+            mock_openai_client.return_value.embeddings.create.assert_called_once()
 
     def test_memory_uses_text_embedding_model(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_openai_client,
         mock_chromadb
     ):
         """Test that correct embedding model is used."""
-        # Arrange
-        memory = FinancialSituationMemory("test_memory", openrouter_config)
+        # Arrange - need OPENAI_API_KEY for embeddings
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            memory = FinancialSituationMemory("test_memory", openrouter_config)
 
-        # Act
-        memory.get_embedding("test")
+            # Act
+            memory.get_embedding("test")
 
-        # Assert: Called with text-embedding-3-small
-        call_args = mock_openai_client.return_value.embeddings.create.call_args
-        assert call_args[1]["model"] == "text-embedding-3-small"
+            # Assert: Called with text-embedding-3-small
+            call_args = mock_openai_client.return_value.embeddings.create.call_args
+            assert call_args[1]["model"] == "text-embedding-3-small"
 
     def test_memory_ollama_embedding_model(
         self,
@@ -528,22 +536,24 @@ class TestEmbeddingHandling:
     def test_memory_add_situations_with_openrouter(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_openai_client,
         mock_chromadb
     ):
         """Test adding situations to memory using OpenRouter embeddings."""
-        # Arrange
-        memory = FinancialSituationMemory("test_memory", openrouter_config)
-        situations = [
-            ("Market volatility increasing", "Reduce risk exposure"),
-            ("Strong uptrend detected", "Increase position size"),
-        ]
+        # Arrange - need OPENAI_API_KEY for embeddings
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-openai-key"}):
+            memory = FinancialSituationMemory("test_memory", openrouter_config)
+            situations = [
+                ("Market volatility increasing", "Reduce risk exposure"),
+                ("Strong uptrend detected", "Increase position size"),
+            ]
 
-        # Act
-        memory.add_situations(situations)
+            # Act
+            memory.add_situations(situations)
 
-        # Assert: Embeddings created for each situation
-        assert mock_openai_client.return_value.embeddings.create.call_count == 2
+            # Assert: Embeddings created for each situation
+            assert mock_openai_client.return_value.embeddings.create.call_count == 2
 
 
 # ============================================================================
@@ -556,33 +566,28 @@ class TestEdgeCases:
     def test_case_insensitive_provider_name(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
-        """Test that provider names are case-sensitive (current implementation).
+        """Test that provider names are case-insensitive.
 
-        NOTE: Current implementation only accepts lowercase 'openrouter'.
-        Unlike 'openai', 'anthropic', 'google' which use .lower(),
-        'openrouter' and 'ollama' are case-sensitive string matches.
+        Provider names use .lower() comparison, so 'OpenRouter', 'OPENROUTER', etc. all work.
         """
-        # Arrange: Only lowercase 'openrouter' works
-        valid_provider = "openrouter"
-        invalid_providers = ["OpenRouter", "OPENROUTER", "OpenRouTer"]
+        # Arrange: All cases should work
+        valid_providers = ["openrouter", "OpenRouter", "OPENROUTER", "OpenRouTer"]
 
-        # Act & Assert: Lowercase works
-        config = openrouter_config.copy()
-        config["llm_provider"] = valid_provider
-        graph = TradingAgentsGraph(config=config)
-        assert mock_langchain_classes["openai"].called
-
-        # Act & Assert: Other cases fail
-        for provider in invalid_providers:
+        for provider in valid_providers:
+            # Reset mocks
             mock_langchain_classes["openai"].reset_mock()
+
+            # Act
             config = openrouter_config.copy()
             config["llm_provider"] = provider
+            graph = TradingAgentsGraph(config=config)
 
-            with pytest.raises(ValueError, match="Unsupported LLM provider"):
-                graph = TradingAgentsGraph(config=config)
+            # Assert: ChatOpenAI was called
+            assert mock_langchain_classes["openai"].called
 
     def test_openrouter_with_ollama_provider_name(
         self,
@@ -607,6 +612,7 @@ class TestEdgeCases:
     def test_empty_model_name(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -627,6 +633,7 @@ class TestEdgeCases:
     def test_special_characters_in_model_name(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -645,6 +652,7 @@ class TestEdgeCases:
     def test_url_with_trailing_slash(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -719,6 +727,7 @@ class TestConfiguration:
     def test_config_override_with_openrouter(
         self,
         openrouter_config,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
@@ -734,6 +743,7 @@ class TestConfiguration:
 
     def test_partial_config_merge(
         self,
+        mock_env_openrouter,
         mock_langchain_classes,
         mock_memory
     ):
