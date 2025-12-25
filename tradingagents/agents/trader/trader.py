@@ -3,7 +3,7 @@ import time
 import json
 
 
-def create_trader(llm, memory):
+def create_trader(llm, memory, ace_context=""):
     def trader_node(state, name):
         company_name = state["company_of_interest"]
         investment_plan = state["investment_plan"]
@@ -22,9 +22,14 @@ def create_trader(llm, memory):
         else:
             past_memory_str = "No past memories found."
 
+        # Add ACE context if available
+        ace_str = ""
+        if ace_context:
+            ace_str = f"\n\nLearned Trading Strategies (ACE):\n{ace_context}"
+
         context = {
             "role": "user",
-            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic decision.",
+            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic decision.{ace_str}",
         }
 
         messages = [

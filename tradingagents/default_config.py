@@ -17,6 +17,9 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # ACE (Agentic Context Engineering) settings
+    "ace_enabled": os.getenv("ACE_ENABLED", "true").lower() in {"true", "1", "yes", "on"},
+    "ace_skillbook_path": os.getenv("ACE_SKILLBOOK_PATH", "results/ace_skillbook.json"),
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
