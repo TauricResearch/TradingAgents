@@ -1,21 +1,38 @@
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
+import os
 
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
+        # Handle embeddings based on provider
         if config["backend_url"] == "http://localhost:11434/v1":
+            # Ollama local embeddings
             self.embedding = "nomic-embed-text"
+            self.client = OpenAI(base_url=config["backend_url"])
+        elif config.get("llm_provider", "").lower() == "openrouter":
+            # OpenRouter doesn't have native embeddings, use OpenAI embeddings as fallback
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key:
+                print("Warning: OPENAI_API_KEY not found. Memory features disabled for OpenRouter.")
+                self.client = None
+            else:
+                self.embedding = "text-embedding-3-small"
+                self.client = OpenAI(api_key=openai_key)  # Use OpenAI directly for embeddings
         else:
+            # Default to text-embedding-3-small for OpenAI and others
             self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+            self.client = OpenAI(base_url=config["backend_url"])
+
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""
-        
+        if self.client is None:
+            raise RuntimeError("Embedding client not initialized. Check API key configuration.")
+
         response = self.client.embeddings.create(
             model=self.embedding, input=text
         )

@@ -114,7 +114,7 @@ pip install -r requirements.txt
 
 ### Required APIs
 
-You will need the OpenAI API for all the agents, and [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for fundamental and news data (default configuration).
+You will need an LLM provider API key for all the agents, and [Alpha Vantage API](https://www.alphavantage.co/support/#api-key) for fundamental and news data (default configuration).
 
 ```bash
 export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY
@@ -127,7 +127,68 @@ cp .env.example .env
 # Edit .env with your actual API keys
 ```
 
-**Note:** We are happy to partner with Alpha Vantage to provide robust API support for TradingAgents. You can get a free AlphaVantage API [here](https://www.alphavantage.co/support/#api-key), TradingAgents-sourced requests also have increased rate limits to 60 requests per minute with no daily limits. Typically the quota is sufficient for performing complex tasks with TradingAgents thanks to Alpha Vantage’s open-source support program. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
+**Note:** We are happy to partner with Alpha Vantage to provide robust API support for TradingAgents. You can get a free AlphaVantage API [here](https://www.alphavantage.co/support/#api-key), TradingAgents-sourced requests also have increased rate limits to 60 requests per minute with no daily limits. Typically the quota is sufficient for performing complex tasks with TradingAgents thanks to Alpha Vantage's open-source support program. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
+
+#### LLM Provider Options
+
+TradingAgents supports multiple LLM providers. Configure your choice in `main.py`:
+
+**OpenAI** (default):
+```python
+config["llm_provider"] = "openai"
+config["deep_think_llm"] = "o4-mini"
+config["quick_think_llm"] = "gpt-4o-mini"
+config["backend_url"] = "https://api.openai.com/v1"
+# Requires: OPENAI_API_KEY environment variable
+```
+
+**Anthropic**:
+```python
+config["llm_provider"] = "anthropic"
+config["deep_think_llm"] = "claude-sonnet-4-20250514"
+config["quick_think_llm"] = "claude-sonnet-4-20250514"
+config["backend_url"] = "https://api.anthropic.com"
+# Requires: ANTHROPIC_API_KEY environment variable
+```
+
+**OpenRouter** (unified access to multiple models):
+```python
+config["llm_provider"] = "openrouter"
+config["deep_think_llm"] = "anthropic/claude-sonnet-4.5"
+config["quick_think_llm"] = "anthropic/claude-sonnet-4.5"
+config["backend_url"] = "https://openrouter.ai/api/v1"
+# Requires: OPENROUTER_API_KEY environment variable
+```
+
+Set your API key:
+```bash
+export OPENROUTER_API_KEY=$YOUR_OPENROUTER_API_KEY
+```
+
+Model names use the format `provider/model-name` (e.g., `anthropic/claude-sonnet-4.5`, `openai/gpt-4o`). See [OpenRouter models](https://openrouter.ai/docs/models) for available options.
+
+**Important:** OpenRouter does not provide embeddings. If using OpenRouter for LLM inference, you must also set `OPENAI_API_KEY` for embedding functionality:
+```bash
+export OPENROUTER_API_KEY=$YOUR_OPENROUTER_API_KEY
+export OPENAI_API_KEY=$YOUR_OPENAI_API_KEY  # Used for embeddings only
+```
+
+**Google Generative AI**:
+```python
+config["llm_provider"] = "google"
+config["deep_think_llm"] = "gemini-2.0-flash"
+config["quick_think_llm"] = "gemini-2.0-flash"
+# Requires: GOOGLE_API_KEY environment variable
+```
+
+**Ollama** (local inference):
+```python
+config["llm_provider"] = "ollama"
+config["deep_think_llm"] = "mistral"
+config["quick_think_llm"] = "mistral"
+config["backend_url"] = "http://localhost:11434/v1"
+# Requires: Local Ollama instance running
+```
 
 ### CLI Usage
 
@@ -180,8 +241,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 # Create a custom config
 config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-4.1-nano"  # Use a different model
-config["quick_think_llm"] = "gpt-4.1-nano"  # Use a different model
+config["deep_think_llm"] = "gpt-4o-mini"  # Use a different model
+config["quick_think_llm"] = "gpt-4o-mini"  # Use a different model
 config["max_debate_rounds"] = 1  # Increase debate rounds
 
 # Configure data vendors (default uses yfinance and Alpha Vantage)
@@ -196,6 +257,30 @@ config["data_vendors"] = {
 ta = TradingAgentsGraph(debug=True, config=config)
 
 # forward propagate
+_, decision = ta.propagate("NVDA", "2024-05-10")
+print(decision)
+```
+
+**Using OpenRouter with different models:**
+
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+# Configure for OpenRouter with specified models
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "openrouter"
+config["deep_think_llm"] = "anthropic/claude-sonnet-4.5"  # Deep reasoning model
+config["quick_think_llm"] = "openai/gpt-4o-mini"         # Fast model
+config["backend_url"] = "https://openrouter.ai/api/v1"
+
+# Note: Ensure OPENROUTER_API_KEY is set in environment
+# For embeddings, also set OPENAI_API_KEY
+import os
+if not os.getenv("OPENROUTER_API_KEY"):
+    raise ValueError("OPENROUTER_API_KEY not found in environment")
+
+ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2024-05-10")
 print(decision)
 ```

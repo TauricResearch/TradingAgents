@@ -72,9 +72,36 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
+        if self.config["llm_provider"].lower() in ("openai", "ollama"):
             self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+        elif self.config["llm_provider"].lower() == "openrouter":
+            # OpenRouter requires explicit API key handling
+            openrouter_key = os.getenv("OPENROUTER_API_KEY")
+            if not openrouter_key:
+                raise ValueError(
+                    "OPENROUTER_API_KEY environment variable is required when using openrouter provider. "
+                    "Set it with: export OPENROUTER_API_KEY=sk-or-v1-..."
+                )
+
+            # OpenRouter requires specific headers for attribution
+            default_headers = {
+                "HTTP-Referer": "https://github.com/TauricResearch/TradingAgents",
+                "X-Title": "TradingAgents"
+            }
+
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"],
+                api_key=openrouter_key,
+                default_headers=default_headers
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"],
+                api_key=openrouter_key,
+                default_headers=default_headers
+            )
         elif self.config["llm_provider"].lower() == "anthropic":
             self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
