@@ -8,16 +8,18 @@ load_dotenv()
 
 # Create a custom config
 config = DEFAULT_CONFIG.copy()
-config["deep_think_llm"] = "gpt-4o-mini"  # Use a different model
-config["quick_think_llm"] = "gpt-4o-mini"  # Use a different model
-config["max_debate_rounds"] = 1  # Increase debate rounds
+config["llm_provider"] = "anthropic"
+config["deep_think_llm"] = "claude-sonnet-4-20250514"
+config["quick_think_llm"] = "claude-sonnet-4-20250514"
+config["backend_url"] = "https://api.anthropic.com"
+config["max_debate_rounds"] = 1  # debate rounds
 
 # Configure data vendors (default uses yfinance and alpha_vantage)
 config["data_vendors"] = {
     "core_stock_apis": "yfinance",           # Options: yfinance, alpha_vantage, local
     "technical_indicators": "yfinance",      # Options: yfinance, alpha_vantage, local
-    "fundamental_data": "alpha_vantage",     # Options: openai, alpha_vantage, local
-    "news_data": "alpha_vantage",            # Options: openai, alpha_vantage, google, local
+    "fundamental_data": "yfinance",          # Options: openai, alpha_vantage, yfinance, local
+    "news_data": "google",                   # Options: openai, alpha_vantage, google, local
 }
 
 # Initialize with custom config

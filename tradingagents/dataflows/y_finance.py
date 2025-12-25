@@ -383,6 +383,43 @@ def get_income_statement(
         return f"Error retrieving income statement for {ticker}: {str(e)}"
 
 
+def get_fundamentals(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: str = None
+):
+    """Get company fundamentals from yfinance."""
+    try:
+        ticker_obj = yf.Ticker(ticker.upper())
+        info = ticker_obj.info
+
+        if not info:
+            return f"No fundamental data found for symbol '{ticker}'"
+
+        # Extract key metrics (keep it concise to avoid context overflow)
+        key_fields = [
+            'longName', 'sector', 'industry', 'marketCap', 'enterpriseValue',
+            'trailingPE', 'forwardPE', 'pegRatio', 'priceToBook', 'priceToSalesTrailing12Months',
+            'profitMargins', 'operatingMargins', 'returnOnEquity', 'returnOnAssets',
+            'revenueGrowth', 'earningsGrowth', 'currentRatio', 'debtToEquity',
+            'totalRevenue', 'grossProfits', 'ebitda', 'netIncomeToCommon',
+            'totalCash', 'totalDebt', 'freeCashflow',
+            'dividendYield', 'payoutRatio', 'beta', 'fiftyTwoWeekHigh', 'fiftyTwoWeekLow',
+            'targetMeanPrice', 'recommendationKey', 'numberOfAnalystOpinions'
+        ]
+
+        result = f"# Company Fundamentals for {ticker.upper()}\n"
+        result += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+        for field in key_fields:
+            if field in info and info[field] is not None:
+                result += f"{field}: {info[field]}\n"
+
+        return result
+
+    except Exception as e:
+        return f"Error retrieving fundamentals for {ticker}: {str(e)}"
+
+
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"]
 ):

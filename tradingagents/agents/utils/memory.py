@@ -46,25 +46,34 @@ class FinancialSituationMemory:
 
     def get_memories(self, current_situation, n_matches=1):
         """Find matching recommendations using OpenAI embeddings"""
-        query_embedding = self.get_embedding(current_situation)
+        try:
+            # Skip if collection is empty
+            if self.situation_collection.count() == 0:
+                return []
 
-        results = self.situation_collection.query(
-            query_embeddings=[query_embedding],
-            n_results=n_matches,
-            include=["metadatas", "documents", "distances"],
-        )
+            query_embedding = self.get_embedding(current_situation)
 
-        matched_results = []
-        for i in range(len(results["documents"][0])):
-            matched_results.append(
-                {
-                    "matched_situation": results["documents"][0][i],
-                    "recommendation": results["metadatas"][0][i]["recommendation"],
-                    "similarity_score": 1 - results["distances"][0][i],
-                }
+            results = self.situation_collection.query(
+                query_embeddings=[query_embedding],
+                n_results=n_matches,
+                include=["metadatas", "documents", "distances"],
             )
 
-        return matched_results
+            matched_results = []
+            for i in range(len(results["documents"][0])):
+                matched_results.append(
+                    {
+                        "matched_situation": results["documents"][0][i],
+                        "recommendation": results["metadatas"][0][i]["recommendation"],
+                        "similarity_score": 1 - results["distances"][0][i],
+                    }
+                )
+
+            return matched_results
+        except Exception as e:
+            # Return empty if embedding fails (e.g., no OpenAI quota)
+            print(f"Memory lookup skipped (embedding unavailable): {e}")
+            return []
 
 
 if __name__ == "__main__":
