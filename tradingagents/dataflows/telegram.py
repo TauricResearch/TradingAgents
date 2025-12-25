@@ -45,5 +45,8 @@ async def _get_channel_history_async(start_date_str, end_date_str):
 
         return intro + formatted_log
 
-def get_crypto_news_telegram(symbol, start_date, end_date):
+def get_crypto_news_telegram(curr_date, look_back_days=7, limit=100):
+    # ignore limit for now
+    start_date = curr_date - timedelta(days=look_back_days)
+    end_date = curr_date
     return asyncio.run(_get_channel_history_async(start_date, end_date))
