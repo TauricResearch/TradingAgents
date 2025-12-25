@@ -20,13 +20,16 @@ def get_market_data(symbol: str, start_date: str, end_date: str):
     """Fetch market data for a given symbol from Binance. Get OHLCV data. interval is 1 day.
     
     Args:
-        symbol: Trading symbol (e.g., 'BTCUSDT')
+        symbol: Trading symbol (e.g., 'BTC/USDT')
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
     
     Returns:
         CSV formatted string with OHLCV data
     """
+    # remove / from symbol for binance format
+    symbol = symbol.replace("/", "")
+
     # Convert dates to epoch time (milliseconds)
     start_epoch = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
     end_epoch = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp() * 1000)

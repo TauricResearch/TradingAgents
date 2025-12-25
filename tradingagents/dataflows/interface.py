@@ -18,6 +18,7 @@ from .alpha_vantage import (
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .telegram import get_crypto_news_telegram
 from .binance import get_market_data as get_binance_crypto_data
+from .taapi import get_crypto_stats_indicators_window
 
 # Configuration and routing logic
 from .config import get_config
@@ -84,9 +85,10 @@ VENDOR_METHODS = {
     },
     # technical_indicators
     "get_indicators": {
-        "alpha_vantage": get_alpha_vantage_indicator,
-        "yfinance": get_stock_stats_indicators_window,
-        "local": get_stock_stats_indicators_window
+        "taapi": get_crypto_stats_indicators_window,
+        # "alpha_vantage": get_alpha_vantage_indicator,
+        # "yfinance": get_stock_stats_indicators_window,
+        # "local": get_stock_stats_indicators_window
     },
     # fundamental_data
     "get_fundamentals": {

@@ -8,8 +8,8 @@ from tradingagents.dataflows.config import get_config
 def create_social_media_analyst(llm):
     def social_media_analyst_node(state):
         current_date = state["trade_date"]
-        ticker = state["coin_of_interest"]
-        coin_name = state["coin_of_interest"]
+        ticker = state["ticker_of_interest"]
+        coin_name = state["ticker_of_interest"]
 
         tools = [
             get_news,

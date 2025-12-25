@@ -22,7 +22,7 @@ DEFAULT_CONFIG = {
     "data_vendors": {
         "core_crypto_apis": "binance",       # Options: binance
         "core_stock_apis": "yfinance",       # Options: yfinance, alpha_vantage, local
-        "technical_indicators": "yfinance",  # Options: yfinance, alpha_vantage, local
+        "technical_indicators": "taapi",     # Options: taapi
         "fundamental_data": "alpha_vantage", # Options: openai, alpha_vantage, local
         "news_data": "alpha_vantage",        # Options: openai, alpha_vantage, google, local
     },
@@ -31,4 +31,8 @@ DEFAULT_CONFIG = {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
         # Example: "get_news": "openai",               # Override category default
     },
+    # Tool provider settings
+    "tool_providers": {
+        "TAAPI_BASE_URL": "https://api.taapi.io",
+    }
 }

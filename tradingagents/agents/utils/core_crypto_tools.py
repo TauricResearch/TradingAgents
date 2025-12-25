@@ -4,7 +4,7 @@ from tradingagents.dataflows.interface import route_to_vendor
 
 @tool
 def get_crypto_data(
-    symbol: Annotated[str, "trading symbol, e.g., BTCUSDT"],
+    symbol: Annotated[str, "trading symbol, e.g., BTC/USDT"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
