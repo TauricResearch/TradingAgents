@@ -1,5 +1,5 @@
 from langchain_core.tools import tool
-from typing import Annotated
+from typing import Annotated, List
 from tradingagents.dataflows.interface import route_to_vendor
 
 @tool
@@ -21,3 +21,23 @@ def get_indicators(
         str: A formatted dataframe containing the technical indicators for the specified ticker symbol and indicator.
     """
     return route_to_vendor("get_indicators", symbol, indicator, curr_date, look_back_days)
+
+@tool
+def get_indicators_bulk(
+    symbol: Annotated[str, "ticker symbol of the company"],
+    indicators: Annotated[List[str], "list of technical indicators to get the analysis and report of"],
+    curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
+    look_back_days: Annotated[int, "how many days to look back"] = 30,
+) -> str:
+    """
+    Retrieve multiple technical indicators for a given ticker symbol.
+    Uses the configured technical_indicators vendor.
+    Args:
+        symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
+        indicators (List[str]): List of technical indicators to get the analysis and report of
+        curr_date (str): The current trading date you are trading on, YYYY-mm-dd
+        look_back_days (int): How many days to look back, default is 30
+    Returns:
+        str: A formatted report containing the technical indicators for the specified ticker symbol and indicators.
+    """
+    return route_to_vendor("get_indicators_bulk", symbol, indicators, curr_date, look_back_days)

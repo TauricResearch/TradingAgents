@@ -18,7 +18,7 @@ from .alpha_vantage import (
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .telegram import get_crypto_news_telegram
 from .binance import get_market_data as get_binance_crypto_data
-from .taapi import get_crypto_stats_indicators_window
+from .taapi import get_crypto_stats_indicators_window, get_crypto_stats_indicators
 
 # Configuration and routing logic
 from .config import get_config
@@ -40,7 +40,8 @@ TOOLS_CATEGORIES = {
     "technical_indicators": {
         "description": "Technical analysis indicators",
         "tools": [
-            "get_indicators"
+            "get_indicators",
+            "get_indicators_bulk"
         ]
     },
     "fundamental_data": {
@@ -65,23 +66,24 @@ TOOLS_CATEGORIES = {
 }
 
 VENDOR_LIST = [
+    "binance"
     "local",
     "yfinance",
     "openai",
-    "google"
+    "google",
+    "taapi"
 ]
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
-    # core_crypto_apis
-    "get_crypto_data": {
-        "binance": get_binance_crypto_data,
-    },
-    # core_stock_apis
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
         "local": get_YFin_data,
+    },
+    # core_crypto_apis
+    "get_crypto_data": {
+        "binance": get_binance_crypto_data,
     },
     # technical_indicators
     "get_indicators": {
@@ -89,6 +91,9 @@ VENDOR_METHODS = {
         # "alpha_vantage": get_alpha_vantage_indicator,
         # "yfinance": get_stock_stats_indicators_window,
         # "local": get_stock_stats_indicators_window
+    },
+    "get_indicators_bulk": {
+        "taapi": get_crypto_stats_indicators,
     },
     # fundamental_data
     "get_fundamentals": {

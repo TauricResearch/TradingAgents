@@ -1,5 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from tradingagents.agents.utils.agent_utils import get_crypto_data, get_indicators
+from tradingagents.agents.utils.agent_utils import get_crypto_data, get_indicators_bulk
 
 
 def create_market_analyst(llm):
@@ -10,7 +10,7 @@ def create_market_analyst(llm):
 
         tools = [
             get_crypto_data,
-            get_indicators,
+            get_indicators_bulk,
         ]
 
         system_message = (
@@ -29,7 +29,7 @@ Volatility Indicators:
 - bbands: Bollinger Bands: Volatility indicator consisting of upper, middle (SMA), and lower bands based on standard deviations. Usage: Identify overbought/oversold conditions, volatility expansion/contraction, and potential breakout zones. Tips: Price touching bands doesn't guarantee reversal; use band squeeze for volatility breakout trades.
 - atr: ATR (Average True Range): Measures market volatility by calculating the average of true ranges over a period. Usage: Set stop-loss levels, position sizing, and identify high/low volatility periods for strategy adjustment. Tips: Higher ATR indicates more volatile conditions; use for risk management rather than directional signals.
 
-- Select indicators that provide diverse and complementary information. Avoid redundancy and focus on the most effective combination for crypto market analysis. Also briefly explain why they are suitable for the given crypto market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_crypto_data first to retrieve the cryptocurrency price data. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help crypto traders make decisions."""
+- Select indicators that provide diverse and complementary information. Avoid redundancy and focus on the most effective combination for crypto market analysis. Also briefly explain why they are suitable for the given crypto market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_crypto_data first to retrieve the cryptocurrency price data. Then use get_indicators_bulk with a list of the specific indicator names (e.g., ["sma", "rsi", "macd"]). Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help crypto traders make decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
         )
 
