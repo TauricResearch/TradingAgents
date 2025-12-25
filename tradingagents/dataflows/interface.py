@@ -18,12 +18,20 @@ from .alpha_vantage import (
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .telegram import get_crypto_news_telegram
 from .coin_gecko_fundamentals import get_market_cap as get_coin_gecko_market_cap
+from .binance import get_market_data as get_binance_crypto_data
+from .taapi import get_crypto_stats_indicators_window, get_crypto_stats_indicators
 
 # Configuration and routing logic
 from .config import get_config
 
 # Tools organized by category
 TOOLS_CATEGORIES = {
+    "core_crypto_apis": {
+        "description": "OHLCV cryptocurrency price data",
+        "tools": [
+            "get_crypto_data"
+        ]
+    },
     "core_stock_apis": {
         "description": "OHLCV stock price data",
         "tools": [
@@ -33,7 +41,8 @@ TOOLS_CATEGORIES = {
     "technical_indicators": {
         "description": "Technical analysis indicators",
         "tools": [
-            "get_indicators"
+            "get_indicators",
+            "get_indicators_bulk"
         ]
     },
     "fundamental_data": {
@@ -60,6 +69,7 @@ TOOLS_CATEGORIES = {
 }
 
 VENDOR_LIST = [
+    "binance"
     "local",
     "yfinance",
     "openai",
@@ -67,21 +77,29 @@ VENDOR_LIST = [
     "telegram",
     "coin_gecko",
     "alpha_vantage",
+    "taapi"
 ]
 
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
-    # core_stock_apis
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
         "local": get_YFin_data,
     },
+    # core_crypto_apis
+    "get_crypto_data": {
+        "binance": get_binance_crypto_data,
+    },
     # technical_indicators
     "get_indicators": {
-        "alpha_vantage": get_alpha_vantage_indicator,
-        "yfinance": get_stock_stats_indicators_window,
-        "local": get_stock_stats_indicators_window
+        "taapi": get_crypto_stats_indicators_window,
+        # "alpha_vantage": get_alpha_vantage_indicator,
+        # "yfinance": get_stock_stats_indicators_window,
+        # "local": get_stock_stats_indicators_window
+    },
+    "get_indicators_bulk": {
+        "taapi": get_crypto_stats_indicators,
     },
     # fundamental_data
     "get_fundamentals": {

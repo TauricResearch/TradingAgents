@@ -22,7 +22,7 @@ class Propagator:
         return {
             "messages": [("human", ticker)],
             "company_of_interest": ticker,
-            "coin_of_interest": ticker,
+            "ticker_of_interest": ticker,
             "trade_date": str(trade_date),
             "investment_debate_state": InvestDebateState(
                 {"history": "", "current_response": "", "count": 0}
