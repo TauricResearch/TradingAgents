@@ -324,7 +324,7 @@ Click "Execute Analysis" and wait 1-5 minutes (depending on research depth).
 
 View a complete PDF analysis report sample:
 
-📥 **[AVGO Broadcom Inc. Analysis Report (2025-12-15)](report/AVGO_Combined_Report_2025-12-15.pdf)**
+📥 **[Broadcom Inc. Analysis Report (2025-12-24)](report/en/AVGO_Combined_Report_2025-12-24.pdf)**
 
 ---
 
