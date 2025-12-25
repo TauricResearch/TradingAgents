@@ -1,6 +1,7 @@
 # TradingAgents/graph/trading_graph.py
 
 import os
+import re
 from pathlib import Path
 import json
 from datetime import date
@@ -21,6 +22,7 @@ from tradingagents.agents.utils.agent_states import (
     RiskDebateState,
 )
 from tradingagents.dataflows.config import set_config
+from tradingagents.ace import TradingACE, create_trading_ace
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -42,6 +44,8 @@ from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
 
+from tradingagents.ace import TradingACE, create_trading_ace
+
 
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
@@ -51,6 +55,8 @@ class TradingAgentsGraph:
         selected_analysts=["market", "social", "news", "fundamentals"],
         debug=False,
         config: Dict[str, Any] = None,
+        ace_enabled: bool = True,
+        ace_skillbook_path: Optional[str] = None,
     ):
         """Initialize the trading agents graph and components.
 
@@ -58,6 +64,8 @@ class TradingAgentsGraph:
             selected_analysts: List of analyst types to include
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
+            ace_enabled: Whether to enable ACE learning (default: True)
+            ace_skillbook_path: Path to load/save ACE skillbook (optional)
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
@@ -91,6 +99,29 @@ class TradingAgentsGraph:
         self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
         self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
 
+         # Initialize ACE Engine
+        self.ace_enabled = ace_enabled
+        self.ace_skillbook_path = ace_skillbook_path or self.config.get(
+            "ace_skillbook_path", 
+            os.path.join(self.config.get("results_dir", "./results"), "ace_skillbook.json")
+        )
+        
+        if self.ace_enabled:
+            self.ace_engine = create_trading_ace(
+                config=self.config,
+                skillbook_path=self.ace_skillbook_path,
+            )
+        else:
+            self.ace_engine = None
+        
+        if self.ace_enabled:
+            self.ace_engine = create_trading_ace(
+                config=self.config,
+                skillbook_path=self.ace_skillbook_path,
+            )
+        else:
+            self.ace_engine = None
+
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
 
@@ -106,6 +137,7 @@ class TradingAgentsGraph:
             self.invest_judge_memory,
             self.risk_manager_memory,
             self.conditional_logic,
+            ace_context=self.get_ace_context(),
         )
 
         self.propagator = Propagator()
@@ -231,6 +263,7 @@ class TradingAgentsGraph:
         with open(
             f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
             "w",
+            encoding="utf-8"
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
 
@@ -251,6 +284,125 @@ class TradingAgentsGraph:
         self.reflector.reflect_risk_manager(
             self.curr_state, returns_losses, self.risk_manager_memory
         )
+
+        # ACE Learning: Learn from trading execution
+        if self.ace_enabled and self.ace_engine and self.curr_state:
+            self._ace_learn(returns_losses)
+
+    def _ace_learn_from_analysis(self):
+        """
+        Trigger ACE learning based on the analytical consistency of all reports.
+        """
+        if not self.ace_enabled or not self.ace_engine or not self.curr_state:
+            return
+
+        print(f"DEBUG: ACE analytical reflection triggered for {self.curr_state.get('company_of_interest')}")
+
+        reports = {
+            "ticker": self.curr_state.get("company_of_interest", "Unknown"),
+            "date": str(self.curr_state.get("trade_date", "Unknown")),
+            "market": self.curr_state.get("market_report", ""),
+            "sentiment": self.curr_state.get("sentiment_report", ""),
+            "news": self.curr_state.get("news_report", ""),
+            "fundamentals": self.curr_state.get("fundamentals_report", ""),
+            "plan": self.curr_state.get("investment_plan", ""),
+        }
+
+        decision = self.curr_state.get("final_trade_decision", "")
+
+        decision = re.sub(r"\[ACE_METADATA: .*\]", "", decision).strip()
+        
+        self.ace_engine.learn_from_analysis(
+            reports=reports,
+            decision=decision
+        )
+
+    def _ace_learn(self, returns_losses):
+        """Apply ACE learning from the current trading state using Kayba ACE."""
+        if not self.curr_state:
+            return
+
+        context = f"{self.curr_state['company_of_interest']} on {self.curr_state['trade_date']}"
+        
+        market_data = "\n\n".join([
+            f"Market Report:\n{self.curr_state.get('market_report', '')}",
+            f"Sentiment Report:\n{self.curr_state.get('sentiment_report', '')}",
+            f"News Report:\n{self.curr_state.get('news_report', '')}",
+            f"Fundamentals Report:\n{self.curr_state.get('fundamentals_report', '')}",
+        ])
+
+        decision = self.curr_state.get("final_trade_decision", "")
+        
+        self.ace_engine.learn_from_trade(
+            context=context,
+            decision=decision,
+            result=str(returns_losses),
+            market_data=market_data,
+        )
+
+    def get_ace_context(self) -> str:
+        """Get ACE strategies context for injection into agent prompts."""
+        if self.ace_enabled and self.ace_engine:
+            return self.ace_engine.get_skills_context()
+        return ""
+
+    def save_ace_skillbook(self, path: Optional[str] = None) -> str:
+        """Save the ACE skillbook to a file."""
+        if self.ace_engine:
+            return self.ace_engine.save_skillbook(path)
+        return ""
+
+    def get_ace_stats(self) -> Dict[str, Any]:
+        """Get ACE learning statistics."""
+        if self.ace_engine:
+            return self.ace_engine.get_stats()
+        return {}
+
+    def _ace_learn_from_analysis(self):
+        """
+        Trigger ACE learning based on the analytical consistency of all reports.
+        """
+        if not self.ace_enabled or not self.ace_engine or not self.curr_state:
+            return
+
+        print(f"DEBUG: ACE analytical reflection triggered for {self.curr_state.get('company_of_interest')}")
+
+        reports = {
+            "ticker": self.curr_state.get("company_of_interest", "Unknown"),
+            "date": str(self.curr_state.get("trade_date", "Unknown")),
+            "market": self.curr_state.get("market_report", ""),
+            "sentiment": self.curr_state.get("sentiment_report", ""),
+            "news": self.curr_state.get("news_report", ""),
+            "fundamentals": self.curr_state.get("fundamentals_report", ""),
+            "plan": self.curr_state.get("investment_plan", ""),
+        }
+
+        decision = self.curr_state.get("final_trade_decision", "")
+        # Clean metadata tag if present
+        decision = re.sub(r"\[ACE_METADATA: .*\]", "", decision).strip()
+        
+        self.ace_engine.learn_from_analysis(
+            reports=reports,
+            decision=decision
+        )
+
+    def get_ace_context(self) -> str:
+        """Get ACE strategies context for injection into agent prompts."""
+        if self.ace_enabled and self.ace_engine:
+            return self.ace_engine.get_skills_context()
+        return ""
+
+    def save_ace_skillbook(self, path: Optional[str] = None) -> str:
+        """Save the ACE skillbook to a file."""
+        if self.ace_engine:
+            return self.ace_engine.save_skillbook(path)
+        return ""
+
+    def get_ace_stats(self) -> Dict[str, Any]:
+        """Get ACE learning statistics."""
+        if self.ace_engine:
+            return self.ace_engine.get_stats()
+        return {}
 
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""

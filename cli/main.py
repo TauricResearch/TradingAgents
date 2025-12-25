@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import os
 import typer
 from pathlib import Path
 from functools import wraps
@@ -398,7 +399,7 @@ def update_display(layout, spinner_text=None):
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    with open("./cli/static/welcome.txt", "r") as f:
+    with open("./cli/static/welcome.txt", "r", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
     # Create welcome box content
@@ -748,11 +749,6 @@ def run_analysis():
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
 
-    # Initialize the graph
-    graph = TradingAgentsGraph(
-        [analyst.value for analyst in selections["analysts"]], config=config, debug=True
-    )
-
     # Create result directory
     results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -761,6 +757,18 @@ def run_analysis():
     log_file = results_dir / "message_tool.log"
     log_file.touch(exist_ok=True)
 
+    # ACE skillbook
+    ace_skillbook_path = os.path.join(config.get("results_dir", "./results"), "ace_skillbook.json")
+
+    # Initialize the graph with ACE enabled
+    graph = TradingAgentsGraph(
+        [analyst.value for analyst in selections["analysts"]], 
+        config=config, 
+        debug=True,
+        ace_enabled=True,
+        ace_skillbook_path=ace_skillbook_path,
+    )
+
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
         @wraps(func)
@@ -768,7 +776,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
     
@@ -779,7 +787,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
 
@@ -792,7 +800,7 @@ def run_analysis():
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
-                    with open(report_dir / file_name, "w") as f:
+                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(content)
         return wrapper
 
@@ -1079,6 +1087,17 @@ def run_analysis():
 
         # Get final state and decision
         final_state = trace[-1]
+        graph.curr_state = final_state # Ensure curr_state is set for ACE
+        
+        # Trigger ACE learning from analysis (price-based)
+        if graph.ace_enabled:
+            message_buffer.add_message("ACE", "Learning from analysis...")
+            try:
+                graph._ace_learn_from_analysis()
+                message_buffer.add_message("ACE", "Learning cycle completed.")
+            except Exception as e:
+                message_buffer.add_message("ACE", f"Learning failed: {e}")
+
         decision = graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
@@ -1088,6 +1107,14 @@ def run_analysis():
         message_buffer.add_message(
             "Analysis", f"Completed analysis for {selections['analysis_date']}"
         )
+
+        # Save ACE skillbook
+        if graph.ace_engine:
+            try:
+                saved_path = graph.save_ace_skillbook()
+                message_buffer.add_message("ACE", f"Skillbook saved to {saved_path}")
+            except Exception as e:
+                message_buffer.add_message("ACE", f"Failed to save skillbook: {e}")
 
         # Update final report sections
         for section in message_buffer.report_sections.keys():
