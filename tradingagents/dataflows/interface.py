@@ -1,9 +1,29 @@
 from typing import Annotated
 
+
+# Helper class for late-binding vendor functions (supports mocking)
+class _VendorFunctionProxy:
+    """Proxy that looks up vendor functions at call time to support test mocking."""
+    def __init__(self, module, func_name):
+        self.module = module
+        self.func_name = func_name
+        self.__name__ = func_name  # For compatibility with function introspection
+
+    def __call__(self, *args, **kwargs):
+        func = getattr(self.module, self.func_name)
+        return func(*args, **kwargs)
+
+    def __eq__(self, other):
+        # Support equality check with the actual function
+        if hasattr(other, '__name__') and other.__name__ == self.func_name:
+            return getattr(self.module, self.func_name, None) == other
+        return False
+
+
 # Import from vendor-specific modules
 from .local import get_YFin_data, get_finnhub_news, get_finnhub_company_insider_sentiment, get_finnhub_company_insider_transactions, get_simfin_balance_sheet, get_simfin_cashflow, get_simfin_income_statements, get_reddit_global_news, get_reddit_company_news
 from .y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions, get_fundamentals as get_yfinance_fundamentals
-from .google import get_google_news, get_google_global_news
+from .google import get_google_news, get_google_news_for_ticker, get_google_global_news
 from .openai import get_stock_news_openai, get_global_news_openai, get_fundamentals_openai
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
@@ -16,9 +36,11 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from . import akshare
+from .akshare import AKShareRateLimitError
 
 # Configuration and routing logic
-from .config import get_config
+from . import config
 
 # Tools organized by category
 TOOLS_CATEGORIES = {
@@ -57,6 +79,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "local",
     "yfinance",
+    "akshare",
     "openai",
     "google"
 ]
@@ -67,6 +90,7 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "akshare": _VendorFunctionProxy(akshare, 'get_akshare_stock_data'),
         "local": get_YFin_data,
     },
     # technical_indicators
@@ -100,8 +124,8 @@ VENDOR_METHODS = {
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "openai": get_stock_news_openai,
-        "google": get_google_news,
-        "local": [get_finnhub_news, get_reddit_company_news, get_google_news],
+        "google": get_google_news_for_ticker,
+        "local": [get_finnhub_news, get_reddit_company_news, get_google_news_for_ticker],
     },
     "get_global_news": {
         "openai": get_global_news_openai,
@@ -129,16 +153,21 @@ def get_vendor(category: str, method: str = None) -> str:
     """Get the configured vendor for a data category or specific tool method.
     Tool-level configuration takes precedence over category-level.
     """
-    config = get_config()
+    cfg = config.get_config()
 
     # Check tool-level configuration first (if method provided)
     if method:
-        tool_vendors = config.get("tool_vendors", {})
+        tool_vendors = cfg.get("tool_vendors", {})
         if method in tool_vendors:
             return tool_vendors[method]
 
+    # Support both data_vendors (category-based) and data_vendor (simple) formats
+    # data_vendor (singular) takes precedence if present (for backward compatibility)
+    if "data_vendor" in cfg:
+        return cfg["data_vendor"]
+
     # Fall back to category-level configuration
-    return config.get("data_vendors", {}).get(category, "default")
+    return cfg.get("data_vendors", {}).get(category, "default")
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
@@ -208,6 +237,12 @@ def route_to_vendor(method: str, *args, **kwargs):
             except AlphaVantageRateLimitError as e:
                 if vendor == "alpha_vantage":
                     print(f"RATE_LIMIT: Alpha Vantage rate limit exceeded, falling back to next available vendor")
+                    print(f"DEBUG: Rate limit details: {e}")
+                # Continue to next vendor for fallback
+                continue
+            except AKShareRateLimitError as e:
+                if vendor == "akshare":
+                    print(f"RATE_LIMIT: AKShare rate limit exceeded, falling back to next available vendor")
                     print(f"DEBUG: Rate limit details: {e}")
                 # Continue to next vendor for fallback
                 continue
