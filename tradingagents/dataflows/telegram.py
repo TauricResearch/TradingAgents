@@ -25,6 +25,7 @@ async def _get_channel_history_async(start_date_str, end_date_str):
         # Date parsing logic
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').replace(tzinfo=timezone.utc)
         end_date_obj = datetime.strptime(end_date_str, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+        lookback_days = (end_date_obj - start_date).days
         end_date = end_date_obj + timedelta(days=1) - timedelta(seconds=1)
 
         formatted_log = ""
@@ -41,12 +42,17 @@ async def _get_channel_history_async(start_date_str, end_date_str):
                 formatted_log += f"[{date_str}] {clean_text}\n"
                 n_records += 1
         
-        intro = f"# News data from Telegram channel @{username} from {start_date_str} to {end_date_str}:\n# Total records: {n_records}\n# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        intro = f"# News data from Telegram channel @{username} from {start_date_str} to {end_date_str} ({lookback_days} days):\n# Total records: {n_records}\n# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
         return intro + formatted_log
 
 def get_crypto_news_telegram(curr_date, look_back_days=7, limit=100):
     # ignore limit for now
+    # convert curr_date from yyyy-mm-dd to datetime
+    curr_date = datetime.strptime(curr_date, '%Y-%m-%d')
     start_date = curr_date - timedelta(days=look_back_days)
     end_date = curr_date
-    return asyncio.run(_get_channel_history_async(start_date, end_date))
+
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    end_date_str = end_date.strftime('%Y-%m-%d')
+    return asyncio.run(_get_channel_history_async(start_date_str, end_date_str))
