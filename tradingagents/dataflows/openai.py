@@ -36,6 +36,39 @@ def get_stock_news_openai(query, start_date, end_date):
 
     return response.output[1].content[0].text
 
+def get_crypto_news_openai(query, start_date, end_date):
+    config = get_config()
+    client = OpenAI(base_url=config["backend_url"])
+
+    response = client.responses.create(
+        model=config["quick_think_llm"],
+        input=[
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": f"Can you search News for {query} from {start_date} to {end_date}? Make sure you only get the data posted during that period.",
+                    }
+                ],
+            }
+        ],
+        text={"format": {"type": "text"}},
+        reasoning={},
+        tools=[
+            {
+                "type": "web_search_preview",
+                "user_location": {"type": "approximate"},
+                "search_context_size": "low",
+            }
+        ],
+        temperature=1,
+        max_output_tokens=4096,
+        top_p=1,
+        store=True,
+    )
+
+    return response.output[1].content[0].text
 
 def get_global_news_openai(curr_date, look_back_days=7, limit=5):
     config = get_config()
