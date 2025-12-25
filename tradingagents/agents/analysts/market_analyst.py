@@ -53,7 +53,7 @@ Volatility Indicators:
         prompt = prompt.partial(system_message=system_message)
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
-        prompt = prompt.partial(ticker=symbol)
+        prompt = prompt.partial(symbol=symbol)
 
         chain = prompt | llm.bind_tools(tools)
 

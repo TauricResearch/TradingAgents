@@ -25,3 +25,4 @@ questionary
 langchain_anthropic
 langchain-google-genai
 binance-sdk-spot
+telethon

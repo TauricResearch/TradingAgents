@@ -30,9 +30,6 @@ def get_crypto_stats_indicators_window(
     Returns:
         str: A formatted report containing the technical indicators for the specified ticker symbol and indicator.
     """
-    # quick fix add n seconds cooldown to avoid rate limit issues
-    import time
-    time.sleep(2)
     
     # Supported indicators mapping
     supported_indicators = {
