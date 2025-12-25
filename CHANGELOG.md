@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Rate limit error handling for LLM APIs (Issue #39)
+  - Unified exception hierarchy for handling rate limit errors across providers (OpenAI, Anthropic, OpenRouter) [file:tradingagents/utils/exceptions.py](tradingagents/utils/exceptions.py)
+  - Dual-output logging configuration supporting both terminal and file outputs [file:tradingagents/utils/logging_config.py](tradingagents/utils/logging_config.py)
+  - Automatic rotating log files with 5MB rotation and 3 backups
+  - Terminal logging at INFO level and file logging at DEBUG level
+  - API key sanitization in log messages to prevent credential leaks
+  - Error recovery utilities for saving partial analysis state on errors [file:tradingagents/utils/error_recovery.py](tradingagents/utils/error_recovery.py)
+  - User-friendly error message formatting for rate limit errors [file:tradingagents/utils/error_messages.py](tradingagents/utils/error_messages.py)
+  - Comprehensive test suite for exceptions and logging configuration [file:tests/test_exceptions.py](tests/test_exceptions.py) [file:tests/test_logging_config.py](tests/test_logging_config.py)
 - OpenRouter API provider support for unified access to multiple LLM models
   - Support for `provider/model-name` format (e.g., `anthropic/claude-sonnet-4.5`)
   - Proper API key handling with OPENROUTER_API_KEY environment variable

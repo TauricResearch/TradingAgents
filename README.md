@@ -289,6 +289,52 @@ print(decision)
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
 
+### Error Handling and Logging
+
+TradingAgents includes robust error handling for rate limit errors and comprehensive logging capabilities to help you monitor and debug your trading analysis.
+
+#### Rate Limit Error Handling
+
+The framework automatically handles rate limit errors from LLM providers (OpenAI, Anthropic, OpenRouter) through a unified exception hierarchy. When a rate limit is encountered:
+
+1. The error is caught and processed by `tradingagents/utils/exceptions.py`
+2. Partial analysis state is automatically saved to allow resuming work
+3. User-friendly error messages guide you on retry timing
+
+```python
+from tradingagents.utils.exceptions import LLMRateLimitError
+
+try:
+    _, decision = ta.propagate("NVDA", "2024-05-10")
+except LLMRateLimitError as e:
+    print(f"Rate limit: {e.message}")
+    if e.retry_after:
+        print(f"Retry after {e.retry_after} seconds")
+```
+
+#### Dual-Output Logging
+
+TradingAgents logs to both terminal and rotating log files for comprehensive monitoring:
+
+- **Terminal logging** at INFO level shows real-time progress
+- **File logging** at DEBUG level provides detailed troubleshooting information
+- **Log rotation** automatically manages files at 5MB with 3 backups
+- **API key sanitization** automatically redacts sensitive credentials in logs
+
+Logs are saved to the `TRADINGAGENTS_RESULTS_DIR` environment variable or `./logs` by default. Access logs with:
+
+```bash
+# View recent logs
+tail -f ./logs/tradingagents.log
+
+# Search for errors
+grep ERROR ./logs/tradingagents.log
+```
+
+#### Partial Analysis Saving
+
+If an error occurs during analysis, partial results are automatically saved, allowing you to inspect completed work and resume processing. Partial results are saved to the results directory in JSON format.
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
