@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Export reports to file with metadata (Issue #21)
+  - YAML frontmatter formatting for report metadata [file:tradingagents/utils/report_exporter.py:63-111](tradingagents/utils/report_exporter.py)
+  - Report creation with combined YAML frontmatter and markdown content [file:tradingagents/utils/report_exporter.py:112-136](tradingagents/utils/report_exporter.py)
+  - Safe filename generation with date prefixes and sanitization [file:tradingagents/utils/report_exporter.py:137-185](tradingagents/utils/report_exporter.py)
+  - JSON metadata serialization with datetime handling and directory creation [file:tradingagents/utils/report_exporter.py:186-220](tradingagents/utils/report_exporter.py)
+  - Comprehensive report generation combining multiple sections with table of contents [file:tradingagents/utils/report_exporter.py:221-325](tradingagents/utils/report_exporter.py)
+  - Support for organizing report sections by team (Analyst, Research, Trading, Portfolio)
+  - Datetime-to-ISO-string conversion for YAML/JSON serialization
+  - Helper functions for basic YAML formatting when PyYAML is unavailable
+  - Comprehensive test suite for all report export functions [file:tests/test_report_exporter.py](tests/test_report_exporter.py)
+  - Public API exports in utils/__init__.py for easy access
 - Rate limit error handling for LLM APIs (Issue #39)
   - Unified exception hierarchy for handling rate limit errors across providers (OpenAI, Anthropic, OpenRouter) [file:tradingagents/utils/exceptions.py](tradingagents/utils/exceptions.py)
   - Dual-output logging configuration supporting both terminal and file outputs [file:tradingagents/utils/logging_config.py](tradingagents/utils/logging_config.py)

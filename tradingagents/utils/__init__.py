@@ -17,6 +17,14 @@ from tradingagents.utils.logging_config import (
     sanitize_log_message,
 )
 
+from tradingagents.utils.report_exporter import (
+    format_metadata_frontmatter,
+    create_report_with_frontmatter,
+    generate_section_filename,
+    save_json_metadata,
+    generate_comprehensive_report,
+)
+
 __all__ = [
     "LLMRateLimitError",
     "OpenAIRateLimitError",
@@ -25,4 +33,9 @@ __all__ = [
     "from_provider_error",
     "setup_dual_logger",
     "sanitize_log_message",
+    "format_metadata_frontmatter",
+    "create_report_with_frontmatter",
+    "generate_section_filename",
+    "save_json_metadata",
+    "generate_comprehensive_report",
 ]
