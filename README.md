@@ -105,6 +105,22 @@ Create a virtual environment in any of your favorite environment managers:
 ```bash
 conda create -n tradingagents python=3.13
 conda activate tradingagents
+
+pyenv
+pyenv local 3.12.7
+python -m venv .venv
+source./venv/bin/activate
+python --version
+pip install --upgrade pip
+pip install -r requirements.txt
+pip list
+
+# daily use
+source .venv/bin/activate
+deactivate
+
+if error mini-racer
+source venv/bin/activate && pip install --no-deps -r requirements.txt #install without miniracer 
 ```
 
 Install dependencies:
