@@ -253,6 +253,8 @@ def test_user_data() -> Dict[str, Any]:
         "email": "test@example.com",
         "password": "SecurePassword123!",
         "full_name": "Test User",
+        "timezone": "America/New_York",  # Issue #3
+        "tax_jurisdiction": "US-NY",  # Issue #3
     }
 
 
@@ -269,6 +271,8 @@ def second_user_data() -> Dict[str, Any]:
         "email": "other@example.com",
         "password": "AnotherPassword456!",
         "full_name": "Other User",
+        "timezone": "America/Los_Angeles",  # Issue #3
+        "tax_jurisdiction": "US-CA",  # Issue #3
     }
 
 
@@ -666,4 +670,229 @@ def sample_xss_payloads() -> list[str]:
         "javascript:alert('XSS')",
         "<img src=x onerror=alert('XSS')>",
         "<svg onload=alert('XSS')>",
+    ]
+
+
+# ============================================================================
+# Issue #3 Fixtures: API Keys, Timezones, Tax Jurisdictions
+# ============================================================================
+
+@pytest.fixture
+def verified_user_data() -> Dict[str, Any]:
+    """
+    Test user data for verified user (Issue #3).
+
+    Returns:
+        dict: Verified user data with all Issue #3 fields
+
+    Example:
+        async def test_verified_user(verified_user_data):
+            assert verified_user_data["is_verified"] is True
+    """
+    return {
+        "username": "verifieduser",
+        "email": "verified@example.com",
+        "password": "VerifiedPassword123!",
+        "full_name": "Verified User",
+        "timezone": "UTC",
+        "tax_jurisdiction": "US",
+        "is_verified": True,
+    }
+
+
+@pytest.fixture
+async def verified_user(db_session, verified_user_data):
+    """
+    Create verified test user in database (Issue #3).
+
+    Creates a verified user with timezone and tax jurisdiction.
+
+    Args:
+        db_session: Database session
+        verified_user_data: Verified user data
+
+    Yields:
+        User: Created verified user model instance
+    """
+    try:
+        from tradingagents.api.models import User
+        from tradingagents.api.services.auth_service import hash_password
+
+        user = User(
+            username=verified_user_data["username"],
+            email=verified_user_data["email"],
+            hashed_password=hash_password(verified_user_data["password"]),
+            full_name=verified_user_data.get("full_name"),
+            timezone=verified_user_data.get("timezone"),
+            tax_jurisdiction=verified_user_data.get("tax_jurisdiction"),
+            is_verified=verified_user_data.get("is_verified", True),
+        )
+
+        db_session.add(user)
+        await db_session.commit()
+        await db_session.refresh(user)
+
+        yield user
+    except ImportError:
+        yield None
+
+
+@pytest.fixture
+async def user_with_api_key(db_session, test_user_data):
+    """
+    Create test user with API key in database (Issue #3).
+
+    Creates a user with a hashed API key.
+
+    Args:
+        db_session: Database session
+        test_user_data: Test user data
+
+    Yields:
+        tuple[User, str]: (Created user, plain API key)
+    """
+    try:
+        from tradingagents.api.models import User
+        from tradingagents.api.services.auth_service import hash_password
+        from tradingagents.api.services.api_key_service import (
+            generate_api_key,
+            hash_api_key,
+        )
+
+        # Generate API key
+        plain_api_key = generate_api_key()
+        hashed_api_key = hash_api_key(plain_api_key)
+
+        user = User(
+            username=test_user_data["username"],
+            email=test_user_data["email"],
+            hashed_password=hash_password(test_user_data["password"]),
+            full_name=test_user_data.get("full_name"),
+            api_key_hash=hashed_api_key,
+            timezone=test_user_data.get("timezone"),
+            tax_jurisdiction=test_user_data.get("tax_jurisdiction"),
+        )
+
+        db_session.add(user)
+        await db_session.commit()
+        await db_session.refresh(user)
+
+        yield (user, plain_api_key)
+    except ImportError:
+        yield (None, None)
+
+
+@pytest.fixture
+def valid_timezones() -> list[str]:
+    """
+    List of valid IANA timezones for testing (Issue #3).
+
+    Returns:
+        list[str]: Valid timezone identifiers
+
+    Example:
+        def test_timezones(valid_timezones):
+            for tz in valid_timezones:
+                assert validate_timezone(tz) is True
+    """
+    return [
+        "UTC",
+        "GMT",
+        "America/New_York",
+        "America/Los_Angeles",
+        "America/Chicago",
+        "America/Denver",
+        "Europe/London",
+        "Europe/Paris",
+        "Europe/Berlin",
+        "Asia/Tokyo",
+        "Asia/Shanghai",
+        "Asia/Hong_Kong",
+        "Australia/Sydney",
+        "Australia/Melbourne",
+        "Pacific/Auckland",
+    ]
+
+
+@pytest.fixture
+def invalid_timezones() -> list[str]:
+    """
+    List of invalid timezones for testing (Issue #3).
+
+    Returns:
+        list[str]: Invalid timezone identifiers
+
+    Example:
+        def test_invalid_timezones(invalid_timezones):
+            for tz in invalid_timezones:
+                assert validate_timezone(tz) is False
+    """
+    return [
+        "PST",
+        "EST",
+        "CST",
+        "MST",
+        "America/InvalidCity",
+        "Europe/FakePlace",
+        "Random/Stuff",
+        "america/new_york",  # Wrong case
+        "123456",
+        "!@#$%",
+    ]
+
+
+@pytest.fixture
+def valid_tax_jurisdictions() -> list[str]:
+    """
+    List of valid tax jurisdictions for testing (Issue #3).
+
+    Returns:
+        list[str]: Valid tax jurisdiction codes
+
+    Example:
+        def test_jurisdictions(valid_tax_jurisdictions):
+            for jurisdiction in valid_tax_jurisdictions:
+                assert validate_tax_jurisdiction(jurisdiction) is True
+    """
+    return [
+        "US",
+        "CA",
+        "GB",
+        "DE",
+        "FR",
+        "JP",
+        "AU",
+        "US-CA",
+        "US-NY",
+        "US-TX",
+        "US-FL",
+        "CA-ON",
+        "CA-QC",
+        "CA-BC",
+    ]
+
+
+@pytest.fixture
+def invalid_tax_jurisdictions() -> list[str]:
+    """
+    List of invalid tax jurisdictions for testing (Issue #3).
+
+    Returns:
+        list[str]: Invalid tax jurisdiction codes
+
+    Example:
+        def test_invalid_jurisdictions(invalid_tax_jurisdictions):
+            for jurisdiction in invalid_tax_jurisdictions:
+                assert validate_tax_jurisdiction(jurisdiction) is False
+    """
+    return [
+        "InvalidFormat",
+        "US_CA",  # Wrong separator
+        "US/CA",  # Wrong separator
+        "USCA",  # No separator
+        "us-ca",  # Lowercase
+        "XX-YY",  # Invalid country code
+        "123",
+        "!@#",
+        "",
     ]

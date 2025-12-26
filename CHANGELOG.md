@@ -36,6 +36,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New dependencies in pyproject.toml: fastapi, uvicorn, sqlalchemy, alembic, pydantic-settings, passlib, argon2-cffi, python-multipart, python-jose, cryptography
   - API documentation generated from FastAPI OpenAPI schema (available at /docs and /redoc)
 
+- User model enhancement with profile and API key management (Issue #3)
+  - Extended User model with tax_jurisdiction and timezone fields [file:tradingagents/api/models/user.py:47-54](tradingagents/api/models/user.py)
+  - Tax jurisdiction field supporting country (e.g., "US", "AU") and state/province level codes (e.g., "US-CA", "AU-NSW")
+  - IANA timezone identifier field (e.g., "America/New_York", "Australia/Sydney") with automatic validation
+  - Email verification status tracking via is_verified boolean field [file:tradingagents/api/models/user.py:60-64](tradingagents/api/models/user.py)
+  - Secure API key management with bcrypt hashing and unique constraints [file:tradingagents/api/models/user.py:55-59](tradingagents/api/models/user.py)
+  - API key service module with generate_api_key(), hash_api_key(), and verify_api_key() functions [file:tradingagents/api/services/api_key_service.py](tradingagents/api/services/api_key_service.py)
+  - API key generation using secrets.token_urlsafe() with 256-bit entropy and 'ta_' prefix
+  - Bcrypt-based API key hashing using pwdlib.PasswordHash for secure storage
+  - Constant-time verification to prevent timing attacks on API keys
+  - Timezone validator using IANA zoneinfo database [file:tradingagents/api/services/validators.py:134-191](tradingagents/api/services/validators.py)
+  - Tax jurisdiction validator supporting 50+ country codes and state/province subdivisions [file:tradingagents/api/services/validators.py:193-283](tradingagents/api/services/validators.py)
+  - Utility functions get_available_timezones() and get_available_tax_jurisdictions() for UI dropdowns [file:tradingagents/api/services/validators.py:285-333](tradingagents/api/services/validators.py)
+  - Database migration 002_add_user_profile_fields.py with proper defaults and constraints [file:migrations/versions/002_add_user_profile_fields.py](migrations/versions/002_add_user_profile_fields.py)
+  - Migration rollback support for reversible schema changes
+  - Comprehensive docstrings and security considerations for all functions
+
 - Test fixtures directory with centralized mock data (Issue #51)
   - FixtureLoader class for loading JSON fixtures with automatic datetime parsing [file:tests/fixtures/__init__.py](tests/fixtures/__init__.py)
   - Stock data fixtures: US market OHLCV, Chinese market OHLCV, standardized data [file:tests/fixtures/stock_data/](tests/fixtures/stock_data/)

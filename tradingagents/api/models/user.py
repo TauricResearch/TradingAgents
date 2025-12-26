@@ -8,17 +8,62 @@ from tradingagents.api.models.base import Base, TimestampMixin
 
 
 class User(Base, TimestampMixin):
-    """User model for authentication and authorization."""
+    """User model for authentication and authorization.
+
+    Attributes:
+        id: Primary key
+        username: Unique username for authentication
+        email: Unique email address
+        hashed_password: Bcrypt hashed password
+        full_name: Optional full name
+        is_active: Whether user account is active
+        is_superuser: Whether user has admin privileges
+        tax_jurisdiction: Tax jurisdiction code (e.g., "US", "US-CA", "AU")
+        timezone: IANA timezone identifier (e.g., "America/New_York", "UTC")
+        api_key_hash: Bcrypt hash of API key (if user has API key)
+        is_verified: Whether user email is verified
+        strategies: Related Strategy objects owned by this user
+    """
 
     __tablename__ = "users"
 
+    # Primary identification
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    # User status and permissions
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Issue #3: Profile fields
+    tax_jurisdiction: Mapped[str] = mapped_column(
+        String(10),
+        default="AU",
+        nullable=False,
+        comment="Tax jurisdiction code (e.g., US, US-CA, AU-NSW)"
+    )
+    timezone: Mapped[str] = mapped_column(
+        String(50),
+        default="Australia/Sydney",
+        nullable=False,
+        comment="IANA timezone identifier (e.g., America/New_York, UTC)"
+    )
+    api_key_hash: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+        unique=True,
+        comment="Bcrypt hash of API key for programmatic access"
+    )
+    is_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Whether user email has been verified"
+    )
 
     # Relationship to strategies
     strategies: Mapped[List["Strategy"]] = relationship(

@@ -1,13 +1,14 @@
 """
 Test suite for SQLAlchemy database models.
 
-This module tests Issue #48 database models:
+This module tests Issue #48 and Issue #3 database models:
 1. User model with hashed passwords
-2. Strategy model with JSON parameters
-3. Relationships (User -> Strategies)
-4. Model validation and constraints
-5. Timestamps (created_at, updated_at)
-6. Cascade delete behavior
+2. User model with tax_jurisdiction, timezone, api_key_hash, is_verified (Issue #3)
+3. Strategy model with JSON parameters
+4. Relationships (User -> Strategies)
+5. Model validation and constraints
+6. Timestamps (created_at, updated_at)
+7. Cascade delete behavior
 
 Tests follow TDD - written before implementation.
 """
@@ -802,5 +803,453 @@ class TestModelEdgeCases:
 
             # Assert
             assert strategy.parameters["l1"]["l2"]["l3"]["l4"]["l5"]["value"] == "deep"
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+
+# ============================================================================
+# Unit Tests: Issue #3 - User Model Enhancements
+# ============================================================================
+
+class TestUserModelIssue3:
+    """Test User model enhancements from Issue #3.
+
+    New fields tested:
+    - tax_jurisdiction: Nullable string for user's tax jurisdiction
+    - timezone: Nullable string for user's timezone (must be valid IANA timezone)
+    - api_key_hash: Nullable string for hashed API key
+    - is_verified: Boolean flag for email verification (defaults to False)
+    """
+
+    async def test_user_tax_jurisdiction_default_none(self, db_session):
+        """Test that tax_jurisdiction defaults to None."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="taxuser",
+                email="tax@example.com",
+                hashed_password="hash",
+            )
+
+            # Act
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert hasattr(user, "tax_jurisdiction")
+            assert user.tax_jurisdiction is None
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_tax_jurisdiction_custom_value(self, db_session):
+        """Test setting custom tax_jurisdiction value."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="taxuser2",
+                email="tax2@example.com",
+                hashed_password="hash",
+                tax_jurisdiction="US-CA",
+            )
+
+            # Act
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert user.tax_jurisdiction == "US-CA"
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_timezone_default_none(self, db_session):
+        """Test that timezone defaults to None."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="tzuser",
+                email="tz@example.com",
+                hashed_password="hash",
+            )
+
+            # Act
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert hasattr(user, "timezone")
+            assert user.timezone is None
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_timezone_valid_value(self, db_session):
+        """Test setting valid timezone value."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="tzuser2",
+                email="tz2@example.com",
+                hashed_password="hash",
+                timezone="America/New_York",
+            )
+
+            # Act
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert user.timezone == "America/New_York"
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_timezone_various_timezones(self, db_session):
+        """Test various valid IANA timezone values."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            timezones = [
+                "UTC",
+                "America/Los_Angeles",
+                "Europe/London",
+                "Asia/Tokyo",
+                "Australia/Sydney",
+            ]
+
+            for i, tz in enumerate(timezones):
+                user = User(
+                    username=f"tzuser_{i}",
+                    email=f"tz{i}@example.com",
+                    hashed_password="hash",
+                    timezone=tz,
+                )
+
+                # Act
+                db_session.add(user)
+                await db_session.commit()
+                await db_session.refresh(user)
+
+                # Assert
+                assert user.timezone == tz
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_api_key_hash_default_none(self, db_session):
+        """Test that api_key_hash defaults to None."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="apiuser",
+                email="api@example.com",
+                hashed_password="hash",
+            )
+
+            # Act
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert hasattr(user, "api_key_hash")
+            assert user.api_key_hash is None
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_api_key_hash_custom_value(self, db_session):
+        """Test setting api_key_hash value."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            # Simulate hashed API key (bcrypt hash format)
+            api_key_hash = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5ygOy3f3K0E6O"
+
+            user = User(
+                username="apiuser2",
+                email="api2@example.com",
+                hashed_password="hash",
+                api_key_hash=api_key_hash,
+            )
+
+            # Act
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert user.api_key_hash == api_key_hash
+            assert user.api_key_hash.startswith("$2b$")
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_is_verified_default_false(self, db_session):
+        """Test that is_verified defaults to False."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="verifyuser",
+                email="verify@example.com",
+                hashed_password="hash",
+            )
+
+            # Act
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert hasattr(user, "is_verified")
+            assert user.is_verified is False
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_is_verified_can_be_true(self, db_session):
+        """Test setting is_verified to True."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="verifyuser2",
+                email="verify2@example.com",
+                hashed_password="hash",
+                is_verified=True,
+            )
+
+            # Act
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert user.is_verified is True
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_all_new_fields_together(self, db_session):
+        """Test creating user with all Issue #3 fields."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="fulluser",
+                email="full@example.com",
+                hashed_password="hash",
+                tax_jurisdiction="US-NY",
+                timezone="America/New_York",
+                api_key_hash="$2b$12$hashedapikey123",
+                is_verified=True,
+            )
+
+            # Act
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert user.tax_jurisdiction == "US-NY"
+            assert user.timezone == "America/New_York"
+            assert user.api_key_hash == "$2b$12$hashedapikey123"
+            assert user.is_verified is True
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_update_timezone(self, db_session):
+        """Test updating user's timezone."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="updatetz",
+                email="updatetz@example.com",
+                hashed_password="hash",
+                timezone="UTC",
+            )
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Act: Update timezone
+            user.timezone = "America/Los_Angeles"
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert user.timezone == "America/Los_Angeles"
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_update_tax_jurisdiction(self, db_session):
+        """Test updating user's tax_jurisdiction."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="updatetax",
+                email="updatetax@example.com",
+                hashed_password="hash",
+                tax_jurisdiction="US-CA",
+            )
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Act: Update tax jurisdiction
+            user.tax_jurisdiction = "US-TX"
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert user.tax_jurisdiction == "US-TX"
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_verify_email(self, db_session):
+        """Test verifying user's email."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="toverify",
+                email="toverify@example.com",
+                hashed_password="hash",
+                is_verified=False,
+            )
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            assert user.is_verified is False
+
+            # Act: Verify email
+            user.is_verified = True
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert user.is_verified is True
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_query_by_timezone(self, db_session):
+        """Test querying users by timezone."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+            from sqlalchemy import select
+
+            # Create users with different timezones
+            user1 = User(
+                username="user_utc",
+                email="utc@example.com",
+                hashed_password="hash",
+                timezone="UTC",
+            )
+            user2 = User(
+                username="user_ny",
+                email="ny@example.com",
+                hashed_password="hash",
+                timezone="America/New_York",
+            )
+            user3 = User(
+                username="user_utc2",
+                email="utc2@example.com",
+                hashed_password="hash",
+                timezone="UTC",
+            )
+
+            db_session.add_all([user1, user2, user3])
+            await db_session.commit()
+
+            # Act: Query users in UTC timezone
+            result = await db_session.execute(
+                select(User).where(User.timezone == "UTC")
+            )
+            utc_users = result.scalars().all()
+
+            # Assert
+            assert len(utc_users) == 2
+            assert all(u.timezone == "UTC" for u in utc_users)
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_query_verified_users(self, db_session):
+        """Test querying only verified users."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+            from sqlalchemy import select
+
+            # Create verified and unverified users
+            verified_user = User(
+                username="verified",
+                email="verified@example.com",
+                hashed_password="hash",
+                is_verified=True,
+            )
+            unverified_user = User(
+                username="unverified",
+                email="unverified@example.com",
+                hashed_password="hash",
+                is_verified=False,
+            )
+
+            db_session.add_all([verified_user, unverified_user])
+            await db_session.commit()
+
+            # Act: Query verified users
+            result = await db_session.execute(
+                select(User).where(User.is_verified == True)
+            )
+            verified_users = result.scalars().all()
+
+            # Assert
+            assert len(verified_users) >= 1
+            assert all(u.is_verified for u in verified_users)
+        except ImportError:
+            pytest.skip("Models not implemented yet")
+
+    async def test_user_api_key_hash_nullable(self, db_session):
+        """Test that api_key_hash can be set to None."""
+        # Arrange
+        try:
+            from tradingagents.api.models import User
+
+            user = User(
+                username="apinull",
+                email="apinull@example.com",
+                hashed_password="hash",
+                api_key_hash="$2b$12$somehash",
+            )
+            db_session.add(user)
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Act: Remove API key
+            user.api_key_hash = None
+            await db_session.commit()
+            await db_session.refresh(user)
+
+            # Assert
+            assert user.api_key_hash is None
         except ImportError:
             pytest.skip("Models not implemented yet")
