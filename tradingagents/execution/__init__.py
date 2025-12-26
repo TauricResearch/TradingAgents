@@ -114,6 +114,16 @@ from .ibkr_broker import (
 
 from .paper_broker import PaperBroker
 
+from .order_manager import (
+    OrderManager,
+    OrderEvent,
+    OrderValidationResult,
+    OrderStateChange,
+    VALID_TRANSITIONS,
+    TERMINAL_STATES,
+    OPEN_STATES,
+)
+
 __all__ = [
     # Enums
     "AssetClass",
@@ -158,4 +168,12 @@ __all__ = [
     "FUTURES_SPECS",
     # Paper Broker
     "PaperBroker",
+    # Order Manager
+    "OrderManager",
+    "OrderEvent",
+    "OrderValidationResult",
+    "OrderStateChange",
+    "VALID_TRANSITIONS",
+    "TERMINAL_STATES",
+    "OPEN_STATES",
 ]
