@@ -101,6 +101,11 @@ from .broker_router import (
     DuplicateBrokerError,
 )
 
+from .alpaca_broker import (
+    AlpacaBroker,
+    ALPACA_AVAILABLE,
+)
+
 __all__ = [
     # Enums
     "AssetClass",
@@ -136,4 +141,7 @@ __all__ = [
     "NoBrokerError",
     "BrokerNotFoundError",
     "DuplicateBrokerError",
+    # Alpaca Broker
+    "AlpacaBroker",
+    "ALPACA_AVAILABLE",
 ]
