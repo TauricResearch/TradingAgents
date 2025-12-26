@@ -166,6 +166,7 @@ def get_whitepaper_openai(symbol):
                 "search_context_size": "low",
             }
         ],
+        tool_choice={"type": "web_search_preview"},
         temperature=1,
         max_output_tokens=4096,
         top_p=1,
