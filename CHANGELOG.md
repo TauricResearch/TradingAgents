@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- FastAPI backend with JWT authentication and strategies CRUD (Issue #48)
+  - FastAPI application with async/await support and health check endpoints [file:tradingagents/api/main.py](tradingagents/api/main.py)
+  - JWT authentication with asymmetric RS256 signing algorithm [file:tradingagents/api/services/auth_service.py](tradingagents/api/services/auth_service.py)
+  - Argon2 password hashing with automatic salt generation for secure credential storage
+  - POST /api/v1/auth/login endpoint with username/password authentication returning JWT tokens
+  - GET /api/v1/strategies endpoint with pagination, user isolation, and permission-based access control
+  - POST /api/v1/strategies endpoint for creating new strategies with JSON parameters support
+  - GET /api/v1/strategies/{id} endpoint for retrieving individual strategies with authorization checks
+  - PUT /api/v1/strategies/{id} endpoint for updating strategy metadata and parameters
+  - DELETE /api/v1/strategies/{id} endpoint for removing strategies with proper cascade behavior
+  - SQLAlchemy ORM with async PostgreSQL/SQLite support [file:tradingagents/api/models/](tradingagents/api/models/)
+  - User model with hashed passwords, email uniqueness, and active status tracking [file:tradingagents/api/models/user.py](tradingagents/api/models/user.py)
+  - Strategy model with JSON parameters, description, user association, and active/inactive toggling [file:tradingagents/api/models/strategy.py](tradingagents/api/models/strategy.py)
+  - Alembic migration system with version control for database schema changes [file:migrations/](migrations/)
+  - Initial migration creating users and strategies tables with proper constraints [file:migrations/versions/](migrations/versions/)
+  - Database configuration with environment variable support (DATABASE_URL, SQLALCHEMY_ECHO) [file:tradingagents/api/config.py](tradingagents/api/config.py)
+  - Pydantic schemas for request validation and response serialization [file:tradingagents/api/schemas/](tradingagents/api/schemas/)
+  - CORS middleware configuration with environment-based allowed origins
+  - Error handling middleware with consistent JSON error responses and proper HTTP status codes
+  - Request logging middleware with sanitized credential exclusion and request ID tracking
+  - Comprehensive test suite with 208 tests covering authentication, strategies CRUD, models, migrations, middleware, and configuration [file:tests/api/](tests/api/)
+  - API-focused fixtures with async SQLAlchemy session, FastAPI test client, and test user/strategy data [file:tests/api/conftest.py](tests/api/conftest.py)
+  - Security tests covering SQL injection prevention, XSS payload handling, JWT tampering detection, and rate limiting
+  - Integration tests for endpoint authorization, user isolation, pagination, and cascade operations
+  - Migration tests validating schema constraints, rollback behavior, and Alembic configuration
+  - New dependencies in pyproject.toml: fastapi, uvicorn, sqlalchemy, alembic, pydantic-settings, passlib, argon2-cffi, python-multipart, python-jose, cryptography
+  - API documentation generated from FastAPI OpenAPI schema (available at /docs and /redoc)
+
 - Test fixtures directory with centralized mock data (Issue #51)
   - FixtureLoader class for loading JSON fixtures with automatic datetime parsing [file:tests/fixtures/__init__.py](tests/fixtures/__init__.py)
   - Stock data fixtures: US market OHLCV, Chinese market OHLCV, standardized data [file:tests/fixtures/stock_data/](tests/fixtures/stock_data/)

@@ -289,6 +289,117 @@ print(decision)
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
 
+## FastAPI Backend and REST API
+
+TradingAgents includes a FastAPI backend with JWT authentication and a REST API for managing strategies and executing trades programmatically (Issue #48).
+
+### API Server
+
+Start the API server with:
+
+```bash
+# Using uvicorn directly
+uvicorn tradingagents.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Or using Python
+python -m tradingagents.api.main
+```
+
+The API documentation is automatically generated and available at:
+- **Interactive API docs**: http://localhost:8000/docs (Swagger UI)
+- **Alternative API docs**: http://localhost:8000/redoc (ReDoc)
+- **Health check**: http://localhost:8000/health
+
+### Authentication
+
+The API uses JWT (JSON Web Tokens) with RS256 asymmetric signing for secure authentication. Passwords are hashed with Argon2.
+
+**Login Endpoint:**
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "user@example.com", "password": "your-password"}'
+
+# Response
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "bearer",
+  "expires_in": 3600
+}
+```
+
+Include the token in subsequent requests:
+```bash
+curl -X GET http://localhost:8000/api/v1/strategies \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### Strategies API
+
+#### List Strategies
+```bash
+curl -X GET 'http://localhost:8000/api/v1/strategies?skip=0&limit=10' \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### Create Strategy
+```bash
+curl -X POST http://localhost:8000/api/v1/strategies \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Strategy",
+    "description": "A test strategy",
+    "parameters": {"threshold": 0.7, "lookback": 20},
+    "is_active": true
+  }'
+```
+
+#### Get Strategy
+```bash
+curl -X GET http://localhost:8000/api/v1/strategies/{strategy_id} \
+  -H "Authorization: Bearer <access_token>"
+```
+
+#### Update Strategy
+```bash
+curl -X PUT http://localhost:8000/api/v1/strategies/{strategy_id} \
+  -H "Authorization: Bearer <access_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Updated Name", "is_active": false}'
+```
+
+#### Delete Strategy
+```bash
+curl -X DELETE http://localhost:8000/api/v1/strategies/{strategy_id} \
+  -H "Authorization: Bearer <access_token>"
+```
+
+### Database Configuration
+
+The API uses SQLAlchemy with async support for database operations. Configure the database via environment variables:
+
+```bash
+# PostgreSQL (recommended for production)
+export DATABASE_URL="postgresql+asyncpg://user:password@localhost/tradingagents"
+
+# SQLite (default for development)
+export DATABASE_URL="sqlite+aiosqlite:///./test.db"
+```
+
+Alembic handles schema migrations. Initialize and apply migrations with:
+
+```bash
+# Create migration
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback
+alembic downgrade -1
+```
+
 ### Error Handling and Logging
 
 TradingAgents includes robust error handling for rate limit errors and comprehensive logging capabilities to help you monitor and debug your trading analysis.
