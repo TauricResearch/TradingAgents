@@ -102,6 +102,47 @@ class TradingAgentsGraph:
                 api_key=openrouter_key,
                 default_headers=default_headers
             )
+        elif self.config["llm_provider"].lower() == "deepseek":
+            # DeepSeek requires explicit API key handling
+            deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+            if not deepseek_key:
+                raise ValueError(
+                    "DEEPSEEK_API_KEY environment variable is required for DeepSeek provider. "
+                    "Get your API key from https://platform.deepseek.com/"
+                )
+
+            # DeepSeek requires specific headers for attribution
+            default_headers = {
+                "HTTP-Referer": "https://github.com/TauricResearch/TradingAgents",
+                "X-Title": "TradingAgents"
+            }
+
+            # Use backend_url from config, with fallback to default DeepSeek API only if not set at all
+            base_url = self.config.get("backend_url")
+            if base_url is None and "backend_url" not in self.config:
+                base_url = "https://api.deepseek.com/v1"
+            elif base_url == "":
+                # Keep empty string if explicitly set
+                pass
+            elif base_url is None:
+                # Keep None if explicitly set
+                pass
+            else:
+                # Use the provided value
+                pass
+
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"],
+                base_url=base_url,
+                api_key=deepseek_key,
+                default_headers=default_headers
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"],
+                base_url=base_url,
+                api_key=deepseek_key,
+                default_headers=default_headers
+            )
         elif self.config["llm_provider"].lower() == "anthropic":
             self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])

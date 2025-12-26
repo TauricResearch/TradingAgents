@@ -443,6 +443,30 @@ config = {
 - Model names use the format: `provider/model-name` (e.g., `anthropic/claude-sonnet-4.5`, `openai/gpt-4o`)
 - See [OpenRouter models list](https://openrouter.ai/docs/models) for available models
 
+### DeepSeek Configuration Example
+DeepSeek provides cost-effective reasoning models with strong performance on quantitative analysis tasks. To use DeepSeek:
+
+```python
+config = {
+    "llm_provider": "deepseek",
+    "deep_think_llm": "deepseek-reasoner",  # Extended reasoning model
+    "quick_think_llm": "deepseek-chat",     # Fast responses for simple queries
+    "backend_url": "https://api.deepseek.com/v1",
+}
+```
+
+**Requirements:**
+- DEEPSEEK_API_KEY environment variable must be set
+- Get your API key from [DeepSeek Platform](https://platform.deepseek.com/)
+- For embeddings, either set OPENAI_API_KEY (preferred) or install sentence-transformers package
+- Model options: `deepseek-chat` (fast) and `deepseek-reasoner` (extended thinking)
+- DeepSeek uses OpenAI API format (ChatOpenAI compatible)
+
+**Embedding Fallback Chain:**
+- Tries OPENAI_API_KEY for OpenAI embeddings (recommended for best quality)
+- Falls back to HuggingFace sentence-transformers (all-MiniLM-L6-v2) if available and no OpenAI key
+- Disables memory features with warning if no embedding backend available
+
 ---
 
 ## DEVELOPMENT NOTES

@@ -3,40 +3,77 @@ from chromadb.config import Settings
 from openai import OpenAI
 import os
 
+# Try to import HuggingFace sentence-transformers (optional dependency)
+# This needs to be at module level for test mocking to work
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
+
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        # Handle embeddings based on provider
+        self.embedding_backend = None  # Track which backend is used
+
+        # Handle embeddings based on provider with fallback chain
         if config["backend_url"] == "http://localhost:11434/v1":
             # Ollama local embeddings
             self.embedding = "nomic-embed-text"
             self.client = OpenAI(base_url=config["backend_url"])
-        elif config.get("llm_provider", "").lower() == "openrouter":
-            # OpenRouter doesn't have native embeddings, use OpenAI embeddings as fallback
+            self.embedding_backend = "ollama"
+        elif config.get("llm_provider", "").lower() in ("openrouter", "deepseek"):
+            # OpenRouter and DeepSeek don't have native embeddings
+            # Fallback chain: OpenAI -> HuggingFace -> disable memory
             openai_key = os.getenv("OPENAI_API_KEY")
-            if not openai_key:
-                print("Warning: OPENAI_API_KEY not found. Memory features disabled for OpenRouter.")
-                self.client = None
-            else:
+            if openai_key:
+                # Use OpenAI embeddings as first fallback
                 self.embedding = "text-embedding-3-small"
-                self.client = OpenAI(api_key=openai_key)  # Use OpenAI directly for embeddings
+                self.client = OpenAI(api_key=openai_key)
+                self.embedding_backend = "openai"
+            elif SentenceTransformer is not None:
+                # Use HuggingFace sentence-transformers as second fallback
+                try:
+                    self.client = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+                    self.embedding = "all-MiniLM-L6-v2"
+                    self.embedding_backend = "huggingface"
+                    print(f"Info: Using HuggingFace embeddings (all-MiniLM-L6-v2) for memory with {config.get('llm_provider', 'unknown')} provider.")
+                except Exception as e:
+                    print(f"Warning: Failed to initialize HuggingFace embeddings: {e}. Memory features disabled.")
+                    self.client = None
+                    self.embedding_backend = None
+            else:
+                # No embedding backend available - disable memory
+                print(f"Warning: No embedding backend available for {config.get('llm_provider', 'unknown')} provider. "
+                      "Install sentence-transformers or set OPENAI_API_KEY to enable memory features.")
+                self.client = None
+                self.embedding_backend = None
         else:
             # Default to text-embedding-3-small for OpenAI and others
             self.embedding = "text-embedding-3-small"
             self.client = OpenAI(base_url=config["backend_url"])
+            self.embedding_backend = "openai"
 
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.get_or_create_collection(name=name)
 
     def get_embedding(self, text):
-        """Get OpenAI embedding for a text"""
+        """Get embedding for a text using the configured backend."""
         if self.client is None:
             raise RuntimeError("Embedding client not initialized. Check API key configuration.")
 
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
-        return response.data[0].embedding
+        if self.embedding_backend == "huggingface":
+            # HuggingFace SentenceTransformer - returns numpy array or list
+            embedding = self.client.encode(text)
+            # Convert to list if needed
+            if hasattr(embedding, 'tolist'):
+                return embedding.tolist()
+            return list(embedding)
+        else:
+            # OpenAI or Ollama - use OpenAI API format
+            response = self.client.embeddings.create(
+                model=self.embedding, input=text
+            )
+            return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):
         """Add financial situations and their corresponding advice. Parameter is a list of tuples (situation, rec)"""
