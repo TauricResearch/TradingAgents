@@ -53,7 +53,7 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
+        selected_analysts=["market", "social", "news", "fundamentals", "profile"],
         debug=False,
         config: Dict[str, Any] = None,
     ):
@@ -164,6 +164,11 @@ class TradingAgentsGraph:
                     # get_balance_sheet,
                     # get_cashflow,
                     # get_income_statement,
+                ]
+            ),
+            "profile": ToolNode(
+                [
+                    # Profile analysis tools can be added here
                 ]
             ),
         }
