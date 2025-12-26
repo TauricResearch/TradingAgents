@@ -53,6 +53,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Migration rollback support for reversible schema changes
   - Comprehensive docstrings and security considerations for all functions
 
+- Portfolio model for managing trading portfolios (Issue #4: DB-3)
+  - Portfolio model with support for LIVE, PAPER, and BACKTEST portfolio types [file:tradingagents/api/models/portfolio.py](tradingagents/api/models/portfolio.py)
+  - PortfolioType enum for type-safe portfolio categorization [file:tradingagents/api/models/portfolio.py:95-107](tradingagents/api/models/portfolio.py)
+  - PreciseNumeric custom SQLAlchemy type decorator for Decimal(19,4) precision [file:tradingagents/api/models/portfolio.py:63-92](tradingagents/api/models/portfolio.py)
+  - High-precision monetary value handling (19 total digits, 4 decimal places) for initial_capital and current_value fields
+  - Automatic current_value default to initial_capital on portfolio creation
+  - Unique constraint on (user_id, name) to prevent duplicate portfolio names per user
+  - Check constraints for non-negative capital and value amounts
+  - Composite indexes for efficient queries: (user_id, is_active) and (user_id, portfolio_type)
+  - Relationship to User model with cascade delete behavior
+  - Currency code field with ISO 4217 validation (3-letter codes, e.g., AUD, USD)
+  - Portfolio status tracking via is_active boolean field with default True
+  - Comprehensive validators for currency normalization, portfolio type validation, and business rule enforcement [file:tradingagents/api/models/portfolio.py:249-296](tradingagents/api/models/portfolio.py)
+  - Event listener validation (before_flush) for cross-field and database constraint checks [file:tradingagents/api/models/portfolio.py:300-347](tradingagents/api/models/portfolio.py)
+  - User model updated with portfolios relationship for one-to-many portfolio association [file:tradingagents/api/models/user.py:72-76](tradingagents/api/models/user.py)
+  - Database migration 003_add_portfolio_model.py with comprehensive schema definition [file:migrations/versions/003_add_portfolio_model.py](migrations/versions/003_add_portfolio_model.py)
+  - Migration with proper upgrade and downgrade functions for reversible schema changes
+  - Comprehensive unit and integration test suites [file:tests/unit/api/test_portfolio_model.py](tests/unit/api/test_portfolio_model.py) [file:tests/integration/api/test_portfolio_integration.py](tests/integration/api/test_portfolio_integration.py)
+  - Unit tests covering field validation, defaults, constraints, and enum handling
+  - Integration tests for relationships, cascade delete, and concurrent operations
+
 - Test fixtures directory with centralized mock data (Issue #51)
   - FixtureLoader class for loading JSON fixtures with automatic datetime parsing [file:tests/fixtures/__init__.py](tests/fixtures/__init__.py)
   - Stock data fixtures: US market OHLCV, Chinese market OHLCV, standardized data [file:tests/fixtures/stock_data/](tests/fixtures/stock_data/)

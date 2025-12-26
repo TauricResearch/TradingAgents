@@ -23,6 +23,7 @@ class User(Base, TimestampMixin):
         api_key_hash: Bcrypt hash of API key (if user has API key)
         is_verified: Whether user email is verified
         strategies: Related Strategy objects owned by this user
+        portfolios: Related Portfolio objects owned by this user
     """
 
     __tablename__ = "users"
@@ -68,6 +69,13 @@ class User(Base, TimestampMixin):
     # Relationship to strategies
     strategies: Mapped[List["Strategy"]] = relationship(
         "Strategy",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+    # Relationship to portfolios (Issue #4: DB-3)
+    portfolios: Mapped[List["Portfolio"]] = relationship(
+        "Portfolio",
         back_populates="user",
         cascade="all, delete-orphan"
     )

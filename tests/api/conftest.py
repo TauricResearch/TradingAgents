@@ -896,3 +896,287 @@ def invalid_tax_jurisdictions() -> list[str]:
         "!@#",
         "",
     ]
+
+
+# ============================================================================
+# Issue #4 Fixtures: Portfolio Model (DB-3)
+# ============================================================================
+
+@pytest.fixture
+async def another_user(db_session, second_user_data):
+    """
+    Alias for second_user - used in portfolio tests.
+
+    Creates a second test user for testing user isolation.
+
+    Args:
+        db_session: Database session
+        second_user_data: Second user data
+
+    Yields:
+        User: Created user model instance
+
+    Example:
+        async def test_portfolio_isolation(test_user, another_user):
+            # Test portfolios are isolated between users
+            assert test_user.id != another_user.id
+    """
+    try:
+        from tradingagents.api.models import User
+        from tradingagents.api.services.auth_service import hash_password
+
+        user = User(
+            username=second_user_data["username"],
+            email=second_user_data["email"],
+            hashed_password=hash_password(second_user_data["password"]),
+            full_name=second_user_data.get("full_name"),
+        )
+
+        db_session.add(user)
+        await db_session.commit()
+        await db_session.refresh(user)
+
+        yield user
+    except ImportError:
+        yield None
+
+
+@pytest.fixture
+def portfolio_data() -> Dict[str, Any]:
+    """
+    Test portfolio data for creation (Issue #4: DB-3).
+
+    Returns:
+        dict: Portfolio data with required fields
+
+    Example:
+        async def test_create_portfolio(portfolio_data):
+            assert portfolio_data["name"] == "Test Portfolio"
+            assert portfolio_data["portfolio_type"] == "PAPER"
+    """
+    return {
+        "name": "Test Portfolio",
+        "portfolio_type": "PAPER",
+        "initial_capital": "10000.0000",
+        "currency": "AUD",
+    }
+
+
+@pytest.fixture
+def live_portfolio_data() -> Dict[str, Any]:
+    """
+    Test data for LIVE portfolio (Issue #4: DB-3).
+
+    Returns:
+        dict: Live portfolio data
+    """
+    return {
+        "name": "Live Trading Portfolio",
+        "portfolio_type": "LIVE",
+        "initial_capital": "50000.0000",
+        "currency": "USD",
+    }
+
+
+@pytest.fixture
+def backtest_portfolio_data() -> Dict[str, Any]:
+    """
+    Test data for BACKTEST portfolio (Issue #4: DB-3).
+
+    Returns:
+        dict: Backtest portfolio data
+    """
+    return {
+        "name": "Historical Backtest",
+        "portfolio_type": "BACKTEST",
+        "initial_capital": "100000.0000",
+        "currency": "USD",
+    }
+
+
+@pytest.fixture
+async def test_portfolio(db_session, test_user, portfolio_data):
+    """
+    Create test portfolio in database (Issue #4: DB-3).
+
+    Creates a PAPER portfolio owned by test_user.
+
+    Args:
+        db_session: Database session
+        test_user: Owner user
+        portfolio_data: Portfolio data
+
+    Yields:
+        Portfolio: Created portfolio model instance
+
+    Example:
+        async def test_with_portfolio(test_portfolio):
+            assert test_portfolio.name == "Test Portfolio"
+            assert test_portfolio.user_id is not None
+    """
+    if test_user is None:
+        yield None
+        return
+
+    try:
+        from tradingagents.api.models.portfolio import Portfolio, PortfolioType
+        from decimal import Decimal
+
+        portfolio = Portfolio(
+            name=portfolio_data["name"],
+            portfolio_type=PortfolioType[portfolio_data["portfolio_type"]],
+            initial_capital=Decimal(portfolio_data["initial_capital"]),
+            currency=portfolio_data.get("currency", "AUD"),
+            user_id=test_user.id,
+        )
+
+        db_session.add(portfolio)
+        await db_session.commit()
+        await db_session.refresh(portfolio)
+
+        yield portfolio
+    except ImportError:
+        yield None
+
+
+@pytest.fixture
+async def live_portfolio(db_session, test_user, live_portfolio_data):
+    """
+    Create test LIVE portfolio in database (Issue #4: DB-3).
+
+    Args:
+        db_session: Database session
+        test_user: Owner user
+        live_portfolio_data: Live portfolio data
+
+    Yields:
+        Portfolio: Created live portfolio
+    """
+    if test_user is None:
+        yield None
+        return
+
+    try:
+        from tradingagents.api.models.portfolio import Portfolio, PortfolioType
+        from decimal import Decimal
+
+        portfolio = Portfolio(
+            name=live_portfolio_data["name"],
+            portfolio_type=PortfolioType.LIVE,
+            initial_capital=Decimal(live_portfolio_data["initial_capital"]),
+            currency=live_portfolio_data.get("currency", "USD"),
+            user_id=test_user.id,
+        )
+
+        db_session.add(portfolio)
+        await db_session.commit()
+        await db_session.refresh(portfolio)
+
+        yield portfolio
+    except ImportError:
+        yield None
+
+
+@pytest.fixture
+async def multiple_portfolios(db_session, test_user):
+    """
+    Create multiple test portfolios for list/pagination testing (Issue #4: DB-3).
+
+    Creates 5 portfolios with different types and capital values.
+
+    Args:
+        db_session: Database session
+        test_user: Owner user
+
+    Yields:
+        list[Portfolio]: List of created portfolios
+    """
+    if test_user is None:
+        yield []
+        return
+
+    try:
+        from tradingagents.api.models.portfolio import Portfolio, PortfolioType
+        from decimal import Decimal
+
+        portfolio_types = [PortfolioType.LIVE, PortfolioType.PAPER, PortfolioType.BACKTEST]
+        portfolios = []
+
+        for i in range(5):
+            portfolio = Portfolio(
+                name=f"Portfolio {i+1}",
+                portfolio_type=portfolio_types[i % 3],
+                initial_capital=Decimal(f"{(i+1) * 10000}.0000"),
+                currency="AUD" if i % 2 == 0 else "USD",
+                is_active=i % 2 == 0,  # Alternate active/inactive
+                user_id=test_user.id,
+            )
+            db_session.add(portfolio)
+            portfolios.append(portfolio)
+
+        await db_session.commit()
+
+        # Refresh all portfolios
+        for portfolio in portfolios:
+            await db_session.refresh(portfolio)
+
+        yield portfolios
+    except ImportError:
+        yield []
+
+
+@pytest.fixture
+def valid_currencies() -> list[str]:
+    """
+    List of valid ISO 4217 currency codes for testing (Issue #4: DB-3).
+
+    Returns:
+        list[str]: Valid 3-letter currency codes
+
+    Example:
+        def test_currencies(valid_currencies):
+            for currency in valid_currencies:
+                assert len(currency) == 3
+                assert currency.isupper()
+    """
+    return [
+        "USD",  # US Dollar
+        "EUR",  # Euro
+        "GBP",  # British Pound
+        "JPY",  # Japanese Yen
+        "CNY",  # Chinese Yuan
+        "AUD",  # Australian Dollar
+        "CAD",  # Canadian Dollar
+        "CHF",  # Swiss Franc
+        "HKD",  # Hong Kong Dollar
+        "SGD",  # Singapore Dollar
+        "NZD",  # New Zealand Dollar
+        "KRW",  # South Korean Won
+        "INR",  # Indian Rupee
+    ]
+
+
+@pytest.fixture
+def invalid_currencies() -> list[str]:
+    """
+    List of invalid currency codes for testing (Issue #4: DB-3).
+
+    Returns:
+        list[str]: Invalid currency codes
+
+    Example:
+        def test_invalid_currencies(invalid_currencies):
+            for currency in invalid_currencies:
+                # Should fail validation
+                assert not is_valid_currency(currency)
+    """
+    return [
+        "US",      # Too short
+        "USDD",    # Too long
+        "usd",     # Lowercase
+        "XXX",     # Invalid code
+        "123",     # Numeric
+        "US$",     # Contains symbol
+        "",        # Empty
+        "U S D",   # Contains spaces
+    ]
