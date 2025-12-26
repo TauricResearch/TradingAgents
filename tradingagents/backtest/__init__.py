@@ -108,6 +108,25 @@ from .backtest_engine import (
     create_backtest_engine,
 )
 
+from .results_analyzer import (
+    # Enums
+    TimeFrame,
+    TradeDirection,
+    # Data Classes
+    TradeAnalysis,
+    TradePattern,
+    PerformanceBreakdown,
+    RiskMetrics,
+    TradeStatistics,
+    BenchmarkComparison,
+    DrawdownAnalysis,
+    AnalysisResult,
+    # Main Classes
+    ResultsAnalyzer,
+    # Factory Functions
+    create_results_analyzer,
+)
+
 __all__ = [
     # Enums
     "OrderSide",
@@ -136,6 +155,20 @@ __all__ = [
     "TieredCommission",
     # Main Classes
     "BacktestEngine",
+    "ResultsAnalyzer",
     # Factory Functions
     "create_backtest_engine",
+    "create_results_analyzer",
+    # Results Analyzer Enums
+    "TimeFrame",
+    "TradeDirection",
+    # Results Analyzer Data Classes
+    "TradeAnalysis",
+    "TradePattern",
+    "PerformanceBreakdown",
+    "RiskMetrics",
+    "TradeStatistics",
+    "BenchmarkComparison",
+    "DrawdownAnalysis",
+    "AnalysisResult",
 ]
