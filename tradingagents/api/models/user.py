@@ -24,6 +24,7 @@ class User(Base, TimestampMixin):
         is_verified: Whether user email is verified
         strategies: Related Strategy objects owned by this user
         portfolios: Related Portfolio objects owned by this user
+        settings: Related Settings object for this user (one-to-one)
     """
 
     __tablename__ = "users"
@@ -78,6 +79,14 @@ class User(Base, TimestampMixin):
         "Portfolio",
         back_populates="user",
         cascade="all, delete-orphan"
+    )
+
+    # Relationship to settings (Issue #5: DB-4) - one-to-one
+    settings: Mapped[Optional["Settings"]] = relationship(
+        "Settings",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False
     )
 
     def __repr__(self) -> str:

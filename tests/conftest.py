@@ -28,6 +28,9 @@ from typing import Dict, Any
 
 from tradingagents.default_config import DEFAULT_CONFIG
 
+# Register plugins from sub-conftest files (pytest 9.0+ requires this at root level)
+pytest_plugins = ["tests.api.conftest"]
+
 
 # ============================================================================
 # Environment Variable Fixtures

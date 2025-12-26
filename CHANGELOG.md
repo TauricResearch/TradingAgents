@@ -74,6 +74,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unit tests covering field validation, defaults, constraints, and enum handling
   - Integration tests for relationships, cascade delete, and concurrent operations
 
+- Settings model for user preferences and risk management (Issue #5: DB-4)
+  - Settings model for managing user trading preferences, risk tolerance, and alert configurations [file:tradingagents/api/models/settings.py](tradingagents/api/models/settings.py)
+  - RiskProfile enum for user risk tolerance profiles (CONSERVATIVE, MODERATE, AGGRESSIVE) [file:tradingagents/api/models/settings.py:70-82](tradingagents/api/models/settings.py)
+  - One-to-one relationship with User model with cascade delete behavior
+  - Risk management fields: risk_score (0-10 scale), risk_profile, max_position_pct (0-100), max_portfolio_risk_pct (0-100)
+  - Investment horizon field in years for long-term portfolio planning
+  - Alert preferences JSON field for configurable email/SMS/push notifications
+  - Unique constraint on user_id enforcing one settings record per user
+  - Check constraints for valid numeric ranges: risk_score 0-10, position/portfolio risk 0-100, horizon >= 0
+  - Automatic timestamps via TimestampMixin (created_at, updated_at)
+  - Validators for risk_profile enum normalization and type safety [file:tradingagents/api/models/settings.py:246-279](tradingagents/api/models/settings.py)
+  - Event listener validation (before_flush) for business rule enforcement [file:tradingagents/api/models/settings.py:284-313](tradingagents/api/models/settings.py)
+  - User model updated with settings relationship for one-to-one association [file:tradingagents/api/models/user.py](tradingagents/api/models/user.py)
+  - Database migration 004_add_settings_model.py with comprehensive schema definition [file:migrations/versions/004_add_settings_model.py](migrations/versions/004_add_settings_model.py)
+  - Migration with proper upgrade and downgrade functions for reversible schema changes
+  - Comprehensive unit test suite covering field validation, defaults, constraints, and enum handling [file:tests/unit/api/test_settings_model.py](tests/unit/api/test_settings_model.py)
+  - Integration test suite for relationships, cascade delete, and concurrent operations [file:tests/integration/api/test_settings_integration.py](tests/integration/api/test_settings_integration.py)
+
 - Test fixtures directory with centralized mock data (Issue #51)
   - FixtureLoader class for loading JSON fixtures with automatic datetime parsing [file:tests/fixtures/__init__.py](tests/fixtures/__init__.py)
   - Stock data fixtures: US market OHLCV, Chinese market OHLCV, standardized data [file:tests/fixtures/stock_data/](tests/fixtures/stock_data/)
