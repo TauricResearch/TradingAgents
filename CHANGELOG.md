@@ -61,6 +61,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New dependencies in pyproject.toml: fastapi, uvicorn, sqlalchemy, alembic, pydantic-settings, passlib, argon2-cffi, python-multipart, python-jose, cryptography
   - API documentation generated from FastAPI OpenAPI schema (available at /docs and /redoc)
 
+- FRED API integration for economic data (Issue #8: DATA-7)
+  - Federal Reserve Economic Data (FRED) API wrapper module with core utilities [file:tradingagents/dataflows/fred_common.py](tradingagents/dataflows/fred_common.py) (346 lines)
+  - Data retrieval functions module with high-level economic data access [file:tradingagents/dataflows/fred.py](tradingagents/dataflows/fred.py) (396 lines)
+  - Custom exceptions for API rate limiting and invalid series errors [file:tradingagents/dataflows/fred_common.py:52-67](tradingagents/dataflows/fred_common.py)
+  - FredRateLimitError exception with retry_after metadata for client-side rate limit handling
+  - FredInvalidSeriesError exception with series_id tracking for debugging invalid requests
+  - Retry logic with exponential backoff for transient API failures [file:tradingagents/dataflows/fred_common.py:146-250](tradingagents/dataflows/fred_common.py)
+  - get_api_key() function for secure FRED_API_KEY environment variable retrieval [file:tradingagents/dataflows/fred_common.py:74-83](tradingagents/dataflows/fred_common.py)
+  - Date formatting utility for converting various date formats to FRED-compatible YYYY-MM-DD [file:tradingagents/dataflows/fred_common.py:90-144](tradingagents/dataflows/fred_common.py)
+  - Request wrapper _make_fred_request() with retry logic and exponential backoff (up to 3 attempts with 1-2-4s delays)
+  - Local file caching with 24-hour TTL to reduce API quota consumption [file:tradingagents/dataflows/fred_common.py:42-48](tradingagents/dataflows/fred_common.py)
+  - Interest rates function get_interest_rates() for Federal Funds Rate data [file:tradingagents/dataflows/fred.py:104-142](tradingagents/dataflows/fred.py)
+  - Treasury rates function get_treasury_rates() for 2Y/5Y/10Y/30Y yield curves [file:tradingagents/dataflows/fred.py:143-185](tradingagents/dataflows/fred.py)
+  - Money supply functions get_money_supply() for M1/M2 monetary aggregates [file:tradingagents/dataflows/fred.py:186-228](tradingagents/dataflows/fred.py)
+  - Economic growth function get_gdp() for nominal and real GDP data [file:tradingagents/dataflows/fred.py:229-271](tradingagents/dataflows/fred.py)
+  - Inflation measurement functions get_inflation() for CPI and PCE indices [file:tradingagents/dataflows/fred.py:272-314](tradingagents/dataflows/fred.py)
+  - Labor market function get_unemployment() for unemployment rate data [file:tradingagents/dataflows/fred.py:315-352](tradingagents/dataflows/fred.py)
+  - Generic series function get_fred_series() for accessing any FRED series by ID [file:tradingagents/dataflows/fred.py:353-396](tradingagents/dataflows/fred.py)
+  - All functions return pandas DataFrames with 'date' and 'value' columns on success, error strings on failure
+  - Optional date range filtering (start_date, end_date) in YYYY-MM-DD format
+  - Automatic caching control via use_cache parameter
+  - Comprehensive docstrings with examples for all functions and utilities
+  - Unit test suite for core utilities covering caching, retry logic, and date formatting [file:tests/unit/dataflows/test_fred_common.py](tests/unit/dataflows/test_fred_common.py) (594 lines, 40 tests)
+  - Unit test suite for data retrieval functions covering all economic data functions [file:tests/unit/dataflows/test_fred.py](tests/unit/dataflows/test_fred.py) (634 lines, 42 tests)
+  - Integration test suite for FRED API with live endpoint testing [file:tests/integration/dataflows/test_fred_integration.py](tests/integration/dataflows/test_fred_integration.py) (560 lines, 26 tests)
+  - Test coverage including rate limit handling, caching behavior, and date range filtering
+  - Total: 108 tests added for FRED API feature
+
 - User model enhancement with profile and API key management (Issue #3)
   - Extended User model with tax_jurisdiction and timezone fields [file:tradingagents/api/models/user.py:47-54](tradingagents/api/models/user.py)
   - Tax jurisdiction field supporting country (e.g., "US", "AU") and state/province level codes (e.g., "US-CA", "AU-NSW")

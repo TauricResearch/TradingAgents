@@ -5,6 +5,7 @@ pandas
 yfinance
 praw
 feedparser
+fredapi
 stockstats
 eodhd
 langgraph
@@ -24,3 +25,4 @@ rich
 questionary
 langchain_anthropic
 langchain-google-genai
+pyyaml

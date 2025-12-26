@@ -116,6 +116,97 @@ from tradingagents.dataflows.google import google_get_news
 news = google_get_news("NVDA", "2024-01-15")
 ```
 
+### FRED (Federal Reserve Economic Data)
+
+**Location**: `tradingagents/dataflows/fred.py` and `tradingagents/dataflows/fred_common.py`
+
+**Capabilities**:
+- Interest rates (Federal Funds Rate)
+- Treasury rates (2Y, 5Y, 10Y, 30Y yields)
+- Money supply (M1, M2 monetary aggregates)
+- GDP (nominal and real growth data)
+- Inflation (CPI and PCE price indexes)
+- Unemployment rate
+
+**Setup**:
+```bash
+export FRED_API_KEY=your_key_here
+```
+
+**Rate Limits**: 120 requests per minute with built-in retry logic and exponential backoff (1-2-4s delays)
+
+**Features**:
+- Local file caching with 24-hour TTL to reduce API quota consumption
+- Retry logic with exponential backoff for transient failures
+- Custom exceptions (FredRateLimitError, FredInvalidSeriesError) for robust error handling
+- Date range filtering with flexible date format support
+- All functions return pandas DataFrames with 'date' and 'value' columns
+
+**Example**:
+```python
+from tradingagents.dataflows.fred import (
+    get_interest_rates,
+    get_treasury_rates,
+    get_gdp,
+    get_inflation,
+    get_unemployment,
+    get_money_supply,
+    get_fred_series
+)
+
+# Get Federal Funds Rate
+fed_funds = get_interest_rates()
+
+# Get 10-year treasury yield with date range
+treasury_10y = get_treasury_rates(
+    maturity='10Y',
+    start_date='2024-01-01',
+    end_date='2024-12-31'
+)
+
+# Get real GDP data
+gdp_data = get_gdp(series_type='real')
+
+# Get unemployment rate
+unemployment = get_unemployment()
+
+# Get inflation (CPI)
+inflation = get_inflation(inflation_type='CPI')
+
+# Get M2 money supply
+m2 = get_money_supply(money_measure='M2')
+
+# Get any FRED series by ID
+custom_series = get_fred_series('UNRATE')  # Also returns unemployment
+
+# Disable caching for real-time data
+live_data = get_interest_rates(use_cache=False)
+```
+
+**Available Functions**:
+- `get_interest_rates()` - Federal Funds Rate
+- `get_treasury_rates(maturity='10Y')` - Treasury yields (2Y, 5Y, 10Y, 30Y)
+- `get_money_supply(money_measure='M1')` - M1 or M2 monetary aggregates
+- `get_gdp(series_type='real')` - Real or nominal GDP
+- `get_inflation(inflation_type='CPI')` - CPI or PCE inflation
+- `get_unemployment()` - Unemployment rate
+- `get_fred_series(series_id)` - Generic series access by FRED ID
+
+**Error Handling**:
+```python
+from tradingagents.dataflows.fred_common import (
+    FredRateLimitError,
+    FredInvalidSeriesError
+)
+
+try:
+    data = get_interest_rates()
+except FredRateLimitError as e:
+    print(f"Rate limit hit. Retry after {e.retry_after}s")
+except FredInvalidSeriesError as e:
+    print(f"Invalid FRED series: {e.series_id}")
+```
+
 ### Local Cache
 
 **Location**: `tradingagents/dataflows/local.py`
