@@ -6,6 +6,9 @@ from .analysts.fundamentals_analyst import create_fundamentals_analyst
 from .analysts.market_analyst import create_market_analyst
 from .analysts.news_analyst import create_news_analyst
 from .analysts.social_media_analyst import create_social_media_analyst
+from .analysts.momentum_analyst import create_momentum_analyst
+from .analysts.macro_analyst import create_macro_analyst
+from .analysts.correlation_analyst import create_correlation_analyst
 
 from .researchers.bear_researcher import create_bear_researcher
 from .researchers.bull_researcher import create_bull_researcher
@@ -16,6 +19,7 @@ from .risk_mgmt.neutral_debator import create_neutral_debator
 
 from .managers.research_manager import create_research_manager
 from .managers.risk_manager import create_risk_manager
+from .managers.position_sizing_manager import create_position_sizing_manager
 
 from .trader.trader import create_trader
 
@@ -30,10 +34,14 @@ __all__ = [
     "create_research_manager",
     "create_fundamentals_analyst",
     "create_market_analyst",
+    "create_momentum_analyst",
+    "create_macro_analyst",
+    "create_correlation_analyst",
     "create_neutral_debator",
     "create_news_analyst",
     "create_risky_debator",
     "create_risk_manager",
+    "create_position_sizing_manager",
     "create_safe_debator",
     "create_social_media_analyst",
     "create_trader",

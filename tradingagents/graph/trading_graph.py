@@ -36,6 +36,25 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news
 )
 
+# Import tools from new analysts
+from tradingagents.agents.analysts.momentum_analyst import (
+    get_multi_timeframe_momentum,
+    get_adx_analysis,
+    get_momentum_divergence,
+)
+from tradingagents.agents.analysts.macro_analyst import (
+    get_economic_regime_analysis,
+    get_yield_curve_analysis,
+    get_monetary_policy_analysis,
+    get_inflation_regime_analysis,
+)
+from tradingagents.agents.analysts.correlation_analyst import (
+    get_cross_asset_correlation_analysis,
+    get_sector_rotation_analysis,
+    get_correlation_matrix,
+    get_rolling_correlation_trend,
+)
+
 from .conditional_logic import ConditionalLogic
 from .setup import GraphSetup
 from .propagation import Propagator
@@ -223,6 +242,32 @@ class TradingAgentsGraph:
                     get_income_statement,
                 ]
             ),
+            "momentum": ToolNode(
+                [
+                    # Momentum analysis tools
+                    get_multi_timeframe_momentum,
+                    get_adx_analysis,
+                    get_momentum_divergence,
+                ]
+            ),
+            "macro": ToolNode(
+                [
+                    # Macroeconomic analysis tools
+                    get_economic_regime_analysis,
+                    get_yield_curve_analysis,
+                    get_monetary_policy_analysis,
+                    get_inflation_regime_analysis,
+                ]
+            ),
+            "correlation": ToolNode(
+                [
+                    # Correlation analysis tools
+                    get_cross_asset_correlation_analysis,
+                    get_sector_rotation_analysis,
+                    get_correlation_matrix,
+                    get_rolling_correlation_trend,
+                ]
+            ),
         }
 
     def propagate(self, company_name, trade_date):
@@ -265,10 +310,13 @@ class TradingAgentsGraph:
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
-            "market_report": final_state["market_report"],
-            "sentiment_report": final_state["sentiment_report"],
-            "news_report": final_state["news_report"],
-            "fundamentals_report": final_state["fundamentals_report"],
+            "market_report": final_state.get("market_report", ""),
+            "sentiment_report": final_state.get("sentiment_report", ""),
+            "news_report": final_state.get("news_report", ""),
+            "fundamentals_report": final_state.get("fundamentals_report", ""),
+            "momentum_report": final_state.get("momentum_report", ""),
+            "macro_report": final_state.get("macro_report", ""),
+            "correlation_report": final_state.get("correlation_report", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],

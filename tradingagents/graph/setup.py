@@ -48,6 +48,9 @@ class GraphSetup:
                 - "social": Social media analyst
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
+                - "momentum": Momentum analyst (multi-TF momentum, ROC, ADX)
+                - "macro": Macro analyst (FRED data, economic regimes)
+                - "correlation": Correlation analyst (cross-asset, sector rotation)
         """
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
@@ -84,6 +87,27 @@ class GraphSetup:
             )
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
+
+        if "momentum" in selected_analysts:
+            analyst_nodes["momentum"] = create_momentum_analyst(
+                self.quick_thinking_llm
+            )
+            delete_nodes["momentum"] = create_msg_delete()
+            tool_nodes["momentum"] = self.tool_nodes["momentum"]
+
+        if "macro" in selected_analysts:
+            analyst_nodes["macro"] = create_macro_analyst(
+                self.quick_thinking_llm
+            )
+            delete_nodes["macro"] = create_msg_delete()
+            tool_nodes["macro"] = self.tool_nodes["macro"]
+
+        if "correlation" in selected_analysts:
+            analyst_nodes["correlation"] = create_correlation_analyst(
+                self.quick_thinking_llm
+            )
+            delete_nodes["correlation"] = create_msg_delete()
+            tool_nodes["correlation"] = self.tool_nodes["correlation"]
 
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(
