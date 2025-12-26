@@ -4,9 +4,11 @@ This module provides a unified interface for interacting with various brokers
 (Alpaca, IBKR, Paper) and managing order execution.
 
 Issue #22: [EXEC-21] Broker base interface - abstract broker class
+Issue #23: [EXEC-22] Broker router - route by asset class
 
 Submodules:
     broker_base: Abstract base class for broker implementations
+    broker_router: Router for multi-broker setups
 
 Classes:
     Enums:
@@ -86,6 +88,19 @@ from .broker_base import (
     BrokerBase,
 )
 
+from .broker_router import (
+    # Router Classes
+    BrokerRouter,
+    BrokerRegistration,
+    RoutingDecision,
+    SymbolClassifier,
+    # Router Exceptions
+    RoutingError,
+    NoBrokerError,
+    BrokerNotFoundError,
+    DuplicateBrokerError,
+)
+
 __all__ = [
     # Enums
     "AssetClass",
@@ -112,4 +127,13 @@ __all__ = [
     "RateLimitError",
     # Abstract Base Class
     "BrokerBase",
+    # Router
+    "BrokerRouter",
+    "BrokerRegistration",
+    "RoutingDecision",
+    "SymbolClassifier",
+    "RoutingError",
+    "NoBrokerError",
+    "BrokerNotFoundError",
+    "DuplicateBrokerError",
 ]
