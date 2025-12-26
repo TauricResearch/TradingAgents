@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Trade model for execution history with CGT tracking (Issue #6: DB-5)
+  - Trade model with BUY/SELL sides and execution status tracking (PENDING, FILLED, PARTIAL, CANCELLED, REJECTED) [file:tradingagents/api/models/trade.py](tradingagents/api/models/trade.py)
+  - TradeSide, TradeStatus, TradeOrderType enums for type-safe trade operations [file:tradingagents/api/models/trade.py:86-137](tradingagents/api/models/trade.py)
+  - Order type support (MARKET, LIMIT, STOP, STOP_LIMIT) with signal source and confidence tracking
+  - Capital Gains Tax (CGT) support for Australian tax compliance [file:tradingagents/api/models/trade.py:201-305](tradingagents/api/models/trade.py)
+  - 50% CGT discount eligibility for holdings >12 months (cgt_discount_eligible field)
+  - Australian financial year (FY) calculation (July-June) via tax_year property [file:tradingagents/api/models/trade.py:418-441](tradingagents/api/models/trade.py)
+  - CGT gain/loss tracking with gross_gain, gross_loss, and net_gain after discount
+  - Multi-currency support with FX rate to AUD conversion [file:tradingagents/api/models/trade.py:306-325](tradingagents/api/models/trade.py)
+  - High-precision decimal arithmetic (19,4) for monetary values and (19,8) for FX rates
+  - Automatic acquisition_date and timestamp management via default values and validators
+  - Check constraints for positive values (quantity, price, total_value, fx_rate_to_aud)
+  - Signal confidence validation (0-100 range) and holding period non-negative constraint
+  - Many-to-one relationship with Portfolio model with cascade delete behavior [file:tradingagents/api/models/portfolio.py:202-205](tradingagents/api/models/portfolio.py)
+  - Properties for convenient trade type checking (is_buy, is_sell, is_filled) [file:tradingagents/api/models/trade.py:443-475](tradingagents/api/models/trade.py)
+  - Comprehensive validators for enum normalization (side, status, order_type) and symbol/currency normalization [file:tradingagents/api/models/trade.py:477-585](tradingagents/api/models/trade.py)
+  - Event listener validation (before_flush) for cross-field business rule enforcement [file:tradingagents/api/models/trade.py:596-665](tradingagents/api/models/trade.py)
+  - Composite indexes for efficient queries: (portfolio_id, symbol) and (portfolio_id, side) and (status, executed_at)
+  - Database migration 005_add_trade_model.py with comprehensive schema definition [file:migrations/versions/005_add_trade_model.py](migrations/versions/005_add_trade_model.py)
+  - Migration with proper upgrade and downgrade functions for reversible schema changes
+  - Comprehensive unit test suite covering field validation, defaults, constraints, enums, and CGT calculations [file:tests/unit/api/test_trade_model.py](tests/unit/api/test_trade_model.py) (2054 lines, 65 tests)
+  - Integration test suite for relationships, cascade delete, and concurrent operations [file:tests/integration/api/test_trade_integration.py](tests/integration/api/test_trade_integration.py) (1235 lines, 22 tests)
+  - Comprehensive docstrings with examples for all Trade model methods and fields
+  - Total: 87 tests added for Trade model feature
+
 - FastAPI backend with JWT authentication and strategies CRUD (Issue #48)
   - FastAPI application with async/await support and health check endpoints [file:tradingagents/api/main.py](tradingagents/api/main.py)
   - JWT authentication with asymmetric RS256 signing algorithm [file:tradingagents/api/services/auth_service.py](tradingagents/api/services/auth_service.py)

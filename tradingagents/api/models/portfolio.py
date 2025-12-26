@@ -199,6 +199,12 @@ class Portfolio(Base, TimestampMixin):
         back_populates="portfolios"
     )
 
+    trades: Mapped[list["Trade"]] = relationship(
+        "Trade",
+        back_populates="portfolio",
+        cascade="all, delete-orphan"
+    )
+
     # Table-level constraints and indexes
     __table_args__ = (
         # Unique constraint: user can't have duplicate portfolio names
