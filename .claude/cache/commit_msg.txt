@@ -1,23 +1,27 @@
-feat(alerts): add Alert Manager for orchestration and routing - Issue #38 (55 tests)
+feat(alerts): add Slack channel with webhooks and Block Kit - Issue #40 (44 tests)
 
-Implements comprehensive alert management framework:
-- AlertPriority, AlertCategory, AlertStatus, ChannelType enums
-- AlertTemplate, RateLimitConfig, RoutingRule dataclasses
-- Alert, DeliveryResult, AlertStats tracking classes
-- LogChannel and WebhookChannel implementations
-- AlertManager main class
+Implements Slack integration for alert delivery:
+- SlackMessageStyle enum (simple, blocks, attachment)
+- SlackConfig for webhook URL, channel, username, icon
+- SlackMessageResult for delivery tracking
+- SlackMessageFormatter with Block Kit support
+- SlackChannel implementing AlertChannel protocol
+- create_slack_channel factory function
 
 Features:
-- Multi-channel alert routing (log, webhook, slack, sms, email, push)
-- Configurable routing rules based on priority and category
-- Rate limiting to prevent alert storms
-- Duplicate detection and suppression
-- Alert history with filtering and search
-- Alert acknowledgement tracking
-- Template-based alert formatting
-- Synchronous and asynchronous delivery
-- Statistics and metrics tracking
-- Convenience methods for trade/risk/execution alerts
+- Three formatting styles (simple text, blocks, attachments)
+- Priority-based colors and emojis
+- Category emojis for visual identification
+- @mention support for critical alerts
+- Timestamp and source inclusion options
+- Data field display in messages
+- Webhook URL validation (hooks.slack.com)
+- Retry logic with exponential backoff
+- Rate limit handling (429 status with Retry-After)
+- Server error retry (500+) vs client error fail-fast (400)
+- Latency tracking for performance monitoring
+- Sync and async delivery methods
+- Test webhook functionality
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 

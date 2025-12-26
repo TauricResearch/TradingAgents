@@ -104,6 +104,21 @@ from .slack_channel import (
     create_slack_channel,
 )
 
+from .sms_channel import (
+    # Enums
+    SMSFormat,
+    SMSStatus,
+    # Data Classes
+    SMSConfig,
+    SMSMessageResult,
+    SMSBatchResult,
+    # Classes
+    SMSMessageFormatter,
+    SMSChannel,
+    # Factory Functions
+    create_sms_channel,
+)
+
 __all__ = [
     # Enums
     "AlertPriority",
@@ -130,4 +145,15 @@ __all__ = [
     "SlackMessageFormatter",
     # Factory Functions
     "create_slack_channel",
+    "create_sms_channel",
+    # SMS Enums
+    "SMSFormat",
+    "SMSStatus",
+    # SMS Data Classes
+    "SMSConfig",
+    "SMSMessageResult",
+    "SMSBatchResult",
+    # SMS Classes
+    "SMSMessageFormatter",
+    "SMSChannel",
 ]
