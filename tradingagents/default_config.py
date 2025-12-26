@@ -33,6 +33,11 @@ DEFAULT_CONFIG = {
     },
     # Tool provider settings
     "tool_providers": {
-        "TAAPI_BASE_URL": "https://api.taapi.io",
+        "TAAPI_BASE_URL": os.getenv("TAAPI_BASE_URL", "https://api.taapi.io"),
+    },
+    "external": {
+        "BYBIT_BASE_URL": os.getenv("BYBIT_BASE_URL", "https://api-demo.bybit.com"),
+        "BYBIT_API_KEY": os.getenv("BYBIT_API_KEY", ""),
+        "BYBIT_API_SECRET": os.getenv("BYBIT_API_SECRET", ""),
     }
 }
