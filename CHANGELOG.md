@@ -89,6 +89,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test coverage including rate limit handling, caching behavior, and date range filtering
   - Total: 108 tests added for FRED API feature
 
+- Benchmark data retrieval and analysis (Issue #10)
+  - Benchmark data module for SPY, sector ETF, and analysis functions [file:tradingagents/dataflows/benchmark.py](tradingagents/dataflows/benchmark.py) (441 lines)
+  - Sector ETF mappings for all 11 SPDR sector funds (communication, consumer discretionary/staples, energy, financials, healthcare, industrials, materials, real estate, technology, utilities) [file:tradingagents/dataflows/benchmark.py:48-59](tradingagents/dataflows/benchmark.py)
+  - get_benchmark_data() function for fetching OHLCV data via yfinance with date validation [file:tradingagents/dataflows/benchmark.py:67-115](tradingagents/dataflows/benchmark.py)
+  - get_spy_data() convenience wrapper for S&P 500 benchmark data [file:tradingagents/dataflows/benchmark.py:117-136](tradingagents/dataflows/benchmark.py)
+  - get_sector_etf_data() function for retrieving sector-specific benchmark data with sector validation [file:tradingagents/dataflows/benchmark.py:138-186](tradingagents/dataflows/benchmark.py)
+  - calculate_relative_strength() function with IBD-style weighted ROC formula [file:tradingagents/dataflows/benchmark.py:188-285](tradingagents/dataflows/benchmark.py)
+  - Relative strength calculation using weighted periods (40% 63-day, 20% 126-day, 20% 189-day, 20% 252-day ROC)
+  - Customizable ROC periods with default IBD-style weighting
+  - Data alignment via inner join with validation for overlapping dates
+  - calculate_rolling_correlation() function for time-series correlation analysis [file:tradingagents/dataflows/benchmark.py:287-349](tradingagents/dataflows/benchmark.py)
+  - Configurable rolling window sizes with default 60-day window
+  - Comprehensive validation for data alignment and minimum data requirements
+  - calculate_beta() function for volatility and systematic risk measurement [file:tradingagents/dataflows/benchmark.py:351-441](tradingagents/dataflows/benchmark.py)
+  - Beta calculation using covariance-variance approach with optional smoothing
+  - Optional rolling beta calculation with customizable window (default 252 days)
+  - Markdown rolling window implementation for efficient computation
+  - All functions return DataFrames/Series/floats on success, error strings on failure
+  - Comprehensive error handling with descriptive messages and validation logic
+  - Comprehensive docstrings with examples for all public functions
+  - Unit test suite for benchmark functions [file:tests/unit/dataflows/test_benchmark.py](tests/unit/dataflows/test_benchmark.py) (753 lines, 28 tests)
+  - Integration test suite for benchmark workflows [file:tests/integration/dataflows/test_benchmark_integration.py](tests/integration/dataflows/test_benchmark_integration.py) (593 lines, 7 tests)
+  - Test coverage includes data fetching, sector validation, relative strength calculation, correlation analysis, and beta calculation
+  - Total: 35 tests added for benchmark data feature
+
 - Multi-timeframe OHLCV aggregation functions (Issue #9)
   - Multi-timeframe aggregation module for daily to weekly/monthly resampling [file:tradingagents/dataflows/multi_timeframe.py](tradingagents/dataflows/multi_timeframe.py) (320 lines)
   - Core OHLCV aggregation validation function _validate_ohlcv_dataframe() [file:tradingagents/dataflows/multi_timeframe.py:38-75](tradingagents/dataflows/multi_timeframe.py)
