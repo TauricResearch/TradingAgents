@@ -1,0 +1,200 @@
+{
+  "description": "Default configuration fixtures for testing",
+  "examples": {
+    "complete_config": {
+      "data_vendor": "alpaca",
+      "llm_provider": "openrouter",
+      "embedding_backend": "openai",
+      "embedding_model": "text-embedding-3-small",
+      "shallow_thinker": "anthropic/claude-3.5-sonnet",
+      "deep_thinker": "anthropic/claude-opus-4.5",
+      "market": "US",
+      "analysis_period_days": 30,
+      "output_dir": "./reports",
+      "log_level": "INFO",
+      "retry_attempts": 3,
+      "timeout_seconds": 30,
+      "rate_limit": {
+        "requests_per_minute": 60,
+        "requests_per_day": 10000
+      },
+      "api_keys": {
+        "openrouter_api_key": "${OPENROUTER_API_KEY}",
+        "openai_api_key": "${OPENAI_API_KEY}",
+        "alpaca_api_key": "${ALPACA_API_KEY}",
+        "alpaca_secret_key": "${ALPACA_SECRET_KEY}",
+        "alpha_vantage_api_key": "${ALPHA_VANTAGE_API_KEY}"
+      }
+    },
+    "minimal_config": {
+      "data_vendor": "yfinance",
+      "llm_provider": "openai",
+      "shallow_thinker": "gpt-4-turbo",
+      "deep_thinker": "gpt-4"
+    },
+    "chinese_market_config": {
+      "data_vendor": "akshare",
+      "llm_provider": "openrouter",
+      "shallow_thinker": "anthropic/claude-3.5-sonnet",
+      "deep_thinker": "anthropic/claude-opus-4.5",
+      "market": "CN",
+      "language": "zh-CN",
+      "output_dir": "./reports/cn",
+      "analysis_period_days": 30
+    },
+    "high_frequency_config": {
+      "data_vendor": "alpaca",
+      "llm_provider": "openai",
+      "shallow_thinker": "gpt-4-turbo",
+      "deep_thinker": "gpt-4-turbo",
+      "market": "US",
+      "analysis_period_days": 7,
+      "update_frequency": "hourly",
+      "retry_attempts": 5,
+      "timeout_seconds": 60,
+      "rate_limit": {
+        "requests_per_minute": 120,
+        "requests_per_day": 50000
+      }
+    },
+    "testing_config": {
+      "data_vendor": "mock",
+      "llm_provider": "mock",
+      "shallow_thinker": "mock-model",
+      "deep_thinker": "mock-model",
+      "market": "US",
+      "analysis_period_days": 10,
+      "output_dir": "/tmp/test_reports",
+      "log_level": "DEBUG",
+      "retry_attempts": 1,
+      "timeout_seconds": 5,
+      "use_cache": false,
+      "mock_mode": true
+    }
+  },
+  "vendor_specific_configs": {
+    "alpaca": {
+      "data_vendor": "alpaca",
+      "alpaca_base_url": "https://paper-api.alpaca.markets",
+      "alpaca_data_url": "https://data.alpaca.markets",
+      "paper_trading": true,
+      "market_data_feed": "iex"
+    },
+    "alpha_vantage": {
+      "data_vendor": "alpha_vantage",
+      "alpha_vantage_premium": false,
+      "requests_per_minute": 5,
+      "requests_per_day": 500,
+      "output_size": "compact"
+    },
+    "akshare": {
+      "data_vendor": "akshare",
+      "market": "CN",
+      "adjust": "qfq",
+      "timeout_seconds": 60,
+      "retry_attempts": 5
+    },
+    "yfinance": {
+      "data_vendor": "yfinance",
+      "interval": "1d",
+      "auto_adjust": true,
+      "prepost": false,
+      "threads": true
+    }
+  },
+  "llm_provider_configs": {
+    "openrouter": {
+      "llm_provider": "openrouter",
+      "backend_url": "https://openrouter.ai/api/v1",
+      "shallow_thinker": "anthropic/claude-3.5-sonnet",
+      "deep_thinker": "anthropic/claude-opus-4.5",
+      "temperature": 0.7,
+      "max_tokens": 4096,
+      "headers": {
+        "HTTP-Referer": "https://github.com/TauricResearch/TradingAgents",
+        "X-Title": "TradingAgents"
+      }
+    },
+    "openai": {
+      "llm_provider": "openai",
+      "backend_url": "https://api.openai.com/v1",
+      "shallow_thinker": "gpt-4-turbo",
+      "deep_thinker": "gpt-4",
+      "temperature": 0.7,
+      "max_tokens": 4096
+    },
+    "anthropic": {
+      "llm_provider": "anthropic",
+      "backend_url": "https://api.anthropic.com/v1",
+      "shallow_thinker": "claude-3-sonnet-20240229",
+      "deep_thinker": "claude-3-opus-20240229",
+      "temperature": 0.7,
+      "max_tokens": 4096
+    },
+    "ollama": {
+      "llm_provider": "ollama",
+      "backend_url": "http://localhost:11434/v1",
+      "shallow_thinker": "llama2",
+      "deep_thinker": "mixtral",
+      "temperature": 0.7
+    }
+  },
+  "environment_variables": {
+    "development": {
+      "LOG_LEVEL": "DEBUG",
+      "USE_CACHE": "true",
+      "MOCK_MODE": "false",
+      "OUTPUT_DIR": "./reports/dev"
+    },
+    "testing": {
+      "LOG_LEVEL": "DEBUG",
+      "USE_CACHE": "false",
+      "MOCK_MODE": "true",
+      "OUTPUT_DIR": "/tmp/test_reports"
+    },
+    "production": {
+      "LOG_LEVEL": "INFO",
+      "USE_CACHE": "true",
+      "MOCK_MODE": "false",
+      "OUTPUT_DIR": "./reports/prod"
+    }
+  },
+  "schema": {
+    "required_fields": [
+      "data_vendor",
+      "llm_provider"
+    ],
+    "optional_fields": [
+      "shallow_thinker",
+      "deep_thinker",
+      "market",
+      "analysis_period_days",
+      "output_dir",
+      "log_level",
+      "retry_attempts",
+      "timeout_seconds",
+      "rate_limit",
+      "api_keys"
+    ],
+    "data_vendor_options": [
+      "alpaca",
+      "alpha_vantage",
+      "akshare",
+      "yfinance",
+      "mock"
+    ],
+    "llm_provider_options": [
+      "openrouter",
+      "openai",
+      "anthropic",
+      "ollama",
+      "mock"
+    ],
+    "market_options": [
+      "US",
+      "CN",
+      "EU",
+      "JP"
+    ]
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "description": "Analysis metadata for stock reports",
+  "examples": {
+    "complete_analysis": {
+      "ticker": "AAPL",
+      "analysis_date": "2024-12-26",
+      "date_range": "2024-11-26 to 2024-12-26",
+      "analysts": ["market", "sentiment", "news", "fundamentals"],
+      "data_vendor": "alpaca",
+      "llm_provider": "openrouter",
+      "shallow_thinker": "anthropic/claude-3.5-sonnet",
+      "deep_thinker": "anthropic/claude-opus-4.5",
+      "generated_at": "2024-12-26T14:30:00",
+      "execution_time_seconds": 45.2,
+      "sections_completed": 7,
+      "status": "complete"
+    },
+    "partial_analysis": {
+      "ticker": "TSLA",
+      "analysis_date": "2024-12-26",
+      "date_range": "2024-11-26 to 2024-12-26",
+      "analysts": ["market", "sentiment"],
+      "data_vendor": "yfinance",
+      "llm_provider": "openai",
+      "shallow_thinker": "gpt-4-turbo",
+      "deep_thinker": "gpt-4",
+      "generated_at": "2024-12-26T15:45:00",
+      "execution_time_seconds": 23.7,
+      "sections_completed": 2,
+      "status": "partial",
+      "missing_sections": ["news_report", "fundamentals_report", "investment_plan"]
+    },
+    "multi_ticker_batch": {
+      "tickers": ["AAPL", "MSFT", "GOOGL", "AMZN"],
+      "analysis_date": "2024-12-26",
+      "date_range": "2024-11-26 to 2024-12-26",
+      "batch_id": "batch_20241226_001",
+      "data_vendor": "alpha_vantage",
+      "llm_provider": "openrouter",
+      "shallow_thinker": "anthropic/claude-3.5-sonnet",
+      "deep_thinker": "anthropic/claude-opus-4.5",
+      "generated_at": "2024-12-26T16:00:00",
+      "total_execution_time_seconds": 312.5,
+      "completed_tickers": 4,
+      "failed_tickers": 0,
+      "status": "complete"
+    },
+    "chinese_market_analysis": {
+      "ticker": "600519.SH",
+      "ticker_name": "贵州茅台",
+      "analysis_date": "2024-12-26",
+      "date_range": "2024-11-26 to 2024-12-26",
+      "market": "CN",
+      "analysts": ["market", "fundamentals"],
+      "data_vendor": "akshare",
+      "llm_provider": "openrouter",
+      "shallow_thinker": "anthropic/claude-3.5-sonnet",
+      "deep_thinker": "anthropic/claude-opus-4.5",
+      "generated_at": "2024-12-26T10:30:00+08:00",
+      "execution_time_seconds": 38.9,
+      "language": "zh-CN",
+      "status": "complete"
+    },
+    "error_scenario": {
+      "ticker": "INVALID",
+      "analysis_date": "2024-12-26",
+      "data_vendor": "yfinance",
+      "llm_provider": "openai",
+      "generated_at": "2024-12-26T17:00:00",
+      "status": "failed",
+      "error_type": "DataNotFoundError",
+      "error_message": "No data found for ticker INVALID",
+      "retry_count": 3,
+      "last_retry_at": "2024-12-26T17:02:30"
+    }
+  },
+  "schema": {
+    "required_fields": [
+      "ticker",
+      "analysis_date",
+      "data_vendor",
+      "llm_provider",
+      "generated_at",
+      "status"
+    ],
+    "optional_fields": [
+      "date_range",
+      "analysts",
+      "shallow_thinker",
+      "deep_thinker",
+      "execution_time_seconds",
+      "sections_completed",
+      "missing_sections",
+      "error_type",
+      "error_message"
+    ],
+    "status_values": ["complete", "partial", "failed", "in_progress"]
+  }
+}

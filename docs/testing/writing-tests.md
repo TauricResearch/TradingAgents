@@ -162,6 +162,155 @@ def test_openrouter_initialization(openrouter_config, mock_env_openrouter):
 
 ## Using Fixtures
 
+### Test Fixtures Directory
+
+TradingAgents provides a comprehensive test fixtures directory (`tests/fixtures/`) with centralized mock data for tests. This eliminates the need to hardcode test data and ensures consistency across your test suite.
+
+**Fixture Categories**:
+- **Stock Data**: US market OHLCV, Chinese market OHLCV, standardized data with edge cases
+- **Metadata**: Analysis metadata, batch analysis, error scenarios
+- **Report Sections**: Complete report sections (market, sentiment, news, fundamentals, investment plans)
+- **API Responses**: Mock OpenAI embeddings (single, batch, error responses)
+- **Configurations**: Vendor-specific and LLM provider configurations
+
+**Quick Start**:
+```python
+from tests.fixtures import FixtureLoader
+
+# Load stock data
+df = FixtureLoader.load_us_stock_data()
+
+# Load metadata
+metadata = FixtureLoader.load_analysis_metadata("complete_analysis")
+
+# Load API responses
+embedding = FixtureLoader.load_embedding_response()
+
+# Load configuration
+config = FixtureLoader.load_default_config("complete_config")
+
+# Load with edge cases
+empty_df = FixtureLoader.load_us_stock_data(edge_case="empty_data")
+```
+
+**Stock Data Fixtures**:
+```python
+# US market data (AAPL)
+df = FixtureLoader.load_us_stock_data()
+
+# Chinese market data (standardized to English)
+cn_df = FixtureLoader.load_cn_stock_data(standardize=True)
+
+# Standardized data (TSLA)
+tsla_df = FixtureLoader.load_standardized_stock_data()
+
+# Edge cases for robustness testing
+empty = FixtureLoader.load_us_stock_data(edge_case="empty_data")
+single = FixtureLoader.load_us_stock_data(edge_case="single_row")
+no_volume = FixtureLoader.load_us_stock_data(edge_case="missing_volume")
+```
+
+**Metadata Fixtures**:
+```python
+# Complete analysis
+metadata = FixtureLoader.load_analysis_metadata("complete_analysis")
+print(metadata["ticker"])  # 'AAPL'
+print(metadata["status"])  # 'complete'
+
+# Partial analysis (missing sections)
+partial = FixtureLoader.load_analysis_metadata("partial_analysis")
+
+# Error scenario
+error = FixtureLoader.load_analysis_metadata("error_scenario")
+```
+
+**Report Section Fixtures**:
+```python
+# Load all report sections
+sections = FixtureLoader.load_complete_report_sections()
+print(sections.keys())  # All analyst reports
+
+# Load specific section
+market = FixtureLoader.load_report_section("market_report")
+
+# Load partial sections (some None for testing)
+partial = FixtureLoader.load_partial_report_sections()
+```
+
+**API Response Fixtures**:
+```python
+# Embedding response
+response = FixtureLoader.load_embedding_response("single_text_embedding")
+embedding_vector = response["data"][0]["embedding"]
+
+# Batch embeddings
+batch = FixtureLoader.load_embedding_response("batch_text_embeddings")
+
+# Error responses
+error = FixtureLoader.load_embedding_error("rate_limit_error")
+```
+
+**Configuration Fixtures**:
+```python
+# Complete configuration
+config = FixtureLoader.load_default_config("complete_config")
+
+# Minimal configuration
+minimal = FixtureLoader.load_default_config("minimal_config")
+
+# Vendor-specific
+alpaca_config = FixtureLoader.load_vendor_config("alpaca")
+akshare_config = FixtureLoader.load_vendor_config("akshare")
+
+# LLM provider configs
+openrouter = FixtureLoader.load_llm_provider_config("openrouter")
+anthropic = FixtureLoader.load_llm_provider_config("anthropic")
+```
+
+**Using Fixtures with Tests**:
+```python
+def test_stock_data_processing():
+    """Test stock data processing with fixture."""
+    # Load fixture
+    df = FixtureLoader.load_us_stock_data()
+
+    # Act
+    result = process_stock_data(df)
+
+    # Assert
+    assert len(result) == len(df)
+    assert result.index.equals(df.index)
+
+def test_handles_empty_data():
+    """Test graceful handling of empty data."""
+    empty_df = FixtureLoader.load_us_stock_data(edge_case="empty_data")
+
+    result = process_stock_data(empty_df)
+
+    assert result is None or result.empty
+
+@pytest.mark.parametrize("edge_case", [
+    "empty_data",
+    "single_row",
+    "missing_volume",
+    "out_of_order_dates"
+])
+def test_edge_cases(edge_case):
+    """Test handling of various edge cases."""
+    df = FixtureLoader.load_us_stock_data(edge_case=edge_case)
+
+    # Should not raise exception
+    result = process_stock_data(df)
+    assert result is not None or df.empty
+```
+
+**Fixture Directory Structure**:
+See `tests/fixtures/README.md` for complete documentation including:
+- Detailed fixture descriptions and available examples
+- DataFrame and datetime handling
+- Advanced usage patterns
+- Maintenance and contribution guidelines
+
 ### Understanding the conftest.py Hierarchy
 
 TradingAgents provides fixtures at three levels:

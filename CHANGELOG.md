@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Test fixtures directory with centralized mock data (Issue #51)
+  - FixtureLoader class for loading JSON fixtures with automatic datetime parsing [file:tests/fixtures/__init__.py](tests/fixtures/__init__.py)
+  - Stock data fixtures: US market OHLCV, Chinese market OHLCV, standardized data [file:tests/fixtures/stock_data/](tests/fixtures/stock_data/)
+  - Metadata fixtures: Complete analysis, partial analysis, batch analysis, error scenarios [file:tests/fixtures/metadata/analysis_metadata.json](tests/fixtures/metadata/analysis_metadata.json)
+  - Report section fixtures: Market, sentiment, news, fundamentals, investment plans [file:tests/fixtures/report_sections/complete_reports.json](tests/fixtures/report_sections/complete_reports.json)
+  - API response fixtures: OpenAI embeddings (single, batch, error responses) [file:tests/fixtures/api_responses/openai_embeddings.json](tests/fixtures/api_responses/openai_embeddings.json)
+  - Configuration fixtures: Vendor-specific and LLM provider configurations [file:tests/fixtures/configurations/default_config.json](tests/fixtures/configurations/default_config.json)
+  - Comprehensive FixtureLoader class with convenience functions and edge case support
+  - DataFrame conversion utilities for stock data with automatic datetime indexing
+  - UTF-8 encoding support for Chinese market data with column standardization
+  - Updated docs/testing/writing-tests.md with fixtures section and usage examples [file:docs/testing/writing-tests.md](docs/testing/writing-tests.md)
+  - Fixture-based testing best practices documentation
 - DeepSeek API support for LLM provider integration (Issue #41)
   - DeepSeek provider integration using ChatOpenAI with base_url pointing to DeepSeek API [file:tradingagents/graph/trading_graph.py:105-145](tradingagents/graph/trading_graph.py)
   - DEEPSEEK_API_KEY environment variable handling with validation and helpful error messages

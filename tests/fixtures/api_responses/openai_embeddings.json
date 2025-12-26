@@ -1,0 +1,199 @@
+{
+  "description": "Mock OpenAI API embedding responses for testing",
+  "model": "text-embedding-3-small",
+  "examples": {
+    "single_text_embedding": {
+      "object": "list",
+      "data": [
+        {
+          "object": "embedding",
+          "index": 0,
+          "embedding": [
+            -0.006929283495992422,
+            -0.005336422007530928,
+            0.00047350498218461871,
+            -0.024047505110502243,
+            0.013851520791649818,
+            -0.02005230076611042,
+            0.0052589345723390579,
+            -0.011878303624689579,
+            -0.00025520036462694407,
+            0.015827439725399017,
+            -0.010150175541639328,
+            0.023847095295786858,
+            -0.0088148806244134903,
+            0.019137535244226456,
+            -0.003254246478900313,
+            0.007801613025367260,
+            -0.012429786287248135,
+            0.009863543696701527,
+            -0.002845674939453602,
+            0.004567321203649044
+          ]
+        }
+      ],
+      "model": "text-embedding-3-small",
+      "usage": {
+        "prompt_tokens": 8,
+        "total_tokens": 8
+      }
+    },
+    "batch_text_embeddings": {
+      "object": "list",
+      "data": [
+        {
+          "object": "embedding",
+          "index": 0,
+          "embedding": [
+            -0.006929283495992422,
+            -0.005336422007530928,
+            0.00047350498218461871,
+            -0.024047505110502243,
+            0.013851520791649818,
+            -0.02005230076611042,
+            0.0052589345723390579,
+            -0.011878303624689579,
+            -0.00025520036462694407,
+            0.015827439725399017
+          ]
+        },
+        {
+          "object": "embedding",
+          "index": 1,
+          "embedding": [
+            0.012345678901234567,
+            -0.009876543210987654,
+            0.005432109876543211,
+            -0.018765432109876543,
+            0.007654321098765432,
+            -0.015432109876543211,
+            0.009123456789012345,
+            -0.013456789012345678,
+            0.002345678901234567,
+            0.011234567890123456
+          ]
+        },
+        {
+          "object": "embedding",
+          "index": 2,
+          "embedding": [
+            -0.008765432109876543,
+            0.013456789012345678,
+            -0.003456789012345678,
+            0.009876543210987654,
+            -0.007654321098765432,
+            0.015432109876543211,
+            -0.011234567890123456,
+            0.006789012345678901,
+            -0.002345678901234567,
+            0.010123456789012345
+          ]
+        }
+      ],
+      "model": "text-embedding-3-small",
+      "usage": {
+        "prompt_tokens": 24,
+        "total_tokens": 24
+      }
+    },
+    "financial_situation_embedding": {
+      "description": "Embedding for a financial situation used in memory system",
+      "input": "Market showing strong bullish momentum with RSI at 68.5 and price breaking above resistance at $240",
+      "object": "list",
+      "data": [
+        {
+          "object": "embedding",
+          "index": 0,
+          "embedding": [
+            0.023847095295786858,
+            -0.0088148806244134903,
+            0.019137535244226456,
+            -0.003254246478900313,
+            0.007801613025367260,
+            -0.012429786287248135,
+            0.009863543696701527,
+            -0.002845674939453602,
+            0.004567321203649044,
+            -0.006929283495992422,
+            -0.005336422007530928,
+            0.00047350498218461871,
+            -0.024047505110502243,
+            0.013851520791649818,
+            -0.02005230076611042,
+            0.0052589345723390579,
+            -0.011878303624689579,
+            -0.00025520036462694407,
+            0.015827439725399017,
+            -0.010150175541639328
+          ]
+        }
+      ],
+      "model": "text-embedding-3-small",
+      "usage": {
+        "prompt_tokens": 17,
+        "total_tokens": 17
+      }
+    },
+    "large_embedding_1536": {
+      "description": "Full-size embedding (1536 dimensions) - truncated for brevity in fixture",
+      "note": "In real usage, this would have 1536 float values. For testing, use smaller dimension or generate random values.",
+      "object": "list",
+      "data": [
+        {
+          "object": "embedding",
+          "index": 0,
+          "embedding": [
+            -0.006929283495992422,
+            -0.005336422007530928,
+            0.00047350498218461871
+          ],
+          "_note": "... (1533 more values truncated for readability)"
+        }
+      ],
+      "model": "text-embedding-3-small",
+      "usage": {
+        "prompt_tokens": 8,
+        "total_tokens": 8
+      }
+    }
+  },
+  "error_responses": {
+    "rate_limit_error": {
+      "error": {
+        "message": "Rate limit exceeded. Please try again later.",
+        "type": "rate_limit_error",
+        "param": null,
+        "code": "rate_limit_exceeded"
+      }
+    },
+    "invalid_api_key": {
+      "error": {
+        "message": "Incorrect API key provided. You can find your API key at https://platform.openai.com/account/api-keys.",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": "invalid_api_key"
+      }
+    },
+    "model_not_found": {
+      "error": {
+        "message": "The model `invalid-model` does not exist",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": "model_not_found"
+      }
+    }
+  },
+  "usage_notes": {
+    "embedding_dimensions": {
+      "text-embedding-3-small": 1536,
+      "text-embedding-3-large": 3072,
+      "text-embedding-ada-002": 1536
+    },
+    "testing_recommendations": [
+      "For unit tests, use small embeddings (10-20 dimensions) to save memory",
+      "For integration tests, use realistic dimension counts but mock the API",
+      "Use consistent random seeds for reproducible test embeddings",
+      "Test edge cases: empty text, very long text, special characters"
+    ]
+  }
+}

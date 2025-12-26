@@ -1,0 +1,110 @@
+{
+  "description": "Standardized OHLCV data after processing (all English column names, Date as index)",
+  "ticker": "TSLA",
+  "market": "US",
+  "date_range": "2024-11-01 to 2024-11-10",
+  "note": "This represents data after standardization - ready for technical analysis",
+  "data": [
+    {
+      "Date": "2024-11-01T00:00:00",
+      "Open": 242.84,
+      "High": 248.50,
+      "Low": 241.05,
+      "Close": 246.60,
+      "Volume": 95234000
+    },
+    {
+      "Date": "2024-11-04T00:00:00",
+      "Open": 246.60,
+      "High": 251.20,
+      "Low": 244.80,
+      "Close": 249.85,
+      "Volume": 87654000
+    },
+    {
+      "Date": "2024-11-05T00:00:00",
+      "Open": 249.85,
+      "High": 254.30,
+      "Low": 247.90,
+      "Close": 252.40,
+      "Volume": 92341000
+    },
+    {
+      "Date": "2024-11-06T00:00:00",
+      "Open": 252.40,
+      "High": 256.75,
+      "Low": 250.60,
+      "Close": 255.10,
+      "Volume": 89123000
+    },
+    {
+      "Date": "2024-11-07T00:00:00",
+      "Open": 255.10,
+      "High": 259.40,
+      "Low": 253.20,
+      "Close": 257.80,
+      "Volume": 91456000
+    },
+    {
+      "Date": "2024-11-08T00:00:00",
+      "Open": 257.80,
+      "High": 261.90,
+      "Low": 255.70,
+      "Close": 260.25,
+      "Volume": 93782000
+    },
+    {
+      "Date": "2024-11-11T00:00:00",
+      "Open": 260.25,
+      "High": 264.50,
+      "Low": 258.40,
+      "Close": 262.95,
+      "Volume": 88567000
+    },
+    {
+      "Date": "2024-11-12T00:00:00",
+      "Open": 262.95,
+      "High": 267.10,
+      "Low": 260.80,
+      "Close": 265.40,
+      "Volume": 90234000
+    },
+    {
+      "Date": "2024-11-13T00:00:00",
+      "Open": 265.40,
+      "High": 269.60,
+      "Low": 263.50,
+      "Close": 267.85,
+      "Volume": 94567000
+    },
+    {
+      "Date": "2024-11-14T00:00:00",
+      "Open": 267.85,
+      "High": 271.90,
+      "Low": 265.70,
+      "Close": 270.30,
+      "Volume": 96890000
+    }
+  ],
+  "technical_indicators_example": {
+    "description": "Example of additional technical indicators that might be added",
+    "data": [
+      {
+        "Date": "2024-11-14T00:00:00",
+        "Open": 267.85,
+        "High": 271.90,
+        "Low": 265.70,
+        "Close": 270.30,
+        "Volume": 96890000,
+        "SMA_20": 258.45,
+        "EMA_20": 260.12,
+        "RSI_14": 68.5,
+        "MACD": 2.34,
+        "MACD_signal": 1.89,
+        "BB_upper": 275.20,
+        "BB_middle": 258.45,
+        "BB_lower": 241.70
+      }
+    ]
+  }
+}
