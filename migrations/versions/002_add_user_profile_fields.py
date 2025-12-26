@@ -11,6 +11,8 @@ This migration adds four new fields to the users table:
 - is_verified: Email verification status (default: False)
 
 All existing users will get default values for the new required fields.
+
+Uses batch mode for SQLite compatibility.
 """
 from typing import Sequence, Union
 
@@ -33,48 +35,57 @@ def upgrade() -> None:
     - timezone defaults to "Australia/Sydney"
     - api_key_hash is NULL
     - is_verified is False
+
+    Uses batch mode for SQLite compatibility with constraints.
     """
-    # Add tax_jurisdiction column
-    op.add_column(
-        'users',
-        sa.Column(
-            'tax_jurisdiction',
-            sa.String(length=10),
-            nullable=False,
-            server_default='AU',
-            comment='Tax jurisdiction code (e.g., US, US-CA, AU-NSW)'
+    # Use batch_alter_table for SQLite compatibility
+    with op.batch_alter_table('users', schema=None) as batch_op:
+        # Add tax_jurisdiction column
+        batch_op.add_column(
+            sa.Column(
+                'tax_jurisdiction',
+                sa.String(length=10),
+                nullable=False,
+                server_default='AU',
+            )
         )
-    )
 
-    # Add timezone column
-    op.add_column(
-        'users',
-        sa.Column(
-            'timezone',
-            sa.String(length=50),
-            nullable=False,
-            server_default='Australia/Sydney',
-            comment='IANA timezone identifier (e.g., America/New_York, UTC)'
+        # Add timezone column
+        batch_op.add_column(
+            sa.Column(
+                'timezone',
+                sa.String(length=50),
+                nullable=False,
+                server_default='Australia/Sydney',
+            )
         )
-    )
 
-    # Add api_key_hash column with unique constraint and index
-    op.add_column(
-        'users',
-        sa.Column(
-            'api_key_hash',
-            sa.String(length=255),
-            nullable=True,
-            comment='Bcrypt hash of API key for programmatic access'
+        # Add api_key_hash column
+        batch_op.add_column(
+            sa.Column(
+                'api_key_hash',
+                sa.String(length=255),
+                nullable=True,
+            )
         )
-    )
-    # Create unique constraint for api_key_hash
-    op.create_unique_constraint(
-        'uq_users_api_key_hash',
-        'users',
-        ['api_key_hash']
-    )
-    # Create index for fast lookups
+
+        # Add is_verified column
+        batch_op.add_column(
+            sa.Column(
+                'is_verified',
+                sa.Boolean(),
+                nullable=False,
+                server_default='0',
+            )
+        )
+
+        # Create unique constraint for api_key_hash
+        batch_op.create_unique_constraint(
+            'uq_users_api_key_hash',
+            ['api_key_hash']
+        )
+
+    # Create index for fast lookups (can be done outside batch)
     op.create_index(
         'ix_users_api_key_hash',
         'users',
@@ -82,34 +93,24 @@ def upgrade() -> None:
         unique=False
     )
 
-    # Add is_verified column
-    op.add_column(
-        'users',
-        sa.Column(
-            'is_verified',
-            sa.Boolean(),
-            nullable=False,
-            server_default='0',
-            comment='Whether user email has been verified'
-        )
-    )
-
 
 def downgrade() -> None:
     """Remove tax_jurisdiction, timezone, api_key_hash, and is_verified columns from users table.
 
     WARNING: This will permanently delete data in these columns!
+
+    Uses batch mode for SQLite compatibility.
     """
-    # Remove is_verified column
-    op.drop_column('users', 'is_verified')
-
-    # Remove api_key_hash column (drop index and constraint first)
+    # Drop index first (outside batch)
     op.drop_index('ix_users_api_key_hash', 'users')
-    op.drop_constraint('uq_users_api_key_hash', 'users', type_='unique')
-    op.drop_column('users', 'api_key_hash')
 
-    # Remove timezone column
-    op.drop_column('users', 'timezone')
+    # Use batch_alter_table for SQLite compatibility
+    with op.batch_alter_table('users', schema=None) as batch_op:
+        # Drop unique constraint
+        batch_op.drop_constraint('uq_users_api_key_hash', type_='unique')
 
-    # Remove tax_jurisdiction column
-    op.drop_column('users', 'tax_jurisdiction')
+        # Remove columns
+        batch_op.drop_column('is_verified')
+        batch_op.drop_column('api_key_hash')
+        batch_op.drop_column('timezone')
+        batch_op.drop_column('tax_jurisdiction')
