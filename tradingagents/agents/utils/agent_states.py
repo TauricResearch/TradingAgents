@@ -64,6 +64,11 @@ class AgentState(MessagesState):
     macro_report: Annotated[str, "Report from the Macro Analyst"]
     correlation_report: Annotated[str, "Report from the Correlation Analyst"]
 
+    # memory context (Issue #21)
+    memory_context: Annotated[str, "Memory context for agents including past trades and lessons"]
+    trade_history_context: Annotated[str, "Relevant past trade history for this ticker"]
+    risk_context: Annotated[str, "Risk profile context and recommendations"]
+
     # researcher team discussion step
     investment_debate_state: Annotated[
         InvestDebateState, "Current state of the debate on if to invest or not"
