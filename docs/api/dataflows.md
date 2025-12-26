@@ -207,6 +207,90 @@ except FredInvalidSeriesError as e:
     print(f"Invalid FRED series: {e.series_id}")
 ```
 
+### Multi-Timeframe Aggregation
+
+**Location**: `tradingagents/dataflows/multi_timeframe.py`
+
+**Capabilities**:
+- Convert daily OHLCV data to weekly timeframe
+- Convert daily OHLCV data to monthly timeframe
+- Preserve timezone information
+- Handle partial periods
+
+**Setup**: No external dependencies, uses pandas
+
+**Features**:
+- Proper OHLCV aggregation rules: Open=first, High=max, Low=min, Close=last, Volume=sum
+- Configurable week anchor (Sunday or Monday)
+- Month-end or month-start labels for aggregated periods
+- Input validation with descriptive error messages
+- Returns DataFrame on success, error string on failure
+
+**Example**:
+```python
+from tradingagents.dataflows.multi_timeframe import (
+    aggregate_to_weekly,
+    aggregate_to_monthly
+)
+import pandas as pd
+
+# Create sample daily data
+dates = pd.date_range('2024-01-01', periods=60, freq='D')
+daily_data = pd.DataFrame({
+    'Open': range(100, 160),
+    'High': range(102, 162),
+    'Low': range(99, 159),
+    'Close': range(101, 161),
+    'Volume': range(1000000, 1060000, 1000)
+}, index=dates)
+
+# Aggregate to weekly (Sunday anchor, default)
+weekly = aggregate_to_weekly(daily_data, anchor='SUN')
+# Returns DataFrame with weekly OHLCV bars
+
+# Aggregate to weekly (Monday anchor)
+weekly_mon = aggregate_to_weekly(daily_data, anchor='MON')
+
+# Aggregate to monthly (month-end labels)
+monthly = aggregate_to_monthly(daily_data, period_end=True)
+# Returns DataFrame with monthly OHLCV bars
+
+# Aggregate to monthly (month-start labels)
+monthly_start = aggregate_to_monthly(daily_data, period_end=False)
+```
+
+**Available Functions**:
+- `aggregate_to_weekly(data, anchor='SUN')` - Convert daily to weekly bars
+  - Supports week anchors: 'SUN' (Sunday), 'MON' (Monday)
+  - Returns DataFrame with weekly aggregated OHLCV data
+- `aggregate_to_monthly(data, period_end=True)` - Convert daily to monthly bars
+  - period_end=True: Month-end labels and boundaries
+  - period_end=False: Month-start labels and boundaries
+  - Returns DataFrame with monthly aggregated OHLCV data
+
+**Return Formats**:
+- Success: pandas DataFrame with DatetimeIndex and OHLCV columns
+- Failure: Error string describing validation error
+
+**Error Handling**:
+```python
+result = aggregate_to_weekly(data, anchor='SUN')
+if isinstance(result, str):
+    print(f"Error: {result}")
+else:
+    print(f"Weekly data: {result}")
+```
+
+**Validation Requirements**:
+- DataFrame must not be empty
+- DataFrame must have DatetimeIndex
+- DataFrame must contain columns: Open, High, Low, Close, Volume
+
+**Timezone Notes**:
+- Timezone information in the index is preserved through aggregation
+- Both UTC and localized timezones (e.g., America/New_York) are supported
+- Partial periods (e.g., < 7 days for weekly) are aggregated correctly
+
 ### Local Cache
 
 **Location**: `tradingagents/dataflows/local.py`

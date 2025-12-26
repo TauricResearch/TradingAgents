@@ -89,6 +89,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test coverage including rate limit handling, caching behavior, and date range filtering
   - Total: 108 tests added for FRED API feature
 
+- Multi-timeframe OHLCV aggregation functions (Issue #9)
+  - Multi-timeframe aggregation module for daily to weekly/monthly resampling [file:tradingagents/dataflows/multi_timeframe.py](tradingagents/dataflows/multi_timeframe.py) (320 lines)
+  - Core OHLCV aggregation validation function _validate_ohlcv_dataframe() [file:tradingagents/dataflows/multi_timeframe.py:38-75](tradingagents/dataflows/multi_timeframe.py)
+  - Core resampling function _resample_ohlcv() with proper aggregation rules [file:tradingagents/dataflows/multi_timeframe.py:78-139](tradingagents/dataflows/multi_timeframe.py)
+  - OHLCV aggregation rules: Open=first, High=max, Low=min, Close=last, Volume=sum [file:tradingagents/dataflows/multi_timeframe.py:105-111](tradingagents/dataflows/multi_timeframe.py)
+  - Weekly aggregation function aggregate_to_weekly() with configurable week anchor [file:tradingagents/dataflows/multi_timeframe.py:142-220](tradingagents/dataflows/multi_timeframe.py)
+  - Support for Sunday/Monday week anchors with automatic day-of-week mapping [file:tradingagents/dataflows/multi_timeframe.py:180-201](tradingagents/dataflows/multi_timeframe.py)
+  - Month boundary handling for weeks spanning multiple months
+  - Monthly aggregation function aggregate_to_monthly() with period end/start labeling [file:tradingagents/dataflows/multi_timeframe.py:223-320](tradingagents/dataflows/multi_timeframe.py)
+  - Support for month-end (ME) and month-start (MS) labels via period_end parameter
+  - Timezone preservation for both UTC and localized datetime indices
+  - Input validation with descriptive error messages for missing/invalid data
+  - OHLCV value rounding to 2 decimal places for data consistency
+  - Return type: DataFrame on success, error string on validation failure
+  - Comprehensive docstrings with examples for all public functions
+  - Unit test suite for aggregation functions [file:tests/unit/dataflows/test_multi_timeframe.py](tests/unit/dataflows/test_multi_timeframe.py) (29 tests)
+  - Integration test suite for multi-timeframe workflows [file:tests/integration/dataflows/test_multi_timeframe_integration.py](tests/integration/dataflows/test_multi_timeframe_integration.py) (13 tests)
+  - Test coverage includes validation, weekly aggregation (multiple anchors), monthly aggregation, timezone handling, and partial period aggregation
+  - Total: 42 tests added for multi-timeframe aggregation feature
+
 - User model enhancement with profile and API key management (Issue #3)
   - Extended User model with tax_jurisdiction and timezone fields [file:tradingagents/api/models/user.py:47-54](tradingagents/api/models/user.py)
   - Tax jurisdiction field supporting country (e.g., "US", "AU") and state/province level codes (e.g., "US-CA", "AU-NSW")
