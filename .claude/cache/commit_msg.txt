@@ -1,16 +1,16 @@
-feat(llm): add OpenRouter API support with proper headers and API key handling
+feat(portfolio): add Portfolio State for holdings and mark-to-market - Issue #29 (68 tests)
 
-- Add explicit OPENROUTER_API_KEY environment variable handling
-- Add HTTP-Referer and X-Title headers for OpenRouter attribution
-- Fix case sensitivity for provider names (ollama now case-insensitive)
-- Add embedding fallback to OpenAI when using OpenRouter (since OpenRouter lacks embedding API)
-- Add comprehensive test suite (30 tests) for OpenRouter integration
-- Update README.md and PROJECT.md with OpenRouter configuration docs
-- Add CHANGELOG.md documenting the changes
-
-Patterns borrowed from ~/.claude/lib/genai_validate.py for multi-provider support.
-
-Closes #1
+Implements comprehensive portfolio state management:
+- Holding dataclass with long/short support and P&L calculations
+- CashBalance for multi-currency cash management
+- PortfolioState class with:
+  - Real-time mark-to-market valuation
+  - Multi-currency support with exchange rate conversion
+  - Thread-safe state updates
+  - Position tracking with average cost calculation
+  - Portfolio snapshots for historical tracking
+- PriceProvider and ExchangeRateProvider protocols
+- Serialization/deserialization support
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
