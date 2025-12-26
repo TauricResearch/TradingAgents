@@ -112,6 +112,8 @@ from .ibkr_broker import (
     FUTURES_SPECS,
 )
 
+from .paper_broker import PaperBroker
+
 __all__ = [
     # Enums
     "AssetClass",
@@ -154,4 +156,6 @@ __all__ = [
     "IBKRBroker",
     "IB_INSYNC_AVAILABLE",
     "FUTURES_SPECS",
+    # Paper Broker
+    "PaperBroker",
 ]
