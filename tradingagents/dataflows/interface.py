@@ -46,7 +46,7 @@ TOOLS_CATEGORIES = {
         ]
     },
     "fundamental_data": {
-        "description": "Company fundamentals",
+        "description": "Ticker coin fundamentals",
         "tools": [
             "get_fundamentals",
             # "get_balance_sheet",

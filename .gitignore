@@ -11,3 +11,4 @@ eval_data/
 .env
 .python-version
 playground.ipynb
+*session

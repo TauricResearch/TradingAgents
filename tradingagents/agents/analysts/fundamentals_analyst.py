@@ -8,8 +8,8 @@ from tradingagents.dataflows.config import get_config
 def create_fundamentals_analyst(llm):
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
-        ticker = state["coin_of_interest"]
-        company_name = state["coin_of_interest"]
+        ticker = state["ticker_of_interest"]
+        company_name = state["ticker_of_interest"]
 
         tools = [
             get_fundamentals,
