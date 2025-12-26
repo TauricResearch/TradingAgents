@@ -1,16 +1,23 @@
-feat(portfolio): add Portfolio State for holdings and mark-to-market - Issue #29 (68 tests)
+feat(alerts): add Alert Manager for orchestration and routing - Issue #38 (55 tests)
 
-Implements comprehensive portfolio state management:
-- Holding dataclass with long/short support and P&L calculations
-- CashBalance for multi-currency cash management
-- PortfolioState class with:
-  - Real-time mark-to-market valuation
-  - Multi-currency support with exchange rate conversion
-  - Thread-safe state updates
-  - Position tracking with average cost calculation
-  - Portfolio snapshots for historical tracking
-- PriceProvider and ExchangeRateProvider protocols
-- Serialization/deserialization support
+Implements comprehensive alert management framework:
+- AlertPriority, AlertCategory, AlertStatus, ChannelType enums
+- AlertTemplate, RateLimitConfig, RoutingRule dataclasses
+- Alert, DeliveryResult, AlertStats tracking classes
+- LogChannel and WebhookChannel implementations
+- AlertManager main class
+
+Features:
+- Multi-channel alert routing (log, webhook, slack, sms, email, push)
+- Configurable routing rules based on priority and category
+- Rate limiting to prevent alert storms
+- Duplicate detection and suppression
+- Alert history with filtering and search
+- Alert acknowledgement tracking
+- Template-based alert formatting
+- Synchronous and asynchronous delivery
+- Statistics and metrics tracking
+- Convenience methods for trade/risk/execution alerts
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 

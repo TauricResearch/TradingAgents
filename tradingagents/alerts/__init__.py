@@ -8,9 +8,11 @@ This module provides alert management including:
 - Alert history tracking
 
 Issue #38: [ALERT-37] Alert manager - orchestration and routing
+Issue #40: [ALERT-39] Slack channel - webhooks
 
 Submodules:
     alert_manager: Core alert management functionality
+    slack_channel: Slack webhook integration
 
 Classes:
     Enums:
@@ -18,6 +20,7 @@ Classes:
     - AlertCategory: Alert categories (trade, risk, system, market, etc.)
     - AlertStatus: Alert delivery status
     - ChannelType: Alert channel types
+    - SlackMessageStyle: Slack message formatting styles
 
     Data Classes:
     - AlertTemplate: Template for formatting alerts
@@ -27,10 +30,13 @@ Classes:
     - Alert: An alert to be sent
     - DeliveryResult: Result of alert delivery
     - AlertStats: Statistics about alerts
+    - SlackConfig: Slack channel configuration
+    - SlackMessageResult: Result of Slack message send
 
     Channel Classes:
     - LogChannel: Channel that logs to Python logging
     - WebhookChannel: Channel that sends to webhooks
+    - SlackChannel: Channel that sends to Slack via webhooks
 
     Main Classes:
     - AlertManager: Orchestrates alert routing and delivery
@@ -40,10 +46,15 @@ Example:
     ...     AlertManager,
     ...     AlertPriority,
     ...     AlertCategory,
+    ...     SlackChannel,
     ... )
     >>> from decimal import Decimal
     >>>
     >>> manager = AlertManager()
+    >>>
+    >>> # Add Slack channel
+    >>> slack = SlackChannel("https://hooks.slack.com/...")
+    >>> manager.register_channel(slack)
     >>>
     >>> # Create and send alert
     >>> alert = manager.create_alert(
@@ -80,12 +91,26 @@ from .alert_manager import (
     AlertManager,
 )
 
+from .slack_channel import (
+    # Enums
+    SlackMessageStyle,
+    # Data Classes
+    SlackConfig,
+    SlackMessageResult,
+    # Classes
+    SlackMessageFormatter,
+    SlackChannel,
+    # Factory Functions
+    create_slack_channel,
+)
+
 __all__ = [
     # Enums
     "AlertPriority",
     "AlertCategory",
     "AlertStatus",
     "ChannelType",
+    "SlackMessageStyle",
     # Data Classes
     "AlertTemplate",
     "RateLimitConfig",
@@ -94,9 +119,15 @@ __all__ = [
     "Alert",
     "DeliveryResult",
     "AlertStats",
+    "SlackConfig",
+    "SlackMessageResult",
     # Channel Classes
     "LogChannel",
     "WebhookChannel",
-    # Main Class
+    "SlackChannel",
+    # Main Classes
     "AlertManager",
+    "SlackMessageFormatter",
+    # Factory Functions
+    "create_slack_channel",
 ]

@@ -49,8 +49,8 @@
     "Issue #48: [DOCS-47] Documentation - user guide, developer docs"
   ],
   "total_features": 45,
-  "current_index": 28,
-  "completed_features": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27],
+  "current_index": 36,
+  "completed_features": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35],
   "failed_features": [],
   "context_token_estimate": 0,
   "auto_clear_count": 0,
@@ -60,5 +60,5 @@
   "source_type": "issues",
   "feature_order": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44],
   "started_at": "2025-12-26T12:35:00Z",
-  "notes": "Issue #2 already implemented. Issue #3: 84 tests (d3892b0). Issue #4: 51 tests (0d09f15). Issue #5: 43 tests (1c6c2fa). Issue #6: 87 tests (1ea006e). Issue #7: migrations fixed + README (68be12c). Issue #8: 108 tests FRED API (4d693fb). Issue #9: 42 tests multi-timeframe (19171a4). Issue #10: 35 tests benchmark (bbd85c9). Issue #11: 84 tests vendor routing (2c80264). Issue #12: 41 tests data cache (ae7899a). Issue #13: 47 tests momentum analyst (8522b4b). Issue #14: 57 tests macro analyst (bdff87a). Issue #15: 59 tests correlation analyst (b0140a8). Issue #16: 52 tests position sizing (a17fc1f). Issue #17: 35 tests analyst integration (5a0606b). Issue #18: 71 tests layered memory (d72c214). Issue #19: 51 tests trade history (dbfcea3). Issue #20: 59 tests risk profiles (25c31d5). Issue #21: 26 tests memory integration (4f6f7c1). Issue #22: 71 tests broker base (e4ef947). Issue #23: 57 tests broker router (850346a). Issue #24: 37 tests alpaca broker (593d599). Issue #25: 38 tests ibkr broker (1e32c0e). Issue #26: 63 tests paper broker (834d18f). Issue #27: 47 tests order manager (6863e3e). Issue #28: 45 tests risk controls (9aee433). Issue #29: 68 tests portfolio state (6642047)."
+  "notes": "Issue #2 already implemented. Issue #3: 84 tests (d3892b0). Issue #4: 51 tests (0d09f15). Issue #5: 43 tests (1c6c2fa). Issue #6: 87 tests (1ea006e). Issue #7: migrations fixed + README (68be12c). Issue #8: 108 tests FRED API (4d693fb). Issue #9: 42 tests multi-timeframe (19171a4). Issue #10: 35 tests benchmark (bbd85c9). Issue #11: 84 tests vendor routing (2c80264). Issue #12: 41 tests data cache (ae7899a). Issue #13: 47 tests momentum analyst (8522b4b). Issue #14: 57 tests macro analyst (bdff87a). Issue #15: 59 tests correlation analyst (b0140a8). Issue #16: 52 tests position sizing (a17fc1f). Issue #17: 35 tests analyst integration (5a0606b). Issue #18: 71 tests layered memory (d72c214). Issue #19: 51 tests trade history (dbfcea3). Issue #20: 59 tests risk profiles (25c31d5). Issue #21: 26 tests memory integration (4f6f7c1). Issue #22: 71 tests broker base (e4ef947). Issue #23: 57 tests broker router (850346a). Issue #24: 37 tests alpaca broker (593d599). Issue #25: 38 tests ibkr broker (1e32c0e). Issue #26: 63 tests paper broker (834d18f). Issue #27: 47 tests order manager (6863e3e). Issue #28: 45 tests risk controls (9aee433). Issue #29: 68 tests portfolio state (6642047). Issue #31: 63 tests performance metrics (bedb59b). Issue #32: 66 tests CGT calculator (13f2bba). Issue #33: 45 tests scenario runner (e7bff2c). Issue #34: 43 tests strategy comparator (76eac65). Issue #35: 53 tests economic conditions (b54d6ba). Issue #36: 56 tests signal to order (c423c6b). Issue #37: 37 tests strategy executor (ddb12c1). Issue #38: 55 tests alert manager (7ab60eb)."
 }
