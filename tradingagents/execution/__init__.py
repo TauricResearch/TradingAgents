@@ -106,6 +106,12 @@ from .alpaca_broker import (
     ALPACA_AVAILABLE,
 )
 
+from .ibkr_broker import (
+    IBKRBroker,
+    IB_INSYNC_AVAILABLE,
+    FUTURES_SPECS,
+)
+
 __all__ = [
     # Enums
     "AssetClass",
@@ -144,4 +150,8 @@ __all__ = [
     # Alpaca Broker
     "AlpacaBroker",
     "ALPACA_AVAILABLE",
+    # IBKR Broker
+    "IBKRBroker",
+    "IB_INSYNC_AVAILABLE",
+    "FUTURES_SPECS",
 ]
