@@ -1,27 +1,29 @@
-feat(alerts): add Slack channel with webhooks and Block Kit - Issue #40 (44 tests)
+feat(alerts): add SMS channel with Twilio integration - Issue #41 (59 tests)
 
-Implements Slack integration for alert delivery:
-- SlackMessageStyle enum (simple, blocks, attachment)
-- SlackConfig for webhook URL, channel, username, icon
-- SlackMessageResult for delivery tracking
-- SlackMessageFormatter with Block Kit support
-- SlackChannel implementing AlertChannel protocol
-- create_slack_channel factory function
+Implements SMS alert delivery using Twilio API:
+- SMSFormat enum (plain, compact, detailed)
+- SMSStatus enum (queued, sending, sent, delivered, failed, etc.)
+- SMSConfig for Twilio credentials and settings
+- SMSMessageResult for delivery tracking
+- SMSBatchResult for multi-recipient sends
+- SMSMessageFormatter with priority indicators
+- SMSChannel implementing AlertChannel protocol
+- create_sms_channel factory function
 
 Features:
-- Three formatting styles (simple text, blocks, attachments)
-- Priority-based colors and emojis
-- Category emojis for visual identification
-- @mention support for critical alerts
-- Timestamp and source inclusion options
-- Data field display in messages
-- Webhook URL validation (hooks.slack.com)
+- E.164 phone number validation
+- Three formatting styles (plain, compact, detailed)
+- Priority indicators ([!], [!!!]) for high/critical alerts
+- Category prefixes (TRD, RSK, SYS, MKT, etc.)
+- SMS segment counting (GSM-7 vs Unicode)
+- Messaging service SID support
+- Priority filtering (send only HIGH+ alerts)
+- Batch sending to multiple recipients
 - Retry logic with exponential backoff
-- Rate limit handling (429 status with Retry-After)
-- Server error retry (500+) vs client error fail-fast (400)
+- Server error retry vs client error fail-fast
 - Latency tracking for performance monitoring
-- Sync and async delivery methods
-- Test webhook functionality
+- Status callback URL support
+- Connection test functionality
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
