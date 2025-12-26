@@ -13,6 +13,8 @@ import pytest
 from unittest.mock import Mock
 from typing import Optional
 
+pytestmark = pytest.mark.unit
+
 
 # ============================================================================
 # Test Utilities

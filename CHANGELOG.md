@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- DeepSeek API support for LLM provider integration (Issue #41)
+  - DeepSeek provider integration using ChatOpenAI with base_url pointing to DeepSeek API [file:tradingagents/graph/trading_graph.py:105-145](tradingagents/graph/trading_graph.py)
+  - DEEPSEEK_API_KEY environment variable handling with validation and helpful error messages
+  - Support for DeepSeek models: deepseek-chat and deepseek-reasoner with custom attribution headers
+  - Embedding fallback chain for providers without native embeddings (OpenAI -> HuggingFace -> disable memory) [file:tradingagents/agents/utils/memory.py:16-57](tradingagents/agents/utils/memory.py)
+  - Optional HuggingFace sentence-transformers integration (all-MiniLM-L6-v2 model) for offline embeddings
+  - Graceful degradation with informative warnings when embedding backends unavailable
+  - Comprehensive test suite for DeepSeek integration [file:tests/integration/test_deepseek.py](tests/integration/test_deepseek.py)
+- Test directory restructuring into unit/integration/e2e (Issue #50)
+  - Organized tests into unit/, integration/, and e2e/ subdirectories by test type
+  - Unit tests (5 files) - Fast, isolated tests: conftest_hierarchy, documentation_structure, exceptions, logging_config, report_exporter
+  - Integration tests (3 files) - Component interaction tests: akshare, cli_error_handling, openrouter
+  - End-to-end tests - Complete workflow tests with dedicated e2e/README.md guidelines
+  - Hierarchical conftest.py structure for each test directory with type-specific fixtures
+  - Updated pytest.ini with test discovery paths (tests, tests/unit, tests/integration, tests/e2e)
+  - Custom markers registered: unit, integration, e2e, llm, chromadb, slow, requires_api_key
+  - Updated docs/testing/README.md with new directory structure diagram and fixture organization
+  - Improved test isolation with directory-specific fixtures and configurations
 - pytest conftest.py hierarchy for organized test fixtures (Issue #49)
   - Root-level conftest.py with shared fixtures (environment variables, LangChain/ChromaDB mocking, configuration)
   - Unit-level conftest.py with data vendor mocking (akshare, yfinance, sample DataFrames)

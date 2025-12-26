@@ -14,18 +14,28 @@ Our testing approach combines:
 
 ```
 tests/
-├── unit/                   # Unit tests (fast, isolated)
-│   ├── test_analysts.py
-│   ├── test_dataflows.py
-│   └── test_utils.py
-├── integration/            # Integration tests (medium speed)
-│   ├── test_graph.py
-│   ├── test_llm_providers.py
-│   └── test_data_vendors.py
-├── regression/             # Regression tests
-│   └── smoke/             # Critical path tests (CI gate)
-├── fixtures/              # Shared test fixtures
-└── conftest.py            # pytest configuration
+├── __init__.py                  # Package initialization
+├── conftest.py                  # Root-level fixtures and configuration
+├── unit/                        # Unit tests (fast, isolated)
+│   ├── __init__.py
+│   ├── conftest.py              # Unit test specific fixtures
+│   ├── test_conftest_hierarchy.py
+│   ├── test_documentation_structure.py
+│   ├── test_exceptions.py
+│   ├── test_logging_config.py
+│   └── test_report_exporter.py
+├── integration/                 # Integration tests (medium speed)
+│   ├── __init__.py
+│   ├── conftest.py              # Integration test specific fixtures
+│   ├── test_akshare.py
+│   ├── test_cli_error_handling.py
+│   └── test_openrouter.py
+├── e2e/                         # End-to-end tests (slow, complete workflows)
+│   ├── __init__.py
+│   ├── conftest.py              # E2E-specific fixtures
+│   ├── README.md                # E2E testing guidelines
+│   └── test_deepseek.py
+└── CHROMADB_COLLECTION_TESTS.md # ChromaDB test documentation
 ```
 
 ## Running Tests
@@ -45,11 +55,8 @@ pytest tests/unit/
 # Integration tests only
 pytest tests/integration/
 
-# Regression tests only
-pytest tests/regression/
-
-# Smoke tests (critical path)
-pytest -m smoke
+# End-to-end tests only
+pytest tests/e2e/ -m e2e
 ```
 
 ### With Coverage
@@ -118,25 +125,39 @@ def test_data_vendor_integration():
 
 ### End-to-End Tests
 
-**Purpose**: Test complete workflows
+**Purpose**: Test complete workflows from a user's perspective
 
 **Characteristics**:
-- Slow (30+ seconds)
-- Use real or test LLM APIs
-- Validate full system
-- Minimal count (critical paths only)
+- Slow (multiple seconds to minutes)
+- Use real or test APIs with realistic data
+- Validate complete system integration
+- Focus on critical user journeys
+- Minimal count (most expensive tests to run)
+
+**Location**: `tests/e2e/`
+
+**Marker**: `@pytest.mark.e2e`
 
 **Example**:
 ```python
-@pytest.mark.integration
-def test_full_analysis_workflow():
-    """Test complete trading analysis."""
-    ta = TradingAgentsGraph()
-    state, decision = ta.propagate("NVDA", "2024-05-10")
+import pytest
 
-    assert decision["action"] in ["BUY", "SELL", "HOLD"]
-    assert 0.0 <= decision["confidence_score"] <= 1.0
+pytestmark = pytest.mark.e2e
+
+def test_complete_data_workflow(e2e_environment):
+    """
+    Test complete workflow: data ingestion → analysis → report.
+
+    This test validates the entire user journey from fetching market data
+    to generating a trading report.
+    """
+    # Arrange: Set up data source
+    # Act: Execute complete workflow
+    # Assert: Validate final report output
+    pass
 ```
+
+See [E2E Testing Guide](../../tests/e2e/README.md) for detailed guidelines and examples.
 
 ## Test Fixtures and conftest.py Hierarchy
 
@@ -159,9 +180,11 @@ tests/
 │   ├── Time mocking (mock_time_sleep)
 │   ├── HTTP mocking (mock_requests)
 │   └── Subprocess mocking (mock_subprocess)
-└── integration/conftest.py  # Integration test specific fixtures
-    ├── Live ChromaDB (live_chromadb)
-    └── Integration temp directory (integration_temp_dir)
+├── integration/conftest.py  # Integration test specific fixtures
+│   ├── Live ChromaDB (live_chromadb)
+│   └── Integration temp directory (integration_temp_dir)
+└── e2e/conftest.py          # End-to-end test specific fixtures
+    └── E2E environment setup (e2e_environment)
 ```
 
 ### Root-Level Fixtures (tests/conftest.py)
@@ -205,6 +228,12 @@ Only available in `tests/integration/` directory:
 
 - `live_chromadb` - Live ChromaDB instance (session-scoped)
 - `integration_temp_dir` - Temporary directory with cleanup
+
+### End-to-End Test Fixtures (tests/e2e/conftest.py)
+
+Only available in `tests/e2e/` directory:
+
+- `e2e_environment` - Complete environment setup for end-to-end testing with all dependencies initialized
 
 ### Using Fixtures
 

@@ -19,6 +19,8 @@ from pathlib import Path
 from typing import List, Set, Tuple
 import pytest
 
+pytestmark = pytest.mark.unit
+
 
 # ============================================================================
 # Fixtures and Constants

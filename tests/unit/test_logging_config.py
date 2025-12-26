@@ -18,6 +18,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch, call
 from logging.handlers import RotatingFileHandler
 
+pytestmark = pytest.mark.unit
+
 
 # ============================================================================
 # Fixtures

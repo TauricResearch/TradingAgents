@@ -15,6 +15,8 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from typing import Dict, Any
 
+pytestmark = pytest.mark.integration
+
 # Import modules under test
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.agents.utils.memory import FinancialSituationMemory

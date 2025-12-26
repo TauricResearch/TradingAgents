@@ -18,6 +18,8 @@ import pytest
 import tempfile
 import yaml
 from datetime import datetime
+
+pytestmark = pytest.mark.unit
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 

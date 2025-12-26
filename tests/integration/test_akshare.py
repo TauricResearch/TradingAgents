@@ -25,6 +25,8 @@ from unittest.mock import Mock, patch, MagicMock, call
 from datetime import datetime
 from typing import Callable, Any
 
+pytestmark = pytest.mark.integration
+
 # Clear any cached imports and mock akshare before importing our modules
 if 'tradingagents.dataflows.akshare' in sys.modules:
     del sys.modules['tradingagents.dataflows.akshare']
