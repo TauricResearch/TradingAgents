@@ -7,23 +7,31 @@ This module provides simulation capabilities including:
 - Economic regime simulation
 
 Issue #33: [SIM-32] Scenario runner - parallel portfolio simulations
+Issue #34: [SIM-33] Strategy comparator - performance comparison, stats
 
 Submodules:
     scenario_runner: Core scenario execution framework
+    strategy_comparator: Strategy comparison and statistical analysis
 
 Classes:
     Enums:
     - ExecutionMode: Parallel execution mode (sequential, threaded, process)
     - ScenarioStatus: Status of a scenario run
+    - RankingCriteria: Criteria for ranking strategies
+    - ComparisonStatus: Status of strategy comparison
 
     Data Classes:
     - ScenarioConfig: Configuration for a simulation scenario
     - ScenarioResult: Result from a scenario simulation
     - RunnerProgress: Progress information for batch runs
+    - StrategyMetrics: Performance metrics for a strategy
+    - PairwiseComparison: Comparison between two strategies
+    - ComparisonResult: Complete result of strategy comparison
 
     Main Classes:
     - ScenarioRunner: Runner for parallel portfolio simulations
     - ScenarioBatchBuilder: Builder for creating scenario batches
+    - StrategyComparator: Compares multiple trading strategies
 
     Protocols:
     - ScenarioExecutor: Protocol for scenario execution functions
@@ -76,21 +84,42 @@ from .scenario_runner import (
     aggregate_results,
 )
 
-__all__ = [
+from .strategy_comparator import (
     # Enums
+    RankingCriteria,
+    ComparisonStatus,
+    # Data Classes
+    StrategyMetrics,
+    PairwiseComparison,
+    ComparisonResult,
+    # Main Class
+    StrategyComparator,
+)
+
+__all__ = [
+    # Scenario Runner Enums
     "ExecutionMode",
     "ScenarioStatus",
-    # Data Classes
+    # Scenario Runner Data Classes
     "ScenarioConfig",
     "ScenarioResult",
     "RunnerProgress",
-    # Main Classes
+    # Scenario Runner Main Classes
     "ScenarioRunner",
     "ScenarioBatchBuilder",
-    # Protocols
+    # Scenario Runner Protocols
     "ScenarioExecutor",
-    # Types
+    # Scenario Runner Types
     "ProgressCallback",
-    # Utility Functions
+    # Scenario Runner Utility Functions
     "aggregate_results",
+    # Strategy Comparator Enums
+    "RankingCriteria",
+    "ComparisonStatus",
+    # Strategy Comparator Data Classes
+    "StrategyMetrics",
+    "PairwiseComparison",
+    "ComparisonResult",
+    # Strategy Comparator Main Class
+    "StrategyComparator",
 ]
