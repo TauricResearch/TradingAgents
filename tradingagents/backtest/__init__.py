@@ -127,6 +127,22 @@ from .results_analyzer import (
     create_results_analyzer,
 )
 
+from .report_generator import (
+    # Enums
+    ReportFormat,
+    ReportSection,
+    ChartType,
+    # Data Classes
+    ReportConfig,
+    ChartData,
+    ReportContent,
+    ReportResult,
+    # Main Classes
+    ReportGenerator,
+    # Factory Functions
+    create_report_generator,
+)
+
 __all__ = [
     # Enums
     "OrderSide",
@@ -171,4 +187,17 @@ __all__ = [
     "BenchmarkComparison",
     "DrawdownAnalysis",
     "AnalysisResult",
+    # Report Generator Enums
+    "ReportFormat",
+    "ReportSection",
+    "ChartType",
+    # Report Generator Data Classes
+    "ReportConfig",
+    "ChartData",
+    "ReportContent",
+    "ReportResult",
+    # Report Generator Main Classes
+    "ReportGenerator",
+    # Report Generator Factory Functions
+    "create_report_generator",
 ]
