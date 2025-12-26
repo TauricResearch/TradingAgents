@@ -383,3 +383,271 @@ def openrouter_config():
         "backend_url": "https://openrouter.ai/api/v1",
     })
     return config
+
+
+# ============================================================================
+# Agent Output Validation Fixtures (Issue #53)
+# ============================================================================
+
+@pytest.fixture
+def sample_agent_state():
+    """
+    Create a complete sample agent state for testing.
+
+    Provides a fully populated agent state with all required fields
+    including reports, debate states, and final decision.
+
+    Scope: function (default)
+
+    Returns:
+        dict: Complete agent state with all fields populated
+
+    Example:
+        def test_complete_state(sample_agent_state):
+            assert sample_agent_state["company_of_interest"] == "AAPL"
+            assert "market_report" in sample_agent_state
+    """
+    return {
+        "company_of_interest": "AAPL",
+        "trade_date": "2024-01-15",
+        "market_report": """
+# Market Analysis for AAPL
+
+## Technical Indicators
+Strong bullish momentum with RSI at 55 and MACD showing positive divergence.
+Price has broken through key resistance at $175.
+
+## Volume Analysis
+Above-average volume on recent upward moves indicates strong buyer interest.
+Institutional accumulation pattern observed over the past 2 weeks.
+
+## Price Action
+Clear higher highs and higher lows pattern establishing uptrend.
+Support level established at $170 with strong buying pressure.
+        """ + "Additional detailed analysis. " * 30,
+        "sentiment_report": """
+# Social Media Sentiment Analysis
+
+## Overall Sentiment
+Strongly positive sentiment across major platforms (Twitter, Reddit, StockTwits).
+Sentiment score: 8.5/10 based on 10,000+ analyzed posts.
+
+## Key Themes
+- New product launch excitement
+- Strong quarterly earnings anticipation
+- Innovation leadership recognition
+
+## Influencer Activity
+Major tech influencers bullish on near-term prospects.
+        """ + "More sentiment details. " * 30,
+        "news_report": """
+# News Analysis
+
+## Recent Headlines
+- Major product announcement driving positive coverage
+- Analyst upgrades from 3 top firms this week
+- Partnership announcements in AI space
+
+## Coverage Tone
+85% positive, 10% neutral, 5% negative across 50 major news sources.
+
+## Impact Assessment
+News flow strongly supportive of bullish thesis.
+        """ + "Additional news analysis. " * 30,
+        "fundamentals_report": """
+# Fundamental Analysis
+
+## Financial Metrics
+| Metric | Value | Industry Avg |
+|--------|-------|--------------|
+| P/E    | 28    | 25           |
+| ROE    | 45%   | 20%          |
+| Revenue Growth | 12% | 8%     |
+
+## Balance Sheet
+Strong cash position of $150B, low debt-to-equity ratio.
+
+## Earnings Quality
+Consistent earnings growth with strong margins.
+        """ + "Detailed fundamental analysis. " * 30,
+        "investment_debate_state": {
+            "history": "Round 1: Bull presents case for strong buy...\nRound 2: Bear raises concerns about valuation...\nRound 3: Bull counters with growth prospects...",
+            "count": 3,
+            "judge_decision": "BUY: Bulls made a compelling case with strong fundamentals and positive momentum",
+            "bull_history": "Strong fundamentals, positive momentum, innovation leadership",
+            "bear_history": "Slight valuation concerns, market volatility risk",
+            "current_response": "Final recommendation is BUY",
+        },
+        "risk_debate_state": {
+            "history": "Round 1: Risk assessment begins...\nRound 2: Conservative view presented...",
+            "count": 2,
+            "judge_decision": "BUY: Risk is acceptable given strong fundamentals",
+            "risky_history": "High potential upside justifies position",
+            "safe_history": "Proceed with caution, good fundamentals",
+            "neutral_history": "Balanced risk-reward at current levels",
+            "latest_speaker": "neutral",
+            "current_risky_response": "Strong buy",
+            "current_safe_response": "Moderate buy",
+            "current_neutral_response": "Buy with standard position sizing",
+        },
+        "final_trade_decision": "BUY: Strong consensus across all analysis teams. Fundamentals solid, technicals bullish, sentiment positive. Entry at current levels recommended with standard position sizing.",
+        "investment_plan": "Initiate position with 2% portfolio allocation",
+        "trader_investment_plan": "Execute market order for calculated position size",
+        "sender": "trader",
+    }
+
+
+@pytest.fixture
+def sample_agent_state_buy(sample_agent_state):
+    """
+    Sample agent state with BUY decision.
+
+    Returns complete state configured for BUY scenario.
+
+    Scope: function (default)
+
+    Example:
+        def test_buy_scenario(sample_agent_state_buy):
+            assert "BUY" in sample_agent_state_buy["final_trade_decision"]
+    """
+    return sample_agent_state
+
+
+@pytest.fixture
+def sample_agent_state_sell():
+    """
+    Sample agent state with SELL decision.
+
+    Provides a complete state where all analyses point to SELL.
+
+    Scope: function (default)
+
+    Returns:
+        dict: Agent state with SELL decision
+
+    Example:
+        def test_sell_scenario(sample_agent_state_sell):
+            assert "SELL" in sample_agent_state_sell["final_trade_decision"]
+    """
+    return {
+        "company_of_interest": "TSLA",
+        "trade_date": "2024-01-20",
+        "market_report": "# Market Analysis\n\nBearish technical pattern with breakdown below support. " + "Detailed analysis. " * 50,
+        "sentiment_report": "# Sentiment Analysis\n\nNegative sentiment prevailing across platforms. " + "More details. " * 50,
+        "news_report": "# News Report\n\nMultiple negative headlines and analyst downgrades. " + "Additional coverage. " * 50,
+        "fundamentals_report": "# Fundamentals\n\nDeteriorating metrics and earnings concerns. " + "Financial details. " * 50,
+        "investment_debate_state": {
+            "history": "Round 1: Bear presents strong sell case...\nRound 2: Bull unable to counter effectively...",
+            "count": 2,
+            "judge_decision": "SELL: Bears made compelling case with fundamental concerns",
+            "bull_history": "Limited upside potential",
+            "bear_history": "Strong downside risk, overvalued",
+        },
+        "risk_debate_state": {
+            "history": "Round 1: Risk analysis shows high downside...",
+            "count": 1,
+            "judge_decision": "SELL: Exit position to preserve capital",
+            "risky_history": "Too risky, exit recommended",
+            "safe_history": "Definitely sell",
+            "neutral_history": "Sell is prudent",
+        },
+        "final_trade_decision": "SELL: Consensus to exit position. Fundamentals weak, technicals bearish, sentiment negative.",
+    }
+
+
+@pytest.fixture
+def sample_agent_state_hold():
+    """
+    Sample agent state with HOLD decision.
+
+    Provides a complete state where analyses are mixed, leading to HOLD.
+
+    Scope: function (default)
+
+    Returns:
+        dict: Agent state with HOLD decision
+
+    Example:
+        def test_hold_scenario(sample_agent_state_hold):
+            assert "HOLD" in sample_agent_state_hold["final_trade_decision"]
+    """
+    return {
+        "company_of_interest": "GOOGL",
+        "trade_date": "2024-01-22",
+        "market_report": "# Market Analysis\n\nMixed signals with consolidation pattern. " + "Technical details. " * 50,
+        "sentiment_report": "# Sentiment Analysis\n\nNeutral sentiment, market awaiting catalyst. " + "Sentiment data. " * 50,
+        "news_report": "# News Report\n\nBalanced news flow, no major catalysts. " + "News details. " * 50,
+        "fundamentals_report": "# Fundamentals\n\nSolid but not compelling, fairly valued. " + "Financial data. " * 50,
+        "investment_debate_state": {
+            "history": "Round 1: Bull and Bear present balanced views...\nRound 2: No clear winner...\nRound 3: Continued debate...",
+            "count": 3,
+            "judge_decision": "HOLD: Insufficient conviction either way, maintain position",
+            "bull_history": "Some positives but not strong",
+            "bear_history": "Some concerns but not severe",
+        },
+        "risk_debate_state": {
+            "history": "Round 1: Risk assessment shows balanced profile...",
+            "count": 1,
+            "judge_decision": "HOLD: Risk-reward balanced, no action needed",
+            "risky_history": "Could go either way",
+            "safe_history": "Wait for clarity",
+            "neutral_history": "Hold is appropriate",
+        },
+        "final_trade_decision": "HOLD: Mixed signals across analysis teams. Await further clarity before making move.",
+    }
+
+
+@pytest.fixture
+def sample_invest_debate():
+    """
+    Sample investment debate state.
+
+    Provides a complete investment debate state for isolated testing.
+
+    Scope: function (default)
+
+    Returns:
+        dict: Investment debate state (InvestDebateState)
+
+    Example:
+        def test_debate(sample_invest_debate):
+            assert sample_invest_debate["count"] > 0
+    """
+    return {
+        "history": "Round 1: Bull argues for strong buy based on fundamentals...\nRound 2: Bear raises valuation concerns...\nRound 3: Bull counters with growth prospects...",
+        "count": 3,
+        "judge_decision": "BUY: Bulls presented stronger evidence",
+        "bull_history": "Strong fundamentals, positive technicals, good sentiment",
+        "bear_history": "Valuation slightly stretched, some market risk",
+        "current_response": "Recommend BUY with conviction",
+    }
+
+
+@pytest.fixture
+def sample_risk_debate():
+    """
+    Sample risk debate state.
+
+    Provides a complete risk debate state for isolated testing.
+
+    Scope: function (default)
+
+    Returns:
+        dict: Risk debate state (RiskDebateState)
+
+    Example:
+        def test_risk_debate(sample_risk_debate):
+            assert sample_risk_debate["count"] > 0
+    """
+    return {
+        "history": "Round 1: Risk analysts evaluate position sizing...\nRound 2: Discussion on risk parameters...",
+        "count": 2,
+        "judge_decision": "BUY: Risk acceptable with standard position size",
+        "risky_history": "Aggressive position justified by strong signals",
+        "safe_history": "Conservative position appropriate given uncertainty",
+        "neutral_history": "Standard position sizing recommended",
+        "latest_speaker": "neutral",
+        "current_risky_response": "Take larger position",
+        "current_safe_response": "Take smaller position",
+        "current_neutral_response": "Standard position is balanced",
+    }
