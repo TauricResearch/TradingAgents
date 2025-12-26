@@ -8,10 +8,12 @@ This module provides simulation capabilities including:
 
 Issue #33: [SIM-32] Scenario runner - parallel portfolio simulations
 Issue #34: [SIM-33] Strategy comparator - performance comparison, stats
+Issue #35: [SIM-34] Economic conditions - regime tagging, evaluation
 
 Submodules:
     scenario_runner: Core scenario execution framework
     strategy_comparator: Strategy comparison and statistical analysis
+    economic_conditions: Economic regime tagging and evaluation
 
 Classes:
     Enums:
@@ -19,6 +21,10 @@ Classes:
     - ScenarioStatus: Status of a scenario run
     - RankingCriteria: Criteria for ranking strategies
     - ComparisonStatus: Status of strategy comparison
+    - MarketRegime: Bull/bear/sideways market classification
+    - VolatilityRegime: Low/normal/elevated/high volatility
+    - TrendStrength: Strength of detected trend
+    - RegimeConfidence: Confidence in regime classification
 
     Data Classes:
     - ScenarioConfig: Configuration for a simulation scenario
@@ -27,11 +33,18 @@ Classes:
     - StrategyMetrics: Performance metrics for a strategy
     - PairwiseComparison: Comparison between two strategies
     - ComparisonResult: Complete result of strategy comparison
+    - RegimeTag: Tag for a period with regime information
+    - RegimePerformance: Performance summary for a regime
+    - RegimeTransition: Record of regime transitions
+    - RegimeRecommendation: Strategy recommendations per regime
+    - RegimeEvaluationResult: Complete regime evaluation result
 
     Main Classes:
     - ScenarioRunner: Runner for parallel portfolio simulations
     - ScenarioBatchBuilder: Builder for creating scenario batches
     - StrategyComparator: Compares multiple trading strategies
+    - RegimeDetector: Detects market and volatility regimes
+    - RegimeEvaluator: Evaluates strategy performance by regime
 
     Protocols:
     - ScenarioExecutor: Protocol for scenario execution functions
@@ -96,6 +109,23 @@ from .strategy_comparator import (
     StrategyComparator,
 )
 
+from .economic_conditions import (
+    # Enums
+    MarketRegime,
+    VolatilityRegime,
+    TrendStrength,
+    RegimeConfidence,
+    # Data Classes
+    RegimeTag,
+    RegimePerformance,
+    RegimeTransition,
+    RegimeRecommendation,
+    RegimeEvaluationResult,
+    # Main Classes
+    RegimeDetector,
+    RegimeEvaluator,
+)
+
 __all__ = [
     # Scenario Runner Enums
     "ExecutionMode",
@@ -122,4 +152,18 @@ __all__ = [
     "ComparisonResult",
     # Strategy Comparator Main Class
     "StrategyComparator",
+    # Economic Conditions Enums
+    "MarketRegime",
+    "VolatilityRegime",
+    "TrendStrength",
+    "RegimeConfidence",
+    # Economic Conditions Data Classes
+    "RegimeTag",
+    "RegimePerformance",
+    "RegimeTransition",
+    "RegimeRecommendation",
+    "RegimeEvaluationResult",
+    # Economic Conditions Main Classes
+    "RegimeDetector",
+    "RegimeEvaluator",
 ]
