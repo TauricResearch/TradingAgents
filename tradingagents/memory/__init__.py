@@ -7,6 +7,7 @@ This module provides a layered memory system with three scoring dimensions:
 
 Issue #18: Layered memory - recency, relevancy, importance scoring
 Issue #19: Trade history memory - outcomes, agent reasoning
+Issue #20: Risk profiles memory - user preferences over time
 """
 
 from .layered_memory import (
@@ -28,6 +29,15 @@ from .trade_history import (
     MarketContext,
 )
 
+from .risk_profiles import (
+    RiskProfileMemory,
+    RiskProfile,
+    RiskDecision,
+    RiskTolerance,
+    MarketRegime,
+    RiskCategory,
+)
+
 __all__ = [
     # Layered Memory (Issue #18)
     "LayeredMemory",
@@ -44,4 +54,11 @@ __all__ = [
     "SignalStrength",
     "AgentReasoning",
     "MarketContext",
+    # Risk Profiles (Issue #20)
+    "RiskProfileMemory",
+    "RiskProfile",
+    "RiskDecision",
+    "RiskTolerance",
+    "MarketRegime",
+    "RiskCategory",
 ]
