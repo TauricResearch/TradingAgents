@@ -1,0 +1,125 @@
+{
+  "description": "Autonomous Dev - Full auto-approval with layered security (RECOMMENDED)",
+  "version": "3.38.0",
+  "notes": [
+    "Layer 1: Native permissions block provides zero-latency auto-approval",
+    "Layer 2: PreToolUse hook provides enhanced security validation",
+    "Layer 3: Audit logging tracks all approvals/denials",
+    "Result: Zero prompts for trusted operations, full security for edge cases"
+  ],
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Write(**)",
+      "Edit(**)",
+      "Glob",
+      "Grep",
+      "Bash(:*)",
+      "Task",
+      "WebFetch",
+      "WebSearch",
+      "TodoWrite",
+      "NotebookEdit",
+      "ExitPlanMode",
+      "BashOutput",
+      "KillShell",
+      "AskUserQuestion",
+      "Skill",
+      "SlashCommand",
+      "EnterPlanMode",
+      "AgentOutputTool",
+      "mcp__"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Read(./secrets/**)",
+      "Read(**/credentials/**)",
+      "Read(**/.git/config)",
+      "Write(/etc/**)",
+      "Write(/System/**)",
+      "Write(/usr/**)",
+      "Write(~/.ssh/**)",
+      "Write(~/.aws/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(curl*|*bash)",
+      "Bash(wget*|*bash)",
+      "Bash(eval:*)",
+      "Bash(exec:*)",
+      "Bash(dd:*)",
+      "Bash(mkfs:*)",
+      "Bash(fdisk:*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)",
+      "Bash(kill -9 1)",
+      "Bash(killall:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(git push --force:*)",
+      "Bash(npm publish:*)",
+      "Bash(pip upload:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash plugins/autonomous-dev/hooks/SessionStart-batch-recovery.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "MCP_AUTO_APPROVE=true python3 plugins/autonomous-dev/hooks/unified_pre_tool.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": {
+          "tools": ["Write", "Edit"]
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/auto_format.py"
+          }
+        ]
+      }
+    ],
+    "PreCommit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/auto_test.py"
+          },
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/security_scan.py"
+          }
+        ]
+      }
+    ]
+  }
+}

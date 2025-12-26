@@ -1,0 +1,131 @@
+{
+  "description": "Strict Mode Configuration - Vibe coding with strict enforcement",
+  "customInstructions": "STRICT MODE ACTIVE: When user requests a feature using natural language (e.g., 'implement X', 'add Y', 'create Z'), you MUST automatically invoke the /auto-implement command with their request. Do not just respond conversationally - actually run the command. Example: User says 'add Redis caching' → You run: /auto-implement 'add Redis caching'. This ensures orchestrator validates PROJECT.md alignment before any work begins.",
+  "permissions": {
+    "allow": [
+      "Bash(:*)",
+      "Read(**)",
+      "Write(**)",
+      "Edit(**)",
+      "Glob",
+      "Grep",
+      "NotebookEdit",
+      "Task",
+      "WebFetch",
+      "WebSearch",
+      "TodoWrite",
+      "ExitPlanMode",
+      "BashOutput",
+      "KillShell",
+      "AskUserQuestion",
+      "Skill",
+      "SlashCommand",
+      "EnterPlanMode",
+      "AgentOutputTool",
+      "mcp__"
+    ],
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(**/credentials/**)",
+      "Write(~/.ssh/**)",
+      "Write(~/.aws/**)",
+      "Write(/etc/**)",
+      "Write(/usr/**)",
+      "Write(/System/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(eval:*)",
+      "Bash(curl*|*bash)",
+      "Bash(wget*|*bash)"
+    ],
+    "ask": [],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '⭐ STRICT MODE ENABLED\\n- PROJECT.md alignment REQUIRED before any feature work\\n- All SDLC steps enforced (Research → Plan → Test → Implement → Review → Security → Docs)\\n- Auto-orchestration active: \"implement X\" triggers full pipeline\\n- File organization enforced: src/, docs/, tests/, scripts/\\n'"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/unified_prompt_validator.py && echo '[Auto-Orchestration] Invoking orchestrator for PROJECT.md validation...'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": {
+          "tools": ["Write", "Edit"]
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/auto_format.py"
+          }
+        ]
+      }
+    ],
+    "PreCommit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/validate_project_alignment.py || exit 1"
+          },
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/enforce_orchestrator.py || exit 1"
+          },
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/enforce_tdd.py || exit 1"
+          },
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/auto_fix_docs.py || exit 1"
+          },
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/validate_session_quality.py || exit 1"
+          },
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/auto_test.py || exit 1"
+          },
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/security_scan.py || exit 1"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/unified_session_tracker.py subagent 'Subagent completed task'"
+          }
+        ]
+      }
+    ]
+  }
+}

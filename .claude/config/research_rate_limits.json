@@ -1,0 +1,22 @@
+{
+  "web_search": {
+    "max_parallel": 3,
+    "backoff_strategy": "exponential",
+    "initial_delay_ms": 500,
+    "max_delay_ms": 5000
+  },
+  "deep_dive": {
+    "max_depth": 2,
+    "diminishing_threshold": 0.3,
+    "min_quality_score": 0.6
+  },
+  "consensus": {
+    "similarity_threshold": 0.7,
+    "min_sources": 3
+  },
+  "rate_limiting": {
+    "max_parallel_searches": 3,
+    "requests_per_minute": 60,
+    "timeout_seconds": 30
+  }
+}

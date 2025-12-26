@@ -1,0 +1,92 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Write(**)",
+      "Edit(**)",
+      "Glob",
+      "Grep",
+      "Bash(:*)",
+      "Task",
+      "WebFetch",
+      "WebSearch",
+      "TodoWrite",
+      "NotebookEdit"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Write(/etc/**)",
+      "Write(/System/**)",
+      "Write(/usr/**)",
+      "Write(~/.ssh/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(curl*|*bash)",
+      "Bash(wget*|*bash)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/unified_prompt_validator.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "MCP_AUTO_APPROVE=true python3 ~/.claude/hooks/unified_pre_tool.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": {
+          "tools": ["Write", "Edit"]
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/auto_format.py"
+          }
+        ]
+      }
+    ],
+    "PreCommit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/auto_test.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/security_scan.py"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/validate_command_file_ops.py"
+          }
+        ]
+      }
+    ]
+  }
+}

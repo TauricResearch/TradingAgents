@@ -1,0 +1,30 @@
+{
+  "batch_id": "batch-20251226-testing-docs",
+  "features_file": "",
+  "features": [
+    "Issue #52: Create documentation structure (architecture, API, guides)",
+    "Issue #49: Add pytest conftest.py hierarchy with shared test fixtures",
+    "Issue #50: Restructure tests into unit/integration/e2e directories",
+    "Issue #51: Add test fixtures directory with mock data",
+    "Issue #53: Add UAT and evaluation tests for agent outputs"
+  ],
+  "total_features": 5,
+  "current_index": 0,
+  "completed_features": [],
+  "failed_features": [],
+  "context_token_estimate": 0,
+  "auto_clear_count": 0,
+  "auto_clear_events": [],
+  "status": "in_progress",
+  "issue_numbers": [52, 49, 50, 51, 53],
+  "source_type": "issues",
+  "feature_dependencies": {
+    "0": [],
+    "1": [],
+    "2": [1],
+    "3": [1, 2],
+    "4": [1, 2, 3]
+  },
+  "feature_order": [0, 1, 2, 3, 4],
+  "notes": "Testing and documentation infrastructure issues. #52 is independent (docs), #49-53 form dependency chain for test infrastructure."
+}

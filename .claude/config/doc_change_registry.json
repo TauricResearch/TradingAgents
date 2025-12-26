@@ -1,0 +1,91 @@
+{
+  "description": "Maps code changes to required documentation updates",
+  "version": "1.0.0",
+  "mappings": [
+    {
+      "code_pattern": "commands/*.md",
+      "required_docs": [
+        "README.md",
+        "plugins/autonomous-dev/QUICKSTART.md"
+      ],
+      "description": "New commands must be documented in README and QUICKSTART",
+      "suggestion": "Add command to README.md command list and QUICKSTART.md quick reference"
+    },
+    {
+      "code_pattern": "skills/*/",
+      "required_docs": [
+        "README.md",
+        ".claude-plugin/marketplace.json"
+      ],
+      "description": "New skills must update skill count in README and marketplace.json",
+      "suggestion": "Update skill count in README.md (e.g., '9 skills' → '10 skills') and marketplace.json metrics.skills"
+    },
+    {
+      "code_pattern": "agents/*.md",
+      "required_docs": [
+        "README.md",
+        ".claude-plugin/marketplace.json"
+      ],
+      "description": "New agents must update agent count in README and marketplace.json",
+      "suggestion": "Update agent count in README.md and marketplace.json metrics.agents"
+    },
+    {
+      "code_pattern": "hooks/*.py",
+      "required_docs": [
+        "README.md",
+        "plugins/autonomous-dev/docs/STRICT-MODE.md"
+      ],
+      "description": "New hooks must be documented in README and STRICT-MODE guide",
+      "suggestion": "Document hook purpose, when it runs, and what it enforces"
+    },
+    {
+      "code_pattern": "scripts/setup.py",
+      "required_docs": [
+        "plugins/autonomous-dev/QUICKSTART.md",
+        "README.md"
+      ],
+      "description": "Setup script changes may affect installation instructions",
+      "suggestion": "Review and update installation steps in QUICKSTART.md and README.md"
+    },
+    {
+      "code_pattern": "templates/*.json",
+      "required_docs": [
+        "plugins/autonomous-dev/docs/STRICT-MODE.md",
+        "README.md"
+      ],
+      "description": "Template changes may affect configuration examples",
+      "suggestion": "Update configuration examples and strict mode documentation"
+    },
+    {
+      "code_pattern": ".claude-plugin/plugin.json",
+      "required_docs": [
+        "README.md",
+        "plugins/autonomous-dev/docs/UPDATES.md"
+      ],
+      "description": "Version changes require release notes and README update",
+      "suggestion": "Update version in README.md header and add release notes to UPDATES.md"
+    },
+    {
+      "code_pattern": ".claude-plugin/marketplace.json",
+      "required_docs": [
+        "README.md"
+      ],
+      "description": "Marketplace metadata changes should sync with README",
+      "suggestion": "Ensure README.md reflects updated metrics, description, or tags"
+    }
+  ],
+  "validation_rules": {
+    "require_all_docs": true,
+    "allow_partial_updates": false,
+    "check_content_changes": true,
+    "block_commit_on_violation": true
+  },
+  "exclusions": [
+    "tests/**/*",
+    "docs/sessions/**/*",
+    ".claude/cache/**/*",
+    ".claude/logs/**/*",
+    "*.pyc",
+    "__pycache__/**/*"
+  ]
+}

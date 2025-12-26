@@ -1,0 +1,9 @@
+fix(tests): add mock_env_openrouter fixture to all OpenRouter tests
+
+- Add mock_env_openrouter to tests that use openrouter_config
+- Update API key validation tests to expect ValueError when OPENROUTER_API_KEY missing
+- All 30 tests now pass
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>

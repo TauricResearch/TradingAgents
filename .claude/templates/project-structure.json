@@ -1,0 +1,108 @@
+{
+  "description": "Standard Project Structure - Enforced by strict mode",
+  "version": "1.0.0",
+  "structure": {
+    "src/": {
+      "description": "All source code",
+      "required": true,
+      "examples": [
+        "src/main.py",
+        "src/app/",
+        "src/lib/",
+        "src/utils/"
+      ]
+    },
+    "tests/": {
+      "description": "All test files organized by type",
+      "required": true,
+      "subdirectories": {
+        "unit/": "Unit tests for individual functions/classes",
+        "integration/": "Integration tests for component interaction",
+        "uat/": "User acceptance tests for end-to-end workflows"
+      },
+      "examples": [
+        "tests/unit/test_utils.py",
+        "tests/integration/test_api.py",
+        "tests/uat/test_user_journey.py"
+      ]
+    },
+    "docs/": {
+      "description": "All documentation",
+      "required": true,
+      "subdirectories": {
+        "api/": "API documentation (auto-generated)",
+        "guides/": "User guides and tutorials",
+        "sessions/": "Session logs from Claude Code",
+        "architecture/": "Architecture decision records (ADRs)"
+      },
+      "examples": [
+        "docs/api/endpoints.md",
+        "docs/guides/getting-started.md",
+        "docs/sessions/20250101-120000-session.md",
+        "docs/architecture/001-database-choice.md"
+      ]
+    },
+    "scripts/": {
+      "description": "Utility scripts (setup, deployment, maintenance)",
+      "required": false,
+      "examples": [
+        "scripts/setup.py",
+        "scripts/deploy.sh",
+        "scripts/migrate.py"
+      ]
+    },
+    ".claude/": {
+      "description": "Claude Code configuration (gitignored)",
+      "required": true,
+      "files": {
+        "PROJECT.md": "Strategic direction (GOALS, SCOPE, CONSTRAINTS)",
+        "settings.local.json": "Local hooks and permissions",
+        "hooks/": "Project-specific hooks",
+        "templates/": "Project templates"
+      }
+    },
+    "Root directory": {
+      "description": "Keep root clean - only essential files",
+      "allowed_files": [
+        "README.md",
+        "LICENSE",
+        ".gitignore",
+        ".env.example",
+        "pyproject.toml",
+        "package.json",
+        "requirements.txt",
+        "Makefile",
+        "Dockerfile",
+        "docker-compose.yml"
+      ],
+      "prohibited_files": [
+        "test.py",
+        "temp.py",
+        "scratch.py",
+        "notes.txt",
+        "TODO.txt"
+      ]
+    }
+  },
+  "rules": {
+    "source_code": "Must be in src/ directory",
+    "tests": "Must be in tests/ with subdirectories by type",
+    "documentation": "Must be in docs/ directory",
+    "scripts": "Utility scripts in scripts/ directory",
+    "config": "Configuration in root or .claude/",
+    "root_cleanup": "No loose files in root (use appropriate directories)"
+  },
+  "migration": {
+    "description": "How to migrate existing project to this structure",
+    "steps": [
+      "1. Create standard directories (src/, tests/, docs/, scripts/)",
+      "2. Move source files to src/",
+      "3. Organize tests into tests/unit/, tests/integration/, tests/uat/",
+      "4. Move documentation to docs/",
+      "5. Move utility scripts to scripts/",
+      "6. Clean root directory (move/delete loose files)",
+      "7. Create .claude/PROJECT.md",
+      "8. Run validation: /align-project"
+    ]
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(npm:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pytest:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(gh:*)",
+      "Bash(pip:*)",
+      "Bash(pip3:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(cd:*)",
+      "Bash(pwd:*)",
+      "Bash(echo:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(diff:*)",
+      "Bash(ps:*)",
+      "Bash(kill:*)",
+      "Bash(which:*)",
+      "Bash(env:*)",
+      "Bash(export:*)",
+      "Bash(source:*)",
+      "Bash(./scripts:*)",
+      "Bash(bun:*)",
+      "Bash(node:*)",
+      "Bash(yarn:*)",
+      "Bash(pnpm:*)",
+      "Bash(docker:*)",
+      "Bash(make:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Read(**)",
+      "Write(**)",
+      "Edit(**)",
+      "Glob",
+      "Grep",
+      "NotebookEdit",
+      "Task",
+      "WebFetch",
+      "WebSearch",
+      "TodoWrite",
+      "ExitPlanMode",
+      "BashOutput",
+      "KillShell",
+      "AskUserQuestion",
+      "Skill",
+      "SlashCommand",
+      "EnterPlanMode",
+      "AgentOutputTool",
+      "mcp__*"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(./secrets/**)",
+      "Read(**/credentials/**)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)",
+      "Read(~/.gnupg/**)",
+      "Write(~/.ssh/**)",
+      "Write(~/.aws/**)",
+      "Write(/etc/**)",
+      "Write(/usr/**)",
+      "Write(/System/**)",
+      "Write(/root/**)",
+      "Write(~/.gnupg/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(eval:*)",
+      "Bash(dd:*)",
+      "Bash(mkfs:*)",
+      "Bash(fdisk:*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)",
+      "Bash(init:*)"
+    ],
+    "ask": []
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/unified_prompt_validator.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "MCP_AUTO_APPROVE=true python3 ~/.claude/hooks/unified_pre_tool.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/unified_post_tool.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/unified_session_tracker.py",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "quality-validator",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/unified_git_automation.py",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

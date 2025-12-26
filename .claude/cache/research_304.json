@@ -1,0 +1,29 @@
+{
+  "issue_number": 304,
+  "feature": "Rename project from TradingAgents to Spektiv",
+  "research": {
+    "patterns": [
+      "git mv for directory rename preserves history",
+      "sed find-replace for bulk import updates",
+      "Phased approach: directory -> imports -> config -> docs -> db"
+    ],
+    "best_practices": [
+      "Atomic rename - update all references in single commit",
+      "Version bump to 0.2.0 for breaking change",
+      "Database migration instructions for existing users",
+      "Verification with grep to ensure no lingering references"
+    ],
+    "files_affected": {
+      "python_files": "~120+",
+      "config_files": ["setup.py", "pyproject.toml", "alembic.ini", "pytest.ini"],
+      "documentation": ["README.md", "PROJECT.md", "docs/**/*.md"],
+      "database": "tradingagents.db -> spektiv.db"
+    },
+    "security_considerations": [
+      "No security impact - cosmetic rename only",
+      "Database file permissions preserved on rename"
+    ]
+  },
+  "created_at": "2025-12-26T00:00:00Z",
+  "expires_at": "2025-12-27T00:00:00Z"
+}

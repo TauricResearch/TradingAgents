@@ -1,0 +1,52 @@
+{
+  "version": "1.0.0",
+  "description": "Installation manifest for autonomous-dev plugin",
+  "last_updated": "2025-12-13",
+  "include_directories": [
+    "agents",
+    "commands",
+    "hooks",
+    "skills",
+    "lib",
+    "scripts",
+    "config",
+    "templates"
+  ],
+  "exclude_patterns": [
+    "*.pyc",
+    "*.pyo",
+    "*.pyd",
+    "__pycache__",
+    ".pytest_cache",
+    "archive/",
+    "*.disabled",
+    "*.egg-info",
+    ".eggs",
+    ".git",
+    ".gitignore",
+    ".gitattributes",
+    ".vscode",
+    ".idea",
+    "*.swp",
+    "*.swo",
+    ".DS_Store",
+    "*.tmp",
+    "*.bak",
+    "*.log",
+    "*~"
+  ],
+  "required_directories": [
+    "lib",
+    "scripts",
+    "config"
+  ],
+  "executable_patterns": [
+    "scripts/*.py",
+    "hooks/*.py"
+  ],
+  "preserve_on_upgrade": [
+    ".env",
+    "settings.local.json",
+    "custom_hooks/"
+  ]
+}

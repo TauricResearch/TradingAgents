@@ -1,0 +1,67 @@
+{
+  "description": "Permission Batching Configuration - Reduce approval prompts by 80%",
+  "version": "3.38.0",
+  "notes": [
+    "Uses 'ask' permission level for fine-grained control",
+    "Auto-approves reads, batches writes for user confirmation",
+    "Good balance between security and convenience"
+  ],
+  "permissionBatching": {
+    "enabled": true,
+    "autoApproveSafeReads": true,
+    "autoApproveProjectWrites": true,
+    "batchWindowSeconds": 5
+  },
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Grep",
+      "Glob",
+      "Task",
+      "WebSearch",
+      "TodoWrite",
+      "mcp__"
+    ],
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(**/credentials/**)",
+      "Write(~/.ssh/**)",
+      "Write(~/.aws/**)",
+      "Write(/etc/**)",
+      "Write(/usr/**)",
+      "Write(/System/**)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(eval:*)"
+    ],
+    "ask": [
+      "Write(**)",
+      "Edit(**)",
+      "Bash(:*)",
+      "Bash(git push:*)",
+      "Bash(git push --force:*)",
+      "Bash(npm publish:*)",
+      "Bash(pip upload:*)",
+      "WebFetch"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python plugins/autonomous-dev/hooks/batch_permission_approver.py"
+          }
+        ]
+      }
+    ]
+  }
+}
