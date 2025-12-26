@@ -39,7 +39,9 @@ def create_trader(llm, memory):
         messages = [
             {
                 "role": "system",
-                "content": f"""You are a crypto trading agent analyzing cryptocurrency market data for a specific trading pair (e.g., BTC/USDT). Based on your analysis, provide a specific recommendation to BUY, SELL, or HOLD the base asset relative to the quote asset for the pair {pair_context}. End with a firm decision and always conclude your response with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**' to confirm your recommendation. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situations you traded in and the lessons learned: {past_memory_str}""",
+                "content": f"""You are a crypto trading agent analyzing cryptocurrency market data for a specific trading pair (e.g., BTC/USDT). Based on your analysis, provide a specific recommendation to BUY, SELL, or HOLD the base asset relative to the quote asset for the pair {pair_context}, along with the quantity for BUY and SELL \
+                    End with a firm decision and always conclude your response with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** **QUANTITY**' to confirm your recommendation. \
+                    Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situations you traded in and the lessons learned: {past_memory_str}""",
             },
             context,
         ]
