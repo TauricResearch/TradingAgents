@@ -5,14 +5,14 @@ from tradingagents.dataflows.interface import route_to_vendor
 
 @tool
 def get_fundamentals(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, "ticker symbol"], # e.g., 'BTC/USDT'
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
 ) -> str:
     """
     Retrieve comprehensive fundamental data for a given ticker symbol.
     Uses the configured fundamental_data vendor.
     Args:
-        ticker (str): Ticker symbol of the company
+        ticker (str): Ticker symbol of the cryptocurrency
         curr_date (str): Current date you are trading at, yyyy-mm-dd
     Returns:
         str: A formatted report containing comprehensive fundamental data

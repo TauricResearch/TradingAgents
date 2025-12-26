@@ -28,16 +28,16 @@ def get_market_data(symbol: str, start_date: str, end_date: str):
         CSV formatted string with OHLCV data
     """
     # remove / from symbol for binance format
-    symbol = symbol.replace("/", "")
+    formatted_symbol = symbol.replace("/", "")
 
     # Convert dates to epoch time (milliseconds)
     start_epoch = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
     end_epoch = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp() * 1000)
     
-    print(f"DEBUG: Fetching data for {symbol} from {start_date} to {end_date}")
+    print(f"DEBUG: Fetching data for {formatted_symbol} from {start_date} to {end_date}")
     try:
         response = client.rest_api.klines(
-            symbol=symbol,
+            symbol=formatted_symbol,
             start_time=start_epoch,
             end_time=end_epoch,
             interval="1d",

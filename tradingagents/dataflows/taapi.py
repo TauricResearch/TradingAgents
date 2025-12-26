@@ -149,7 +149,10 @@ def get_crypto_stats_indicators(
     Returns:
         str: A formatted report containing all requested technical indicators for the specified ticker symbol.
     """
-    
+    # validate symbol it must in format BASE/QUOTE
+    if "/" not in symbol:
+        return f"Error: Symbol '{symbol}' is not in the correct format. Please use 'BASE/QUOTE' format, e.g., 'BTC/USDT'."
+
     # Supported indicators mapping
     supported_indicators = {
         "sma": "Simple Moving Average",

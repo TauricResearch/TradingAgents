@@ -37,7 +37,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_insider_sentiment,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_fear_and_greed
 )
 
 from .conditional_logic import ConditionalLogic
@@ -142,6 +143,7 @@ class TradingAgentsGraph:
                 [
                     # News tools for social media analysis
                     get_news,
+                    get_fear_and_greed,
                 ]
             ),
             "news": ToolNode(
