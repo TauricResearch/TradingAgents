@@ -8,6 +8,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Backtest module for historical strategy replay (Issues #42-44)
+  - BacktestEngine with historical price replay and trade execution simulation [file:tradingagents/backtest/backtest_engine.py](tradingagents/backtest/backtest_engine.py)
+  - Slippage models: NoSlippage, FixedSlippage, PercentageSlippage, VolumeSlippage
+  - Commission models: NoCommission, FixedCommission, PerShareCommission, PercentageCommission, TieredCommission
+  - Signal processing with OrderSide, OrderType, FillStatus enums
+  - OHLCV, Signal, BacktestConfig, BacktestPosition, BacktestTrade, BacktestSnapshot, BacktestResult dataclasses
+  - ResultsAnalyzer for post-backtest metrics calculation [file:tradingagents/backtest/results_analyzer.py](tradingagents/backtest/results_analyzer.py)
+  - RiskMetrics: Sharpe, Sortino, Calmar, VaR, CVaR, Ulcer index
+  - TradeStatistics: Win rate, profit factor, consecutive wins/losses, average trade
+  - BenchmarkComparison: Alpha, beta, correlation, capture ratios
+  - DrawdownAnalysis: Underwater periods, recovery tracking, max drawdown duration
+  - Monthly and yearly performance breakdown with PerformanceBreakdown dataclass
+  - ReportGenerator for PDF/HTML/JSON/Markdown report generation [file:tradingagents/backtest/report_generator.py](tradingagents/backtest/report_generator.py)
+  - SVG chart generation for equity curves, drawdown charts, monthly heatmaps
+  - Configurable report sections and color schemes via ReportConfig
+  - Factory functions: create_backtest_engine(), create_results_analyzer(), create_report_generator()
+  - Total: 143 tests (57 backtest engine + 42 results analyzer + 44 report generator)
+
+- Alert notification system (Issues #38-41)
+  - AlertManager for orchestrating multi-channel notifications [file:tradingagents/alerts/alert_manager.py](tradingagents/alerts/alert_manager.py)
+  - Alert, AlertConfig, AlertResult, AlertBatch dataclasses
+  - AlertType enum: TRADE_SIGNAL, RISK_WARNING, POSITION_UPDATE, SYSTEM_ALERT, PRICE_ALERT
+  - AlertPriority enum: LOW, NORMAL, HIGH, CRITICAL
+  - AlertChannel enum: EMAIL, SMS, SLACK, PUSH, WEBHOOK
+  - Channel routing based on alert type and priority
+  - Rate limiting and batching support
+  - SlackChannel for Slack webhook integration [file:tradingagents/alerts/slack_channel.py](tradingagents/alerts/slack_channel.py)
+  - Block Kit message formatting with attachments
+  - Thread support and emoji reactions
+  - SMSChannel for Twilio SMS integration [file:tradingagents/alerts/sms_channel.py](tradingagents/alerts/sms_channel.py)
+  - Message segmentation for long texts
+  - Delivery status tracking
+  - Total: 158 tests (55 alert manager + 44 slack + 59 SMS)
+
+- Execution module for broker integration (Issues #22-28)
+  - BrokerBase abstract interface for broker implementations [file:tradingagents/execution/broker_base.py](tradingagents/execution/broker_base.py)
+  - Order, Position, OrderStatus, OrderType, OrderSide, TimeInForce dataclasses
+  - BrokerRouter for routing orders by asset class [file:tradingagents/execution/broker_router.py](tradingagents/execution/broker_router.py)
+  - AlpacaBroker for US stocks, ETFs, and crypto [file:tradingagents/execution/alpaca_broker.py](tradingagents/execution/alpaca_broker.py)
+  - IBKRBroker for futures and ASX equities [file:tradingagents/execution/ibkr_broker.py](tradingagents/execution/ibkr_broker.py)
+  - PaperBroker for simulation mode [file:tradingagents/execution/paper_broker.py](tradingagents/execution/paper_broker.py)
+  - OrderManager for order lifecycle management [file:tradingagents/execution/order_manager.py](tradingagents/execution/order_manager.py)
+  - RiskControls for position limits and loss limits [file:tradingagents/execution/risk_controls.py](tradingagents/execution/risk_controls.py)
+  - Total: 358 tests across execution module
+
+- Memory system with layered architecture (Issues #18-21)
+  - LayeredMemory with recency, relevancy, importance scoring [file:tradingagents/memory/layered_memory.py](tradingagents/memory/layered_memory.py)
+  - TradeHistoryMemory for trade outcomes and agent reasoning [file:tradingagents/memory/trade_history.py](tradingagents/memory/trade_history.py)
+  - RiskProfilesMemory for user preferences over time [file:tradingagents/memory/risk_profiles.py](tradingagents/memory/risk_profiles.py)
+  - Memory integration with agent prompts [file:tradingagents/memory/memory_integration.py](tradingagents/memory/memory_integration.py)
+  - Total: 207 tests across memory module
+
+- Portfolio management (Issues #29, #31-32)
+  - PortfolioState for holdings, cash, mark-to-market [file:tradingagents/portfolio/portfolio_state.py](tradingagents/portfolio/portfolio_state.py)
+  - PerformanceMetrics for Sharpe, Sortino, drawdown, returns [file:tradingagents/portfolio/performance_metrics.py](tradingagents/portfolio/performance_metrics.py)
+  - AustralianCGTCalculator for 50% discount and tax reports [file:tradingagents/portfolio/cgt_calculator.py](tradingagents/portfolio/cgt_calculator.py)
+  - Total: 197 tests across portfolio module
+
+- Simulation and strategy comparison (Issues #33-35)
+  - ScenarioRunner for parallel portfolio simulations [file:tradingagents/simulation/scenario_runner.py](tradingagents/simulation/scenario_runner.py)
+  - StrategyComparator for performance comparison and statistics [file:tradingagents/simulation/strategy_comparator.py](tradingagents/simulation/strategy_comparator.py)
+  - EconomicConditions for regime tagging and evaluation [file:tradingagents/simulation/economic_conditions.py](tradingagents/simulation/economic_conditions.py)
+  - Total: 141 tests across simulation module
+
+- Strategy execution (Issues #36-37)
+  - SignalToOrderConverter for converting signals to orders [file:tradingagents/strategy/signal_converter.py](tradingagents/strategy/signal_converter.py)
+  - StrategyExecutor for end-to-end orchestration [file:tradingagents/strategy/strategy_executor.py](tradingagents/strategy/strategy_executor.py)
+  - Total: 93 tests across strategy module
+
+- New analyst agents (Issues #13-17)
+  - MomentumAnalyst for multi-timeframe momentum, ROC, ADX [file:tradingagents/agents/analysts/momentum_analyst.py](tradingagents/agents/analysts/momentum_analyst.py)
+  - MacroAnalyst for FRED data interpretation, regime detection [file:tradingagents/agents/analysts/macro_analyst.py](tradingagents/agents/analysts/macro_analyst.py)
+  - CorrelationAnalyst for cross-asset and sector rotation [file:tradingagents/agents/analysts/correlation_analyst.py](tradingagents/agents/analysts/correlation_analyst.py)
+  - PositionSizingManager for Kelly criterion, risk parity, ATR sizing [file:tradingagents/agents/analysts/position_sizing.py](tradingagents/agents/analysts/position_sizing.py)
+  - Analyst integration with graph/setup.py workflow
+  - Total: 250 tests across new analyst agents
+
+- Data vendor enhancements (Issues #11-12)
+  - VendorRouter for adding new data vendors [file:tradingagents/dataflows/vendor_routing.py](tradingagents/dataflows/vendor_routing.py)
+  - DataCacheLayer for FRED rate limit management [file:tradingagents/dataflows/data_cache.py](tradingagents/dataflows/data_cache.py)
+  - Total: 125 tests for vendor routing and caching
+
 - Trade model for execution history with CGT tracking (Issue #6: DB-5)
   - Trade model with BUY/SELL sides and execution status tracking (PENDING, FILLED, PARTIAL, CANCELLED, REJECTED) [file:tradingagents/api/models/trade.py](tradingagents/api/models/trade.py)
   - TradeSide, TradeStatus, TradeOrderType enums for type-safe trade operations [file:tradingagents/api/models/trade.py:86-137](tradingagents/api/models/trade.py)

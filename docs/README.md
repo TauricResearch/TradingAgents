@@ -29,6 +29,19 @@ Detailed API documentation for developers:
 - **[TradingGraph API](api/trading-graph.md)** - Core orchestration API
 - **[Agents API](api/agents.md)** - Agent interfaces and implementations
 - **[Data Flows API](api/dataflows.md)** - Data vendor integrations
+- **[REST API](api/rest-api.md)** - FastAPI backend endpoints
+
+### Module Reference
+
+Documentation for core modules:
+
+- **[Backtest Module](modules/backtest.md)** - Historical strategy replay, slippage/commission models, results analysis, report generation
+- **[Alerts Module](modules/alerts.md)** - Multi-channel notifications (Slack, SMS, webhooks)
+- **[Execution Module](modules/execution.md)** - Broker integrations (Alpaca, IBKR, Paper), order management, risk controls
+- **[Memory Module](modules/memory.md)** - Layered memory system, trade history, risk profiles
+- **[Portfolio Module](modules/portfolio.md)** - Portfolio state, performance metrics, CGT calculator
+- **[Simulation Module](modules/simulation.md)** - Scenario runner, strategy comparator, economic conditions
+- **[Strategy Module](modules/strategy.md)** - Signal conversion, strategy execution
 
 ### Guides
 
