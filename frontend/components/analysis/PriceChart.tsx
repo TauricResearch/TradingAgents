@@ -11,10 +11,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Rectangle,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { PriceData, PriceStats } from "@/lib/types";
 
@@ -98,7 +97,7 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
   const priceValues = heikinAshiData.flatMap(d => [d.HA_High, d.HA_Low]);
   const minPrice = Math.min(...priceValues);
   const maxPrice = Math.max(...priceValues);
-  const priceRange = maxPrice - minPrice;
+  const _priceRange = maxPrice - minPrice;
 
   // Localized labels
   const labels = {
@@ -111,10 +110,12 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
     lineChart: t.results.priceSection.lineChart,
     candlestick: t.results.priceSection.candlestick,
     volume: t.results.volumeChart,
+    adjClosePrice: locale === 'en' ? 'Adj Close' : '調整後收盤價',
     closePrice: locale === 'en' ? 'Close' : '收盤價',
     date: locale === 'en' ? 'Date' : '日期',
     open: locale === 'en' ? 'Open' : '開',
     close: locale === 'en' ? 'Close' : '收',
+    adjClose: locale === 'en' ? 'Adj Close' : '調整收',
     high: locale === 'en' ? 'High' : '高',
     low: locale === 'en' ? 'Low' : '低',
     up: locale === 'en' ? '↑ Up' : '↑ 上漲',
@@ -178,18 +179,38 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                   tickFormatter={(value) => `$${value.toFixed(0)}`}
                 />
                 <Tooltip 
-                  formatter={(value: number | undefined) => [
-                    value !== undefined ? `$${formatNumber(value)}` : '-', 
-                    labels.closePrice
-                  ]}
-                  labelFormatter={(label) => `${labels.date}: ${label}`}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload as PriceData;
+                      const adjClose = data["Adj Close"];
+                      const close = data.Close;
+                      const hasAdjClose = adjClose !== undefined && adjClose !== null;
+                      
+                      return (
+                        <div className="bg-background border border-border p-3 rounded-lg shadow-lg">
+                          <p className="text-sm font-semibold mb-2">{labels.date}: {data.Date}</p>
+                          <div className="space-y-1 text-sm">
+                            {hasAdjClose && (
+                              <p className="text-blue-600 font-medium">
+                                {labels.adjClosePrice}: ${formatNumber(adjClose)}
+                              </p>
+                            )}
+                            <p className={hasAdjClose ? "text-gray-500 text-xs" : "text-blue-600"}>
+                              {labels.closePrice}: ${formatNumber(close)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey={(data: PriceData) => getCloseValue(data)}
                   stroke="#93c5fd" 
                   strokeWidth={2}
-                  name={labels.closePrice} 
+                  name={labels.adjClosePrice} 
                   dot={false}
                 />
               </LineChart>
@@ -212,7 +233,9 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                       const data = payload[0].payload as HeikinAshiData;
                       const isUp = data.HA_Close > data.HA_Open;
                       const isDown = data.HA_Close < data.HA_Open;
-                      const isNeutral = data.HA_Close === data.HA_Open;
+                      const adjClose = data["Adj Close"];
+                      const close = data.Close;
+                      const hasAdjClose = adjClose !== undefined && adjClose !== null;
                       
                       // Trend color coding for the direction indicator
                       const trendColor = isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-gray-600';
@@ -221,7 +244,25 @@ export function PriceChart({ priceData, priceStats, ticker }: PriceChartProps) {
                       return (
                         <div className="bg-background border border-border p-3 rounded-lg shadow-lg">
                           <p className="text-sm font-semibold mb-2">{labels.date}: {data.Date}</p>
+                          
+                          {/* 原始價格 - Adj Close 為主 */}
+                          <div className="mb-2 pb-2 border-b border-border">
+                            <p className="text-xs text-muted-foreground mb-1">
+                              {locale === 'en' ? 'Actual Prices' : '實際價格'}
+                            </p>
+                            {hasAdjClose && (
+                              <p className="text-blue-600 font-medium text-sm">
+                                {labels.adjClosePrice}: ${formatNumber(adjClose)}
+                              </p>
+                            )}
+                            <p className={hasAdjClose ? "text-gray-500 text-xs" : "text-blue-600 text-sm"}>
+                              {labels.closePrice}: ${formatNumber(close)}
+                            </p>
+                          </div>
+                          
+                          {/* Heikin Ashi 值 */}
                           <div className="space-y-1 text-sm">
+                            <p className="text-xs text-muted-foreground mb-1">Heikin Ashi</p>
                             <p className="text-purple-600">
                               {labels.open}: ${formatNumber(data.HA_Open)}
                             </p>
@@ -303,7 +344,7 @@ const HeikinAshiCandlestickShape: React.FC<HeikinAshiCandlestickShapeProps> = (p
   const { HA_Open, HA_Close, HA_High, HA_Low } = payload;
   const isUp = HA_Close > HA_Open;
   const isDown = HA_Close < HA_Open;
-  const isNeutral = HA_Close === HA_Open;
+  const _isNeutral = HA_Close === HA_Open;
   
   // Color coding: green for up, red for down, gray for neutral
   let fillColor: string;

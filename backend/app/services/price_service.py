@@ -132,7 +132,9 @@ class PriceService:
                     yf_ticker,
                     start=start_date.strftime("%Y-%m-%d"),
                     end=end_date.strftime("%Y-%m-%d"),
+                    multi_level_index=False,
                     progress=False,
+                    auto_adjust=False,
                     timeout=30
                 )
                 
@@ -145,7 +147,9 @@ class PriceService:
                             alt_ticker,
                             start=start_date.strftime("%Y-%m-%d"),
                             end=end_date.strftime("%Y-%m-%d"),
+                            multi_level_index=False,
                             progress=False,
+                            auto_adjust=False,
                             timeout=30
                         )
                         if not data.empty:
@@ -157,7 +161,9 @@ class PriceService:
                             alt_ticker,
                             start=start_date.strftime("%Y-%m-%d"),
                             end=end_date.strftime("%Y-%m-%d"),
+                            multi_level_index=False,
                             progress=False,
+                            auto_adjust=False,
                             timeout=30
                         )
                         if not data.empty:

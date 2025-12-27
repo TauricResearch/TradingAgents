@@ -37,14 +37,24 @@ class YFinanceUtils:
     ) -> pl.DataFrame:
         """檢索指定股票代碼的股價數據"""
         from datetime import datetime, timedelta
-        ticker = symbol
+        ticker = symbol  # 這裡 symbol 已被裝飾器轉換為 yf.Ticker 對象
+        ticker_symbol = ticker.ticker  # 獲取股票代碼字串
         # 將結束日期加一天，使數據範圍包含結束日期
         end_date_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
         end_date = end_date_dt.strftime("%Y-%m-%d")
-        stock_data = ticker.history(start=start_date, end=end_date)
+        # 使用 yf.download() 統一獲取數據
+        stock_data = yf.download(
+            ticker_symbol,
+            start=start_date,
+            end=end_date,
+            multi_level_index=False,
+            progress=False,
+            auto_adjust=False,
+            timeout=30
+        )
         # 轉換為 polars DataFrame
         stock_data_pl = pl.from_pandas(stock_data.reset_index())
-        # save_output(stock_data_pl, f"{ticker.ticker} 的股票數據", save_path)
+        # save_output(stock_data_pl, f"{ticker_symbol} 的股票數據", save_path)
         return stock_data_pl
 
     def get_stock_info(

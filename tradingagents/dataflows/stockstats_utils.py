@@ -82,7 +82,7 @@ class StockstatsUtils:
                     end=end_date_str,
                     multi_level_index=False,
                     progress=False,
-                    auto_adjust=True,
+                    auto_adjust=False,
                 )
                 data_yf = data_yf.reset_index()
                 data_yf.to_csv(data_file, index=False)

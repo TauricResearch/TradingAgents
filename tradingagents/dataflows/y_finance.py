@@ -32,12 +32,17 @@ def get_YFin_data_online(
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
 
-    # 建立股票代碼物件
-    ticker = yf.Ticker(symbol.upper())
-
-    # 獲取指定日期範圍的歷史數據（添加 timeout）
+    # 使用 yf.download() 獲取指定日期範圍的歷史數據
     try:
-        data = ticker.history(start=start_date, end=end_date, timeout=30)
+        data = yf.download(
+            symbol.upper(),
+            start=start_date,
+            end=end_date,
+            multi_level_index=False,
+            progress=False,
+            auto_adjust=False,
+            timeout=30
+        )
     except Exception as e:
         raise Exception(f"從 Yahoo Finance 獲取 {symbol} 數據失敗: {e}")
 
@@ -297,7 +302,7 @@ def _get_stock_stats_bulk(
                     end=end_date_str,
                     multi_level_index=False,
                     progress=False,
-                    auto_adjust=True,
+                    auto_adjust=False,
                     timeout=30
                 )
             
