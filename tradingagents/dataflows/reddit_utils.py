@@ -6,48 +6,7 @@ from contextlib import contextmanager
 from typing import Annotated
 import os
 import re
-
-ticker_to_company = {
-    "AAPL": "Apple",
-    "MSFT": "Microsoft",
-    "GOOGL": "Google",
-    "AMZN": "Amazon",
-    "TSLA": "Tesla",
-    "NVDA": "Nvidia",
-    "TSM": "Taiwan Semiconductor Manufacturing Company OR TSMC",
-    "JPM": "JPMorgan Chase OR JP Morgan",
-    "JNJ": "Johnson & Johnson OR JNJ",
-    "V": "Visa",
-    "WMT": "Walmart",
-    "META": "Meta OR Facebook",
-    "AMD": "AMD",
-    "INTC": "Intel",
-    "QCOM": "Qualcomm",
-    "BABA": "Alibaba",
-    "ADBE": "Adobe",
-    "NFLX": "Netflix",
-    "CRM": "Salesforce",
-    "PYPL": "PayPal",
-    "PLTR": "Palantir",
-    "MU": "Micron",
-    "SQ": "Block OR Square",
-    "ZM": "Zoom",
-    "CSCO": "Cisco",
-    "SHOP": "Shopify",
-    "ORCL": "Oracle",
-    "X": "Twitter OR X",
-    "SPOT": "Spotify",
-    "AVGO": "Broadcom",
-    "ASML": "ASML ",
-    "TWLO": "Twilio",
-    "SNAP": "Snap Inc.",
-    "TEAM": "Atlassian",
-    "SQSP": "Squarespace",
-    "UBER": "Uber",
-    "ROKU": "Roku",
-    "PINS": "Pinterest",
-}
-
+import yfinance as yf
 
 def fetch_top_from_category(
     category: Annotated[
@@ -98,11 +57,16 @@ def fetch_top_from_category(
 
                 # if is company_news, check that the title or the content has the company's name (query) mentioned
                 if "company" in category and query:
-                    search_terms = []
-                    if "OR" in ticker_to_company[query]:
-                        search_terms = ticker_to_company[query].split(" OR ")
-                    else:
-                        search_terms = [ticker_to_company[query]]
+                    try:
+                        info = yf.Ticker(query).info or {}
+                        # prefer longName then shortName; fallback to None
+                        company_name = info.get("longName") or info.get("shortName")
+                    except Exception:
+                        company_name = None
+
+                    search_terms = [query]
+                    if company_name:
+                        search_terms.insert(0, company_name)
 
                     search_terms.append(query)
 
