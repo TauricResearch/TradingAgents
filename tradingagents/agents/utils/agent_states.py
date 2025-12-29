@@ -59,6 +59,16 @@ class AgentState(MessagesState):
     news_report: Annotated[
         str, "Report from the News Researcher of current world affairs"
     ]
+    # FinLLama News additions
+    news_items_scored: Annotated[
+        list, "Per-item news sentiment with confidence, relevance, weight"
+    ]
+    news_net_sentiment_score: Annotated[
+        float, "Weighted net sentiment score over fetched news items"
+    ]
+    news_net_sentiment_label: Annotated[
+        str, "Label for net sentiment: Positive/Neutral/Negative"
+    ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
 
     # researcher team discussion step

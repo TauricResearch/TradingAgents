@@ -9,6 +9,10 @@ def create_research_manager(llm, memory):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
+        
+        # Get LoRA-scored news sentiment
+        news_net_sentiment_score = state.get("news_net_sentiment_score", 0.0)
+        news_net_sentiment_label = state.get("news_net_sentiment_label", "Neutral")
 
         investment_debate_state = state["investment_debate_state"]
 
@@ -32,6 +36,9 @@ Take into account your past mistakes on similar situations. Use these insights t
 
 Here are your past reflections on mistakes:
 \"{past_memory_str}\"
+
+Additional Context:
+News net sentiment (LoRA-scored): {news_net_sentiment_label} (score: {news_net_sentiment_score:.3f})
 
 Here is the debate:
 Debate History:

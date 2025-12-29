@@ -1,4 +1,12 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+# Look for .env in the project root (parent of tradingagents directory)
+project_root = Path(__file__).parent.parent
+dotenv_path = project_root / ".env"
+load_dotenv(dotenv_path=dotenv_path)
 
 DEFAULT_CONFIG = {
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
@@ -13,6 +21,17 @@ DEFAULT_CONFIG = {
     "deep_think_llm": "o4-mini",
     "quick_think_llm": "gpt-4o-mini",
     "backend_url": "https://api.openai.com/v1",
+    "openai_api_key": os.getenv("OPENAI_API_KEY"),  # Load from .env file
+    # Sentiment analysis model (DAPTed Llama 3.1 8B)
+    "use_dapt_sentiment": True,  # Use DAPTed model for sentiment analysis (set False to use OpenAI backup)
+    # Path to DAPT PEFT adapter (dynamically uses current username)
+    "dapt_adapter_path": "PATH",
+    # Path to SFT adapter for news sentiment scoring
+    "use_sft_sentiment": True,  # Use SFT fine-tuned model for news sentiment (set False for no fine-tuning)
+    "sft_adapter_path": "PATH",
+    
+    # Fallback: OpenAI model if DAPT is unavailable
+    "sentiment_fallback_llm": "o4-mini",  # OpenAI model for fallback
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
@@ -27,7 +46,8 @@ DEFAULT_CONFIG = {
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
-        # Example: "get_stock_data": "alpha_vantage",  # Override category default
-        # Example: "get_news": "openai",               # Override category default
-    },
+        "get_stock_data": "openai",  # Override category default
+        "get_news": "openai",   
+        "get_global_news" :"openai"           # Override category default
+    }
 }

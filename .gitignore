@@ -9,3 +9,6 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
+.history/
+llama3_8b_dapt_transcripts_lora
+dapt_sft_adapters_e4_60_20_20

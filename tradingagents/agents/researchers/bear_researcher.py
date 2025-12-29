@@ -14,6 +14,10 @@ def create_bear_researcher(llm, memory):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
+        
+        # Get LoRA-scored news sentiment
+        news_net_sentiment_score = state.get("news_net_sentiment_score", 0.0)
+        news_net_sentiment_label = state.get("news_net_sentiment_label", "Neutral")
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
@@ -37,6 +41,7 @@ Resources available:
 Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
+News net sentiment (LoRA-scored): {news_net_sentiment_label} (score: {news_net_sentiment_score:.3f})
 Company fundamentals report: {fundamentals_report}
 Conversation history of the debate: {history}
 Last bull argument: {current_response}

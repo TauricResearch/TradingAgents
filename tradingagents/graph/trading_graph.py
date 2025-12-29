@@ -9,6 +9,7 @@ from typing import Dict, Any, Tuple, List, Optional
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
+from tradingagents.agents.utils.dapt_llm import DAPTLlamaChatModel
 
 from langgraph.prebuilt import ToolNode
 
@@ -73,8 +74,16 @@ class TradingAgentsGraph:
 
         # Initialize LLMs
         if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"], 
+                base_url=self.config["backend_url"],
+                api_key=self.config.get("openai_api_key")
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"], 
+                base_url=self.config["backend_url"],
+                api_key=self.config.get("openai_api_key")
+            )
         elif self.config["llm_provider"].lower() == "anthropic":
             self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
@@ -83,6 +92,34 @@ class TradingAgentsGraph:
             self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
+        
+        # Initialize sentiment analysis LLM (DAPTed Llama 3.1 8B)
+        if self.config.get("use_dapt_sentiment", True):
+            # Use DAPTed model directly
+            dapt_path = self.config.get("dapt_adapter_path", f"/u/v/d/{os.getenv('USER', 'vdhanuka')}/llama3_8b_dapt_transcripts_lora")
+            # Convert relative path to absolute if needed
+            if not os.path.isabs(dapt_path):
+                dapt_path = os.path.join(self.config["project_dir"], dapt_path)
+            try:
+                self.sentiment_llm = DAPTLlamaChatModel(
+                    dapt_adapter_path=dapt_path,
+                    max_new_tokens=1024,  # Increased for longer reports
+                    temperature=0.7,
+                )
+            except Exception as e:
+                print(f"Warning: Failed to load DAPT model: {e}. Falling back to OpenAI.")
+                self.sentiment_llm = ChatOpenAI(
+                    model=self.config.get("sentiment_fallback_llm", "o1-mini"),
+                    base_url=self.config["backend_url"],
+                    api_key=self.config.get("openai_api_key")
+                )
+        else:
+            # Fallback to OpenAI model
+            self.sentiment_llm = ChatOpenAI(
+                model=self.config.get("sentiment_fallback_llm", "o1-mini"),
+                base_url=self.config["backend_url"],
+                api_key=self.config.get("openai_api_key")
+            )
         
         # Initialize memories
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
@@ -99,6 +136,7 @@ class TradingAgentsGraph:
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
+            self.sentiment_llm,
             self.tool_nodes,
             self.bull_memory,
             self.bear_memory,
@@ -200,6 +238,10 @@ class TradingAgentsGraph:
             "market_report": final_state["market_report"],
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
+            # Persist FinLLama News fields if present
+            "news_items_scored": final_state.get("news_items_scored", []),
+            "news_net_sentiment_score": final_state.get("news_net_sentiment_score"),
+            "news_net_sentiment_label": final_state.get("news_net_sentiment_label"),
             "fundamentals_report": final_state["fundamentals_report"],
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
