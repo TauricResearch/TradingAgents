@@ -1,15 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
-import json
 from tradingagents.agents.utils.agent_utils import get_news, get_fear_and_greed
-from tradingagents.dataflows.config import get_config
 
 
 def create_social_media_analyst(llm):
     def social_media_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["ticker_of_interest"]
-        coin_name = state["ticker_of_interest"]
 
         tools = [
             get_news,

@@ -1,7 +1,4 @@
 import functools
-import time
-import json
-
 
 def create_trader(llm, memory):
     def trader_node(state, name):
