@@ -1,13 +1,19 @@
 import asyncio
 from telethon import TelegramClient
 from datetime import datetime, timedelta, timezone
-import os
+from tradingagents.dataflows.config import get_config
 
 def get_api_credentials():
-    api_id = int(os.getenv("TELEGRAM_API_ID", ""))
-    api_hash = os.getenv("TELEGRAM_API_HASH", "")
-    session_name = os.getenv("TELEGRAM_SESSION_NAME", "")
-    return api_id, api_hash, session_name
+    """Retrieve Telegram API credentials from environment variables."""
+    config = get_config()
+    api_id = config["external"]["TELEGRAM_API_ID"]
+    api_hash = config["external"]["TELEGRAM_API_HASH"]  
+    session_name = config["external"]["TELEGRAM_SESSION_NAME"]
+    
+    if not api_id or not api_hash or not session_name:
+        raise ValueError("Missing required Telegram credentials: TELEGRAM_API_ID, TELEGRAM_API_HASH, or TELEGRAM_SESSION_NAME")
+    
+    return int(api_id), api_hash, session_name
 
 async def _get_channel_history_async(start_date_str, end_date_str):
     """

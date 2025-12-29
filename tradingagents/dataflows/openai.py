@@ -1,10 +1,27 @@
 from openai import OpenAI
 from .config import get_config
 
+_client = None
+
+def get_openai_client():
+    """Get or create OpenAI client with lazy initialization."""
+    global _client
+    if _client is None:
+        try:
+            config = get_config()
+            base_url = config.get("backend_url")
+            if not base_url:
+                raise ValueError("backend_url not found in configuration")
+            _client = OpenAI(base_url=base_url)
+        except Exception as e:
+            print(f"ERROR: Failed to initialize OpenAI client: {e}")
+            raise
+    
+    return _client
 
 def get_stock_news_openai(query, start_date, end_date):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
+    client = get_openai_client()
 
     response = client.responses.create(
         model=config["quick_think_llm"],
@@ -39,7 +56,7 @@ def get_stock_news_openai(query, start_date, end_date):
 
 def get_crypto_news_openai(query, start_date, end_date):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
+    client = get_openai_client()
 
     response = client.responses.create(
         model=config["quick_think_llm"],
@@ -74,7 +91,7 @@ def get_crypto_news_openai(query, start_date, end_date):
 
 def get_global_news_openai(curr_date, look_back_days=7, limit=5):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
+    client = get_openai_client()
 
     response = client.responses.create(
         model=config["quick_think_llm"],
@@ -110,7 +127,7 @@ def get_global_news_openai(curr_date, look_back_days=7, limit=5):
 
 def get_fundamentals_openai(ticker, curr_date):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
+    client = get_openai_client()
 
     response = client.responses.create(
         model=config["quick_think_llm"],
@@ -146,7 +163,7 @@ def get_fundamentals_openai(ticker, curr_date):
 
 def get_whitepaper_openai(symbol):
     config = get_config()
-    client = OpenAI(base_url=config["backend_url"])
+    client = get_openai_client()
 
     response = client.responses.create(
         model=config["quick_think_llm"],

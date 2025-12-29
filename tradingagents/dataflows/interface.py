@@ -94,9 +94,6 @@ VENDOR_METHODS = {
     # technical_indicators
     "get_indicators": {
         "taapi": get_crypto_stats_indicators_window,
-        # "alpha_vantage": get_alpha_vantage_indicator,
-        # "yfinance": get_stock_stats_indicators_window,
-        # "local": get_stock_stats_indicators_window
     },
     "get_indicators_bulk": {
         "taapi": get_crypto_stats_indicators,

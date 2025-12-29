@@ -21,23 +21,27 @@ DEFAULT_CONFIG = {
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
         "core_crypto_apis": "binance",       # Options: binance
-        "core_stock_apis": "yfinance",       # Options: yfinance, alpha_vantage, local
         "technical_indicators": "taapi",     # Options: taapi
-        "fundamental_data": "alpha_vantage",  # Options: openai, alpha_vantage, local
-        "news_data": "openai",        # Options: openai, alpha_vantage, google, local
+        "fundamental_data": "openai",  # Options: openai
+        "news_data": "openai",        # Options: local, openai, telegram
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
-        # Example: "get_stock_data": "alpha_vantage",  # Override category default
         "get_global_news": "telegram"               # Override category default
     },
     # Tool provider settings
     "tool_providers": {
-        "TAAPI_BASE_URL": os.getenv("TAAPI_BASE_URL", "https://api.taapi.io"),
     },
     "external": {
+        "BINANCE_API_KEY": os.getenv("BINANCE_API_KEY", ""),
+        "TAAPI_BASE_URL": os.getenv("TAAPI_BASE_URL", "https://api.taapi.io"),
+        "TAAPI_API_KEY": os.getenv("TAAPI_API_KEY", ""),
         "BYBIT_BASE_URL": os.getenv("BYBIT_BASE_URL", "https://api-demo.bybit.com"),
         "BYBIT_API_KEY": os.getenv("BYBIT_API_KEY", ""),
         "BYBIT_API_SECRET": os.getenv("BYBIT_API_SECRET", ""),
+        "COIN_GECKO_API_BASE_URL": os.getenv("COIN_GECKO_API_BASE_URL", "https://api.coingecko.com/api/v3"),
+        "TELEGRAM_API_ID": os.getenv("TELEGRAM_API_ID", ""),
+        "TELEGRAM_API_HASH": os.getenv("TELEGRAM_API_HASH", ""),
+        "TELEGRAM_SESSION_NAME": os.getenv("TELEGRAM_SESSION_NAME", ""),
     }
 }
