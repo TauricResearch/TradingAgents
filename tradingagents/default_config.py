@@ -1,6 +1,10 @@
 import os
 
 DEFAULT_CONFIG = {
+    # App config
+    "APP_HOST": "localhost",
+    "APP_PORT": 8000,
+    # Directory settings
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", "./results"),
     "data_dir": "/Users/yluo/Documents/Code/ScAI/FR1-data",
@@ -9,10 +13,10 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "o4-mini",
-    "quick_think_llm": "gpt-4o-mini",
-    "backend_url": "https://api.openai.com/v1",
+    "llm_provider":  os.getenv("LLM_PROVIDER", "openai"),
+    "deep_think_llm": os.getenv("DEEP_THINK_LLM", "gpt-4o-mini"),
+    "quick_think_llm": os.getenv("QUICK_THINK_LLM", "gpt-4o-mini"),
+    "backend_url": os.getenv("BACKEND_URL","https://api.openai.com/v1"),
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
@@ -28,9 +32,6 @@ DEFAULT_CONFIG = {
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         "get_global_news": "telegram"               # Override category default
-    },
-    # Tool provider settings
-    "tool_providers": {
     },
     "external": {
         "BINANCE_API_KEY": os.getenv("BINANCE_API_KEY", ""),

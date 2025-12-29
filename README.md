@@ -239,3 +239,8 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       url={https://arxiv.org/abs/2412.20138}, 
 }
 ```
+
+## How to Run
+```
+python3 webapp.py
+```
