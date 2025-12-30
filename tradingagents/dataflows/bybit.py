@@ -8,6 +8,8 @@ from urllib.parse import urlencode
 import requests
 from .config import get_config
 
+import json
+
 
 def bybit_v5_request(method: str, path: str, params: Optional[Dict] = None, body: Optional[Dict] = None) -> Dict:
     """Generic signed HTTP request helper for Bybit V5 API."""
@@ -62,28 +64,109 @@ def bybit_v5_request(method: str, path: str, params: Optional[Dict] = None, body
 
     return data
 
-
-def get_wallet_balance(coin: str, account_type: str = "UNIFIED") -> float:
-    """Fetch wallet balance for a specific coin from Bybit."""
+def get_account_balance(base_coin: str, quote_coin: str = "USDT") -> dict:
+    """
+    To determine total equity, available free margin for new trades, and locked capital.
+    
+    Args:
+        base_coin: The asset being analyzed (e.g., "BTC")
+        quote_coin: The currency used for buying (e.g., "USDT")
+    """
+    # 1. Fetch all assets from Bybit (omitting 'coin' gets everything)
     data = bybit_v5_request("GET", "/v5/account/wallet-balance", {
-        "accountType": account_type,
-        "coin": coin.upper()
+        "accountType": "UNIFIED"
     })
 
-    # Parse response to get wallet balance
+    
+    # 2. Parse the raw response
+    try:
+        raw_list = data["result"]["list"][0]["coin"]
+        # Convert list to a dictionary for easy lookup: {'BTC': {...}, 'USDT': {...}}
+        result = {
+            item["coin"]: {k: float(v) if v else 0.0 for k, v in item.items() if k != "coin"}
+            for item in raw_list
+        }
+    except (IndexError, KeyError, TypeError):
+        result = {"error": "Could not retrieve wallet balance"}
+    
+    total_equity = sum(asset.get("usdValue", 0.0) for asset in result.values())
+
+    report = f"# Account Balance Report for {base_coin}/{quote_coin}\n"
+    report += f"** Total Equity: ${total_equity} **\n"
+    report += f"## {quote_coin} (Quote) Details:\n"
+    report += json.dumps(result.get(quote_coin, {}), indent=2) + "\n"
+    report += f"## {base_coin} (Base) Details:\n"
+    report += json.dumps(result.get(base_coin, {}), indent=2) + "\n"
+    return report
+
+def get_symbol(base_coin: str, quote_coin: str) -> str:
+    """
+    Safely retrieves the correct Bybit symbol (e.g., "BTCUSDT") for a given base/quote pair.
+    
+    Args:
+        base_coin: The asset (e.g., "BTC")
+        quote_coin: The currency (e.g., "USDT")
+        category: "linear", "spot", or "inverse"
+        
+    Returns:
+        The valid symbol string (e.g., "BTCUSDT") or None if not found.
+    """
+    # 1. Query the API specifically for this Base Coin
+    # This filters the search on the server side, which is much faster.
+    params = {
+        "category": "spot",
+        "baseCoin": base_coin.upper(),
+        "limit": 20 # We only expect a few matches (e.g., BTCUSDT, BTC-PERP)
+    }
+    
+    data = bybit_v5_request("GET", "/v5/market/instruments-info", params)
+
     result = data.get("result", {})
-    accounts = result.get("list", [])
+    instruments = result.get("list", [])
 
-    if not accounts:
-        return 0.0
+    # 2. Find the exact match for the Quote Coin
+    # This handles cases where BTC might pair with USDT, USDC, or DAI
+    for item in instruments:
+        if item.get("quoteCoin") == quote_coin.upper() and item.get("baseCoin") == base_coin.upper():
+            return item.get("symbol")
 
-    coins = accounts[0].get("coin", [])
-    for coin_data in coins:
-        if coin_data.get("coin") == coin.upper():
-            return float(coin_data.get("walletBalance", 0))
+    # 3. Fallback/Error handling
+    return None
 
-    return 0.0
+def get_open_orders(base_coin: str, quote_coin: str) -> str:
+    """
+    Fetches active orders and returns a text report analyzing capital lock-up and order age.
+    """
+    symbol = get_symbol(base_coin, quote_coin)
+    if not symbol:
+        return f"Error: No valid spot symbol found for {base_coin}/{quote_coin}"
+    # 1. Fetch Open Orders
+    data = bybit_v5_request("GET", "/v5/order/realtime", {
+        "category": "spot",
+        "symbol": symbol.upper(),
+        "openOnly": 0  # 0=Active orders (Pending)
+    })
 
+    result = data.get("result", {})
+    orders = result.get("list", [])
+
+    for i in range(len(orders)):
+        # try to change to float if can
+        for k, v in orders[i].items():
+            if k in ["orderLinkId", "orderId"]:
+                continue
+            try:
+                orders[i][k] = float(v)
+            except:
+                pass
+        # change createdTime and updatedTime to yyyy-mm-dd hh:mm:ss format (utc)
+        orders[i]["createdTime"] = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(orders[i]["createdTime"]/1000))
+        orders[i]["updatedTime"] = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(orders[i]["updatedTime"]/1000))
+
+    report = f"# Open Orders for {symbol.upper()}\n"
+    report += json.dumps(orders, indent=2)
+
+    return report
 
 def get_order_status(order_id: str, category: str = "spot") -> Dict:
     """
@@ -130,26 +213,26 @@ def cancel_order(order_id: str, symbol: str, category: str = "spot") -> Dict:
     return data.get("result", {})
 
 
-def get_open_orders(symbol: Optional[str] = None, category: str = "spot") -> Dict:
-    """
-    Get all open orders.
+# def get_open_orders(symbol: Optional[str] = None, category: str = "spot") -> Dict:
+#     """
+#     Get all open orders.
     
-    Args:
-        symbol: Optional trading pair to filter by
-        category: Trading category ("spot", "linear", "inverse")
+#     Args:
+#         symbol: Optional trading pair to filter by
+#         category: Trading category ("spot", "linear", "inverse")
         
-    Returns:
-        Dict containing list of open orders
-    """
-    params = {
-        "category": category.lower()
-    }
+#     Returns:
+#         Dict containing list of open orders
+#     """
+#     params = {
+#         "category": category.lower()
+#     }
     
-    if symbol:
-        params["symbol"] = symbol.upper()
+#     if symbol:
+#         params["symbol"] = symbol.upper()
     
-    data = bybit_v5_request("GET", "/v5/order/realtime", params=params)
-    return data.get("result", {})
+#     data = bybit_v5_request("GET", "/v5/order/realtime", params=params)
+#     return data.get("result", {})
 
 
 def get_order_history(

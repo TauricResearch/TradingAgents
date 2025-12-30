@@ -25,6 +25,7 @@ DEFAULT_CONFIG = {
         "technical_indicators": "taapi",     # Options: taapi
         "fundamental_data": "alpha_vantage",  # Options: openai, alpha_vantage, local
         "news_data": "openai",        # Options: openai, alpha_vantage, google, local
+        "profile_data": "bybit",          # Options: bybit, local
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {

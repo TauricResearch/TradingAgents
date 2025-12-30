@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_news, get_global_news
+from tradingagents.agents.utils.agent_utils import get_account_balance, get_open_orders
 from tradingagents.dataflows.config import get_config
 
 
@@ -11,19 +11,17 @@ def create_profile_analyst(llm):
         ticker = state["ticker_of_interest"]
 
         tools = [
-            # get_news,
-            # get_global_news,
+            get_account_balance,
+            get_open_orders,
         ]
 
-        system_message = """You are a Profile and Portfolio Analyst tasked with providing a deep-dive assessment of the user's personal trading account and financial health. Your role is to bridge the gap between market opportunities and the user's actual capacity to trade. Your objective is to write a comprehensive report detailing the user's buying power, asset allocation, risk exposure, and active market participation.
-
-                Use the available tools:
-                - `get_account_balance`: To determine total equity, available free margin for new trades, and locked capital.
-                - `get_portfolio_holdings`: To analyze current asset distribution, sector concentration (e.g., heavy on DeFi vs. Layer 1s), and unrealized PnL.
-                - `get_open_orders`: To identify capital tied up in pending limit orders or stop-losses that may need adjustment.
-                - `get_trade_history`: To review recent trading performance and identify behavioral patterns (e.g., panic selling or FOMO buying).
-
-                Do not simply list the user's balances or holdings. You must provide detailed and finegrained analysis and insights. For instance, warn the user if they are overexposed to a single volatile asset, point out if they have too many "stale" open orders locking up funds that could be used elsewhere, or analyze if their current cash position allows for aggressive or conservative moves based on the market conditions. Your report should serve as a risk management check before any new trades are executed. Make sure to append a Markdown table at the end of the report to organize key portfolio metrics (Total Equity, Free Margin, Top Holdings, Risk Level) and actionable recommendations, organized and easy to read."""
+        system_message = (
+                            "You are a Profile and Portfolio Analyst tasked with providing a deep-dive assessment of the user's personal trading account and financial health. \
+                            You will be given access to the user's portfolio data, your objective is to write a comprehensive long report detailing your analysis, insights, and implications for the user's trading capacity after assessing their buying power, asset allocation, risk exposure, and active market participation. \
+                            Use the `get_account_balance(base_coin, quote_coin)` tool (e.g., base_coin='BTC', quote_coin='USDT') to determine total equity, free margin, and locked capital. Use the `get_open_orders(base_coin, quote_coin)` tool (e.g., base_coin='BTC', quote_coin='USDT') to identify capital tied up in pending limit orders or stop-losses. \
+                            Do not simply list the user's balances or holdings, provide detailed and finegrained analysis and insights. For instance, warn the user if they are overexposed to a single volatile asset, point out if they have too many 'stale' open orders locking up funds, or analyze if their current cash position allows for aggressive moves. Your report should serve as a risk management check before any new trades are executed."
+                            + """ Make sure to append a Markdown table at the end of the report to organize key portfolio metrics (Total Equity, Free Margin, Top Holdings, Risk Level) and actionable recommendations, organized and easy to read.""",
+                        )
 
         prompt = ChatPromptTemplate.from_messages(
             [

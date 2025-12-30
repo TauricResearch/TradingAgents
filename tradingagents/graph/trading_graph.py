@@ -38,7 +38,9 @@ from tradingagents.agents.utils.agent_utils import (
     get_insider_sentiment,
     get_insider_transactions,
     get_global_news,
-    get_fear_and_greed
+    get_fear_and_greed,
+    get_account_balance,
+    get_open_orders
 )
 
 from .conditional_logic import ConditionalLogic
@@ -169,6 +171,8 @@ class TradingAgentsGraph:
             "profile": ToolNode(
                 [
                     # Profile analysis tools can be added here
+                    get_account_balance,
+                    get_open_orders,
                 ]
             ),
         }
