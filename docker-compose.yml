@@ -1,0 +1,18 @@
+services:
+  redis:
+    image: redis:7.4.7
+    container_name: ${REDIS_CONTAINER_NAME:-trading_agents_redis}
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+
+volumes:
+  redis-data:

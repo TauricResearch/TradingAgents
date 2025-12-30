@@ -109,23 +109,25 @@ conda activate tradingagents
 pyenv
 pyenv local 3.12.7
 python -m venv .venv
-source./venv/bin/activate
-python --version
-pip install --upgrade pip
-pip install -r requirements.txt
-pip list
-
-# daily use
 source .venv/bin/activate
+python --version
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip list
+
 deactivate
 
 if error mini-racer
-source venv/bin/activate && pip install --no-deps -r requirements.txt #install without miniracer 
+source .venv/bin/activate && pip install --no-deps -r requirements.txt #install without miniracer 
+
+Api
+python webapp.py
 ```
 
-Install dependencies:
-```bash
-pip install -r requirements.txt
+### Connect to Redis (Local)
+```
+docker-compose up -d
+redis-cli -h localhost -p 6379 -a {REDIS_PASSWORD}
 ```
 
 ### Required APIs
@@ -238,9 +240,4 @@ Please reference our work if you find *TradingAgents* provides you with some hel
       primaryClass={q-fin.TR},
       url={https://arxiv.org/abs/2412.20138}, 
 }
-```
-
-## How to Run
-```
-python3 webapp.py
 ```
