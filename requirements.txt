@@ -28,3 +28,4 @@ binance-sdk-spot
 telethon
 fastapi
 uvicorn[standard]
+redis[hiredis]

@@ -44,5 +44,11 @@ DEFAULT_CONFIG = {
         "TELEGRAM_API_ID": os.getenv("TELEGRAM_API_ID", ""),
         "TELEGRAM_API_HASH": os.getenv("TELEGRAM_API_HASH", ""),
         "TELEGRAM_SESSION_NAME": os.getenv("TELEGRAM_SESSION_NAME", ""),
-    }
+    },
+    "redis": {
+        "REDIS_HOST": os.getenv("REDIS_HOST", "localhost"),
+        "REDIS_PORT": int(os.getenv("REDIS_PORT", 6379)),
+        "REDIS_PASSWORD": os.getenv("REDIS_PASSWORD", "defaultpassword"),
+        "REDIS_DB": int(os.getenv("REDIS_DB", 0)),
+    },
 }

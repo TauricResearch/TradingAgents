@@ -6,7 +6,7 @@ from typing import Dict, Optional
 from urllib.parse import urlencode
 
 import requests
-from .config import get_config
+from tradingagents.dataflows.config import get_config
 
 
 def bybit_v5_request(method: str, path: str, params: Optional[Dict] = None, body: Optional[Dict] = None) -> Dict:
