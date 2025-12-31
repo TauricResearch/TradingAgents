@@ -27,6 +27,7 @@ Your goal is to deliver detailed insights into investment decisions and highligh
      - Price movement analysis.
      - Overall market data analysis 
      - News analysis.
+     - Sentiment analysis.
      - Social media and sentiment analysis.
      - Fundamental data analysis.
      - Weight the importance of each factor in the decision-making process.
@@ -52,8 +53,9 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         curr_sentiment_report = current_state["sentiment_report"]
         curr_news_report = current_state["news_report"]
         curr_fundamentals_report = current_state["fundamentals_report"]
+        curr_profile_report = current_state["profile_report"]
 
-        return f"{curr_market_report}\n\n{curr_sentiment_report}\n\n{curr_news_report}\n\n{curr_fundamentals_report}"
+        return f"{curr_market_report}\n\n{curr_sentiment_report}\n\n{curr_news_report}\n\n{curr_fundamentals_report}\n\n{curr_profile_report}"
 
     def _reflect_on_component(
         self, component_type: str, report: str, situation: str, returns_losses

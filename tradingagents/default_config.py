@@ -20,9 +20,9 @@ DEFAULT_CONFIG = {
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_crypto_apis": "binance",       # Options: binance
+        "core_crypto_apis": "bybit",       # Options: binance, bybit
         "core_stock_apis": "yfinance",       # Options: yfinance, alpha_vantage, local
-        "technical_indicators": "taapi",     # Options: taapi
+        "technical_indicators": "bybit",     # Options: bybit
         "fundamental_data": "alpha_vantage",  # Options: openai, alpha_vantage, local
         "news_data": "openai",        # Options: openai, alpha_vantage, google, local
         "profile_data": "bybit",          # Options: bybit, local

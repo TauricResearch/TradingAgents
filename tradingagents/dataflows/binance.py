@@ -34,7 +34,7 @@ def get_market_data(symbol: str, start_date: str, end_date: str):
     start_epoch = int(datetime.strptime(start_date, "%Y-%m-%d").timestamp() * 1000)
     end_epoch = int(datetime.strptime(end_date, "%Y-%m-%d").timestamp() * 1000)
     
-    print(f"DEBUG: Fetching data for {formatted_symbol} from {start_date} to {end_date}")
+    # print(f"DEBUG: Fetching data for {formatted_symbol} from {start_date} to {end_date}")
     try:
         response = client.rest_api.klines(
             symbol=formatted_symbol,
@@ -44,7 +44,7 @@ def get_market_data(symbol: str, start_date: str, end_date: str):
         )
 
         rate_limits = response.rate_limits
-        print(f"DEBUG: klines() rate limits: {rate_limits}")
+        # print(f"DEBUG: klines() rate limits: {rate_limits}")
 
         data = response.data()
         

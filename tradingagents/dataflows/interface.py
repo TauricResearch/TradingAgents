@@ -23,6 +23,13 @@ from .taapi import get_crypto_stats_indicators_window, get_crypto_stats_indicato
 
 # Configuration and routing logic
 from .config import get_config
+from .bybit import (
+    get_account_balance,
+    get_open_orders,
+    get_market_data as get_bybit_crypto_data,
+    get_crypto_indicator_window as get_bybit_crypto_indicator_window,
+    get_crypto_indicators_bulk as get_bybit_crypto_indicators_bulk
+)
 
 # Tools organized by category
 TOOLS_CATEGORIES = {
@@ -65,6 +72,13 @@ TOOLS_CATEGORIES = {
             "get_insider_transactions",
             "get_fear_and_greed"
         ]
+    },
+    "profile_data": {
+        "description": "User profile related data",
+        "tools": [
+            "get_account_balance",
+            "get_open_orders",
+        ]
     }
 }
 
@@ -77,7 +91,8 @@ VENDOR_LIST = [
     "telegram",
     "coin_gecko",
     "alpha_vantage",
-    "taapi"
+    "taapi",
+    "bybit"
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -90,16 +105,19 @@ VENDOR_METHODS = {
     # core_crypto_apis
     "get_crypto_data": {
         "binance": get_binance_crypto_data,
+        "bybit": get_bybit_crypto_data,
     },
     # technical_indicators
     "get_indicators": {
-        "taapi": get_crypto_stats_indicators_window,
+        # "taapi": get_crypto_stats_indicators_window,
+        "bybit" : get_bybit_crypto_indicator_window
         # "alpha_vantage": get_alpha_vantage_indicator,
         # "yfinance": get_stock_stats_indicators_window,
         # "local": get_stock_stats_indicators_window
     },
     "get_indicators_bulk": {
-        "taapi": get_crypto_stats_indicators,
+        # "taapi": get_crypto_stats_indicators,
+        "bybit": get_bybit_crypto_indicators_bulk
     },
     # fundamental_data
     "get_fundamentals": {
@@ -149,6 +167,12 @@ VENDOR_METHODS = {
     },
     "get_fear_and_greed": {
         "local": get_fear_and_greed,
+    },
+    "get_account_balance": {
+        "bybit": get_account_balance,
+    },
+    "get_open_orders": {
+        "bybit": get_open_orders,
     },
 }
 

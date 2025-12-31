@@ -135,7 +135,7 @@ class TradingAgentsGraph:
                     # Crypto data tools
                     get_crypto_data,
                     # Core stock data tools
-                    get_stock_data,
+                    # get_stock_data,
                     # Technical indicators
                     get_indicators,
                     get_indicators_bulk,
@@ -221,6 +221,7 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "profile_report": final_state["profile_report"],
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],

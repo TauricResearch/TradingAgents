@@ -51,6 +51,7 @@ class MessageBuffer:
             "Social Analyst": "pending",
             "News Analyst": "pending",
             "Fundamentals Analyst": "pending",
+            "Profile Analyst": "pending",
             # Research Team
             "Bull Researcher": "pending",
             "Bear Researcher": "pending",
@@ -70,6 +71,7 @@ class MessageBuffer:
             "sentiment_report": None,
             "news_report": None,
             "fundamentals_report": None,
+            "profile_report": None,
             "investment_plan": None,
             "trader_investment_plan": None,
             "final_trade_decision": None,
@@ -111,6 +113,7 @@ class MessageBuffer:
                 "sentiment_report": "Social Sentiment",
                 "news_report": "News Analysis",
                 "fundamentals_report": "Fundamentals Analysis",
+                "profile_report": "Profile Analysis",
                 "investment_plan": "Research Team Decision",
                 "trader_investment_plan": "Trading Team Plan",
                 "final_trade_decision": "Portfolio Management Decision",
@@ -133,6 +136,7 @@ class MessageBuffer:
                 "sentiment_report",
                 "news_report",
                 "fundamentals_report",
+                "profile_report",
             ]
         ):
             report_parts.append("## Analyst Team Reports")
@@ -151,6 +155,10 @@ class MessageBuffer:
             if self.report_sections["fundamentals_report"]:
                 report_parts.append(
                     f"### Fundamentals Analysis\n{self.report_sections['fundamentals_report']}"
+                )
+            if self.report_sections["profile_report"]:
+                report_parts.append(
+                    f"### Profile Analysis\n{self.report_sections['profile_report']}"
                 )
 
         # Research Team Reports
@@ -224,6 +232,7 @@ def update_display(layout, spinner_text=None):
             "Social Analyst",
             "News Analyst",
             "Fundamentals Analyst",
+            "Profile Analyst",
         ],
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
@@ -571,6 +580,19 @@ def display_complete_report(final_state):
             )
         )
 
+    # Profile Analyst Report
+    if final_state.get("profile_report"):
+        analyst_reports.append(
+            Panel(
+                Markdown(final_state["profile_report"]),
+                title="Profile Analyst",
+                border_style="blue",
+                padding=(1, 2),
+            )
+        )
+
+     # Display all analyst reports in a single panel
+
     if analyst_reports:
         console.print(
             Panel(
@@ -916,6 +938,17 @@ def run_analysis():
                     message_buffer.update_agent_status(
                         "Fundamentals Analyst", "completed"
                     )
+                    # Set next analyst to in_progress
+                    if "profile" in selections["analysts"]:
+                        message_buffer.update_agent_status(
+                            "Profile Analyst", "in_progress"
+                        )
+                
+                if "profile_report" in chunk and chunk["profile_report"]:
+                    message_buffer.update_report_section(
+                        "profile_report", chunk["profile_report"]
+                    )
+                    message_buffer.update_agent_status("Profile Analyst", "completed")
                     # Set all research team members to in_progress
                     update_research_team_status("in_progress")
 

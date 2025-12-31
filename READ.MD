@@ -54,6 +54,10 @@ The system supports multiple data vendors with flexible routing:
   - Uses sentiment scoring algorithms
   - Gauges short-term market mood and retail investor sentiment
 
+- **Profile Analyst** (`nalysts/profile_abalyst.py`):
+  - Analyzez users balance including total equity and free margin
+  - Analyzez users open orders, locked assets, stop losses, and take profits
+
 ##### **Research & Decision Making**
 - **Bull Researcher** (`researchers/bull_researcher.py`): Argues for positive investment opportunities
 - **Bear Researcher** (`researchers/bear_researcher.py`): Identifies risks and potential downsides
