@@ -24,14 +24,20 @@ DEFAULT_CONFIG = {
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_crypto_apis": "binance",       # Options: binance
-        "technical_indicators": "taapi",     # Options: taapi
-        "fundamental_data": "openai",  # Options: openai
-        "news_data": "openai",        # Options: local, openai, telegram
+        "core_crypto_apis": "bybit",       # Options: binance, bybit
+        "core_stock_apis": "yfinance",       # Options: yfinance, alpha_vantage, local
+        "technical_indicators": "bybit",     # Options: bybit
+        "fundamental_data": "alpha_vantage",  # Options: openai, alpha_vantage, local
+        "news_data": "openai",        # Options: openai, alpha_vantage, google, local
+        "profile_data": "bybit",          # Options: bybit, local
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
         "get_global_news": "telegram"               # Override category default
+    },
+    # Tool provider settings
+    "tool_providers": {
+        "TAAPI_BASE_URL": os.getenv("TAAPI_BASE_URL", "https://api.taapi.io"),
     },
     "external": {
         "BINANCE_API_KEY": os.getenv("BINANCE_API_KEY", ""),

@@ -28,6 +28,10 @@ from tradingagents.agents.utils.news_data_tools import (
 from tradingagents.agents.utils.sentiment_tools import (
     get_fear_and_greed,
 )
+from tradingagents.agents.utils.profile_tools import (
+    get_account_balance,
+    get_open_orders,
+)
 
 def create_msg_delete():
     def delete_messages(state):

@@ -38,7 +38,9 @@ from tradingagents.agents.utils.agent_utils import (
     get_insider_sentiment,
     get_insider_transactions,
     get_global_news,
-    get_fear_and_greed
+    get_fear_and_greed,
+    get_account_balance,
+    get_open_orders
 )
 
 from .conditional_logic import ConditionalLogic
@@ -53,7 +55,7 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
+        selected_analysts=["market", "social", "news", "fundamentals", "profile"],
         debug=False,
         config: Dict[str, Any] = None,
     ):
@@ -133,7 +135,7 @@ class TradingAgentsGraph:
                     # Crypto data tools
                     get_crypto_data,
                     # Core stock data tools
-                    get_stock_data,
+                    # get_stock_data,
                     # Technical indicators
                     get_indicators,
                     get_indicators_bulk,
@@ -164,6 +166,13 @@ class TradingAgentsGraph:
                     # get_balance_sheet,
                     # get_cashflow,
                     # get_income_statement,
+                ]
+            ),
+            "profile": ToolNode(
+                [
+                    # Profile analysis tools can be added here
+                    get_account_balance,
+                    get_open_orders,
                 ]
             ),
         }
@@ -212,6 +221,7 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "profile_report": final_state["profile_report"],
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
