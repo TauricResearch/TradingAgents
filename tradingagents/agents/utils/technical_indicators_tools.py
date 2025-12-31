@@ -4,7 +4,7 @@ from tradingagents.dataflows.interface import route_to_vendor
 
 @tool
 def get_indicators(
-    symbol: Annotated[str, "ticker symbol of the company"],
+    symbol: Annotated[str, "ticker symbol of the coin"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
     curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
     look_back_days: Annotated[int, "how many days to look back"] = 30,
@@ -13,7 +13,7 @@ def get_indicators(
     Retrieve technical indicators for a given ticker symbol.
     Uses the configured technical_indicators vendor.
     Args:
-        symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
+        symbol (str): Ticker symbol of the coin pair, e.g. BTC/USDT
         indicator (str): Technical indicator to get the analysis and report of
         curr_date (str): The current trading date you are trading on, YYYY-mm-dd
         look_back_days (int): How many days to look back, default is 30
@@ -24,7 +24,7 @@ def get_indicators(
 
 @tool
 def get_indicators_bulk(
-    symbol: Annotated[str, "ticker symbol of the company"],
+    symbol: Annotated[str, "ticker symbol of the coin"],
     indicators: Annotated[List[str], "list of technical indicators to get the analysis and report of"],
     curr_date: Annotated[str, "The current trading date you are trading on, YYYY-mm-dd"],
     look_back_days: Annotated[int, "how many days to look back"] = 30,
@@ -33,7 +33,7 @@ def get_indicators_bulk(
     Retrieve multiple technical indicators for a given ticker symbol.
     Uses the configured technical_indicators vendor.
     Args:
-        symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
+        symbol (str): Ticker symbol of the coin, e.g. BTC/USDT
         indicators (List[str]): List of technical indicators to get the analysis and report of
         curr_date (str): The current trading date you are trading on, YYYY-mm-dd
         look_back_days (int): How many days to look back, default is 30

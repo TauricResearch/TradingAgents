@@ -33,7 +33,7 @@ Resources available:
 Market research report: {market_research_report}
 Social media sentiment report: {sentiment_report}
 Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
+Coin fundamentals report: {fundamentals_report}
 Profile analysis report: {profile_report}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
