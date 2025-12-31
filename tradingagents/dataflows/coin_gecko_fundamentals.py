@@ -1,5 +1,6 @@
 import requests
 from .alpha_vantage_common import API_BASE_URL
+from tradingagents.dataflows.config import get_config
 
 def get_market_cap() -> str:
     """
@@ -8,8 +9,11 @@ def get_market_cap() -> str:
     Returns:
         str: Market capitalization percentage data for cryptocurrencies
     """
-    endpoint = f"https://api.coingecko.com/api/v3/global"
+    config = get_config()
+    api_base_url = config["external"].get("COIN_GECKO_API_BASE_URL", "https://api.coingecko.com/api/v3")
+    endpoint = f"{api_base_url}/global"
     response = requests.get(endpoint)
+    print(f"DEBUG: CoinGecko API response status code: {response.status_code}")
     response.raise_for_status()
     data = response.json()
     market_cap_pct = data.get("data", {}).get("market_cap_percentage", {})

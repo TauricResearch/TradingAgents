@@ -26,4 +26,6 @@ langchain_anthropic
 langchain-google-genai
 binance-sdk-spot
 telethon
-pybit
+fastapi
+uvicorn[standard]
+redis[hiredis]

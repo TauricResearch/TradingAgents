@@ -1,9 +1,6 @@
-from langchain_core.messages import AIMessage
-import time
-import json
+from tradingagents.agents.utils.memory import FinancialSituationMemory
 
-
-def create_bull_researcher(llm, memory):
+def create_bull_researcher(llm, memory: FinancialSituationMemory):
     def bull_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")

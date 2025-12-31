@@ -1,11 +1,7 @@
-import time
-import json
+from tradingagents.agents.utils.memory import FinancialSituationMemory
 
-
-def create_risk_manager(llm, memory):
+def create_risk_manager(llm, memory: FinancialSituationMemory):
     def risk_manager_node(state) -> dict:
-
-        company_name = state["company_of_interest"]
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]

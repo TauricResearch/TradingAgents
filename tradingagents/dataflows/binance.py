@@ -1,20 +1,33 @@
 from binance_common.configuration import ConfigurationRestAPI
 from binance_common.constants import SPOT_REST_API_PROD_URL
 from binance_sdk_spot.spot import Spot
-import os
 from datetime import datetime
 import csv
 import io
+from tradingagents.dataflows.config import get_config
 
-def get_api_key() -> str:
-    """Retrieve the API key for Binance from environment variables."""
-    api_key = os.getenv("BINANCE_API_KEY")
-    if not api_key:
-        raise ValueError("BINANCE_API_KEY environment variable is not set.")
-    return api_key
+_client = None
 
-configuration = ConfigurationRestAPI(api_key=get_api_key(), base_path=SPOT_REST_API_PROD_URL)
-client = Spot(config_rest_api=configuration)
+def get_binance_client():
+    """Get or create Binance client with lazy initialization."""
+    global _client
+    if _client is None:
+        try:
+            config = get_config()
+            api_key = config["external"].get("BINANCE_API_KEY", "")
+            if not api_key:
+                raise ValueError("BINANCE_API_KEY not found in configuration")
+            
+            configuration = ConfigurationRestAPI(
+                api_key=api_key, 
+                base_path=SPOT_REST_API_PROD_URL
+            )
+            _client = Spot(config_rest_api=configuration)
+        except Exception as e:
+            print(f"ERROR: Failed to initialize Binance client: {e}")
+            raise
+    
+    return _client
 
 def get_market_data(symbol: str, start_date: str, end_date: str):
     """Fetch market data for a given symbol from Binance. Get OHLCV data. interval is 1 day.
@@ -36,6 +49,7 @@ def get_market_data(symbol: str, start_date: str, end_date: str):
     
     # print(f"DEBUG: Fetching data for {formatted_symbol} from {start_date} to {end_date}")
     try:
+        client = get_binance_client()
         response = client.rest_api.klines(
             symbol=formatted_symbol,
             start_time=start_epoch,
@@ -80,6 +94,8 @@ def get_market_data(symbol: str, start_date: str, end_date: str):
         csv_string = output.getvalue()
         output.close()
         
+        title = f"# Market Data for {symbol} from {start_date} to {end_date}\n\n"
+        csv_string = title + csv_string
         return csv_string
         
     except Exception as e:

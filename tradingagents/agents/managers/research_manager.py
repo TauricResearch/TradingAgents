@@ -1,8 +1,6 @@
-import time
-import json
+from tradingagents.agents.utils.memory import FinancialSituationMemory
 
-
-def create_research_manager(llm, memory):
+def create_research_manager(llm, memory: FinancialSituationMemory):
     def research_manager_node(state) -> dict:
         history = state["investment_debate_state"].get("history", "")
         market_research_report = state["market_report"]
