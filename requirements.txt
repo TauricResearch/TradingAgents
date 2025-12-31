@@ -29,3 +29,4 @@ telethon
 fastapi
 uvicorn[standard]
 redis[hiredis]
+rq

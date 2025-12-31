@@ -1,11 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 import uvicorn
 from datetime import datetime
-import asyncio
 
 # Import your trading agents
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+from service import enqueue_analysis
 from tradingagents.dataflows.config import get_config
 from dotenv import load_dotenv
 
@@ -21,25 +20,16 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# Pydantic models for request/response
-class TradingRequest(BaseModel):
+class TradingAnalyzeRequest(BaseModel):
     symbol: str
     date: str
 
-class TradingResponse(BaseModel):
+class TradingAnalyzeResponse(BaseModel):
     symbol: str
     date: str
-    decision: dict
+    job_id: str
     timestamp: str
     status: str
-
-# Initialize trading agent once at startup
-def create_trading_agent():
-    """Create trading agent with fixed configuration"""
-    return TradingAgentsGraph(debug=True, config=config)
-
-# Create the trading agent instance once
-trading_agent = create_trading_agent()
 
 @app.get("/")
 async def root():
@@ -60,38 +50,31 @@ async def health_check():
         "service": "tradingagents-api"
     }
 
-@app.post("/trading/analyze", response_model=TradingResponse)
-async def analyze_trading_decision(request: TradingRequest):
+@app.post("/v1/trading/analyze", response_model=TradingAnalyzeResponse, status_code=status.HTTP_202_ACCEPTED,)
+async def analyze_trading_decision(request: TradingAnalyzeRequest):
     """
     Analyze trading decision for a given symbol and date
     
     Example usage:
     POST /trading/analyze
     {
-        "symbol": "NVDA",
+        "symbol": "BTC/USDT",
         "date": "2024-05-10"
     }
     """
-    try:
-        # Run the analysis (this might take a while, so we run it in a thread pool)
-        def run_analysis():
-            _, decision = trading_agent.propagate(request.symbol, request.date)
-            return decision
-        
-        # Run in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
-        decision = await loop.run_in_executor(None, run_analysis)
-        
-        return TradingResponse(
-            symbol=request.symbol,
-            date=request.date,
-            decision=decision,
-            timestamp=datetime.now().isoformat(),
-            status="success"
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Trading analysis failed: {str(e)}")
+    response = enqueue_analysis(request.symbol, request.date)
+    print(f"INFO: Enqueue response: {response}")
+
+    if response.status == "error":
+        raise HTTPException(status_code=500, detail=response.message)
+    
+    return TradingAnalyzeResponse(
+        symbol=request.symbol,
+        date=request.date,
+        job_id=response.job_id,
+        timestamp=datetime.now().isoformat(),
+        status=response.status
+    )
 
 
 if __name__ == "__main__":

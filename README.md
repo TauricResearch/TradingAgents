@@ -127,8 +127,13 @@ python webapp.py
 
 ### Connect to Redis (Local)
 ```
-docker-compose up -d
-redis-cli -h localhost -p 6379 -a {REDIS_PASSWORD}
+docker compose up -d
+docker exec -it {container-id} bash
+redis-cli -h localhost -p 6379 -a trading-agents
+
+Run worker:
+rq worker --url redis://:{{REDIS_PASSWORD}}@{{REDIS_HOST}}:{{REDIS_PORT}}/{{REDIS_DB}} --with-scheduler
+
 ```
 
 ### Required APIs

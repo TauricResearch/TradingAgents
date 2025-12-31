@@ -11,6 +11,7 @@ def get_redis_client() -> Redis:
     if _client is None:
         try:
             config = get_config()
+            print(f"INFO: Creating Redis connection pool config {config}")
             retry = Retry(ExponentialBackoff(), retries=5)
 
             pool = ConnectionPool(
