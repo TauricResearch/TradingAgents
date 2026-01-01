@@ -117,8 +117,8 @@ VENDOR_METHODS = {
         # "local": get_stock_stats_indicators_window
     },
     "get_indicators_bulk": {
-        # "taapi": get_crypto_stats_indicators,
-        "bybit": get_bybit_crypto_indicators_bulk
+        "bybit": get_bybit_crypto_indicators_bulk,
+        "taapi": get_crypto_stats_indicators
     },
     # fundamental_data
     "get_fundamentals": {

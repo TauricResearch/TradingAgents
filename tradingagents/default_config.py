@@ -42,7 +42,7 @@ DEFAULT_CONFIG = {
     "data_vendors": {
         "core_crypto_apis": "bybit",       # Options: binance, bybit
         "core_stock_apis": "yfinance",       # Options: yfinance, alpha_vantage, local
-        "technical_indicators": "bybit",     # Options: bybit
+        "technical_indicators": "bybit",     # Options: bybit, taapi
         "fundamental_data": "alpha_vantage",  # Options: openai, alpha_vantage, local
         "news_data": "openai",        # Options: openai, alpha_vantage, google, local
         "profile_data": "bybit",          # Options: bybit, local
