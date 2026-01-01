@@ -1,6 +1,6 @@
 import requests
 from typing import Annotated, List
-from tradingagents.dataflows.config import get_config
+from tradingagents.config import settings
 
 # This is for single indicator, unused for now but kept for reference
 def get_crypto_stats_indicators_window(
@@ -48,9 +48,8 @@ def get_crypto_stats_indicators_window(
     if indicator.lower() not in supported_indicators:
         return f"Error: Indicator '{indicator}' is not supported. Please choose from: {list(supported_indicators.keys())}"
 
-    config = get_config()
-    base_url = config["external"].get("TAAPI_BASE_URL", "https://api.taapi.io")
-    api_key = config["external"].get("TAAPI_API_KEY", "")
+    base_url = settings.TAAPI_BASE_URL
+    api_key = settings.TAAPI_API_KEY
     if not api_key:
         return "Error: TAAPI_API_KEY is not set in the configuration."
 
@@ -179,9 +178,8 @@ def get_crypto_stats_indicators(
     if invalid_indicators:
         return f"Error: Indicators {invalid_indicators} are not supported. Please choose from: {list(supported_indicators.keys())}"
 
-    config = get_config()
-    base_url = config["external"].get("TAAPI_BASE_URL", "https://api.taapi.io")
-    api_key = config["external"].get("TAAPI_API_KEY", "")
+    base_url = settings.TAAPI_BASE_URL
+    api_key = settings.TAAPI_API_KEY
     if not api_key:
         return "Error: TAAPI_API_KEY is not set in the configuration."
 

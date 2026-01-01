@@ -13,14 +13,14 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.config import settings, get_config, set_config
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
     RiskDebateState,
 )
-from tradingagents.dataflows.config import set_config
+# Import removed as set_config is now imported from tradingagents.config
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -67,29 +67,29 @@ class TradingAgentsGraph:
             config: Configuration dictionary. If None, uses default config
         """
         self.debug = debug
-        self.config = config or DEFAULT_CONFIG
+        self.config = config or get_config()
 
         # Update the interface's config
         set_config(self.config)
 
         # Create necessary directories
         os.makedirs(
-            os.path.join(self.config["project_dir"], "dataflows/data_cache"),
+            os.path.join(settings.PROJECT_DIR, "dataflows/data_cache"),
             exist_ok=True,
         )
 
         # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
-        elif self.config["llm_provider"].lower() == "anthropic":
-            self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
-        elif self.config["llm_provider"].lower() == "google":
-            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
-            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+        if settings.LLM_PROVIDER.lower() == "openai" or settings.LLM_PROVIDER == "ollama" or settings.LLM_PROVIDER == "openrouter":
+            self.deep_thinking_llm = ChatOpenAI(model=settings.DEEP_THINK_LLM, base_url=settings.BACKEND_URL)
+            self.quick_thinking_llm = ChatOpenAI(model=settings.QUICK_THINK_LLM, base_url=settings.BACKEND_URL)
+        elif settings.LLM_PROVIDER.lower() == "anthropic":
+            self.deep_thinking_llm = ChatAnthropic(model=settings.DEEP_THINK_LLM, base_url=settings.BACKEND_URL)
+            self.quick_thinking_llm = ChatAnthropic(model=settings.QUICK_THINK_LLM, base_url=settings.BACKEND_URL)
+        elif settings.LLM_PROVIDER.lower() == "google":
+            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=settings.DEEP_THINK_LLM)
+            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=settings.QUICK_THINK_LLM)
         else:
-            raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
+            raise ValueError(f"Unsupported LLM provider: {settings.LLM_PROVIDER}")
         
         # Initialize memories
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)

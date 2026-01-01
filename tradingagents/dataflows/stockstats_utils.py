@@ -18,9 +18,9 @@ class StockstatsUtils:
         ],
     ):
         # Get config and set up data directory path
+        from tradingagents.config import settings
         config = get_config()
-        online = config["data_vendors"]["technical_indicators"] != "local"
-
+        online = settings.TECHNICAL_INDICATORS != "local"
         df = None
         data = None
 
@@ -46,10 +46,10 @@ class StockstatsUtils:
             end_date = end_date.strftime("%Y-%m-%d")
 
             # Get config and ensure cache directory exists
-            os.makedirs(config["data_cache_dir"], exist_ok=True)
+            os.makedirs(settings.DATA_CACHE_DIR, exist_ok=True)
 
             data_file = os.path.join(
-                config["data_cache_dir"],
+                settings.DATA_CACHE_DIR,
                 f"{symbol}-YFin-data-{start_date}-{end_date}.csv",
             )
 

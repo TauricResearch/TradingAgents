@@ -4,10 +4,6 @@ import typer
 from pathlib import Path
 from functools import wraps
 from rich.console import Console
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
@@ -25,7 +21,7 @@ from rich.align import Align
 from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.config import get_config
 from cli.models import AnalystType
 from cli.utils import *
 
@@ -761,22 +757,26 @@ def run_analysis():
     # First get all user selections
     selections = get_user_selections()
 
-    # Create config with selected research depth
-    config = DEFAULT_CONFIG.copy()
-    config["max_debate_rounds"] = selections["research_depth"]
-    config["max_risk_discuss_rounds"] = selections["research_depth"]
-    config["quick_think_llm"] = selections["shallow_thinker"]
-    config["deep_think_llm"] = selections["deep_thinker"]
-    config["backend_url"] = selections["backend_url"]
-    config["llm_provider"] = selections["llm_provider"].lower()
+    # Update settings with selected research depth
+    from tradingagents.config import settings, update_config
+    
+    config_updates = {
+        "max_debate_rounds": selections["research_depth"],
+        "max_risk_discuss_rounds": selections["research_depth"],
+        "quick_think_llm": selections["shallow_thinker"],
+        "deep_think_llm": selections["deep_thinker"],
+        "backend_url": selections["backend_url"],
+        "llm_provider": selections["llm_provider"].lower()
+    }
+    update_config(config_updates)
 
     # Initialize the graph
     graph = TradingAgentsGraph(
-        [analyst.value for analyst in selections["analysts"]], config=config, debug=True
+        [analyst.value for analyst in selections["analysts"]], config=get_config(), debug=True
     )
 
     # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    results_dir = Path(settings.RESULTS_DIR) / selections["ticker"] / selections["analysis_date"]
     results_dir.mkdir(parents=True, exist_ok=True)
     report_dir = results_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)

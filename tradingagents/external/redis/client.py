@@ -1,25 +1,29 @@
 from redis import Redis, ConnectionPool
 from redis.backoff import ExponentialBackoff
 from redis.retry import Retry
-from tradingagents.dataflows.config import get_config
+from redis.exceptions import ResponseError, DataError
+from tradingagents.config import settings
+import logging
 
 _client = None
+logger = logging.getLogger(__name__)
 
 def get_redis_client() -> Redis:
     """Get or create Redis client with lazy initialization."""
     global _client
     if _client is None:
         try:
-            config = get_config()
-            print(f"INFO: Creating Redis connection pool config {config}")
+            print(f"INFO: Creating Redis connection pool with host={settings.REDIS_HOST}, port={settings.REDIS_PORT}")
+            
             retry = Retry(ExponentialBackoff(), retries=5)
 
             pool = ConnectionPool(
-                host=config["redis"]["REDIS_HOST"],
-                port=config["redis"]["REDIS_PORT"],
-                password=config["redis"]["REDIS_PASSWORD"],
-                db=config["redis"]["REDIS_DB"],
-                decode_responses=True,
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                password=settings.REDIS_PASSWORD,
+                db=settings.REDIS_DB,
+                decode_responses=False,  # Set to False to let RQ handle decoding
+                encoding='utf-8',
                 socket_connect_timeout=5,
                 socket_timeout=5,
                 health_check_interval=10,
@@ -28,6 +32,7 @@ def get_redis_client() -> Redis:
             print("INFO: Initializing Redis client")
             _client = Redis(connection_pool=pool)
             print("INFO: Redis client initialized successfully")
+            
         except Exception as e:
             print(f"ERROR: Failed to initialize Redis client: {e}")
             raise

@@ -1,12 +1,9 @@
 import time
 from tradingagents.external.redis.client import get_redis_client
 from tradingagents.domain.model import AnalysisMeta, AnalysisStatus
+from tradingagents.config import settings
 from rq import Queue, Retry
 from redis import Redis
-
-# TODO: Move to config
-RQ_RETRIES = 3
-RQ_INTERVAL = [30, 60, 120]
 
 ANALYSIS_META_KEY = "analysis:meta:{job_id}"
 ANALYSIS_RESULT_KEY = "analysis:result:{job_id}"
@@ -102,4 +99,4 @@ class RedisRepo:
 
 
 redis_repo = RedisRepo(get_redis_client())
-redis_queue = Queue(connection=get_redis_client(), retry=Retry(max=RQ_RETRIES, interval=RQ_INTERVAL))
+redis_queue = Queue(connection=get_redis_client(), retry=Retry(max=settings.RQ_RETRIES, interval=settings.RQ_INTERVALS))

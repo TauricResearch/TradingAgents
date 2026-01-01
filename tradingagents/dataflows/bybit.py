@@ -6,7 +6,7 @@ from typing import Dict, Optional, List
 from urllib.parse import urlencode
 
 import requests
-from .config import get_config
+from tradingagents.config import settings
 
 import json
 from datetime import datetime, timedelta, timezone
@@ -16,10 +16,9 @@ from stockstats import StockDataFrame
 
 def bybit_v5_request(method: str, path: str, params: Optional[Dict] = None, body: Optional[Dict] = None) -> Dict:
     """Generic signed HTTP request helper for Bybit V5 API."""
-    config = get_config()["external"]
-    base_url = config["BYBIT_BASE_URL"].rstrip("/")
-    api_key = config["BYBIT_API_KEY"]
-    api_secret = config["BYBIT_API_SECRET"]
+    base_url = settings.BYBIT_BASE_URL.rstrip("/")
+    api_key = settings.BYBIT_API_KEY
+    api_secret = settings.BYBIT_API_SECRET
 
     if not api_key or not api_secret:
         raise ValueError("Missing BYBIT_API_KEY or BYBIT_API_SECRET")

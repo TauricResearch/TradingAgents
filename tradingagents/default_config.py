@@ -1,4 +1,20 @@
+"""
+DEPRECATED: This configuration file is deprecated in favor of the centralized config system.
+
+Please use tradingagents.config instead:
+    from tradingagents.config import get_config
+    config = get_config()
+
+This file is kept for backwards compatibility only.
+"""
 import os
+import warnings
+
+warnings.warn(
+    "tradingagents.default_config is deprecated. Please use 'from tradingagents.config import get_config' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 DEFAULT_CONFIG = {
     # App config

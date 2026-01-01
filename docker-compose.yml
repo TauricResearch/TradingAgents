@@ -4,7 +4,7 @@ services:
     container_name: ${REDIS_CONTAINER_NAME:-trading_agents_redis}
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis-data:/data
     environment:

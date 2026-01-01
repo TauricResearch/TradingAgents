@@ -5,11 +5,7 @@ from datetime import datetime
 
 # Import your trading agents
 from service import enqueue_analysis
-from tradingagents.dataflows.config import get_config
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from tradingagents.config import get_config
 
 config = get_config()
 

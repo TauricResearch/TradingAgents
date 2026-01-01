@@ -2,49 +2,50 @@ from tradingagents.external.redis.repo import redis_queue, redis_repo
 from tradingagents.domain.model import AnalysisMeta,  AnalysisStatus
 from tradingagents.domain.response import EnqueueAnalysisResponse
 from rq import get_current_job
-from tradingagents.external.redis.repo import RQ_RETRIES
-from tradingagents.graph.trading_graph import TradingAgentsGraph
+# from tradingagents.external.redis.repo import RQ_RETRIES
 from tradingagents.dataflows.config import get_config
 
 DEFAULT_USER = "global_user"
 
 # Initialize trading agent once at startup
-def create_trading_agent():
-    """Create trading agent with fixed configuration"""
-    return TradingAgentsGraph(debug=True, config=get_config())
+# def create_trading_agent():
+#     """Create trading agent with fixed configuration"""
+#     return TradingAgentsGraph(debug=True, config=get_config())
 
-# Create the trading agent instance once
-trading_agent = create_trading_agent()
+# # Create the trading agent instance once
+# trading_agent = create_trading_agent()
 
 def process_job(user_id: str, symbol: str, date: str):
-    try:
-        job = get_current_job()
+    print(f"INFO: Starting job for symbol {symbol} and date {date} by user {user_id}")
+    print(f"DEBUG: Job function called - this should only happen with a worker!")
+    # try:
+    #     job = get_current_job()
         
-        attempt = job.meta.get("attempt", 1)
-        job.meta["attempt"] = attempt
-        job.save_meta()
+    #     attempt = job.meta.get("attempt", 1)
+    #     job.meta["attempt"] = attempt
+    #     job.save_meta()
 
-        print(f"INFO: Processing job-id {job.id} for symbol {symbol} and date {date} by user {user_id}")
+    #     print(f"INFO: Processing job-id {job.id} for symbol {symbol} and date {date} by user {user_id}")
 
-        # Update status to RUNNING
-        redis_repo.update_status_analysis_meta(job_id=job.id, status=AnalysisStatus.RUNNING)
+    #     # Update status to RUNNING
+    #     redis_repo.update_status_analysis_meta(job_id=job.id, status=AnalysisStatus.RUNNING)
 
-        final_state, decision = trading_agent.propagate(ticker=symbol, trade_date=date)
+    #     final_state, decision = trading_agent.propagate(ticker=symbol, trade_date=date)
 
-        print(f"INFO: Decision for job-id {job.id}: {decision}")
+    #     print(f"INFO: Decision for job-id {job.id}: {decision}")
 
-        # Save the final result
-        redis_repo.save_result(job_id=job.id, final_trade=final_state["final_trade_decision"])
-        # Update status to DONE
-        redis_repo.update_status_analysis_meta(job_id=job.id, status=AnalysisStatus.DONE)
+    #     # Save the final result
+    #     redis_repo.save_result(job_id=job.id, final_trade=final_state["final_trade_decision"])
+    #     # Update status to DONE
+    #     redis_repo.update_status_analysis_meta(job_id=job.id, status=AnalysisStatus.DONE)
         
-        print(f"INFO: Completed job-id {job.id} for symbol {symbol}")
-    except Exception as e:
-        job.meta["attempt"] = attempt + 1
-        job.save_meta()
-        print(f"ERROR: Failed to process job-id {job.id}: {e} (Attempt {attempt} of {RQ_RETRIES})")
-        # Update status to FAILED
-        redis_repo.update_status_analysis_meta(job_id=job.id, status=AnalysisStatus.FAILED)
+    #     print(f"INFO: Completed job-id {job.id} for symbol {symbol}")
+    # except Exception as e:
+    #     job.meta["attempt"] = attempt + 1
+    #     job.save_meta()
+    #     print(f"ERROR: Failed to process job-id {job.id}: {e} (Attempt {attempt} of {RQ_RETRIES})")
+    #     # Update status to FAILED
+    #     redis_repo.update_status_analysis_meta(job_id=job.id, status=AnalysisStatus.FAILED)
 
 
 def enqueue_analysis(symbol: str, date: str) -> EnqueueAnalysisResponse:

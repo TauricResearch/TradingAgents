@@ -5,6 +5,7 @@ from datetime import datetime
 import csv
 import io
 from tradingagents.dataflows.config import get_config
+from tradingagents.config import settings
 
 _client = None
 
@@ -13,8 +14,7 @@ def get_binance_client():
     global _client
     if _client is None:
         try:
-            config = get_config()
-            api_key = config["external"].get("BINANCE_API_KEY", "")
+            api_key = settings.BINANCE_API_KEY
             if not api_key:
                 raise ValueError("BINANCE_API_KEY not found in configuration")
             

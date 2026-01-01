@@ -199,15 +199,15 @@ def _get_stock_stats_bulk(
     from stockstats import wrap
     import os
     
-    config = get_config()
-    online = config["data_vendors"]["technical_indicators"] != "local"
+    from tradingagents.config import settings
+    online = settings.TECHNICAL_INDICATORS != "local"
     
     if not online:
         # Local data path
         try:
             data = pd.read_csv(
                 os.path.join(
-                    config.get("data_cache_dir", "data"),
+                    settings.DATA_CACHE_DIR,
                     f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
                 )
             )
@@ -224,10 +224,10 @@ def _get_stock_stats_bulk(
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
         
-        os.makedirs(config["data_cache_dir"], exist_ok=True)
+        os.makedirs(settings.DATA_CACHE_DIR, exist_ok=True)
         
         data_file = os.path.join(
-            config["data_cache_dir"],
+            settings.DATA_CACHE_DIR,
             f"{symbol}-YFin-data-{start_date_str}-{end_date_str}.csv",
         )
         
