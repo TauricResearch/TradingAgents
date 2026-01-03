@@ -50,7 +50,13 @@ def get_YFin_data_online(
         )
 
     # Remove timezone info from index for cleaner output
-    if data.index.tz is not None:
+    if not isinstance(data.index, pd.DatetimeIndex):
+        try:
+            data.index = pd.to_datetime(data.index)
+        except Exception as e:
+            print(f"WARN: Could not convert index to DatetimeIndex: {e}")
+
+    if isinstance(data.index, pd.DatetimeIndex) and data.index.tz is not None:
         data.index = data.index.tz_localize(None)
 
     # Round numerical values to 2 decimal places for cleaner display

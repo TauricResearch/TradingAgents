@@ -42,7 +42,7 @@ agent_utils.get_market_movers = mock_get_market_movers
 agent_utils.get_earnings_calendar = mock_get_earnings_calendar
 agent_utils.get_trending_social = mock_get_trending_social
 
-def run_full_system():
+def run_full_system(ticker: str = None):
     print("--- Starting Full Agent System ---")
     
     # Configure to use screening
@@ -50,10 +50,13 @@ def run_full_system():
     config["deep_think_llm"] = "gpt-4o-mini"
     config["quick_think_llm"] = "gpt-4o-mini"
     
+    # Determine if we should include screening
+    include_screening = (ticker is None)
+    
     # Initialize graph with screening enabled
-    print("Initializing TradingAgentsGraph with screening=True...")
+    print(f"Initializing TradingAgentsGraph with screening={include_screening}...")
     ta = TradingAgentsGraph(
-        include_screening=True, 
+        include_screening=include_screening, 
         config=config,
         debug=True # Enable debug to see the trace
     )
@@ -61,10 +64,19 @@ def run_full_system():
     # Create initial state
     # We use a placeholder ticker since screening will find the real one
     trade_date = datetime.now().strftime("%Y-%m-%d")
-    initial_state = ta.propagator.create_initial_state("PENDING", trade_date)
     
-    # Override the initial message to trigger screening
-    initial_state["messages"] = [HumanMessage(content="Find a promising stock to analyze based on today's market movers.")]
+    # If ticker is provided, use it; otherwise use placeholder for screening
+    initial_ticker = ticker if ticker else "PENDING"
+    
+    initial_state = ta.propagator.create_initial_state(initial_ticker, trade_date)
+    
+    # Override the initial message to trigger screening ONLY if no ticker provided
+    if include_screening:
+        initial_state["messages"] = [HumanMessage(content="Find a promising stock to analyze based on today's market movers.")]
+    else:
+        print(f"Bypassing screening, analyzing ticker: {ticker}")
+        # Ensure it is a HumanMessage object for consistency and printing
+        initial_state["messages"] = [HumanMessage(content=f"Analyze {ticker}")]
     
     print(f"Invoking graph with initial prompt: {initial_state['messages'][0].content}")
     
@@ -91,4 +103,9 @@ def run_full_system():
         print(f"Execution failed: {e}")
 
 if __name__ == "__main__":
-    run_full_system()
+    import argparse
+    parser = argparse.ArgumentParser(description='Run the Trading Agent System')
+    parser.add_argument('--ticker', type=str, help='Stock ticker to analyze (bypasses screening)')
+    args = parser.parse_args()
+    
+    run_full_system(ticker=args.ticker)
