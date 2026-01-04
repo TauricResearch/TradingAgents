@@ -92,6 +92,8 @@ class GraphSetup:
         bear_researcher_node = create_bear_researcher(
             self.quick_thinking_llm, self.bear_memory
         )
+        fact_checker_node = create_fact_checker(self.quick_thinking_llm)
+
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
         )
@@ -119,6 +121,7 @@ class GraphSetup:
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
+        workflow.add_node("Fact Checker", fact_checker_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
         workflow.add_node("Risky Analyst", risky_analyst)
@@ -153,22 +156,21 @@ class GraphSetup:
                 workflow.add_edge(current_clear, "Bull Researcher")
 
         # Add remaining edges
+        # Bull/Bear Researchers now go to Fact Checker instead of conditional edge
+        workflow.add_edge("Bull Researcher", "Fact Checker")
+        workflow.add_edge("Bear Researcher", "Fact Checker")
+
+        # Fact Checker decides where to go next
         workflow.add_conditional_edges(
-            "Bull Researcher",
+            "Fact Checker",
             self.conditional_logic.should_continue_debate,
             {
+                "Bull Researcher": "Bull Researcher",
                 "Bear Researcher": "Bear Researcher",
                 "Research Manager": "Research Manager",
             },
         )
-        workflow.add_conditional_edges(
-            "Bear Researcher",
-            self.conditional_logic.should_continue_debate,
-            {
-                "Bull Researcher": "Bull Researcher",
-                "Research Manager": "Research Manager",
-            },
-        )
+
         workflow.add_edge("Research Manager", "Trader")
         workflow.add_edge("Trader", "Risky Analyst")
         workflow.add_conditional_edges(

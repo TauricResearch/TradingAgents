@@ -110,7 +110,9 @@ def get_finnhub_news(
             continue
         for entry in data:
             current_news = (
-                "### " + entry["headline"] + f" ({day})" + "\n" + entry["summary"]
+                f"### {entry['headline']} ({day})\n"
+                f"URL: {entry.get('url', 'N/A')}\n"
+                f"{entry['summary']}"
             )
             combined_result += current_news + "\n\n"
 
@@ -411,9 +413,9 @@ def get_reddit_global_news(
     news_str = ""
     for post in posts:
         if post["content"] == "":
-            news_str += f"### {post['title']}\n\n"
+            news_str += f"### {post['title']}\nURL: {post.get('url', 'N/A')}\n\n"
         else:
-            news_str += f"### {post['title']}\n\n{post['content']}\n\n"
+            news_str += f"### {post['title']}\nURL: {post.get('url', 'N/A')}\n\n{post['content']}\n\n"
 
     return f"## Global News Reddit, from {before} to {curr_date}:\n{news_str}"
 
@@ -468,8 +470,8 @@ def get_reddit_company_news(
     news_str = ""
     for post in posts:
         if post["content"] == "":
-            news_str += f"### {post['title']}\n\n"
+            news_str += f"### {post['title']}\nURL: {post.get('url', 'N/A')}\n\n"
         else:
-            news_str += f"### {post['title']}\n\n{post['content']}\n\n"
+            news_str += f"### {post['title']}\nURL: {post.get('url', 'N/A')}\n\n{post['content']}\n\n"
 
     return f"##{query} News Reddit, from {start_date} to {end_date}:\n\n{news_str}"

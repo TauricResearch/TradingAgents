@@ -21,7 +21,9 @@ def get_google_news(
 
     for news in news_results:
         news_str += (
-            f"### {news['title']} (source: {news['source']}) \n\n{news['snippet']}\n\n"
+            f"### {news['title']} (source: {news['source']}) \n"
+            f"URL: {news['link']}\n"
+            f"{news['snippet']}\n\n"
         )
 
     if len(news_results) == 0:
