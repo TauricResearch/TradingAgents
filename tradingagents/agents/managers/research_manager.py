@@ -31,21 +31,21 @@ Strategic Actions: Concrete steps for implementing the recommendation.
 Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting. 
 
 Here are your past reflections on mistakes:
-\"{past_memory_str}\"
+"{past_memory_str}"
 
 Here is the debate:
 Debate History:
 {history}"""
         response = llm.invoke(prompt)
+        
+        # Log the manager's decision
+        print(f"\n\n[Research Manager Decision]\n{response.content}\n")
 
-        new_investment_debate_state = {
+        new_investment_debate_state = investment_debate_state.copy()
+        new_investment_debate_state.update({
             "judge_decision": response.content,
-            "history": investment_debate_state.get("history", ""),
-            "bear_history": investment_debate_state.get("bear_history", ""),
-            "bull_history": investment_debate_state.get("bull_history", ""),
             "current_response": response.content,
-            "count": investment_debate_state["count"],
-        }
+        })
 
         return {
             "investment_debate_state": new_investment_debate_state,
