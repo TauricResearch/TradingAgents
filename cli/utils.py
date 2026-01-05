@@ -1,6 +1,5 @@
-from typing import Dict, List, Optional, Tuple
-
 import questionary
+from typing import Dict, List, Optional, Tuple
 
 from cli.models import AnalystType
 
@@ -206,7 +205,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
             ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
             ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash"),
-            ("Gemini 2.5 Pro", "gemini-2.5-pro-preview-06-05"),
+            ("Gemini 2.5 Pro", "gemini-2.5-pro"),
         ],
         "openrouter": [
             ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
