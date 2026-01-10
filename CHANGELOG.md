@@ -22,6 +22,9 @@ All notable changes to the **TradingAgents** project will be documented in this 
 - **Payload Size Error**: Implemented input truncation (max 9000 chars) in `memory.py`.
 - **Display Layer De-Anonymization**: Added `deanonymize_text` to `TickerAnonymizer` and patched `cli/main.py` to reverse-map "ASSET_XXX" to real company names in the final report, effectively resolving "[Company Name]" placeholders for the user while keeping the internal system blind.
 - **Alpaca Integration**: Added `tradingagents/dataflows/alpaca.py` to support `get_stock_data` via Alpaca Data API v2. Registered as a vendor option in `interface.py` and `default_config.py`. Requires `ALPACA_API_KEY` and `ALPACA_API_SECRET` in `.env`.
+- **CRITICAL FIX: Memory Leak**: Implemented `FinancialSituationMemory.clear()` and `TradingAgentsGraph.reset_memory()` to wipe agent context between runs. This prevents hallucinations from bleeding across days in long simulations.
+- **CRITICAL FIX: Blind Logs**: Updated `_log_state` to explicitly capture `market_regime` and `regime_metrics`, ensuring we can audit decision logic relative to market conditions.
+- **CRITICAL FIX: Crash Prevention**: Added guard logic in `propagate()` to handle "Dead State" (Rejected Trades) gracefully, preventing crashes when `process_signal` tries to read non-existent buy prices.
 
 
 

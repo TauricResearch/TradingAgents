@@ -95,6 +95,14 @@ class FinancialSituationMemory:
         return matched_results
 
 
+    def clear(self):
+        """Clear the memory by deleting and recreating the collection."""
+        try:
+             self.chroma_client.delete_collection(self.situation_collection.name)
+             self.situation_collection = self.chroma_client.create_collection(name=self.situation_collection.name)
+        except Exception as e:
+             print(f"Warning: Failed to clear memory {self.situation_collection.name}: {e}")
+
 if __name__ == "__main__":
     # Example usage
     matcher = FinancialSituationMemory()

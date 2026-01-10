@@ -165,8 +165,18 @@ class TradingAgentsGraph:
             ),
         }
 
+    def reset_memory(self):
+        """Clear all agent memories to prevent context bleeding between runs."""
+        self.bull_memory.clear()
+        self.bear_memory.clear()
+        self.trader_memory.clear()
+        self.invest_judge_memory.clear()
+        self.risk_manager_memory.clear()
+
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date."""
+        # 1. FIX MEMORY LEAK
+        self.reset_memory()
 
         self.ticker = company_name
 
@@ -197,14 +207,30 @@ class TradingAgentsGraph:
         # Log state
         self._log_state(trade_date, final_state)
 
-        # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        # 3. FIX CRASH RISK: Handle Dead State gracefully
+        trade_decision = final_state["final_trade_decision"]
+        
+        # If trade was rejected by a Gate (Fact Check or Risk), return raw decision
+        if trade_decision.get("action") == "HOLD" and "REJECTED" in trade_decision.get("reasoning", ""):
+            processed_signal = {
+                "action": "HOLD",
+                "quantity": 0,
+                "reason": trade_decision["reasoning"]
+            }
+        else:
+            # Only process if it's a valid attempt
+            processed_signal = self.process_signal(trade_decision)
+
+        return final_state, processed_signal
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
         self.log_states_dict[str(trade_date)] = {
             "company_of_interest": final_state["company_of_interest"],
             "trade_date": final_state["trade_date"],
+            # 2. FIX BLIND SPOT: Log the Math
+            "market_regime": final_state.get("market_regime", "UNKNOWN"), 
+            "regime_metrics": final_state.get("regime_metrics", {}),
             "market_report": final_state["market_report"],
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
