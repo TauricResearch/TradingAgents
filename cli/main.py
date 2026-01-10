@@ -789,11 +789,12 @@ def run_analysis():
         def wrapper(section_name, content):
             func(section_name, content)
             if section_name in obj.report_sections and obj.report_sections[section_name] is not None:
-                content = obj.report_sections[section_name]
-                if content:
+                raw_content = obj.report_sections[section_name]
+                if raw_content:
+                    content_str = extract_content_string(raw_content)
                     file_name = f"{section_name}.md"
                     with open(report_dir / file_name, "w") as f:
-                        f.write(content)
+                        f.write(content_str)
         return wrapper
 
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")

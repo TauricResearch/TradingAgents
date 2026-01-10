@@ -405,3 +405,52 @@ def get_insider_transactions(
         
     except Exception as e:
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"
+def get_fundamentals(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date (not used for yfinance info)"] = None
+):
+    """Get fundamental data from yfinance ticker.info."""
+    try:
+        ticker_obj = yf.Ticker(ticker.upper())
+        info = ticker_obj.info
+        
+        if not info:
+            return f"No fundamental data found for symbol '{ticker}'"
+            
+        keys_of_interest = [
+            "shortName", "longName", "sector", "industry", "fullTimeEmployees",
+            "marketCap", "enterpriseValue", "totalRevenue", "profitMargins",
+            "floatShares", "sharesOutstanding", "impliedSharesOutstanding",
+            "bookValue", "priceToBook", "trailingEps", "forwardEps",
+            "pegRatio", "priceToSalesTrailing12Months", "forwardPE", "trailingPE",
+            "dividendRate", "dividendYield", "payoutRatio",
+            "beta", "52WeekChange", "SnP52WeekChange", "lastDividendValue", "lastDividendDate",
+            "currentPrice", "targetHighPrice", "targetLowPrice", "targetMeanPrice",
+            "recommendationMean", "recommendationKey", "numberOfAnalystOpinions",
+            "totalCash", "totalCashPerShare", "ebitda", "totalDebt",
+            "quickRatio", "currentRatio", "revenueGrowth", "debtToEquity",
+            "returnOnAssets", "returnOnEquity", "grossProfits", "freeCashflow",
+            "operatingCashflow", "earningsGrowth", "revenueGrowth", "grossMargins",
+            "ebitdaMargins", "operatingMargins", "auditRisk", "boardRisk",
+            "compensationRisk", "shareHolderRightsRisk", "overallRisk"
+        ]
+        
+        report_lines = []
+        report_lines.append(f"# Fundamental Data for {ticker.upper()}")
+        report_lines.append(f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} (Real-time/Latest)")
+        report_lines.append(f"# Note: YFinance 'info' provides current data, not historical.")
+        report_lines.append("")
+        
+        for key in keys_of_interest:
+            if key in info and info[key] is not None:
+                report_lines.append(f"{key}: {info[key]}")
+                
+        if "longBusinessSummary" in info:
+             report_lines.append("")
+             report_lines.append("## Business Summary")
+             report_lines.append(info["longBusinessSummary"])
+        
+        return "\n".join(report_lines)
+        
+    except Exception as e:
+        return f"Error retrieving fundamentals for {ticker}: {str(e)}"

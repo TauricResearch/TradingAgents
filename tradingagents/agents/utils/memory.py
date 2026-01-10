@@ -1,3 +1,4 @@
+import os
 import chromadb
 from chromadb.config import Settings
 from openai import OpenAI
@@ -5,16 +6,43 @@ from openai import OpenAI
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config["backend_url"] == "http://localhost:11434/v1":
+        if config.get("llm_provider") == "google":
+            self.embedding = "text-embedding-004"
+            
+            google_api_key = os.getenv("GOOGLE_API_KEY")
+            if not google_api_key:
+                raise ValueError("❌ GOOGLE_API_KEY not found in environment. Please add it to your .env file or export it.")
+                
+            # Use Google's OpenAI-compatible endpoint with retries
+            self.client = OpenAI(
+                api_key=google_api_key,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                max_retries=5
+            )
+        elif config["backend_url"] == "http://localhost:11434/v1" or config.get("llm_provider") == "ollama":
             self.embedding = "nomic-embed-text"
+            self.client = OpenAI(base_url=config["backend_url"])
         else:
             self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(base_url=config["backend_url"])
+            self.client = OpenAI(base_url=config["backend_url"])
+            
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""
+        
+        # DEBUG: Check API Key
+        if hasattr(self, 'client') and self.client.api_key:
+             masked_key = self.client.api_key[:4] + "..."
+             # print(f"DEBUG: Using API Key: {masked_key}")
+        
+        # Truncate text if too long (Google's limit is ~2048 tokens / 8k chars, allow buffer)
+        # OpenAI text-embedding-3 is 8191 tokens (~32k chars)
+        # Use safe limit of 9000 chars
+        if len(text) > 9000:
+             # print(f"WARNING: Truncating text for embedding. Length {len(text)} > 9000")
+             text = text[:9000]
         
         response = self.client.embeddings.create(
             model=self.embedding, input=text
