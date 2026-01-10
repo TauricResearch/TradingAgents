@@ -21,6 +21,9 @@ All notable changes to the **TradingAgents** project will be documented in this 
 - **Import Errors**: Fixed `NameError: name 'tool' is not defined` by restoring `langchain_core` imports in data tools that were accidentally removed during Blindfire integration.
 - **Payload Size Error**: Implemented input truncation (max 9000 chars) in `memory.py`.
 - **Display Layer De-Anonymization**: Added `deanonymize_text` to `TickerAnonymizer` and patched `cli/main.py` to reverse-map "ASSET_XXX" to real company names in the final report, effectively resolving "[Company Name]" placeholders for the user while keeping the internal system blind.
+- **Alpaca Integration**: Added `tradingagents/dataflows/alpaca.py` to support `get_stock_data` via Alpaca Data API v2. Registered as a vendor option in `interface.py` and `default_config.py`. Requires `ALPACA_API_KEY` and `ALPACA_API_SECRET` in `.env`.
+
+
 
 ### Changed
 - **LLM Configuration**: Updated `tradingagents/default_config.py` and `cli/utils.py` to use valid Gemini model names (e.g., `gemini-1.5-flash`, `gemini-1.5-pro`) and `gemini-pro`.
