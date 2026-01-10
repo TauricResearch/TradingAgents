@@ -63,6 +63,7 @@ class AgentState(MessagesState):
     
     # regime data
     market_regime: Annotated[str, "Current Market Regime (e.g. VOLATILE, TRENDING_UP)"]
+    regime_metrics: Annotated[dict, "Metrics used to determine regime"]
     volatility_score: Annotated[float, "Current Volatility Score"]
 
     # researcher team discussion step

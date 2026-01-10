@@ -5,7 +5,12 @@ from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicator
 from tradingagents.dataflows.config import get_config
 
 
+
+from tradingagents.engines.regime_detector import RegimeDetector, DynamicIndicatorSelector
 from tradingagents.utils.anonymizer import TickerAnonymizer
+import pandas as pd
+from io import StringIO
+from datetime import datetime, timedelta
 
 # Initialize anonymizer (shared instance appropriate here or inside)
 anonymizer = TickerAnonymizer()
@@ -23,6 +28,51 @@ def create_market_analyst(llm):
         
         # NOTE: We continue to use 'ticker' variable name but it now holds 'ASSET_XXX'
 
+        # REGIME DETECTION LOGIC
+        regime_val = "UNKNOWN"
+        metrics = {}
+        optimal_params = {}
+        regime_context = "REGIME DETECTION FAILED or DATA UNAVAILABLE"
+        volatility_score = 0.0
+
+        try:
+            # Calculate start date (1 year lookback for robust regime detection)
+            dt_obj = datetime.strptime(current_date, "%Y-%m-%d")
+            start_date = (dt_obj - timedelta(days=365)).strftime("%Y-%m-%d")
+
+            # Fetch data for regime detection using the anonymized ticker
+            # This calls the tool which handles deanonymization internally if needed 
+            # (assuming core_stock_tools.get_stock_data handles the 'ASSET_XXX' -> Real mapping)
+            # Use invoke for StructuredTool with ALL required args
+            raw_data = get_stock_data.invoke({
+                "symbol": ticker, 
+                "start_date": start_date,
+                "end_date": current_date,
+                "format": "csv"
+            })
+            
+            # Parse data
+            if isinstance(raw_data, str) and "Error" not in raw_data and "No data" not in raw_data:
+                # Parse data (Standardized CSV format with # comments)
+                df = pd.read_csv(StringIO(raw_data), comment='#')
+                
+                # Check for Close column
+                if 'Close' in df.columns:
+                    # Detect Regime
+                    regime, metrics = RegimeDetector.detect_regime(df['Close'])
+                    optimal_params = DynamicIndicatorSelector.get_optimal_parameters(regime)
+                    regime_val = regime.value
+                    volatility_score = metrics.get("volatility", 0.0)
+                    
+                    # Construct Context String
+                    regime_context = f"MARKET REGIME DETECTED: {regime_val}\n"
+                    regime_context += f"METRICS: {json.dumps(metrics)}\n"
+                    regime_context += f"RECOMMENDED STRATEGY: {optimal_params.get('strategy', 'N/A')}\n"
+                    regime_context += f"RECOMMENDED INDICATORS: {json.dumps(optimal_params)}\n"
+                    regime_context += f"RATIONALE: {optimal_params.get('rationale', '')}"
+        except Exception as e:
+            print(f"WARNING: Regime detection failed for {ticker}: {e}")
+
         tools = [
             get_stock_data,
             get_indicators,
@@ -36,7 +86,14 @@ CRITICAL DATA CONSTRAINT:
 2. "Price 105.0" means +5% gain from start. It does NOT mean $105.00.
 3. DO NOT hallucinate real-world ticker prices. Treat this as a pure mathematical time series.
 
-TASK: Select relevant indicators and analyze trends. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+DYNAMIC MARKET REGIME CONTEXT:
+{regime_context}
+
+TASK: Select relevant indicators and analyze trends. 
+Your role is to select the **most relevant indicators** for the DETECTED REGIME ({regime_val}).
+The goal is to choose up to **8 indicators** that provide complementary insights without redundancy.
+
+INDICATOR CATEGORIES:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
@@ -98,6 +155,9 @@ Volume-Based Indicators:
         return {
             "messages": [result],
             "market_report": report,
+            "market_regime": regime_val,
+            "regime_metrics": metrics,
+            "volatility_score": volatility_score
         }
 
     return market_analyst_node

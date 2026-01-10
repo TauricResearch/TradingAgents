@@ -9,6 +9,7 @@ def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    format: Annotated[str, "Output format 'csv' or 'string'"] = "csv"
 ):
 
     datetime.strptime(start_date, "%Y-%m-%d")
@@ -36,15 +37,20 @@ def get_YFin_data_online(
         if col in data.columns:
             data[col] = data[col].round(2)
 
-    # Convert DataFrame to CSV string
-    csv_string = data.to_csv()
+    # Convert DataFrame to string based on format
+    if format.lower() == 'string':
+        # Use to_string for human readability
+        result_string = data.to_string()
+    else:
+        # Default to CSV
+        result_string = data.to_csv()
 
     # Add header information
     header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
     header += f"# Total records: {len(data)}\n"
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
-    return header + csv_string
+    return header + result_string
 
 def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],

@@ -4,7 +4,7 @@ import pandas as pd
 from typing import Optional
 from datetime import datetime, timedelta
 
-def get_stock_data(symbol: str, start_date: str = None, end_date: str = None) -> str:
+def get_stock_data(symbol: str, start_date: str = None, end_date: str = None, format: str = "string") -> str:
     """
     Fetch historical stock data (OHLCV) from Alpaca Data API v2.
     
@@ -12,6 +12,7 @@ def get_stock_data(symbol: str, start_date: str = None, end_date: str = None) ->
         symbol: Ticker symbol (e.g., "AAPL")
         start_date: Start date (YYYY-MM-DD), defaults to 1 year ago
         end_date: End date (YYYY-MM-DD), defaults to today
+        format: Output format "string" (human readable) or "csv" (machine readable). Defaults to "string".
         
     Returns:
         String representation of the dataframe
@@ -84,8 +85,12 @@ def get_stock_data(symbol: str, start_date: str = None, end_date: str = None) ->
         df = pd.DataFrame(df_data)
         
         # Format output string similar to yfinance output for consistency
-        result_str = f"Stock Data for {symbol} from {start_date} to {end_date}\n"
-        result_str += df.to_string(index=False)
+        result_str = f"# Stock Data for {symbol} from {start_date} to {end_date}\n"
+        
+        if format.lower() == "csv":
+            result_str += df.to_csv(index=False)
+        else:
+            result_str += df.to_string(index=False)
         
         return result_str
         
