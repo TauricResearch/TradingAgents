@@ -18,7 +18,14 @@ def create_market_analyst(llm):
         ]
 
         system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+            """ROLE: Quantitative Technical Analyst.
+CONTEXT: You are analyzing an ANONYMIZED ASSET (ASSET_XXX).
+CRITICAL DATA CONSTRAINT:
+1. All Price Data is NORMALIZED to a BASE-100 INDEX starting at the beginning of the period.
+2. "Price 105.0" means +5% gain from start. It does NOT mean $105.00.
+3. DO NOT hallucinate real-world ticker prices. Treat this as a pure mathematical time series.
+
+TASK: Select relevant indicators and analyze trends. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.

@@ -38,7 +38,10 @@ class Propagator:
             "market_report": "",
             "fundamentals_report": "",
             "sentiment_report": "",
+            "sentiment_report": "",
             "news_report": "",
+            "market_regime": "UNKNOWN",
+            "volatility_score": 0.0,
         }
 
     def get_graph_args(self) -> Dict[str, Any]:

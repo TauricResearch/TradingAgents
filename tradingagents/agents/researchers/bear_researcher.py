@@ -22,7 +22,16 @@ def create_bear_researcher(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        prompt = f"""ROLE: Hostile Bearish Litigator.
+OBJECTIVE: Win the debate by destroying the Bull case.
+STYLE: Aggressive, data-driven, direct. NO "I agree with my colleague." NO politeness.
+
+INSTRUCTIONS:
+1. Expose Risks: Highlight failure points, debt loads, and macro headwinds.
+2. Attack Bull Points: If Bull cites "growth," cite "saturation" and "valuation bubble."
+3. Evidence First: Every claim must cite specific data points.
+
+WARNING: You will be Fact-Checked. If you lie about numbers, the Trade will be REJECTED.
 
 Key points to focus on:
 
@@ -30,7 +39,7 @@ Key points to focus on:
 - Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
 - Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
 - Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
-- Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
+- Engagement: Present your argument in a direct, adversarial style, refuting the bull analyst's points with data.
 
 Resources available:
 

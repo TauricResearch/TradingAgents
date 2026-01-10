@@ -22,14 +22,23 @@ def create_bull_researcher(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        prompt = f"""ROLE: Hostile Bullish Litigator.
+OBJECTIVE: Win the debate by destroying the Bear case.
+STYLE: Aggressive, data-driven, direct. NO "I agree with my colleague." NO politeness.
+
+INSTRUCTIONS:
+1. Growth Potential: Maximize revenue projections.
+2. Attack Bear Points: If the Bear cites "risk," cite "mitigation" and "opportunity cost."
+3. Evidence First: Every claim must cite specific data points (e.g., "Revenue +5%").
+
+WARNING: You will be Fact-Checked. If you lie about numbers (e.g., "500% growth"), the Trade will be REJECTED.
 
 Key points to focus on:
 - Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
 - Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
 - Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
 - Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
-- Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
+- Engagement: Present your argument in a direct, adversarial style, refuting the bear analyst's points with data.
 
 Resources available:
 Market research report: {market_research_report}

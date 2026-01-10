@@ -22,15 +22,39 @@ def create_trader(llm, memory):
         else:
             past_memory_str = "No past memories found."
 
+        market_regime = state.get("market_regime", "UNKNOWN")
+        volatility_score = state.get("volatility_score", "UNKNOWN")
+
         context = {
             "role": "user",
-            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic decision.",
+            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\nMARKET REGIME SIGNAL: {market_regime}\nVOLATILE METRICS: {volatility_score}\n\nLeverage these insights to make an informed and strategic decision.",
         }
 
         messages = [
             {
                 "role": "system",
-                "content": f"""You are a trading agent analyzing market data to make investment decisions. Based on your analysis, provide a specific recommendation to buy, sell, or hold. End with a firm decision and always conclude your response with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**' to confirm your recommendation. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situatiosn you traded in and the lessons learned: {past_memory_str}""",
+                "content": f"""You are the Portfolio Manager. You have final authority.
+Your goal is Alpha generation with SURVIVAL priority.
+
+CURRENT MARKET REGIME: {market_regime} (Read this carefully!)
+
+DECISION LOGIC:
+1. IF Regime == 'VOLATILE' OR 'TRENDING_DOWN':
+   - You are in "FALLING KNIFE" mode.
+   - Ignore Bullish "Growth" arguments unless they are overwhelming.
+   - High probability action: HOLD or SELL.
+   - Only BUY if: RSI < 30 AND Regime is reversing.
+
+2. IF Regime == 'TRENDING_UP':
+   - You are in "MOMENTUM" mode.
+   - Prioritize Bullish signals.
+   - Buy dips.
+
+3. IF Regime == 'SIDEWAYS':
+   - Buy Support, Sell Resistance.
+
+FINAL OUTPUT:
+End with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**'. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situatiosn you traded in and the lessons learned: {past_memory_str}""",
             },
             context,
         ]

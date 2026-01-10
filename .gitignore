@@ -9,3 +9,5 @@ eval_results/
 eval_data/
 *.egg-info/
 .env
+venv_torture_test
+*.log

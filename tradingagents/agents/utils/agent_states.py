@@ -60,6 +60,10 @@ class AgentState(MessagesState):
         str, "Report from the News Researcher of current world affairs"
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
+    
+    # regime data
+    market_regime: Annotated[str, "Current Market Regime (e.g. VOLATILE, TRENDING_UP)"]
+    volatility_score: Annotated[float, "Current Volatility Score"]
 
     # researcher team discussion step
     investment_debate_state: Annotated[
