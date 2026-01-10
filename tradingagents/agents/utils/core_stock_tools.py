@@ -1,7 +1,7 @@
 from langchain_core.tools import tool
 from typing import Annotated
 from tradingagents.dataflows.interface import route_to_vendor
-
+from tradingagents.utils.anonymizer import TickerAnonymizer
 
 @tool
 def get_stock_data(
@@ -19,4 +19,18 @@ def get_stock_data(
     Returns:
         str: A formatted dataframe containing the stock price data for the specified ticker symbol in the specified date range.
     """
-    return route_to_vendor("get_stock_data", symbol, start_date, end_date)
+    # Initialize anonymizer locally to ensure fresh state loading
+    anonymizer = TickerAnonymizer()
+    
+    # 1. Deanonymize ticker (ASSET_XXX -> AAPL)
+    real_ticker = anonymizer.deanonymize_ticker(symbol)
+    if not real_ticker:
+        real_ticker = symbol  # Fallback if not anonymized
+
+    # 2. Get Data using Real Ticker
+    raw_data = route_to_vendor("get_stock_data", real_ticker, start_date, end_date)
+
+    # 3. Anonymize Output (AAPL -> ASSET_XXX)
+    anonymized_data = anonymizer.anonymize_text(raw_data, real_ticker)
+    
+    return anonymized_data

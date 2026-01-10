@@ -1,7 +1,23 @@
 from langchain_core.tools import tool
 from typing import Annotated
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.utils.anonymizer import TickerAnonymizer
 
+def _process_vendor_call(func_name, ticker, *args):
+    """Helper to handle anonymization for vendor calls"""
+    # Initialize locally to ensure fresh state
+    anonymizer = TickerAnonymizer()
+    
+    # 1. Deanonymize ticker
+    real_ticker = anonymizer.deanonymize_ticker(ticker)
+    if not real_ticker:
+        real_ticker = ticker
+        
+    # 2. Get Data
+    raw_data = route_to_vendor(func_name, real_ticker, *args)
+    
+    # 3. Anonymize Output
+    return anonymizer.anonymize_text(raw_data, real_ticker)
 
 @tool
 def get_fundamentals(
@@ -17,7 +33,7 @@ def get_fundamentals(
     Returns:
         str: A formatted report containing comprehensive fundamental data
     """
-    return route_to_vendor("get_fundamentals", ticker, curr_date)
+    return _process_vendor_call("get_fundamentals", ticker, curr_date)
 
 
 @tool
@@ -36,7 +52,7 @@ def get_balance_sheet(
     Returns:
         str: A formatted report containing balance sheet data
     """
-    return route_to_vendor("get_balance_sheet", ticker, freq, curr_date)
+    return _process_vendor_call("get_balance_sheet", ticker, freq, curr_date)
 
 
 @tool
@@ -55,7 +71,7 @@ def get_cashflow(
     Returns:
         str: A formatted report containing cash flow statement data
     """
-    return route_to_vendor("get_cashflow", ticker, freq, curr_date)
+    return _process_vendor_call("get_cashflow", ticker, freq, curr_date)
 
 
 @tool
@@ -74,4 +90,4 @@ def get_income_statement(
     Returns:
         str: A formatted report containing income statement data
     """
-    return route_to_vendor("get_income_statement", ticker, freq, curr_date)
+    return _process_vendor_call("get_income_statement", ticker, freq, curr_date)

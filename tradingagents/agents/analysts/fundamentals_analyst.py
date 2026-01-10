@@ -5,11 +5,21 @@ from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance
 from tradingagents.dataflows.config import get_config
 
 
+from tradingagents.utils.anonymizer import TickerAnonymizer
+
+# Initialize anonymizer
+anonymizer = TickerAnonymizer()
+
 def create_fundamentals_analyst(llm):
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
-        ticker = state["company_of_interest"]
-        company_name = state["company_of_interest"]
+        real_ticker = state["company_of_interest"]
+        company_name = state["company_of_interest"] # Acting as placeholder name
+        
+        # BLINDFIRE PROTOCOL: Anonymize Ticker
+        # We set name here too just in case fundamentals runs first or independently
+        anonymizer.set_company_name(real_ticker, company_name)
+        ticker = anonymizer.anonymize_ticker(real_ticker)
 
         tools = [
             get_fundamentals,

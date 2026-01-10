@@ -25,12 +25,18 @@ class TickerAnonymizer:
     CRITICAL: Uses adjusted close prices to handle dividends and splits.
     """
     
-    def __init__(self, seed: str = "blindfire_v1"):
+    def __init__(self, seed: str = "blindfire_v1", auto_persist: bool = True):
         self.seed = seed
         self.ticker_map = {}
         self.reverse_map = {}
         self.company_names = {}
         self.baseline_prices = {}  # Store baseline for normalization
+        self.auto_persist = auto_persist
+        
+        # Persistence path
+        self.map_file = Path("ticker_map.json")
+        if self.auto_persist:
+            self._load_from_file()
         
         # Product name mappings
         self.product_map = {
@@ -58,6 +64,36 @@ class TickerAnonymizer:
             "YouTube": "Video Platform A",
             "Android": "Mobile OS A",
         }
+        
+    def _load_from_file(self):
+        """Load mapping from disk if exists"""
+        if self.map_file.exists():
+            try:
+                with open(self.map_file, 'r') as f:
+                    data = json.load(f)
+                    # Merge loaded data
+                    self.ticker_map.update(data.get("ticker_map", {}))
+                    self.reverse_map.update(data.get("reverse_map", {}))
+                    self.company_names.update(data.get("company_names", {}))
+            except Exception as e:
+                print(f"Warning: Failed to load ticker map: {e}")
+
+    def _save_to_file(self):
+        """Save mapping to disk"""
+        if not self.auto_persist:
+            return
+        
+        data = {
+            "ticker_map": self.ticker_map,
+            "reverse_map": self.reverse_map,
+            "company_names": self.company_names,
+            "seed": self.seed
+        }
+        try:
+            with open(self.map_file, 'w') as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Failed to save ticker map: {e}")
     
     def anonymize_ticker(self, ticker: str) -> str:
         """
@@ -75,11 +111,15 @@ class TickerAnonymizer:
             anon_label = f"ASSET_{hash_val % 1000:03d}"
             self.ticker_map[ticker] = anon_label
             self.reverse_map[anon_label] = ticker
+            self._save_to_file()  # Save on new mapping
+            
         return self.ticker_map[ticker]
     
     def set_company_name(self, ticker: str, company_name: str):
         """Store company name for anonymization."""
-        self.company_names[ticker] = company_name
+        if ticker not in self.company_names or self.company_names[ticker] != company_name:
+            self.company_names[ticker] = company_name
+            self._save_to_file()
     
     def anonymize_text(self, text: str, ticker: str) -> str:
         """

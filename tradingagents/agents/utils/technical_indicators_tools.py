@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 from typing import Annotated
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.utils.anonymizer import TickerAnonymizer
 
 @tool
 def get_indicators(
@@ -20,4 +21,18 @@ def get_indicators(
     Returns:
         str: A formatted dataframe containing the technical indicators for the specified ticker symbol and indicator.
     """
-    return route_to_vendor("get_indicators", symbol, indicator, curr_date, look_back_days)
+    # Initialize anonymizer locally to ensure fresh state loading
+    anonymizer = TickerAnonymizer()
+
+    # 1. Deanonymize ticker
+    real_ticker = anonymizer.deanonymize_ticker(symbol)
+    if not real_ticker:
+        real_ticker = symbol
+
+    # 2. Get Data
+    raw_data = route_to_vendor("get_indicators", real_ticker, indicator, curr_date, look_back_days)
+
+    # 3. Anonymize Output
+    anonymized_data = anonymizer.anonymize_text(raw_data, real_ticker)
+    
+    return anonymized_data

@@ -5,12 +5,23 @@ from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicator
 from tradingagents.dataflows.config import get_config
 
 
+from tradingagents.utils.anonymizer import TickerAnonymizer
+
+# Initialize anonymizer (shared instance appropriate here or inside)
+anonymizer = TickerAnonymizer()
+
 def create_market_analyst(llm):
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
-        ticker = state["company_of_interest"]
-        company_name = state["company_of_interest"]
+        real_ticker = state["company_of_interest"]
+        company_name = state["company_of_interest"] # In this context acting as name too
+        
+        # BLINDFIRE PROTOCOL: Anonymize Ticker
+        anonymizer.set_company_name(real_ticker, company_name)
+        ticker = anonymizer.anonymize_ticker(real_ticker)
+        
+        # NOTE: We continue to use 'ticker' variable name but it now holds 'ASSET_XXX'
 
         tools = [
             get_stock_data,

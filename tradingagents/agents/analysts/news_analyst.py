@@ -5,10 +5,23 @@ from tradingagents.agents.utils.agent_utils import get_news, get_global_news
 from tradingagents.dataflows.config import get_config
 
 
+from tradingagents.utils.anonymizer import TickerAnonymizer
+
+# Initialize anonymizer
+anonymizer = TickerAnonymizer()
+
 def create_news_analyst(llm):
     def news_analyst_node(state):
         current_date = state["trade_date"]
-        ticker = state["company_of_interest"]
+        real_ticker = state["company_of_interest"]
+        
+        # BLINDFIRE PROTOCOL: Anonymize Ticker
+        ticker = anonymizer.anonymize_ticker(real_ticker)
+        # Note: company name registration happens in market_analyst primarily, 
+        # but we can do it here too if not already set, or just use ticker mapping.
+        # Since state doesn't always have full company name guaranteed in all flows,
+        # we rely on market_analyst or previous steps, or just ticker hashing here.
+
 
         tools = [
             get_news,

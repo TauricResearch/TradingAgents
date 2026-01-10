@@ -1,6 +1,32 @@
 from langchain_core.tools import tool
 from typing import Annotated
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.utils.anonymizer import TickerAnonymizer
+
+def _process_vendor_call(func_name, ticker=None, *args):
+    """Helper to handle anonymization for vendor calls"""
+    # Initialize locally to ensure fresh state
+    anonymizer = TickerAnonymizer()
+    
+    real_ticker = None
+    if ticker:
+        # 1. Deanonymize ticker
+        real_ticker = anonymizer.deanonymize_ticker(ticker)
+        if not real_ticker:
+            real_ticker = ticker
+            
+    # 2. Get Data
+    # Handle optional ticker for global_news
+    call_args = [real_ticker] + list(args) if ticker else list(args)
+    raw_data = route_to_vendor(func_name, *call_args)
+    
+    # 3. Anonymize Output
+    # For global news, passing ticker=None to anonymize_text might skip ticker-specific masking,
+    # but still mask known mapped tickers if logic supports it. 
+    # Current anonymize_text requires ticker context for "Company X".
+    # For global news, we might need a generic pass or skip specific company names if unknown.
+    # However, for now we pass real_ticker if available.
+    return anonymizer.anonymize_text(raw_data, real_ticker) if real_ticker else raw_data
 
 @tool
 def get_news(
@@ -18,7 +44,7 @@ def get_news(
     Returns:
         str: A formatted string containing news data
     """
-    return route_to_vendor("get_news", ticker, start_date, end_date)
+    return _process_vendor_call("get_news", ticker, start_date, end_date)
 
 @tool
 def get_global_news(
@@ -36,6 +62,18 @@ def get_global_news(
     Returns:
         str: A formatted string containing global news data
     """
+    # Global news doesn't take a ticker as input, so pass None as ticker
+    # We rely on the vendor call just taking args.
+    # Note: route_to_vendor expects func_name, *args.
+    # Our helper expects func_name, ticker, *args.
+    # So we call route_to_vendor directly here but still might want to anonymize output?
+    # Global news might mention "Apple". If we are analyzing "ASSET_042" (Apple), we typically want to mask it.
+    # But without a specific target ticker in context, it's hard.
+    # For now, let's just return raw global news or we'd need to mask ALL known mapped tickers.
+    # The current Anonymizer is context-aware (one ticker).
+    # Ideally, get_global_news should probably stay raw or be masked for the 'current company of interest' 
+    # but tools don't know the agent's context unless passed.
+    # Leaving global news RAW for now as it provides macro context.
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
 @tool
@@ -48,11 +86,11 @@ def get_insider_sentiment(
     Uses the configured news_data vendor.
     Args:
         ticker (str): Ticker symbol of the company
-        curr_date (str): Current date you are trading at, yyyy-mm-dd
+        curr_date (str): Current date in yyyy-mm-dd format
     Returns:
         str: A report of insider sentiment data
     """
-    return route_to_vendor("get_insider_sentiment", ticker, curr_date)
+    return _process_vendor_call("get_insider_sentiment", ticker, curr_date)
 
 @tool
 def get_insider_transactions(
@@ -64,8 +102,8 @@ def get_insider_transactions(
     Uses the configured news_data vendor.
     Args:
         ticker (str): Ticker symbol of the company
-        curr_date (str): Current date you are trading at, yyyy-mm-dd
+        curr_date (str): Current date in yyyy-mm-dd format
     Returns:
         str: A report of insider transaction data
     """
-    return route_to_vendor("get_insider_transactions", ticker, curr_date)
+    return _process_vendor_call("get_insider_transactions", ticker, curr_date)
