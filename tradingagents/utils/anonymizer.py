@@ -303,6 +303,57 @@ class TickerAnonymizer:
         return self.reverse_map.get(anon_ticker)
 
 
+    
+    def deanonymize_text(self, text: str) -> str:
+        """
+        Restore original company information in text.
+        
+        Args:
+            text: Anonymized text
+        
+        Returns:
+            Deanonymized text with real names and tickers.
+        """
+        if not text:
+            return text
+            
+        # 1. Reverse Product Maps (Product A -> iPhone)
+        # We need a reverse product map for this
+        reverse_product_map = {v: k for k, v in self.product_map.items()}
+        for anon_prod, real_prod in reverse_product_map.items():
+            text = re.sub(
+                rf'\b{re.escape(anon_prod)}\b',
+                real_prod,
+                text,
+                flags=re.IGNORECASE
+            )
+
+        # 2. Reverse Ticker and Company Name
+        # Iterate through all known mappings in reverse map
+        # Sort by length desc to handle potential overlaps if any (though ASSET_XXX is fixed len)
+        for anon_ticker, real_ticker in self.reverse_map.items():
+            # Replace "Company ASSET_XXX" -> "Apple" (or "Company Name" if stored)
+            if real_ticker in self.company_names:
+                real_name = self.company_names[real_ticker]
+                # Try to catch "Company ASSET_XXX" pattern first
+                text = re.sub(
+                    rf'Company {anon_ticker}\b',
+                    real_name,
+                    text,
+                    flags=re.IGNORECASE
+                )
+            
+            # Replace remaining ASSET_XXX -> AAPL
+            text = re.sub(rf'\b{anon_ticker}\b', real_ticker, text, flags=re.IGNORECASE)
+            
+        # 3. Catch-all: Replace "[Company Name]" if we can guess the target
+        # Since we usually run this for a specific target report, we might not know which "Real Name" 
+        # to put in validly unless we know the context.
+        # But if we have ONE main ticker in our map that we just analyzed, we can start with that.
+        # For now, let's just stick to the text reversion logic.
+        
+        return text
+
 # Example usage
 if __name__ == "__main__":
     anonymizer = TickerAnonymizer()
