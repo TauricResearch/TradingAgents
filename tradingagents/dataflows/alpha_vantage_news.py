@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from .alpha_vantage_common import _make_api_request, format_datetime_for_api
 
 def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
@@ -20,6 +21,35 @@ def get_news(ticker, start_date, end_date) -> dict[str, str] | str:
         "time_to": format_datetime_for_api(end_date),
         "sort": "LATEST",
         "limit": "50",
+    }
+    
+    return _make_api_request("NEWS_SENTIMENT", params)
+
+def get_global_market_news(curr_date, look_back_days=7, limit=50) -> dict[str, str] | str:
+    """Returns general global market news (macro economy, financial markets).
+
+    Args:
+        curr_date: Current date as string (YYYY-MM-DD) or datetime object.
+        look_back_days: Number of days to look back.
+        limit: Number of articles to return.
+
+    Returns:
+        Dictionary containing news sentiment data or JSON string.
+    """
+    # Calculate start date
+    if isinstance(curr_date, str):
+        end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    else:
+        end_dt = curr_date
+        
+    start_dt = end_dt - timedelta(days=look_back_days)
+
+    params = {
+        "topics": "economy_macro,financial_markets",
+        "time_from": format_datetime_for_api(start_dt),
+        "time_to": format_datetime_for_api(end_dt),
+        "sort": "LATEST",
+        "limit": str(limit),
     }
     
     return _make_api_request("NEWS_SENTIMENT", params)

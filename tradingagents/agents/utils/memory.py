@@ -54,12 +54,17 @@ class FinancialSituationMemory:
              masked_key = self.client.api_key[:4] + "..."
              # print(f"DEBUG: Using API Key: {masked_key}")
         
-        # Truncate text if too long (Google's limit is ~2048 tokens / 8k chars, allow buffer)
-        # OpenAI text-embedding-3 is 8191 tokens (~32k chars)
-        # Use safe limit of 9000 chars
-        if len(text) > 9000:
-             # print(f"WARNING: Truncating text for embedding. Length {len(text)} > 9000")
-             text = text[:9000]
+        # Truncate text if too long
+        # Configurable via EMBEDDING_TRUNCATION_LIMIT (default 1000 for local models)
+        # Set to -1 or 0 to disable truncation.
+        try:
+            truncation_limit = int(os.getenv("EMBEDDING_TRUNCATION_LIMIT", "1000"))
+        except ValueError:
+            truncation_limit = 1000
+
+        if truncation_limit > 0 and len(text) > truncation_limit:
+             # print(f"WARNING: Truncating text for embedding. Length {len(text)} > {truncation_limit}")
+             text = text[:truncation_limit]
         
         response = self.client.embeddings.create(
             model=self.embedding, input=text

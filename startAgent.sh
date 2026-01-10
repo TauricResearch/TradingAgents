@@ -1,5 +1,15 @@
 #!/bin/bash
-/home/prem/git/antigravity-claude-proxy/startProxy.sh &
+
+# 0. Check & Start Claude Proxy
+# Check if port 10909 is open (Proxy running) using pure bash TCP check
+if ! (echo > /dev/tcp/localhost/10909) 2>/dev/null; then
+    echo "🔌 Starting Claude Proxy..."
+    /home/prem/git/antigravity-claude-proxy/startProxy.sh &
+    # Wait a moment for it to initialize
+    sleep 2
+else
+    echo "✅ Claude Proxy already running on port 10909"
+fi
 
 ./startEmbedding.sh
 
@@ -19,11 +29,6 @@ if [ -f ".env" ]; then
     echo "✅ Loaded keys from .env"
 else
     echo "⚠️  No .env file found. Using default/exported keys."
-    # START: REPLACE WITH YOUR ACTUAL KEYS IF NOT USING .ENV
-    # export OPENAI_API_KEY="sk-your-key-here"
-    # export ALPHA_VANTAGE_API_KEY="your-key-here"
-    # export GOOGLE_API_KEY="your-key-here"
-    # END
 fi
 
 # Check if keys are set
@@ -35,6 +40,44 @@ if [ -z "$GOOGLE_API_KEY" ]; then
     echo "⚠️  GOOGLE_API_KEY is missing! Set it if using Gemini."
 fi
 
-# 3. Start the Shadow Run (Daily Execution)
-echo "🚀 Starting Shadow Run Daily Execution..."
+# Ensure Embedding URL is set (default to local TEI port 11434)
+if [ -z "$EMBEDDING_API_URL" ]; then
+    echo "ℹ️  Setting default EMBEDDING_API_URL to http://localhost:11434/v1"
+    export EMBEDDING_API_URL="http://localhost:11434/v1"
+    export EMBEDDING_MODEL="all-MiniLM-L6-v2"
+fi
+
+if [ -z "$EMBEDDING_TRUNCATION_LIMIT" ]; then
+    export EMBEDDING_TRUNCATION_LIMIT=1000
+fi
+
+# 3. Start the Trading Agents
+echo "🚀 Starting Trading Agents..."
 python3 -m cli.main
+
+# 4. Open Reports
+echo "📊 Searching for latest generated reports..."
+# Find the latest "reports" directory by modification time (most recent last -> tail -1)
+# Works by printing timestamp (%T@) and path (%p), sorting numerically, picking last, cleaning output
+LATEST_REPORT_DIR=$(find results -type d -name "reports" -printf '%T@ %p\n' | sort -n | tail -1 | cut -f2- -d" ")
+
+if [ -n "$LATEST_REPORT_DIR" ]; then
+    echo "✅ Found reports in: $LATEST_REPORT_DIR"
+    
+    # Generate HTML Dashboard
+    echo "🎨 Generating Report Dashboard..."
+    python3 scripts/generate_report_html.py "$LATEST_REPORT_DIR"
+    
+    REPORT_HTML="$LATEST_REPORT_DIR/index.html"
+    
+    # Check if xdg-open exists (Linux)
+    if [ -f "$REPORT_HTML" ] && command -v xdg-open &> /dev/null; then
+        echo "🌐 Opening dashboard in browser..."
+        xdg-open "$REPORT_HTML" &> /dev/null &
+    else
+        echo "ℹ️  Dashboard generated at:"
+        echo "   file://$(pwd)/$REPORT_HTML"
+    fi
+else
+    echo "⚠️  No reports found to open."
+fi

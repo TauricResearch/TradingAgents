@@ -5,6 +5,8 @@ All notable changes to the **TradingAgents** project will be documented in this 
 ## [Unreleased] - 2026-01-10
 
 ### Added
+- **Global Market News**: Implemented `get_global_market_news` in Alpha Vantage module to support generic market news (topics: economy_macro, financial_markets), fixing the lack of a primary vendor for global news.
+- **Configurable Embeddings Truncation**: Added `EMBEDDING_TRUNCATION_LIMIT` env var (default 1000) to prevent `413 Payload Too Large` errors with local models.
 - **Local Embedding Service Support**: Added support for Anthropic to use local embedding service via URL
   - Anthropic doesn't provide embeddings API, so users can run **Hugging Face Text Embeddings Inference (TEI)** in Docker
   - Configure via `EMBEDDING_API_URL` environment variable (default: `http://localhost:11434/v1`)
@@ -40,6 +42,9 @@ All notable changes to the **TradingAgents** project will be documented in this 
 - **Configuration Documentation**: Enhanced `.env.example` with detailed comments and examples for all configuration options
 
 ### Fixed
+- **Global News Failure**: Resolved `RuntimeError: All vendor implementations failed` for `get_global_news` by correctly mapping Alpha Vantage and implementing the missing fallback logic.
+- **Error Reporting**: Improved `interface.py` to propagate detailed error messages from failed vendors to help debugging.
+- **Embedding Crash**: Fixed crashes when processing large documents with local embedding models by enforcing strict token limits via truncation.
 - **Anthropic Embedding Error**: Resolved `404 Not Found` error when using Anthropic as LLM provider by implementing automatic fallback to local embeddings (Anthropic doesn't provide an embeddings API)
 
 ### Technical Debt

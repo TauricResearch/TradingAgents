@@ -13,7 +13,8 @@ from .alpha_vantage import (
     get_cashflow as get_alpha_vantage_cashflow,
     get_income_statement as get_alpha_vantage_income_statement,
     get_insider_transactions as get_alpha_vantage_insider_transactions,
-    get_news as get_alpha_vantage_news
+    get_news as get_alpha_vantage_news,
+    get_global_market_news as get_alpha_vantage_global_news
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .alpaca import get_stock_data as get_stock_alpaca
@@ -107,6 +108,7 @@ VENDOR_METHODS = {
         "local": [get_finnhub_news, get_reddit_company_news, get_google_news],
     },
     "get_global_news": {
+        "alpha_vantage": get_alpha_vantage_global_news,
         "openai": get_global_news_openai,
         "local": get_reddit_global_news
     },
@@ -172,6 +174,7 @@ def route_to_vendor(method: str, *args, **kwargs):
     vendor_attempt_count = 0
     any_primary_vendor_attempted = False
     successful_vendor = None
+    errors = []
 
     for vendor in fallback_vendors:
         if vendor not in VENDOR_METHODS[method]:
@@ -208,14 +211,17 @@ def route_to_vendor(method: str, *args, **kwargs):
                 print(f"SUCCESS: {impl_func.__name__} from vendor '{vendor_name}' completed successfully")
                     
             except AlphaVantageRateLimitError as e:
+                msg = f"RATE_LIMIT: Alpha Vantage rate limit exceeded: {e}"
                 if vendor == "alpha_vantage":
-                    print(f"RATE_LIMIT: Alpha Vantage rate limit exceeded, falling back to next available vendor")
-                    print(f"DEBUG: Rate limit details: {e}")
+                    print(msg)
+                    errors.append(msg)
                 # Continue to next vendor for fallback
                 continue
             except Exception as e:
                 # Log error but continue with other implementations
-                print(f"FAILED: {impl_func.__name__} from vendor '{vendor_name}' failed: {e}")
+                msg = f"FAILED: {impl_func.__name__} from vendor '{vendor_name}' failed: {e}"
+                print(msg)
+                errors.append(msg)
                 continue
 
         # Add this vendor's results
@@ -235,8 +241,9 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     # Final result summary
     if not results:
-        print(f"FAILURE: All {vendor_attempt_count} vendor attempts failed for method '{method}'")
-        raise RuntimeError(f"All vendor implementations failed for method '{method}'")
+        error_details = "; ".join(errors)
+        print(f"FAILURE: All {vendor_attempt_count} vendor attempts failed for method '{method}'. Errors: {error_details}")
+        raise RuntimeError(f"All vendor implementations failed for method '{method}'. Details: {error_details}")
     else:
         print(f"FINAL: Method '{method}' completed with {len(results)} result(s) from {vendor_attempt_count} vendor attempt(s)")
 
