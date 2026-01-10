@@ -2,6 +2,49 @@
 
 All notable changes to the **TradingAgents** project will be documented in this file.
 
+## [Unreleased] - 2026-01-10
+
+### Added
+- **Local Embedding Service Support**: Added support for Anthropic to use local embedding service via URL
+  - Anthropic doesn't provide embeddings API, so users can run **Hugging Face Text Embeddings Inference (TEI)** in Docker
+  - Configure via `EMBEDDING_API_URL` environment variable (default: `http://localhost:11434/v1`)
+  - Configure model via `EMBEDDING_MODEL` environment variable (default: `all-MiniLM-L6-v2`)
+  - Keeps main application lightweight - heavy dependencies (PyTorch) isolated in separate container
+- **Environment Variable Configuration**: Added comprehensive environment variable support for all LLM providers and embedding configuration
+  - `OPENAI_API_URL` - Custom OpenAI API endpoint
+  - `ANTHROPIC_API_URL` - Custom Anthropic API endpoint
+  - `GOOGLE_API_URL` - Custom Google API endpoint
+  - `OPENROUTER_API_URL` - Custom OpenRouter API endpoint
+  - `OLLAMA_API_URL` - Custom Ollama API endpoint
+  - `EMBEDDING_PROVIDER` - Choose embedding provider: `local`, `openai`, `google`, `ollama`
+  - `EMBEDDING_API_URL` - Custom embedding API endpoint (for Ollama or Docker service)
+  - `EMBEDDING_MODEL` - Custom embedding model name
+- **Anthropic Claude 4.5 Thinking Models**: Added support for latest Anthropic thinking models
+  - `claude-sonnet-4-5-thinking` - Advanced reasoning with extended thinking
+  - `claude-opus-4-5-thinking` - Premier reasoning with extended thinking
+  - Removed older Claude models (3.5, 3.7, 4.0) to focus on latest thinking models
+- **Documentation**: Created comprehensive guides and verification tools
+  - `docs/LOCAL_EMBEDDINGS.md` - Complete guide for local embeddings setup
+  - `verify_local_embeddings.py` - Verification script for sentence-transformers
+  - `verify_ollama_embeddings.py` - Verification script for Ollama (optional)
+  - Updated `.env.example` with all new configuration options
+
+### Changed
+- **Dependency Cleanup**: Removed `sentence-transformers` from `requirements.txt` to keep main application lightweight.
+- **Virtual Environment**: Recreated `.venv` to ensure a clean state without unused heavy dependencies.
+- **Embedding Architecture**: Refactored `tradingagents/agents/utils/memory.py` to support multiple embedding providers with clean separation of concerns
+  - Automatic provider selection based on LLM provider
+  - Local embeddings as default for Anthropic and Ollama providers
+  - Maintained backward compatibility with existing API-based embeddings
+- **CLI Provider Selection**: Updated `cli/utils.py` to use environment variables for all LLM provider API URLs with sensible defaults
+- **Configuration Documentation**: Enhanced `.env.example` with detailed comments and examples for all configuration options
+
+### Fixed
+- **Anthropic Embedding Error**: Resolved `404 Not Found` error when using Anthropic as LLM provider by implementing automatic fallback to local embeddings (Anthropic doesn't provide an embeddings API)
+
+### Technical Debt
+- None - All changes follow SOLID principles with proper separation of concerns
+
 ## [Unreleased] - 2026-01-09
 
 ### Added

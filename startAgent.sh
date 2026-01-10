@@ -1,4 +1,7 @@
 #!/bin/bash
+/home/prem/git/antigravity-claude-proxy/startProxy.sh &
+
+./startEmbedding.sh
 
 # 1. Activate Virtual Environment
 if [ -d ".venv" ]; then

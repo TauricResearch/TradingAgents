@@ -1,3 +1,4 @@
+import os
 import questionary
 from typing import List, Optional, Tuple, Dict
 
@@ -134,10 +135,8 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
         ],
         "anthropic": [
-            ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
-            ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
-            ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
-            ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
+            ("Claude Sonnet 4.5 (Thinking) - Advanced reasoning with extended thinking", "claude-sonnet-4-5-thinking"),
+            ("Claude Opus 4.5 (Thinking) - Premier reasoning with extended thinking", "claude-opus-4-5-thinking"),
         ],
         "google": [
             ("Gemini 2.5 Flash-Lite - Cost efficiency and low latency", "gemini-2.5-flash-lite"),
@@ -196,11 +195,8 @@ def select_deep_thinking_agent(provider) -> str:
             ("o1 - Premier reasoning and problem-solving model", "o1"),
         ],
         "anthropic": [
-            ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
-            ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
-            ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
-            ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
-            ("Claude Opus 4 - Most powerful Anthropic model", "	claude-opus-4-0"),
+            ("Claude Sonnet 4.5 (Thinking) - Advanced reasoning with extended thinking", "claude-sonnet-4-5-thinking"),
+            ("Claude Opus 4.5 (Thinking) - Premier reasoning with extended thinking", "claude-opus-4-5-thinking"),
         ],
         "google": [
             ("Gemini 2.5 Flash - Next generation features, speed, and thinking", "gemini-2.5-flash"),
@@ -241,14 +237,15 @@ def select_deep_thinking_agent(provider) -> str:
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """Select the LLM provider and return its API URL from environment or default."""
+    # Define LLM provider options with their corresponding endpoints
+    # Each provider checks for its specific environment variable with a fallback default
     BASE_URLS = [
-        ("OpenAI", "https://api.openai.com/v1"),
-        ("Anthropic", "https://api.anthropic.com/"),
-        ("Google", "https://generativelanguage.googleapis.com/v1"),
-        ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        ("OpenAI", os.getenv("OPENAI_API_URL", "https://api.openai.com/v1")),
+        ("Anthropic", os.getenv("ANTHROPIC_API_URL", "https://api.anthropic.com/")),
+        ("Google", os.getenv("GOOGLE_API_URL", "https://generativelanguage.googleapis.com/v1")),
+        ("Openrouter", os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1")),
+        ("Ollama", os.getenv("OLLAMA_API_URL", "http://localhost:11434/v1")),        
     ]
     
     choice = questionary.select(
@@ -268,7 +265,7 @@ def select_llm_provider() -> tuple[str, str]:
     ).ask()
     
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
     
     display_name, url = choice

@@ -6,7 +6,17 @@ from openai import OpenAI
 
 class FinancialSituationMemory:
     def __init__(self, name, config):
-        if config.get("llm_provider") == "google":
+        # Check if user explicitly set EMBEDDING_API_URL - if so, use it regardless of provider
+        embedding_url = os.getenv("EMBEDDING_API_URL")
+        
+        if embedding_url:
+            # User has explicitly configured embedding service URL
+            self.embedding = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+            self.client = OpenAI(
+                base_url=embedding_url,
+                api_key=os.getenv("EMBEDDING_API_KEY", "local")
+            )
+        elif config.get("llm_provider") == "google":
             self.embedding = "text-embedding-004"
             
             google_api_key = os.getenv("GOOGLE_API_KEY")
@@ -18,6 +28,13 @@ class FinancialSituationMemory:
                 api_key=google_api_key,
                 base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                 max_retries=5
+            )
+        elif config.get("llm_provider") == "anthropic":
+            # Anthropic doesn't provide embeddings - default to local embedding service
+            self.embedding = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+            self.client = OpenAI(
+                base_url="http://localhost:8000/v1",
+                api_key="local"
             )
         elif config["backend_url"] == "http://localhost:11434/v1" or config.get("llm_provider") == "ollama":
             self.embedding = "nomic-embed-text"
