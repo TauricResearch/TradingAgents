@@ -182,7 +182,10 @@ class TradingAgentsGraph:
 
         self.ticker = company_name
         
-        # 2. Register real company name for anonymization
+        # 2. Get Hard Data Baseline (Trend Override & Reporting)
+        self.hard_data = self._get_hard_data_metrics(company_name, trade_date)
+        
+        # 3. Register real company name for anonymization
         try:
             from tradingagents.utils.anonymizer import TickerAnonymizer
             import yfinance as yf
@@ -225,10 +228,26 @@ class TradingAgentsGraph:
         self._log_state(trade_date, final_state)
 
         # 3. FIX CRASH RISK: Handle Dead State gracefully
+        # First, extract raw decision from LLM text (The Agent Decision)
+        raw_llm_decision = final_state["final_trade_decision"]
+        
+        # Apply Technical Override (Don't Fight the Tape)
+        regime_val = final_state.get("market_regime", "UNKNOWN").upper()
+        print(f"\n🔍 [DEBUG] APPLYING OVERRIDE: Regime='{regime_val}', Growth={self.hard_data.get('revenue_growth', 'N/A')}")
+        
+        overridden_decision = self.apply_trend_override(
+            raw_llm_decision, 
+            self.hard_data,
+            regime_val
+        )
+        
+        # Update final state with potentially overridden decision
+        final_state["final_trade_decision"] = overridden_decision
+        
         trade_decision = final_state["final_trade_decision"]
         
         # If trade was rejected by a Gate (Fact Check or Risk), return raw decision
-        if trade_decision.get("action") == "HOLD" and "REJECTED" in trade_decision.get("reasoning", ""):
+        if isinstance(trade_decision, dict) and trade_decision.get("action") == "HOLD" and "REJECTED" in trade_decision.get("reasoning", ""):
             processed_signal = {
                 "action": "HOLD",
                 "quantity": 0,
@@ -305,4 +324,91 @@ class TradingAgentsGraph:
 
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
+        # Handle dict if signal was overridden, otherwise handle string from LLM
+        if isinstance(full_signal, dict):
+            return {
+                "action": full_signal.get("action", "HOLD"),
+                "quantity": full_signal.get("quantity", 0),
+                "reason": full_signal.get("reasoning", "OVERRIDDEN")
+            }
         return self.signal_processor.process_signal(full_signal)
+
+    def _get_hard_data_metrics(self, ticker: str, trade_date: str) -> Dict[str, Any]:
+        """Fetch raw technical and fundamental data for the override gate."""
+        try:
+            import yfinance as yf
+            from datetime import datetime, timedelta
+            from tradingagents.dataflows.y_finance import get_robust_revenue_growth
+            
+            dt_obj = datetime.strptime(trade_date, "%Y-%m-%d")
+            # Fetch 300 days of history to ensure we can calculate 200 SMA
+            start_date = (dt_obj - timedelta(days=450)).strftime("%Y-%m-%d")
+            
+            ticker_obj = yf.Ticker(ticker.upper())
+            history = ticker_obj.history(start=start_date, end=trade_date)
+            
+            metrics = {
+                "current_price": 0.0,
+                "sma_200": 0.0,
+                "revenue_growth": 0.0,
+                "status": "ERROR"
+            }
+            
+            if not history.empty and len(history) >= 200:
+                metrics["current_price"] = history["Close"].iloc[-1]
+                metrics["sma_200"] = history["Close"].rolling(200).mean().iloc[-1]
+                metrics["status"] = "OK"
+            
+            metrics["revenue_growth"] = get_robust_revenue_growth(ticker)
+            return metrics
+            
+        except Exception as e:
+            print(f"Error fetching hard data for {ticker} override: {e}")
+            return {"status": "ERROR", "error": str(e)}
+
+    def apply_trend_override(self, trade_decision_str: str, hard_data: Dict[str, Any], regime: str) -> Any:
+        """
+        The 'Don't Fight the Tape' Safety Valve.
+        Prevents the system from shorting high-growth winners during a Bull Market.
+        """
+        if hard_data.get("status") != "OK":
+            return trade_decision_str
+            
+        regime = str(regime).strip().upper()
+            
+        price = hard_data["current_price"]
+        sma_200 = hard_data["sma_200"]
+        growth = hard_data["revenue_growth"]
+        
+        # 1. Technical Uptrend (Price > 200 SMA)
+        is_technical_uptrend = price > sma_200
+        
+        # 2. Hyper-Growth (> 30% YoY)
+        is_hyper_growth = growth > 0.30
+        
+        # 3. Supportive Regime (Protect leaders unless it's a clear TRENDING_DOWN regime)
+        is_bear_regime = regime in ["TRENDING_DOWN", "BEAR", "BEARISH"]
+        is_bull_regime = not is_bear_regime
+
+        # 4. Trigger Override if trying to SELL a leader in a bull market
+        if is_technical_uptrend and is_hyper_growth and is_bull_regime:
+            # We check if the decision string contains SELL or STRONG_SELL
+            # (llm output is usually messy text, so we check for the verdict)
+            decision_upper = trade_decision_str.upper()
+            if "SELL" in decision_upper:
+                print(f"\n🛑 TREND OVERRIDE TRIGGERED for {self.ticker}")
+                print(f"   Reason: Stock (${price:.2f}) is > 200SMA (${sma_200:.2f}) and Growth is {growth:.1%}")
+                print(f"   Action 'SELL' blocked. Converting to 'HOLD'.\n")
+                
+                return {
+                    "action": "HOLD",
+                    "quantity": 0,
+                    "reasoning": (
+                        f"OVERRIDE: System attempted to short a Hyper-Growth stock ({growth:.1%}) "
+                        f"above its 200-day trend (${sma_200:.2f}) in a Bull regime. "
+                        f"Original Decision: {trade_decision_str[:100]}..."
+                    ),
+                    "confidence": 1.0
+                }
+
+        return trade_decision_str

@@ -13,14 +13,13 @@ from io import StringIO
 from datetime import datetime, timedelta
 
 # Initialize anonymizer (shared instance appropriate here or inside)
-anonymizer = TickerAnonymizer()
-
 def create_market_analyst(llm):
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
+        # Re-initialize or reload anonymizer state
+        anonymizer = TickerAnonymizer()
         real_ticker = state["company_of_interest"]
-        # BLINDFIRE PROTOCOL: Anonymize Ticker
         ticker = anonymizer.anonymize_ticker(real_ticker)
         
         # NOTE: We continue to use 'ticker' variable name but it now holds 'ASSET_XXX'
@@ -38,25 +37,45 @@ def create_market_analyst(llm):
             start_date = (dt_obj - timedelta(days=365)).strftime("%Y-%m-%d")
 
             # Fetch data for regime detection using the anonymized ticker
-            # This calls the tool which handles deanonymization internally if needed 
-            # (assuming core_stock_tools.get_stock_data handles the 'ASSET_XXX' -> Real mapping)
-            # Use invoke for StructuredTool with ALL required args
             raw_data = get_stock_data.invoke({
-                "symbol": ticker, 
+                "symbol": real_ticker, 
                 "start_date": start_date,
                 "end_date": current_date,
                 "format": "csv"
             })
             
             # Parse data
-            if isinstance(raw_data, str) and "Error" not in raw_data and "No data" not in raw_data:
+            if isinstance(raw_data, str) and len(raw_data.strip()) > 50 and "Error" not in raw_data and "No data" not in raw_data:
                 # Parse data (Standardized CSV format with # comments)
                 df = pd.read_csv(StringIO(raw_data), comment='#')
                 
-                # Check for Close column
+                # Handle case-insensitive 'Close' column
+                if 'Close' not in df.columns:
+                    # Try to find a column that matches 'close' case-insensitively
+                    col_map = {c.lower(): c for c in df.columns}
+                    if 'close' in col_map:
+                        df.rename(columns={col_map['close']: 'Close'}, inplace=True)
+                
+                # Clean index/date
+                if 'Date' in df.columns:
+                    df['Date'] = pd.to_datetime(df['Date'])
+                    df.set_index('Date', inplace=True)
+                
+                # Sort by date
+                df.sort_index(inplace=True)
+                
+                # Check for sufficient data
+                # Ensure 'Close' column exists after potential renaming
                 if 'Close' in df.columns:
+                    price_data = df['Close']
+                else:
+                    price_data = pd.Series([]) # Empty series if 'Close' column is not found
+
+                print(f"DEBUG: Regime Detection - Ticker: {real_ticker}, Rows: {len(price_data)}")
+                
+                if not price_data.empty and len(price_data) >= 10:
                     # Detect Regime
-                    regime, metrics = RegimeDetector.detect_regime(df['Close'])
+                    regime, metrics = RegimeDetector.detect_regime(price_data)
                     optimal_params = DynamicIndicatorSelector.get_optimal_parameters(regime)
                     regime_val = regime.value
                     volatility_score = metrics.get("volatility", 0.0)
@@ -67,6 +86,10 @@ def create_market_analyst(llm):
                     regime_context += f"RECOMMENDED STRATEGY: {optimal_params.get('strategy', 'N/A')}\n"
                     regime_context += f"RECOMMENDED INDICATORS: {json.dumps(optimal_params)}\n"
                     regime_context += f"RATIONALE: {optimal_params.get('rationale', '')}"
+                else:
+                    print(f"WARNING: Insufficient price data for {ticker}. Columns: {list(df.columns)}, Len: {len(df)}")
+            else:
+                print(f"WARNING: Market data retrieval failed for regime detection for {ticker}. Data snippet: {str(raw_data)[:100]}")
         except Exception as e:
             print(f"WARNING: Regime detection failed for {ticker}: {e}")
 

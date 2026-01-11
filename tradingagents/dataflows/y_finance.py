@@ -2,6 +2,7 @@ from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import yfinance as yf
+import pandas as pd
 import os
 from .stockstats_utils import StockstatsUtils
 
@@ -313,7 +314,7 @@ def get_balance_sheet(
         else:
             data = ticker_obj.balance_sheet
             
-        if data.empty:
+        if data is None or (isinstance(data, pd.DataFrame) and data.empty):
             return f"No balance sheet data found for symbol '{ticker}'"
             
         # Convert to CSV string for consistency with other functions
@@ -343,7 +344,7 @@ def get_cashflow(
         else:
             data = ticker_obj.cashflow
             
-        if data.empty:
+        if data is None or (isinstance(data, pd.DataFrame) and data.empty):
             return f"No cash flow data found for symbol '{ticker}'"
             
         # Convert to CSV string for consistency with other functions
@@ -373,7 +374,7 @@ def get_income_statement(
         else:
             data = ticker_obj.income_stmt
             
-        if data.empty:
+        if data is None or (isinstance(data, pd.DataFrame) and data.empty):
             return f"No income statement data found for symbol '{ticker}'"
             
         # Convert to CSV string for consistency with other functions
@@ -460,3 +461,35 @@ def get_fundamentals(
         
     except Exception as e:
         return f"Error retrieving fundamentals for {ticker}: {str(e)}"
+
+def get_robust_revenue_growth(ticker: str) -> float:
+    """
+    Retrieve revenue growth with fallback to manual calculation from quarterly financials.
+    Returns growth as a float (e.g., 0.63 for 63%).
+    """
+    try:
+        ticker_obj = yf.Ticker(ticker.upper())
+        
+        # 1. Try .info first (Quick but often unreliable/stale)
+        info = ticker_obj.info
+        growth = info.get('revenueGrowth')
+        if growth is not None and isinstance(growth, (int, float)) and growth != 0:
+            return float(growth)
+            
+        # 2. Fallback: Manual calculation from Quarterly Financials
+        # Formula: (Revenue_Current_Q - Revenue_Year_Ago_Q) / Revenue_Year_Ago_Q
+        q_financials = ticker_obj.quarterly_financials
+        if q_financials is not None and not q_financials.empty and 'Total Revenue' in q_financials.index:
+            rev_series = q_financials.loc['Total Revenue']
+            if len(rev_series) >= 5: # Need at least 5 quarters to compare Q1 vs Q5 (Year Ago)
+                rev_now = rev_series.iloc[0]
+                rev_year_ago = rev_series.iloc[4]
+                
+                if rev_year_ago and rev_year_ago > 0:
+                    calc_growth = (rev_now - rev_year_ago) / rev_year_ago
+                    return float(calc_growth)
+                    
+        return 0.0
+    except Exception as e:
+        print(f"Error calculating robust revenue growth for {ticker}: {e}")
+        return 0.0

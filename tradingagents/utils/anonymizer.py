@@ -34,7 +34,7 @@ class TickerAnonymizer:
         self.auto_persist = auto_persist
         
         # Persistence path
-        self.map_file = Path("ticker_map.json")
+        self.map_file = Path(__file__).resolve().parent.parent.parent / "ticker_map.json"
         if self.auto_persist:
             self._load_from_file()
         
@@ -299,8 +299,14 @@ class TickerAnonymizer:
         print(f"✅ Loaded mapping from {input_path}")
     
     def deanonymize_ticker(self, anon_ticker: str) -> Optional[str]:
-        """Reverse mapping: ASSET_042 → AAPL."""
-        return self.reverse_map.get(anon_ticker)
+        """Reverse mapping: ASSET_042 → AAPL. Robust to 'Company' prefixes."""
+        if not anon_ticker:
+            return None
+            
+        # Strip common prefixes that LLMs might include from text
+        clean_ticker = anon_ticker.upper().replace("COMPANY", "").replace("COMPANY_", "").replace("CORPORATION", "").strip()
+        
+        return self.reverse_map.get(clean_ticker)
 
 
     

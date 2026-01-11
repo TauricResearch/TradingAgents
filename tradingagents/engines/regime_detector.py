@@ -51,28 +51,34 @@ class RegimeDetector:
         # 3. Mean reversion tendency (Hurst exponent)
         hurst = RegimeDetector._calculate_hurst_exponent(prices.tail(window))
         
-        # 4. Directional bias
-        cumulative_return = (prices.iloc[-1] / prices.iloc[-window]) - 1
+        # 4. Directional bias (Cumulative Return)
+        # We check both the specific window and the broader history to capture leaders in consolidation
+        window_return = (prices.iloc[-1] / prices.iloc[-window]) - 1
+        full_history_return = (prices.iloc[-1] / prices.iloc[0]) - 1
         
         # Classify regime
         metrics = {
             "volatility": volatility,
             "trend_strength": trend_strength,
             "hurst_exponent": hurst,
-            "cumulative_return": cumulative_return,
+            "cumulative_return": window_return,
+            "overall_return": full_history_return
         }
         
-        # Decision tree for regime classification
-        if volatility > 0.40:  # High volatility (>40% annualized)
-            regime = MarketRegime.VOLATILE
-        elif trend_strength > 25:  # Strong trend (ADX > 25)
-            if cumulative_return > 0:
+        # Decision tree for regime classification - Prioritize Trend & Momentum
+        # If ADX > 25, it's trending. We use the broader return to confirm if it's a leader.
+        if trend_strength > 25:
+            if window_return > 0 or full_history_return > 0.10: # Up on window OR strong long-term momentum
                 regime = MarketRegime.TRENDING_UP
             else:
                 regime = MarketRegime.TRENDING_DOWN
-        elif hurst < 0.5:  # Mean reverting (Hurst < 0.5)
+        elif full_history_return > 0.30: # Massive long-term momentum overrides Hurst/Volatility
+            regime = MarketRegime.TRENDING_UP
+        elif volatility > 0.80:  # High volatility threshold for individual tech stocks
+            regime = MarketRegime.VOLATILE
+        elif not np.isnan(hurst) and hurst < 0.45: # Tighter mean reversion check
             regime = MarketRegime.MEAN_REVERTING
-        else:  # Low volatility, no clear trend
+        else:
             regime = MarketRegime.SIDEWAYS
         
         return regime, metrics
@@ -111,21 +117,27 @@ class RegimeDetector:
     @staticmethod
     def _calculate_hurst_exponent(prices: pd.Series) -> float:
         """
-        Calculate Hurst exponent.
-        
-        Returns:
-            H < 0.5: Mean reverting
-            H = 0.5: Random walk
-            H > 0.5: Trending
+        Calculate Hurst exponent with safety checks.
         """
-        lags = range(2, 20)
-        tau = [np.std(np.subtract(prices[lag:], prices[:-lag])) for lag in lags]
-        
-        # Linear regression of log(tau) vs log(lags)
-        poly = np.polyfit(np.log(lags), np.log(tau), 1)
-        hurst = poly[0]
-        
-        return hurst
+        try:
+            lags = range(2, 20)
+            tau = [np.std(np.subtract(prices[lag:], prices[:-lag].values)) for lag in lags]
+            
+            # Filter out non-positive values to avoid log errors
+            valid_idx = [i for i, t in enumerate(tau) if t > 0]
+            if len(valid_idx) < 2:
+                return 0.5 # Random walk default
+                
+            valid_lags = [lags[i] for i in valid_idx]
+            valid_tau = [tau[i] for i in valid_idx]
+            
+            # Linear regression of log(tau) vs log(lags)
+            poly = np.polyfit(np.log(valid_lags), np.log(valid_tau), 1)
+            hurst = poly[0]
+            
+            return hurst
+        except Exception:
+            return 0.5 # Default to random walk on error
 
 
 class DynamicIndicatorSelector:
