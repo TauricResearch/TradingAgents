@@ -64,7 +64,7 @@ if [ -z "$EMBEDDING_API_URL" ]; then
 fi
 
 if [ -z "$EMBEDDING_TRUNCATION_LIMIT" ]; then
-    export EMBEDDING_TRUNCATION_LIMIT=1000
+    export EMBEDDING_TRUNCATION_LIMIT=800
 fi
 
 # 3. Start the Trading Agents

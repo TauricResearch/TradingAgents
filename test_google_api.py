@@ -4,6 +4,7 @@
 import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Load environment variables
 load_dotenv()
@@ -12,7 +13,7 @@ def test_google_api():
     """Test Google API with different models via local proxy."""
     
     # Use local proxy
-    proxy_url = "http://localhost:10909"
+    proxy_url = "http://localhost:8080"
     
     print(f"🔧 Using proxy: {proxy_url}")
     
@@ -37,6 +38,7 @@ def test_google_api():
             llm = ChatGoogleGenerativeAI(
                 model=model_name,
                 max_retries=3,
+                base_url="http://localhost:8080",
                 request_timeout=30
             )
             
