@@ -81,12 +81,14 @@ class TradingAgentsGraph:
         elif self.config["llm_provider"].lower() == "google":
             self.deep_thinking_llm = ChatGoogleGenerativeAI(
                 model=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"], 
                 max_retries=10,
                 request_timeout=60
             )
             self.quick_thinking_llm = ChatGoogleGenerativeAI(
                 model=self.config["quick_think_llm"],
                 max_retries=10,
+                base_url=self.config["backend_url"],
                 request_timeout=60
             )
         else:

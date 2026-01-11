@@ -3,10 +3,26 @@
 # 0. Check & Start Claude Proxy
 # Check if port 10909 is open (Proxy running) using pure bash TCP check
 if ! (echo > /dev/tcp/localhost/10909) 2>/dev/null; then
-    echo "🔌 Starting Claude Proxy..."
-    /home/prem/git/antigravity-claude-proxy/startProxy.sh &
-    # Wait a moment for it to initialize
-    sleep 2
+    echo "🔌 Claude Proxy not detected on port 10909"
+    echo "Select Proxy Provider:"
+    echo "1) gemini (default)"
+    echo "2) anthropic"
+    read -p "Choice [1]: " choice
+    case $choice in
+        2) PROXY_TYPE="anthropic" ;;
+        *) PROXY_TYPE="gemini" ;;
+    esac
+
+    echo "🔌 Starting Claude Proxy ($PROXY_TYPE)..."
+    /home/prem/git/antigravity-claude-proxy/startProxy.sh "$PROXY_TYPE" &
+
+    # Wait a moment for it to initialize with a progress bar
+    echo -n "⏳ Initializing proxy: ["
+    for i in {1..20}; do
+        echo -n "■"
+        sleep 0.1
+    done
+    echo "] 100% Ready!"
 else
     echo "✅ Claude Proxy already running on port 10909"
 fi
