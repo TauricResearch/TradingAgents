@@ -20,9 +20,10 @@ def get_google_news(
     news_str = ""
 
     for news in news_results:
-        news_str += (
-            f"### {news['title']} (source: {news['source']}) \n\n{news['snippet']}\n\n"
-        )
+        title = str(news.get('title', ''))
+        source = str(news.get('source', ''))
+        snippet = str(news.get('snippet', ''))
+        news_str += f"### {title} (source: {source}) \n\n{snippet}\n\n"
 
     if len(news_results) == 0:
         return ""

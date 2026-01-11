@@ -66,9 +66,21 @@ class FinancialSituationMemory:
              # print(f"WARNING: Truncating text for embedding. Length {len(text)} > {truncation_limit}")
              text = text[:truncation_limit]
         
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
+        try:
+            response = self.client.embeddings.create(
+                model=self.embedding, input=text
+            )
+        except Exception as e:
+            # Handle "Payload Too Large" (413) by aggressive truncation and retry
+            if "413" in str(e) or "too large" in str(e).lower():
+                # print(f"⚠️ Embedding input too large ({len(text)} chars). Retrying with half length...")
+                text = text[:len(text)//2]
+                response = self.client.embeddings.create(
+                    model=self.embedding, input=text
+                )
+            else:
+                raise e
+                
         return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):

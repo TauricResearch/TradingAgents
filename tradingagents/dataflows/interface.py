@@ -103,13 +103,12 @@ VENDOR_METHODS = {
     # news_data
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
-        "openai": get_stock_news_openai,
         "google": get_google_news,
         "local": [get_finnhub_news, get_reddit_company_news, get_google_news],
     },
     "get_global_news": {
         "alpha_vantage": get_alpha_vantage_global_news,
-        "openai": get_global_news_openai,
+        "google": get_google_news,
         "local": get_reddit_global_news
     },
     "get_insider_sentiment": {
@@ -207,6 +206,13 @@ def route_to_vendor(method: str, *args, **kwargs):
             try:
                 print(f"DEBUG: Calling {impl_func.__name__} from vendor '{vendor_name}'...")
                 result = impl_func(*args, **kwargs)
+                
+                # Robustify: Check for empty results
+                if result is None or (isinstance(result, str) and not result.strip()):
+                    print(f"WARNING: {impl_func.__name__} from vendor '{vendor_name}' returned empty/no data")
+                    # Don't append to vendor_results, let it try other implementations or vendors
+                    continue
+
                 vendor_results.append(result)
                 print(f"SUCCESS: {impl_func.__name__} from vendor '{vendor_name}' completed successfully")
                     
