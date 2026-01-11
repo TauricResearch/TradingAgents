@@ -181,6 +181,21 @@ class TradingAgentsGraph:
         self.reset_memory()
 
         self.ticker = company_name
+        
+        # 2. Register real company name for anonymization
+        try:
+            from tradingagents.utils.anonymizer import TickerAnonymizer
+            import yfinance as yf
+            anonymizer = TickerAnonymizer()
+            ticker_obj = yf.Ticker(company_name)
+            info = ticker_obj.info
+            full_name = info.get("longName") or info.get("shortName")
+            if full_name:
+                # print(f"DEBUG: Registering company name for {company_name}: {full_name}")
+                anonymizer.set_company_name(company_name, full_name)
+        except Exception as e:
+            # print(f"DEBUG: Failed to fetch company name for {company_name}: {e}")
+            pass
 
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(

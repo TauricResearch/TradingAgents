@@ -14,10 +14,7 @@ def create_social_media_analyst(llm):
     def social_media_analyst_node(state):
         current_date = state["trade_date"]
         real_ticker = state["company_of_interest"]
-        company_name = state["company_of_interest"]
-
         # BLINDFIRE PROTOCOL: Anonymize Ticker
-        anonymizer.set_company_name(real_ticker, company_name)
         ticker = anonymizer.anonymize_ticker(real_ticker)
 
         tools = [

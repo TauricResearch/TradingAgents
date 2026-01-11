@@ -20,10 +20,7 @@ def create_market_analyst(llm):
     def market_analyst_node(state):
         current_date = state["trade_date"]
         real_ticker = state["company_of_interest"]
-        company_name = state["company_of_interest"] # In this context acting as name too
-        
         # BLINDFIRE PROTOCOL: Anonymize Ticker
-        anonymizer.set_company_name(real_ticker, company_name)
         ticker = anonymizer.anonymize_ticker(real_ticker)
         
         # NOTE: We continue to use 'ticker' variable name but it now holds 'ASSET_XXX'

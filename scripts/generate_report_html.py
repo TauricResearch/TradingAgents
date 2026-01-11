@@ -1,7 +1,16 @@
-import os
 import sys
 import json
 from pathlib import Path
+
+# Add project root to sys.path to allow importing tradingagents
+current_dir = Path(__file__).parent
+sys.path.append(str(current_dir.parent))
+
+try:
+    from tradingagents.utils.anonymizer import TickerAnonymizer
+    ANONYMIZER_AVAILABLE = True
+except ImportError:
+    ANONYMIZER_AVAILABLE = False
 
 TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -216,6 +225,13 @@ def generate_report(report_dir):
         date = "Unknown Date"
         ticker = "Unknown Ticker"
 
+    anonymizer = None
+    if ANONYMIZER_AVAILABLE:
+        anonymizer = TickerAnonymizer()
+        real_ticker = anonymizer.deanonymize_ticker(ticker)
+        if real_ticker:
+            ticker = f"{real_ticker} ({ticker})"
+
     reports = {}
     
     # Read all markdown files
@@ -223,6 +239,11 @@ def generate_report(report_dir):
         try:
             with open(file, 'r', encoding='utf-8') as f:
                 content = f.read()
+                
+                # Deanonymize content if possible
+                if anonymizer:
+                    content = anonymizer.deanonymize_text(content)
+                    
                 reports[file.name] = content
         except Exception as e:
             print(f"Failed to read {file}: {e}")

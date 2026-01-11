@@ -14,11 +14,6 @@ def create_fundamentals_analyst(llm):
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
         real_ticker = state["company_of_interest"]
-        company_name = state["company_of_interest"] # Acting as placeholder name
-        
-        # BLINDFIRE PROTOCOL: Anonymize Ticker
-        # We set name here too just in case fundamentals runs first or independently
-        anonymizer.set_company_name(real_ticker, company_name)
         ticker = anonymizer.anonymize_ticker(real_ticker)
 
         tools = [
