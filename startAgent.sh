@@ -69,6 +69,8 @@ fi
 
 # 3. Start the Trading Agents
 echo "🚀 Starting Trading Agents..."
+# Note: Debug print() statements will appear in the terminal
+# Rich library's Live display handles the animated UI
 python3 -m cli.main
 
 # 4. Open Reports

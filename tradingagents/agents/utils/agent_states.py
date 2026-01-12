@@ -62,7 +62,9 @@ class AgentState(MessagesState):
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
     
     # regime data
+    # regime data
     market_regime: Annotated[str, "Current Market Regime (e.g. VOLATILE, TRENDING_UP)"]
+    broad_market_regime: Annotated[str, "Broad Market Context (e.g. SPY Regime)"]
     regime_metrics: Annotated[dict, "Metrics used to determine regime"]
     volatility_score: Annotated[float, "Current Volatility Score"]
 

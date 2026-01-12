@@ -51,6 +51,10 @@ This folder contains unit tests and verification scripts to validate the functio
     *   **Purpose:** Integration test for regime detection within the broader graph context.
     *   **Usage:** `python tests/verify_regime_integration.py`
 
+11. **`test_finance_args.py`**
+    *   **Purpose:** Verifies robustness of financial tools against extraneous LLM arguments and type mismatches.
+    *   **Usage:** `python tests/test_finance_args.py`
+
 ## How to Run
 
 Ensure your virtual environment is activated:

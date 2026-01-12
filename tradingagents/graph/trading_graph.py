@@ -11,6 +11,9 @@ from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from langgraph.prebuilt import ToolNode
+from datetime import datetime
+from tradingagents.utils.logger import override_logger as logger
+
 
 from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -232,8 +235,17 @@ class TradingAgentsGraph:
         raw_llm_decision = final_state["final_trade_decision"]
         
         # Apply Technical Override (Don't Fight the Tape)
-        regime_val = final_state.get("market_regime", "UNKNOWN").upper()
-        print(f"\n🔍 [DEBUG] APPLYING OVERRIDE: Regime='{regime_val}', Growth={self.hard_data.get('revenue_growth', 'N/A')}")
+        # Handle Enum vs String robustly
+        raw_regime = final_state.get("market_regime", "UNKNOWN")
+        if hasattr(raw_regime, "value"):
+            regime_val = raw_regime.value
+        else:
+            regime_val = str(raw_regime)
+        regime_val = regime_val.upper().strip()
+        
+        msg = f"🔍 [DEBUG] APPLYING OVERRIDE: Regime='{regime_val}', Growth={self.hard_data.get('revenue_growth', 'N/A')}"
+        logger.info(msg)
+        print(f"\n[CONSOLE] {msg}")
         
         overridden_decision = self.apply_trend_override(
             raw_llm_decision, 
@@ -344,8 +356,14 @@ class TradingAgentsGraph:
             # Fetch 300 days of history to ensure we can calculate 200 SMA
             start_date = (dt_obj - timedelta(days=450)).strftime("%Y-%m-%d")
             
+            # FIX: Handle Future Simulation Dates
+            # YFinance errors if end_date is in the future relative to today
+            today = datetime.now()
+            actual_end_date = min(dt_obj, today).strftime("%Y-%m-%d")
+            
             ticker_obj = yf.Ticker(ticker.upper())
-            history = ticker_obj.history(start=start_date, end=trade_date)
+            # Use actual_end_date instead of trade_date if trade_date is future
+            history = ticker_obj.history(start=start_date, end=actual_end_date)
             
             metrics = {
                 "current_price": 0.0,
@@ -363,7 +381,7 @@ class TradingAgentsGraph:
             return metrics
             
         except Exception as e:
-            print(f"Error fetching hard data for {ticker} override: {e}")
+            logger.error(f"Error fetching hard data for {ticker} override: {e}")
             return {"status": "ERROR", "error": str(e)}
 
     def apply_trend_override(self, trade_decision_str: str, hard_data: Dict[str, Any], regime: str) -> Any:
@@ -372,9 +390,16 @@ class TradingAgentsGraph:
         Prevents the system from shorting high-growth winners during a Bull Market.
         """
         if hard_data.get("status") != "OK":
+            logger.info(f"DEBUG OVERRIDE: Failed due to Hard Data Status: {hard_data.get('status')}, Error: {hard_data.get('error')}")
             return trade_decision_str
             
-        regime = str(regime).strip().upper()
+        # Robust Enum Extraction (Double Lock)
+        if hasattr(regime, "value"):
+            regime_val = regime.value
+        else:
+            regime_val = str(regime)
+            
+        regime_val = regime_val.upper().strip()
             
         price = hard_data["current_price"]
         sma_200 = hard_data["sma_200"]
@@ -387,28 +412,41 @@ class TradingAgentsGraph:
         is_hyper_growth = growth > 0.30
         
         # 3. Supportive Regime (Protect leaders unless it's a clear TRENDING_DOWN regime)
-        is_bear_regime = regime in ["TRENDING_DOWN", "BEAR", "BEARISH"]
+        # Note: If regime is 'VOLATILE' or 'UNKNOWN', is_bear_regime is False -> Override Logic ACTIVATES.
+        is_bear_regime = regime_val in ["TRENDING_DOWN", "BEAR", "BEARISH"]
         is_bull_regime = not is_bear_regime
+        
+        msg_override = f"DEBUG OVERRIDE: Price={price}, SMA={sma_200}, Growth={growth}, Regime='{regime_val}'"
+        logger.info(msg_override)
+        print(f"[CONSOLE] {msg_override}")
+        logger.info(f"DEBUG CHECK: Technical={is_technical_uptrend}, Growth={is_hyper_growth}, BullRegime={is_bull_regime}")
 
         # 4. Trigger Override if trying to SELL a leader in a bull market
         if is_technical_uptrend and is_hyper_growth and is_bull_regime:
             # We check if the decision string contains SELL or STRONG_SELL
-            # (llm output is usually messy text, so we check for the verdict)
             decision_upper = trade_decision_str.upper()
             if "SELL" in decision_upper:
-                print(f"\n🛑 TREND OVERRIDE TRIGGERED for {self.ticker}")
-                print(f"   Reason: Stock (${price:.2f}) is > 200SMA (${sma_200:.2f}) and Growth is {growth:.1%}")
-                print(f"   Action 'SELL' blocked. Converting to 'HOLD'.\n")
-                
-                return {
-                    "action": "HOLD",
-                    "quantity": 0,
-                    "reasoning": (
+                allowed_action = "HOLD"
+                reasoning = (
                         f"OVERRIDE: System attempted to short a Hyper-Growth stock ({growth:.1%}) "
                         f"above its 200-day trend (${sma_200:.2f}) in a Bull regime. "
                         f"Original Decision: {trade_decision_str[:100]}..."
-                    ),
+                    )
+                
+                logger.warning(f"🛑 TREND OVERRIDE TRIGGERED for {self.ticker}")
+                print(f"\n[CONSOLE] 🛑 TREND OVERRIDE TRIGGERED for {self.ticker}")
+                logger.warning(f"   Reason: Stock (${price:.2f}) is > 200SMA (${sma_200:.2f}) and Growth is {growth:.1%}")
+                logger.warning(f"   Action 'SELL' blocked. Converting to '{allowed_action}'.")
+                
+                return {
+                    "action": allowed_action,
+                    "quantity": 0,
+                    "reasoning": reasoning,
                     "confidence": 1.0
                 }
+            else:
+                 logger.info("DEBUG OVERRIDE: Conditions met, but decision was NOT 'SELL'. No action needed.")
+        else:
+            logger.info("DEBUG OVERRIDE: Conditions NOT met. Passive.")
 
         return trade_decision_str

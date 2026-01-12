@@ -41,6 +41,7 @@ class Propagator:
             "sentiment_report": "",
             "news_report": "",
             "market_regime": "UNKNOWN",
+            "broad_market_regime": "UNKNOWN",
             "volatility_score": 0.0,
         }
 

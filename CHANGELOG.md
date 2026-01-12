@@ -2,6 +2,17 @@
 
 All notable changes to the **TradingAgents** project will be documented in this file.
 
+## [Unreleased] - 2026-01-11
+
+### Added
+- **Gemini 2.0 & 3.0 Support**: Updated `cli/utils.py` to support `gemini-2.0-flash`, `gemini-2.5-flash-lite`, `gemini-2.5-pro`, `gemini-3-flash-preview` and `gemini-3-pro-preview` models.
+- **Console Debugging**: Added explicit console print statements for critical "Smoking Gun" debug traces in `market_analyst.py` and `trading_graph.py`.
+
+### Fixed
+- **Override Logic Mismatches**: Fixed critical Enum-to-String type mismatch in `apply_trend_override` that was silencing the "Safety Valve" logic.
+- **Data Pipeline Failures**: Injected robust error handling and type checking in `market_analyst.py` to identify why `RegimeDetector` receives invalid data (causing "UNKNOWN" regimes).
+- **Gemini 404 Errors**: Removed invalid/deprecated model names causing 404s.
+
 ## [Unreleased] - 2026-01-10
 
 ### Added

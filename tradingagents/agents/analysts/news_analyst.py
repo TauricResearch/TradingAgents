@@ -3,6 +3,8 @@ import time
 import json
 from tradingagents.agents.utils.agent_utils import get_news, get_global_news
 from tradingagents.dataflows.config import get_config
+from tradingagents.utils.logger import app_logger as logger
+
 
 
 from tradingagents.utils.anonymizer import TickerAnonymizer
@@ -54,7 +56,7 @@ def create_news_analyst(llm):
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(ticker=ticker)
-
+        logger.info(f"News Analyst Prompt: {prompt}")
         chain = prompt | llm.bind_tools(tools)
         result = chain.invoke(state["messages"])
 

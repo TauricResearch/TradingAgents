@@ -87,9 +87,56 @@ Our framework decomposes complex trading tasks into specialized roles. This ensu
 - Continuously evaluates portfolio risk by assessing market volatility, liquidity, and other risk factors. The risk management team evaluates and adjusts trading strategies, providing assessment reports to the Portfolio Manager for final decision.
 - The Portfolio Manager approves/rejects the transaction proposal. If approved, the order will be sent to the simulated exchange and executed.
 
-<p align="center">
   <img src="assets/risk.png" width="70%" style="display: inline-block; margin: 0 2%;">
 </p>
+
+### Decision Logic & "Safety Valve" Architecture
+
+The following diagram illustrates the complete decision-making flow, including the critical **"Don't Fight the Tape" Safety Valve** which intercepts and overrides `SELL` decisions for hyper-growth stocks in strong trends.
+
+```mermaid
+graph TD
+    Start([Start Propagate]) --> Init[Initialize State]
+    Init --> Analysts{Analyst Agents}
+    
+    subgraph Data_Collection
+        Analysts -->|Fetch| Market[Market Analyst]
+        Analysts -->|Fetch| Social[Social Analyst]
+        Analysts -->|Fetch| News[News Analyst]
+        Analysts -->|Fetch| Fund[Fundamentals]
+    end
+    
+    Market -->|Regime: Trending/Volatile| GraphState
+    Social -->|Sentiment Score| GraphState
+    News -->|Macro Signals| GraphState
+    Fund -->|Growth Metrics| GraphState
+    
+    GraphState --> Debate{Debate Phase}
+    Debate -->|Bull Thesis| Bull[Bull Researcher]
+    Debate -->|Bear Thesis| Bear[Bear Researcher]
+    
+    Bull --> Trader[Trader Agent]
+    Bear --> Trader
+    
+    Trader -->|Propose Trade| Risk[Risk Manager]
+    Risk -->|Refine/Approve| FinalState[Final Logic State]
+    
+    FinalState --> SafetyValve{"🛡️ SAFETY VALVE\n(Trend Override)"}
+    
+    SafetyValve --> Check1["Price > 200 SMA?"]
+    SafetyValve --> Check2["Revenue Growth > 30%?"]
+    SafetyValve --> Check3["Regime != BEAR?"]
+    
+    Check1 & Check2 & Check3 -->|ALL TRUE + Action=SELL| Override([🛑 BLOCK SELL -> FORCE HOLD])
+    Check1 & Check2 & Check3 -->|ELSE| Pass([✅ Pass Through])
+    
+    Override --> Execution[Execute Order]
+    Pass --> Execution
+    
+    style SafetyValve fill:#f96,stroke:#333,stroke-width:2px
+    style Override fill:#f00,stroke:#fff,stroke-width:2px,color:#fff
+    style Pass fill:#0f0,stroke:#333,stroke-width:2px
+```
 
 ## Installation and CLI
 

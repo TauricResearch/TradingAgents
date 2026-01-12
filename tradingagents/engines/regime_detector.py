@@ -26,62 +26,83 @@ class RegimeDetector:
     @staticmethod
     def detect_regime(prices: pd.Series, window: int = 60) -> Tuple[MarketRegime, Dict]:
         """
-        Detect current market regime.
-        
-        Args:
-            prices: Price series (must have at least 'window' data points)
-            window: Lookback period for regime detection
-        
-        Returns:
-            (regime, metrics) tuple where metrics contains diagnostic info
+        Determines the market regime based on Volatility, ADX, and Returns.
+        INCLUDES 'MOMENTUM EXCEPTION' for high-growth stocks.
         """
-        if len(prices) < window:
-            raise ValueError(f"Need at least {window} data points, got {len(prices)}")
-        
-        # Calculate regime metrics
-        returns = prices.pct_change().dropna()
-        recent_returns = returns.tail(window)
-        
-        # 1. Volatility (annualized)
-        volatility = recent_returns.std() * np.sqrt(252)
-        
-        # 2. Trend strength (ADX approximation)
-        trend_strength = RegimeDetector._calculate_trend_strength(prices.tail(window))
-        
-        # 3. Mean reversion tendency (Hurst exponent)
-        hurst = RegimeDetector._calculate_hurst_exponent(prices.tail(window))
-        
-        # 4. Directional bias (Cumulative Return)
-        # We check both the specific window and the broader history to capture leaders in consolidation
-        window_return = (prices.iloc[-1] / prices.iloc[-window]) - 1
-        full_history_return = (prices.iloc[-1] / prices.iloc[0]) - 1
-        
-        # Classify regime
-        metrics = {
-            "volatility": volatility,
-            "trend_strength": trend_strength,
-            "hurst_exponent": hurst,
-            "cumulative_return": window_return,
-            "overall_return": full_history_return
-        }
-        
-        # Decision tree for regime classification - Prioritize Trend & Momentum
-        # If ADX > 25, it's trending. We use the broader return to confirm if it's a leader.
-        if trend_strength > 25:
-            if window_return > 0 or full_history_return > 0.10: # Up on window OR strong long-term momentum
-                regime = MarketRegime.TRENDING_UP
-            else:
-                regime = MarketRegime.TRENDING_DOWN
-        elif full_history_return > 0.30: # Massive long-term momentum overrides Hurst/Volatility
-            regime = MarketRegime.TRENDING_UP
-        elif volatility > 0.80:  # High volatility threshold for individual tech stocks
-            regime = MarketRegime.VOLATILE
-        elif not np.isnan(hurst) and hurst < 0.45: # Tighter mean reversion check
-            regime = MarketRegime.MEAN_REVERTING
-        else:
-            regime = MarketRegime.SIDEWAYS
-        
-        return regime, metrics
+        try:
+            if len(prices) < window:
+                # Fallback for short history
+                if len(prices) > 10:
+                    window = len(prices) - 1
+                else:
+                    return MarketRegime.SIDEWAYS, {}
+
+            # 1. Calculate Metrics
+            # We use existing helper methods but adapt the call signature slightly if needed
+            # The user provided logic assumes 'market_data' DataFrame but we take 'prices' Series
+            # We will adapt the user's logic to work with the Series input or reconstruct DataFrame if needed
+            # Actually, standardizing on the existing helper methods is safer, but implementing the LOGIC FLOD is key.
+            
+            # Reconstruct helpers calls based on existing class structure
+            
+            # Volatility
+            returns = prices.pct_change().dropna()
+            recent_returns = returns.tail(window)
+            volatility = recent_returns.std() * np.sqrt(252)
+            
+            # ADX
+            trend_strength = RegimeDetector._calculate_trend_strength(prices.tail(window))
+            
+            # Hurst
+            hurst = RegimeDetector._calculate_hurst_exponent(prices.tail(window))
+            
+            # Simple Price Return
+            start_price = prices.iloc[-window]
+            end_price = prices.iloc[-1]
+            price_change_pct = (end_price - start_price) / start_price
+            
+            # Full history return (keeping from previous logic as extra metric)
+            full_history_return = (prices.iloc[-1] / prices.iloc[0]) - 1
+
+            # 2. DEFINE THRESHOLDS
+            VOLATILITY_THRESHOLD = 0.40  # 40% Annualized Volatility
+            ADX_STRONG_TREND = 25.0
+            
+            # Metrics dict
+            metrics = {
+                "volatility": volatility,
+                "trend_strength": trend_strength,
+                "hurst_exponent": hurst,
+                "cumulative_return": price_change_pct,
+                "overall_return": full_history_return
+            }
+
+            # 3. THE LOGIC CASCADE
+            
+            # 🛑 CRITICAL FIX: THE MOMENTUM EXCEPTION
+            # If stock is volatile BUT going up strongly, it is BULLISH, not VOLATILE.
+            if volatility > VOLATILITY_THRESHOLD:
+                if price_change_pct > 0 and trend_strength > ADX_STRONG_TREND:
+                     # "High Beta Breakout"
+                    return MarketRegime.TRENDING_UP, metrics
+                else:
+                    # "Crashing / Chopping"
+                    return MarketRegime.VOLATILE, metrics
+            
+            # Standard Logic for Lower Volatility
+            if trend_strength > ADX_STRONG_TREND:
+                regime = MarketRegime.TRENDING_UP if price_change_pct > 0 else MarketRegime.TRENDING_DOWN
+                return regime, metrics
+            
+            # Mean Reverting Logic
+            if hurst < 0.4:
+                return MarketRegime.MEAN_REVERTING, metrics
+                
+            return MarketRegime.SIDEWAYS, metrics
+
+        except Exception as e:
+            print(f"Regime Detection Error: {e}")
+            return MarketRegime.SIDEWAYS, {"error": str(e)}
     
     @staticmethod
     def _calculate_trend_strength(prices: pd.Series) -> float:
@@ -90,6 +111,10 @@ class RegimeDetector:
         
         Returns value 0-100, where >25 indicates strong trend.
         """
+        prices = prices.dropna()
+        if len(prices) < 14:
+            return 0.0
+
         high = prices.rolling(2).max()
         low = prices.rolling(2).min()
         
@@ -105,11 +130,19 @@ class RegimeDetector:
         
         # Smooth with 14-period EMA
         atr = pd.Series(tr).ewm(span=14, adjust=False).mean()
-        plus_di = 100 * pd.Series(plus_dm).ewm(span=14, adjust=False).mean() / atr
-        minus_di = 100 * pd.Series(minus_dm).ewm(span=14, adjust=False).mean() / atr
+        
+        # Avoid division by zero
+        atr = atr.replace(0, np.nan).ffill().fillna(1e-9)
+
+        # Reconstruct Series with correct index to align with ATR
+        plus_di = 100 * pd.Series(plus_dm, index=prices.index).ewm(span=14, adjust=False).mean() / atr
+        minus_di = 100 * pd.Series(minus_dm, index=prices.index).ewm(span=14, adjust=False).mean() / atr
         
         # ADX
         dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+        # Handle DX NaNs (caused by 0 division if +DI and -DI are both 0)
+        dx = dx.fillna(0)
+        
         adx = dx.ewm(span=14, adjust=False).mean()
         
         return adx.iloc[-1] if not pd.isna(adx.iloc[-1]) else 0.0

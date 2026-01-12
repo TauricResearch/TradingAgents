@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import yfinance as yf
@@ -303,7 +303,8 @@ def get_stockstats_indicator(
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[Any, "current date (not used for yfinance)"] = None,
+    **kwargs
 ):
     """Get balance sheet data from yfinance."""
     try:
@@ -333,7 +334,8 @@ def get_balance_sheet(
 def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[Any, "current date (not used for yfinance)"] = None,
+    **kwargs
 ):
     """Get cash flow data from yfinance."""
     try:
@@ -363,7 +365,8 @@ def get_cashflow(
 def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[Any, "current date (not used for yfinance)"] = None,
+    **kwargs
 ):
     """Get income statement data from yfinance."""
     try:
@@ -414,7 +417,7 @@ def get_insider_transactions(
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"
 def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
-    curr_date: Annotated[str, "current date (not used for yfinance info)"] = None
+    curr_date: Annotated[Any, "current date (not used for yfinance info)"] = None
 ):
     """Get fundamental data from yfinance ticker.info."""
     try:

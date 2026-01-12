@@ -3,6 +3,8 @@ import time
 import json
 from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement, get_insider_sentiment, get_insider_transactions
 from tradingagents.dataflows.config import get_config
+from tradingagents.utils.logger import app_logger as logger
+
 
 
 from tradingagents.utils.anonymizer import TickerAnonymizer
@@ -50,7 +52,7 @@ def create_fundamentals_analyst(llm):
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(ticker=ticker)
-
+        logger.info(f"Fundamentals Analyst Prompt: {prompt}")
         chain = prompt | llm.bind_tools(tools)
 
         result = chain.invoke(state["messages"])
