@@ -5,13 +5,23 @@ All notable changes to the **TradingAgents** project will be documented in this 
 ## [Unreleased] - 2026-01-11
 
 ### Added
+- **Insider Veto Protocol (Rule B)**: Hard-coded safety gate in `trading_graph.py` that blocks ALL buy signals if Net Insider Selling exceeds $50M while the stock is in a technical downtrend (Price < 50 SMA). This prevents "Falling Knife" catches.
+- **Relative Strength Determinism**: Upgraded `market_analyst.py` to calculate a mathematical `risk_multiplier` (0.0x - 1.5x) based on the Asset Regime vs. SPY Regime correlation, removing LLM "confidence" hallucinations from position sizing.
+- **Portfolio Awareness (Rule 72)**: Implemented State Persistence (`portfolio`, `cash_balance`) and a hard-coded Stop Loss check in `trading_graph.py`. If a position's unrealized PnL drops below -10%, the system forces a "LIQUIDATE" order, bypassing all AI debate.
+- **Self-Tuning Architecture**: Updated `reflection.py` to output a structured JSON block (`UPDATE_PARAMETERS`) instead of prose advice, enabling future automated parameter optimization.
 - **Gemini 2.0 & 3.0 Support**: Updated `cli/utils.py` to support `gemini-2.0-flash`, `gemini-2.5-flash-lite`, `gemini-2.5-pro`, `gemini-3-flash-preview` and `gemini-3-pro-preview` models.
 - **Console Debugging**: Added explicit console print statements for critical "Smoking Gun" debug traces in `market_analyst.py` and `trading_graph.py`.
+
+### Changed
+- **Mandatory Regime Detection**: Modified `graph/setup.py` to Force-Execute the `Market Analyst` node as the first step in every workflow. This permanently fixes the "UNKNOWN Regime" bug by ensuring context is established before any fundamental analysis begins.
+- **Data Robustness**: Patched `y_finance.py` and `alpha_vantage_news.py` to accept `**kwargs` and `curr_date`, resolving crashes in the `route_to_vendor` pipeline when passing standardized arguments.
+
 
 ### Fixed
 - **Override Logic Mismatches**: Fixed critical Enum-to-String type mismatch in `apply_trend_override` that was silencing the "Safety Valve" logic.
 - **Data Pipeline Failures**: Injected robust error handling and type checking in `market_analyst.py` to identify why `RegimeDetector` receives invalid data (causing "UNKNOWN" regimes).
 - **Gemini 404 Errors**: Removed invalid/deprecated model names causing 404s.
+- **Reflector Regime Integration**: Updated `reflection.py` to incorporate market regime context, ensuring post-trade analysis understands the 'Why' behind regime-based decisions.
 
 ## [Unreleased] - 2026-01-10
 

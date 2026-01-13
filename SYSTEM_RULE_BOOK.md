@@ -180,3 +180,98 @@ Here is how the system handles specific market environments compared to a standa
 *   **In Uncertainty:** We trust Cash.
 
 **This architecture ensures you never miss a bubble, but you never hold the bag when it pops.**
+
+## SYSTEM DECISION FLOW DIAGRAM
+The following diagram illustrates the hard-coded logic gates that govern trade execution.
+
+```mermaid
+graph TD
+    A[Start] --> B[Market Analyst Node]
+    B --> C{Detect Regime}
+    
+    C -- TRENDING_UP --> D[Calculate Relative Strength]
+    C -- SIDEWAYS --> D
+    C -- TRENDING_DOWN --> D
+    
+    D --> E[Assign Risk Multiplier]
+    E --> F[Fundamental Analysis]
+    F --> G[LLM Debate & Report]
+    G --> H[Preliminary Decision: BUY/SELL/HOLD]
+    
+    H --> I{Trend Override Gate}
+    
+    I -- Signal: SELL --> J{Is Growth > 30% AND Price > 200SMA?}
+    J -- YES --> K[Force HOLD: Don't Fight Tape]
+    J -- NO --> L[Allow SELL]
+    
+    I -- Signal: BUY --> M{Insider Veto Gate}
+    
+    M -- Net Selling > $50M --> N{Is Price < 50SMA?}
+    N -- YES --> O[BLOCK BUY: Falling Knife]
+    N -- NO --> P[Allow BUY]
+    
+    L --> Q[Execution]
+    K --> Q
+    O --> Q
+    P --> Q
+    
+    Q --> R{Active Portfolio Check}
+    R -- Position Exists --> S[Calculate Unrealized PnL]
+    S --> T{Is PnL < -10%?}
+    T -- YES --> U[FORCE LIQUIDATE: Rule 72]
+    T -- NO --> V[Maintain State]
+```
+
+## SCENARIO LOGIC MATRIX
+How the system handles specific market conditions:
+
+| Scenario | Market Regime (SPY) | Asset Regime | Insider Action | Hard Gate Triggered | System Decision |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **"The Bubble Riding"** (e.g. NVDA '23) | UPTREND | UPTREND (Price > SMA) | Selling (Profit Taking) | **Trend Override (Anti-Short)** | **HOLD / BUY** (Ignore valuation fears) |
+| **"The Falling Knife"** (e.g. ZOOM '22) | DOWNTREND | DOWNTREND (Price < SMA) | Selling (> $50M) | **Insider Veto** | **BLOCK BUY** (Force Wait) |
+| **"The Fake Breakout"** (Bear Market Rally) | DOWNTREND | UPTREND (Weak) | Neutral | Relative Strength = 0.8x | **REDUCE SIZE** (Caution) |
+| **"The Crash"** (Portfolio Danger) | VOLATILE | VOLATILE | N/A | **Rule 72 (Stop Loss)** | **LIQUIDATE** (PnL < -10%) |
+| **"The Boring Chop"** (Accumulation) | SIDEWAYS | SIDEWAYS | Buying | None | **Trade Range** (Buy Support) |
+
+### SCENARIO VISUALIZATION
+```mermaid
+graph TD
+    %% Define Scenarios
+    subgraph "Scenario A: The Bubble (PLTR/NVDA)"
+    A1[Market: UP] --> A2[Asset: UP]
+    A2 --> A3{Valuation High?}
+    A3 -- YES --> A4[Analyst: SELL]
+    A4 --> A5{Rules Check}
+    A5 -- Growth > 30% --> A6[OVERRIDE: FORCE HOLD]
+    end
+
+    subgraph "Scenario B: The Falling Knife (ZOOM)"
+    B1[Market: DOWN] --> B2[Asset: DOWN]
+    B2 --> B3{Insider Action?}
+    B3 -- Net Selling > $50M --> B4[VETO: BLOCK BUY]
+    end
+
+    subgraph "Scenario C: The Crash (Survival)"
+    C1[Active Position] --> C2{Check PnL}
+    C2 -- Loss > -10% --> C3[STOP LOSS TRIGGERED]
+    C3 --> C4[LIQUIDATE IMMEDIATE]
+    end
+    
+    style A6 fill:#4caf50,stroke:#333,stroke-width:2px
+    style B4 fill:#f44336,stroke:#333,stroke-width:2px
+    style C4 fill:#f44336,stroke:#333,stroke-width:2px
+```
+
+### Scenario Logic Breakdown
+
+*   **Scenario A (The Momentum Exception):**
+    *   **The Conflict:** The Analyst sees a high P/E ratio and screams "Sell!".
+    *   **The Resolution:** The Hard Gate checks Growth > 30%. Since this is true, it overrides the "Sell" signal to a HOLD, preventing you from exiting a winner too early.
+
+*   **Scenario B (The Insider Veto):**
+    *   **The Conflict:** The price has dropped, and the Analyst thinks it's a "value buy."
+    *   **The Resolution:** The Hard Gate checks Net Insider Flow. Seeing >$50M in selling during a downtrend, it activates the VETO, blocking the Buy order to prevent catching a falling knife.
+
+*   **Scenario C (The Stop Loss):**
+    *   **The Conflict:** A position is bleeding, but the Analyst (Bull) hopes for a rebound.
+    *   **The Resolution:** The State Monitor sees Unrealized PnL < -10%. It bypasses the Analyst entirely and issues a forced LIQUIDATE command to preserve capital.

@@ -7,7 +7,18 @@ from langgraph.prebuilt import ToolNode
 from langgraph.graph import END, StateGraph, START, MessagesState
 
 
+from typing import Dict, List
+
 # Researcher team state
+class PortfolioPosition(TypedDict):
+    ticker: str
+    shares: int
+    average_cost: float
+    current_value: float
+    unrealized_pnl: float
+    unrealized_pnl_pct: float
+    entry_date: str
+
 class InvestDebateState(TypedDict):
     bull_history: Annotated[
         str, "Bullish Conversation history"
@@ -67,6 +78,10 @@ class AgentState(MessagesState):
     broad_market_regime: Annotated[str, "Broad Market Context (e.g. SPY Regime)"]
     regime_metrics: Annotated[dict, "Metrics used to determine regime"]
     volatility_score: Annotated[float, "Current Volatility Score"]
+    net_insider_flow: Annotated[float, "Net Insider Transaction Flow (Last 90 Days)"]
+    portfolio: Annotated[Dict[str, PortfolioPosition], "Current active holdings"]
+    cash_balance: Annotated[float, "Current cash balance"]
+    risk_multiplier: Annotated[float, "Calculated Risk Multiplier based on Relative Strength"]
 
     # researcher team discussion step
     investment_debate_state: Annotated[

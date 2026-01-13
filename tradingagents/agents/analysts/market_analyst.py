@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators
+from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators, get_insider_transactions
 from tradingagents.dataflows.config import get_config
 
 
@@ -16,15 +16,51 @@ from tradingagents.utils.logger import app_logger as logger
 
 
 # Initialize anonymizer (shared instance appropriate here or inside)
+
+def _calculate_net_insider_flow(raw_data: str) -> float:
+    """Calculate net insider transaction value from report string."""
+    try:
+        if not raw_data or "Error" in raw_data or "No insider" in raw_data:
+            return 0.0
+            
+        df = pd.read_csv(StringIO(raw_data), comment='#')
+        
+        # Standardize columns
+        df.columns = [c.strip().lower() for c in df.columns]
+        
+        if 'value' not in df.columns:
+            return 0.0
+            
+        net_flow = 0.0
+        
+        # Iterate and sum
+        for _, row in df.iterrows():
+            # Check for sale/purchase in text or other columns
+            text = str(row.get('text', '')).lower() + str(row.get('transaction', '')).lower()
+            val = float(row['value']) if pd.notnull(row['value']) else 0.0
+            
+            if 'sale' in text or 'sold' in text:
+                net_flow -= val
+            elif 'purchase' in text or 'buy' in text or 'bought' in text:
+                net_flow += val
+                
+        return net_flow
+    except Exception as e:
+        logger.warning(f"Failed to parse insider flow: {e}")
+        return 0.0
+
 def create_market_analyst(llm):
 
     def market_analyst_node(state):
+        logger.info(f">>> STARTING MARKET ANALYST for {state.get('company_of_interest')} <<<")
         current_date = state["trade_date"]
         
         # Initialize default panic state
         regime_val = "UNKNOWN (Fatal Node Failure)"
         metrics = {}
-        broad_market_regime = "UNKNOWN"
+        broad_market_regime = "UNKNOWN (Initialized)"
+        net_insider_flow = 0.0
+        metrics = {"volatility": 0.0}
         volatility_score = 0.0
         report = "Market Analysis failed completely."
         tool_result_message = state["messages"] 
@@ -112,7 +148,6 @@ def create_market_analyst(llm):
                         try:
                             debug_msg = f"DEBUG: Passing prices to detector. Type: {type(price_data)}, Length: {len(price_data)}"
                             logger.info(debug_msg)
-                            print(f"\n[CONSOLE] {debug_msg}")
                             
                             regime, metrics = RegimeDetector.detect_regime(price_data)
                             
@@ -125,10 +160,12 @@ def create_market_analyst(llm):
                             optimal_params = DynamicIndicatorSelector.get_optimal_parameters(regime)
                             volatility_score = metrics.get("volatility", 0.0)
                             
+                            logger.info(f"SUCCESS: Detected Regime: {regime_val}")
+                            logger.info(f"DEBUG: Optimal Params: {json.dumps(optimal_params)}")
+                            
                         except Exception as e_det:
                             err_msg = f"CRITICAL: Detector Call Failed. Data Snippet: {str(price_data.head())}. Error: {e_det}"
                             logger.critical(err_msg)
-                            print(f"\n[CONSOLE] {err_msg}")
                             regime_val = "UNKNOWN (Detector Failed)"
                             metrics = {"volatility": 0.0}
                             optimal_params = {}
@@ -152,9 +189,23 @@ def create_market_analyst(llm):
                 logger.warning(f"Regime detection failed for {ticker}: {e}")
                 regime_val = f"UNKNOWN (Error: {str(e)})"
     
+            # --- INSIDER DATA FETCH (Hard Gate) ---
+            try:
+                insider_data = get_insider_transactions.invoke({
+                    "ticker": real_ticker, 
+                    "curr_date": current_date
+                })
+                net_insider_flow = _calculate_net_insider_flow(insider_data)
+                logger.info(f"Insider Net Flow calculated: ${net_insider_flow:,.2f}")
+            except Exception as e_ins:
+                logger.warning(f"Insider data fetch failed: {e_ins}")
+                net_insider_flow = 0.0
+
+            # --- LLM CALL ---
             tools = [
                 get_stock_data,
                 get_indicators,
+                get_insider_transactions,
             ]
     
             system_message = (
@@ -221,9 +272,6 @@ def create_market_analyst(llm):
             prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
             prompt = prompt.partial(current_date=current_date)
             prompt = prompt.partial(ticker=ticker)
-
-            prompt = prompt.partial(ticker=ticker)
-
             logger.info(f"Market Analyst Prompt: {prompt}")
     
             try:
@@ -240,15 +288,55 @@ def create_market_analyst(llm):
         except Exception as e_fatal:
             logger.critical(f"CRITICAL ERROR in Market Analyst Node: {e_fatal}")
             regime_val = f"UNKNOWN (Fatal Crash: {str(e_fatal)})"
+            regime_val = f"UNKNOWN (Fatal Crash: {str(e_fatal)})"
             report = f"Market Analyst Node crashed completely: {e_fatal}"
+            risk_multiplier = 0.5 # Default to conservative on crash
+
+        # --- 6. RELATIVE STRENGTH LOGIC (The Alpha Calculator) ---
+        # Logic: Compare Asset Regime (Boat) vs. Market Regime (Tide)
+        if "risk_multiplier" not in locals():
+            risk_multiplier = 1.0 # Default Neutral
+        
+        # Clean strings for comparison
+        asset_r = str(regime_val).upper()
+        spy_r = str(broad_market_regime).upper()
+        
+        if "TRENDING_UP" in asset_r:
+            if "SIDEWAYS" in spy_r or "UNKNOWN" in spy_r:
+                # Scenario: Asset is leading the market (Alpha)
+                # Action: Press the advantage.
+                risk_multiplier = 1.5 
+            elif "TRENDING_DOWN" in spy_r:
+                # Scenario: Asset fighting the tide (Divergence)
+                # Action: Caution. Breakouts often fail in bear markets.
+                risk_multiplier = 0.8
+            elif "TRENDING_UP" in spy_r:
+                # Scenario: A rising tide lifts all boats (Beta)
+                # Action: Standard aggressive sizing.
+                risk_multiplier = 1.2
+                
+        elif "VOLATILE" in asset_r:
+            # Scenario: Choppy/Shakeout
+            # Action: Reduce size to survive noise.
+            risk_multiplier = 0.5
+            
+        elif "TRENDING_DOWN" in asset_r:
+            # Scenario: Knife falling.
+            # Action: Zero buying power.
+            risk_multiplier = 0.0
+
+        # --- 7. FINAL RETURN ---
+        logger.info(f"DEBUG: Market Analyst Returning -> Regime: {regime_val}, Risk Multiplier: {risk_multiplier}x")
     
         return {
             "messages": tool_result_message,
             "market_report": report,
-            "market_regime": regime_val,       # PLTR Regime (e.g., TRENDING_UP)
+            "market_regime": regime_val,       # CRITICAL: Must not be UNKNOWN if successful
             "regime_metrics": metrics,
             "volatility_score": volatility_score,
-            "broad_market_regime": broad_market_regime # SPY Regime (e.g., SIDEWAYS)
+            "broad_market_regime": broad_market_regime,
+            "net_insider_flow": net_insider_flow,
+            "risk_multiplier": risk_multiplier
         }
     
     return market_analyst_node

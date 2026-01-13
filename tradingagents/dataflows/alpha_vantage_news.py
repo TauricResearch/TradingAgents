@@ -54,7 +54,7 @@ def get_global_market_news(curr_date, look_back_days=7, limit=50) -> dict[str, s
     
     return _make_api_request("NEWS_SENTIMENT", params)
 
-def get_insider_transactions(symbol: str) -> dict[str, str] | str:
+def get_insider_transactions(symbol: str, curr_date: str = None, **kwargs) -> dict[str, str] | str:
     """Returns latest and historical insider transactions by key stakeholders.
 
     Covers transactions by founders, executives, board members, etc.

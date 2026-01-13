@@ -229,6 +229,10 @@ class TradingAgentsGraph:
 
         # Log state
         self._log_state(trade_date, final_state)
+        
+        # 🟢 EMERGENCY DIAGNOSTIC
+        logger.info(f"DEBUG GRAPH STATE: Regime={final_state.get('market_regime')}")
+        logger.info(f"DEBUG GRAPH STATE: Broad Market={final_state.get('broad_market_regime')}")
 
         # 3. FIX CRASH RISK: Handle Dead State gracefully
         # First, extract raw decision from LLM text (The Agent Decision)
@@ -245,12 +249,14 @@ class TradingAgentsGraph:
         
         msg = f"🔍 [DEBUG] APPLYING OVERRIDE: Regime='{regime_val}', Growth={self.hard_data.get('revenue_growth', 'N/A')}"
         logger.info(msg)
-        print(f"\n[CONSOLE] {msg}")
         
         overridden_decision = self.apply_trend_override(
             raw_llm_decision, 
             self.hard_data,
-            regime_val
+            regime_val,
+            regime_val,
+            final_state.get("net_insider_flow", 0.0),
+            final_state.get("portfolio", {})
         )
         
         # Update final state with potentially overridden decision
@@ -375,6 +381,7 @@ class TradingAgentsGraph:
             if not history.empty and len(history) >= 200:
                 metrics["current_price"] = history["Close"].iloc[-1]
                 metrics["sma_200"] = history["Close"].rolling(200).mean().iloc[-1]
+                metrics["sma_50"] = history["Close"].rolling(50).mean().iloc[-1]
                 metrics["status"] = "OK"
             
             metrics["revenue_growth"] = get_robust_revenue_growth(ticker)
@@ -384,7 +391,7 @@ class TradingAgentsGraph:
             logger.error(f"Error fetching hard data for {ticker} override: {e}")
             return {"status": "ERROR", "error": str(e)}
 
-    def apply_trend_override(self, trade_decision_str: str, hard_data: Dict[str, Any], regime: str) -> Any:
+    def apply_trend_override(self, trade_decision_str: str, hard_data: Dict[str, Any], regime: str, insider_flow: float = 0.0, portfolio: Dict[str, Any] = {}) -> Any:
         """
         The 'Don't Fight the Tape' Safety Valve.
         Prevents the system from shorting high-growth winners during a Bull Market.
@@ -400,13 +407,64 @@ class TradingAgentsGraph:
             regime_val = str(regime)
             
         regime_val = regime_val.upper().strip()
+        
+        # -------------------------------------------------------------
+        # RULE 72: THE HARD STOP LOSS (Portfolio Protection)
+        # "If unrealized P&L < -10%, LIQUIDATE. No questions asked."
+        # -------------------------------------------------------------
+        if self.ticker in portfolio:
+            pos = portfolio[self.ticker]
+            # Calculate PnL dynamically based on latest price to ensure safety
+            latest_price = hard_data.get("current_price", 0.0)
+            if latest_price > 0 and pos.get("average_cost", 0) > 0:
+                cost = pos["average_cost"]
+                pnl_pct = (latest_price - cost) / cost
+                
+                if pnl_pct < -0.10: # -10% Hard Stop
+                    reasoning = (
+                        f"🛑 STOP LOSS TRIGGERED (Rule 72): Position is down {pnl_pct:.1%}. "
+                        f"Current: ${latest_price:.2f}, Cost: ${cost:.2f}. "
+                        "LIQUIDATING IMMEDIATELY."
+                    )
+                    logger.warning(reasoning)
+                    return {
+                        "action": "SELL",
+                        "quantity": pos["shares"], # Sell entire position
+                        "reasoning": reasoning,
+                        "confidence": 1.0
+                    }
+                    
+        # -------------------------------------------------------------
+        
+        # 🛑 EMERGENCY BYPASS FOR DEBUGGING
+        if regime_val == "UNKNOWN":
+            logger.info("⚠️ DEBUG OVERRIDE: Regime is UNKNOWN. Checking Technicals for Force-Bull...")
             
         price = hard_data["current_price"]
         sma_200 = hard_data["sma_200"]
+        sma_50 = hard_data.get("sma_50", 0.0)
         growth = hard_data["revenue_growth"]
+        
+        # 0. Insider Veto (Rule B: Insider Selling > $50M + Downtrend)
+        is_downtrend_50 = price < sma_50
+        if insider_flow < -50_000_000 and is_downtrend_50:
+            if "BUY" in trade_decision_str.upper():
+                 logger.warning(f"🛑 INSIDER VETO TRIGGERED for {self.ticker}")
+                 logger.warning(f"   Reason: Insiders sold ${abs(insider_flow):,.0f} (> $50M) and Price < 50SMA.")
+                 return {
+                    "action": "HOLD",
+                    "quantity": 0,
+                    "reasoning": f"INSIDER VETO: Blocked BUY. Insiders sold ${abs(insider_flow):,.0f} into a downtrend (< 50SMA).",
+                    "confidence": 1.0
+                }
         
         # 1. Technical Uptrend (Price > 200 SMA)
         is_technical_uptrend = price > sma_200
+
+        # EMERGENCY BYPASS FOR DEBUGGING
+        if regime_val == "UNKNOWN" and is_technical_uptrend:
+             logger.warning("⚠️ DEBUG OVERRIDE: Forcing Regime to 'TRENDING_UP' because Price > SMA")
+             # is_bull_regime will be True below by default
         
         # 2. Hyper-Growth (> 30% YoY)
         is_hyper_growth = growth > 0.30
@@ -418,7 +476,12 @@ class TradingAgentsGraph:
         
         msg_override = f"DEBUG OVERRIDE: Price={price}, SMA={sma_200}, Growth={growth}, Regime='{regime_val}'"
         logger.info(msg_override)
-        print(f"[CONSOLE] {msg_override}")
+        
+        # ⚠️ EMERGENCY DIAGNOSTIC
+        logger.info(f"DEBUG CHECK: Technical (Price > SMA) = {is_technical_uptrend}")
+        logger.info(f"DEBUG CHECK: Growth (> 30%) = {is_hyper_growth}")
+        logger.info(f"DEBUG CHECK: Bull Regime (Not Down) = {is_bull_regime}")
+        
         logger.info(f"DEBUG CHECK: Technical={is_technical_uptrend}, Growth={is_hyper_growth}, BullRegime={is_bull_regime}")
 
         # 4. Trigger Override if trying to SELL a leader in a bull market
@@ -434,7 +497,6 @@ class TradingAgentsGraph:
                     )
                 
                 logger.warning(f"🛑 TREND OVERRIDE TRIGGERED for {self.ticker}")
-                print(f"\n[CONSOLE] 🛑 TREND OVERRIDE TRIGGERED for {self.ticker}")
                 logger.warning(f"   Reason: Stock (${price:.2f}) is > 200SMA (${sma_200:.2f}) and Growth is {growth:.1%}")
                 logger.warning(f"   Action 'SELL' blocked. Converting to '{allowed_action}'.")
                 

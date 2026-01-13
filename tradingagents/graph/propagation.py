@@ -43,6 +43,9 @@ class Propagator:
             "market_regime": "UNKNOWN",
             "broad_market_regime": "UNKNOWN",
             "volatility_score": 0.0,
+            "net_insider_flow": 0.0,
+            "portfolio": {},
+            "cash_balance": 100000.0,
         }
 
     def get_graph_args(self) -> Dict[str, Any]:

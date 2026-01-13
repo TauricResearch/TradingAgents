@@ -394,7 +394,9 @@ def get_income_statement(
 
 
 def get_insider_transactions(
-    ticker: Annotated[str, "ticker symbol of the company"]
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date"] = None,
+    **kwargs
 ):
     """Get insider transactions data from yfinance."""
     try:

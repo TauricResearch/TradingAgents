@@ -15,45 +15,72 @@ class Reflector:
     def _get_reflection_prompt(self) -> str:
         """Get the system prompt for reflection."""
         return """
-You are an expert financial analyst tasked with reviewing trading decisions/analysis and providing a comprehensive, step-by-step analysis. 
-Your goal is to deliver detailed insights into investment decisions and highlight opportunities for improvement, adhering strictly to the following guidelines:
+You are an expert financial analyst tasked with reviewing trading decisions/analysis.
+Your goal is to deliver detailed insights AND **tunable parameter updates**.
 
 1. Reasoning:
-   - For each trading decision, determine whether it was correct or incorrect. A correct decision results in an increase in returns, while an incorrect decision does the opposite.
-   - Analyze the contributing factors to each success or mistake. Consider:
-     - Market intelligence.
-     - Technical indicators.
-     - Technical signals.
-     - Price movement analysis.
-     - Overall market data analysis 
-     - News analysis.
-     - Social media and sentiment analysis.
-     - Fundamental data analysis.
-     - Weight the importance of each factor in the decision-making process.
+   - Determine if the decision was correct based on the OUTCOME (Returns).
+   - Analyze which factor (News, Technicals, Fundamentals) was the primary driver.
 
 2. Improvement:
-   - For any incorrect decisions, propose revisions to maximize returns.
-   - Provide a detailed list of corrective actions or improvements, including specific recommendations (e.g., changing a decision from HOLD to BUY on a particular date).
+   - For incorrect decisions, propose revisions.
 
 3. Summary:
-   - Summarize the lessons learned from the successes and mistakes.
-   - Highlight how these lessons can be adapted for future trading scenarios and draw connections between similar situations to apply the knowledge gained.
+   - Summarize lessons learned.
 
-4. Query:
-   - Extract key insights from the summary into a concise sentence of no more than 1000 tokens.
-   - Ensure the condensed sentence captures the essence of the lessons and reasoning for easy reference.
+4. PARAMETER OPTIMIZATION (CRITICAL):
+   - You have control over specific system parameters.
+   - If the strategy failed due to being too slow/fast, adjust them.
+   - **YOU MUST OUTPUT A JSON BLOCK** at the end of your response if changes are needed.
+   - Available Parameters:
+     - `rsi_period` (Default 14): Lower to 7 for faster reaction, raise to 21 for noise filtering.
+     - `risk_multiplier_cap` (Default 1.5): Lower if drawdowns are too high.
+     - `stop_loss_pct` (Default 0.10): Tighten (e.g., 0.05) if getting stopped out too late.
+   
+   - FORMAT:
+     ```json
+     {
+       "UPDATE_PARAMETERS": {
+         "rsi_period": 7,
+         "stop_loss_pct": 0.08
+       }
+     }
+     ```
+   - If no changes are needed, do not output the JSON block.
 
-Adhere strictly to these instructions, and ensure your output is detailed, accurate, and actionable. You will also be given objective descriptions of the market from a price movements, technical indicator, news, and sentiment perspective to provide more context for your analysis.
+Adhere strictly to these instructions.
 """
 
     def _extract_current_situation(self, current_state: Dict[str, Any]) -> str:
-        """Extract the current market situation from the state."""
-        curr_market_report = current_state["market_report"]
-        curr_sentiment_report = current_state["sentiment_report"]
-        curr_news_report = current_state["news_report"]
-        curr_fundamentals_report = current_state["fundamentals_report"]
+        """
+        Extract the current market situation from the state.
+        CRITICAL FIX: Now includes Regime Context so the Reflector knows WHY rules were applied.
+        """
+        # Standard Reports
+        curr_market_report = current_state.get("market_report", "No Market Report")
+        curr_sentiment_report = current_state.get("sentiment_report", "No Sentiment Report")
+        curr_news_report = current_state.get("news_report", "No News Report")
+        curr_fundamentals_report = current_state.get("fundamentals_report", "No Fundamental Report")
 
-        return f"{curr_market_report}\n\n{curr_sentiment_report}\n\n{curr_news_report}\n\n{curr_fundamentals_report}"
+        # 🛑 CRITICAL CONTEXT: The Regime Data
+        market_regime = current_state.get("market_regime", "UNKNOWN")
+        broad_regime = current_state.get("broad_market_regime", "UNKNOWN")
+        volatility = current_state.get("volatility_score", "N/A")
+
+        # Format the Situation String
+        situation_str = (
+            f"=== MARKET REGIME CONTEXT ===\n"
+            f"Target Asset Regime: {market_regime}\n"
+            f"Broad Market (SPY) Regime: {broad_regime}\n"
+            f"Volatility Score: {volatility}\n\n"
+            f"=== ANALYST REPORTS ===\n"
+            f"TECHNICAL: {curr_market_report}\n\n"
+            f"SENTIMENT: {curr_sentiment_report}\n\n"
+            f"NEWS: {curr_news_report}\n\n"
+            f"FUNDAMENTALS: {curr_fundamentals_report}"
+        )
+
+        return situation_str
 
     def _reflect_on_component(
         self, component_type: str, report: str, situation: str, returns_losses

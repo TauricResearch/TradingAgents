@@ -141,8 +141,9 @@ def select_shallow_thinking_agent(provider) -> str:
         "google": [
             ("Gemini 1.5 Flash - Cost efficiency and low latency", "gemini-1.5-flash"),
             ("Gemini 2.0 Flash - Next generation features and speed", "gemini-2.0-flash"),
+            ("Gemini 2.5 Flash Latest - Optimal speed and cost", "gemini-2.5-flash-latest"),
+            ("Gemini 2.5 Flash Preview - Advanced thinking capability", "gemini-2.5-flash-preview-09-2025"),
             ("Gemini 2.5 Flash Lite - Cost efficiency and low latency", "gemini-2.5-flash-lite"),
-            ("Gemini 2.5 Flash - Next generation features, speed, and thinking", "gemini-2.5-flash"),
             ("Gemini 2.0 Flash Exp - Next generation features and speed", "gemini-2.0-flash-exp"),
             ("Gemini 3.0 Flash - Next generation features, speed, and thinking", "gemini-3-flash-preview"),
             ("Gemini 1.5 Pro - High reasoning capability", "gemini-1.5-pro"),
@@ -204,8 +205,9 @@ def select_deep_thinking_agent(provider) -> str:
         "google": [
             ("Gemini 1.5 Flash - Cost efficiency and low latency", "gemini-1.5-flash"),
             ("Gemini 2.0 Flash - Next generation features and speed", "gemini-2.0-flash"),
+            ("Gemini 2.5 Flash Latest - Optimal speed and cost", "gemini-2.5-flash-latest"),
+            ("Gemini 2.5 Flash Preview - Advanced thinking capability", "gemini-2.5-flash-preview-09-2025"),
             ("Gemini 2.5 Flash Lite - Cost efficiency and low latency", "gemini-2.5-flash-lite"),
-            ("Gemini 2.5 Flash - Next generation features, speed, and thinking", "gemini-2.5-flash"),
             ("Gemini 2.0 Flash Exp - Next generation features and speed", "gemini-2.0-flash-exp"),
             ("Gemini 2.5 Pro - High reasoning capability", "gemini-2.5-pro"),
             ("Gemini 3.0 Flash - Next generation features, speed, and thinking", "gemini-3-flash-preview"),
