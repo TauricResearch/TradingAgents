@@ -177,14 +177,20 @@ class DynamicIndicatorSelector:
     """Select optimal indicator parameters based on regime."""
     
     @staticmethod
-    def get_optimal_parameters(regime: MarketRegime) -> Dict:
+    def get_optimal_parameters(regime: MarketRegime, overrides: Dict = None) -> Dict:
         """
         Get optimal indicator parameters for detected regime.
         
         Returns dict with recommended settings for RSI, MACD, Bollinger, etc.
+        Applies 'overrides' from runtime_config if provided.
         """
+        if overrides is None:
+            overrides = {}
+            
+        defaults = {}
+        
         if regime == MarketRegime.TRENDING_UP or regime == MarketRegime.TRENDING_DOWN:
-            return {
+            defaults = {
                 "rsi_period": 14,  # Standard for trending
                 "macd_fast": 12,
                 "macd_slow": 26,
@@ -197,7 +203,7 @@ class DynamicIndicatorSelector:
             }
         
         elif regime == MarketRegime.VOLATILE:
-            return {
+            defaults = {
                 "rsi_period": 7,  # Shorter for volatile markets
                 "macd_fast": 8,
                 "macd_slow": 17,
@@ -210,7 +216,7 @@ class DynamicIndicatorSelector:
             }
         
         elif regime == MarketRegime.MEAN_REVERTING:
-            return {
+            defaults = {
                 "rsi_period": 14,
                 "macd_fast": 12,
                 "macd_slow": 26,
@@ -223,7 +229,7 @@ class DynamicIndicatorSelector:
             }
         
         else:  # SIDEWAYS
-            return {
+            defaults = {
                 "rsi_period": 21,  # Longer to avoid noise
                 "macd_fast": 12,
                 "macd_slow": 26,
@@ -234,6 +240,15 @@ class DynamicIndicatorSelector:
                 "strategy": "range_trading",
                 "rationale": "Sideways market - trade support/resistance levels"
             }
+            
+        # Apply Overrides
+        if overrides:
+            for key, val in overrides.items():
+                if key in defaults:
+                    print(f"🔄 TUNING: Overriding {key} from {defaults[key]} to {val}")
+                    defaults[key] = val
+                    
+        return defaults
 
 
 # Example usage

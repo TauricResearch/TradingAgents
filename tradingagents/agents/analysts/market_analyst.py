@@ -23,7 +23,12 @@ def _calculate_net_insider_flow(raw_data: str) -> float:
         if not raw_data or "Error" in raw_data or "No insider" in raw_data:
             return 0.0
             
-        df = pd.read_csv(StringIO(raw_data), comment='#')
+        # Robust CSV parsing
+        try:
+            df = pd.read_csv(StringIO(raw_data), comment='#')
+        except:
+             # Fallback for messy data
+             df = pd.read_csv(StringIO(raw_data), sep=None, engine='python', comment='#')
         
         # Standardize columns
         df.columns = [c.strip().lower() for c in df.columns]
@@ -55,14 +60,17 @@ def create_market_analyst(llm):
         logger.info(f">>> STARTING MARKET ANALYST for {state.get('company_of_interest')} <<<")
         current_date = state["trade_date"]
         
-        # Initialize default panic state
+        # Initialize default state
+        report = state.get("market_report", "Market Analysis Initialized...")
+        if report == "Market Analysis failed completely.":
+             report = "Market Analysis in progress..." # Reset if stuck
+
         regime_val = "UNKNOWN (Fatal Node Failure)"
         metrics = {}
         broad_market_regime = "UNKNOWN (Initialized)"
         net_insider_flow = 0.0
         metrics = {"volatility": 0.0}
         volatility_score = 0.0
-        report = "Market Analysis failed completely."
         tool_result_message = state["messages"] 
         
         try:
@@ -157,7 +165,19 @@ def create_market_analyst(llm):
                             else:
                                 regime_val = str(regime)
                                 
-                            optimal_params = DynamicIndicatorSelector.get_optimal_parameters(regime)
+                            # Load Runtime Overrides (Dynamic Parameter Tuning)
+                            overrides = {}
+                            try:
+                                config_path = get_config().get("runtime_config_relative_path", "data_cache/runtime_config.json")
+                                import os
+                                if os.path.exists(config_path):
+                                    with open(config_path, 'r') as f:
+                                        overrides = json.load(f)
+                                        logger.info(f"DYNAMIC TUNING ACTIVE: Loaded overrides: {overrides}")
+                            except Exception as e_conf:
+                                logger.warning(f"Failed to load runtime config: {e_conf}")
+                                
+                            optimal_params = DynamicIndicatorSelector.get_optimal_parameters(regime, overrides)
                             volatility_score = metrics.get("volatility", 0.0)
                             
                             logger.info(f"SUCCESS: Detected Regime: {regime_val}")
@@ -287,8 +307,10 @@ def create_market_analyst(llm):
 
         except Exception as e_fatal:
             logger.critical(f"CRITICAL ERROR in Market Analyst Node: {e_fatal}")
-            regime_val = f"UNKNOWN (Fatal Crash: {str(e_fatal)})"
-            regime_val = f"UNKNOWN (Fatal Crash: {str(e_fatal)})"
+            # Only overwrite regime if we completely failed
+            if "UNKNOWN" in str(regime_val) or regime_val is None:
+                regime_val = f"UNKNOWN (Fatal Crash: {str(e_fatal)})"
+            
             report = f"Market Analyst Node crashed completely: {e_fatal}"
             risk_multiplier = 0.5 # Default to conservative on crash
 

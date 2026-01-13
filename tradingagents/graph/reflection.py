@@ -1,8 +1,10 @@
-# TradingAgents/graph/reflection.py
-
 from typing import Dict, Any
+import json
+import os
 from langchain_openai import ChatOpenAI
-
+from tradingagents.utils.logger import app_logger as logger
+from tradingagents.dataflows.config import get_config
+from tradingagents.agents.utils.agent_utils import write_json_atomic
 
 class Reflector:
     """Handles reflection on decisions and updating memory."""
@@ -11,6 +13,7 @@ class Reflector:
         """Initialize the reflector with an LLM."""
         self.quick_thinking_llm = quick_thinking_llm
         self.reflection_system_prompt = self._get_reflection_prompt()
+        self.config_path = get_config().get("runtime_config_relative_path", "data_cache/runtime_config.json")
 
     def _get_reflection_prompt(self) -> str:
         """Get the system prompt for reflection."""
@@ -82,8 +85,72 @@ Adhere strictly to these instructions.
 
         return situation_str
 
+    def _parse_parameter_updates(self, text: str) -> Dict[str, Any]:
+        """Extracts JSON parameter updates from the LLM response."""
+        try:
+            if "```json" in text:
+                # Extract content between code blocks
+                parts = text.split("```json")
+                if len(parts) > 1:
+                    json_str = parts[1].split("```")[0].strip()
+                    try:
+                        data = json.loads(json_str)
+                        if "UPDATE_PARAMETERS" in data:
+                            logger.info(f"⚠️ REFLECTION UPDATE: Tuning System Parameters: {data['UPDATE_PARAMETERS']}")
+                            return data["UPDATE_PARAMETERS"]
+                    except json.JSONDecodeError:
+                        logger.debug("DEBUG: Failed to decode JSON in reflection.")
+        except Exception as e:
+            logger.warning(f"DEBUG: Failed to parse parameter updates: {e}")
+        return {}
+
+    def _apply_parameter_updates(self, updates: Dict[str, Any], current_state: Dict[str, Any] = None):
+        """Persist parameter updates to a runtime config file."""
+        if not updates:
+            return
+            
+        # 1. Save to Global Cache (Active State)
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        
+        current_config = {}
+        if os.path.exists(self.config_path):
+            try:
+                with open(self.config_path, 'r') as f:
+                    current_config = json.load(f)
+            except Exception as e:
+                logger.warning(f"WARNING: Failed to read existing config {self.config_path}: {e}")
+                current_config = {}
+        
+        for key, value in updates.items():
+            current_config[key] = value
+            
+        try:
+            write_json_atomic(self.config_path, current_config)
+            logger.info(f"✅ SYSTEM UPDATED: Saved new parameters to {self.config_path}")
+        except Exception as e:
+            logger.error(f"ERROR: Failed to write config to {self.config_path}: {e}")
+
+        # 2. Archive to Ticker/Date Result Folder (Audit Trail)
+        if current_state:
+            try:
+                ticker = current_state.get("company_of_interest", "UNKNOWN_TICKER")
+                date = current_state.get("trade_date", "UNKNOWN_DATE")
+                
+                # Get results dir from environment/config or default
+                results_base = os.getenv("TRADINGAGENTS_RESULTS_DIR", "./results")
+                # Construct path: results/TICKER/DATE/runtime_config.json
+                archive_path = os.path.join(results_base, ticker, date, "runtime_config.json")
+                
+                # Atomic Write for Archive too
+                write_json_atomic(archive_path, current_config)
+                    
+                logger.info(f"💾 ARCHIVED: Tuning config saved to {archive_path}")
+                
+            except Exception as e:
+                logger.warning(f"Failed to archive config to results folder: {e}")
+
     def _reflect_on_component(
-        self, component_type: str, report: str, situation: str, returns_losses
+        self, component_type: str, report: str, situation: str, returns_losses, current_state: Dict[str, Any] = None
     ) -> str:
         """Generate reflection for a component."""
         messages = [
@@ -95,6 +162,14 @@ Adhere strictly to these instructions.
         ]
 
         result = self.quick_thinking_llm.invoke(messages).content
+        
+        # 🛑 NEW LOGIC: Extract and Apply
+        try:
+            updates = self._parse_parameter_updates(result)
+            self._apply_parameter_updates(updates, current_state)
+        except Exception as e:
+            logger.error(f"ERROR: Reflection loop failed to apply updates: {e}")
+            
         return result
 
     def reflect_bull_researcher(self, current_state, returns_losses, bull_memory):
@@ -103,7 +178,7 @@ Adhere strictly to these instructions.
         bull_debate_history = current_state["investment_debate_state"]["bull_history"]
 
         result = self._reflect_on_component(
-            "BULL", bull_debate_history, situation, returns_losses
+            "BULL", bull_debate_history, situation, returns_losses, current_state
         )
         bull_memory.add_situations([(situation, result)])
 
@@ -113,7 +188,7 @@ Adhere strictly to these instructions.
         bear_debate_history = current_state["investment_debate_state"]["bear_history"]
 
         result = self._reflect_on_component(
-            "BEAR", bear_debate_history, situation, returns_losses
+            "BEAR", bear_debate_history, situation, returns_losses, current_state
         )
         bear_memory.add_situations([(situation, result)])
 
@@ -123,7 +198,7 @@ Adhere strictly to these instructions.
         trader_decision = current_state["trader_investment_plan"]
 
         result = self._reflect_on_component(
-            "TRADER", trader_decision, situation, returns_losses
+            "TRADER", trader_decision, situation, returns_losses, current_state
         )
         trader_memory.add_situations([(situation, result)])
 
@@ -133,7 +208,7 @@ Adhere strictly to these instructions.
         judge_decision = current_state["investment_debate_state"]["judge_decision"]
 
         result = self._reflect_on_component(
-            "INVEST JUDGE", judge_decision, situation, returns_losses
+            "INVEST JUDGE", judge_decision, situation, returns_losses, current_state
         )
         invest_judge_memory.add_situations([(situation, result)])
 
@@ -143,6 +218,6 @@ Adhere strictly to these instructions.
         judge_decision = current_state["risk_debate_state"]["judge_decision"]
 
         result = self._reflect_on_component(
-            "RISK JUDGE", judge_decision, situation, returns_losses
+            "RISK JUDGE", judge_decision, situation, returns_losses, current_state
         )
         risk_manager_memory.add_situations([(situation, result)])

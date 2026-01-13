@@ -36,4 +36,35 @@ def create_msg_delete():
     return delete_messages
 
 
+import json
+import os
+import tempfile
+from typing import Dict, Any
+
+def write_json_atomic(path: str, data: Dict[str, Any]):
+    """
+    Atomically write JSON data to a file.
+    
+    1. Writes to a temporary file in the same directory.
+    2. Renames the temp file to the target path (atomic operation).
+    """
+    directory = os.path.dirname(path)
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+        
+    try:
+        # Create temp file in the same directory to ensure atomic rename works
+        with tempfile.NamedTemporaryFile(mode='w', dir=directory, delete=False) as tf:
+            json.dump(data, tf, indent=4)
+            temp_path = tf.name
+            
+        # Atomic rename
+        os.replace(temp_path, path)
+    except Exception as e:
+        # Cleanup if something failed before rename
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise e
+
+
         

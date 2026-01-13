@@ -63,7 +63,22 @@ We judge assets not in a vacuum, but against the Tide.
 *   If the Market (SPY) is Flat/Choppy and the Asset is Trending Up, this is **Alpha**. We press the advantage.
 *   If the Market is Up and the Asset is Flat, this is **Weakness**. We cut the laggard.
 
+
 ---
+
+## VI. THE LEARNING LOOP (Dynamic Parameter Tuning)
+
+We do not just execute; we adapt. The system includes a **Self-Reflection Mechanism** that reviews past performance and tunes internal parameters.
+
+1.  **Reflection:** After every decision, the `Reflector` analyzes the outcome (Returns vs. Logic).
+2.  **Tuning:** If the strategy was too slow (lagging) or too fast (whipsawed), the Reflector adjusts core parameters:
+    *   `rsi_period`: Lowered for faster reaction in Volatile markets.
+    *   `risk_multiplier`: Capped during drawdowns.
+    *   `stop_loss_pct`: Tightened if losses exceed projections.
+3.  **Persistence:** These "Lessons" are saved to `runtime_config.json` and applied to **All Future Decisions**.
+
+---
+
 
 ## V. EXECUTION DISCIPLINE
 

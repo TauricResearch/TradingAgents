@@ -8,6 +8,7 @@ DEFAULT_CONFIG = {
         os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
         "dataflows/data_cache",
     ),
+    "runtime_config_relative_path": "data_cache/runtime_config.json",
     # LLM settings
     "llm_provider": "openai",
     "deep_think_llm": "gemini-pro",
