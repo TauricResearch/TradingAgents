@@ -78,6 +78,31 @@ def main():
             
         print("\n✅ Run Complete. Check 'eval_results' for detailed logs and reports.")
         
+        # 5.1 Send WhatsApp Notification
+        try:
+            from tradingagents.dataflows.notifications import get_notifier
+            
+            # Extract basic decision string
+            decision_val = "PROCESSED"
+            decision_reason = "See Report"
+            
+            if isinstance(decision, dict):
+                 decision_val = decision.get("action", "UNKNOWN")
+                 decision_reason = str(decision.get("reasoning", ""))[:150] + "..."
+            elif isinstance(decision, str):
+                 if "Action:" in decision:
+                     decision_val = decision.split("Action:")[1].split("\n")[0].strip()
+                 else:
+                     decision_val = decision[:20] + "..."
+                 decision_reason = "Check email/report for full analysis."
+
+            # Get configured notifier (Twilio or CallMeBot)
+            notifier = get_notifier()
+            print(f"📱 Sending WhatsApp Notification for {args.ticker}...")
+            notifier.send_signal(args.ticker, decision_val, decision_reason)
+        except Exception as e:
+            print(f"⚠️ Notification skipped: {e}")
+        
         # 6. Generate HTML Report
         print("\n📊 Generating Standalone HTML Report...")
         

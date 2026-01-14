@@ -79,6 +79,20 @@ We do not just execute; we adapt. The system includes a **Self-Reflection Mechan
 
 ---
 
+## VII. SYSTEM ARCHITECTURE (The Digital Bedrock)
+
+### 1. The Parallel Doctrine ("Fan-Out / Fan-In")
+*   **Concept:** Speed is Alpha. We do not wait for News to finish before reading Social Media.
+*   **Architecture:** The `Market Analyst` triggers `Social`, `News`, and `Fundamentals` simultaneously. They run in parallel threads.
+*   **Safety Protocol:** To prevent "State Contamination" (Race Conditions):
+    *   **Subgraphs:** Each analyst runs in an isolated `StateGraph` sandbox. They share NO memory.
+    *   **Strict Schemas:** Analysts can only read what they need (`Symbol`, `Date`) and write what they own (`Report`). They CANNOT touch the Portfolio.
+
+### 2. The Crash-Proof Guarantee
+*   **Rule:** **NO ANALYST DIES ALONE.**
+*   **Implementation:** All tool nodes are wrapped in `try/except` logic. If an API fails (Rate Limit, 500 Error), the tool returns a formatted error string to the Agent. The Agent then notes the failure and proceeds. The system **never** hard-crashes on a single data point failure.
+
+---
 
 ## V. EXECUTION DISCIPLINE
 

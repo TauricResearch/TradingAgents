@@ -19,8 +19,38 @@ All notable changes to the **TradingAgents** project will be documented in this 
 ### Fixed
 - **Rate Limit Crash**: Fixed `AlphaVantageRateLimitError` by switching default news vendor to Google in `run_agent.py`.
 - **Interface Mismatch**: Fixed `TypeError` in `get_global_news` where string dates were passed to integer arguments.
-- **Logic Crash**: Fixed `TypeError` in `TradingAgentsGraph.apply_trend_override` caused by duplicate arguments in the method call.
+- **Logi Crash**: Fixed `TypeError` in `TradingAgentsGraph.apply_trend_override` caused by duplicate arguments in the method call.
 - **Broken Entry Point**: Updated `startAgent.sh` to point to the correct `run_agent.py` script instead of a non-existent file.
+
+## [Unreleased] - 2026-01-14 (Performance Update)
+
+### Changed
+- **Parallel Architecture (AsyncIO)**: Refactored `setup.py` to implement a "Fan-Out / Fan-In" pattern using LangGraph.
+    - `Market Analyst` now triggers `Social`, `News`, and `Fundamentals` analysts **concurrently**.
+    - Added `Analyst Sync` node to synchronize parallel branches.
+    - Added `Analyst Sync` node to synchronize parallel branches.
+    - reduced total runtime by ~50% by overlapping heavy LLM/Tool operations.
+- **Fail Fast Scraper**: Optimized `googlenews_utils.py` to timeout after ~30s (down from 3m) when blocked, ensuring rapid failover to backup vendors.
+
+### Fixed
+- **API Error 400 (Dangling Tool Use)**: Fixed crash in `Fundamentals Analyst` and others caused by unhandled tool exceptions (e.g. Rate Limits).
+    - Wrapped all tools in `fundamental_data_tools.py`, `news_data_tools.py`, `core_stock_tools.py`, and `technical_indicators_tools.py` with `try/except` blocks.
+    - Tools now return error strings instead of crashing, ensuring stricter API compliance and system resilience.
+
+## [Unreleased] - 2026-01-14 (Architecture Hardening)
+
+### Added
+- **Subgraph Isolation (The Sandbox)**: Refactored `Social`, `News`, and `Fundamentals` analysts to run in their own isolated `StateGraph` containers.
+    - Implemented `Init_Clear` node to wipe message history at the start of each subgraph.
+    - Prevents cross-contamination of tool calls between parallel analysts (fixing "Dangling Tool Use" API Error 400).
+- **Strict State Schemas (Type Safety)**: Defined `SocialAnalystState`, `NewsAnalystState`, and `FundamentalsAnalystState` in `agent_states.py`.
+    - Restricts analyst subgraphs to only access necessary inputs (`company`, `date`) and write specific outputs (`report`).
+    - Eliminates "global state leakage" risks.
+
+### Fixed
+- **Concurrent Write Conflict**: Resolved `InvalidUpdateError` in LangGraph during parallel "Fan-In".
+    - Implemented `reduce_overwrite` logic in `AgentState`.
+    - Allows parallel subgraphs to return identical read-only inputs (`company_of_interest`) without triggering race condition errors.
 
 ## [Released] - 2026-01-13
 

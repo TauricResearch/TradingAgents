@@ -5,18 +5,17 @@ from tradingagents.utils.anonymizer import TickerAnonymizer
 
 def _process_vendor_call(func_name, ticker=None, *args):
     """Helper to handle anonymization for vendor calls"""
-    # Initialize locally to ensure fresh state
-    anonymizer = TickerAnonymizer()
-    
-    real_ticker = None
-    if ticker:
-        # 1. Deanonymize ticker
-        real_ticker = anonymizer.deanonymize_ticker(ticker)
-        if not real_ticker:
-            real_ticker = ticker
-            
-            
     try:
+        # Initialize locally to ensure fresh state
+        anonymizer = TickerAnonymizer()
+        
+        real_ticker = None
+        if ticker:
+            # 1. Deanonymize ticker
+            real_ticker = anonymizer.deanonymize_ticker(ticker)
+            if not real_ticker:
+                real_ticker = ticker
+                
         # 2. Get Data
         # Handle optional ticker for global_news
         call_args = [real_ticker] + list(args) if ticker else list(args)

@@ -58,9 +58,19 @@ class RiskDebateState(TypedDict):
     count: Annotated[int, "Length of the current conversation"]  # Conversation length
 
 
+
+def reduce_overwrite(left, right):
+    """
+    Reducer that allows overwriting the value.
+    In case of concurrent identical updates (like parallel subgraphs returning inputs),
+    this resolves the conflict by taking the last value (which is identical).
+    """
+    return right
+
 class AgentState(MessagesState):
-    company_of_interest: Annotated[str, "Company that we are interested in trading"]
-    trade_date: Annotated[str, "What date we are trading at"]
+    company_of_interest: Annotated[str, reduce_overwrite] # "Company that we are interested in trading"
+    trade_date: Annotated[str, reduce_overwrite] # "What date we are trading at"
+
 
     sender: Annotated[str, "Agent that sent this message"]
 
@@ -96,3 +106,25 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+
+# --- STRICT ANALYST STATES FOR SUBGRAPHS ---
+# These ensure parallel analysts cannot touch global state (portfolio, risk, etc.)
+
+class BaseAnalystState(MessagesState):
+    """Base state for an isolated analyst subgraph.
+    Inherits 'messages' from MessagesState.
+    Inherits 'messages' from MessagesState.
+    """
+    company_of_interest: Annotated[str, reduce_overwrite]
+    trade_date: Annotated[str, reduce_overwrite]
+    sender: Annotated[str, "Agent name (internal to subgraph)"]
+
+class SocialAnalystState(BaseAnalystState):
+    sentiment_report: Annotated[str, "Output report"]
+
+class NewsAnalystState(BaseAnalystState):
+    news_report: Annotated[str, "Output report"]
+    # Additional news-specific fields if needed, but keeping it minimal
+
+class FundamentalsAnalystState(BaseAnalystState):
+    fundamentals_report: Annotated[str, "Output report"]
