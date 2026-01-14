@@ -46,6 +46,11 @@ All notable changes to the **TradingAgents** project will be documented in this 
 - **Strict State Schemas (Type Safety)**: Defined `SocialAnalystState`, `NewsAnalystState`, and `FundamentalsAnalystState` in `agent_states.py`.
     - Restricts analyst subgraphs to only access necessary inputs (`company`, `date`) and write specific outputs (`report`).
     - Eliminates "global state leakage" risks.
+- **Universal Notification System**: Implemented a unified factory pattern (`get_notifier`) in `notifications.py` supporting:
+    - **CallMeBot**: Free WhatsApp notifications (Personal Use).
+    - **Telegram**: Free Bot API notifications (Reliable Alternative).
+    - **Twilio**: Enterprise-grade WhatsApp notifications.
+    - Zero-dependency implementation (using `requests`).
 
 ### Fixed
 - **Concurrent Write Conflict**: Resolved `InvalidUpdateError` in LangGraph during parallel "Fan-In".

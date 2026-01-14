@@ -275,6 +275,23 @@ print(decision)
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
 
+## Real-Time Notifications
+
+TradingAgents can send instant BUY/SELL/HOLD signals to your phone via WhatsApp or Telegram.
+
+**Supported Providers:**
+1.  **CallMeBot (WhatsApp)**: Free, perfect for personal use.
+2.  **Telegram**: Free, reliable, recommended for most users.
+3.  **Twilio (WhatsApp)**: Enterprise-grade, paid.
+
+**Usage:**
+Simply set the `NOTIFICATION_PROVIDER` in your `.env` file (see `.env.example` for keys).
+```bash
+NOTIFICATION_PROVIDER=telegram
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_CHAT_ID=...
+```
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
