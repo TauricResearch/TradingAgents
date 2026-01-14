@@ -1,5 +1,6 @@
 import sys
 import json
+import markdown
 from pathlib import Path
 
 # Add project root to sys.path to allow importing tradingagents
@@ -18,7 +19,6 @@ TEMPLATE = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trading Agent Report - {ticker} - {date}</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
             --bg-color: #0d1117;
@@ -184,7 +184,7 @@ TEMPLATE = """<!DOCTYPE html>
             document.getElementById(`nav-${key}`).classList.add('active');
             
             // Render Content
-            contentDiv.innerHTML = marked.parse(reportData[key]);
+            contentDiv.innerHTML = reportData[key];
             window.scrollTo(0, 0);
         }
 
@@ -194,7 +194,7 @@ TEMPLATE = """<!DOCTYPE html>
             const navItem = document.createElement('div');
             navItem.className = 'nav-item';
             navItem.id = `nav-${key}`;
-            navItem.innerText = key.replace(/_/g, ' ').replace('.md', '').toUpperCase();
+            navItem.innerText = key.replace(/_/g, ' ').toUpperCase();
             navItem.onclick = () => renderReport(key);
             navContainer.appendChild(navItem);
         });
@@ -243,8 +243,10 @@ def generate_report(report_dir):
                 # Deanonymize content if possible
                 if anonymizer:
                     content = anonymizer.deanonymize_text(content)
-                    
-                reports[file.name] = content
+                
+                # Convert Markdown to HTML server-side
+                html_content = markdown.markdown(content, extensions=['tables', 'fenced_code'])
+                reports[file.stem] = html_content
         except Exception as e:
             print(f"Failed to read {file}: {e}")
 

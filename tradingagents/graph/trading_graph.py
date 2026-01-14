@@ -254,7 +254,6 @@ class TradingAgentsGraph:
             raw_llm_decision, 
             self.hard_data,
             regime_val,
-            regime_val,
             final_state.get("net_insider_flow", 0.0),
             final_state.get("portfolio", {})
         )

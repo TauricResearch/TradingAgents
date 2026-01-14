@@ -2,6 +2,37 @@
 
 All notable changes to the **TradingAgents** project will be documented in this file.
 
+## [Unreleased] - 2026-01-14
+
+### Added
+- **Standalone HTML Reports**: Refactored report generation to perform server-side Markdown-to-HTML rendering using Python.
+    - Removed dependency on client-side `marked.js` and CDNs.
+    - Reports are now fully offline-capable.
+    - Cleaned up JSON keys to remove `.md` extensions for cleaner data structure.
+- **Google News Adapter**: Implemented `get_google_global_news` adapter in `google.py` to match the standard `(curr_date, look_back_days)` interface, adhering to the Adapter Pattern and fixing signature mismatches.
+- **Robust Demo Script**: Created `run_agent.py` (replacing demo scripts) with:
+    - Automatic `.env` loading.
+    - `backend_url` handling (clearing OpenAI defaults when using Anthropic).
+    - Hardened configuration for "Deep Analysis" (Debate Rounds=2).
+    - Pre-configured Google News vendor to bypass AlphaVantage rate limits.
+
+### Fixed
+- **Rate Limit Crash**: Fixed `AlphaVantageRateLimitError` by switching default news vendor to Google in `run_agent.py`.
+- **Interface Mismatch**: Fixed `TypeError` in `get_global_news` where string dates were passed to integer arguments.
+- **Logic Crash**: Fixed `TypeError` in `TradingAgentsGraph.apply_trend_override` caused by duplicate arguments in the method call.
+- **Broken Entry Point**: Updated `startAgent.sh` to point to the correct `run_agent.py` script instead of a non-existent file.
+
+## [Released] - 2026-01-13
+
+### Added
+- **Dynamic Parameter Tuning (The Learning Loop)**: Implemented full self-reflection cycle. The Reflector agent now parses its own advice into JSON (`rsi_period`, `stop_loss_pct`), persists it to `data_cache/runtime_config.json`, and the Market Analyst loads it to tune the Regime Detector in real-time.
+- **Audit Archival**: Every tuning event is now archived to `results/{TICKER}/{DATE}/runtime_config.json` for historical auditing, ensuring we can reproduce why parameters changed on any given day.
+- **Atomic Persistence**: Implemented `agent_utils.write_json_atomic` to prevent race conditions during config saves.
+- **Centralized Config**: Moved hardcoded paths to `default_config.py` (DRY principle).
+
+### Fixed
+- **Reflector Logic Gap**: The Reflector was previously "shouting into the void"—making suggestions but having no mechanism to apply them. This circuit is now closed.
+
 ## [Unreleased] - 2026-01-11
 
 ### Added

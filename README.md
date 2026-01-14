@@ -185,6 +185,18 @@ cp .env.example .env
 
 **Note:** We are happy to partner with Alpha Vantage to provide robust API support for TradingAgents. You can get a free AlphaVantage API [here](https://www.alphavantage.co/support/#api-key), TradingAgents-sourced requests also have increased rate limits to 60 requests per minute with no daily limits. Typically the quota is sufficient for performing complex tasks with TradingAgents thanks to Alpha Vantage’s open-source support program. If you prefer to use OpenAI for these data sources instead, you can modify the data vendor settings in `tradingagents/default_config.py`.
 
+### Quick Start (Recommended)
+
+To run a deep analysis on a specific ticker and automatically open the result:
+
+```bash
+./startAgent.sh [TICKER] [DATE]
+# Example:
+./startAgent.sh NVDA 2024-05-10
+```
+
+This script executes the robust `run_agent.py` logic (configured for Deep Analysis) and generates a **Standalone HTML Report** that is fully offline-capable (no external JS dependencies).
+
 ### CLI Usage
 
 You can also try out the CLI directly by running:

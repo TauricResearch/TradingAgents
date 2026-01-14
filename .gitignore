@@ -11,3 +11,4 @@ eval_data/
 .env
 venv_torture_test
 *.log
+data_cache

@@ -15,18 +15,17 @@ def _process_vendor_call(func_name, ticker=None, *args):
         if not real_ticker:
             real_ticker = ticker
             
-    # 2. Get Data
-    # Handle optional ticker for global_news
-    call_args = [real_ticker] + list(args) if ticker else list(args)
-    raw_data = route_to_vendor(func_name, *call_args)
-    
-    # 3. Anonymize Output
-    # For global news, passing ticker=None to anonymize_text might skip ticker-specific masking,
-    # but still mask known mapped tickers if logic supports it. 
-    # Current anonymize_text requires ticker context for "Company X".
-    # For global news, we might need a generic pass or skip specific company names if unknown.
-    # However, for now we pass real_ticker if available.
-    return anonymizer.anonymize_text(raw_data, real_ticker) if real_ticker else raw_data
+            
+    try:
+        # 2. Get Data
+        # Handle optional ticker for global_news
+        call_args = [real_ticker] + list(args) if ticker else list(args)
+        raw_data = route_to_vendor(func_name, *call_args)
+        
+        # 3. Anonymize Output
+        return anonymizer.anonymize_text(raw_data, real_ticker) if real_ticker else raw_data
+    except Exception as e:
+        return f"Error executing tool {func_name}: {str(e)}"
 
 @tool
 def get_news(
@@ -74,7 +73,12 @@ def get_global_news(
     # Ideally, get_global_news should probably stay raw or be masked for the 'current company of interest' 
     # but tools don't know the agent's context unless passed.
     # Leaving global news RAW for now as it provides macro context.
-    return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
+    # However, for now we pass real_ticker if available.
+    # Leaving global news RAW for now as it provides macro context.
+    try:
+        return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
+    except Exception as e:
+        return f"Error executing tool get_global_news: {str(e)}"
 
 @tool
 def get_insider_sentiment(

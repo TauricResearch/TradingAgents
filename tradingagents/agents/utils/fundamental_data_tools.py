@@ -13,11 +13,16 @@ def _process_vendor_call(func_name, ticker, *args):
     if not real_ticker:
         real_ticker = ticker
         
-    # 2. Get Data
-    raw_data = route_to_vendor(func_name, real_ticker, *args)
-    
-    # 3. Anonymize Output
-    return anonymizer.anonymize_text(raw_data, real_ticker)
+    try:
+        # 2. Get Data
+        raw_data = route_to_vendor(func_name, real_ticker, *args)
+        
+        # 3. Anonymize Output
+        return anonymizer.anonymize_text(raw_data, real_ticker)
+    except Exception as e:
+        # RETURN string error instead of raising.
+        # This ensures ToolNode generates a ToolMessage result, preventing "Dangling Tool Use" error.
+        return f"Error executing tool {func_name}: {str(e)}"
 
 @tool
 def get_fundamentals(

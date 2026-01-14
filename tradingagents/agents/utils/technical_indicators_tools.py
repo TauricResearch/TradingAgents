@@ -29,10 +29,16 @@ def get_indicators(
     if not real_ticker:
         real_ticker = symbol
 
-    # 2. Get Data
-    raw_data = route_to_vendor("get_indicators", real_ticker, indicator, curr_date, look_back_days)
+    
+    try:
+        # 2. Get Data
+        raw_data = route_to_vendor("get_indicators", real_ticker, indicator, curr_date, look_back_days)
 
-    # 3. Anonymize Output
-    anonymized_data = anonymizer.anonymize_text(raw_data, real_ticker)
+        # 3. Anonymize Output
+        anonymized_data = anonymizer.anonymize_text(raw_data, real_ticker)
+        
+        return anonymized_data
+    except Exception as e:
+        return f"Error executing tool get_indicators: {str(e)}"
     
     return anonymized_data

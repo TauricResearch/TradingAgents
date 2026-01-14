@@ -29,10 +29,16 @@ def get_stock_data(
     if not real_ticker:
         real_ticker = symbol  # Fallback if not anonymized
 
-    # 2. Get Data using Real Ticker
-    raw_data = route_to_vendor("get_stock_data", real_ticker, start_date, end_date, format=format)
-
-    # 3. Anonymize Output (AAPL -> ASSET_XXX)
-    anonymized_data = anonymizer.anonymize_text(raw_data, real_ticker)
+    
+    try:
+        # 2. Get Data using Real Ticker
+        raw_data = route_to_vendor("get_stock_data", real_ticker, start_date, end_date, format=format)
+        
+        # 3. Anonymize Output (AAPL -> ASSET_XXX)
+        anonymized_data = anonymizer.anonymize_text(raw_data, real_ticker)
+        
+        return anonymized_data
+    except Exception as e:
+        return f"Error executing tool get_stock_data: {str(e)}"
     
     return anonymized_data
