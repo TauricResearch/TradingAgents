@@ -2,6 +2,52 @@
 
 All notable changes to the **TradingAgents** project will be documented in this file.
 
+## [Unreleased] - 2026-01-15 (Phase 2.7: Audit Refinement & Refined Safety)
+
+### Added
+- **NYSE Market Hours Gate**: Gatekeeper now aborts trades outside 9:30-16:00 EST.
+- **Corporate Action (Split) Check**: Added "Massive Drift" detection (>50%) to the pre-trade Pulse Check.
+- **Institutional-Grade Parsing**: Refactored `DataRegistrar` to extract `net_insider_flow_usd` as a deterministic float.
+- **Safety Verification Suite**: Created `verify_logic_v2_7.py` covering drift, splits, market hours, and insider vetoes (100% Pass).
+
+### Changed
+- **Brittle Code Purge**: Removed all "string-sniffing" logic for insider data in the Gatekeeper; replaced with pure mathematical comparisons against the `FactLedger`.
+- **Pulse 2.0**: Added strict 2s timeouts to pulse checks to prevent blocking the entire graph execution.
+
+## [Unreleased] - 2026-01-15 (Phase 2.6: Audit Remediation)
+
+### Added
+- **The Execution Gatekeeper (Python Veto)**: Created `ExecutionGatekeeper` node (`tradingagents/agents/execution_gatekeeper.py`) to serve as the Final Authority.
+    - **Trend Gate**: Implements "Don't Fight the Tape" logic (Blocks SELLS if `Price > 200SMA` + `Growth > 30%`).
+    - **Compliance Gate**: Blocks trades if Insider Net Flow indicates a "Cluster Sale".
+    - **Divergence Gate**: Aborts execution if Analyst Disagreement (`abs(Bull-Bear) * Confidence`) exceeds 0.4.
+- **Structured Authority (Typed Contracts)**:
+    - Updated `AgentState` with `TraderDecision` (Proposal) and `FinalDecision` (Enforced Result) TypedDicts.
+    - Added `ExecutionResult` Enum for machine-readable status codes (`APPROVED`, `ABORT_COMPLIANCE`, `BLOCKED_TREND`, etc.).
+
+### Changed
+- **Trader Demotion**: Refactored `trader.py` to be an **Advisory** node.
+    - It now outputs a strict JSON proposal (`action`, `confidence`, `rationale`) instead of executing orders directly.
+    - The Trader submits to the Gatekeeper, allowing for deterministic overrides.
+- **Graph Wiring**: Updated `setup.py` to route `Trader` -> `Execution Gatekeeper` -> `END`, effectively establishing the "Python Veto" architecture.
+
+## [Unreleased] - 2026-01-15 (Phase 1: The Foundation)
+
+### Added
+- **Hyper-Immutability (Physically Secured State)**: Implemented `FactLedger` (TypedDict) and `write_once_enforce` reducer in `agent_states.py` to cryptographically lock data reality.
+    - Ledger is hashed (SHA-256) upon creation.
+    - Wrapped in `MappingProxyType` to prevent any downstream agent from mutating the facts.
+- **The Data Registrar (Parallel Gatekeeper)**: Created `DataRegistrar` node (`tradingagents/agents/data_registrar.py`) that acts as the Single Source of Truth.
+    - **Parallel I/O**: Fetches Price, Fundamentals, News, and Insider data concurrently (4x speedup over sequential).
+    - **Partial Poisoning Guard**: Hard "Fail-Fast" if critical domains (Price, Fundamentals) are missing.
+    - **Freshness Simulation**: Configurable `TRADING_MODE` (simulation/production) to allow rigorous testing without stale-data aborts.
+
+### Fixed
+- **Hallucination Vectors (The Lobotomy)**: Removed ALL tool access from `Market`, `Social`, `News`, and `Fundamentals` analysts.
+    - Analysts now consume exclusively from `FactLedger`.
+    - Eliminated "Tool Use Loop" latency and potential for agents to fetch divergent data.
+- **Graph Wiring**: Refactored `setup.py` to route `START` -> `Data Registrar` -> `Market Analyst` -> Parallel Fan-Out.
+
 ## [Unreleased] - 2026-01-14 (Architecture Hardening & Documentation)
 
 ### Added

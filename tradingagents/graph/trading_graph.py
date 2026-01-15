@@ -191,9 +191,6 @@ class TradingAgentsGraph:
 
         self.ticker = company_name
         
-        # 2. Get Hard Data Baseline (Trend Override & Reporting)
-        self.hard_data = self._get_hard_data_metrics(company_name, trade_date)
-        
         # 3. Register real company name for anonymization
         try:
             from tradingagents.utils.anonymizer import TickerAnonymizer
@@ -236,49 +233,30 @@ class TradingAgentsGraph:
         # Log state
         self._log_state(trade_date, final_state)
         
-        # 🟢 EMERGENCY DIAGNOSTIC
-        logger.info(f"DEBUG GRAPH STATE: Regime={final_state.get('market_regime')}")
-        logger.info(f"DEBUG GRAPH STATE: Broad Market={final_state.get('broad_market_regime')}")
+        # 🟢 INSTITUTIONAL AUTHORIZATION (Phase 2.5)
+        # The ExecutionGatekeeper is now the final node in the graph.
+        # It's output is stored in state["final_trade_decision"].
+        auth_decision = final_state.get("final_trade_decision")
+        
+        if not auth_decision:
+             logger.error("🔥 GRAPH CRITICAL: Final decision missing from state!")
+             return final_state, {"action": "HOLD", "quantity": 0, "reason": "Graph Failure"}
 
-        # 3. FIX CRASH RISK: Handle Dead State gracefully
-        # First, extract raw decision from LLM text (The Agent Decision)
-        raw_llm_decision = final_state["final_trade_decision"]
+        status = auth_decision.get("status")
+        action = auth_decision.get("action", "HOLD")
         
-        # Apply Technical Override (Don't Fight the Tape)
-        # Handle Enum vs String robustly
-        raw_regime = final_state.get("market_regime", "UNKNOWN")
-        if hasattr(raw_regime, "value"):
-            regime_val = raw_regime.value
-        else:
-            regime_val = str(raw_regime)
-        regime_val = regime_val.upper().strip()
+        logger.info(f"🛡️ GATEKEEPER RESULT: {status} -> {action}")
         
-        msg = f"🔍 [DEBUG] APPLYING OVERRIDE: Regime='{regime_val}', Growth={self.hard_data.get('revenue_growth', 'N/A')}"
-        logger.info(msg)
-        
-        overridden_decision = self.apply_trend_override(
-            raw_llm_decision, 
-            self.hard_data,
-            regime_val,
-            final_state.get("net_insider_flow", 0.0),
-            final_state.get("portfolio", {})
-        )
-        
-        # Update final state with potentially overridden decision
-        final_state["final_trade_decision"] = overridden_decision
-        
-        trade_decision = final_state["final_trade_decision"]
-        
-        # If trade was rejected by a Gate (Fact Check or Risk), return raw decision
-        if isinstance(trade_decision, dict) and trade_decision.get("action") == "HOLD" and "REJECTED" in trade_decision.get("reasoning", ""):
-            processed_signal = {
-                "action": "HOLD",
-                "quantity": 0,
-                "reason": trade_decision["reasoning"]
-            }
-        else:
-            # Only process if it's a valid attempt
-            processed_signal = self.process_signal(trade_decision)
+        # Process the signal for the execution engine
+        processed_signal = {
+            "action": action,
+            "quantity": 0, # Quantity logic moves to Phase 4
+            "reason": f"[{status}] {auth_decision.get('details', {}).get('reason', '')}"
+        }
+
+        # Handle formatting for compatibility
+        if processed_signal["action"] == "NO_OP":
+             processed_signal["action"] = "HOLD"
 
         return final_state, processed_signal
 
@@ -305,13 +283,13 @@ class TradingAgentsGraph:
                     "judge_decision"
                 ],
             },
-            "trader_investment_decision": final_state["trader_investment_plan"],
+            "trader_investment_decision": final_state.get("trader_investment_plan", "N/A"),
             "risk_debate_state": {
-                "risky_history": final_state["risk_debate_state"]["risky_history"],
-                "safe_history": final_state["risk_debate_state"]["safe_history"],
-                "neutral_history": final_state["risk_debate_state"]["neutral_history"],
-                "history": final_state["risk_debate_state"]["history"],
-                "judge_decision": final_state["risk_debate_state"]["judge_decision"],
+                "risky_history": final_state.get("risk_debate_state", {}).get("risky_history", []),
+                "safe_history": final_state.get("risk_debate_state", {}).get("safe_history", []),
+                "neutral_history": final_state.get("risk_debate_state", {}).get("neutral_history", []),
+                "history": final_state.get("risk_debate_state", {}).get("history", []),
+                "judge_decision": final_state.get("risk_debate_state", {}).get("judge_decision", "N/A"),
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
@@ -354,96 +332,6 @@ class TradingAgentsGraph:
             }
         return self.signal_processor.process_signal(full_signal)
 
-    def _get_hard_data_metrics(self, ticker: str, trade_date: str) -> Dict[str, Any]:
-        """Fetch raw technical and fundamental data for the override gate."""
-        try:
-            import yfinance as yf
-            from datetime import datetime, timedelta
-            from tradingagents.dataflows.y_finance import get_robust_revenue_growth
-            
-            dt_obj = datetime.strptime(trade_date, "%Y-%m-%d")
-            # Fetch 300 days of history to ensure we can calculate 200 SMA
-            start_date = (dt_obj - timedelta(days=450)).strftime("%Y-%m-%d")
-            
-            # FIX: Handle Future Simulation Dates
-            # YFinance errors if end_date is in the future relative to today
-            today = datetime.now()
-            actual_end_date = min(dt_obj, today).strftime("%Y-%m-%d")
-            
-            ticker_obj = yf.Ticker(ticker.upper())
-            # Use actual_end_date instead of trade_date if trade_date is future
-            history = ticker_obj.history(start=start_date, end=actual_end_date)
-            
-            metrics = {
-                "current_price": 0.0,
-                "sma_200": 0.0,
-                "revenue_growth": 0.0,
-                "status": "ERROR"
-            }
-            
-            if not history.empty and len(history) >= 200:
-                metrics["current_price"] = history["Close"].iloc[-1]
-                metrics["sma_200"] = history["Close"].rolling(200).mean().iloc[-1]
-                metrics["sma_50"] = history["Close"].rolling(50).mean().iloc[-1]
-                metrics["status"] = "OK"
-            
-            metrics["revenue_growth"] = get_robust_revenue_growth(ticker)
-            return metrics
-            
-        except Exception as e:
-            logger.error(f"Error fetching hard data for {ticker} override: {e}")
-            return {"status": "ERROR", "error": str(e)}
-
-    def apply_trend_override(self, trade_decision_str: str, hard_data: Dict[str, Any], regime: str, insider_flow: float = 0.0, portfolio: Dict[str, Any] = {}) -> Any:
-        """
-        The 'Don't Fight the Tape' Safety Valve.
-        Prevents the system from shorting high-growth winners during a Bull Market.
-        """
-        if hard_data.get("status") != "OK":
-            logger.info(f"DEBUG OVERRIDE: Failed due to Hard Data Status: {hard_data.get('status')}, Error: {hard_data.get('error')}")
-            return trade_decision_str
-            
-        # Robust Enum Extraction (Double Lock)
-        if hasattr(regime, "value"):
-            regime_val = regime.value
-        else:
-            regime_val = str(regime)
-            
-        regime_val = regime_val.upper().strip()
-        
-        # -------------------------------------------------------------
-        # RULE 72: THE HARD STOP LOSS (Portfolio Protection)
-        # "If unrealized P&L < -10%, LIQUIDATE. No questions asked."
-        # -------------------------------------------------------------
-        if self.ticker in portfolio:
-            pos = portfolio[self.ticker]
-            # Calculate PnL dynamically based on latest price to ensure safety
-            latest_price = hard_data.get("current_price", 0.0)
-            if latest_price > 0 and pos.get("average_cost", 0) > 0:
-                cost = pos["average_cost"]
-                pnl_pct = (latest_price - cost) / cost
-                
-                if pnl_pct < -0.10: # -10% Hard Stop
-                    reasoning = (
-                        f"🛑 STOP LOSS TRIGGERED (Rule 72): Position is down {pnl_pct:.1%}. "
-                        f"Current: ${latest_price:.2f}, Cost: ${cost:.2f}. "
-                        "LIQUIDATING IMMEDIATELY."
-                    )
-                    logger.warning(reasoning)
-                    return {
-                        "action": "SELL",
-                        "quantity": pos["shares"], # Sell entire position
-                        "reasoning": reasoning,
-                        "confidence": 1.0
-                    }
-                    
-        # -------------------------------------------------------------
-        
-        # 🛑 EMERGENCY BYPASS FOR DEBUGGING
-        if regime_val == "UNKNOWN":
-            logger.info("⚠️ DEBUG OVERRIDE: Regime is UNKNOWN. Checking Technicals for Force-Bull...")
-            
-        price = hard_data["current_price"]
         sma_200 = hard_data["sma_200"]
         sma_50 = hard_data.get("sma_50", 0.0)
         growth = hard_data["revenue_growth"]

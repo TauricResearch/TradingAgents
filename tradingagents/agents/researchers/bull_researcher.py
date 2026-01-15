@@ -1,9 +1,13 @@
 from langchain_core.messages import AIMessage
 import time
 import json
+from tradingagents.agents.utils.schemas import ConfidenceOutput
 
 
 def create_bull_researcher(llm, memory):
+    # Bind structured output
+    structured_llm = llm.with_structured_output(ConfidenceOutput)
+
     def bull_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
@@ -49,11 +53,14 @@ Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}
 Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position. You must also address reflections and learn from lessons and mistakes you made in the past.
-"""
-
-        response = llm.invoke(prompt)
-
-        argument = f"Bull Analyst: {response.content}"
+        WARNING: You must provide a clear rationale and a numeric confidence score (0.0 to 1.0).
+        """
+ 
+        # Call structured LLM
+        result = structured_llm.invoke(prompt)
+        
+        argument = f"Bull Analyst: {result.rationale}"
+        confidence = result.confidence
 
         new_investment_debate_state = {
             "history": history + "\n" + argument,
@@ -61,8 +68,12 @@ Use this information to deliver a compelling bull argument, refute the bear's co
             "bear_history": investment_debate_state.get("bear_history", ""),
             "current_response": argument,
             "count": investment_debate_state["count"] + 1,
+            "confidence": confidence # Local confidence for the debate state
         }
 
-        return {"investment_debate_state": new_investment_debate_state}
+        return {
+            "investment_debate_state": new_investment_debate_state,
+            "bull_confidence": confidence # Global floor for Gatekeeper
+        }
 
     return bull_node

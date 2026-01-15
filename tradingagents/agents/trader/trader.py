@@ -1,6 +1,7 @@
 import functools
 import time
 import json
+from tradingagents.agents.utils.schemas import TraderOutput
 
 
 def create_trader(llm, memory):
@@ -11,7 +12,8 @@ def create_trader(llm, memory):
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
-
+        
+        # Build Context (Summarized for Brevity in Code, assuming full text is passed)
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
@@ -25,69 +27,64 @@ def create_trader(llm, memory):
         market_regime = state.get("market_regime", "UNKNOWN")
         volatility_score = state.get("volatility_score", "UNKNOWN")
 
-        context = {
-            "role": "user",
-            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\nMARKET REGIME SIGNAL: {market_regime}\nVOLATILE METRICS: {volatility_score}\n\nLeverage these insights to make an informed and strategic decision.",
-        }
+        system_msg = f"""You are the Portfolio Manager. You have final authority to PROPOSE a trade.
+The Execution Gatekeeper will validate your proposal against strict risk rules.
 
-        messages = [
-            {
-                "role": "system",
-                "content": f"""You are the Portfolio Manager. You have final authority.
-Your goal is Alpha generation with SURVIVAL priority.
-
-CURRENT MARKET REGIME: {market_regime} (Read this carefully!)
-
-
+CURRENT MARKET REGIME: {market_regime}
+VOLATILITY SCORE: {volatility_score}
 
 CRITICAL MENTAL MODELS FOR HYPERSCALE TECH ANALYSIS:
-
-1. CAPEX IS DEFENSE, NOT WASTE
-   - For platform monopolies (Google, Amazon, MSFT), massive CapEx ($50B+) during paradigm shifts (AI) is a BULLISH signal of moat-widening.
-   - DO NOT flag rising CapEx as "deteriorating free cash flow" unless ROIC is structurally collapsing < 15%.
-   - FRAMING: "Strategic infrastructure investment to defend the terminal value of Search/Cloud."
-
-2. INVENTORY LOGIC DOES NOT APPLY
-   - Ignore "inventory build" or "working capital" warnings. These are IP/Services companies.
-   - Volatility in Operating Cash Flow (OCF) due to tax/SBC timing is normal, not a "quality of earnings" red flag.
-
-3. VALUATION PEERS
-   - NEVER benchmark against the S&P 500 average P/E.
-   - Benchmark against: Durability of the Monopoly, Net Cash Position, and Pricing Power.
-   - A 30x P/E is "Cheap" for a monopoly growing 15% with 30% margins.
-
-4. REGULATORY OVERHANG
-   - Treat antitrust risk as a "Chronic Condition" (manage position size) NOT a "Terminal Disease" (panic sell).
-   - Historical Context: Microsoft (90s), Google (2010s) compounded through regulation.
-   - DO NOT recommend a hard exit solely on regulatory news unless a breakup order is *signed* today.
-
+1. CAPEX IS DEFENSE, NOT WASTE (Moat-widening vs Decay).
+2. INVENTORY LOGIC DOES NOT APPLY to IP/Service monopolies.
+3. VALUATION PEERS: Benchmark against Monopoly Durability, not S&P 500 avg.
+4. REGULATORY OVERHANG: Chronic Condition (size risk), not Terminal Disease (panic).
 
 DECISION LOGIC:
 1. IF Regime == 'VOLATILE' OR 'TRENDING_DOWN':
-   - You are in "FALLING KNIFE" mode.
-   - Ignore Bullish "Growth" arguments unless they are overwhelming.
-   - High probability action: HOLD or SELL.
-   - Only BUY if: RSI < 30 AND Regime is reversing.
-
+   - FALLING KNIFE: High probability action is HOLD or SELL.
+   - Only BUY if RSI < 30 AND Regime is reversing.
 2. IF Regime == 'TRENDING_UP':
-   - You are in "MOMENTUM" mode.
-   - Prioritize Bullish signals.
-   - Buy dips.
-
+   - MOMENTUM: Prioritize Bullish signals. Buy dips.
 3. IF Regime == 'SIDEWAYS':
    - Buy Support, Sell Resistance.
 
-FINAL OUTPUT:
-End with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**'. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situatiosn you traded in and the lessons learned: {past_memory_str}""",
-            },
-            context,
+FINAL OUTPUT FORMAT (STRICT JSON):
+You must end your response with a JSON block exactly like this:
+```json
+{{
+  "action": "BUY", 
+  "confidence": 0.85, 
+  "rationale": "Strong trend + undervaluation"
+}}
+```
+Possible actions: BUY, SELL, HOLD. Confidence must be 0.0 to 1.0. 
+Do not forget to utilize lessons from past decisions: {past_memory_str}
+"""
+
+        context_msg = f"Based on analysis for {company_name}, propose your final decision.\nPlan: {investment_plan}\n"
+
+        messages = [
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": context_msg}
         ]
 
-        result = llm.invoke(messages)
+        # Call structured LLM
+        # trader.py
+        structured_llm = llm.with_structured_output(TraderOutput)
+        
+        result = structured_llm.invoke(messages)
+        content = result.rationale
+        
+        trader_decision = {
+            "action": result.action.upper(),
+            "confidence": result.confidence,
+            "rationale": result.rationale
+        }
 
         return {
-            "messages": [result],
-            "trader_investment_plan": result.content,
+            "messages": [AIMessage(content=json.dumps(trader_decision))], # Storing JSON for audit
+            "trader_investment_plan": content,
+            "trader_decision": trader_decision,
             "sender": name,
         }
 

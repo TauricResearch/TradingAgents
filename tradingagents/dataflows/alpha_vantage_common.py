@@ -76,6 +76,10 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
             info_message = response_json["Information"]
             if "rate limit" in info_message.lower() or "api key" in info_message.lower():
                 raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {info_message}")
+        
+        # FIX: Catch generic API errors (e.g. Invalid API call, Missing Parameter)
+        if "Error Message" in response_json:
+            raise ValueError(f"Alpha Vantage API Error: {response_json['Error Message']}")
     except json.JSONDecodeError:
         # Response is not JSON (likely CSV data), which is normal
         pass

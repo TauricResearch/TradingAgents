@@ -97,3 +97,40 @@ def normalize_agent_output(content: Union[str, List, Any]) -> str:
         return ' '.join(text_parts)
         
     return str(content)
+
+def smart_truncate(content: Any, max_length: int = 15000, max_list_items: int = 50) -> str:
+    """
+    Intelligently truncate content to preserve structure/validity primarily.
+    
+    Strategies:
+    - List: Slice to first N items.
+    - Dict: (Naive) Convertible to string, capped. (Advanced) Could pop keys.
+    - String: Char limit with indicator.
+    
+    Returns a string representation.
+    """
+    try:
+        if isinstance(content, list):
+            # Semantic Truncation for Lists (e.g. News articles, Insider rows)
+            if len(content) > max_list_items:
+                truncated = content[:max_list_items]
+                return json.dumps(truncated, indent=2) + f"\n... [TRUNCATED {len(content)-max_list_items} ITEMS] ..."
+            return json.dumps(content, indent=2)
+            
+        elif isinstance(content, dict):
+            # For Dicts, we trust json.dumps but safe guard size
+            dump = json.dumps(content, indent=2)
+            if len(dump) > max_length:
+                return dump[:max_length] + "\n... [TRUNCATED JSON] ...}" # Try to close brace? A bit risky but better.
+            return dump
+            
+        else:
+            # Raw String Fallback
+            s = str(content)
+            if len(s) > max_length:
+                return s[:max_length] + "\n... [TRUNCATED] ..."
+            return s
+    except Exception as e:
+        # Fallback to safe string truncation
+        s = str(content)
+        return s[:max_length] + "..." if len(s) > max_length else s

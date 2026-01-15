@@ -19,10 +19,10 @@ Our goal is to **capture Alpha during paradigm shifts while guaranteeing surviva
 
 In the event of a conflict between agents or data sources, this hierarchy governs the decision:
 
-1.  **Hard Code Overrides (The Safety Valves):** If `Price > 200SMA` and `Growth > 30%`, the system **CANNOT** sell, regardless of the Analyst’s fear.
-2.  **Mathematical Regime (The Context):** The output of the `RegimeDetector` (Volatility + ADX) is the law. If the math says **TRENDING_UP**, the LLM cannot hallucinate "Uncertainty."
-3.  **Fundamental Data (The Fuel):** Revenue Growth, FCF Margins, and Insider Activity are facts. Narratives about "future potential" are opinions.
-4.  **LLM Synthesis (The Narrative):** The Analyst's prose is the last filter, not the first.
+1.  **Epistemic Lock (The Frozen Reality):** The data within the `FactLedger` is the start and end of all truth. If the Ledger says price is $150.00, it is $150.00, even if an analyst thinks they "know" a more recent price.
+2.  **Hard Code Overrides (The Veto Gates):** Deterministic Python logic (Gatekeeper) overrides all LLM proposals. If Rule 72 (Stop Loss) or the Insider Veto triggers, the LLM's opinion is discarded.
+3.  **Mathematical Regime (The Context):** The output of the `RegimeDetector` is the law. If the math says **TRENDING_UP**, the LLM cannot justify "Market Weakness."
+4.  **Fundamental Data (The Fuel):** Revenue Growth, FCF Margins, and Insider Activity are static facts in the Ledger.
 
 ---
 
@@ -94,9 +94,15 @@ We do not just execute; we adapt. The system includes a **Self-Reflection Mechan
 *   **Synchronization:** A `Risk Sync` node waits for all three to finish before triggering the Judge.
 *   **Concurrency Safety:** We use `merge_risk_states` (a reducer) to allow parallel updates to the debate state without race conditions.
 
-### 2. The Crash-Proof Guarantee
-*   **Rule:** **NO ANALYST DIES ALONE.**
-*   **Implementation:** All tool nodes are wrapped in `try/except` logic. If an API fails (Rate Limit, 500 Error), the tool returns a formatted error string to the Agent. The Agent then notes the failure and proceeds. The system **never** hard-crashes on a single data point failure.
+### 3. The Epistemic Lock (Frozen Context)
+*   **Concept:** Hallucination prevention through data isolation.
+*   **Implementation:** Analysts are strictly **FORBIDDEN** from using tools. They receive a read-only snapshot of the `FactLedger`.
+*   **Safety:** Every Indicator (SMA, RSI, Regime) is pre-computed in Python. Agents cannot re-calculate or diverge from these values.
+
+### 4. The Institutional Gatekeeper (V2.7 Hardening)
+*   **Market Hours:** All trade proposals are blocked outside of NYSE trading hours (9:30 AM - 4:00 PM EST).
+*   **Temporal Pulse:** A final price check is performed before execution. If the market has moved >3% since the Ledger was frozen, the trade is aborted to prevent "slippage blindness."
+*   **Split Protection:** If price drift exceeds 50%, the system aborts to protect against corporate actions (splits/mergers).
 
 ---
 
@@ -164,8 +170,8 @@ These are the fundamental laws programmed into the `RegimeDetector` and `MarketA
     *   **THEN** The asset is flagged as **WEAKNESS**.
 *   **Action:** The Trader must prefer Leaders (Stocks matching or beating SPY regime) over Laggards.
 
-## 2. THE OVERRIDES (The Hard Gates)
-These are the Python functions in `trading_graph.py` that physically block the LLM from executing a bad decision.
+## 2. THE EXECUTION GATEKEEPER (The Python Veto)
+These are the Python functions in `execution_gatekeeper.py` that physically block the LLM from executing a bad decision.
 
 ### Override 1: The "Don't Fight the Tape" (The PLTR Fix)
 *   **Trigger:** The Analyst LLM tries to **SELL** or **SHORT**.
@@ -259,10 +265,14 @@ graph TD
     N -- YES --> O[BLOCK BUY: Falling Knife]
     N -- NO --> P[Allow BUY]
     
-    L --> Q[Execution]
-    K --> Q
-    O --> Q
-    P --> Q
+    N -- NO --> P[Allow BUY]
+    
+    L --> Gate[Execution Gatekeeper]
+    K --> Gate
+    O --> Gate
+    P --> Gate
+    
+    Gate --> Q[Execution]
     
     Q --> R{Active Portfolio Check}
     R -- Position Exists --> S[Calculate Unrealized PnL]

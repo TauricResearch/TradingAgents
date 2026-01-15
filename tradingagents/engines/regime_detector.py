@@ -24,12 +24,65 @@ class RegimeDetector:
     """Detect market regime using statistical methods."""
     
     @staticmethod
-    def detect_regime(prices: pd.Series, window: int = 60) -> Tuple[MarketRegime, Dict]:
+    def _ensure_series(data) -> pd.Series:
+        """Robustly coerce input into a Price Series."""
+        try:
+            # 1. Already a Series
+            if isinstance(data, pd.Series):
+                return data
+                
+            # 2. DataFrame (Use 'Close' or first column)
+            if isinstance(data, pd.DataFrame):
+                # Flexible column search
+                cols = [c.lower() for c in data.columns]
+                if "close" in cols:
+                    return data.iloc[:, cols.index("close")]
+                return data.iloc[:, 0]
+                
+            # 3. String (CSV Parsing)
+            if isinstance(data, str):
+                import io
+                # Check for standard headers or data
+                if "Date" in data or "Close" in data or len(data) > 20:
+                    # ROBUST DELIMITER DETECTION
+                    # Sniff first few lines for the most likely delimiter
+                    sample = data[:1000]
+                    if "\t" in sample:
+                        delimiter = "\t"
+                    elif "," in sample:
+                        delimiter = ","
+                    else:
+                        delimiter = r"\s+" # Fallback to whitespace
+                    
+                    # Don't parse dates - RegimeDetector only needs numeric Close prices
+                    df = pd.read_csv(io.StringIO(data), sep=delimiter, index_col=0, 
+                                    engine='python', # Required for regex \s+
+                                    parse_dates=False, comment='#', on_bad_lines='skip')
+                    # Recurse to handle the DataFrame case
+                    return RegimeDetector._ensure_series(df)
+                    
+            return pd.Series(dtype=float)
+        except Exception as e:
+            print(f"RegimeDetector Input Parsing Error: {e}")
+            return pd.Series(dtype=float)
+
+    @staticmethod
+    def detect_regime(prices_input, window: int = 60) -> Tuple[MarketRegime, Dict]:
         """
         Determines the market regime based on Volatility, ADX, and Returns.
         INCLUDES 'MOMENTUM EXCEPTION' for high-growth stocks.
         """
         try:
+            # 0. Coerce Input
+            prices = RegimeDetector._ensure_series(prices_input)
+            
+            # DEBUG LOGGING
+            try:
+                from tradingagents.utils.logger import app_logger as logger
+                logger.debug(f"RegimeDetector Input: OriginalType={type(prices_input)} -> ParsedSize={len(prices)}")
+            except ImportError:
+                print(f"DEBUG: Regime Input: {type(prices_input)} -> {len(prices)}")
+
             if len(prices) < window:
                 # Fallback for short history
                 if len(prices) > 10:
@@ -62,7 +115,16 @@ class RegimeDetector:
             price_change_pct = (end_price - start_price) / start_price
             
             # Full history return (keeping from previous logic as extra metric)
-            full_history_return = (prices.iloc[-1] / prices.iloc[0]) - 1
+            # Handle edge cases: NaN values, zero prices, insufficient data
+            try:
+                first_price = prices.iloc[0]
+                last_price = prices.iloc[-1]
+                if pd.notnull(first_price) and pd.notnull(last_price) and first_price > 0:
+                    full_history_return = (last_price / first_price) - 1
+                else:
+                    full_history_return = price_change_pct  # Fallback to window return
+            except:
+                full_history_return = price_change_pct
 
             # 2. DEFINE THRESHOLDS
             VOLATILITY_THRESHOLD = 0.40  # 40% Annualized Volatility

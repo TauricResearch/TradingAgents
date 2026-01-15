@@ -1,9 +1,13 @@
 from langchain_core.messages import AIMessage
 import time
 import json
+from tradingagents.agents.utils.schemas import ConfidenceOutput
 
 
 def create_bear_researcher(llm, memory):
+    # Bind structured output
+    structured_llm = llm.with_structured_output(ConfidenceOutput)
+
     def bear_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
@@ -51,11 +55,14 @@ Conversation history of the debate: {history}
 Last bull argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
-"""
-
-        response = llm.invoke(prompt)
-
-        argument = f"Bear Analyst: {response.content}"
+        WARNING: You must provide a clear rationale and a numeric confidence score (0.0 to 1.0).
+        """
+ 
+        # Call structured LLM
+        result = structured_llm.invoke(prompt)
+        
+        argument = f"Bear Analyst: {result.rationale}"
+        confidence = result.confidence
 
         new_investment_debate_state = {
             "history": history + "\n" + argument,
@@ -63,8 +70,12 @@ Use this information to deliver a compelling bear argument, refute the bull's cl
             "bull_history": investment_debate_state.get("bull_history", ""),
             "current_response": argument,
             "count": investment_debate_state["count"] + 1,
+            "confidence": confidence # Local confidence
         }
 
-        return {"investment_debate_state": new_investment_debate_state}
+        return {
+            "investment_debate_state": new_investment_debate_state,
+            "bear_confidence": confidence # Global floor for Gatekeeper
+        }
 
     return bear_node

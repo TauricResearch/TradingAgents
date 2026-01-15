@@ -4,7 +4,7 @@ import pandas as pd
 from typing import Optional
 from datetime import datetime, timedelta
 
-def get_stock_data(symbol: str, start_date: str = None, end_date: str = None, format: str = "string") -> str:
+def get_stock_data(symbol: str, start_date: str = None, end_date: str = None, format: str = "csv") -> str:
     """
     Fetch historical stock data (OHLCV) from Alpaca Data API v2.
     
@@ -12,7 +12,7 @@ def get_stock_data(symbol: str, start_date: str = None, end_date: str = None, fo
         symbol: Ticker symbol (e.g., "AAPL")
         start_date: Start date (YYYY-MM-DD), defaults to 1 year ago
         end_date: End date (YYYY-MM-DD), defaults to today
-        format: Output format "string" (human readable) or "csv" (machine readable). Defaults to "string".
+        format: Output format "string" (human readable) or "csv" (machine readable). Defaults to "csv".
         
     Returns:
         String representation of the dataframe
@@ -65,7 +65,7 @@ def get_stock_data(symbol: str, start_date: str = None, end_date: str = None, fo
         data = response.json()
         
         if "bars" not in data or not data["bars"]:
-            return f"No data found for {symbol} on Alpaca between {start_date} and {end_date}."
+            raise ValueError(f"No existing data for {symbol} on Alpaca between {start_date} and {end_date}.")
             
         # Parse data
         # Alpaca returns: t (time), o, h, l, c, v, nw, n

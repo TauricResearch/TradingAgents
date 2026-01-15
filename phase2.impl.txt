@@ -1,0 +1,250 @@
+This is a proper Phase-2 submission. You didn’t just add a check — you changed the authority model of the system. I’m going to audit this the same way I audited Phase 1: correctness, failure modes, and whether it actually enforces the TRD instead of narrating it.
+
+EXECUTIVE VERDICT — PHASE 2
+
+Status: 🟡 APPROVED WITH REQUIRED FIXES BEFORE LIVE USE
+
+You have successfully stripped final authority from the Trader LLM and installed a deterministic veto layer.
+The architectural direction is correct and irreversible.
+
+However, there are 5 mandatory fixes and 4 strong recommendations before this qualifies as institutional-grade rather than conceptually correct.
+
+No design rollback required.
+
+BIG PICTURE: DID YOU ACHIEVE THE GOAL?
+
+✅ Yes.
+The Trader is now an advisory component, not an executor.
+
+The system now behaves like:
+
+“LLMs may propose. Python disposes.”
+
+That is the correct power hierarchy.
+
+SECTION-BY-SECTION AUDIT
+1. ExecutionGatekeeper — Architectural Soundness
+✅ What You Got Exactly Right
+
+Deterministic Final Authority
+
+No LLM calls
+
+No probabilistic behavior
+
+No tool access
+
+Hard Abort Semantics
+
+ABORT ≠ HOLD ✔
+
+NO_OP used consistently ✔
+
+Ledger Re-verification
+
+You do not trust earlier freshness blindly ✔
+
+This closes TOCTOU risk ✔
+
+Counterfactual Logging
+
+This is not cosmetic — it’s audit-grade
+
+You can now explain why money was not lost ✔
+
+This is real risk-engineering, not prompt-engineering.
+
+2. 🔴 MANDATORY FIX #1 — Trader Parsing Is Too Fragile
+Problem
+def _parse_trader_decision(self, plan: str)
+
+
+This is string-fragile authority.
+Right now, format drift in Trader output = undefined behavior.
+
+Required Fix (Non-Negotiable)
+
+The Gatekeeper must only trust structured state, not prose.
+
+You already hinted at the solution:
+
+debate_state = state.get("investment_debate_state", {})
+confidence = debate_state.get("confidence", 0.0)
+
+
+Do the same for action.
+
+Fix Pattern
+
+Trader must emit:
+
+state["trader_decision"] = {
+    "action": "BUY" | "SELL" | "HOLD",
+    "confidence": float
+}
+
+
+Gatekeeper must ignore trader_investment_plan entirely.
+
+Rule:
+Text is for humans. Authority reads structs.
+
+Until this is done, Phase 2 is not safe for unattended execution.
+
+3. 🔴 MANDATORY FIX #2 — Compliance Check Is a Stub
+def check_compliance(...):
+    return True
+
+
+This is acceptable for Phase-2 scaffolding, but not acceptable for Phase-2 completion per your own TRD.
+
+Required Minimum Implementation
+
+At least one of:
+
+Restricted ticker list
+
+Insider net flow threshold
+
+Explicit ledger flag (e.g., ledger["insider_data"]["restricted"])
+
+Otherwise:
+
+ABORT_COMPLIANCE exists but can never trigger
+
+This violates “Python Veto” semantics
+
+Stub = okay in Phase-1
+Stub = not okay in Phase-2
+
+4. 🔴 MANDATORY FIX #3 — Trend Logic Must Use Regime, Not Just SMA
+
+You currently do:
+
+if current_price > (sma_200 * 1.10):
+
+
+This is directionally correct but incomplete relative to the TRD.
+
+Required Enhancement
+
+Trend override must check:
+
+Regime (from Market Analyst or re-derived)
+
+Structural condition (SMA / growth)
+
+Asset type (optional later)
+
+Minimum fix:
+
+regime = state.get("market_regime")
+if regime == "BULL" and current_price > 1.1 * sma_200:
+
+
+Otherwise:
+
+Gatekeeper may override SELLs during mean-reverting rallies
+
+That’s a real financial error class
+
+5. 🔴 MANDATORY FIX #4 — Divergence Logic Missing Entirely
+
+You declared:
+
+self.MAX_DIVERGENCE = 0.5
+
+
+But never use it.
+
+Per TRD v3.0:
+
+High Disagreement + High Confidence = ABORT
+
+Required Addition (Even Basic)
+bull = debate_state.get("bull_score")
+bear = debate_state.get("bear_score")
+divergence = abs(bull - bear) * confidence
+
+if divergence > self.MAX_DIVERGENCE:
+    return ABORT_DIVERGENCE
+
+
+Until this exists, Phase-2 is incomplete.
+
+6. 🔴 MANDATORY FIX #5 — Final Decision Schema Must Be Typed
+
+You return:
+
+{"final_trade_decision": {"status": ..., "action": ...}}
+
+
+But final_trade_decision is currently:
+
+Annotated[Any, "Final Decision"]
+
+Required Fix
+
+Define a TypedDict or dataclass:
+
+class FinalDecision(TypedDict):
+    status: ExecutionResult
+    action: Literal["BUY","SELL","HOLD","NO_OP"]
+    confidence: Optional[float]
+    details: Optional[dict]
+
+
+This is critical for:
+
+Downstream automation
+
+Human review logs
+
+Phase-4 circuit breakers
+
+STRONG RECOMMENDATIONS (Not Mandatory, But Smart)
+🟡 1. Gatekeeper Should Re-Hash Ledger
+
+Verify:
+
+hash(payload) == ledger["content_hash"]
+
+
+This detects:
+
+Memory corruption
+
+Serialization bugs
+
+Tampering
+
+🟡 2. Explicit “NO_OP_REASON”
+
+Instead of:
+
+{"action": "NO_OP"}
+
+
+Use:
+
+{"action": "NO_OP", "reason": "ABORT_LOW_CONFIDENCE"}
+
+
+This matters for ops and post-mortems.
+
+🟡 3. Enforce “Gatekeeper Must Be Last”
+
+Add an assertion in setup:
+
+assert END only reachable from Gatekeeper
+
+
+This prevents accidental bypass in future refactors.
+
+🟡 4. Add a Kill-Switch Test
+
+Unit test:
+
+Trader outputs BUY, Gatekeeper blocks → ensure no execution path exists
+
+This catches graph wiring regressions.

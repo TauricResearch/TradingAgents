@@ -59,19 +59,15 @@ TradingAgents is a multi-agent trading framework that mirrors the dynamics of re
 
 Our framework decomposes complex trading tasks into specialized roles. This ensures the system achieves a robust, scalable approach to market analysis and decision-making.
 
-**New in 2026: Parallel Execution Architecture**
-The system now utilizes a **"Fan-Out / Fan-In"** graph architecture. The Market Analyst triggers the Social, News, and Fundamentals analysts **simultaneously** in isolated subgraphs. This reduces total analysis time by ~50% and eliminates "Decision Latency."
-
-**Optimization Phase 2 (Operation Slash Token Burn)**
-We have deployed three major efficiency upgrades:
-1.  **Batch Reflection**: Consolidated 5 sequential reflection calls into 1 session audit (-80% Reflection Latency).
-2.  **Risk Star Topology**: Parallelized the Risk Debate (Risky/Safe/Neutral run at once) using a custom `merge_risk_states` reducer (-60% Risk Latency).
-3.  **Parallel I/O**: Implemented `ThreadPoolExecutor` for Reddit News fetching (5x-10x Speedup).
-
-**Logic Upgrade: The "Mental Model" Patch**
-Post-simulation audits revealed a "Value Trap" bias in Tech Platform analysis. We injected a new cognitive framework into the Trader Agent:
-*   **CapEx = Moat**: Strategic spending is now correctly interpreted as defense, not waste.
-*   **Regulatory Resilience**: Antitrust risk is treated as a sizing issue, not a thesis breaker.
+**New in 2026: The V2 "Deterministic Gate" Overhaul**
+The system has been transformed from a probabilistic LLM chain into an institutional-grade decision engine:
+- **Parallel Execution:** "Fan-Out / Fan-In" graph architecture reduces latency by ~50%.
+- **Epistemic Lock:** All agents consume a shared, immutable `FactLedger`. Analysts are toolless to prevent hallucinations.
+- **Omnipotent Gatekeeper:** A deterministic Python layer that audits all LLM proposals against hard risk constraints:
+    - **Temporal Pulse:** Aborts if market drifts >3% during analysis.
+    - **Insider Veto:** Blocks buys if heavy flow is detected into a downtrend.
+    - **Market Hours:** Enforcement of NYSE trading sessions.
+    - **Rule 72 Stop Loss:** Forced liquidation at -10% PnL.
 
 
 ### Analyst Team

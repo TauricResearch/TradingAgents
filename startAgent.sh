@@ -71,7 +71,9 @@ fi
 echo "🚀 Starting Trading Agents..."
 # Note: Debug print() statements will appear in the terminal
 # Rich library's Live display handles the animated UI
-python3 run_agent.py $1 --date $2
+# Note: Debug print() statements will appear in the terminal
+# Rich library's Live display handles the animated UI
+python3 run_agent.py "$@"
 
 # 4. Open Reports
 echo "📊 Searching for latest generated reports..."
