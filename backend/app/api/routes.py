@@ -18,7 +18,7 @@ from backend.app.models.schemas import (
 )
 from backend.app.services.trading_service import TradingService
 from backend.app.services.task_manager import task_manager
-from backend.app.api.dependencies import get_trading_service
+from backend.app.api.dependencies import get_trading_service, get_current_user_optional
 from backend.app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -54,6 +54,7 @@ async def get_config(service: TradingService = Depends(get_trading_service)):
 async def run_analysis(
     request: AnalysisRequest,
     service: TradingService = Depends(get_trading_service),
+    current_user: dict = Depends(get_current_user_optional),
 ):
     """
     Start an async trading analysis task.
@@ -61,19 +62,42 @@ async def run_analysis(
     This endpoint creates an async task and returns immediately with a task ID.
     Use the /api/task/{task_id} endpoint to check the status and get results.
     
+    Authentication: Required by default. Set REQUIRE_AUTH_FOR_ANALYZE=false to disable.
+    
     Args:
         request: Analysis request configuration
         service: Trading service instance (injected)
+        current_user: Authenticated user (optional based on config)
     
     Returns:
         TaskCreatedResponse: Task ID and initial status
     """
-    logger.info(f"Creating analysis task for {request.ticker} on {request.analysis_date}")
+    # Validate that user provides their own API key
+    # This allows both authenticated and anonymous users to use the service
+    # as long as they provide their own LLM API key
+    has_api_key = bool(
+        request.openai_api_key or 
+        request.quick_think_api_key or 
+        request.deep_think_api_key
+    )
     
-    # Create task in Redis
+    if not has_api_key:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400,
+            detail="API Key required. Please provide your own LLM API key (OpenAI, Anthropic, etc.) to use the analysis service.",
+        )
+    
+    # Log with user info for tracking
+    user_info = f"user={current_user['email']}" if current_user else "user=anonymous"
+    logger.info(f"Creating analysis task for {request.ticker} on {request.analysis_date} ({user_info})")
+    
+    # Create task in Redis with user info
     task_id = task_manager.create_task({
         "ticker": request.ticker,
         "analysis_date": request.analysis_date,
+        "user_id": current_user["id"] if current_user else None,
+        "user_email": current_user["email"] if current_user else None,
     })
     
     # Start background analysis

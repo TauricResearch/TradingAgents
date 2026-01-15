@@ -1,6 +1,11 @@
 /**
- * localStorage utility for API settings with encryption
- * API keys are encrypted using AES-256-GCM before storage
+ * localStorage/sessionStorage utility for API settings with encryption
+ * 
+ * Storage Strategy:
+ * - Logged-in users: localStorage with encryption (persistent)
+ * - Anonymous users: sessionStorage (cleared on browser close)
+ * 
+ * API keys are encrypted using AES-256-GCM before storage (localStorage only)
  */
 
 import { encryptObject, decryptObject, isEncrypted, clearCryptoData } from "./crypto";
@@ -23,8 +28,13 @@ export interface ApiSettings {
   custom_api_key: string;
 }
 
+// Storage keys
 const STORAGE_KEY = "tradingagents_api_settings";
 const ENCRYPTED_FLAG_KEY = "tradingagents_encrypted";
+const AUTH_TOKEN_KEY = "tradingagents_auth_token";
+
+// Storage mode type
+export type StorageMode = "local" | "session";
 
 export const DEFAULT_API_SETTINGS: ApiSettings = {
   openai_api_key: "",
@@ -38,6 +48,52 @@ export const DEFAULT_API_SETTINGS: ApiSettings = {
   custom_base_url: "",
   custom_api_key: "",
 };
+
+/**
+ * Check if user is currently authenticated
+ */
+function isUserAuthenticated(): boolean {
+  if (typeof window === "undefined") return false;
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (!token) return false;
+  
+  // Check if token is expired
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const exp = payload.exp * 1000;
+    return Date.now() < exp;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get the appropriate storage based on authentication status
+ * - Authenticated: localStorage (persistent)
+ * - Anonymous: sessionStorage (cleared on browser close)
+ */
+function getStorage(): Storage {
+  if (typeof window === "undefined") {
+    // Return a mock storage for SSR
+    return {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+      clear: () => {},
+      length: 0,
+      key: () => null,
+    };
+  }
+  
+  return isUserAuthenticated() ? localStorage : sessionStorage;
+}
+
+/**
+ * Get current storage mode
+ */
+export function getCurrentStorageMode(): StorageMode {
+  return isUserAuthenticated() ? "local" : "session";
+}
 
 /**
  * Check if stored data is using legacy (unencrypted) format
@@ -72,30 +128,55 @@ function isLegacyFormat(): boolean {
 }
 
 /**
- * Get API settings from localStorage (async due to decryption)
+ * Get API settings (async due to potential decryption)
+ * 
+ * Storage strategy:
+ * - Authenticated users: Read from localStorage (encrypted)
+ * - Anonymous users: Read from sessionStorage (plaintext, cleared on browser close)
  */
 export async function getApiSettingsAsync(): Promise<ApiSettings> {
   if (typeof window === "undefined") {
     return DEFAULT_API_SETTINGS;
   }
 
+  const storage = getStorage();
+  const authenticated = isUserAuthenticated();
+
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = storage.getItem(STORAGE_KEY);
     if (!stored) {
+      // If authenticated, also check sessionStorage for data to migrate
+      if (authenticated) {
+        const sessionData = sessionStorage.getItem(STORAGE_KEY);
+        if (sessionData) {
+          console.log("Migrating session data to localStorage after login");
+          const parsed = JSON.parse(sessionData);
+          const merged = { ...DEFAULT_API_SETTINGS, ...parsed };
+          await saveApiSettingsAsync(merged);
+          sessionStorage.removeItem(STORAGE_KEY);
+          return merged;
+        }
+      }
       return DEFAULT_API_SETTINGS;
     }
 
     const parsed = JSON.parse(stored);
     
-    // If legacy format detected, return as-is (will be encrypted on next save)
-    if (isLegacyFormat()) {
-      console.warn("Legacy unencrypted settings detected. Will encrypt on next save.");
-      return { ...DEFAULT_API_SETTINGS, ...parsed };
+    // For authenticated users, decrypt the data
+    if (authenticated) {
+      // If legacy format detected, return as-is (will be encrypted on next save)
+      if (isLegacyFormat()) {
+        console.warn("Legacy unencrypted settings detected. Will encrypt on next save.");
+        return { ...DEFAULT_API_SETTINGS, ...parsed };
+      }
+      
+      // Decrypt the settings
+      const decrypted = await decryptObject(parsed);
+      return { ...DEFAULT_API_SETTINGS, ...decrypted };
     }
     
-    // Decrypt the settings
-    const decrypted = await decryptObject(parsed);
-    return { ...DEFAULT_API_SETTINGS, ...decrypted };
+    // For anonymous users, data is stored as plaintext in sessionStorage
+    return { ...DEFAULT_API_SETTINGS, ...parsed };
   } catch (error) {
     console.error("Error reading API settings:", error);
     return DEFAULT_API_SETTINGS;
@@ -111,33 +192,49 @@ export function getApiSettings(): ApiSettings {
     return DEFAULT_API_SETTINGS;
   }
 
+  const storage = getStorage();
+  
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = storage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       return { ...DEFAULT_API_SETTINGS, ...parsed };
     }
   } catch (error) {
-    console.error("Error reading API settings from localStorage:", error);
+    console.error("Error reading API settings:", error);
   }
 
   return DEFAULT_API_SETTINGS;
 }
 
 /**
- * Save API settings to localStorage with encryption
+ * Save API settings (async)
+ * 
+ * Storage strategy:
+ * - Authenticated users: Save to localStorage with encryption (persistent)
+ * - Anonymous users: Save to sessionStorage as plaintext (cleared on browser close)
  */
 export async function saveApiSettingsAsync(settings: ApiSettings): Promise<void> {
   if (typeof window === "undefined") {
     return;
   }
 
+  const storage = getStorage();
+  const authenticated = isUserAuthenticated();
+
   try {
-    // Encrypt sensitive fields
-    const encrypted = await encryptObject(settings as unknown as Record<string, string>);
-    
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(encrypted));
-    localStorage.setItem(ENCRYPTED_FLAG_KEY, "true");
+    if (authenticated) {
+      // For authenticated users, encrypt and store in localStorage
+      const encrypted = await encryptObject(settings as unknown as Record<string, string>);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(encrypted));
+      localStorage.setItem(ENCRYPTED_FLAG_KEY, "true");
+      console.log("API settings saved to localStorage (encrypted)");
+    } else {
+      // For anonymous users, store as plaintext in sessionStorage
+      // This will be automatically cleared when browser closes
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      console.log("API settings saved to sessionStorage (will clear on browser close)");
+    }
   } catch (error) {
     console.error("Error saving API settings:", error);
     throw error;
@@ -158,7 +255,7 @@ export function saveApiSettings(settings: ApiSettings): void {
 }
 
 /**
- * Clear API settings from localStorage
+ * Clear API settings from both localStorage and sessionStorage
  */
 export function clearApiSettings(): void {
   if (typeof window === "undefined") {
@@ -166,11 +263,19 @@ export function clearApiSettings(): void {
   }
 
   try {
+    // Clear from localStorage
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(ENCRYPTED_FLAG_KEY);
+    
+    // Clear from sessionStorage
+    sessionStorage.removeItem(STORAGE_KEY);
+    
+    // Clear crypto data
     clearCryptoData();
+    
+    console.log("API settings cleared from all storage");
   } catch (error) {
-    console.error("Error clearing API settings from localStorage:", error);
+    console.error("Error clearing API settings:", error);
   }
 }
 
