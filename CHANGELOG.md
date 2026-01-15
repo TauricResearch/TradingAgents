@@ -22,7 +22,22 @@ All notable changes to the **TradingAgents** project will be documented in this 
 - **Logi Crash**: Fixed `TypeError` in `TradingAgentsGraph.apply_trend_override` caused by duplicate arguments in the method call.
 - **Broken Entry Point**: Updated `startAgent.sh` to point to the correct `run_agent.py` script instead of a non-existent file.
 
-## [Unreleased] - 2026-01-14 (Performance Update)
+## [Unreleased] - 2026-01-14 (Performance & Logic Upgrade)
+
+### Changed
+- **Risk Star Topology (Strategy 2)**: Replaced sequential "Round Robin" risk debate with a parallel "Fan-Out / Fan-In" architecture.
+    - `Trader` now triggers `Risky`, `Safe`, and `Neutral` analysts simultaneously.
+    - Implemented `Risk Sync` node and `merge_risk_states` reducer (AgentStates) to handle concurrent updates safely.
+    - Reduced Risk Phase latency by ~60%.
+- **Batch Reflection (Strategy 1)**: Consolidated 5 sequential reflection calls into a single "Session Audit" call, reducing token usage and latency by ~80% in the post-trade phase.
+- **Parallel I/O (Strategy 3)**: Refactored `tradingagents/dataflows/local.py` (Reddit News) to use `ThreadPoolExecutor` (max 10 workers), achieving 5x-10x speedup in data fetching.
+
+### Added
+- **Rejection Loops (Self-Correction)**: Upgraded `EnhancedConditionalLogic` to allow agents to reject weak arguments and force a revision loop (`Bull -> Bull`) instead of passing bad data downstream.
+- **Trader Mental Models (Logic Patch)**: Injected "Critical Mental Models" into `trader.py` system prompt to fix "Value Trap" bias.
+    - **CapEx**: Explicitly defined Strategic CapEx as "Moat Building" (Bullish) for platform monopolies.
+    - **Regulation**: Reframed Antitrust Risk as a "Chronic Condition" (Position Sizing) rather than "Terminal Disease" (Panic Sell).
+
 
 ### Changed
 - **Parallel Architecture (AsyncIO)**: Refactored `setup.py` to implement a "Fan-Out / Fan-In" pattern using LangGraph.

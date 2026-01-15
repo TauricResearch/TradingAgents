@@ -13,7 +13,8 @@ from tradingagents.agents.utils.agent_states import (
     FundamentalsAnalystState
 )
 
-from .conditional_logic import ConditionalLogic
+from .enhanced_conditional_logic import EnhancedConditionalLogic
+
 
 
 class GraphSetup:
@@ -29,7 +30,8 @@ class GraphSetup:
         trader_memory,
         invest_judge_memory,
         risk_manager_memory,
-        conditional_logic: ConditionalLogic,
+        conditional_logic: EnhancedConditionalLogic,
+
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -259,48 +261,63 @@ class GraphSetup:
         # Add remaining edges
         workflow.add_conditional_edges(
             "Bull Researcher",
-            self.conditional_logic.should_continue_debate,
+            self.conditional_logic.should_continue_debate_with_validation,
             {
                 "Bear Researcher": "Bear Researcher",
+                "Bull Researcher": "Bull Researcher", # REJECTION LOOP
                 "Research Manager": "Research Manager",
             },
         )
         workflow.add_conditional_edges(
             "Bear Researcher",
-            self.conditional_logic.should_continue_debate,
+            self.conditional_logic.should_continue_debate_with_validation,
             {
                 "Bull Researcher": "Bull Researcher",
+                "Bear Researcher": "Bear Researcher", # REJECTION LOOP
                 "Research Manager": "Research Manager",
             },
         )
         workflow.add_edge("Research Manager", "Trader")
+        # --- NEW PARALLEL RISK ARCHITECTURE (STAR TOPOLOGY) ---
+        
+        # 1. FAN-OUT: Trader -> All 3 Analysts
+        # The Trader's plan is broadcast to all three critics simultaneously.
         workflow.add_edge("Trader", "Risky Analyst")
-        workflow.add_conditional_edges(
-            "Risky Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Safe Analyst": "Safe Analyst",
-                "Risk Judge": "Risk Judge",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Safe Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Neutral Analyst": "Neutral Analyst",
-                "Risk Judge": "Risk Judge",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Neutral Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Risky Analyst": "Risky Analyst",
-                "Risk Judge": "Risk Judge",
-            },
-        )
+        workflow.add_edge("Trader", "Safe Analyst")
+        workflow.add_edge("Trader", "Neutral Analyst")
 
-        workflow.add_edge("Risk Judge", END)
+        # 2. DEFINE SYNC NODE (The Barrier)
+        # This node does nothing but wait for all upstream branches to finish.
+        def risk_sync_node(state: AgentState):
+            return {} # Pass-through, just acts as a synchronization point
+            
+        workflow.add_node("Risk Sync", risk_sync_node)
+        
+        # 3. FAN-IN: Analysts -> Sync
+        # All three must finish before the token moves to 'Risk Sync'
+        workflow.add_edge("Risky Analyst", "Risk Sync")
+        workflow.add_edge("Safe Analyst", "Risk Sync")
+        workflow.add_edge("Neutral Analyst", "Risk Sync")
+
+        # 4. SYNC -> JUDGE
+        # The Judge now runs ONCE, seeing the merged state of all 3 critics.
+        workflow.add_edge("Risk Sync", "Risk Judge")
+
+        # 5. JUDGE -> END (or Enhanced Logic)
+        if hasattr(self.conditional_logic, 'should_proceed_after_risk_gate'):
+             workflow.add_conditional_edges(
+                "Risk Judge",
+                self.conditional_logic.should_proceed_after_risk_gate,
+                {
+                    "END": END,
+                    "Market Analyst": "Market Analyst",
+                    "Risk Manager Revision": "Trader", # Send back to Trader to fix plan
+                    "Execute Trade": END
+                }
+            )
+        else:
+            workflow.add_edge("Risk Judge", END)
+
 
         # Compile and return
         return workflow.compile()

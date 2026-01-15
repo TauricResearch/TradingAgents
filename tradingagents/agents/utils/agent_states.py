@@ -30,6 +30,11 @@ class InvestDebateState(TypedDict):
     current_response: Annotated[str, "Latest response"]  # Last response
     judge_decision: Annotated[str, "Final judge decision"]  # Last response
     count: Annotated[int, "Length of the current conversation"]  # Conversation length
+    # Enhanced Logic Fields
+    last_argument_invalid: Annotated[bool, "Was the last argument rejected?"]
+    rejection_reason: Annotated[str, "Reason for rejection"]
+    latest_speaker: Annotated[str, "Who spoke last (Bull/Bear)"]
+    confidence: Annotated[float, "Confidence in current position (0-1)"]
 
 
 # Risk management team state
@@ -56,7 +61,9 @@ class RiskDebateState(TypedDict):
     ]  # Last response
     judge_decision: Annotated[str, "Judge's decision"]
     count: Annotated[int, "Length of the current conversation"]  # Conversation length
-
+    # Enhanced Logic Fields
+    invalid_reasoning_detected: Annotated[bool, "Was invalid reasoning detected?"]
+    error_message: Annotated[str, "Error message for invalid reasoning"]
 
 
 def reduce_overwrite(left, right):
@@ -66,6 +73,13 @@ def reduce_overwrite(left, right):
     this resolves the conflict by taking the last value (which is identical).
     """
     return right
+
+# 1. Define a specific reducer for the Risk Debate Dictionary
+def merge_risk_states(left: dict, right: dict) -> dict:
+    """Safely merges updates from parallel risk analysts."""
+    if not left: return right
+    if not right: return left
+    return {**left, **right}
 
 class AgentState(MessagesState):
     company_of_interest: Annotated[str, reduce_overwrite] # "Company that we are interested in trading"
@@ -103,7 +117,7 @@ class AgentState(MessagesState):
 
     # risk management team discussion step
     risk_debate_state: Annotated[
-        RiskDebateState, "Current state of the debate on evaluating risk"
+        RiskDebateState, merge_risk_states
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
 

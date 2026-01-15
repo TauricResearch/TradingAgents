@@ -62,6 +62,11 @@ def fetch_top_from_category(
     ] = "reddit_data",
 ):
     base_path = data_path
+    target_dir = os.path.join(base_path, category)
+    
+    if not os.path.exists(target_dir):
+        # Graceful failure if local data not present
+        return []
 
     all_content = []
 

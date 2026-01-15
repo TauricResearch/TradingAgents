@@ -39,7 +39,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_global_news
 )
 
-from .conditional_logic import ConditionalLogic
+from .enhanced_conditional_logic import EnhancedConditionalLogic
 from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
@@ -108,7 +108,9 @@ class TradingAgentsGraph:
         self.tool_nodes = self._create_tool_nodes()
 
         # Initialize components
-        self.conditional_logic = ConditionalLogic()
+        self.conditional_logic = EnhancedConditionalLogic()
+
+
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
@@ -327,20 +329,18 @@ class TradingAgentsGraph:
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
-        self.reflector.reflect_bull_researcher(
-            self.curr_state, returns_losses, self.bull_memory
-        )
-        self.reflector.reflect_bear_researcher(
-            self.curr_state, returns_losses, self.bear_memory
-        )
-        self.reflector.reflect_trader(
-            self.curr_state, returns_losses, self.trader_memory
-        )
-        self.reflector.reflect_invest_judge(
-            self.curr_state, returns_losses, self.invest_judge_memory
-        )
-        self.reflector.reflect_risk_manager(
-            self.curr_state, returns_losses, self.risk_manager_memory
+        # OPTIMIZATION: Replaced 5 calls with 1 Batch Call
+        
+        memories = {
+            "bull": self.bull_memory,
+            "bear": self.bear_memory,
+            "trader": self.trader_memory,
+            "judge": self.invest_judge_memory,
+            "risk": self.risk_manager_memory
+        }
+        
+        self.reflector.reflect_on_full_session(
+            self.curr_state, returns_losses, memories
         )
 
     def process_signal(self, full_signal):

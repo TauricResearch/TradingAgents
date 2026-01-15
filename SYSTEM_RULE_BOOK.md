@@ -88,6 +88,12 @@ We do not just execute; we adapt. The system includes a **Self-Reflection Mechan
     *   **Subgraphs:** Each analyst runs in an isolated `StateGraph` sandbox. They share NO memory.
     *   **Strict Schemas:** Analysts can only read what they need (`Symbol`, `Date`) and write what they own (`Report`). They CANNOT touch the Portfolio.
 
+### 2. The Risk Star Topology (Parallel Debate)
+*   **Concept:** "Round Robin" is dead. We use "Fan-Out".
+*   **Architecture:** The Trader broadcasts the plan to `Risky`, `Safe`, and `Neutral` analysts simultaneously.
+*   **Synchronization:** A `Risk Sync` node waits for all three to finish before triggering the Judge.
+*   **Concurrency Safety:** We use `merge_risk_states` (a reducer) to allow parallel updates to the debate state without race conditions.
+
 ### 2. The Crash-Proof Guarantee
 *   **Rule:** **NO ANALYST DIES ALONE.**
 *   **Implementation:** All tool nodes are wrapped in `try/except` logic. If an API fails (Rate Limit, 500 Error), the tool returns a formatted error string to the Agent. The Agent then notes the failure and proceeds. The system **never** hard-crashes on a single data point failure.

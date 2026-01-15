@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 import json
 from .reddit_utils import fetch_top_from_category
 from tqdm import tqdm
+import concurrent.futures
 
 def get_YFin_data_window(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -385,25 +386,37 @@ def get_reddit_global_news(
     before = before.strftime("%Y-%m-%d")
 
     posts = []
-    # iterate from before to curr_date
-    curr_iter_date = datetime.strptime(before, "%Y-%m-%d")
+    
+    # Generate date list
+    date_list = []
+    temp_iter_date = datetime.strptime(before, "%Y-%m-%d")
+    while temp_iter_date <= curr_date_dt:
+        date_list.append(temp_iter_date.strftime("%Y-%m-%d"))
+        temp_iter_date += relativedelta(days=1)
 
-    total_iterations = (curr_date_dt - curr_iter_date).days + 1
-    pbar = tqdm(desc=f"Getting Global News on {curr_date}", total=total_iterations)
-
-    while curr_iter_date <= curr_date_dt:
-        curr_date_str = curr_iter_date.strftime("%Y-%m-%d")
-        fetch_result = fetch_top_from_category(
+    def fetch_global_worker(d_str):
+        res = fetch_top_from_category(
             "global_news",
-            curr_date_str,
+            d_str,
             limit,
             data_path=os.path.join(DATA_DIR, "reddit_data"),
         )
-        posts.extend(fetch_result)
-        curr_iter_date += relativedelta(days=1)
-        pbar.update(1)
+        return (d_str, res)
 
-    pbar.close()
+    temp_results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_date = {executor.submit(fetch_global_worker, d): d for d in date_list}
+        for future in tqdm(concurrent.futures.as_completed(future_to_date), total=len(date_list), desc=f"Getting Global News (Parallel)"):
+            try:
+                temp_results.append(future.result())
+            except Exception as e:
+                print(f"Error fetching global news for {future_to_date[future]}: {e}")
+
+    # Sort and flattened
+    temp_results.sort(key=lambda x: x[0])
+    for _, res in temp_results:
+        posts.extend(res)
+
 
     if len(posts) == 0:
         return ""
@@ -437,30 +450,38 @@ def get_reddit_company_news(
     end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
     posts = []
-    # iterate from start_date to end_date
-    curr_date = start_date_dt
+    
+    # Generate date list
+    date_list = []
+    curr_iter_date = start_date_dt
+    while curr_iter_date <= end_date_dt:
+        date_list.append(curr_iter_date.strftime("%Y-%m-%d"))
+        curr_iter_date += relativedelta(days=1)
 
-    total_iterations = (end_date_dt - curr_date).days + 1
-    pbar = tqdm(
-        desc=f"Getting Company News for {query} from {start_date} to {end_date}",
-        total=total_iterations,
-    )
-
-    while curr_date <= end_date_dt:
-        curr_date_str = curr_date.strftime("%Y-%m-%d")
-        fetch_result = fetch_top_from_category(
+    def fetch_company_worker(d_str):
+        res = fetch_top_from_category(
             "company_news",
-            curr_date_str,
+            d_str,
             10,  # max limit per day
             query,
             data_path=os.path.join(DATA_DIR, "reddit_data"),
         )
-        posts.extend(fetch_result)
-        curr_date += relativedelta(days=1)
+        return (d_str, res)
 
-        pbar.update(1)
+    temp_results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_date = {executor.submit(fetch_company_worker, d): d for d in date_list}
+        for future in tqdm(concurrent.futures.as_completed(future_to_date), total=len(date_list), desc=f"Getting Company News (Parallel)"):
+            try:
+                temp_results.append(future.result())
+            except Exception as e:
+                print(f"Error fetching company news for {future_to_date[future]}: {e}")
 
-    pbar.close()
+    # Sort and flatten
+    temp_results.sort(key=lambda x: x[0])
+    for _, res in temp_results:
+        posts.extend(res)
+
 
     if len(posts) == 0:
         return ""

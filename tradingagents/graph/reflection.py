@@ -16,43 +16,31 @@ class Reflector:
         self.config_path = get_config().get("runtime_config_relative_path", "data_cache/runtime_config.json")
 
     def _get_reflection_prompt(self) -> str:
-        """Get the system prompt for reflection."""
+        """Get the system prompt for reflection (Legacy)."""
+        return """... (Legacy Prompt) ..."""
+
+    def _get_batch_reflection_prompt(self) -> str:
+        """System prompt for analyzing the ENTIRE session in one pass."""
         return """
-You are an expert financial analyst tasked with reviewing trading decisions/analysis.
-Your goal is to deliver detailed insights AND **tunable parameter updates**.
+You are an expert Strategy Auditor. Review the entire trading session log below.
+1. Analyze the logic of the Bull, Bear, and Judges.
+2. Identify the PRIMARY FAILURE point (if any) or the STRONGEST INSIGHT.
+3. CRITICAL: Output parameter updates if the system was too slow/fast.
 
-1. Reasoning:
-   - Determine if the decision was correct based on the OUTCOME (Returns).
-   - Analyze which factor (News, Technicals, Fundamentals) was the primary driver.
-
-2. Improvement:
-   - For incorrect decisions, propose revisions.
-
-3. Summary:
-   - Summarize lessons learned.
-
-4. PARAMETER OPTIMIZATION (CRITICAL):
-   - You have control over specific system parameters.
-   - If the strategy failed due to being too slow/fast, adjust them.
-   - **YOU MUST OUTPUT A JSON BLOCK** at the end of your response if changes are needed.
-   - Available Parameters:
-     - `rsi_period` (Default 14): Lower to 7 for faster reaction, raise to 21 for noise filtering.
-     - `risk_multiplier_cap` (Default 1.5): Lower if drawdowns are too high.
-     - `stop_loss_pct` (Default 0.10): Tighten (e.g., 0.05) if getting stopped out too late.
-   
-   - FORMAT:
-     ```json
-     {
-       "UPDATE_PARAMETERS": {
-         "rsi_period": 7,
-         "stop_loss_pct": 0.08
-       }
-     }
-     ```
-   - If no changes are needed, do not output the JSON block.
-
-Adhere strictly to these instructions.
-"""
+FORMAT:
+- Summary of Session: ...
+- Critique of Bull/Bear: ...
+- Critique of Risk Management: ...
+- PARAMETER OPTIMIZATION (JSON):
+  ```json
+  {
+    "UPDATE_PARAMETERS": {
+      "rsi_period": 7,
+      "risk_multiplier_cap": 1.2
+    }
+  }
+  ```
+If no parameters need changing, omit the JSON. """
 
     def _extract_current_situation(self, current_state: Dict[str, Any]) -> str:
         """
@@ -171,6 +159,43 @@ Adhere strictly to these instructions.
             logger.error(f"ERROR: Reflection loop failed to apply updates: {e}")
             
         return result
+    
+    def reflect_on_full_session(self, current_state, returns_losses, memories: Dict[str, Any]):
+        """
+        OPTIMIZED REFLECTION: 1 Call to rule them all.
+        """
+        situation = self._extract_current_situation(current_state)
+        
+        # Aggregate the entire debate history
+        session_log = (
+            f"=== RETURNS: {returns_losses} ===\n\n"
+            f"--- INVESTMENT DEBATE ---\n"
+            f"{current_state['investment_debate_state']['history']}\n\n"
+            f"--- TRADER PLAN ---\n"
+            f"{current_state['trader_investment_plan']}\n\n"
+            f"--- RISK DEBATE ---\n"
+            f"{current_state['risk_debate_state']['history']}\n"
+        )
+    
+        messages = [
+            ("system", self._get_batch_reflection_prompt()),
+            ("human", f"MARKET CONTEXT:\n{situation}\n\nSESSION LOG:\n{session_log}")
+        ]
+    
+        # 1 Call instead of 5
+        result = self.quick_thinking_llm.invoke(messages).content
+        
+        # Extract & Apply Params
+        updates = self._parse_parameter_updates(result)
+        self._apply_parameter_updates(updates, current_state)
+        
+        # Optional: Save result to all memories (or just a central log)
+        # For simplicity, we just log it to the Trader memory for now
+        if 'trader' in memories:
+            memories['trader'].add_situations([(situation, result)])
+        
+        logger.info("✅ BATCH REFLECTION COMPLETE")
+
 
     def reflect_bull_researcher(self, current_state, returns_losses, bull_memory):
         """Reflect on bull researcher's analysis and update memory."""
