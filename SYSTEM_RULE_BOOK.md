@@ -100,6 +100,20 @@ We do not just execute; we adapt. The system includes a **Self-Reflection Mechan
 
 ---
 
+## VIII. MENTAL MODELS (The Cognitive Framework)
+To prevent "Value Trap" logic in Tech/Platform stocks, the Trader utilizes specific mental models distinct from traditional Value Investing.
+
+### 1. CapEx Distinction (The "Moat" Rule)
+*   **Maintenance CapEx:** Spending to keep the lights on (e.g., repairing a factory). This is a **COST**.
+*   **Strategic CapEx:** Spending to capture a new platform (e.g., Google building Data Centers for AI). This is **DEFENSE**.
+*   **The Rule:** For dominant platforms, massive CapEx during a platform shift is a **BULLISH** signal of durability, not a bearish signal of inefficiency.
+
+### 2. Regulatory Overhang (The "Size" Tax)
+*   **Concept:** Big Tech is always under investigation.
+*   **The Rule:** Treat Antitrust Risk as a **"Chronic Condition"** (like diabetes). You manage it by reducing position size (Risk Management). You do **NOT** treat it as a "Terminal Disease" (Panic Selling) unless a breakup order is signed and imminent.
+
+---
+
 ## V. EXECUTION DISCIPLINE
 
 1.  **Binary Thinking is the Enemy:** Rarely is the answer "Sell 100%" or "Buy 100%." We scale out of risks and scale into strength.

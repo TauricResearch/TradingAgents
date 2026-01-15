@@ -69,6 +69,12 @@ We have deployed three major efficiency upgrades:
 2.  **Risk Star Topology**: Parallelized the Risk Debate (Risky/Safe/Neutral run at once) using a custom `merge_risk_states` reducer (-60% Risk Latency).
 3.  **Parallel I/O**: Implemented `ThreadPoolExecutor` for Reddit News fetching (5x-10x Speedup).
 
+**Logic Upgrade: The "Mental Model" Patch**
+Post-simulation audits revealed a "Value Trap" bias in Tech Platform analysis. We injected a new cognitive framework into the Trader Agent:
+*   **CapEx = Moat**: Strategic spending is now correctly interpreted as defense, not waste.
+*   **Regulatory Resilience**: Antitrust risk is treated as a sizing issue, not a thesis breaker.
+
+
 ### Analyst Team
 - Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
 - Sentiment Analyst: Analyzes social media and public sentiment using sentiment scoring algorithms to gauge short-term market mood.
