@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators, get_insider_transactions
+from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators, get_insider_transactions, normalize_agent_output
 from tradingagents.dataflows.config import get_config
 
 
@@ -268,7 +268,31 @@ def create_market_analyst(llm):
     - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
     
     - Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."""
-                + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
+            + """
+### STRICT COMPLIANCE & PROVENANCE PROTOCOL (NON-NEGOTIABLE)
+
+1. CITATION RULE:
+   - Every numeric claim MUST have a source tag: `(Source: [Tool Name] > [Vendor] @ [YYYY-MM-DD])`.
+   - Example: "Revenue grew 15% (Source: get_fundamentals > alpha_vantage @ 2026-01-14)."
+   - If a number cannot be sourced to a specific tool execution, DO NOT USE IT.
+
+2. UNIT NORMALIZATION:
+   - You MUST normalize all currency to USD.
+   - You MUST state "Currency converted from [Original] to USD" if applicable.
+
+3. FAILURE HANDLING:
+   - If a tool fails (e.g., Rate Limit), you MUST log: "MISSING DATA: [Tool Name] failed."
+   - DO NOT hallucinate data to fill the gap.
+   - If critical data (Price, Revenue) is missing, output: "INSUFFICIENT DATA TO RATE."
+
+4. "FINAL PROPOSAL" GATING CHECKLIST:
+   - You may ONLY emit "FINAL TRANSACTION PROPOSAL" if:
+     [ ] Price data is < 24 hours old.
+     [ ] At least 3 distinct data sources were queried.
+     [ ] No "Compliance Flags" (Insider Trading suspicions) were triggered.
+     [ ] Confidence Score is > 70/100.
+"""
             )
     
             prompt = ChatPromptTemplate.from_messages(
@@ -352,7 +376,7 @@ def create_market_analyst(llm):
     
         return {
             "messages": tool_result_message,
-            "market_report": report,
+            "market_report": normalize_agent_output(report),
             "market_regime": regime_val,       # CRITICAL: Must not be UNKNOWN if successful
             "regime_metrics": metrics,
             "volatility_score": volatility_score,

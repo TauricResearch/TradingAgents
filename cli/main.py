@@ -532,6 +532,11 @@ def display_complete_report(final_state):
     def process_text(text):
         if not text:
             return ""
+        
+        # 0. Ensure text is string (Safety Net)
+        if not isinstance(text, str):
+            text = str(text)
+            
         # 1. Deanonymize ASSET_XXX -> AAPL
         text = anonymizer.deanonymize_text(text)
         # 2. Fix placeholders like "[Company Name]"

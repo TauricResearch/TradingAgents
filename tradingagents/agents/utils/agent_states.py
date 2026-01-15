@@ -127,7 +127,6 @@ class AgentState(MessagesState):
 class BaseAnalystState(MessagesState):
     """Base state for an isolated analyst subgraph.
     Inherits 'messages' from MessagesState.
-    Inherits 'messages' from MessagesState.
     """
     company_of_interest: Annotated[str, reduce_overwrite]
     trade_date: Annotated[str, reduce_overwrite]

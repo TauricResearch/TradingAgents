@@ -2,6 +2,21 @@
 
 All notable changes to the **TradingAgents** project will be documented in this file.
 
+## [Unreleased] - 2026-01-14 (Architecture Hardening & Documentation)
+
+### Added
+- **Documentation (System Prompts)**: Created `docs/SYSTEM_PROMPTS.md`, a single source of truth containing:
+    - Verbatim System Prompts for all 12 Agents.
+    - Explicit Roles & Objectives.
+    - **Mermaid Diagram** illustrating the Parallel Fan-Out/Fan-In Topology.
+- **Output Sanitization (Agent Level)**: Implemented `normalize_agent_output` in `agent_utils.py` and applied it to every Analyst (`Market`, `Social`, `News`, `Fundamentals`).
+    - Guarantees clean string outputs for downstream consumers (CLI, WebUI).
+    - Prevents crashes when LLMs return complex JSON/List structures.
+
+### Fixed
+- **CLI Crash (Separation of Concerns)**: Reverted business logic in `cli/main.py` and moved sanitization upstream to the Agent layer (Mentor Critique).
+- **Dangling Tool Errors**: Fixed "Tool Use without Tool Result" errors in `technical_indicators_tools.py` by wrapping execution logic in strict `try/except` blocks (similar to other tool files).
+
 ## [Unreleased] - 2026-01-14
 
 ### Added

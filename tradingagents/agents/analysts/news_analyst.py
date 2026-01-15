@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_news, get_global_news
+from tradingagents.agents.utils.agent_utils import get_news, get_global_news, normalize_agent_output
 from tradingagents.dataflows.config import get_config
 from tradingagents.utils.logger import app_logger as logger
 
@@ -33,6 +33,30 @@ def create_news_analyst(llm):
         system_message = (
             "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for company-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            + """
+### STRICT COMPLIANCE & PROVENANCE PROTOCOL (NON-NEGOTIABLE)
+
+1. CITATION RULE:
+   - Every numeric claim MUST have a source tag: `(Source: [Tool Name] > [Vendor] @ [YYYY-MM-DD])`.
+   - Example: "Revenue grew 15% (Source: get_fundamentals > alpha_vantage @ 2026-01-14)."
+   - If a number cannot be sourced to a specific tool execution, DO NOT USE IT.
+
+2. UNIT NORMALIZATION:
+   - You MUST normalize all currency to USD.
+   - You MUST state "Currency converted from [Original] to USD" if applicable.
+
+3. FAILURE HANDLING:
+   - If a tool fails (e.g., Rate Limit), you MUST log: "MISSING DATA: [Tool Name] failed."
+   - DO NOT hallucinate data to fill the gap.
+   - If critical data (Price, Revenue) is missing, output: "INSUFFICIENT DATA TO RATE."
+
+4. "FINAL PROPOSAL" GATING CHECKLIST:
+   - You may ONLY emit "FINAL TRANSACTION PROPOSAL" if:
+     [ ] Price data is < 24 hours old.
+     [ ] At least 3 distinct data sources were queried.
+     [ ] No "Compliance Flags" (Insider Trading suspicions) were triggered.
+     [ ] Confidence Score is > 70/100.
+"""
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -67,7 +91,7 @@ def create_news_analyst(llm):
 
         return {
             "messages": [result],
-            "news_report": report,
+            "news_report": normalize_agent_output(report),
         }
 
     return news_analyst_node

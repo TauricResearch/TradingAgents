@@ -39,7 +39,7 @@ def create_msg_delete():
 import json
 import os
 import tempfile
-from typing import Dict, Any
+from typing import Dict, Any, Union, List
 
 def write_json_atomic(path: str, data: Dict[str, Any]):
     """
@@ -66,5 +66,34 @@ def write_json_atomic(path: str, data: Dict[str, Any]):
             os.remove(temp_path)
         raise e
 
-
+def normalize_agent_output(content: Union[str, List, Any]) -> str:
+    """
+    Normalize LLM output into a clean string.
+    
+    Handlers:
+    - String: Returns as-is
+    - List (Anthropic/Gemini): Extracts 'text' fields or joins items
+    - Other: Converts to string via str()
+    
+    This ensures AgentState always contains normalized strings, 
+    preventing downstream crashes in CLI/UI.
+    """
+    if not content:
+        return ""
         
+    if isinstance(content, str):
+        return content
+        
+    elif isinstance(content, list):
+        # Handle Anthropic/Gemini list format
+        text_parts = []
+        for item in content:
+            if isinstance(item, dict):
+                if item.get('type') == 'text':
+                    text_parts.append(item.get('text', ''))
+                # Skip 'tool_use' blocks in the final report string
+            else:
+                text_parts.append(str(item))
+        return ' '.join(text_parts)
+        
+    return str(content)
