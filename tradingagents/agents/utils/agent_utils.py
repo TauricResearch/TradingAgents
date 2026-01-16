@@ -1,5 +1,20 @@
 from langchain_core.messages import HumanMessage, RemoveMessage
 
+
+def normalize_content(content):
+    """Normalize LLM response content to string.
+
+    Gemini returns content as a list of dicts with 'text' keys,
+    while OpenAI/Anthropic return a simple string.
+    """
+    if isinstance(content, list):
+        return "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block)
+            for block in content
+        )
+    return content
+
+
 # Import tools from separate utility files
 from tradingagents.agents.utils.core_stock_tools import (
     get_stock_data
