@@ -13,9 +13,9 @@ class FinancialSituationMemory:
         if config["backend_url"] == "http://localhost:11434/v1":
             self.embedding = "nomic-embed-text"
         elif config["backend_url"] == "http://192.168.0.20:1234/v1":
-            self.embedding = "text-embedding-nomic-embed-text-v1.5"
+            self.embedding = "text-embedding-nomic-embed-text-v2-moe"
         else:
-            self.embedding = "ttext-embedding-nomic-embed-text-v1.5"
+            self.embedding = "text-embedding-nomic-embed-text-v2-moe"
                 
         self.client = OpenAI(base_url=config["backend_url"])
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))

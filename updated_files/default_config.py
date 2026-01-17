@@ -16,8 +16,8 @@ DEFAULT_CONFIG = {
     
     # Default LLM is set to local LMStudio instance
     "llm_provider": "lmstudio",
-    "deep_think_llm": "qwen/qwen3-4b-thinking-2507",
-    "quick_think_llm": "openai/gpt-oss-20b",
+    "deep_think_llm": "glm-4.7-reap-50-mixed-3-4-bits",
+    "quick_think_llm": "qwen/qwen3-vl-30b",
     "backend_url": "http://192.168.0.20/v1",
     "api_key": "blablabla",
     
