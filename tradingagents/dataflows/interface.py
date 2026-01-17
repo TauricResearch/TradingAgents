@@ -219,14 +219,14 @@ def route_to_vendor(method: str, *args, **kwargs):
                     last_error = None
                     break  # Success, exit retry loop
 
-                except AlphaVantageRateLimitError as e:
-                    print(f"RATE_LIMIT: Alpha Vantage rate limit exceeded")
+                except (AlphaVantageRateLimitError, RateLimitError) as e:
+                    print(f"RATE_LIMIT: {type(e).__name__} exceeded, falling back to next vendor.")
                     print(f"DEBUG: Rate limit details: {e}")
                     last_error = e
                     break  # Don't retry rate limits, move to next vendor
 
                 except (ConnectionError, TimeoutError, OSError,
-                        APIConnectionError, APITimeoutError, RateLimitError) as e:
+                        APIConnectionError, APITimeoutError) as e:
                     # Transient errors - retry with backoff
                     last_error = e
                     if retry_attempt < max_retries - 1:

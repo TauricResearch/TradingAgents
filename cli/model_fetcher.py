@@ -72,7 +72,7 @@ def fetch_openai_models() -> Optional[List[Tuple[str, str]]]:
 
         _model_cache["openai"] = result
         return result
-    except Exception:
+    except (httpx.RequestError, httpx.HTTPStatusError, ValueError, KeyError):
         return None
 
 
@@ -129,7 +129,7 @@ def fetch_anthropic_models() -> Optional[List[Tuple[str, str]]]:
 
         _model_cache["anthropic"] = result
         return result
-    except Exception:
+    except (httpx.RequestError, httpx.HTTPStatusError, ValueError, KeyError):
         return None
 
 
@@ -187,7 +187,7 @@ def fetch_google_models() -> Optional[List[Tuple[str, str]]]:
 
         _model_cache["google"] = result
         return result
-    except Exception:
+    except (httpx.RequestError, httpx.HTTPStatusError, ValueError, KeyError):
         return None
 
 

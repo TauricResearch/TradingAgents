@@ -7,6 +7,7 @@ This is required for newer models like gpt-5.1-codex-mini that only support
 the Responses API.
 """
 
+import json
 import os
 import uuid
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
@@ -117,9 +118,8 @@ class ChatOpenAIResponses(BaseChatModel):
                 # Get the JSON schema for parameters
                 if tool.args_schema:
                     params = tool.args_schema.model_json_schema()
-                    # Remove extra fields that OpenAI doesn't expect
+                    # Remove title field that OpenAI doesn't expect at schema level
                     params.pop("title", None)
-                    params.pop("description", None)
                 else:
                     params = {"type": "object", "properties": {}}
 
@@ -162,7 +162,6 @@ class ChatOpenAIResponses(BaseChatModel):
         - Tool calls from assistant are represented as separate 'function_call' items
         - Tool results use 'function_call_output' content type
         """
-        import json as json_module
         converted = []
         for msg in messages:
             if isinstance(msg, SystemMessage):
@@ -193,7 +192,7 @@ class ChatOpenAIResponses(BaseChatModel):
                         # Convert args to JSON string for the API
                         args = tc.get("args", {})
                         if isinstance(args, dict):
-                            args_str = json_module.dumps(args)
+                            args_str = json.dumps(args)
                         else:
                             args_str = str(args)
 
@@ -237,7 +236,6 @@ class ChatOpenAIResponses(BaseChatModel):
 
             # Handle function/tool calls
             if hasattr(item, 'type') and item.type == 'function_call':
-                import json
                 args = item.arguments
                 if isinstance(args, str):
                     try:

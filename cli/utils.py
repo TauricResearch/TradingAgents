@@ -235,7 +235,6 @@ def select_deep_thinking_agent(provider) -> str:
         "openrouter": [
             ("Xiaomi MiMo V2 Flash - Fast and efficient multimodal model", "xiaomi/mimo-v2-flash:free"),
             ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
-            ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
         ],
         "ollama": [
             ("llama3.2:3b local", "llama3.2:3b"),
