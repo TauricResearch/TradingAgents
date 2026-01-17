@@ -156,9 +156,9 @@ def select_shallow_thinking_agent(provider) -> str:
         ],
         "lmstudio": [
             ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
-            ("LMStudio GLM", "glm-4.5-air-mlx"),
-            ("LMStudio OSS 120b","openai/gpt-oss-120b"),
-            ("LMStudio Kimi","kimi-dev-72b-dwq"),
+            ("LMStudio GLM 4.6v", "zai-org/glm-4.6v-flash"),
+            ("LMStudio OSS 20b","openai/gpt-oss-20b"),
+            ("LMStudio Minimax 2.1","minimax-m2.1-reap-30-mlx"),
         ]
     }
 
@@ -224,9 +224,9 @@ def select_deep_thinking_agent(provider) -> str:
         ],
         "lmstudio": [
             ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
-            ("LMStudio GLM", "glm-4.5-air-mlx"),
+            ("LMStudio GLM 4.6v", "zai-org/glm-4.6v-flash"),
             ("LMStudio OSS 20b","openai/gpt-oss-20b"),
-            ("LMStudio Kimi","kimi-dev-72b-dwq"),
+            ("LMStudio Minimax 2.1","minimax-m2.1-reap-30-mlx"),
         ]
     }
     
