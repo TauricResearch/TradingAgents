@@ -429,10 +429,12 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # Step 1: Ticker symbol
+    # Step 1: Ticker symbol(s)
     console.print(
         create_question_box(
-            "Step 1: Ticker Symbol", "Enter the ticker symbol to analyze", "SPY"
+            "Step 1: Ticker Symbol(s)",
+            "Enter ticker symbol(s) to analyze (comma-separated for multiple)",
+            "SPY",
         )
     )
     selected_ticker = get_ticker()
@@ -475,13 +477,20 @@ def get_user_selections():
     )
     selected_llm_provider, backend_url = select_llm_provider()
     
-    # Step 6: Thinking agents
+    # Step 6: Quick-Thinking LLM Engine
     console.print(
         create_question_box(
-            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
+            "Step 6: Quick-Thinking LLM Engine", "Select your quick-thinking model for fast operations"
         )
     )
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
+
+    # Step 7: Deep-Thinking LLM Engine
+    console.print(
+        create_question_box(
+            "Step 7: Deep-Thinking LLM Engine", "Select your deep-thinking model for complex reasoning"
+        )
+    )
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
     return {
@@ -497,8 +506,11 @@ def get_user_selections():
 
 
 def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
+    """Get ticker symbol(s) from user input. Supports comma-separated symbols."""
+    raw_input = typer.prompt("", default="SPY")
+    # Split by comma, strip whitespace, convert to uppercase
+    symbols = [s.strip().upper() for s in raw_input.split(",") if s.strip()]
+    return symbols if len(symbols) > 1 else symbols[0]
 
 
 def get_analysis_date():
@@ -736,6 +748,7 @@ def extract_content_string(content):
         return str(content)
 
 def run_analysis():
+    """Run analysis for one or more ticker symbols."""
     # First get all user selections
     selections = get_user_selections()
 
@@ -748,13 +761,33 @@ def run_analysis():
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
 
-    # Initialize the graph
+    # Normalize ticker(s) to list
+    tickers = selections["ticker"] if isinstance(selections["ticker"], list) else [selections["ticker"]]
+
+    # Initialize the graph once and reuse for all symbols
     graph = TradingAgentsGraph(
         [analyst.value for analyst in selections["analysts"]], config=config, debug=True
     )
 
+    for i, ticker in enumerate(tickers, 1):
+        if len(tickers) > 1:
+            console.print(f"\n[bold cyan]{'═' * 50}[/bold cyan]")
+            console.print(f"[bold cyan]  Analyzing {ticker} ({i}/{len(tickers)})[/bold cyan]")
+            console.print(f"[bold cyan]{'═' * 50}[/bold cyan]\n")
+
+        run_single_analysis(ticker, selections, config, graph)
+
+        if i < len(tickers):
+            console.print(f"\n[dim]Moving to next symbol...[/dim]\n")
+
+    if len(tickers) > 1:
+        console.print(f"\n[bold green]Completed analysis for all {len(tickers)} symbols: {', '.join(tickers)}[/bold green]")
+
+
+def run_single_analysis(ticker: str, selections: dict, config: dict, graph: TradingAgentsGraph):
+    """Run analysis for a single ticker symbol."""
     # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    results_dir = Path(config["results_dir"]) / ticker / selections["analysis_date"]
     results_dir.mkdir(parents=True, exist_ok=True)
     report_dir = results_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -808,7 +841,7 @@ def run_analysis():
         update_display(layout)
 
         # Add initial messages
-        message_buffer.add_message("System", f"Selected ticker: {selections['ticker']}")
+        message_buffer.add_message("System", f"Selected ticker: {ticker}")
         message_buffer.add_message(
             "System", f"Analysis date: {selections['analysis_date']}"
         )
@@ -835,13 +868,13 @@ def run_analysis():
 
         # Create spinner text
         spinner_text = (
-            f"Analyzing {selections['ticker']} on {selections['analysis_date']}..."
+            f"Analyzing {ticker} on {selections['analysis_date']}..."
         )
         update_display(layout, spinner_text)
 
         # Initialize state and get graph args
         init_agent_state = graph.propagator.create_initial_state(
-            selections["ticker"], selections["analysis_date"]
+            ticker, selections["analysis_date"]
         )
         args = graph.propagator.get_graph_args()
 

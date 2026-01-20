@@ -1,5 +1,44 @@
+import os
+
 from openai import OpenAI
 from .config import get_config
+
+
+def _get_web_search_tool_type() -> str:
+    """Return the appropriate web search tool type based on FETCH_LATEST setting.
+
+    - FETCH_LATEST=true: Use 'web_search' (GA version, supports GPT-5)
+    - FETCH_LATEST=false/unset: Use 'web_search_preview' (legacy, wider compatibility)
+    """
+    fetch_latest = os.getenv("FETCH_LATEST", "false").lower() in ("true", "1", "yes")
+    return "web_search" if fetch_latest else "web_search_preview"
+
+
+def _extract_text_from_response(response):
+    """Safely extract text content from OpenAI Responses API output.
+
+    The response.output array typically contains:
+    - output[0]: ResponseFunctionWebSearch (the web search call)
+    - output[1]: ResponseOutputMessage (the text response)
+
+    This function handles edge cases where the structure may differ.
+    """
+    if not response.output:
+        raise RuntimeError("OpenAI response has empty output")
+
+    # Look for a message with text content
+    for item in response.output:
+        if hasattr(item, 'content') and item.content:
+            for content_block in item.content:
+                if hasattr(content_block, 'text') and content_block.text:
+                    return content_block.text
+
+    # If we get here, no text was found
+    output_types = [type(item).__name__ for item in response.output]
+    raise RuntimeError(
+        f"No text content found in OpenAI response. "
+        f"Output types: {output_types}"
+    )
 
 
 def get_stock_news_openai(query, start_date, end_date):
@@ -23,7 +62,7 @@ def get_stock_news_openai(query, start_date, end_date):
         reasoning={},
         tools=[
             {
-                "type": "web_search_preview",
+                "type": _get_web_search_tool_type(),
                 "user_location": {"type": "approximate"},
                 "search_context_size": "low",
             }
@@ -34,7 +73,7 @@ def get_stock_news_openai(query, start_date, end_date):
         store=True,
     )
 
-    return response.output[1].content[0].text
+    return _extract_text_from_response(response)
 
 
 def get_global_news_openai(curr_date, look_back_days=7, limit=5):
@@ -58,7 +97,7 @@ def get_global_news_openai(curr_date, look_back_days=7, limit=5):
         reasoning={},
         tools=[
             {
-                "type": "web_search_preview",
+                "type": _get_web_search_tool_type(),
                 "user_location": {"type": "approximate"},
                 "search_context_size": "low",
             }
@@ -69,7 +108,7 @@ def get_global_news_openai(curr_date, look_back_days=7, limit=5):
         store=True,
     )
 
-    return response.output[1].content[0].text
+    return _extract_text_from_response(response)
 
 
 def get_fundamentals_openai(ticker, curr_date):
@@ -93,7 +132,7 @@ def get_fundamentals_openai(ticker, curr_date):
         reasoning={},
         tools=[
             {
-                "type": "web_search_preview",
+                "type": _get_web_search_tool_type(),
                 "user_location": {"type": "approximate"},
                 "search_context_size": "low",
             }
@@ -104,4 +143,4 @@ def get_fundamentals_openai(ticker, curr_date):
         store=True,
     )
 
-    return response.output[1].content[0].text
+    return _extract_text_from_response(response)

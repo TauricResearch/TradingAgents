@@ -12,6 +12,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from langgraph.prebuilt import ToolNode
 
+from tradingagents.llm import requires_responses_api, ChatOpenAIResponses
+
 from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import FinancialSituationMemory
@@ -72,9 +74,20 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+        if self.config["llm_provider"].lower() in ["openai", "ollama", "openrouter", "lm studio"]:
+            # Select LLM class based on model - newer models require Responses API
+            deep_model = self.config["deep_think_llm"]
+            quick_model = self.config["quick_think_llm"]
+
+            if requires_responses_api(deep_model):
+                self.deep_thinking_llm = ChatOpenAIResponses(model=deep_model, base_url=self.config["backend_url"])
+            else:
+                self.deep_thinking_llm = ChatOpenAI(model=deep_model, base_url=self.config["backend_url"])
+
+            if requires_responses_api(quick_model):
+                self.quick_thinking_llm = ChatOpenAIResponses(model=quick_model, base_url=self.config["backend_url"])
+            else:
+                self.quick_thinking_llm = ChatOpenAI(model=quick_model, base_url=self.config["backend_url"])
         elif self.config["llm_provider"].lower() == "anthropic":
             self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
             self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])

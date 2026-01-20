@@ -1,7 +1,12 @@
 import questionary
 from typing import List, Optional, Tuple, Dict
+from rich.console import Console
 
 from cli.models import AnalystType
+from cli.api_keys import is_provider_available
+from cli.model_fetcher import fetch_models_for_provider
+
+console = Console()
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -125,7 +130,7 @@ def select_research_depth() -> int:
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
-    # Define shallow thinking llm engine options with their corresponding model names
+    # Static fallback options for each provider
     SHALLOW_AGENT_OPTIONS = {
         "openai": [
             ("GPT-4o-mini - Fast and efficient for quick tasks", "gpt-4o-mini"),
@@ -142,24 +147,43 @@ def select_shallow_thinking_agent(provider) -> str:
         "google": [
             ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
             ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
+            ("Gemini 2.5 Flash-Lite - Lightweight and cost efficient", "gemini-2.5-flash-lite"),
+            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash"),
+            ("Gemini 3 Flash Preview - Latest generation flash model", "gemini-3-flash-preview"),
         ],
         "openrouter": [
+            ("Xiaomi MiMo V2 Flash - Fast and efficient multimodal model", "xiaomi/mimo-v2-flash:free"),
             ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
             ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
             ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
         ],
         "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("llama3.2 local", "llama3.2"),
+            ("llama3.2:3b local", "llama3.2:3b"),
+            ("phi3.5 local", "phi3.5:latest"),
+        ],
+        "lm studio": [
+            ("Local Model (default)", "local-model"),
         ]
     }
+
+    provider_lower = provider.lower()
+
+    # Try dynamic fetch for supported providers (OpenAI, Anthropic, Google)
+    model_options = None
+    if provider_lower in ["openai", "anthropic", "google"]:
+        dynamic_models = fetch_models_for_provider(provider_lower)
+        if dynamic_models:
+            model_options = dynamic_models
+
+    # Fall back to static list if dynamic fetch failed or not supported
+    if model_options is None:
+        model_options = SHALLOW_AGENT_OPTIONS.get(provider_lower, [])
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
+            for display, value in model_options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -183,7 +207,7 @@ def select_shallow_thinking_agent(provider) -> str:
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
-    # Define deep thinking llm engine options with their corresponding model names
+    # Static fallback options for each provider
     DEEP_AGENT_OPTIONS = {
         "openai": [
             ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
@@ -199,29 +223,46 @@ def select_deep_thinking_agent(provider) -> str:
             ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
             ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
             ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
-            ("Claude Opus 4 - Most powerful Anthropic model", "	claude-opus-4-0"),
+            ("Claude Opus 4 - Most powerful Anthropic model", "claude-opus-4-0"),
         ],
         "google": [
             ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
             ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
-            ("Gemini 2.5 Pro", "gemini-2.5-pro-preview-06-05"),
+            ("Gemini 2.5 Flash-Lite - Lightweight and cost efficient", "gemini-2.5-flash-lite"),
+            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash"),
+            ("Gemini 3 Flash Preview - Latest generation flash model", "gemini-3-flash-preview"),
         ],
         "openrouter": [
+            ("Xiaomi MiMo V2 Flash - Fast and efficient multimodal model", "xiaomi/mimo-v2-flash:free"),
             ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
-            ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
         ],
         "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("qwen3", "qwen3"),
+            ("llama3.2:3b local", "llama3.2:3b"),
+            ("phi3.5 local", "phi3.5:latest"),
+        ],
+        "lm studio": [
+            ("Local Model (default)", "local-model"),
         ]
     }
-    
+
+    provider_lower = provider.lower()
+
+    # Try dynamic fetch for supported providers (OpenAI, Anthropic, Google)
+    model_options = None
+    if provider_lower in ["openai", "anthropic", "google"]:
+        dynamic_models = fetch_models_for_provider(provider_lower)
+        if dynamic_models:
+            model_options = dynamic_models
+
+    # Fall back to static list if dynamic fetch failed or not supported
+    if model_options is None:
+        model_options = DEEP_AGENT_OPTIONS.get(provider_lower, [])
+
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
+            for display, value in model_options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -240,22 +281,35 @@ def select_deep_thinking_agent(provider) -> str:
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """Select the LLM provider using interactive selection with availability checks."""
+    # Define provider options with their corresponding endpoints
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        ("Ollama", "http://localhost:11434/v1"),
+        ("LM Studio", "http://localhost:1234/v1"),
     ]
-    
+
+    # Build choices with availability status
+    choices = []
+    for display, url in BASE_URLS:
+        available, reason = is_provider_available(display)
+        if available:
+            choices.append(questionary.Choice(display, value=(display, url)))
+        else:
+            # Show disabled option with reason
+            disabled_label = f"{display} ({reason})"
+            choices.append(questionary.Choice(
+                disabled_label,
+                value=(display, url),
+                disabled=reason
+            ))
+
     choice = questionary.select(
         "Select your LLM Provider:",
-        choices=[
-            questionary.Choice(display, value=(display, value))
-            for display, value in BASE_URLS
-        ],
+        choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -265,12 +319,12 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
-    
+
     display_name, url = choice
     print(f"You selected: {display_name}\tURL: {url}")
-    
+
     return display_name, url
