@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "akshare>=1.16.98",
     "backtrader>=1.9.78.123",
-    "chainlit>=2.5.5",
+    "chainlit>=2.9.4",
     "chromadb>=1.0.12",
     "eodhd>=1.0.32",
     "feedparser>=6.0.11",
