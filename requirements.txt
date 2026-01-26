@@ -8,7 +8,7 @@ feedparser
 stockstats
 eodhd
 langgraph
-chromadb
+rank-bm25
 setuptools
 backtrader
 akshare

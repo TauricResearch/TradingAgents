@@ -14,17 +14,11 @@ class AnthropicClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatAnthropic instance."""
-        llm_kwargs = {
-            "model": self.model,
-            "max_tokens": self.kwargs.get("max_tokens", 4096),
-        }
+        llm_kwargs = {"model": self.model}
 
-        for key in ("timeout", "max_retries", "api_key"):
+        for key in ("timeout", "max_retries", "api_key", "max_tokens"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
-
-        if "thinking_config" in self.kwargs:
-            llm_kwargs["thinking"] = self.kwargs["thinking_config"]
 
         return ChatAnthropic(**llm_kwargs)
 
