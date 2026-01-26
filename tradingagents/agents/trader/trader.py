@@ -31,8 +31,8 @@ def create_trader(llm, memory):
             {
                 "role": "system",
                 "content": f"""You are a trading agent analyzing market data to make investment decisions. Based on your analysis, provide a specific position to long, short, or hold.
-                End with a firm decision and always conclude your response with 'FINAL TRANSACTION PROPOSAL: **LONG/SHORT/HOLD**' to confirm your recommendation. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situatiosn you traded in and the lessons learned: {past_memory_str}"""
-                 + """Output strictly a JSON block with the following format: {"position": "Long" | "Short" | "Hold", explanation:""}""",
+                End with a firm decision. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situatiosn you traded in and the lessons learned: {past_memory_str}"""
+                 + """Output strictly a JSON block with the following format: {"position": "Long" | "Short" | "Hold", explanation: str, "profit_estimate_pct": float, "risk_level": "Low" | "Medium" | "High", "trade_duration_days": int}""",
             },
             context,
         ]

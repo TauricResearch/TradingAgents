@@ -23,8 +23,8 @@ class SignalProcessor:
         messages = [
             (
                 "system",
-                "You are an efficient assistant designed to analyze paragraphs or financial reports provided by a group of analysts. Your task is to extract the investment decision: SHORT, LONG, or HOLD. Provide only the extracted decision (SHORT, LONG, or HOLD) as your output, without adding any additional text or information."
-                 + """Output strictly a JSON block with the following format: {"position": "Long" | "Short" | "Hold", explanation:""}""",
+                "You are an efficient assistant designed to analyze paragraphs or financial reports provided by a group of analysts. Your task is to extract the investment decision: LONG, SHORT, or HOLD. Provide only the extracted decision (LONG, SHORT, or HOLD) as your output, without adding any additional text or information."
+                 + """Output strictly a JSON block with the following format: {"position": "Long" | "Short" | "Hold", explanation: str, "profit_estimate_pct": float, "risk_level": "Low" | "Medium" | "High"}""",
             ),
             ("human", full_signal),
         ]
