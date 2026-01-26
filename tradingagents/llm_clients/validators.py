@@ -1,58 +1,75 @@
-from typing import Dict, List
+"""Model name validators for each provider.
 
-VALID_MODELS: Dict[str, List[str]] = {
+Only validates model names - does NOT enforce limits.
+Let LLM providers use their own defaults for unspecified params.
+"""
+
+VALID_MODELS = {
     "openai": [
+        # GPT-5 series (2025)
+        "gpt-5.2",
+        "gpt-5.1",
+        "gpt-5",
+        "gpt-5-mini",
+        "gpt-5-nano",
+        # GPT-4.1 series (2025)
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        # o-series reasoning models
+        "o4-mini",
+        "o3",
+        "o3-mini",
+        "o1",
+        "o1-preview",
+        # GPT-4o series (legacy but still supported)
         "gpt-4o",
         "gpt-4o-mini",
-        "gpt-4-turbo",
-        "gpt-4",
-        "gpt-3.5-turbo",
-        "o1",
-        "o1-mini",
-        "o1-preview",
-        "o3-mini",
-        "gpt-5-nano",
-        "gpt-5-mini",
-        "gpt-5",
     ],
     "anthropic": [
-        "claude-3-5-sonnet-20241022",
-        "claude-3-5-haiku-20241022",
-        "claude-3-opus-20240229",
-        "claude-3-sonnet-20240229",
-        "claude-3-haiku-20240307",
+        # Claude 4.5 series (2025)
+        "claude-opus-4-5",
+        "claude-sonnet-4-5",
+        "claude-haiku-4-5",
+        # Claude 4.x series
+        "claude-opus-4-1-20250805",
         "claude-sonnet-4-20250514",
-        "claude-haiku-4-5-20251001",
-        "claude-opus-4-5-20251101",
+        # Claude 3.7 series
+        "claude-3-7-sonnet-20250219",
+        # Claude 3.5 series (legacy)
+        "claude-3-5-haiku-20241022",
+        "claude-3-5-sonnet-20241022",
     ],
     "google": [
-        "gemini-1.5-pro",
-        "gemini-1.5-flash",
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite",
-        "gemini-2.5-pro-preview-05-06",
-        "gemini-2.5-flash-preview-05-20",
+        # Gemini 3 series (preview)
         "gemini-3-pro-preview",
         "gemini-3-flash-preview",
+        # Gemini 2.5 series
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        # Gemini 2.0 series
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
     ],
     "xai": [
-        "grok-beta",
-        "grok-2",
-        "grok-2-mini",
-        "grok-3",
-        "grok-3-mini",
+        # Grok 4.1 series
+        "grok-4-1-fast",
+        "grok-4-1-fast-reasoning",
+        "grok-4-1-fast-non-reasoning",
+        # Grok 4 series
+        "grok-4",
+        "grok-4-0709",
+        "grok-4-fast-reasoning",
+        "grok-4-fast-non-reasoning",
     ],
-    "ollama": [],
-    "openrouter": [],
-    "vllm": [],
 }
 
 
 def validate_model(provider: str, model: str) -> bool:
-    """Validate that a model is supported by the provider.
+    """Check if model name is valid for the given provider.
 
-    For ollama, openrouter, and vllm, any model is accepted.
-    For other providers, checks against VALID_MODELS.
+    For ollama, openrouter, vllm - any model is accepted.
     """
     provider_lower = provider.lower()
 
@@ -60,10 +77,6 @@ def validate_model(provider: str, model: str) -> bool:
         return True
 
     if provider_lower not in VALID_MODELS:
-        return False
-
-    valid = VALID_MODELS[provider_lower]
-    if not valid:
         return True
 
-    return model in valid
+    return model in VALID_MODELS[provider_lower]

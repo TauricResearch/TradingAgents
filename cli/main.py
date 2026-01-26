@@ -484,6 +484,28 @@ def get_user_selections():
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
+    # Step 7: Provider-specific thinking configuration
+    thinking_level = None
+    reasoning_effort = None
+
+    provider_lower = selected_llm_provider.lower()
+    if provider_lower == "google":
+        console.print(
+            create_question_box(
+                "Step 7: Thinking Mode",
+                "Configure Gemini thinking mode"
+            )
+        )
+        thinking_level = ask_gemini_thinking_config()
+    elif provider_lower == "openai":
+        console.print(
+            create_question_box(
+                "Step 7: Reasoning Effort",
+                "Configure OpenAI reasoning effort level"
+            )
+        )
+        reasoning_effort = ask_openai_reasoning_effort()
+
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
@@ -493,6 +515,8 @@ def get_user_selections():
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
+        "google_thinking_level": thinking_level,
+        "openai_reasoning_effort": reasoning_effort,
     }
 
 
@@ -717,23 +741,45 @@ def update_research_team_status(status):
         message_buffer.update_agent_status(agent, status)
 
 def extract_content_string(content):
-    """Extract string content from various message formats."""
+    """Extract string content from various message formats.
+    Returns None if no meaningful text content is found.
+    """
+    import ast
+
+    def is_empty(val):
+        """Check if value is empty using Python's truthiness."""
+        if val is None or val == '':
+            return True
+        if isinstance(val, str):
+            s = val.strip()
+            if not s:
+                return True
+            try:
+                return not bool(ast.literal_eval(s))
+            except (ValueError, SyntaxError):
+                return False  # Can't parse = real text
+        return not bool(val)
+
+    if is_empty(content):
+        return None
+
     if isinstance(content, str):
-        return content
-    elif isinstance(content, list):
-        # Handle Anthropic's list format
-        text_parts = []
-        for item in content:
-            if isinstance(item, dict):
-                if item.get('type') == 'text':
-                    text_parts.append(item.get('text', ''))
-                elif item.get('type') == 'tool_use':
-                    text_parts.append(f"[Tool: {item.get('name', 'unknown')}]")
-            else:
-                text_parts.append(str(item))
-        return ' '.join(text_parts)
-    else:
-        return str(content)
+        return content.strip()
+
+    if isinstance(content, dict):
+        text = content.get('text', '')
+        return text.strip() if not is_empty(text) else None
+
+    if isinstance(content, list):
+        text_parts = [
+            item.get('text', '').strip() if isinstance(item, dict) and item.get('type') == 'text'
+            else (item.strip() if isinstance(item, str) else '')
+            for item in content
+        ]
+        result = ' '.join(t for t in text_parts if t and not is_empty(t))
+        return result if result else None
+
+    return str(content).strip() if not is_empty(content) else None
 
 def run_analysis():
     # First get all user selections
@@ -747,6 +793,9 @@ def run_analysis():
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
+    # Provider-specific thinking configuration
+    config["google_thinking_level"] = selections.get("google_thinking_level")
+    config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
 
     # Initialize the graph
     graph = TradingAgentsGraph(
@@ -853,18 +902,23 @@ def run_analysis():
                 last_message = chunk["messages"][-1]
 
                 # Extract message content and type
+                content = None
+                msg_type = "Reasoning"
+
                 if hasattr(last_message, "content"):
-                    content = extract_content_string(last_message.content)  # Use the helper function
-                    msg_type = "Reasoning"
-                else:
-                    content = str(last_message)
-                    msg_type = "System"
+                    content = extract_content_string(last_message.content)
+                elif last_message is not None:
+                    raw = str(last_message).strip()
+                    if raw and raw != '{}':
+                        content = raw
+                        msg_type = "System"
 
-                # Add message to buffer
-                message_buffer.add_message(msg_type, content)                
+                # Only add message to buffer if there's actual content
+                if content:
+                    message_buffer.add_message(msg_type, content)
 
-                # If it's a tool call, add it to tool calls
-                if hasattr(last_message, "tool_calls"):
+                # Handle tool calls separately
+                if hasattr(last_message, "tool_calls") and last_message.tool_calls:
                     for tool_call in last_message.tool_calls:
                         # Handle both dictionary and object tool calls
                         if isinstance(tool_call, dict):
@@ -928,51 +982,30 @@ def run_analysis():
 
                     # Update Bull Researcher status and report
                     if "bull_history" in debate_state and debate_state["bull_history"]:
-                        # Keep all research team members in progress
                         update_research_team_status("in_progress")
-                        # Extract latest bull response
-                        bull_responses = debate_state["bull_history"].split("\n")
-                        latest_bull = bull_responses[-1] if bull_responses else ""
-                        if latest_bull:
-                            message_buffer.add_message("Reasoning", latest_bull)
-                            # Update research report with bull's latest analysis
-                            message_buffer.update_report_section(
-                                "investment_plan",
-                                f"### Bull Researcher Analysis\n{latest_bull}",
-                            )
+                        message_buffer.update_report_section(
+                            "investment_plan",
+                            f"### Bull Researcher Analysis\n{debate_state['bull_history']}",
+                        )
 
                     # Update Bear Researcher status and report
                     if "bear_history" in debate_state and debate_state["bear_history"]:
-                        # Keep all research team members in progress
                         update_research_team_status("in_progress")
-                        # Extract latest bear response
-                        bear_responses = debate_state["bear_history"].split("\n")
-                        latest_bear = bear_responses[-1] if bear_responses else ""
-                        if latest_bear:
-                            message_buffer.add_message("Reasoning", latest_bear)
-                            # Update research report with bear's latest analysis
-                            message_buffer.update_report_section(
-                                "investment_plan",
-                                f"{message_buffer.report_sections['investment_plan']}\n\n### Bear Researcher Analysis\n{latest_bear}",
-                            )
+                        message_buffer.update_report_section(
+                            "investment_plan",
+                            f"### Bear Researcher Analysis\n{debate_state['bear_history']}",
+                        )
 
                     # Update Research Manager status and final decision
                     if (
                         "judge_decision" in debate_state
                         and debate_state["judge_decision"]
                     ):
-                        # Keep all research team members in progress until final decision
                         update_research_team_status("in_progress")
-                        message_buffer.add_message(
-                            "Reasoning",
-                            f"Research Manager: {debate_state['judge_decision']}",
-                        )
-                        # Update research report with final decision
                         message_buffer.update_report_section(
                             "investment_plan",
-                            f"{message_buffer.report_sections['investment_plan']}\n\n### Research Manager Decision\n{debate_state['judge_decision']}",
+                            f"### Research Manager Decision\n{debate_state['judge_decision']}",
                         )
-                        # Mark all research team members as completed
                         update_research_team_status("completed")
                         # Set first risk analyst to in_progress
                         message_buffer.update_agent_status(
