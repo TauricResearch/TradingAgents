@@ -152,14 +152,14 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
         ],
         "openrouter": [
-            ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
-            ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
-            ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
+            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
         ],
         "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("llama3.2 local", "llama3.2"),
-        ]
+            ("Qwen3:latest (8B, local)", "qwen3:latest"),
+            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
+            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
+        ],
     }
 
     choice = questionary.select(
@@ -220,15 +220,16 @@ def select_deep_thinking_agent(provider) -> str:
             ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
         ],
         "openrouter": [
-            ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
-            ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
+            ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
+            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
         ],
         "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("qwen3", "qwen3"),
-        ]
+            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
+            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
+            ("Qwen3:latest (8B, local)", "qwen3:latest"),
+        ],
     }
-    
+
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
