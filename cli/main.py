@@ -58,9 +58,9 @@ class MessageBuffer:
             # Trading Team
             "Trader": "pending",
             # Risk Management Team
-            "Risky Analyst": "pending",
+            "Aggressive Analyst": "pending",
             "Neutral Analyst": "pending",
-            "Safe Analyst": "pending",
+            "Conservative Analyst": "pending",
             # Portfolio Management Team
             "Portfolio Manager": "pending",
         }
@@ -227,7 +227,7 @@ def update_display(layout, spinner_text=None):
         ],
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
-        "Risk Management": ["Risky Analyst", "Neutral Analyst", "Safe Analyst"],
+        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
         "Portfolio Management": ["Portfolio Manager"],
     }
 
@@ -675,10 +675,10 @@ def display_complete_report(final_state):
         risk_state = final_state["risk_debate_state"]
 
         # Aggressive (Risky) Analyst Analysis
-        if risk_state.get("risky_history"):
+        if risk_state.get("aggressive_history"):
             risk_reports.append(
                 Panel(
-                    Markdown(risk_state["risky_history"]),
+                    Markdown(risk_state["aggressive_history"]),
                     title="Aggressive Analyst",
                     border_style="blue",
                     padding=(1, 2),
@@ -686,10 +686,10 @@ def display_complete_report(final_state):
             )
 
         # Conservative (Safe) Analyst Analysis
-        if risk_state.get("safe_history"):
+        if risk_state.get("conservative_history"):
             risk_reports.append(
                 Panel(
-                    Markdown(risk_state["safe_history"]),
+                    Markdown(risk_state["conservative_history"]),
                     title="Conservative Analyst",
                     border_style="blue",
                     padding=(1, 2),
@@ -1009,7 +1009,7 @@ def run_analysis():
                         update_research_team_status("completed")
                         # Set first risk analyst to in_progress
                         message_buffer.update_agent_status(
-                            "Risky Analyst", "in_progress"
+                            "Aggressive Analyst", "in_progress"
                         )
 
                 # Trading Team
@@ -1021,46 +1021,46 @@ def run_analysis():
                         "trader_investment_plan", chunk["trader_investment_plan"]
                     )
                     # Set first risk analyst to in_progress
-                    message_buffer.update_agent_status("Risky Analyst", "in_progress")
+                    message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
 
                 # Risk Management Team - Handle Risk Debate State
                 if "risk_debate_state" in chunk and chunk["risk_debate_state"]:
                     risk_state = chunk["risk_debate_state"]
 
-                    # Update Risky Analyst status and report
+                    # Update Aggressive Analyst status and report
                     if (
-                        "current_risky_response" in risk_state
-                        and risk_state["current_risky_response"]
+                        "current_aggressive_response" in risk_state
+                        and risk_state["current_aggressive_response"]
                     ):
                         message_buffer.update_agent_status(
-                            "Risky Analyst", "in_progress"
+                            "Aggressive Analyst", "in_progress"
                         )
                         message_buffer.add_message(
                             "Reasoning",
-                            f"Risky Analyst: {risk_state['current_risky_response']}",
+                            f"Aggressive Analyst: {risk_state['current_aggressive_response']}",
                         )
-                        # Update risk report with risky analyst's latest analysis only
+                        # Update risk report with aggressive analyst's latest analysis only
                         message_buffer.update_report_section(
                             "final_trade_decision",
-                            f"### Risky Analyst Analysis\n{risk_state['current_risky_response']}",
+                            f"### Aggressive Analyst Analysis\n{risk_state['current_aggressive_response']}",
                         )
 
-                    # Update Safe Analyst status and report
+                    # Update Conservative Analyst status and report
                     if (
-                        "current_safe_response" in risk_state
-                        and risk_state["current_safe_response"]
+                        "current_conservative_response" in risk_state
+                        and risk_state["current_conservative_response"]
                     ):
                         message_buffer.update_agent_status(
-                            "Safe Analyst", "in_progress"
+                            "Conservative Analyst", "in_progress"
                         )
                         message_buffer.add_message(
                             "Reasoning",
-                            f"Safe Analyst: {risk_state['current_safe_response']}",
+                            f"Conservative Analyst: {risk_state['current_conservative_response']}",
                         )
-                        # Update risk report with safe analyst's latest analysis only
+                        # Update risk report with conservative analyst's latest analysis only
                         message_buffer.update_report_section(
                             "final_trade_decision",
-                            f"### Safe Analyst Analysis\n{risk_state['current_safe_response']}",
+                            f"### Conservative Analyst Analysis\n{risk_state['current_conservative_response']}",
                         )
 
                     # Update Neutral Analyst status and report
@@ -1096,8 +1096,8 @@ def run_analysis():
                             f"### Portfolio Manager Decision\n{risk_state['judge_decision']}",
                         )
                         # Mark risk analysts as completed
-                        message_buffer.update_agent_status("Risky Analyst", "completed")
-                        message_buffer.update_agent_status("Safe Analyst", "completed")
+                        message_buffer.update_agent_status("Aggressive Analyst", "completed")
+                        message_buffer.update_agent_status("Conservative Analyst", "completed")
                         message_buffer.update_agent_status(
                             "Neutral Analyst", "completed"
                         )

@@ -234,8 +234,8 @@ class TradingAgentsGraph:
             },
             "trader_investment_decision": final_state["trader_investment_plan"],
             "risk_debate_state": {
-                "risky_history": final_state["risk_debate_state"]["risky_history"],
-                "safe_history": final_state["risk_debate_state"]["safe_history"],
+                "aggressive_history": final_state["risk_debate_state"]["aggressive_history"],
+                "conservative_history": final_state["risk_debate_state"]["conservative_history"],
                 "neutral_history": final_state["risk_debate_state"]["neutral_history"],
                 "history": final_state["risk_debate_state"]["history"],
                 "judge_decision": final_state["risk_debate_state"]["judge_decision"],
