@@ -28,50 +28,132 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, Eye, RefreshCw, TrendingUp, FileText, Download } from "lucide-react";
+import {
+  Trash2,
+  Eye,
+  RefreshCw,
+  TrendingUp,
+  FileText,
+  Download,
+} from "lucide-react";
 import {
   getReportsByMarketType,
   deleteReport,
   getReportCountByMarketType,
   type SavedReport,
 } from "@/lib/reports-db";
-import { getCloudReports, deleteCloudReport, saveCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
+import {
+  getCloudReports,
+  deleteCloudReport,
+  saveCloudReport,
+  isCloudSyncEnabled,
+} from "@/lib/user-api";
 // import { LoginPrompt } from "@/components/auth/login-button";
 import { PendingTaskRecovery } from "@/components/PendingTaskRecovery";
 
 // Analyst definitions for download
 const ANALYSTS = [
-  { key: "market", label: "市場分析師", reportKey: "market_report", description: "技術分析與市場趨勢評估" },
-  { key: "social", label: "社群媒體分析師", reportKey: "sentiment_report", description: "社群情緒與市場氛圍分析" },
-  { key: "news", label: "新聞分析師", reportKey: "news_report", description: "新聞事件與影響分析" },
-  { key: "fundamentals", label: "基本面分析師", reportKey: "fundamentals_report", description: "財務數據與基本面分析" },
-  { key: "bull", label: "看漲研究員", reportKey: "investment_debate_state.bull_history", description: "看漲觀點與投資論據" },
-  { key: "bear", label: "看跌研究員", reportKey: "investment_debate_state.bear_history", description: "看跌觀點與風險警告" },
-  { key: "research_manager", label: "研究經理", reportKey: "investment_debate_state.judge_decision", description: "研究團隊綜合決策" },
-  { key: "trader", label: "交易員", reportKey: "trader_investment_plan", description: "交易執行計劃與策略" },
-  { key: "risky", label: "激進分析師", reportKey: "risk_debate_state.risky_history", description: "高風險高回報策略分析" },
-  { key: "safe", label: "保守分析師", reportKey: "risk_debate_state.safe_history", description: "穩健保守策略分析" },
-  { key: "neutral", label: "中立分析師", reportKey: "risk_debate_state.neutral_history", description: "中立平衡策略分析" },
-  { key: "risk_manager", label: "風險經理", reportKey: "risk_debate_state.judge_decision", description: "風險管理綜合決策" },
+  {
+    key: "market",
+    label: "市場分析師",
+    reportKey: "market_report",
+    description: "技術分析與市場趨勢評估",
+  },
+  {
+    key: "social",
+    label: "社群媒體分析師",
+    reportKey: "sentiment_report",
+    description: "社群情緒與市場氛圍分析",
+  },
+  {
+    key: "news",
+    label: "新聞分析師",
+    reportKey: "news_report",
+    description: "新聞事件與影響分析",
+  },
+  {
+    key: "fundamentals",
+    label: "基本面分析師",
+    reportKey: "fundamentals_report",
+    description: "財務數據與基本面分析",
+  },
+  {
+    key: "bull",
+    label: "看漲研究員",
+    reportKey: "investment_debate_state.bull_history",
+    description: "看漲觀點與投資論據",
+  },
+  {
+    key: "bear",
+    label: "看跌研究員",
+    reportKey: "investment_debate_state.bear_history",
+    description: "看跌觀點與風險警告",
+  },
+  {
+    key: "research_manager",
+    label: "研究經理",
+    reportKey: "investment_debate_state.judge_decision",
+    description: "研究團隊綜合決策",
+  },
+  {
+    key: "trader",
+    label: "交易員",
+    reportKey: "trader_investment_plan",
+    description: "交易執行計劃與策略",
+  },
+  {
+    key: "risky",
+    label: "激進分析師",
+    reportKey: "risk_debate_state.risky_history",
+    description: "高風險高回報策略分析",
+  },
+  {
+    key: "safe",
+    label: "保守分析師",
+    reportKey: "risk_debate_state.safe_history",
+    description: "穩健保守策略分析",
+  },
+  {
+    key: "neutral",
+    label: "中立分析師",
+    reportKey: "risk_debate_state.neutral_history",
+    description: "中立平衡策略分析",
+  },
+  {
+    key: "risk_manager",
+    label: "風險經理",
+    reportKey: "risk_debate_state.judge_decision",
+    description: "風險管理綜合決策",
+  },
 ];
 
 // Market type labels - dynamic function to support translations
-const getMarketLabels = (t: ReturnType<typeof useLanguage>['t']) => ({
+const getMarketLabels = (t: ReturnType<typeof useLanguage>["t"]) => ({
   us: { label: `🇺🇸 ${t.form.usMarket}`, description: t.form.tickerDescUS },
-  twse: { label: `🇹🇼 ${t.form.twseMarket}`, description: t.form.tickerDescTWSE },
-  tpex: { label: `🇹🇼 ${t.form.tpexMarket}`, description: t.form.tickerDescTPEX },
+  twse: {
+    label: `🇹🇼 ${t.form.twseMarket}`,
+    description: t.form.tickerDescTWSE,
+  },
+  tpex: {
+    label: `🇹🇼 ${t.form.tpexMarket}`,
+    description: t.form.tickerDescTPEX,
+  },
 });
 
 // Helper function to extract decision from Risk Manager's final decision
-const extractDecisionFromReport = (report: SavedReport): { action: string; color: string } => {
-  
+const extractDecisionFromReport = (
+  report: SavedReport,
+): { action: string; color: string } => {
   // DEBUG: Log the actual data structure to diagnose issues
   console.log("📊 DEBUG extractDecisionFromReport for:", report.ticker);
   console.log("  - result type:", typeof report.result);
   console.log("  - result.reports exists:", !!report.result?.reports);
-  console.log("  - trader_investment_plan exists:", !!report.result?.reports?.trader_investment_plan);
+  console.log(
+    "  - trader_investment_plan exists:",
+    !!report.result?.reports?.trader_investment_plan,
+  );
   console.log("  - decision.action exists:", !!report.result?.decision?.action);
-  
+
   if (report.result?.reports?.trader_investment_plan) {
     const traderText = report.result.reports.trader_investment_plan;
     console.log("  - trader_investment_plan type:", typeof traderText);
@@ -85,73 +167,92 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
     console.log("  - trader_investment_plan is NULL or undefined");
   }
   // Helper function to find "最終交易提案" or "Final Trading Proposal"
-  const findFinalProposal = (text: string): { action: string; color: string } | null => {
-    if (!text || typeof text !== 'string') return null;
-    
+  const findFinalProposal = (
+    text: string,
+  ): { action: string; color: string } | null => {
+    if (!text || typeof text !== "string") return null;
+
     // === CHINESE PATTERN ===
     // Match "最終交易提案：持有" - handle markdown ** bold markers
     // Pattern handles: 最終交易提案：持有, 最終交易提案：**持有**, **最終交易提案：持有**
     // Use global flag to find ALL matches, then take the LAST one (final decision)
-    const zhRegex = /\*{0,2}最終交易提案[：:]\s*\*{0,2}(買入|賣出|持有)\*{0,2}/g;
+    const zhRegex =
+      /\*{0,2}最終交易提案[：:]\s*\*{0,2}(買入|賣出|持有)\*{0,2}/g;
     const zhMatches = [...text.matchAll(zhRegex)];
-    
+
     if (zhMatches.length > 0) {
       // Take the LAST match (the final decision at the end of the report)
       const lastMatch = zhMatches[zhMatches.length - 1];
       const decision = lastMatch[1];
-      console.log(`  ✅ Matched ZH pattern: "${lastMatch[0]}" -> decision: "${decision}"`);
-      if (decision === "買入") return { action: "買入", color: "text-green-600" };
+      console.log(
+        `  ✅ Matched ZH pattern: "${lastMatch[0]}" -> decision: "${decision}"`,
+      );
+      if (decision === "買入")
+        return { action: "買入", color: "text-green-600" };
       if (decision === "賣出") return { action: "賣出", color: "text-red-600" };
-      if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
+      if (decision === "持有")
+        return { action: "持有", color: "text-yellow-600" };
     }
-    
+
     // === ENGLISH PATTERN ===
     // Match "Final Trading Proposal: BUY/SELL/HOLD" - handle markdown ** bold markers
     // Pattern handles: Final Trading Proposal: Buy, **Final Trading Proposal**: Hold, etc.
-    const enRegex = /\*{0,2}Final Trading Proposal\*{0,2}[：:]\s*\*{0,2}(BUY|SELL|HOLD|Buy|Sell|Hold)\*{0,2}/gi;
+    const enRegex =
+      /\*{0,2}Final Trading Proposal\*{0,2}[：:]\s*\*{0,2}(BUY|SELL|HOLD|Buy|Sell|Hold)\*{0,2}/gi;
     const enMatches = [...text.matchAll(enRegex)];
-    
+
     if (enMatches.length > 0) {
       const lastMatch = enMatches[enMatches.length - 1];
       const decision = lastMatch[1].toUpperCase();
-      console.log(`  ✅ Matched EN pattern: "${lastMatch[0]}" -> decision: "${decision}"`);
+      console.log(
+        `  ✅ Matched EN pattern: "${lastMatch[0]}" -> decision: "${decision}"`,
+      );
       if (decision === "BUY") return { action: "BUY", color: "text-green-600" };
       if (decision === "SELL") return { action: "SELL", color: "text-red-600" };
-      if (decision === "HOLD") return { action: "HOLD", color: "text-yellow-600" };
+      if (decision === "HOLD")
+        return { action: "HOLD", color: "text-yellow-600" };
     }
-    
+
     return null;
   };
-  
+
   // Helper function to find other decision patterns
-  const findOtherDecision = (text: string): { action: string; color: string } | null => {
-    if (!text || typeof text !== 'string') return null;
-    
+  const findOtherDecision = (
+    text: string,
+  ): { action: string; color: string } | null => {
+    if (!text || typeof text !== "string") return null;
+
     const lowerText = text.toLowerCase();
-    
+
     // Look for "最終決策" or "最終建議"
-    const finalDecisionMatch = text.match(/最終(?:決策|建議)[：:]\s*(買入|賣出|持有)/);
+    const finalDecisionMatch = text.match(
+      /最終(?:決策|建議)[：:]\s*(買入|賣出|持有)/,
+    );
     if (finalDecisionMatch) {
       const decision = finalDecisionMatch[1];
-      if (decision === "買入") return { action: "買入", color: "text-green-600" };
+      if (decision === "買入")
+        return { action: "買入", color: "text-green-600" };
       if (decision === "賣出") return { action: "賣出", color: "text-red-600" };
-      if (decision === "持有") return { action: "持有", color: "text-yellow-600" };
+      if (decision === "持有")
+        return { action: "持有", color: "text-yellow-600" };
     }
-    
+
     // English patterns
     if (lowerText.match(/(?:final|recommendation|decision)[:\s]*(buy|long)/i)) {
       return { action: "買入", color: "text-green-600" };
     }
-    if (lowerText.match(/(?:final|recommendation|decision)[:\s]*(sell|short)/i)) {
+    if (
+      lowerText.match(/(?:final|recommendation|decision)[:\s]*(sell|short)/i)
+    ) {
       return { action: "賣出", color: "text-red-600" };
     }
     if (lowerText.match(/(?:final|recommendation|decision)[:\s]*(hold)/i)) {
       return { action: "持有", color: "text-yellow-600" };
     }
-    
+
     return null;
   };
-  
+
   // ====== PRIORITY 1: Trader's "最終交易提案" - HIGHEST PRIORITY ======
   const traderReport = report.result.reports?.trader_investment_plan;
   if (traderReport) {
@@ -161,33 +262,35 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
       return decision;
     }
   }
-  
+
   // ====== PRIORITY 2: Check final_trade_decision ======
   const finalTradeDecision = report.result.reports?.final_trade_decision;
   if (finalTradeDecision) {
-    const decision = findFinalProposal(finalTradeDecision) || findOtherDecision(finalTradeDecision);
+    const decision =
+      findFinalProposal(finalTradeDecision) ||
+      findOtherDecision(finalTradeDecision);
     if (decision) return decision;
   }
-  
+
   // ====== PRIORITY 3: Check risk_debate_state judge decision ======
   const riskJudge = report.result.reports?.risk_debate_state?.judge_decision;
   if (riskJudge) {
     const decision = findOtherDecision(riskJudge);
     if (decision) return decision;
   }
-  
+
   // ====== PRIORITY 4: Fall back to decision.action field ======
   if (report.result.decision?.action) {
     const action = report.result.decision.action;
     const actionLower = action.toLowerCase();
-    const color = actionLower.includes("buy") 
-      ? "text-green-600" 
-      : actionLower.includes("sell") 
-        ? "text-red-600" 
+    const color = actionLower.includes("buy")
+      ? "text-green-600"
+      : actionLower.includes("sell")
+        ? "text-red-600"
         : "text-yellow-600";
     return { action, color };
   }
-  
+
   // ====== PRIORITY 5: Search in other report fields ======
   const allReports = report.result.reports;
   if (allReports) {
@@ -196,14 +299,14 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
       allReports.sentiment_report,
       allReports.news_report,
       allReports.fundamentals_report,
-    ].filter(t => t && typeof t === 'string');
-    
+    ].filter((t) => t && typeof t === "string");
+
     for (const text of reportTexts) {
       const decision = findFinalProposal(text);
       if (decision) return decision;
     }
   }
-  
+
   return { action: "N/A", color: "text-gray-500" };
 };
 
@@ -213,33 +316,33 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
  */
 const detectReportLanguage = (reports: any): "en" | "zh-TW" => {
   const traderPlan = reports?.trader_investment_plan;
-  if (!traderPlan || typeof traderPlan !== 'string') {
+  if (!traderPlan || typeof traderPlan !== "string") {
     // If no trader plan, check other reports for Chinese characters
     const allText = JSON.stringify(reports || {});
     const chineseRegex = /[\u4e00-\u9fa5]/;
-    return chineseRegex.test(allText) ? 'zh-TW' : 'en';
+    return chineseRegex.test(allText) ? "zh-TW" : "en";
   }
-  
+
   // Check for Chinese decision keywords
-  const chineseKeywords = ['買入', '賣出', '持有', '最終交易提案'];
+  const chineseKeywords = ["買入", "賣出", "持有", "最終交易提案"];
   for (const keyword of chineseKeywords) {
     if (traderPlan.includes(keyword)) {
-      return 'zh-TW';
+      return "zh-TW";
     }
   }
-  
+
   // Check for English decision keywords
-  const englishKeywords = ['buy', 'sell', 'hold', 'Final Trading Proposal'];
+  const englishKeywords = ["buy", "sell", "hold", "Final Trading Proposal"];
   const lowerPlan = traderPlan.toLowerCase();
   for (const keyword of englishKeywords) {
     if (lowerPlan.includes(keyword.toLowerCase())) {
-      return 'en';
+      return "en";
     }
   }
-  
+
   // Fallback: check for Chinese characters in the content
   const chineseRegex = /[\u4e00-\u9fa5]/;
-  return chineseRegex.test(traderPlan) ? 'zh-TW' : 'en';
+  return chineseRegex.test(traderPlan) ? "zh-TW" : "en";
 };
 
 export default function HistoryPage() {
@@ -247,7 +350,7 @@ export default function HistoryPage() {
   const { setAnalysisResult, setTaskId, setMarketType } = useAnalysisContext();
   const { isAuthenticated } = useAuth();
   const { t, locale } = useLanguage();
-  
+
   // Dynamic market labels based on language
   const MARKET_LABELS = getMarketLabels(t);
 
@@ -260,10 +363,10 @@ export default function HistoryPage() {
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<SavedReport | null>(
-    null
+    null,
   );
   const [deleting, setDeleting] = useState(false);
-  
+
   // Auto-sync tracking ref
   const hasAutoSyncedRef = useRef(false);
 
@@ -272,21 +375,25 @@ export default function HistoryPage() {
     loadReports();
   }, [activeTab, isAuthenticated, locale]);
 
-  // Load counts on mount or auth change
+  // Load counts on mount, auth change, or language change
   useEffect(() => {
     loadCounts();
-  }, [isAuthenticated]);
-  
+  }, [isAuthenticated, locale]);
+
   // Auto-sync local reports to cloud when page loads (if authenticated)
   useEffect(() => {
     const autoSync = async () => {
       // Only sync once per session, and only if authenticated
-      if (hasAutoSyncedRef.current || !isAuthenticated || !isCloudSyncEnabled()) {
+      if (
+        hasAutoSyncedRef.current ||
+        !isAuthenticated ||
+        !isCloudSyncEnabled()
+      ) {
         return;
       }
-      
+
       hasAutoSyncedRef.current = true;
-      
+
       try {
         // Get all local reports
         const [usLocal, twseLocal, tpexLocal] = await Promise.all([
@@ -295,27 +402,29 @@ export default function HistoryPage() {
           getReportsByMarketType("tpex"),
         ]);
         const allLocal = [...usLocal, ...twseLocal, ...tpexLocal];
-        
+
         if (allLocal.length === 0) return;
-        
+
         // Get cloud reports to check for duplicates
         const cloudReports = await getCloudReports();
         const cloudKeys = new Set(
-          cloudReports.map(r => `${r.ticker}_${r.analysis_date}`)
+          cloudReports.map((r) => `${r.ticker}_${r.analysis_date}`),
         );
-        
+
         // Find local-only reports to upload
         const toUpload = allLocal.filter(
-          r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`)
+          (r) => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`),
         );
-        
+
         if (toUpload.length === 0) {
           console.log("☁️ Auto-sync: All reports already in cloud");
           return;
         }
-        
-        console.log(`☁️ Auto-sync: Uploading ${toUpload.length} local reports to cloud...`);
-        
+
+        console.log(
+          `☁️ Auto-sync: Uploading ${toUpload.length} local reports to cloud...`,
+        );
+
         // Upload each report silently
         let success = 0;
         for (const report of toUpload) {
@@ -331,7 +440,7 @@ export default function HistoryPage() {
             // Silently continue on error
           }
         }
-        
+
         if (success > 0) {
           console.log(`☁️ Auto-sync: Successfully uploaded ${success} reports`);
           // Reload to show updated data
@@ -342,7 +451,7 @@ export default function HistoryPage() {
         console.error("☁️ Auto-sync failed:", error);
       }
     };
-    
+
     autoSync();
   }, [isAuthenticated]);
 
@@ -351,16 +460,16 @@ export default function HistoryPage() {
     try {
       // Always load local IndexedDB reports first
       const localData = await getReportsByMarketType(activeTab);
-      
+
       // If authenticated, also load from cloud and merge
       if (isAuthenticated && isCloudSyncEnabled()) {
         const cloudReports = await getCloudReports();
-        
+
         // Convert cloud reports to SavedReport format and filter by market type
         const cloudFiltered = cloudReports
-          .filter(r => r.market_type === activeTab)
-          .map(r => ({
-            id: parseInt(r.id.replace(/-/g, '').slice(0, 8), 16), // Convert UUID to number
+          .filter((r) => r.market_type === activeTab)
+          .map((r) => ({
+            id: parseInt(r.id.replace(/-/g, "").slice(0, 8), 16), // Convert UUID to number
             cloudId: r.id, // Keep cloud ID for deletion
             ticker: r.ticker,
             market_type: r.market_type as "us" | "twse" | "tpex",
@@ -369,29 +478,30 @@ export default function HistoryPage() {
             result: r.result,
             language: r.language, // Include language from cloud
           })) as (SavedReport & { cloudId?: string })[];
-        
+
         if (cloudFiltered.length > 0) {
           // Merge: prefer cloud data, but include local-only reports
           // Create a Set of cloud report keys (ticker + date) for deduplication
           const cloudKeys = new Set(
-            cloudFiltered.map(r => `${r.ticker}_${r.analysis_date}`)
+            cloudFiltered.map((r) => `${r.ticker}_${r.analysis_date}`),
           );
-          
+
           // Find local reports that don't exist in cloud
           const localOnly = localData.filter(
-            r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`)
+            (r) => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`),
           );
-          
+
           // Combine: cloud reports + local-only reports
           const merged = [...cloudFiltered, ...localOnly];
-          
+
           // Sort by saved_at descending
-          merged.sort((a, b) => 
-            new Date(b.saved_at).getTime() - new Date(a.saved_at).getTime()
+          merged.sort(
+            (a, b) =>
+              new Date(b.saved_at).getTime() - new Date(a.saved_at).getTime(),
           );
-          
+
           // Filter by current language
-          const languageFiltered = merged.filter(report => {
+          const languageFiltered = merged.filter((report) => {
             // Use stored language if available
             if (report.language) {
               return report.language === locale;
@@ -399,16 +509,16 @@ export default function HistoryPage() {
             // Fallback: detect from content for old reports without language field
             return detectReportLanguage(report.result?.reports) === locale;
           });
-          
+
           setReports(languageFiltered);
           setIsCloudData(true);
           return;
         }
       }
-      
+
       // If no cloud data or not authenticated, use local only
       // Filter by current language
-      const languageFiltered = localData.filter(report => {
+      const languageFiltered = localData.filter((report) => {
         if (report.language) {
           return report.language === locale;
         }
@@ -420,7 +530,7 @@ export default function HistoryPage() {
       console.error("Failed to load reports:", error);
       // Fall back to local on error
       const data = await getReportsByMarketType(activeTab);
-      const languageFiltered = data.filter(report => {
+      const languageFiltered = data.filter((report) => {
         if (report.language) {
           return report.language === locale;
         }
@@ -435,8 +545,15 @@ export default function HistoryPage() {
 
   const loadCounts = async () => {
     try {
-      // Always get local counts first
-      const localCounts = await getReportCountByMarketType();
+      // Helper to filter reports by language
+      const filterByLanguage = (reports: SavedReport[]) => {
+        return reports.filter(report => {
+          if (report.language) {
+            return report.language === locale;
+          }
+          return detectReportLanguage(report.result?.reports) === locale;
+        });
+      };
       
       if (isAuthenticated && isCloudSyncEnabled()) {
         const cloudReports = await getCloudReports();
@@ -454,25 +571,39 @@ export default function HistoryPage() {
             cloudReports.map(r => `${r.ticker}_${r.analysis_date}_${r.market_type}`)
           );
           
-          // Count local-only reports (not in cloud)
-          const usLocalOnly = usLocal.filter(
+          // Convert cloud reports to SavedReport format for language filtering
+          const cloudAsSaved = cloudReports.map(r => ({
+            id: 0,
+            ticker: r.ticker,
+            market_type: r.market_type as "us" | "twse" | "tpex",
+            analysis_date: r.analysis_date,
+            saved_at: new Date(r.created_at),
+            result: r.result,
+            language: r.language,
+          })) as SavedReport[];
+          
+          // Filter cloud reports by language
+          const cloudFiltered = filterByLanguage(cloudAsSaved);
+          
+          // Count local-only reports (not in cloud) and filter by language
+          const usLocalOnly = filterByLanguage(usLocal.filter(
             r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}_us`)
-          ).length;
-          const twseLocalOnly = twseLocal.filter(
+          )).length;
+          const twseLocalOnly = filterByLanguage(twseLocal.filter(
             r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}_twse`)
-          ).length;
-          const tpexLocalOnly = tpexLocal.filter(
+          )).length;
+          const tpexLocalOnly = filterByLanguage(tpexLocal.filter(
             r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}_tpex`)
-          ).length;
+          )).length;
           
-          // Cloud counts
-          const usCoud = cloudReports.filter(r => r.market_type === "us").length;
-          const twseCloud = cloudReports.filter(r => r.market_type === "twse").length;
-          const tpexCloud = cloudReports.filter(r => r.market_type === "tpex").length;
+          // Cloud counts (already filtered by language)
+          const usCloud = cloudFiltered.filter(r => r.market_type === "us").length;
+          const twseCloud = cloudFiltered.filter(r => r.market_type === "twse").length;
+          const tpexCloud = cloudFiltered.filter(r => r.market_type === "tpex").length;
           
-          // Merged counts: cloud + local-only
+          // Merged counts: cloud + local-only (both filtered by language)
           setCounts({
-            us: usCoud + usLocalOnly,
+            us: usCloud + usLocalOnly,
             twse: twseCloud + twseLocalOnly,
             tpex: tpexCloud + tpexLocalOnly,
           });
@@ -480,7 +611,18 @@ export default function HistoryPage() {
         }
       }
       
-      setCounts(localCounts);
+      // If no cloud data or not authenticated, use local only with language filter
+      const [usLocal, twseLocal, tpexLocal] = await Promise.all([
+        getReportsByMarketType("us"),
+        getReportsByMarketType("twse"),
+        getReportsByMarketType("tpex"),
+      ]);
+      
+      setCounts({
+        us: filterByLanguage(usLocal).length,
+        twse: filterByLanguage(twseLocal).length,
+        tpex: filterByLanguage(tpexLocal).length,
+      });
     } catch (error) {
       console.error("Failed to load counts:", error);
     }
@@ -506,21 +648,24 @@ export default function HistoryPage() {
     setDeleting(true);
     try {
       const cloudId = (reportToDelete as any).cloudId;
-      
+
       // IMPORTANT: Delete from BOTH cloud AND local to prevent re-sync issues
       // 1. If cloud ID exists, delete from cloud
       if (cloudId) {
         console.log("🗑️ Deleting from cloud:", cloudId);
         await deleteCloudReport(cloudId);
       }
-      
+
       // 2. Always try to delete from local IndexedDB as well
       // Find matching local report by ticker + analysis_date
       try {
-        const localReports = await getReportsByMarketType(reportToDelete.market_type);
+        const localReports = await getReportsByMarketType(
+          reportToDelete.market_type,
+        );
         const matchingLocal = localReports.find(
-          r => r.ticker === reportToDelete.ticker && 
-               r.analysis_date === reportToDelete.analysis_date
+          (r) =>
+            r.ticker === reportToDelete.ticker &&
+            r.analysis_date === reportToDelete.analysis_date,
         );
         if (matchingLocal && matchingLocal.id) {
           console.log("🗑️ Deleting from local IndexedDB:", matchingLocal.id);
@@ -529,7 +674,7 @@ export default function HistoryPage() {
       } catch (localError) {
         console.warn("Could not delete local copy:", localError);
       }
-      
+
       // Refresh reports and counts
       await loadReports();
       await loadCounts();
@@ -544,67 +689,68 @@ export default function HistoryPage() {
 
   // Download PDF handler
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
-  
+
   const handleDownloadPdf = async (report: SavedReport) => {
     setDownloadingId(report.id ?? null);
     try {
       // Get all available analyst keys
       const getNestedValue = (obj: any, path: string) => {
-        return path.split('.').reduce((current, key) => current?.[key], obj);
+        return path.split(".").reduce((current, key) => current?.[key], obj);
       };
-      
-      const availableAnalystKeys = ANALYSTS
-        .filter(analyst => {
-          const reportContent = getNestedValue(report.result.reports, analyst.reportKey);
-          return reportContent && reportContent.trim().length > 0;
-        })
-        .map(a => a.key);
-      
+
+      const availableAnalystKeys = ANALYSTS.filter((analyst) => {
+        const reportContent = getNestedValue(
+          report.result.reports,
+          analyst.reportKey,
+        );
+        return reportContent && reportContent.trim().length > 0;
+      }).map((a) => a.key);
+
       if (availableAnalystKeys.length === 0) {
-        alert('此報告沒有可下載的分析師報告');
+        alert("此報告沒有可下載的分析師報告");
         return;
       }
-      
+
       // Detect report language based on trader's final decision keywords
       // This ensures PDF language matches the report content, not UI language
-      const detectReportLanguage = (reports: any): 'zh-TW' | 'en' => {
+      const detectReportLanguage = (reports: any): "zh-TW" | "en" => {
         const traderPlan = reports?.trader_investment_plan;
-        if (!traderPlan || typeof traderPlan !== 'string') {
-          return 'zh-TW'; // Default to Chinese
+        if (!traderPlan || typeof traderPlan !== "string") {
+          return "zh-TW"; // Default to Chinese
         }
-        
+
         // Chinese decision keywords: 買入, 賣出, 持有
-        const chineseKeywords = ['買入', '賣出', '持有'];
+        const chineseKeywords = ["買入", "賣出", "持有"];
         // English decision keywords: buy, sell, hold (case insensitive)
-        const englishKeywords = ['buy', 'sell', 'hold'];
-        
+        const englishKeywords = ["buy", "sell", "hold"];
+
         const lowerPlan = traderPlan.toLowerCase();
-        
+
         // Check for Chinese keywords first
         for (const keyword of chineseKeywords) {
           if (traderPlan.includes(keyword)) {
-            return 'zh-TW';
+            return "zh-TW";
           }
         }
-        
+
         // Check for English keywords
         for (const keyword of englishKeywords) {
           if (lowerPlan.includes(keyword)) {
-            return 'en';
+            return "en";
           }
         }
-        
+
         // Fallback: check for any Chinese characters
         const chineseRegex = /[\u4e00-\u9fa5]/;
         if (chineseRegex.test(traderPlan)) {
-          return 'zh-TW';
+          return "zh-TW";
         }
-        
-        return 'en';
+
+        return "en";
       };
-      
+
       const reportLanguage = detectReportLanguage(report.result.reports);
-      
+
       // Build request body
       const requestBody = {
         ticker: report.ticker,
@@ -613,13 +759,13 @@ export default function HistoryPage() {
         reports: report.result.reports,
         price_data: report.result.price_data,
         price_stats: report.result.price_stats,
-        language: reportLanguage,  // Use detected language based on trader decision
+        language: reportLanguage, // Use detected language based on trader decision
       };
-      
-      const response = await fetch('/api/download/reports', {
-        method: 'POST',
+
+      const response = await fetch("/api/download/reports", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
       });
@@ -631,9 +777,9 @@ export default function HistoryPage() {
 
       // Get the blob
       const blob = await response.blob();
-      
+
       // Get filename from header
-      const contentDisposition = response.headers.get('Content-Disposition');
+      const contentDisposition = response.headers.get("Content-Disposition");
       let filename = `${report.ticker}_Combined_Report_${report.analysis_date}.pdf`;
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename=(.+)/);
@@ -644,18 +790,18 @@ export default function HistoryPage() {
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
-      
+
       // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      console.error('Download error:', error);
-      alert(error.message || '下載失敗，請稍後再試');
+      console.error("Download error:", error);
+      alert(error.message || "下載失敗，請稍後再試");
     } finally {
       setDownloadingId(null);
     }
@@ -672,7 +818,10 @@ export default function HistoryPage() {
               {t.history.title}
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              {t.history.noHistory.replace("尚無分析紀錄", "瀏覽已儲存的分析報告")}
+              {t.history.noHistory.replace(
+                "尚無分析紀錄",
+                "瀏覽已儲存的分析報告",
+              )}
             </p>
           </div>
 
@@ -685,156 +834,162 @@ export default function HistoryPage() {
             onValueChange={(v) => setActiveTab(v as typeof activeTab)}
             className="w-full animate-slide-up animate-delay-200"
           >
-            <TabsList className="grid w-full grid-cols-3 h-auto gap-2">
-              {(Object.keys(MARKET_LABELS) as Array<keyof typeof MARKET_LABELS>).map(
-                (key) => (
-                  <TabsTrigger
-                    key={key}
-                    value={key}
-                    className="py-3 text-base transition-all duration-300 hover:scale-105"
-                  >
-                    <span className="mr-2">{MARKET_LABELS[key].label}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-white/20 text-xs">
-                      {counts[key]}
-                    </span>
-                  </TabsTrigger>
-                )
-              )}
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto gap-2">
+              {(
+                Object.keys(MARKET_LABELS) as Array<keyof typeof MARKET_LABELS>
+              ).map((key) => (
+                <TabsTrigger
+                  key={key}
+                  value={key}
+                  className="py-2 sm:py-3 text-sm sm:text-base transition-all duration-300 hover:scale-105"
+                >
+                  <span className="mr-1 sm:mr-2">{MARKET_LABELS[key].label}</span>
+                  <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-white/20 text-xs">
+                    {counts[key]}
+                  </span>
+                </TabsTrigger>
+              ))}
             </TabsList>
 
-            {(Object.keys(MARKET_LABELS) as Array<keyof typeof MARKET_LABELS>).map(
-              (marketType) => (
-                <TabsContent key={marketType} value={marketType} className="mt-6">
-                  <div className="space-y-4">
-                    {/* Refresh button */}
-                    <div className="flex justify-end">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={loadReports}
-                        disabled={loading}
-                        className="gap-2"
-                      >
-                        <RefreshCw
-                          className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-                        />
-                        {t.history.refresh}
-                      </Button>
-                    </div>
-
-                    {/* Report List */}
-                    {loading ? (
-                      <div className="text-center py-12">
-                        <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                        <p className="text-gray-500 mt-4">{t.history.loading}</p>
-                      </div>
-                    ) : reports.length === 0 ? (
-                      <Card className="animate-fade-in">
-                        <CardContent className="py-12 text-center">
-                          <TrendingUp className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-                          <p className="text-gray-500 dark:text-gray-400">
-                            {t.history.noReportsFor} {MARKET_LABELS[marketType].label}
-                          </p>
-                          <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
-                            {t.history.afterAnalysisSave}
-                          </p>
-                          <Button
-                            variant="outline"
-                            className="mt-4"
-                            onClick={() => router.push("/analysis")}
-                          >
-                            {t.home.startAnalysis}
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {reports.map((report) => (
-                          <Card
-                            key={report.id}
-                            className="hover-lift animate-scale-up transition-all duration-300"
-                          >
-                            <CardHeader>
-                              <CardTitle className="flex items-center justify-between">
-                                <span className="text-xl font-bold gradient-text-primary">
-                                  {report.ticker}
-                                </span>
-                                <span className="text-xs px-2 py-1 rounded-full bg-gradient-to-r from-blue-100 to-pink-100 dark:from-blue-900 dark:to-purple-900 text-gray-600 dark:text-gray-300">
-                                  {MARKET_LABELS[report.market_type].label}
-                                </span>
-                              </CardTitle>
-                              <CardDescription>
-                                {t.history.analysisDate}：{report.analysis_date}
-                              </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                {t.history.savedAt}：
-                                {format(
-                                  new Date(report.saved_at),
-                                  "yyyy/MM/dd HH:mm",
-                                  { locale: zhTW }
-                                )}
-                              </p>
-                              {(() => {
-                                const decision = extractDecisionFromReport(report);
-                                return (
-                                  <p className="text-sm mt-2">
-                                    <span className="font-medium">{t.history.decision}：</span>
-                                    <span className={`ml-1 font-semibold ${decision.color}`}>
-                                      {decision.action}
-                                    </span>
-                                  </p>
-                                );
-                              })()}
-                            </CardContent>
-                            <CardFooter className="flex gap-2 flex-wrap">
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="flex-1 gap-1"
-                                onClick={() => handleViewReport(report)}
-                              >
-                                <Eye className="h-4 w-4" />
-                                {t.history.view}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1"
-                                onClick={() => handleDownloadPdf(report)}
-                                disabled={downloadingId === report.id}
-                              >
-                                {downloadingId === report.id ? (
-                                  <>
-                                    <Download className="h-4 w-4 animate-bounce" />
-                                    {t.history.downloading}
-                                  </>
-                                ) : (
-                                  <>
-                                    <FileText className="h-4 w-4" />
-                                    PDF
-                                  </>
-                                )}
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                className="gap-1"
-                                onClick={() => handleDeleteClick(report)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                {t.history.delete}
-                              </Button>
-                            </CardFooter>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
+            {(
+              Object.keys(MARKET_LABELS) as Array<keyof typeof MARKET_LABELS>
+            ).map((marketType) => (
+              <TabsContent key={marketType} value={marketType} className="mt-6">
+                <div className="space-y-4">
+                  {/* Refresh button */}
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={loadReports}
+                      disabled={loading}
+                      className="gap-2"
+                    >
+                      <RefreshCw
+                        className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                      />
+                      {t.history.refresh}
+                    </Button>
                   </div>
-                </TabsContent>
-              )
-            )}
+
+                  {/* Report List */}
+                  {loading ? (
+                    <div className="text-center py-12">
+                      <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+                      <p className="text-gray-500 mt-4">{t.history.loading}</p>
+                    </div>
+                  ) : reports.length === 0 ? (
+                    <Card className="animate-fade-in">
+                      <CardContent className="py-12 text-center">
+                        <TrendingUp className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+                        <p className="text-gray-500 dark:text-gray-400">
+                          {t.history.noReportsFor}{" "}
+                          {MARKET_LABELS[marketType].label}
+                        </p>
+                        <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                          {t.history.afterAnalysisSave}
+                        </p>
+                        <Button
+                          variant="outline"
+                          className="mt-4"
+                          onClick={() => router.push("/analysis")}
+                        >
+                          {t.home.startAnalysis}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {reports.map((report) => (
+                        <Card
+                          key={report.id}
+                          className="hover-lift animate-scale-up transition-all duration-300"
+                        >
+                          <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                              <span className="text-xl font-bold gradient-text-primary">
+                                {report.ticker}
+                              </span>
+                              <span className="text-xs px-2 py-1 rounded-full bg-gradient-to-r from-blue-100 to-pink-100 dark:from-blue-900 dark:to-purple-900 text-gray-600 dark:text-gray-300">
+                                {MARKET_LABELS[report.market_type].label}
+                              </span>
+                            </CardTitle>
+                            <CardDescription>
+                              {t.history.analysisDate}：{report.analysis_date}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {t.history.savedAt}：
+                              {format(
+                                new Date(report.saved_at),
+                                "yyyy/MM/dd HH:mm",
+                                { locale: zhTW },
+                              )}
+                            </p>
+                            {(() => {
+                              const decision =
+                                extractDecisionFromReport(report);
+                              return (
+                                <p className="text-sm mt-2">
+                                  <span className="font-medium">
+                                    {t.history.decision}：
+                                  </span>
+                                  <span
+                                    className={`ml-1 font-semibold ${decision.color}`}
+                                  >
+                                    {decision.action}
+                                  </span>
+                                </p>
+                              );
+                            })()}
+                          </CardContent>
+                          <CardFooter className="flex gap-2 flex-wrap">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="flex-1 gap-1"
+                              onClick={() => handleViewReport(report)}
+                            >
+                              <Eye className="h-4 w-4" />
+                              {t.history.view}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => handleDownloadPdf(report)}
+                              disabled={downloadingId === report.id}
+                            >
+                              {downloadingId === report.id ? (
+                                <>
+                                  <Download className="h-4 w-4 animate-bounce" />
+                                  {t.history.downloading}
+                                </>
+                              ) : (
+                                <>
+                                  <FileText className="h-4 w-4" />
+                                  PDF
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => handleDeleteClick(report)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {t.history.delete}
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            ))}
           </Tabs>
         </div>
       </div>
@@ -845,7 +1000,8 @@ export default function HistoryPage() {
           <DialogHeader>
             <DialogTitle>{t.history.confirmDeleteTitle}</DialogTitle>
             <DialogDescription>
-              {t.history.confirmDeleteDesc} <strong>{reportToDelete?.ticker}</strong> {t.history.on}{" "}
+              {t.history.confirmDeleteDesc}{" "}
+              <strong>{reportToDelete?.ticker}</strong> {t.history.on}{" "}
               <strong>{reportToDelete?.analysis_date}</strong>?
               <br />
               <span className="text-red-500">{t.history.cannotUndo}</span>
