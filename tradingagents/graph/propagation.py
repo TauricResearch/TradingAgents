@@ -29,8 +29,8 @@ class Propagator:
             "risk_debate_state": RiskDebateState(
                 {
                     "history": "",
-                    "current_risky_response": "",
-                    "current_safe_response": "",
+                    "current_aggressive_response": "",
+                    "current_conservative_response": "",
                     "current_neutral_response": "",
                     "count": 0,
                 }
