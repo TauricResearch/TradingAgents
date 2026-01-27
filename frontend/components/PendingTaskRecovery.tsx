@@ -13,12 +13,14 @@ import { getPendingTask, clearPendingTask, isPendingTaskValid, type PendingTask 
 import { saveReport, checkDuplicateReport } from "@/lib/reports-db";
 import { saveCloudReport, isCloudSyncEnabled } from "@/lib/user-api";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function PendingTaskRecovery() {
   const [pendingTask, setPendingTask] = useState<PendingTask | null>(null);
   const [status, setStatus] = useState<'checking' | 'found' | 'recovering' | 'success' | 'failed' | 'not_found'>('checking');
   const [message, setMessage] = useState<string>("");
   const { isAuthenticated } = useAuth();
+  const { locale } = useLanguage();
 
   useEffect(() => {
     // Check for pending tasks on mount
@@ -72,7 +74,8 @@ export function PendingTaskRecovery() {
           pendingTask.marketType,
           taskStatus.result.analysis_date,
           taskStatus.result,
-          pendingTask.taskId
+          pendingTask.taskId,
+          locale as "en" | "zh-TW"  // Pass current language for filtering
         );
         
         // If authenticated, also save to cloud
@@ -82,6 +85,7 @@ export function PendingTaskRecovery() {
             market_type: pendingTask.marketType,
             analysis_date: taskStatus.result.analysis_date,
             result: taskStatus.result,
+            language: locale as "en" | "zh-TW",
           });
         }
         
@@ -121,7 +125,7 @@ export function PendingTaskRecovery() {
         setStatus('failed');
       }
     }
-  }, [pendingTask, isAuthenticated]);
+  }, [pendingTask, isAuthenticated, locale]);
 
   const handleDismiss = () => {
     clearPendingTask();

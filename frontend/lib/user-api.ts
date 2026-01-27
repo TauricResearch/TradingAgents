@@ -15,6 +15,7 @@ interface CloudReport {
   analysis_date: string;
   result: any;
   created_at: string;
+  language?: "en" | "zh-TW"; // Language of the report
 }
 
 /**
@@ -102,6 +103,7 @@ export async function saveCloudReport(report: {
   market_type: "us" | "twse" | "tpex";
   analysis_date: string;
   result: any;
+  language?: "en" | "zh-TW";
 }): Promise<string | null> {
   if (!isCloudSyncEnabled()) {
     console.warn("☁️ Cloud sync not enabled (no auth token)");

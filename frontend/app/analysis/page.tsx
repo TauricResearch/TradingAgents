@@ -21,7 +21,7 @@ export default function AnalysisPage() {
   const { setAnalysisResult, setTaskId, setMarketType, marketType } = useAnalysisContext();
   const { runAnalysis, loading, error, result, taskId } = useAnalysis();
   const { isAuthenticated } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   
   // Ref to track if we've already saved (to prevent duplicate saves)
   const hasSavedRef = useRef(false);
@@ -47,7 +47,8 @@ export default function AnalysisPage() {
         marketType,
         result.analysis_date,
         result,
-        taskId || undefined
+        taskId || undefined,
+        locale as "en" | "zh-TW"  // Pass current language for filtering
       );
       console.log("📁 Auto-saved report to local storage");
       
@@ -58,6 +59,7 @@ export default function AnalysisPage() {
           market_type: marketType,
           analysis_date: result.analysis_date,
           result: result,
+          language: locale as "en" | "zh-TW",
         });
         if (cloudId) {
           console.log("☁️ Auto-saved report to cloud");
@@ -68,7 +70,7 @@ export default function AnalysisPage() {
     } catch (error) {
       console.error("Auto-save failed:", error);
     }
-  }, [result, marketType, taskId, isAuthenticated]);
+  }, [result, marketType, taskId, isAuthenticated, locale]);
 
   // Auto-save when page unloads (closing tab, navigating away, etc.)
   useEffect(() => {

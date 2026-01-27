@@ -207,6 +207,41 @@ const extractDecisionFromReport = (report: SavedReport): { action: string; color
   return { action: "N/A", color: "text-gray-500" };
 };
 
+/**
+ * Detect report language from content (for backward compatibility with old reports)
+ * Checks trader_investment_plan for Chinese/English keywords
+ */
+const detectReportLanguage = (reports: any): "en" | "zh-TW" => {
+  const traderPlan = reports?.trader_investment_plan;
+  if (!traderPlan || typeof traderPlan !== 'string') {
+    // If no trader plan, check other reports for Chinese characters
+    const allText = JSON.stringify(reports || {});
+    const chineseRegex = /[\u4e00-\u9fa5]/;
+    return chineseRegex.test(allText) ? 'zh-TW' : 'en';
+  }
+  
+  // Check for Chinese decision keywords
+  const chineseKeywords = ['買入', '賣出', '持有', '最終交易提案'];
+  for (const keyword of chineseKeywords) {
+    if (traderPlan.includes(keyword)) {
+      return 'zh-TW';
+    }
+  }
+  
+  // Check for English decision keywords
+  const englishKeywords = ['buy', 'sell', 'hold', 'Final Trading Proposal'];
+  const lowerPlan = traderPlan.toLowerCase();
+  for (const keyword of englishKeywords) {
+    if (lowerPlan.includes(keyword.toLowerCase())) {
+      return 'en';
+    }
+  }
+  
+  // Fallback: check for Chinese characters in the content
+  const chineseRegex = /[\u4e00-\u9fa5]/;
+  return chineseRegex.test(traderPlan) ? 'zh-TW' : 'en';
+};
+
 export default function HistoryPage() {
   const router = useRouter();
   const { setAnalysisResult, setTaskId, setMarketType } = useAnalysisContext();
@@ -232,10 +267,10 @@ export default function HistoryPage() {
   // Auto-sync tracking ref
   const hasAutoSyncedRef = useRef(false);
 
-  // Load reports when tab changes or auth state changes
+  // Load reports when tab changes, auth state changes, or language changes
   useEffect(() => {
     loadReports();
-  }, [activeTab, isAuthenticated]);
+  }, [activeTab, isAuthenticated, locale]);
 
   // Load counts on mount or auth change
   useEffect(() => {
@@ -332,6 +367,7 @@ export default function HistoryPage() {
             analysis_date: r.analysis_date,
             saved_at: new Date(r.created_at),
             result: r.result,
+            language: r.language, // Include language from cloud
           })) as (SavedReport & { cloudId?: string })[];
         
         if (cloudFiltered.length > 0) {
@@ -354,20 +390,43 @@ export default function HistoryPage() {
             new Date(b.saved_at).getTime() - new Date(a.saved_at).getTime()
           );
           
-          setReports(merged);
+          // Filter by current language
+          const languageFiltered = merged.filter(report => {
+            // Use stored language if available
+            if (report.language) {
+              return report.language === locale;
+            }
+            // Fallback: detect from content for old reports without language field
+            return detectReportLanguage(report.result?.reports) === locale;
+          });
+          
+          setReports(languageFiltered);
           setIsCloudData(true);
           return;
         }
       }
       
       // If no cloud data or not authenticated, use local only
-      setReports(localData);
+      // Filter by current language
+      const languageFiltered = localData.filter(report => {
+        if (report.language) {
+          return report.language === locale;
+        }
+        return detectReportLanguage(report.result?.reports) === locale;
+      });
+      setReports(languageFiltered);
       setIsCloudData(false);
     } catch (error) {
       console.error("Failed to load reports:", error);
       // Fall back to local on error
       const data = await getReportsByMarketType(activeTab);
-      setReports(data);
+      const languageFiltered = data.filter(report => {
+        if (report.language) {
+          return report.language === locale;
+        }
+        return detectReportLanguage(report.result?.reports) === locale;
+      });
+      setReports(languageFiltered);
       setIsCloudData(false);
     } finally {
       setLoading(false);

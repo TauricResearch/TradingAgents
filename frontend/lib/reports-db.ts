@@ -15,6 +15,7 @@ export interface SavedReport {
   saved_at: Date; // Save timestamp
   task_id?: string; // Original task ID
   result: AnalysisResponse; // Full analysis result
+  language?: "en" | "zh-TW"; // Language of the report (for filtering)
 }
 
 // Database class extending Dexie
@@ -23,9 +24,13 @@ class ReportsDatabase extends Dexie {
 
   constructor() {
     super("TradingAgentsReports");
+    // Version 1: Original schema
     this.version(1).stores({
-      // Define indexes: ++id = auto-increment, others are indexed fields
       reports: "++id, ticker, market_type, analysis_date, saved_at",
+    });
+    // Version 2: Added language field for filtering by UI language
+    this.version(2).stores({
+      reports: "++id, ticker, market_type, analysis_date, saved_at, language",
     });
   }
 }
@@ -41,7 +46,8 @@ export async function saveReport(
   market_type: "us" | "twse" | "tpex",
   analysis_date: string,
   result: AnalysisResponse,
-  task_id?: string
+  task_id?: string,
+  language?: "en" | "zh-TW",
 ): Promise<number> {
   const report: SavedReport = {
     ticker,
@@ -50,6 +56,7 @@ export async function saveReport(
     saved_at: new Date(),
     task_id,
     result,
+    language,
   };
 
   return await db.reports.add(report);
@@ -59,7 +66,7 @@ export async function saveReport(
  * Get all reports by market type
  */
 export async function getReportsByMarketType(
-  market_type: "us" | "twse" | "tpex"
+  market_type: "us" | "twse" | "tpex",
 ): Promise<SavedReport[]> {
   return await db.reports
     .where("market_type")
@@ -79,7 +86,7 @@ export async function getAllReports(): Promise<SavedReport[]> {
  * Get a single report by ID
  */
 export async function getReportById(
-  id: number
+  id: number,
 ): Promise<SavedReport | undefined> {
   return await db.reports.get(id);
 }
@@ -120,7 +127,7 @@ export async function getReportCountByMarketType(): Promise<{
  */
 export async function checkDuplicateReport(
   ticker: string,
-  analysis_date: string
+  analysis_date: string,
 ): Promise<SavedReport | undefined> {
   return await db.reports
     .where("ticker")

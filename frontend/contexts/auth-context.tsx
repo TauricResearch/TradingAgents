@@ -219,7 +219,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             report.market_type,
             report.analysis_date,
             report.result,
-            (report as any).task_id
+            (report as any).task_id,
+            report.language  // Preserve language from cloud
           );
         }
         console.log(`Restored ${cloudReports.length} reports from cloud`);

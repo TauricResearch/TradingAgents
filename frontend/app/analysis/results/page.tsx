@@ -97,7 +97,8 @@ export default function AnalysisResultsPage() {
         marketType,
         analysisResult.analysis_date,
         analysisResult,
-        taskId || undefined
+        taskId || undefined,
+        locale as "en" | "zh-TW"  // Pass current language for filtering
       );
       
       // If authenticated, also save to cloud
@@ -107,6 +108,7 @@ export default function AnalysisResultsPage() {
           market_type: marketType,
           analysis_date: analysisResult.analysis_date,
           result: analysisResult,
+          language: locale as "en" | "zh-TW",
         });
         if (cloudId) {
           setSavedToCloud(true);
