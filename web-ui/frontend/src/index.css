@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    /* Swiss Clean Design System Colors */
+    --background: #FFFFFF;
+    --foreground: #0D0D0D;
+    --border: #E8E8E8;
+    --primary: #E42313;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --error: #EF4444;
+    --surface: #FAFAFA;
+    --muted-foreground: #7A7A7A;
+}
+
+@layer base {
+
+    html,
+    body {
+        height: 100%;
+    }
+
+    .font-primary {
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .font-secondary {
+        font-family: 'Inter', sans-serif;
+    }
+}

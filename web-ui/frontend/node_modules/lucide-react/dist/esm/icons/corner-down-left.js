@@ -1,0 +1,16 @@
+/**
+ * @license lucide-react v0.309.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+import createLucideIcon from '../createLucideIcon.js';
+
+const CornerDownLeft = createLucideIcon("CornerDownLeft", [
+  ["polyline", { points: "9 10 4 15 9 20", key: "r3jprv" }],
+  ["path", { d: "M20 4v7a4 4 0 0 1-4 4H4", key: "6o5b7l" }]
+]);
+
+export { CornerDownLeft as default };
+//# sourceMappingURL=corner-down-left.js.map

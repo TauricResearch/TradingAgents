@@ -1,0 +1,1 @@
+{"version":3,"file":"panel-bottom-inactive.js","sources":[],"sourcesContent":[],"names":[],"mappings":";;;;;;;"}

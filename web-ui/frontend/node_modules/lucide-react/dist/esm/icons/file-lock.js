@@ -1,0 +1,20 @@
+/**
+ * @license lucide-react v0.309.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+import createLucideIcon from '../createLucideIcon.js';
+
+const FileLock = createLucideIcon("FileLock", [
+  [
+    "path",
+    { d: "M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z", key: "1nnpy2" }
+  ],
+  ["rect", { width: "8", height: "6", x: "8", y: "12", rx: "1", key: "3yr8at" }],
+  ["path", { d: "M15 12v-2a3 3 0 1 0-6 0v2", key: "1nqnhw" }]
+]);
+
+export { FileLock as default };
+//# sourceMappingURL=file-lock.js.map
