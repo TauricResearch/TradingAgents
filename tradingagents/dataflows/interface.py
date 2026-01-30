@@ -4,6 +4,7 @@ from typing import Annotated
 from .y_finance import (
     get_YFin_data_online,
     get_stock_stats_indicators_window,
+    get_fundamentals as get_yfinance_fundamentals,
     get_balance_sheet as get_yfinance_balance_sheet,
     get_cashflow as get_yfinance_cashflow,
     get_income_statement as get_yfinance_income_statement,
@@ -78,6 +79,7 @@ VENDOR_METHODS = {
     # fundamental_data
     "get_fundamentals": {
         "alpha_vantage": get_alpha_vantage_fundamentals,
+        "yfinance": get_yfinance_fundamentals,
     },
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
