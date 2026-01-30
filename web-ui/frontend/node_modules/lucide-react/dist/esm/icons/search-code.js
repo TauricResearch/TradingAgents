@@ -1,0 +1,18 @@
+/**
+ * @license lucide-react v0.309.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+import createLucideIcon from '../createLucideIcon.js';
+
+const SearchCode = createLucideIcon("SearchCode", [
+  ["path", { d: "m9 9-2 2 2 2", key: "17gsfh" }],
+  ["path", { d: "m13 13 2-2-2-2", key: "186z8k" }],
+  ["circle", { cx: "11", cy: "11", r: "8", key: "4ej97u" }],
+  ["path", { d: "m21 21-4.3-4.3", key: "1qie3q" }]
+]);
+
+export { SearchCode as default };
+//# sourceMappingURL=search-code.js.map

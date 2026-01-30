@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Etc/GMT-7) {
+    {-9223372036854775808 25200 0 %z}
+}

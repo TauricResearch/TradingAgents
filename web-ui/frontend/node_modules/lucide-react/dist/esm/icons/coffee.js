@@ -1,0 +1,19 @@
+/**
+ * @license lucide-react v0.309.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+import createLucideIcon from '../createLucideIcon.js';
+
+const Coffee = createLucideIcon("Coffee", [
+  ["path", { d: "M17 8h1a4 4 0 1 1 0 8h-1", key: "jx4kbh" }],
+  ["path", { d: "M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z", key: "1bxrl0" }],
+  ["line", { x1: "6", x2: "6", y1: "2", y2: "4", key: "1cr9l3" }],
+  ["line", { x1: "10", x2: "10", y1: "2", y2: "4", key: "170wym" }],
+  ["line", { x1: "14", x2: "14", y1: "2", y2: "4", key: "1c5f70" }]
+]);
+
+export { Coffee as default };
+//# sourceMappingURL=coffee.js.map

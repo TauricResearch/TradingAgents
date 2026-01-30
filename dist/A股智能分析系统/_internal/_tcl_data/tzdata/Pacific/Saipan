@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Pacific/Guam)]} {
+    LoadTimeZoneFile Pacific/Guam
+}
+set TZData(:Pacific/Saipan) $TZData(:Pacific/Guam)

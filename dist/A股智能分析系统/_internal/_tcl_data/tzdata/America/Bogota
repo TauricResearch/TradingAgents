@@ -1,0 +1,9 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:America/Bogota) {
+    {-9223372036854775808 -17776 0 LMT}
+    {-2707671824 -17776 0 BMT}
+    {-1739041424 -18000 0 %z}
+    {704869200 -14400 1 %z}
+    {729057600 -18000 0 %z}
+}

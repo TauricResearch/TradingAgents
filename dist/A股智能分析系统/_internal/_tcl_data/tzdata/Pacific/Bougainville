@@ -1,0 +1,10 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Bougainville) {
+    {-9223372036854775808 37336 0 LMT}
+    {-2840178136 35312 0 PMMT}
+    {-2366790512 36000 0 %z}
+    {-868010400 32400 0 %z}
+    {-768906000 36000 0 %z}
+    {1419696000 39600 0 %z}
+}

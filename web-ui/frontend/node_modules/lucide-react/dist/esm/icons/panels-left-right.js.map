@@ -1,0 +1,1 @@
+{"version":3,"file":"panels-left-right.js","sources":[],"sourcesContent":[],"names":[],"mappings":";;;;;;;"}

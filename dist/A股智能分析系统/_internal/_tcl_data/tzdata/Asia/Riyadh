@@ -1,0 +1,6 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Asia/Riyadh) {
+    {-9223372036854775808 11212 0 LMT}
+    {-719636812 10800 0 %z}
+}

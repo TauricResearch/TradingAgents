@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Asia/Bangkok)]} {
+    LoadTimeZoneFile Asia/Bangkok
+}
+set TZData(:Indian/Christmas) $TZData(:Asia/Bangkok)

@@ -1,0 +1,8 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Asia/Jayapura) {
+    {-9223372036854775808 33768 0 LMT}
+    {-1172913768 32400 0 %z}
+    {-799491600 34200 0 %z}
+    {-189423000 32400 0 WIT}
+}

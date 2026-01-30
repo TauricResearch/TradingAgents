@@ -1,0 +1,23 @@
+/**
+ * @license lucide-react v0.309.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+import createLucideIcon from '../createLucideIcon.js';
+
+const FolderSymlink = createLucideIcon("FolderSymlink", [
+  [
+    "path",
+    {
+      d: "M2 9V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2",
+      key: "1or2t8"
+    }
+  ],
+  ["path", { d: "m8 16 3-3-3-3", key: "rlqrt1" }],
+  ["path", { d: "M2 16v-1a2 2 0 0 1 2-2h6", key: "pgw8ln" }]
+]);
+
+export { FolderSymlink as default };
+//# sourceMappingURL=folder-symlink.js.map

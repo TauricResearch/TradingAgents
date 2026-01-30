@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Asia/Taipei)]} {
+    LoadTimeZoneFile Asia/Taipei
+}
+set TZData(:ROC) $TZData(:Asia/Taipei)

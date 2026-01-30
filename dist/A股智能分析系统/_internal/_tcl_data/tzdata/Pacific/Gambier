@@ -1,0 +1,6 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Gambier) {
+    {-9223372036854775808 -32388 0 LMT}
+    {-1806678012 -32400 0 %z}
+}

@@ -1,0 +1,5 @@
+# created by ../tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Anchorage)]} {
+    LoadTimeZoneFile America/Anchorage
+}
+set TZData(:SystemV/YST9YDT) $TZData(:America/Anchorage)

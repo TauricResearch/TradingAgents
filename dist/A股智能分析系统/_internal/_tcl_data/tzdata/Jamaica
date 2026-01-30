@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Jamaica)]} {
+    LoadTimeZoneFile America/Jamaica
+}
+set TZData(:Jamaica) $TZData(:America/Jamaica)

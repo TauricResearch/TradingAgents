@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Europe/Berlin)]} {
+    LoadTimeZoneFile Europe/Berlin
+}
+set TZData(:Atlantic/Jan_Mayen) $TZData(:Europe/Berlin)

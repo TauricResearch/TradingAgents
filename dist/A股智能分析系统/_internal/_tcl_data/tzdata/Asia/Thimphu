@@ -1,0 +1,7 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Asia/Thimphu) {
+    {-9223372036854775808 21516 0 LMT}
+    {-706341516 19800 0 %z}
+    {560025000 21600 0 %z}
+}

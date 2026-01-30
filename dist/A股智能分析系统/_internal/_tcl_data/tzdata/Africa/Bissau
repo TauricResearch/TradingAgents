@@ -1,0 +1,7 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Africa/Bissau) {
+    {-9223372036854775808 -3740 0 LMT}
+    {-1830380400 -3600 0 %z}
+    {157770000 0 0 GMT}
+}

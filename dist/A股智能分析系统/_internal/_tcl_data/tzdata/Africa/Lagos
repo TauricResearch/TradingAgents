@@ -1,0 +1,9 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Africa/Lagos) {
+    {-9223372036854775808 815 0 LMT}
+    {-2035584815 0 0 GMT}
+    {-1940889600 815 0 LMT}
+    {-1767226415 1800 0 %z}
+    {-1588465800 3600 0 WAT}
+}

@@ -1,0 +1,6 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Africa/Maputo) {
+    {-9223372036854775808 7818 0 LMT}
+    {-1924999818 7200 0 CAT}
+}

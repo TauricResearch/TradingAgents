@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(Indian/Maldives)]} {
+    LoadTimeZoneFile Indian/Maldives
+}
+set TZData(:Indian/Kerguelen) $TZData(:Indian/Maldives)

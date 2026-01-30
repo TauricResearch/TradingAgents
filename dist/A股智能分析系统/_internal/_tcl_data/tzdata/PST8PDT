@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Los_Angeles)]} {
+    LoadTimeZoneFile America/Los_Angeles
+}
+set TZData(:PST8PDT) $TZData(:America/Los_Angeles)

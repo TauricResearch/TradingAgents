@@ -1,0 +1,23 @@
+/**
+ * @license lucide-react v0.309.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
+
+import createLucideIcon from '../createLucideIcon.js';
+
+const Keyboard = createLucideIcon("Keyboard", [
+  ["rect", { width: "20", height: "16", x: "2", y: "4", rx: "2", ry: "2", key: "15u882" }],
+  ["path", { d: "M6 8h.001", key: "1ej0i3" }],
+  ["path", { d: "M10 8h.001", key: "1x2st2" }],
+  ["path", { d: "M14 8h.001", key: "1vkmyp" }],
+  ["path", { d: "M18 8h.001", key: "kfsenl" }],
+  ["path", { d: "M8 12h.001", key: "1sjpby" }],
+  ["path", { d: "M12 12h.001", key: "al75ts" }],
+  ["path", { d: "M16 12h.001", key: "931bgk" }],
+  ["path", { d: "M7 16h10", key: "wp8him" }]
+]);
+
+export { Keyboard as default };
+//# sourceMappingURL=keyboard.js.map

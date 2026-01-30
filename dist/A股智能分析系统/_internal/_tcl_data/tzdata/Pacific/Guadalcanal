@@ -1,0 +1,6 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Guadalcanal) {
+    {-9223372036854775808 38388 0 LMT}
+    {-1806748788 39600 0 %z}
+}

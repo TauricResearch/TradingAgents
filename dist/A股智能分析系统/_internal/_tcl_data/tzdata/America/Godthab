@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Nuuk)]} {
+    LoadTimeZoneFile America/Nuuk
+}
+set TZData(:America/Godthab) $TZData(:America/Nuuk)

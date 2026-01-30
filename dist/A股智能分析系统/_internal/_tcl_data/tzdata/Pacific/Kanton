@@ -1,0 +1,8 @@
+# created by tools/tclZIC.tcl - do not edit
+
+set TZData(:Pacific/Kanton) {
+    {-9223372036854775808 0 0 -00}
+    {-1020470400 -43200 0 %z}
+    {307627200 -39600 0 %z}
+    {788871600 46800 0 %z}
+}

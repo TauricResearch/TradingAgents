@@ -1,0 +1,5 @@
+# created by tools/tclZIC.tcl - do not edit
+if {![info exists TZData(America/Argentina/Catamarca)]} {
+    LoadTimeZoneFile America/Argentina/Catamarca
+}
+set TZData(:America/Catamarca) $TZData(:America/Argentina/Catamarca)
