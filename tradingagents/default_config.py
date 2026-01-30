@@ -18,10 +18,14 @@ DEFAULT_CONFIG = {
     # "quick_think_llm": "qwen3:30b",
     # "deep_think_llm": "gpt-oss",
     # "quick_think_llm": "gpt-oss",
+    # "temperature": 0.1,
     "deep_think_llm": "glm-4.7-flash",
     "quick_think_llm": "glm-4.7-flash",
-    # "backend_url": "http://localhost:8080/v1",
-    "backend_url": "http://localhost:11434/v1",
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "backend_url": "http://localhost:8080/v1",
+    "backend_embedding_url": "http://localhost:8081/v1",
+    # "backend_url": "http://localhost:11434/v1",
     # Debate and discussion settings
     "max_debate_rounds": 5,
     "max_risk_discuss_rounds": 5,
@@ -50,3 +54,5 @@ DEFAULT_CONFIG = {
         "get_insider_transactions": "yfinance",
     },
 }
+
+# docker run --rm -it --gpus all   -v ~/.cache/llama.cpp:/root/.cache/llama.cpp   -p 8080:8080   ghcr.io/ggml-org/llama.cpp:server-cuda   -hf unsloth/GLM-4.7-Flash-GGUF:Q4_K_M   --port 8080   --host 0.0.0.0   -ngl 99   --jinja   --ctx-size 32768 --min-p 0.01 --embeddings --pooling cls --ubatch-size 8192
