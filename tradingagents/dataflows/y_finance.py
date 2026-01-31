@@ -220,11 +220,12 @@ def _get_stock_stats_bulk(
             raise Exception("Stockstats fail: Yahoo Finance data not fetched yet!")
     else:
         # Online data fetching with caching
-        today_date = pd.Timestamp.today()
+        # IMPORTANT: Use curr_date as end_date for backtesting accuracy
+        # This ensures we only use data available at the backtest date (point-in-time)
         curr_date_dt = pd.to_datetime(curr_date)
-        
-        end_date = today_date
-        start_date = today_date - pd.DateOffset(years=15)
+
+        end_date = curr_date_dt  # Use backtest date, NOT today's date
+        start_date = curr_date_dt - pd.DateOffset(years=15)
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
         
@@ -297,30 +298,80 @@ def get_stockstats_indicator(
     return str(indicator_value)
 
 
+def _filter_fundamentals_by_date(data, curr_date):
+    """
+    Filter fundamentals data to only include reports available on or before curr_date.
+    This ensures point-in-time accuracy for backtesting.
+
+    yfinance returns fundamentals with report dates as column headers.
+    Financial reports are typically published 30-45 days after quarter end.
+    We filter to only include columns (report dates) that are at least 45 days before curr_date.
+    """
+    import pandas as pd
+
+    if data.empty or curr_date is None:
+        return data
+
+    try:
+        curr_date_dt = pd.to_datetime(curr_date)
+        # Financial reports are typically published ~45 days after the report date
+        # So for a report dated 2024-03-31, it would be available around mid-May
+        publication_delay_days = 45
+
+        # Filter columns (report dates) to only include those available at curr_date
+        valid_columns = []
+        for col in data.columns:
+            try:
+                report_date = pd.to_datetime(col)
+                # Report would have been published ~45 days after report_date
+                estimated_publish_date = report_date + pd.Timedelta(days=publication_delay_days)
+                if estimated_publish_date <= curr_date_dt:
+                    valid_columns.append(col)
+            except:
+                # If column can't be parsed as date, keep it (might be a label column)
+                valid_columns.append(col)
+
+        if valid_columns:
+            return data[valid_columns]
+        else:
+            return data.iloc[:, :0]  # Return empty dataframe with same index
+    except Exception as e:
+        print(f"Warning: Could not filter fundamentals by date: {e}")
+        return data
+
+
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date for point-in-time filtering"] = None
 ):
-    """Get balance sheet data from yfinance."""
+    """Get balance sheet data from yfinance, filtered by curr_date for backtesting accuracy."""
     try:
         # Normalize symbol for yfinance (adds .NS suffix for NSE stocks)
         normalized_ticker = normalize_symbol(ticker, target="yfinance")
         ticker_obj = yf.Ticker(normalized_ticker)
-        
+
         if freq.lower() == "quarterly":
             data = ticker_obj.quarterly_balance_sheet
         else:
             data = ticker_obj.balance_sheet
-            
+
         if data.empty:
             return f"No balance sheet data found for symbol '{normalized_ticker}'"
+
+        # Filter by curr_date for point-in-time accuracy in backtesting
+        data = _filter_fundamentals_by_date(data, curr_date)
+
+        if data.empty:
+            return f"No balance sheet data available for {normalized_ticker} as of {curr_date}"
 
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
 
         # Add header information
         header = f"# Balance Sheet data for {normalized_ticker} ({freq})\n"
+        if curr_date:
+            header += f"# Point-in-time data as of: {curr_date}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
         return header + csv_string
@@ -332,9 +383,9 @@ def get_balance_sheet(
 def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date for point-in-time filtering"] = None
 ):
-    """Get cash flow data from yfinance."""
+    """Get cash flow data from yfinance, filtered by curr_date for backtesting accuracy."""
     try:
         # Normalize symbol for yfinance (adds .NS suffix for NSE stocks)
         normalized_ticker = normalize_symbol(ticker, target="yfinance")
@@ -348,11 +399,19 @@ def get_cashflow(
         if data.empty:
             return f"No cash flow data found for symbol '{normalized_ticker}'"
 
+        # Filter by curr_date for point-in-time accuracy in backtesting
+        data = _filter_fundamentals_by_date(data, curr_date)
+
+        if data.empty:
+            return f"No cash flow data available for {normalized_ticker} as of {curr_date}"
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
 
         # Add header information
         header = f"# Cash Flow data for {normalized_ticker} ({freq})\n"
+        if curr_date:
+            header += f"# Point-in-time data as of: {curr_date}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
         return header + csv_string
@@ -364,9 +423,9 @@ def get_cashflow(
 def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date for point-in-time filtering"] = None
 ):
-    """Get income statement data from yfinance."""
+    """Get income statement data from yfinance, filtered by curr_date for backtesting accuracy."""
     try:
         # Normalize symbol for yfinance (adds .NS suffix for NSE stocks)
         normalized_ticker = normalize_symbol(ticker, target="yfinance")
@@ -380,11 +439,19 @@ def get_income_statement(
         if data.empty:
             return f"No income statement data found for symbol '{normalized_ticker}'"
 
+        # Filter by curr_date for point-in-time accuracy in backtesting
+        data = _filter_fundamentals_by_date(data, curr_date)
+
+        if data.empty:
+            return f"No income statement data available for {normalized_ticker} as of {curr_date}"
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
 
         # Add header information
         header = f"# Income Statement data for {normalized_ticker} ({freq})\n"
+        if curr_date:
+            header += f"# Point-in-time data as of: {curr_date}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
         return header + csv_string

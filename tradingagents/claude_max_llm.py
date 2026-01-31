@@ -8,7 +8,9 @@ with Max subscription authentication instead of API keys.
 import os
 import subprocess
 import json
-from typing import Any, Dict, List, Optional, Iterator
+import re
+import copy
+from typing import Any, Dict, List, Optional, Iterator, Sequence, Union
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import (
@@ -16,9 +18,12 @@ from langchain_core.messages import (
     BaseMessage,
     HumanMessage,
     SystemMessage,
+    ToolMessage,
 )
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.callbacks import CallbackManagerForLLMRun
+from langchain_core.tools import BaseTool
+from langchain_core.runnables import Runnable
 
 
 class ClaudeMaxLLM(BaseChatModel):
@@ -33,6 +38,10 @@ class ClaudeMaxLLM(BaseChatModel):
     max_tokens: int = 4096
     temperature: float = 0.7
     claude_cli_path: str = "claude"
+    tools: List[Any] = []  # Bound tools
+
+    class Config:
+        arbitrary_types_allowed = True
 
     @property
     def _llm_type(self) -> str:
@@ -46,19 +55,94 @@ class ClaudeMaxLLM(BaseChatModel):
             "temperature": self.temperature,
         }
 
+    def bind_tools(
+        self,
+        tools: Sequence[Union[Dict[str, Any], BaseTool, Any]],
+        **kwargs: Any,
+    ) -> "ClaudeMaxLLM":
+        """Bind tools to the model for function calling.
+
+        Args:
+            tools: A list of tools to bind to the model.
+            **kwargs: Additional arguments (ignored for compatibility).
+
+        Returns:
+            A new ClaudeMaxLLM instance with tools bound.
+        """
+        # Create a copy with tools bound
+        new_instance = ClaudeMaxLLM(
+            model=self.model,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            claude_cli_path=self.claude_cli_path,
+            tools=list(tools),
+        )
+        return new_instance
+
+    def _format_tools_for_prompt(self) -> str:
+        """Format bound tools as a string for the prompt."""
+        if not self.tools:
+            return ""
+
+        tool_descriptions = []
+        for tool in self.tools:
+            if hasattr(tool, 'name') and hasattr(tool, 'description'):
+                # LangChain BaseTool
+                name = tool.name
+                desc = tool.description
+                args = ""
+                if hasattr(tool, 'args_schema') and tool.args_schema:
+                    schema = tool.args_schema.schema() if hasattr(tool.args_schema, 'schema') else {}
+                    if 'properties' in schema:
+                        args = ", ".join(f"{k}: {v.get('type', 'any')}" for k, v in schema['properties'].items())
+                tool_descriptions.append(f"- {name}({args}): {desc}")
+            elif isinstance(tool, dict):
+                # Dict format
+                name = tool.get('name', 'unknown')
+                desc = tool.get('description', '')
+                tool_descriptions.append(f"- {name}: {desc}")
+            else:
+                # Try to get function info
+                name = getattr(tool, '__name__', str(tool))
+                desc = getattr(tool, '__doc__', '') or ''
+                tool_descriptions.append(f"- {name}: {desc[:100]}")
+
+        return "\n\nAvailable tools:\n" + "\n".join(tool_descriptions) + "\n\nTo use a tool, respond with: TOOL_CALL: tool_name(arguments)\n"
+
     def _format_messages_for_prompt(self, messages: List[BaseMessage]) -> str:
         """Convert LangChain messages to a single prompt string."""
         formatted_parts = []
 
+        # Add tools description if tools are bound
+        tools_prompt = self._format_tools_for_prompt()
+        if tools_prompt:
+            formatted_parts.append(tools_prompt)
+
         for msg in messages:
-            if isinstance(msg, SystemMessage):
+            # Handle dict messages (LangChain sometimes passes these)
+            if isinstance(msg, dict):
+                role = msg.get("role", msg.get("type", "human"))
+                content = msg.get("content", str(msg))
+                if role in ("system",):
+                    formatted_parts.append(f"<system>\n{content}\n</system>\n")
+                elif role in ("human", "user"):
+                    formatted_parts.append(f"Human: {content}\n")
+                elif role in ("ai", "assistant"):
+                    formatted_parts.append(f"Assistant: {content}\n")
+                else:
+                    formatted_parts.append(f"{content}\n")
+            elif isinstance(msg, SystemMessage):
                 formatted_parts.append(f"<system>\n{msg.content}\n</system>\n")
             elif isinstance(msg, HumanMessage):
                 formatted_parts.append(f"Human: {msg.content}\n")
             elif isinstance(msg, AIMessage):
                 formatted_parts.append(f"Assistant: {msg.content}\n")
-            else:
+            elif isinstance(msg, ToolMessage):
+                formatted_parts.append(f"Tool Result ({msg.name}): {msg.content}\n")
+            elif hasattr(msg, 'content'):
                 formatted_parts.append(f"{msg.content}\n")
+            else:
+                formatted_parts.append(f"{str(msg)}\n")
 
         return "\n".join(formatted_parts)
 
@@ -68,12 +152,12 @@ class ClaudeMaxLLM(BaseChatModel):
         env = os.environ.copy()
         env.pop("ANTHROPIC_API_KEY", None)
 
-        # Build the command
+        # Build the command - use --prompt flag with stdin for long prompts
         cmd = [
             self.claude_cli_path,
             "--print",  # Non-interactive mode
             "--model", self.model,
-            prompt
+            "-p", prompt  # Use -p flag for prompt
         ]
 
         try:
@@ -86,7 +170,9 @@ class ClaudeMaxLLM(BaseChatModel):
             )
 
             if result.returncode != 0:
-                raise RuntimeError(f"Claude CLI error: {result.stderr}")
+                # Include both stdout and stderr for better debugging
+                error_info = result.stderr or result.stdout or "No output"
+                raise RuntimeError(f"Claude CLI error (code {result.returncode}): {error_info}")
 
             return result.stdout.strip()
 
@@ -120,7 +206,14 @@ class ClaudeMaxLLM(BaseChatModel):
 
         return ChatResult(generations=[generation])
 
-    def invoke(self, input: Any, **kwargs) -> AIMessage:
+    def invoke(
+        self,
+        input: Any,
+        config: Optional[Dict[str, Any]] = None,
+        *,
+        stop: Optional[List[str]] = None,
+        **kwargs: Any
+    ) -> AIMessage:
         """Invoke the model with the given input."""
         if isinstance(input, str):
             messages = [HumanMessage(content=input)]
@@ -129,11 +222,11 @@ class ClaudeMaxLLM(BaseChatModel):
         else:
             messages = [HumanMessage(content=str(input))]
 
-        result = self._generate(messages, **kwargs)
+        result = self._generate(messages, stop=stop, **kwargs)
         return result.generations[0].message
 
 
-def get_claude_max_llm(model: str = "claude-sonnet-4-5-20250514", **kwargs) -> ClaudeMaxLLM:
+def get_claude_max_llm(model: str = "sonnet", **kwargs) -> ClaudeMaxLLM:
     """
     Factory function to create a ClaudeMaxLLM instance.
 
@@ -151,7 +244,7 @@ def test_claude_max():
     """Test the Claude Max LLM wrapper."""
     print("Testing Claude Max LLM wrapper...")
 
-    llm = ClaudeMaxLLM(model="claude-sonnet-4-5-20250514")
+    llm = ClaudeMaxLLM(model="sonnet")
 
     # Test with a simple prompt
     response = llm.invoke("Say 'Hello, I am using Claude Max subscription!' in exactly those words.")

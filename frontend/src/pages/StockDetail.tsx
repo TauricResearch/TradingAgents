@@ -18,6 +18,7 @@ import {
   DataSourcesPanel
 } from '../components/pipeline';
 import { api } from '../services/api';
+import { useSettings } from '../contexts/SettingsContext';
 import type { FullPipelineData, AgentType } from '../types/pipeline';
 
 type TabType = 'overview' | 'pipeline' | 'debates' | 'data';
@@ -30,6 +31,7 @@ export default function StockDetail() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
   const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+  const { settings } = useSettings();
 
   // Analysis state
   const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
@@ -116,8 +118,14 @@ export default function StockDetail() {
     setAnalysisProgress('Starting analysis...');
 
     try {
-      // Trigger analysis
-      await api.runAnalysis(symbol, latestRecommendation.date);
+      // Trigger analysis with settings from context
+      await api.runAnalysis(symbol, latestRecommendation.date, {
+        deep_think_model: settings.deepThinkModel,
+        quick_think_model: settings.quickThinkModel,
+        provider: settings.provider,
+        api_key: settings.provider === 'anthropic_api' ? settings.anthropicApiKey : undefined,
+        max_debate_rounds: settings.maxDebateRounds
+      });
       setAnalysisStatus('running');
 
       // Poll for status

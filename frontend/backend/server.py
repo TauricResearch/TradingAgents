@@ -129,14 +129,33 @@ class SavePipelineDataRequest(BaseModel):
     data_sources: Optional[list] = None
 
 
+class AnalysisConfig(BaseModel):
+    deep_think_model: Optional[str] = "opus"
+    quick_think_model: Optional[str] = "sonnet"
+    provider: Optional[str] = "claude_subscription"  # claude_subscription or anthropic_api
+    api_key: Optional[str] = None
+    max_debate_rounds: Optional[int] = 1
+
+
 class RunAnalysisRequest(BaseModel):
     symbol: str
     date: Optional[str] = None  # Defaults to today if not provided
+    config: Optional[AnalysisConfig] = None
 
 
-def run_analysis_task(symbol: str, date: str):
+def run_analysis_task(symbol: str, date: str, analysis_config: dict = None):
     """Background task to run trading analysis for a stock."""
     global running_analyses
+
+    # Default config values
+    if analysis_config is None:
+        analysis_config = {}
+
+    deep_think_model = analysis_config.get("deep_think_model", "opus")
+    quick_think_model = analysis_config.get("quick_think_model", "sonnet")
+    provider = analysis_config.get("provider", "claude_subscription")
+    api_key = analysis_config.get("api_key")
+    max_debate_rounds = analysis_config.get("max_debate_rounds", 1)
 
     try:
         running_analyses[symbol] = {
@@ -151,15 +170,19 @@ def run_analysis_task(symbol: str, date: str):
 
         running_analyses[symbol]["progress"] = "Initializing analysis pipeline..."
 
-        # Create config
+        # Create config from user settings
         config = DEFAULT_CONFIG.copy()
         config["llm_provider"] = "anthropic"  # Use Claude for all LLM
-        config["deep_think_llm"] = "opus"  # Claude Opus (Claude Max CLI alias)
-        config["quick_think_llm"] = "sonnet"  # Claude Sonnet (Claude Max CLI alias)
-        config["max_debate_rounds"] = 1
+        config["deep_think_llm"] = deep_think_model
+        config["quick_think_llm"] = quick_think_model
+        config["max_debate_rounds"] = max_debate_rounds
+
+        # If using API provider and key is provided, set it in environment
+        if provider == "anthropic_api" and api_key:
+            os.environ["ANTHROPIC_API_KEY"] = api_key
 
         running_analyses[symbol]["status"] = "running"
-        running_analyses[symbol]["progress"] = "Running market analysis..."
+        running_analyses[symbol]["progress"] = f"Running market analysis (model: {deep_think_model})..."
 
         # Initialize and run
         ta = TradingAgentsGraph(debug=False, config=config)
@@ -368,8 +391,145 @@ async def save_pipeline_data(request: SavePipelineDataRequest):
 
 # ============== Analysis Endpoints ==============
 
+# Track bulk analysis state
+bulk_analysis_state = {
+    "status": "idle",  # idle, running, completed, error
+    "total": 0,
+    "completed": 0,
+    "failed": 0,
+    "current_symbol": None,
+    "started_at": None,
+    "completed_at": None,
+    "results": {}
+}
+
+# List of Nifty 50 stocks
+NIFTY_50_SYMBOLS = [
+    "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "HINDUNILVR", "ITC", "SBIN",
+    "BHARTIARTL", "KOTAKBANK", "LT", "AXISBANK", "ASIANPAINT", "MARUTI", "HCLTECH",
+    "SUNPHARMA", "TITAN", "BAJFINANCE", "WIPRO", "ULTRACEMCO", "NESTLEIND", "NTPC",
+    "POWERGRID", "M&M", "TATAMOTORS", "ONGC", "JSWSTEEL", "TATASTEEL", "ADANIENT",
+    "ADANIPORTS", "COALINDIA", "BAJAJFINSV", "TECHM", "HDFCLIFE", "SBILIFE", "GRASIM",
+    "DIVISLAB", "DRREDDY", "CIPLA", "BRITANNIA", "EICHERMOT", "APOLLOHOSP", "INDUSINDBK",
+    "HEROMOTOCO", "TATACONSUM", "BPCL", "UPL", "HINDALCO", "BAJAJ-AUTO", "LTIM"
+]
+
+
+class BulkAnalysisRequest(BaseModel):
+    deep_think_model: Optional[str] = "opus"
+    quick_think_model: Optional[str] = "sonnet"
+    provider: Optional[str] = "claude_subscription"
+    api_key: Optional[str] = None
+    max_debate_rounds: Optional[int] = 1
+
+
+@app.post("/analyze/all")
+async def run_bulk_analysis(request: Optional[BulkAnalysisRequest] = None, date: Optional[str] = None):
+    """Trigger analysis for all Nifty 50 stocks. Runs in background."""
+    global bulk_analysis_state
+
+    # Check if bulk analysis is already running
+    if bulk_analysis_state.get("status") == "running":
+        return {
+            "message": "Bulk analysis already running",
+            "status": bulk_analysis_state
+        }
+
+    # Use today's date if not provided
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+
+    # Build analysis config from request
+    analysis_config = {}
+    if request:
+        analysis_config = {
+            "deep_think_model": request.deep_think_model,
+            "quick_think_model": request.quick_think_model,
+            "provider": request.provider,
+            "api_key": request.api_key,
+            "max_debate_rounds": request.max_debate_rounds
+        }
+
+    # Start bulk analysis in background thread
+    def run_bulk():
+        global bulk_analysis_state
+        bulk_analysis_state = {
+            "status": "running",
+            "total": len(NIFTY_50_SYMBOLS),
+            "completed": 0,
+            "failed": 0,
+            "current_symbol": None,
+            "started_at": datetime.now().isoformat(),
+            "completed_at": None,
+            "results": {}
+        }
+
+        for symbol in NIFTY_50_SYMBOLS:
+            try:
+                bulk_analysis_state["current_symbol"] = symbol
+                run_analysis_task(symbol, date, analysis_config)
+
+                # Wait for completion
+                import time
+                while symbol in running_analyses and running_analyses[symbol].get("status") == "running":
+                    time.sleep(2)
+
+                if symbol in running_analyses:
+                    status = running_analyses[symbol].get("status", "unknown")
+                    bulk_analysis_state["results"][symbol] = status
+                    if status == "completed":
+                        bulk_analysis_state["completed"] += 1
+                    else:
+                        bulk_analysis_state["failed"] += 1
+                else:
+                    bulk_analysis_state["results"][symbol] = "unknown"
+                    bulk_analysis_state["failed"] += 1
+
+            except Exception as e:
+                bulk_analysis_state["results"][symbol] = f"error: {str(e)}"
+                bulk_analysis_state["failed"] += 1
+
+        bulk_analysis_state["status"] = "completed"
+        bulk_analysis_state["current_symbol"] = None
+        bulk_analysis_state["completed_at"] = datetime.now().isoformat()
+
+    thread = threading.Thread(target=run_bulk)
+    thread.start()
+
+    return {
+        "message": "Bulk analysis started for all Nifty 50 stocks",
+        "date": date,
+        "total_stocks": len(NIFTY_50_SYMBOLS),
+        "status": "started"
+    }
+
+
+@app.get("/analyze/all/status")
+async def get_bulk_analysis_status():
+    """Get the status of bulk analysis."""
+    return bulk_analysis_state
+
+
+@app.get("/analyze/running")
+async def get_running_analyses():
+    """Get all currently running analyses."""
+    running = {k: v for k, v in running_analyses.items() if v.get("status") == "running"}
+    return {
+        "running": running,
+        "count": len(running)
+    }
+
+
+class SingleAnalysisRequest(BaseModel):
+    deep_think_model: Optional[str] = "opus"
+    quick_think_model: Optional[str] = "sonnet"
+    provider: Optional[str] = "claude_subscription"
+    api_key: Optional[str] = None
+    max_debate_rounds: Optional[int] = 1
+
+
 @app.post("/analyze/{symbol}")
-async def run_analysis(symbol: str, background_tasks: BackgroundTasks, date: Optional[str] = None):
+async def run_analysis(symbol: str, background_tasks: BackgroundTasks, request: Optional[SingleAnalysisRequest] = None, date: Optional[str] = None):
     """Trigger analysis for a stock. Runs in background."""
     symbol = symbol.upper()
 
@@ -384,8 +544,19 @@ async def run_analysis(symbol: str, background_tasks: BackgroundTasks, date: Opt
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
 
+    # Build analysis config from request
+    analysis_config = {}
+    if request:
+        analysis_config = {
+            "deep_think_model": request.deep_think_model,
+            "quick_think_model": request.quick_think_model,
+            "provider": request.provider,
+            "api_key": request.api_key,
+            "max_debate_rounds": request.max_debate_rounds
+        }
+
     # Start analysis in background thread
-    thread = threading.Thread(target=run_analysis_task, args=(symbol, date))
+    thread = threading.Thread(target=run_analysis_task, args=(symbol, date, analysis_config))
     thread.start()
 
     return {

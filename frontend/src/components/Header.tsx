@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { TrendingUp, BarChart3, History, Menu, X, Sparkles } from 'lucide-react';
+import { TrendingUp, BarChart3, History, Menu, X, Sparkles, Settings } from 'lucide-react';
 import { useState } from 'react';
 import ThemeToggle from './ThemeToggle';
+import { useSettings } from '../contexts/SettingsContext';
 
 export default function Header() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { openSettings } = useSettings();
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: BarChart3 },
@@ -46,8 +48,17 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Theme Toggle & Mobile Menu */}
+          {/* Settings, Theme Toggle & Mobile Menu */}
           <div className="flex items-center gap-2">
+            {/* Settings Button */}
+            <button
+              onClick={openSettings}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-gray-600 dark:text-gray-300"
+              aria-label="Open settings"
+              title="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
             <div className="hidden md:block">
               <ThemeToggle />
             </div>
