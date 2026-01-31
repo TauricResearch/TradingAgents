@@ -1,0 +1,23 @@
+{
+  "name": "tradingagents",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">   <img src=\"assets/TauricResearch.png\" style=\"width: 60%; height: auto;\"> </p>",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TauricResearch/TradingAgents.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TauricResearch/TradingAgents/issues"
+  },
+  "homepage": "https://github.com/TauricResearch/TradingAgents#readme",
+  "dependencies": {
+    "playwright": "^1.58.1"
+  }
+}

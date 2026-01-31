@@ -16,6 +16,8 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .jugaad_data import get_jugaad_stock_data, get_jugaad_indicators
+from .markets import detect_market, Market, is_nifty_50_stock
 
 # Configuration and routing logic
 from .config import get_config
@@ -58,7 +60,8 @@ VENDOR_LIST = [
     "local",
     "yfinance",
     "openai",
-    "google"
+    "google",
+    "jugaad_data"
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -68,12 +71,14 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
         "local": get_YFin_data,
+        "jugaad_data": get_jugaad_stock_data,
     },
     # technical_indicators
     "get_indicators": {
         "alpha_vantage": get_alpha_vantage_indicator,
         "yfinance": get_stock_stats_indicators_window,
-        "local": get_stock_stats_indicators_window
+        "local": get_stock_stats_indicators_window,
+        "jugaad_data": get_jugaad_indicators,
     },
     # fundamental_data
     "get_fundamentals": {
@@ -123,9 +128,18 @@ def get_category_for_method(method: str) -> str:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
 
-def get_vendor(category: str, method: str = None) -> str:
+def get_vendor(category: str, method: str = None, symbol: str = None) -> str:
     """Get the configured vendor for a data category or specific tool method.
     Tool-level configuration takes precedence over category-level.
+    For NSE stocks, automatically routes to jugaad_data for core_stock_apis and technical_indicators.
+
+    Args:
+        category: Data category (e.g., "core_stock_apis", "technical_indicators")
+        method: Specific tool method name
+        symbol: Stock symbol (used for market detection)
+
+    Returns:
+        Vendor name string
     """
     config = get_config()
 
@@ -135,13 +149,44 @@ def get_vendor(category: str, method: str = None) -> str:
         if method in tool_vendors:
             return tool_vendors[method]
 
+    # Market-aware vendor routing for NSE stocks
+    if symbol:
+        market_config = config.get("market", "auto")
+        market = detect_market(symbol, market_config)
+
+        if market == Market.INDIA_NSE:
+            # Use yfinance as primary for NSE stocks (more reliable than jugaad_data from outside India)
+            # jugaad_data requires direct NSE access which may be blocked/slow
+            if category in ("core_stock_apis", "technical_indicators"):
+                return "yfinance"  # yfinance handles .NS suffix automatically
+            # Use yfinance for fundamentals (with .NS suffix handled in y_finance.py)
+            elif category == "fundamental_data":
+                return "yfinance"
+            # Use google for news (handled in google.py with company name enhancement)
+            elif category == "news_data":
+                return "google"
+
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
-    vendor_config = get_vendor(category, method)
+
+    # Extract symbol from args/kwargs for market-aware routing
+    symbol = None
+    if args:
+        # First argument is typically the symbol/ticker
+        symbol = args[0]
+    elif "symbol" in kwargs:
+        symbol = kwargs["symbol"]
+    elif "ticker" in kwargs:
+        symbol = kwargs["ticker"]
+    elif "query" in kwargs:
+        # For news queries, the query might be the symbol
+        symbol = kwargs["query"]
+
+    vendor_config = get_vendor(category, method, symbol)
 
     # Handle comma-separated vendors
     primary_vendors = [v.strip() for v in vendor_config.split(',')]

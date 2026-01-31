@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  /* Custom colors */
+  --color-nifty-50: #f0f9ff;
+  --color-nifty-100: #e0f2fe;
+  --color-nifty-200: #bae6fd;
+  --color-nifty-300: #7dd3fc;
+  --color-nifty-400: #38bdf8;
+  --color-nifty-500: #0ea5e9;
+  --color-nifty-600: #0284c7;
+  --color-nifty-700: #0369a1;
+  --color-nifty-800: #075985;
+  --color-nifty-900: #0c4a6e;
+
+  --color-bull-light: #dcfce7;
+  --color-bull: #22c55e;
+  --color-bull-dark: #15803d;
+
+  --color-bear-light: #fee2e2;
+  --color-bear: #ef4444;
+  --color-bear-dark: #b91c1c;
+
+  --color-hold-light: #fef3c7;
+  --color-hold: #f59e0b;
+  --color-hold-dark: #b45309;
+
+  /* Custom fonts */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Lexend', system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans antialiased bg-gray-50 text-gray-900;
+    margin: 0;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden;
+  }
+
+  .card-hover {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:border-gray-200;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-nifty-600 text-white hover:bg-nifty-700 focus:ring-2 focus:ring-nifty-500 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-buy {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bull-light text-bull-dark;
+  }
+
+  .badge-sell {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bear-light text-bear-dark;
+  }
+
+  .badge-hold {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-hold-light text-hold-dark;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-nifty-600 to-nifty-800 bg-clip-text text-transparent;
+  }
+
+  .section-title {
+    @apply text-2xl font-display font-semibold text-gray-900;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
