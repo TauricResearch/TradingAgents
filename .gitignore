@@ -12,7 +12,6 @@ eval_data/
 
 # Node.js
 node_modules/
-package-lock.json
 
 # Frontend dev artifacts
 .frontend-dev/
