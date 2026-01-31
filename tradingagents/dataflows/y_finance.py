@@ -4,6 +4,7 @@ from dateutil.relativedelta import relativedelta
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils
+from .markets import normalize_symbol, is_nifty_50_stock
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -14,8 +15,11 @@ def get_YFin_data_online(
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
 
+    # Normalize symbol for yfinance (adds .NS suffix for NSE stocks)
+    normalized_symbol = normalize_symbol(symbol, target="yfinance")
+
     # Create ticker object
-    ticker = yf.Ticker(symbol.upper())
+    ticker = yf.Ticker(normalized_symbol)
 
     # Fetch historical data for the specified date range
     data = ticker.history(start=start_date, end=end_date)
@@ -23,7 +27,7 @@ def get_YFin_data_online(
     # Check if data is empty
     if data.empty:
         return (
-            f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
+            f"No data found for symbol '{normalized_symbol}' between {start_date} and {end_date}"
         )
 
     # Remove timezone info from index for cleaner output
@@ -40,7 +44,7 @@ def get_YFin_data_online(
     csv_string = data.to_csv()
 
     # Add header information
-    header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
+    header = f"# Stock data for {normalized_symbol} from {start_date} to {end_date}\n"
     header += f"# Total records: {len(data)}\n"
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
@@ -300,7 +304,9 @@ def get_balance_sheet(
 ):
     """Get balance sheet data from yfinance."""
     try:
-        ticker_obj = yf.Ticker(ticker.upper())
+        # Normalize symbol for yfinance (adds .NS suffix for NSE stocks)
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
         
         if freq.lower() == "quarterly":
             data = ticker_obj.quarterly_balance_sheet
@@ -308,19 +314,19 @@ def get_balance_sheet(
             data = ticker_obj.balance_sheet
             
         if data.empty:
-            return f"No balance sheet data found for symbol '{ticker}'"
-            
+            return f"No balance sheet data found for symbol '{normalized_ticker}'"
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
+
         # Add header information
-        header = f"# Balance Sheet data for {ticker.upper()} ({freq})\n"
+        header = f"# Balance Sheet data for {normalized_ticker} ({freq})\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except Exception as e:
-        return f"Error retrieving balance sheet for {ticker}: {str(e)}"
+        return f"Error retrieving balance sheet for {normalized_ticker}: {str(e)}"
 
 
 def get_cashflow(
@@ -330,27 +336,29 @@ def get_cashflow(
 ):
     """Get cash flow data from yfinance."""
     try:
-        ticker_obj = yf.Ticker(ticker.upper())
-        
+        # Normalize symbol for yfinance (adds .NS suffix for NSE stocks)
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+
         if freq.lower() == "quarterly":
             data = ticker_obj.quarterly_cashflow
         else:
             data = ticker_obj.cashflow
-            
+
         if data.empty:
-            return f"No cash flow data found for symbol '{ticker}'"
-            
+            return f"No cash flow data found for symbol '{normalized_ticker}'"
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
+
         # Add header information
-        header = f"# Cash Flow data for {ticker.upper()} ({freq})\n"
+        header = f"# Cash Flow data for {normalized_ticker} ({freq})\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except Exception as e:
-        return f"Error retrieving cash flow for {ticker}: {str(e)}"
+        return f"Error retrieving cash flow for {normalized_ticker}: {str(e)}"
 
 
 def get_income_statement(
@@ -360,27 +368,29 @@ def get_income_statement(
 ):
     """Get income statement data from yfinance."""
     try:
-        ticker_obj = yf.Ticker(ticker.upper())
-        
+        # Normalize symbol for yfinance (adds .NS suffix for NSE stocks)
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+
         if freq.lower() == "quarterly":
             data = ticker_obj.quarterly_income_stmt
         else:
             data = ticker_obj.income_stmt
-            
+
         if data.empty:
-            return f"No income statement data found for symbol '{ticker}'"
-            
+            return f"No income statement data found for symbol '{normalized_ticker}'"
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
+
         # Add header information
-        header = f"# Income Statement data for {ticker.upper()} ({freq})\n"
+        header = f"# Income Statement data for {normalized_ticker} ({freq})\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except Exception as e:
-        return f"Error retrieving income statement for {ticker}: {str(e)}"
+        return f"Error retrieving income statement for {normalized_ticker}: {str(e)}"
 
 
 def get_insider_transactions(
@@ -388,20 +398,26 @@ def get_insider_transactions(
 ):
     """Get insider transactions data from yfinance."""
     try:
-        ticker_obj = yf.Ticker(ticker.upper())
+        # Normalize symbol for yfinance (adds .NS suffix for NSE stocks)
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
         data = ticker_obj.insider_transactions
-        
+
         if data is None or data.empty:
-            return f"No insider transactions data found for symbol '{ticker}'"
-            
+            # Check if this is an NSE stock - insider data may not be available
+            if is_nifty_50_stock(ticker):
+                return (f"Note: SEC-style insider transaction data is not available for Indian NSE stocks like {normalized_ticker}. "
+                        f"For Indian stocks, insider trading disclosures are filed with SEBI and available through NSE/BSE websites.")
+            return f"No insider transactions data found for symbol '{normalized_ticker}'"
+
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
-        
+
         # Add header information
-        header = f"# Insider Transactions data for {ticker.upper()}\n"
+        header = f"# Insider Transactions data for {normalized_ticker}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         return header + csv_string
-        
+
     except Exception as e:
-        return f"Error retrieving insider transactions for {ticker}: {str(e)}"
+        return f"Error retrieving insider transactions for {normalized_ticker}: {str(e)}"

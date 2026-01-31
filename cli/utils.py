@@ -1,7 +1,13 @@
 import questionary
 from typing import List, Optional, Tuple, Dict
+from rich.console import Console
+from rich.table import Table
+from rich import box
 
 from cli.models import AnalystType
+from tradingagents.dataflows.markets import NIFTY_50_STOCKS, is_nifty_50_stock
+
+console = Console()
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -272,5 +278,117 @@ def select_llm_provider() -> tuple[str, str]:
     
     display_name, url = choice
     print(f"You selected: {display_name}\tURL: {url}")
-    
+
     return display_name, url
+
+
+def select_market() -> str:
+    """Select market using an interactive selection."""
+
+    MARKET_OPTIONS = [
+        ("Auto-detect (Recommended)", "auto"),
+        ("US Markets (NYSE, NASDAQ)", "us"),
+        ("Indian NSE (Nifty 50)", "india_nse"),
+    ]
+
+    choice = questionary.select(
+        "Select Your [Market]:",
+        choices=[
+            questionary.Choice(display, value=value)
+            for display, value in MARKET_OPTIONS
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No market selected. Exiting...[/red]")
+        exit(1)
+
+    return choice
+
+
+def display_nifty_50_stocks():
+    """Display the list of Nifty 50 stocks in a formatted table."""
+    table = Table(
+        title="Nifty 50 Stocks",
+        box=box.ROUNDED,
+        show_header=True,
+        header_style="bold cyan",
+    )
+
+    table.add_column("Symbol", style="green", width=15)
+    table.add_column("Company Name", style="white", width=45)
+
+    # Sort stocks alphabetically
+    sorted_stocks = sorted(NIFTY_50_STOCKS.items())
+
+    for symbol, company_name in sorted_stocks:
+        table.add_row(symbol, company_name)
+
+    console.print(table)
+    console.print()
+
+
+def show_nifty_50_stocks() -> bool:
+    """Ask user if they want to see Nifty 50 stocks list."""
+    show = questionary.confirm(
+        "Would you like to see the list of Nifty 50 stocks?",
+        default=False,
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if show:
+        display_nifty_50_stocks()
+
+    return show
+
+
+def get_ticker_with_market_hint(market: str) -> str:
+    """Get ticker symbol with market-specific hints."""
+    if market == "india_nse":
+        hint = "Enter NSE symbol (e.g., RELIANCE, TCS, INFY)"
+        default = "RELIANCE"
+    elif market == "us":
+        hint = "Enter US ticker symbol (e.g., AAPL, GOOGL, MSFT)"
+        default = "SPY"
+    else:
+        hint = "Enter ticker symbol (auto-detects market)"
+        default = "SPY"
+
+    ticker = questionary.text(
+        hint + ":",
+        default=default,
+        validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
+        style=questionary.Style(
+            [
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if not ticker:
+        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+        exit(1)
+
+    ticker = ticker.strip().upper()
+
+    # Provide feedback for NSE stocks
+    if is_nifty_50_stock(ticker):
+        company_name = NIFTY_50_STOCKS.get(ticker.replace(".NS", ""), "")
+        if company_name:
+            console.print(f"[green]Detected NSE stock:[/green] {ticker} - {company_name}")
+
+    return ticker

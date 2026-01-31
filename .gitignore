@@ -4,8 +4,15 @@ env/
 __pycache__/
 .DS_Store
 *.csv
-src/
+/src/
 eval_results/
 eval_data/
 *.egg-info/
 .env
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Frontend dev artifacts
+.frontend-dev/
