@@ -76,7 +76,7 @@ export interface PipelineStep {
 export interface DataSourceLog {
   source_type: string;
   source_name: string;
-  data_fetched?: Record<string, unknown>;
+  data_fetched?: Record<string, unknown> | string;
   fetch_timestamp?: string;
   success: boolean;
   error_message?: string;

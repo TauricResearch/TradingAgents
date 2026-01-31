@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Database, ChevronDown, ChevronUp, CheckCircle,
-  XCircle, Clock, ExternalLink, Server
+  XCircle, Clock, Server
 } from 'lucide-react';
 import type { DataSourceLog } from '../../types/pipeline';
 

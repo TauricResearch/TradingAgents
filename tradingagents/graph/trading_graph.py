@@ -1,10 +1,16 @@
 # TradingAgents/graph/trading_graph.py
 
 import os
+import sys
 from pathlib import Path
 import json
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, Any, Tuple, List, Optional
+
+# Add frontend backend to path for database access
+FRONTEND_BACKEND_PATH = Path(__file__).parent.parent.parent / "frontend" / "backend"
+if str(FRONTEND_BACKEND_PATH) not in sys.path:
+    sys.path.insert(0, str(FRONTEND_BACKEND_PATH))
 
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
@@ -191,6 +197,9 @@ class TradingAgentsGraph:
         # Log state
         self._log_state(trade_date, final_state)
 
+        # Save to frontend database for UI display
+        self._save_to_frontend_db(trade_date, final_state)
+
         # Return decision and processed signal
         return final_state, self.process_signal(final_state["final_trade_decision"])
 
@@ -235,6 +244,93 @@ class TradingAgentsGraph:
             "w",
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
+
+    def _save_to_frontend_db(self, trade_date: str, final_state: Dict[str, Any]):
+        """Save pipeline data to the frontend database for UI display.
+
+        Args:
+            trade_date: The date of the analysis
+            final_state: The final state from the graph execution
+        """
+        try:
+            from database import (
+                init_db,
+                save_agent_report,
+                save_debate_history,
+                save_pipeline_steps_bulk,
+                save_data_source_logs_bulk
+            )
+
+            # Initialize database if needed
+            init_db()
+
+            symbol = final_state.get("company_of_interest", self.ticker)
+            now = datetime.now().isoformat()
+
+            # 1. Save agent reports
+            agent_reports = [
+                ("market", final_state.get("market_report", "")),
+                ("news", final_state.get("news_report", "")),
+                ("social_media", final_state.get("sentiment_report", "")),
+                ("fundamentals", final_state.get("fundamentals_report", "")),
+            ]
+
+            for agent_type, content in agent_reports:
+                if content:
+                    save_agent_report(
+                        date=trade_date,
+                        symbol=symbol,
+                        agent_type=agent_type,
+                        report_content=content,
+                        data_sources_used=[]
+                    )
+
+            # 2. Save investment debate
+            invest_debate = final_state.get("investment_debate_state", {})
+            if invest_debate:
+                save_debate_history(
+                    date=trade_date,
+                    symbol=symbol,
+                    debate_type="investment",
+                    bull_arguments=invest_debate.get("bull_history", ""),
+                    bear_arguments=invest_debate.get("bear_history", ""),
+                    judge_decision=invest_debate.get("judge_decision", ""),
+                    full_history=invest_debate.get("history", "")
+                )
+
+            # 3. Save risk debate
+            risk_debate = final_state.get("risk_debate_state", {})
+            if risk_debate:
+                save_debate_history(
+                    date=trade_date,
+                    symbol=symbol,
+                    debate_type="risk",
+                    risky_arguments=risk_debate.get("risky_history", ""),
+                    safe_arguments=risk_debate.get("safe_history", ""),
+                    neutral_arguments=risk_debate.get("neutral_history", ""),
+                    judge_decision=risk_debate.get("judge_decision", ""),
+                    full_history=risk_debate.get("history", "")
+                )
+
+            # 4. Save pipeline steps (tracking the stages)
+            pipeline_steps = [
+                {"step_number": 1, "step_name": "initialize", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "Pipeline initialized"},
+                {"step_number": 2, "step_name": "market_analysis", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "Market analysis complete" if final_state.get("market_report") else "Skipped"},
+                {"step_number": 3, "step_name": "news_analysis", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "News analysis complete" if final_state.get("news_report") else "Skipped"},
+                {"step_number": 4, "step_name": "social_analysis", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "Social analysis complete" if final_state.get("sentiment_report") else "Skipped"},
+                {"step_number": 5, "step_name": "fundamental_analysis", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "Fundamental analysis complete" if final_state.get("fundamentals_report") else "Skipped"},
+                {"step_number": 6, "step_name": "investment_debate", "status": "completed", "started_at": now, "completed_at": now, "output_summary": invest_debate.get("judge_decision", "")[:100] if invest_debate else "Skipped"},
+                {"step_number": 7, "step_name": "trader_decision", "status": "completed", "started_at": now, "completed_at": now, "output_summary": final_state.get("trader_investment_plan", "")[:100] if final_state.get("trader_investment_plan") else "Skipped"},
+                {"step_number": 8, "step_name": "risk_debate", "status": "completed", "started_at": now, "completed_at": now, "output_summary": risk_debate.get("judge_decision", "")[:100] if risk_debate else "Skipped"},
+                {"step_number": 9, "step_name": "final_decision", "status": "completed", "started_at": now, "completed_at": now, "output_summary": final_state.get("final_trade_decision", "")[:100] if final_state.get("final_trade_decision") else "Pending"},
+            ]
+            save_pipeline_steps_bulk(trade_date, symbol, pipeline_steps)
+
+            print(f"[Frontend DB] Saved pipeline data for {symbol} on {trade_date}")
+
+        except Exception as e:
+            print(f"[Frontend DB] Warning: Could not save to frontend database: {e}")
+            # Don't fail the main process if frontend DB save fails
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""

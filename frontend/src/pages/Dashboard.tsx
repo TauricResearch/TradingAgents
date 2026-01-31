@@ -1,11 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, RefreshCw, Filter, ChevronRight, TrendingUp, TrendingDown, Minus, History, Search, X } from 'lucide-react';
+import { Calendar, RefreshCw, Filter, ChevronRight, TrendingUp, TrendingDown, Minus, History, Search, X, Play, Loader2 } from 'lucide-react';
 import TopPicks, { StocksToAvoid } from '../components/TopPicks';
 import { DecisionBadge } from '../components/StockCard';
 import HowItWorks from '../components/HowItWorks';
 import BackgroundSparkline from '../components/BackgroundSparkline';
 import { getLatestRecommendation, getBacktestResult } from '../data/recommendations';
+import { api } from '../services/api';
+import { useSettings } from '../contexts/SettingsContext';
 import type { Decision, StockAnalysis } from '../types';
 
 type FilterType = 'ALL' | Decision;
@@ -14,6 +16,84 @@ export default function Dashboard() {
   const recommendation = getLatestRecommendation();
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const { settings } = useSettings();
+
+  // Bulk analysis state
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState<{
+    status: string;
+    total: number;
+    completed: number;
+    failed: number;
+    current_symbol: string | null;
+  } | null>(null);
+
+  // Check for running analysis on mount
+  useEffect(() => {
+    const checkAnalysisStatus = async () => {
+      try {
+        const status = await api.getBulkAnalysisStatus();
+        if (status.status === 'running') {
+          setIsAnalyzing(true);
+          setAnalysisProgress(status);
+        }
+      } catch (e) {
+        console.error('Failed to check analysis status:', e);
+      }
+    };
+    checkAnalysisStatus();
+  }, []);
+
+  // Poll for analysis progress
+  useEffect(() => {
+    if (!isAnalyzing) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await api.getBulkAnalysisStatus();
+        setAnalysisProgress(status);
+
+        if (status.status === 'completed' || status.status === 'idle') {
+          setIsAnalyzing(false);
+          clearInterval(pollInterval);
+          // Refresh the page to show updated data
+          window.location.reload();
+        }
+      } catch (e) {
+        console.error('Failed to poll analysis status:', e);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [isAnalyzing]);
+
+  const handleAnalyzeAll = async () => {
+    if (isAnalyzing) return;
+
+    setIsAnalyzing(true);
+    setAnalysisProgress({
+      status: 'starting',
+      total: 50,
+      completed: 0,
+      failed: 0,
+      current_symbol: null
+    });
+
+    try {
+      // Pass settings from context to the API
+      await api.runBulkAnalysis(undefined, {
+        deep_think_model: settings.deepThinkModel,
+        quick_think_model: settings.quickThinkModel,
+        provider: settings.provider,
+        api_key: settings.provider === 'anthropic_api' ? settings.anthropicApiKey : undefined,
+        max_debate_rounds: settings.maxDebateRounds
+      });
+    } catch (e) {
+      console.error('Failed to start bulk analysis:', e);
+      setIsAnalyzing(false);
+      setAnalysisProgress(null);
+    }
+  };
 
   if (!recommendation) {
     return (
@@ -64,8 +144,29 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Inline Stats */}
+          {/* Analyze All Button + Inline Stats */}
           <div className="flex items-center gap-3" role="group" aria-label="Summary statistics">
+            {/* Analyze All Button */}
+            <button
+              onClick={handleAnalyzeAll}
+              disabled={isAnalyzing}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
+                ${isAnalyzing
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 cursor-not-allowed'
+                  : 'bg-nifty-600 text-white hover:bg-nifty-700 shadow-sm hover:shadow-md'
+                }
+              `}
+              title={isAnalyzing ? 'Analysis in progress...' : 'Run AI analysis for all 50 stocks'}
+            >
+              {isAnalyzing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+              {isAnalyzing ? 'Analyzing...' : 'Analyze All'}
+            </button>
+
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 rounded-lg cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors" onClick={() => setFilter('BUY')} title="Click to filter Buy stocks">
               <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
               <span className="font-bold text-green-700 dark:text-green-400">{buy}</span>
@@ -92,6 +193,34 @@ export default function Dashboard() {
             <div className="bg-red-500 transition-all" style={{ width: `${sellPct}%` }} />
           </div>
         </div>
+
+        {/* Analysis Progress Banner */}
+        {isAnalyzing && analysisProgress && (
+          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  Analyzing {analysisProgress.current_symbol || 'stocks'}...
+                </span>
+              </div>
+              <span className="text-xs text-blue-600 dark:text-blue-400">
+                {analysisProgress.completed + analysisProgress.failed} / {analysisProgress.total} stocks
+              </span>
+            </div>
+            <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+              <div
+                className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((analysisProgress.completed + analysisProgress.failed) / analysisProgress.total) * 100}%` }}
+              />
+            </div>
+            {analysisProgress.failed > 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                {analysisProgress.failed} failed
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       {/* How It Works Section */}

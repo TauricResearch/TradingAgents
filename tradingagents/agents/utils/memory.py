@@ -17,7 +17,8 @@ class FinancialSituationMemory:
         # Use ChromaDB's default embedding function (uses all-MiniLM-L6-v2 internally)
         self.embedding_fn = embedding_functions.DefaultEmbeddingFunction()
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
-        self.situation_collection = self.chroma_client.create_collection(
+        # Use get_or_create to avoid errors when collection already exists
+        self.situation_collection = self.chroma_client.get_or_create_collection(
             name=name,
             embedding_function=self.embedding_fn
         )

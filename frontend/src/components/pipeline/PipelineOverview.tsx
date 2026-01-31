@@ -85,7 +85,7 @@ export function PipelineOverview({ steps, onStepClick, compact = false }: Pipeli
   if (compact) {
     return (
       <div className="flex items-center gap-1">
-        {displaySteps.map((step, index) => {
+        {displaySteps.map((step) => {
           const styles = STATUS_STYLES[step.status];
           return (
             <div
@@ -117,7 +117,7 @@ export function PipelineOverview({ steps, onStepClick, compact = false }: Pipeli
 
       {/* Pipeline steps */}
       <div className="flex flex-wrap gap-2">
-        {displaySteps.map((step, index) => {
+        {displaySteps.map((step) => {
           const StepIcon = STEP_ICONS[step.step_name] || Database;
           const styles = STATUS_STYLES[step.status];
           const StatusIcon = styles.icon;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   TrendingUp, TrendingDown, Scale, ChevronDown, ChevronUp,
-  MessageSquare, Award, Clock
+  MessageSquare, Award
 } from 'lucide-react';
 import type { DebateHistory } from '../../types/pipeline';
 

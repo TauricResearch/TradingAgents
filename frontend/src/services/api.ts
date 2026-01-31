@@ -70,6 +70,17 @@ export interface StockHistory {
   risk?: string;
 }
 
+/**
+ * Analysis configuration options
+ */
+export interface AnalysisConfig {
+  deep_think_model?: string;
+  quick_think_model?: string;
+  provider?: string;
+  api_key?: string;
+  max_debate_rounds?: number;
+}
+
 class ApiService {
   private baseUrl: string;
 
@@ -242,7 +253,7 @@ class ApiService {
   /**
    * Start analysis for a stock
    */
-  async runAnalysis(symbol: string, date?: string): Promise<{
+  async runAnalysis(symbol: string, date?: string, config?: AnalysisConfig): Promise<{
     message: string;
     symbol: string;
     date: string;
@@ -251,7 +262,7 @@ class ApiService {
     const url = date ? `/analyze/${symbol}?date=${date}` : `/analyze/${symbol}`;
     return this.fetch(url, {
       method: 'POST',
-      body: JSON.stringify({}),
+      body: JSON.stringify(config || {}),
       noCache: true,
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -283,6 +294,45 @@ class ApiService {
     count: number;
   }> {
     return this.fetch('/analyze/running', { noCache: true });
+  }
+
+  /**
+   * Start bulk analysis for all Nifty 50 stocks
+   */
+  async runBulkAnalysis(date?: string, config?: {
+    deep_think_model?: string;
+    quick_think_model?: string;
+    provider?: string;
+    api_key?: string;
+    max_debate_rounds?: number;
+  }): Promise<{
+    message: string;
+    date: string;
+    total_stocks: number;
+    status: string;
+  }> {
+    const url = date ? `/analyze/all?date=${date}` : '/analyze/all';
+    return this.fetch(url, {
+      method: 'POST',
+      body: JSON.stringify(config || {}),
+      noCache: true
+    });
+  }
+
+  /**
+   * Get bulk analysis status
+   */
+  async getBulkAnalysisStatus(): Promise<{
+    status: string;
+    total: number;
+    completed: number;
+    failed: number;
+    current_symbol: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    results: Record<string, string>;
+  }> {
+    return this.fetch('/analyze/all/status', { noCache: true });
   }
 }
 
