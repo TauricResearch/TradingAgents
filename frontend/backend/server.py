@@ -15,6 +15,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Track running analyses
+# NOTE: This is not thread-safe for production multi-worker deployments.
+# For production, use Redis or a database-backed job queue instead.
 running_analyses = {}  # {symbol: {"status": "running", "started_at": datetime, "progress": str}}
 
 app = FastAPI(
@@ -582,16 +584,6 @@ async def get_analysis_status(symbol: str):
     return {
         "symbol": symbol,
         **running_analyses[symbol]
-    }
-
-
-@app.get("/analyze/running")
-async def get_running_analyses():
-    """Get all currently running analyses."""
-    running = {k: v for k, v in running_analyses.items() if v.get("status") == "running"}
-    return {
-        "running": running,
-        "count": len(running)
     }
 
 

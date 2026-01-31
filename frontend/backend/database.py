@@ -657,28 +657,40 @@ def get_pipeline_summary_for_date(date: str) -> list:
         """, (date,))
         symbols = [row['symbol'] for row in cursor.fetchall()]
 
+        # Batch fetch all pipeline steps for the date (avoids N+1)
+        cursor.execute("""
+            SELECT symbol, step_name, status FROM pipeline_steps
+            WHERE date = ?
+            ORDER BY symbol, step_number
+        """, (date,))
+        all_steps = cursor.fetchall()
+        steps_by_symbol = {}
+        for row in all_steps:
+            if row['symbol'] not in steps_by_symbol:
+                steps_by_symbol[row['symbol']] = []
+            steps_by_symbol[row['symbol']].append({'step_name': row['step_name'], 'status': row['status']})
+
+        # Batch fetch agent report counts (avoids N+1)
+        cursor.execute("""
+            SELECT symbol, COUNT(*) as count FROM agent_reports
+            WHERE date = ?
+            GROUP BY symbol
+        """, (date,))
+        agent_counts = {row['symbol']: row['count'] for row in cursor.fetchall()}
+
+        # Batch fetch debates existence (avoids N+1)
+        cursor.execute("""
+            SELECT DISTINCT symbol FROM debate_history WHERE date = ?
+        """, (date,))
+        symbols_with_debates = {row['symbol'] for row in cursor.fetchall()}
+
         summaries = []
         for symbol in symbols:
-            # Get pipeline status
-            cursor.execute("""
-                SELECT step_name, status FROM pipeline_steps
-                WHERE date = ? AND symbol = ?
-                ORDER BY step_number
-            """, (date, symbol))
-            steps = cursor.fetchall()
-
-            # Get agent report count
-            cursor.execute("""
-                SELECT COUNT(*) as count FROM agent_reports
-                WHERE date = ? AND symbol = ?
-            """, (date, symbol))
-            agent_count = cursor.fetchone()['count']
-
             summaries.append({
                 'symbol': symbol,
-                'pipeline_steps': [{'step_name': s['step_name'], 'status': s['status']} for s in steps],
-                'agent_reports_count': agent_count,
-                'has_debates': bool(get_debate_history(date, symbol))
+                'pipeline_steps': steps_by_symbol.get(symbol, []),
+                'agent_reports_count': agent_counts.get(symbol, 0),
+                'has_debates': symbol in symbols_with_debates
             })
 
         return summaries
