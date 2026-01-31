@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 from typing import Annotated
 from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.markets import is_nifty_50_stock
 
 @tool
 def get_news(
@@ -52,6 +53,12 @@ def get_insider_sentiment(
     Returns:
         str: A report of insider sentiment data
     """
+    # Check if this is an NSE stock - insider sentiment from SEC sources is not available
+    if is_nifty_50_stock(ticker):
+        return (f"Note: SEC-style insider sentiment data is not available for Indian NSE stocks like {ticker}. "
+                f"For Indian stocks, insider trading disclosures are regulated by SEBI (Securities and Exchange Board of India) "
+                f"and can be found on NSE/BSE websites or through the company's regulatory filings.")
+
     return route_to_vendor("get_insider_sentiment", ticker, curr_date)
 
 @tool

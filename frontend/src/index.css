@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+@theme {
+  /* Custom colors */
+  --color-nifty-50: #f0f9ff;
+  --color-nifty-100: #e0f2fe;
+  --color-nifty-200: #bae6fd;
+  --color-nifty-300: #7dd3fc;
+  --color-nifty-400: #38bdf8;
+  --color-nifty-500: #0ea5e9;
+  --color-nifty-600: #0284c7;
+  --color-nifty-700: #0369a1;
+  --color-nifty-800: #075985;
+  --color-nifty-900: #0c4a6e;
+
+  --color-bull-light: #dcfce7;
+  --color-bull: #22c55e;
+  --color-bull-dark: #15803d;
+
+  --color-bear-light: #fee2e2;
+  --color-bear: #ef4444;
+  --color-bear-dark: #b91c1c;
+
+  --color-hold-light: #fef3c7;
+  --color-hold: #f59e0b;
+  --color-hold-dark: #b45309;
+
+  /* Custom fonts */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Lexend', system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply font-sans antialiased bg-gray-50 text-gray-900;
+    margin: 0;
+  }
+
+  html.dark body {
+    @apply bg-slate-900 text-gray-100;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden;
+  }
+
+  html.dark .card {
+    @apply bg-slate-800 border-slate-700;
+  }
+
+  .card-hover {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:border-gray-200 focus-within:ring-2 focus-within:ring-nifty-500 focus-within:ring-offset-1;
+  }
+
+  html.dark .card-hover {
+    @apply bg-slate-800 border-slate-700 hover:border-slate-600;
+  }
+
+  html.dark .card-hover:focus-within {
+    @apply ring-offset-slate-900;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-nifty-600 text-white hover:bg-nifty-700 focus:ring-2 focus:ring-nifty-500 focus:ring-offset-2;
+  }
+
+  html.dark .btn-primary {
+    @apply focus:ring-offset-slate-900;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200;
+  }
+
+  html.dark .btn-secondary {
+    @apply bg-slate-700 text-gray-200 hover:bg-slate-600;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-buy {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bull-light text-bull-dark;
+  }
+
+  html.dark .badge-buy {
+    @apply bg-green-900/30 text-green-400;
+  }
+
+  .badge-sell {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bear-light text-bear-dark;
+  }
+
+  html.dark .badge-sell {
+    @apply bg-red-900/30 text-red-400;
+  }
+
+  .badge-hold {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-hold-light text-hold-dark;
+  }
+
+  html.dark .badge-hold {
+    @apply bg-amber-900/30 text-amber-400;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-nifty-600 to-nifty-800 bg-clip-text text-transparent;
+  }
+
+  html.dark .gradient-text {
+    @apply from-nifty-400 to-nifty-600;
+  }
+
+  .section-title {
+    @apply text-2xl font-display font-semibold text-gray-900;
+  }
+
+  html.dark .section-title {
+    @apply text-gray-100;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Mobile touch target - minimum 44px for accessibility */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Animation utilities */
+  .animate-in {
+    animation: animate-in 0.2s ease-out;
+  }
+
+  .slide-in-from-top-2 {
+    --tw-enter-translate-y: -0.5rem;
+  }
+
+  @keyframes animate-in {
+    from {
+      opacity: 0;
+      transform: translateY(var(--tw-enter-translate-y, 0));
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Smooth scrollbar styling */
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+
+  /* Recharts dark mode fix */
+  .recharts-wrapper,
+  .recharts-surface {
+    background-color: transparent !important;
+  }
+
+  /* Custom scrollbar for stock lists */
+  .overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+
+  html.dark .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #475569;
+  }
+
+  html.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+}

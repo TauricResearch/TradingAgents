@@ -151,6 +151,143 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+---
+
+## 🌐 Nifty50 AI Trading Dashboard (Web Frontend)
+
+A modern, feature-rich web dashboard for TradingAgents, specifically built for **Indian Nifty 50 stocks**. This dashboard provides a complete visual interface for AI-powered stock analysis with full transparency into the multi-agent decision process.
+
+### 🚀 Quick Start
+
+```bash
+# Start the backend server
+cd frontend/backend
+pip install -r requirements.txt
+python server.py  # Runs on http://localhost:8001
+
+# Start the frontend (in a new terminal)
+cd frontend
+npm install
+npm run dev  # Runs on http://localhost:5173
+```
+
+### ✨ Key Features
+
+#### Dashboard - AI Recommendations at a Glance
+View all 50 Nifty stocks with AI recommendations, top picks, stocks to avoid, and one-click bulk analysis.
+
+<p align="center">
+  <img src="frontend/docs/screenshots/01-dashboard.png" width="100%" style="display: inline-block;">
+</p>
+
+#### 🌙 Dark Mode Support
+Full dark mode with automatic system theme detection for comfortable viewing.
+
+<p align="center">
+  <img src="frontend/docs/screenshots/08-dashboard-dark-mode.png" width="100%" style="display: inline-block;">
+</p>
+
+#### ⚙️ Configurable Settings Panel
+Configure your AI analysis directly from the browser:
+- **LLM Provider**: Claude Subscription or Anthropic API
+- **Model Selection**: Choose Deep Think (Opus) and Quick Think (Sonnet/Haiku) models
+- **API Key Management**: Securely stored in browser localStorage
+- **Debate Rounds**: Adjust thoroughness (1-5 rounds)
+
+<p align="center">
+  <img src="frontend/docs/screenshots/02-settings-modal.png" width="60%" style="display: inline-block;">
+</p>
+
+#### 📊 Stock Detail View
+Detailed analysis for each stock with interactive price charts, recommendation history, and AI analysis summaries.
+
+<p align="center">
+  <img src="frontend/docs/screenshots/03-stock-detail-overview.png" width="100%" style="display: inline-block;">
+</p>
+
+#### 🔬 Analysis Pipeline Visualization
+See exactly how the AI reached its decision with a 9-step pipeline showing:
+- Data collection progress
+- Individual agent reports (Market, News, Social Media, Fundamentals)
+- Real-time status tracking
+
+<p align="center">
+  <img src="frontend/docs/screenshots/04-analysis-pipeline.png" width="100%" style="display: inline-block;">
+</p>
+
+#### 💬 Investment Debates (Bull vs Bear)
+Watch AI agents debate investment decisions with full transparency:
+- **Bull Analyst**: Makes the case for buying
+- **Bear Analyst**: Presents risks and concerns
+- **Research Manager**: Weighs both sides and decides
+
+<p align="center">
+  <img src="frontend/docs/screenshots/05-debates-tab.png" width="100%" style="display: inline-block;">
+</p>
+
+<details>
+<summary><b>📜 View Full Debate Example (Click to expand)</b></summary>
+<p align="center">
+  <img src="frontend/docs/screenshots/06-investment-debate-expanded.png" width="100%" style="display: inline-block;">
+</p>
+</details>
+
+#### 📈 Historical Analysis & Backtesting
+Track AI performance over time with comprehensive analytics:
+- Prediction accuracy metrics (Buy/Sell/Hold)
+- Risk metrics (Sharpe ratio, max drawdown, win rate)
+- Portfolio simulator with customizable starting amounts
+- AI Strategy vs Nifty50 Index comparison
+
+<p align="center">
+  <img src="frontend/docs/screenshots/10-history-page.png" width="100%" style="display: inline-block;">
+</p>
+
+#### 📚 How It Works
+Educational content explaining the multi-agent AI system and decision process.
+
+<p align="center">
+  <img src="frontend/docs/screenshots/09-how-it-works.png" width="100%" style="display: inline-block;">
+</p>
+
+### 🛠️ Frontend Tech Stack
+
+| Technology | Purpose |
+|------------|---------|
+| React 18 + TypeScript | Core framework |
+| Vite | Build tool & dev server |
+| Tailwind CSS | Styling with dark mode |
+| Recharts | Interactive charts |
+| Lucide React | Icons |
+| FastAPI (Python) | Backend API |
+| SQLite | Data persistence |
+
+### 📁 Frontend Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── pipeline/          # Pipeline visualization
+│   │   ├── SettingsModal.tsx  # Settings UI
+│   │   └── Header.tsx
+│   ├── contexts/
+│   │   └── SettingsContext.tsx
+│   ├── pages/
+│   │   ├── Dashboard.tsx
+│   │   ├── StockDetail.tsx
+│   │   ├── History.tsx
+│   │   └── About.tsx
+│   └── services/
+│       └── api.ts
+├── backend/
+│   ├── server.py
+│   └── database.py
+└── docs/screenshots/
+```
+
+---
+
 ## TradingAgents Package
 
 ### Implementation Details
