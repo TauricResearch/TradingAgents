@@ -1,8 +1,28 @@
 /**
  * API service for fetching stock recommendations from the backend.
+ * Updated with cache-busting for refresh functionality.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import type {
+  FullPipelineData,
+  AgentReportsMap,
+  DebatesMap,
+  DataSourceLog,
+  PipelineSummary
+} from '../types/pipeline';
+
+// Use same hostname as the page, just different port for API
+const getApiBaseUrl = () => {
+  // If env variable is set, use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Otherwise use the same host as the current page with port 8001
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  return `http://${hostname}:8001`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface StockAnalysis {
   symbol: string;
@@ -57,14 +77,26 @@ class ApiService {
     this.baseUrl = API_BASE_URL;
   }
 
-  private async fetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+  private async fetch<T>(endpoint: string, options?: RequestInit & { noCache?: boolean }): Promise<T> {
+    let url = `${this.baseUrl}${endpoint}`;
+
+    // Add cache-busting query param if noCache is true
+    const noCache = options?.noCache;
+    if (noCache) {
+      const separator = url.includes('?') ? '&' : '?';
+      url = `${url}${separator}_t=${Date.now()}`;
+    }
+
+    // Remove noCache from options before passing to fetch
+    const { noCache: _, ...fetchOptions } = options || {};
+
     const response = await fetch(url, {
-      ...options,
+      ...fetchOptions,
       headers: {
         'Content-Type': 'application/json',
-        ...options?.headers,
+        ...fetchOptions?.headers,
       },
+      cache: noCache ? 'no-store' : undefined,
     });
 
     if (!response.ok) {
@@ -130,6 +162,127 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(recommendation),
     });
+  }
+
+  // ============== Pipeline Data Methods ==============
+
+  /**
+   * Get full pipeline data for a stock on a specific date
+   */
+  async getPipelineData(date: string, symbol: string, refresh = false): Promise<FullPipelineData> {
+    return this.fetch(`/recommendations/${date}/${symbol}/pipeline`, { noCache: refresh });
+  }
+
+  /**
+   * Get agent reports for a stock on a specific date
+   */
+  async getAgentReports(date: string, symbol: string): Promise<{
+    date: string;
+    symbol: string;
+    reports: AgentReportsMap;
+    count: number;
+  }> {
+    return this.fetch(`/recommendations/${date}/${symbol}/agents`);
+  }
+
+  /**
+   * Get debate history for a stock on a specific date
+   */
+  async getDebateHistory(date: string, symbol: string): Promise<{
+    date: string;
+    symbol: string;
+    debates: DebatesMap;
+  }> {
+    return this.fetch(`/recommendations/${date}/${symbol}/debates`);
+  }
+
+  /**
+   * Get data source logs for a stock on a specific date
+   */
+  async getDataSources(date: string, symbol: string): Promise<{
+    date: string;
+    symbol: string;
+    data_sources: DataSourceLog[];
+    count: number;
+  }> {
+    return this.fetch(`/recommendations/${date}/${symbol}/data-sources`);
+  }
+
+  /**
+   * Get pipeline summary for all stocks on a specific date
+   */
+  async getPipelineSummary(date: string): Promise<{
+    date: string;
+    stocks: PipelineSummary[];
+    count: number;
+  }> {
+    return this.fetch(`/recommendations/${date}/pipeline-summary`);
+  }
+
+  /**
+   * Save pipeline data for a stock (used by the analyzer)
+   */
+  async savePipelineData(data: {
+    date: string;
+    symbol: string;
+    agent_reports?: Record<string, unknown>;
+    investment_debate?: Record<string, unknown>;
+    risk_debate?: Record<string, unknown>;
+    pipeline_steps?: unknown[];
+    data_sources?: unknown[];
+  }): Promise<{ message: string }> {
+    return this.fetch('/pipeline', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ============== Analysis Trigger Methods ==============
+
+  /**
+   * Start analysis for a stock
+   */
+  async runAnalysis(symbol: string, date?: string): Promise<{
+    message: string;
+    symbol: string;
+    date: string;
+    status: string;
+  }> {
+    const url = date ? `/analyze/${symbol}?date=${date}` : `/analyze/${symbol}`;
+    return this.fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({}),
+      noCache: true,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
+  }
+
+  /**
+   * Get analysis status for a stock
+   */
+  async getAnalysisStatus(symbol: string): Promise<{
+    symbol: string;
+    status: string;
+    progress?: string;
+    error?: string;
+    decision?: string;
+    started_at?: string;
+    completed_at?: string;
+  }> {
+    return this.fetch(`/analyze/${symbol}/status`, { noCache: true });
+  }
+
+  /**
+   * Get all running analyses
+   */
+  async getRunningAnalyses(): Promise<{
+    running: Record<string, unknown>;
+    count: number;
+  }> {
+    return this.fetch('/analyze/running', { noCache: true });
   }
 }
 
