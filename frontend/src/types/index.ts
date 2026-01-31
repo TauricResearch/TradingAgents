@@ -2,6 +2,54 @@ export type Decision = 'BUY' | 'SELL' | 'HOLD';
 export type Confidence = 'HIGH' | 'MEDIUM' | 'LOW';
 export type Risk = 'HIGH' | 'MEDIUM' | 'LOW';
 
+// Backtest Types
+export interface PricePoint {
+  date: string;
+  price: number;
+}
+
+export interface BacktestResult {
+  prediction_correct: boolean;
+  actual_return_1d: number;   // next trading day percentage return
+  actual_return_1w: number;   // percentage
+  actual_return_1m: number;   // percentage
+  price_at_prediction: number;
+  current_price: number;
+  price_history: PricePoint[];
+}
+
+export interface AccuracyMetrics {
+  total_predictions: number;
+  correct_predictions: number;
+  success_rate: number;
+  buy_accuracy: number;
+  sell_accuracy: number;
+  hold_accuracy: number;
+}
+
+// Date-level statistics for history page
+export interface DateStats {
+  date: string;
+  avgReturn1d: number;        // Average next-day return for all stocks
+  avgReturn1m: number;        // Average 1-month return
+  totalStocks: number;
+  correctPredictions: number;
+  accuracy: number;
+  buyCount: number;
+  sellCount: number;
+  holdCount: number;
+}
+
+export interface OverallStats {
+  totalDays: number;
+  totalPredictions: number;
+  avgDailyReturn: number;
+  avgMonthlyReturn: number;
+  overallAccuracy: number;
+  bestDay: { date: string; return: number } | null;
+  worstDay: { date: string; return: number } | null;
+}
+
 export interface StockAnalysis {
   symbol: string;
   company_name: string;
@@ -74,6 +122,50 @@ export interface NiftyStock {
   symbol: string;
   company_name: string;
   sector?: string;
+}
+
+// Nifty50 Index data point
+export interface Nifty50IndexPoint {
+  date: string;
+  value: number;
+  return: number; // daily return %
+}
+
+// Risk metrics for portfolio analysis
+export interface RiskMetrics {
+  sharpeRatio: number;      // (mean return - risk-free) / std dev
+  maxDrawdown: number;      // peak-to-trough decline %
+  winLossRatio: number;     // avg win / avg loss
+  winRate: number;          // % of winning predictions
+  volatility: number;       // std dev of returns
+  totalTrades: number;
+}
+
+// Return distribution bucket
+export interface ReturnBucket {
+  range: string;       // e.g., "0% to 1%"
+  min: number;
+  max: number;
+  count: number;
+  stocks: string[];    // symbols in this bucket
+}
+
+// Filter state for History page
+export interface FilterState {
+  decision: 'ALL' | 'BUY' | 'SELL' | 'HOLD';
+  confidence: 'ALL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  sector: string;
+  sortBy: 'symbol' | 'return' | 'accuracy';
+  sortOrder: 'asc' | 'desc';
+}
+
+// Accuracy trend data point
+export interface AccuracyTrendPoint {
+  date: string;
+  overall: number;
+  buy: number;
+  sell: number;
+  hold: number;
 }
 
 export const NIFTY_50_STOCKS: NiftyStock[] = [

@@ -1,185 +1,239 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, RefreshCw, Filter, ChevronRight, PieChart } from 'lucide-react';
-import SummaryStats from '../components/SummaryStats';
+import { Calendar, RefreshCw, Filter, ChevronRight, TrendingUp, TrendingDown, Minus, History, Search, X } from 'lucide-react';
 import TopPicks, { StocksToAvoid } from '../components/TopPicks';
-import StockCard from '../components/StockCard';
-import { SummaryPieChart } from '../components/Charts';
-import { getLatestRecommendation } from '../data/recommendations';
-import type { Decision } from '../types';
+import { DecisionBadge } from '../components/StockCard';
+import HowItWorks from '../components/HowItWorks';
+import BackgroundSparkline from '../components/BackgroundSparkline';
+import { getLatestRecommendation, getBacktestResult } from '../data/recommendations';
+import type { Decision, StockAnalysis } from '../types';
 
 type FilterType = 'ALL' | Decision;
 
 export default function Dashboard() {
   const recommendation = getLatestRecommendation();
   const [filter, setFilter] = useState<FilterType>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   if (!recommendation) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="min-h-[40vh] flex items-center justify-center">
         <div className="text-center">
-          <RefreshCw className="w-12 h-12 text-gray-300 mx-auto mb-4 animate-spin" />
-          <h2 className="text-xl font-semibold text-gray-700">Loading recommendations...</h2>
+          <RefreshCw className="w-10 h-10 text-gray-300 mx-auto mb-3 animate-spin" />
+          <h2 className="text-lg font-semibold text-gray-700">Loading recommendations...</h2>
         </div>
       </div>
     );
   }
 
   const stocks = Object.values(recommendation.analysis);
-  const filteredStocks = filter === 'ALL'
-    ? stocks
-    : stocks.filter(s => s.decision === filter);
+  const filteredStocks = useMemo(() => {
+    let result = filter === 'ALL' ? stocks : stocks.filter(s => s.decision === filter);
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(s =>
+        s.symbol.toLowerCase().includes(query) ||
+        s.company_name.toLowerCase().includes(query)
+      );
+    }
+    return result;
+  }, [stocks, filter, searchQuery]);
 
-  const filterButtons: { label: string; value: FilterType; count: number }[] = [
-    { label: 'All', value: 'ALL', count: stocks.length },
-    { label: 'Buy', value: 'BUY', count: recommendation.summary.buy },
-    { label: 'Sell', value: 'SELL', count: recommendation.summary.sell },
-    { label: 'Hold', value: 'HOLD', count: recommendation.summary.hold },
-  ];
+  const { buy, sell, hold, total } = recommendation.summary;
+  const buyPct = ((buy / total) * 100).toFixed(0);
+  const holdPct = ((hold / total) * 100).toFixed(0);
+  const sellPct = ((sell / total) * 100).toFixed(0);
 
   return (
-    <div className="space-y-8">
-      {/* Hero Section */}
-      <section className="text-center py-8">
-        <h1 className="text-4xl md:text-5xl font-display font-bold text-gray-900 mb-4">
-          Nifty 50 <span className="gradient-text">AI Recommendations</span>
-        </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          AI-powered daily stock analysis for all Nifty 50 stocks. Get actionable buy, sell, and hold recommendations.
-        </p>
-        <div className="flex items-center justify-center gap-2 mt-4 text-sm text-gray-500">
-          <Calendar className="w-4 h-4" />
-          <span>Last updated: {new Date(recommendation.date).toLocaleDateString('en-IN', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          })}</span>
+    <div className="space-y-4">
+      {/* Compact Header with Stats */}
+      <section className="card p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100">
+              Nifty 50 <span className="gradient-text">AI Recommendations</span>
+            </h1>
+            <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{new Date(recommendation.date).toLocaleDateString('en-IN', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}</span>
+            </div>
+          </div>
+
+          {/* Inline Stats */}
+          <div className="flex items-center gap-3" role="group" aria-label="Summary statistics">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 rounded-lg cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors" onClick={() => setFilter('BUY')} title="Click to filter Buy stocks">
+              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
+              <span className="font-bold text-green-700 dark:text-green-400">{buy}</span>
+              <span className="text-xs text-green-600 dark:text-green-400">Buy ({buyPct}%)</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-lg cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors" onClick={() => setFilter('HOLD')} title="Click to filter Hold stocks">
+              <Minus className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+              <span className="font-bold text-amber-700 dark:text-amber-400">{hold}</span>
+              <span className="text-xs text-amber-600 dark:text-amber-400">Hold ({holdPct}%)</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-900/30 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" onClick={() => setFilter('SELL')} title="Click to filter Sell stocks">
+              <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-400" aria-hidden="true" />
+              <span className="font-bold text-red-700 dark:text-red-400">{sell}</span>
+              <span className="text-xs text-red-600 dark:text-red-400">Sell ({sellPct}%)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mt-3">
+          <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-slate-700">
+            <div className="bg-green-500 transition-all" style={{ width: `${buyPct}%` }} />
+            <div className="bg-amber-500 transition-all" style={{ width: `${holdPct}%` }} />
+            <div className="bg-red-500 transition-all" style={{ width: `${sellPct}%` }} />
+          </div>
         </div>
       </section>
 
-      {/* Summary Stats */}
-      <SummaryStats
-        total={recommendation.summary.total}
-        buy={recommendation.summary.buy}
-        sell={recommendation.summary.sell}
-        hold={recommendation.summary.hold}
-        date={recommendation.date}
-      />
+      {/* How It Works Section */}
+      <HowItWorks collapsed={true} />
 
-      {/* Chart and Stats Section */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="card p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <PieChart className="w-5 h-5 text-nifty-600" />
-            <h2 className="section-title text-lg">Decision Distribution</h2>
-          </div>
-          <SummaryPieChart
-            buy={recommendation.summary.buy}
-            sell={recommendation.summary.sell}
-            hold={recommendation.summary.hold}
-          />
-        </div>
-
-        <div className="card p-6">
-          <h2 className="section-title text-lg mb-4">Quick Analysis</h2>
-          <div className="space-y-4">
-            <div className="p-4 bg-green-50 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium text-green-800">Bullish Signals</span>
-                <span className="text-2xl font-bold text-green-600">{recommendation.summary.buy}</span>
-              </div>
-              <p className="text-sm text-green-700">
-                {((recommendation.summary.buy / recommendation.summary.total) * 100).toFixed(0)}% of stocks show buying opportunities
-              </p>
-            </div>
-            <div className="p-4 bg-amber-50 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium text-amber-800">Neutral Position</span>
-                <span className="text-2xl font-bold text-amber-600">{recommendation.summary.hold}</span>
-              </div>
-              <p className="text-sm text-amber-700">
-                {((recommendation.summary.hold / recommendation.summary.total) * 100).toFixed(0)}% of stocks recommend holding
-              </p>
-            </div>
-            <div className="p-4 bg-red-50 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium text-red-800">Bearish Signals</span>
-                <span className="text-2xl font-bold text-red-600">{recommendation.summary.sell}</span>
-              </div>
-              <p className="text-sm text-red-700">
-                {((recommendation.summary.sell / recommendation.summary.total) * 100).toFixed(0)}% of stocks suggest selling
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Top Picks and Avoid Section */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      {/* Top Picks and Avoid Section - Side by Side Compact */}
+      <div className="grid lg:grid-cols-2 gap-4">
         <TopPicks picks={recommendation.top_picks} />
         <StocksToAvoid stocks={recommendation.stocks_to_avoid} />
       </div>
 
-      {/* All Stocks Section */}
+      {/* All Stocks Section with Integrated Filter */}
       <section className="card">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-gray-400" />
-              <h2 className="section-title">All Stocks</h2>
+        <div className="p-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-700/50">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">All {total} Stocks</h2>
+              </div>
+              <div className="flex gap-1.5" role="group" aria-label="Filter stocks by recommendation">
+              <button
+                onClick={() => setFilter('ALL')}
+                aria-pressed={filter === 'ALL'}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                  filter === 'ALL'
+                    ? 'bg-nifty-600 text-white shadow-sm'
+                    : 'bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-500'
+                }`}
+              >
+                All ({total})
+              </button>
+              <button
+                onClick={() => setFilter('BUY')}
+                aria-pressed={filter === 'BUY'}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                  filter === 'BUY'
+                    ? 'bg-green-600 text-white shadow-sm'
+                    : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50'
+                }`}
+              >
+                Buy ({buy})
+              </button>
+              <button
+                onClick={() => setFilter('HOLD')}
+                aria-pressed={filter === 'HOLD'}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                  filter === 'HOLD'
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50'
+                }`}
+              >
+                Hold ({hold})
+              </button>
+              <button
+                onClick={() => setFilter('SELL')}
+                aria-pressed={filter === 'SELL'}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                  filter === 'SELL'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50'
+                }`}
+              >
+                Sell ({sell})
+              </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              {filterButtons.map(({ label, value, count }) => (
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search by symbol or company name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:border-transparent"
+              />
+              {searchQuery && (
                 <button
-                  key={value}
-                  onClick={() => setFilter(value)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                    filter === value
-                      ? 'bg-nifty-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                 >
-                  {label} ({count})
+                  <X className="w-4 h-4" />
                 </button>
-              ))}
+              )}
             </div>
           </div>
         </div>
 
-        <div className="divide-y divide-gray-100">
-          {filteredStocks.map((stock) => (
-            <StockCard key={stock.symbol} stock={stock} />
-          ))}
+        <div className="p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-[400px] overflow-y-auto" role="list" aria-label="Stock recommendations list">
+          {filteredStocks.map((stock: StockAnalysis) => {
+            const backtest = getBacktestResult(stock.symbol);
+            const trend = stock.decision === 'BUY' ? 'up' : stock.decision === 'SELL' ? 'down' : 'flat';
+            return (
+              <Link
+                key={stock.symbol}
+                to={`/stock/${stock.symbol}`}
+                className="card-hover p-2 group relative overflow-hidden"
+                role="listitem"
+              >
+                {/* Background Chart */}
+                {backtest && (
+                  <div className="absolute inset-0 opacity-[0.06]">
+                    <BackgroundSparkline
+                      data={backtest.price_history.slice(-15)}
+                      trend={trend}
+                    />
+                  </div>
+                )}
+
+                {/* Content */}
+                <div className="relative z-10">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">{stock.symbol}</span>
+                    <DecisionBadge decision={stock.decision} size="small" />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{stock.company_name}</p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
 
         {filteredStocks.length === 0 && (
-          <div className="p-12 text-center">
-            <p className="text-gray-500">No stocks match the selected filter.</p>
+          <div className="p-8 text-center">
+            <p className="text-gray-500 dark:text-gray-400 text-sm">No stocks match the selected filter.</p>
           </div>
         )}
       </section>
 
-      {/* CTA Section */}
-      <section className="card bg-gradient-to-r from-nifty-600 to-nifty-800 text-white p-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <h2 className="text-2xl font-display font-bold mb-2">
-              Track Historical Recommendations
-            </h2>
-            <p className="text-nifty-100">
-              View past recommendations and track how our AI predictions performed over time.
-            </p>
-          </div>
-          <Link
-            to="/history"
-            className="inline-flex items-center gap-2 bg-white text-nifty-700 px-6 py-3 rounded-lg font-semibold hover:bg-nifty-50 transition-colors"
-          >
-            View History
-            <ChevronRight className="w-5 h-5" />
-          </Link>
+      {/* Compact CTA */}
+      <Link
+        to="/history"
+        className="card flex items-center justify-between p-4 bg-gradient-to-r from-nifty-600 to-nifty-700 text-white hover:from-nifty-700 hover:to-nifty-800 transition-all group focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-2"
+        aria-label="View historical stock recommendations"
+      >
+        <div className="flex items-center gap-3">
+          <History className="w-5 h-5" aria-hidden="true" />
+          <span className="font-semibold">View Historical Recommendations</span>
         </div>
-      </section>
+        <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+      </Link>
     </div>
   );
 }
