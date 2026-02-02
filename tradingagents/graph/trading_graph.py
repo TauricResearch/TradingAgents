@@ -48,6 +48,7 @@ class TradingAgentsGraph:
         selected_analysts=["market", "social", "news", "fundamentals"],
         debug=False,
         config: Dict[str, Any] = None,
+        callbacks: Optional[List] = None,
     ):
         """Initialize the trading agents graph and components.
 
@@ -55,9 +56,11 @@ class TradingAgentsGraph:
             selected_analysts: List of analyst types to include
             debug: Whether to run in debug mode
             config: Configuration dictionary. If None, uses default config
+            callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
         """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
+        self.callbacks = callbacks or []
 
         # Update the interface's config
         set_config(self.config)
@@ -71,6 +74,10 @@ class TradingAgentsGraph:
         # Initialize LLMs with provider-specific thinking configuration
         llm_kwargs = self._get_provider_kwargs()
 
+        # Add callbacks to kwargs if provided (passed to LLM constructor)
+        if self.callbacks:
+            llm_kwargs["callbacks"] = self.callbacks
+
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["deep_think_llm"],
@@ -83,6 +90,7 @@ class TradingAgentsGraph:
             base_url=self.config.get("backend_url"),
             **llm_kwargs,
         )
+
         self.deep_thinking_llm = deep_client.get_llm()
         self.quick_thinking_llm = quick_client.get_llm()
         

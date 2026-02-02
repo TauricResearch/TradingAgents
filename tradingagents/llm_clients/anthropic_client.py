@@ -16,7 +16,7 @@ class AnthropicClient(BaseLLMClient):
         """Return configured ChatAnthropic instance."""
         llm_kwargs = {"model": self.model}
 
-        for key in ("timeout", "max_retries", "api_key", "max_tokens"):
+        for key in ("timeout", "max_retries", "api_key", "max_tokens", "callbacks"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
