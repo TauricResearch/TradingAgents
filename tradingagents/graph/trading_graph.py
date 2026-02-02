@@ -29,7 +29,6 @@ from tradingagents.agents.utils.agent_utils import (
     get_cashflow,
     get_income_statement,
     get_news,
-    get_insider_sentiment,
     get_insider_transactions,
     get_global_news
 )
@@ -162,7 +161,6 @@ class TradingAgentsGraph:
                     # News and insider information
                     get_news,
                     get_global_news,
-                    get_insider_sentiment,
                     get_insider_transactions,
                 ]
             ),

@@ -15,7 +15,6 @@ from tradingagents.agents.utils.fundamental_data_tools import (
 )
 from tradingagents.agents.utils.news_data_tools import (
     get_news,
-    get_insider_sentiment,
     get_insider_transactions,
     get_global_news
 )

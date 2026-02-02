@@ -39,33 +39,15 @@ def get_global_news(
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
 @tool
-def get_insider_sentiment(
-    ticker: Annotated[str, "ticker symbol for the company"],
-    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
-) -> str:
-    """
-    Retrieve insider sentiment information about a company.
-    Uses the configured news_data vendor.
-    Args:
-        ticker (str): Ticker symbol of the company
-        curr_date (str): Current date you are trading at, yyyy-mm-dd
-    Returns:
-        str: A report of insider sentiment data
-    """
-    return route_to_vendor("get_insider_sentiment", ticker, curr_date)
-
-@tool
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol"],
-    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
 ) -> str:
     """
     Retrieve insider transaction information about a company.
     Uses the configured news_data vendor.
     Args:
         ticker (str): Ticker symbol of the company
-        curr_date (str): Current date you are trading at, yyyy-mm-dd
     Returns:
         str: A report of insider transaction data
     """
-    return route_to_vendor("get_insider_transactions", ticker, curr_date)
+    return route_to_vendor("get_insider_transactions", ticker)

@@ -20,6 +20,7 @@ from .alpha_vantage import (
     get_income_statement as get_alpha_vantage_income_statement,
     get_insider_transactions as get_alpha_vantage_insider_transactions,
     get_news as get_alpha_vantage_news,
+    get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 
@@ -100,6 +101,7 @@ VENDOR_METHODS = {
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
+        "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,

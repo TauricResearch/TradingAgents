@@ -64,7 +64,7 @@ def get_news_yfinance(
     """
     try:
         stock = yf.Ticker(ticker)
-        news = stock.get_news(count=20, tab="news")
+        news = stock.get_news(count=20)
 
         if not news:
             return f"No news found for {ticker}"
