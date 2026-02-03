@@ -257,8 +257,8 @@ def select_llm_provider() -> tuple[str, str]:
     # Define OpenAI api options with their corresponding endpoints
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
-        ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
+        ("Anthropic", "https://api.anthropic.com/"),
         ("xAI", "https://api.x.ai/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
