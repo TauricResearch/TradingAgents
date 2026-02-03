@@ -613,194 +613,155 @@ def get_analysis_date():
             )
 
 
+def save_report_to_disk(final_state, ticker: str, save_path: Path):
+    """Save complete analysis report to disk with organized subfolders."""
+    save_path.mkdir(parents=True, exist_ok=True)
+    sections = []
+
+    # 1. Analysts
+    analysts_dir = save_path / "1_analysts"
+    analyst_parts = []
+    if final_state.get("market_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "market.md").write_text(final_state["market_report"])
+        analyst_parts.append(("Market Analyst", final_state["market_report"]))
+    if final_state.get("sentiment_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"])
+        analyst_parts.append(("Social Analyst", final_state["sentiment_report"]))
+    if final_state.get("news_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "news.md").write_text(final_state["news_report"])
+        analyst_parts.append(("News Analyst", final_state["news_report"]))
+    if final_state.get("fundamentals_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"])
+        analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    if analyst_parts:
+        content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
+        sections.append(f"## I. Analyst Team Reports\n\n{content}")
+
+    # 2. Research
+    if final_state.get("investment_debate_state"):
+        research_dir = save_path / "2_research"
+        debate = final_state["investment_debate_state"]
+        research_parts = []
+        if debate.get("bull_history"):
+            research_dir.mkdir(exist_ok=True)
+            (research_dir / "bull.md").write_text(debate["bull_history"])
+            research_parts.append(("Bull Researcher", debate["bull_history"]))
+        if debate.get("bear_history"):
+            research_dir.mkdir(exist_ok=True)
+            (research_dir / "bear.md").write_text(debate["bear_history"])
+            research_parts.append(("Bear Researcher", debate["bear_history"]))
+        if debate.get("judge_decision"):
+            research_dir.mkdir(exist_ok=True)
+            (research_dir / "manager.md").write_text(debate["judge_decision"])
+            research_parts.append(("Research Manager", debate["judge_decision"]))
+        if research_parts:
+            content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
+            sections.append(f"## II. Research Team Decision\n\n{content}")
+
+    # 3. Trading
+    if final_state.get("trader_investment_plan"):
+        trading_dir = save_path / "3_trading"
+        trading_dir.mkdir(exist_ok=True)
+        (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"])
+        sections.append(f"## III. Trading Team Plan\n\n### Trader\n{final_state['trader_investment_plan']}")
+
+    # 4. Risk Management
+    if final_state.get("risk_debate_state"):
+        risk_dir = save_path / "4_risk"
+        risk = final_state["risk_debate_state"]
+        risk_parts = []
+        if risk.get("aggressive_history"):
+            risk_dir.mkdir(exist_ok=True)
+            (risk_dir / "aggressive.md").write_text(risk["aggressive_history"])
+            risk_parts.append(("Aggressive Analyst", risk["aggressive_history"]))
+        if risk.get("conservative_history"):
+            risk_dir.mkdir(exist_ok=True)
+            (risk_dir / "conservative.md").write_text(risk["conservative_history"])
+            risk_parts.append(("Conservative Analyst", risk["conservative_history"]))
+        if risk.get("neutral_history"):
+            risk_dir.mkdir(exist_ok=True)
+            (risk_dir / "neutral.md").write_text(risk["neutral_history"])
+            risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
+        if risk_parts:
+            content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
+            sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
+
+        # 5. Portfolio Manager
+        if risk.get("judge_decision"):
+            portfolio_dir = save_path / "5_portfolio"
+            portfolio_dir.mkdir(exist_ok=True)
+            (portfolio_dir / "decision.md").write_text(risk["judge_decision"])
+            sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
+
+    # Write consolidated report
+    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections))
+    return save_path / "complete_report.md"
+
+
 def display_complete_report(final_state):
-    """Display the complete analysis report with team-based panels."""
-    console.print("\n[bold green]Complete Analysis Report[/bold green]\n")
+    """Display the complete analysis report sequentially (avoids truncation)."""
+    console.print()
+    console.print(Rule("Complete Analysis Report", style="bold green"))
 
     # I. Analyst Team Reports
-    analyst_reports = []
-
-    # Market Analyst Report
+    analysts = []
     if final_state.get("market_report"):
-        analyst_reports.append(
-            Panel(
-                Markdown(final_state["market_report"]),
-                title="Market Analyst",
-                border_style="blue",
-                padding=(1, 2),
-            )
-        )
-
-    # Social Analyst Report
+        analysts.append(("Market Analyst", final_state["market_report"]))
     if final_state.get("sentiment_report"):
-        analyst_reports.append(
-            Panel(
-                Markdown(final_state["sentiment_report"]),
-                title="Social Analyst",
-                border_style="blue",
-                padding=(1, 2),
-            )
-        )
-
-    # News Analyst Report
+        analysts.append(("Social Analyst", final_state["sentiment_report"]))
     if final_state.get("news_report"):
-        analyst_reports.append(
-            Panel(
-                Markdown(final_state["news_report"]),
-                title="News Analyst",
-                border_style="blue",
-                padding=(1, 2),
-            )
-        )
-
-    # Fundamentals Analyst Report
+        analysts.append(("News Analyst", final_state["news_report"]))
     if final_state.get("fundamentals_report"):
-        analyst_reports.append(
-            Panel(
-                Markdown(final_state["fundamentals_report"]),
-                title="Fundamentals Analyst",
-                border_style="blue",
-                padding=(1, 2),
-            )
-        )
-
-    if analyst_reports:
-        console.print(
-            Panel(
-                Columns(analyst_reports, equal=True, expand=True),
-                title="I. Analyst Team Reports",
-                border_style="cyan",
-                padding=(1, 2),
-            )
-        )
+        analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    if analysts:
+        console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
+        for title, content in analysts:
+            console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
     # II. Research Team Reports
     if final_state.get("investment_debate_state"):
-        research_reports = []
-        debate_state = final_state["investment_debate_state"]
+        debate = final_state["investment_debate_state"]
+        research = []
+        if debate.get("bull_history"):
+            research.append(("Bull Researcher", debate["bull_history"]))
+        if debate.get("bear_history"):
+            research.append(("Bear Researcher", debate["bear_history"]))
+        if debate.get("judge_decision"):
+            research.append(("Research Manager", debate["judge_decision"]))
+        if research:
+            console.print(Panel("[bold]II. Research Team Decision[/bold]", border_style="magenta"))
+            for title, content in research:
+                console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
-        # Bull Researcher Analysis
-        if debate_state.get("bull_history"):
-            research_reports.append(
-                Panel(
-                    Markdown(debate_state["bull_history"]),
-                    title="Bull Researcher",
-                    border_style="blue",
-                    padding=(1, 2),
-                )
-            )
-
-        # Bear Researcher Analysis
-        if debate_state.get("bear_history"):
-            research_reports.append(
-                Panel(
-                    Markdown(debate_state["bear_history"]),
-                    title="Bear Researcher",
-                    border_style="blue",
-                    padding=(1, 2),
-                )
-            )
-
-        # Research Manager Decision
-        if debate_state.get("judge_decision"):
-            research_reports.append(
-                Panel(
-                    Markdown(debate_state["judge_decision"]),
-                    title="Research Manager",
-                    border_style="blue",
-                    padding=(1, 2),
-                )
-            )
-
-        if research_reports:
-            console.print(
-                Panel(
-                    Columns(research_reports, equal=True, expand=True),
-                    title="II. Research Team Decision",
-                    border_style="magenta",
-                    padding=(1, 2),
-                )
-            )
-
-    # III. Trading Team Reports
+    # III. Trading Team
     if final_state.get("trader_investment_plan"):
-        console.print(
-            Panel(
-                Panel(
-                    Markdown(final_state["trader_investment_plan"]),
-                    title="Trader",
-                    border_style="blue",
-                    padding=(1, 2),
-                ),
-                title="III. Trading Team Plan",
-                border_style="yellow",
-                padding=(1, 2),
-            )
-        )
+        console.print(Panel("[bold]III. Trading Team Plan[/bold]", border_style="yellow"))
+        console.print(Panel(Markdown(final_state["trader_investment_plan"]), title="Trader", border_style="blue", padding=(1, 2)))
 
-    # IV. Risk Management Team Reports
+    # IV. Risk Management Team
     if final_state.get("risk_debate_state"):
+        risk = final_state["risk_debate_state"]
         risk_reports = []
-        risk_state = final_state["risk_debate_state"]
-
-        # Aggressive (Risky) Analyst Analysis
-        if risk_state.get("aggressive_history"):
-            risk_reports.append(
-                Panel(
-                    Markdown(risk_state["aggressive_history"]),
-                    title="Aggressive Analyst",
-                    border_style="blue",
-                    padding=(1, 2),
-                )
-            )
-
-        # Conservative (Safe) Analyst Analysis
-        if risk_state.get("conservative_history"):
-            risk_reports.append(
-                Panel(
-                    Markdown(risk_state["conservative_history"]),
-                    title="Conservative Analyst",
-                    border_style="blue",
-                    padding=(1, 2),
-                )
-            )
-
-        # Neutral Analyst Analysis
-        if risk_state.get("neutral_history"):
-            risk_reports.append(
-                Panel(
-                    Markdown(risk_state["neutral_history"]),
-                    title="Neutral Analyst",
-                    border_style="blue",
-                    padding=(1, 2),
-                )
-            )
-
+        if risk.get("aggressive_history"):
+            risk_reports.append(("Aggressive Analyst", risk["aggressive_history"]))
+        if risk.get("conservative_history"):
+            risk_reports.append(("Conservative Analyst", risk["conservative_history"]))
+        if risk.get("neutral_history"):
+            risk_reports.append(("Neutral Analyst", risk["neutral_history"]))
         if risk_reports:
-            console.print(
-                Panel(
-                    Columns(risk_reports, equal=True, expand=True),
-                    title="IV. Risk Management Team Decision",
-                    border_style="red",
-                    padding=(1, 2),
-                )
-            )
+            console.print(Panel("[bold]IV. Risk Management Team Decision[/bold]", border_style="red"))
+            for title, content in risk_reports:
+                console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
 
         # V. Portfolio Manager Decision
-        if risk_state.get("judge_decision"):
-            console.print(
-                Panel(
-                    Panel(
-                        Markdown(risk_state["judge_decision"]),
-                        title="Portfolio Manager",
-                        border_style="blue",
-                        padding=(1, 2),
-                    ),
-                    title="V. Portfolio Manager Decision",
-                    border_style="green",
-                    padding=(1, 2),
-                )
-            )
+        if risk.get("judge_decision"):
+            console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
+            console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
 
 
 def update_research_team_status(status):
@@ -1178,10 +1139,32 @@ def run_analysis():
             if section in final_state:
                 message_buffer.update_report_section(section, final_state[section])
 
-        # Display the complete final report
-        display_complete_report(final_state)
-
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
+
+    # Post-analysis prompts (outside Live context for clean interaction)
+    console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
+
+    # Prompt to save report
+    save_choice = typer.prompt("Save report?", default="Y").strip().upper()
+    if save_choice in ("Y", "YES", ""):
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
+        save_path_str = typer.prompt(
+            "Save path (press Enter for default)",
+            default=str(default_path)
+        ).strip()
+        save_path = Path(save_path_str)
+        try:
+            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
+            console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+        except Exception as e:
+            console.print(f"[red]Error saving report: {e}[/red]")
+
+    # Prompt to display full report
+    display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
+    if display_choice in ("Y", "YES", ""):
+        display_complete_report(final_state)
 
 
 @app.command()
