@@ -14,7 +14,8 @@ DEFAULT_CONFIG = {
     "backend_url": "https://api.openai.com/v1",
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
-    "openai_reasoning_effort": None,    # "medium", "high", "low"
+    "llm_reasoning_effort": None,       # "medium", "high", "low"
+    "openai_reasoning_effort": None,    # Legacy key (backward compatible fallback)
     "azure_endpoint": None,             # e.g. https://<resource>.openai.azure.com/
     "azure_api_version": "2024-10-21",
     # Debate and discussion settings

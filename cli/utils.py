@@ -306,8 +306,8 @@ def select_llm_provider() -> tuple[str, str]:
     return display_name, url
 
 
-def ask_openai_reasoning_effort() -> str:
-    """Ask for OpenAI reasoning effort level."""
+def ask_reasoning_effort() -> str:
+    """Ask for reasoning effort level for supported providers."""
     choices = [
         questionary.Choice("Medium (Default)", "medium"),
         questionary.Choice("High (More thorough)", "high"),
@@ -322,6 +322,11 @@ def ask_openai_reasoning_effort() -> str:
             ("pointer", "fg:cyan noinherit"),
         ]),
     ).ask()
+
+
+def ask_openai_reasoning_effort() -> str:
+    """Backward-compatible alias."""
+    return ask_reasoning_effort()
 
 
 def ask_gemini_thinking_config() -> str | None:

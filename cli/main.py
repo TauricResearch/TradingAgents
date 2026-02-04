@@ -555,7 +555,7 @@ def get_user_selections():
 
     # Step 7: Provider-specific thinking configuration
     thinking_level = None
-    reasoning_effort = None
+    llm_reasoning_effort = None
     azure_endpoint = None
     azure_api_version = None
 
@@ -572,10 +572,10 @@ def get_user_selections():
         console.print(
             create_question_box(
                 "Step 7: Reasoning Effort",
-                "Configure OpenAI reasoning effort level"
+                "Configure reasoning effort level"
             )
         )
-        reasoning_effort = ask_openai_reasoning_effort()
+        llm_reasoning_effort = ask_reasoning_effort()
     elif provider_lower == "azure":
         console.print(
             create_question_box(
@@ -594,7 +594,7 @@ def get_user_selections():
             selected_deep_thinker,
         )
         backend_url = azure_endpoint
-        reasoning_effort = ask_openai_reasoning_effort()
+        llm_reasoning_effort = ask_reasoning_effort()
 
     return {
         "ticker": selected_ticker,
@@ -606,7 +606,7 @@ def get_user_selections():
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
         "google_thinking_level": thinking_level,
-        "openai_reasoning_effort": reasoning_effort,
+        "llm_reasoning_effort": llm_reasoning_effort,
         "azure_endpoint": azure_endpoint,
         "azure_api_version": azure_api_version,
     }
@@ -933,7 +933,8 @@ def run_analysis():
     config["llm_provider"] = selections["llm_provider"].lower()
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
-    config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
+    config["llm_reasoning_effort"] = selections.get("llm_reasoning_effort")
+    config["openai_reasoning_effort"] = selections.get("llm_reasoning_effort")
     config["azure_endpoint"] = selections.get("azure_endpoint")
     config["azure_api_version"] = selections.get("azure_api_version")
 

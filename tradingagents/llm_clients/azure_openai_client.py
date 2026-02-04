@@ -1,4 +1,3 @@
-import os
 from typing import Any, Optional
 
 from langchain_openai import AzureChatOpenAI
@@ -20,30 +19,25 @@ class AzureOpenAIClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured AzureChatOpenAI instance."""
-        azure_endpoint = (
-            self.kwargs.get("azure_endpoint")
-            or self.base_url
-            or os.environ.get("AZURE_OPENAI_ENDPOINT")
-        )
-        api_version = self.kwargs.get("api_version") or os.environ.get(
-            "AZURE_OPENAI_API_VERSION",
-            "2024-10-21",
-        )
-        api_key = self.kwargs.get("api_key") or os.environ.get("AZURE_OPENAI_API_KEY")
-
         llm_kwargs = {
             "azure_deployment": self.model,
             "model": self.model,
-            "api_version": api_version,
         }
 
+        # Prefer explicit config sources and let AzureChatOpenAI resolve env fallbacks.
+        azure_endpoint = self.kwargs.get("azure_endpoint") or self.base_url
         if azure_endpoint:
             llm_kwargs["azure_endpoint"] = azure_endpoint
-        if api_key:
-            llm_kwargs["api_key"] = api_key
 
-        for key in ("timeout", "max_retries", "reasoning_effort", "callbacks"):
-            if key in self.kwargs:
+        for key in (
+            "api_version",
+            "api_key",
+            "timeout",
+            "max_retries",
+            "reasoning_effort",
+            "callbacks",
+        ):
+            if key in self.kwargs and self.kwargs[key] is not None:
                 llm_kwargs[key] = self.kwargs[key]
 
         return AzureChatOpenAI(**llm_kwargs)
