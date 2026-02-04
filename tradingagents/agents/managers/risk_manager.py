@@ -22,7 +22,7 @@ def create_risk_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
+        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Aggressive, Neutral, and Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
 
 Guidelines for Decision-Making:
 1. **Summarize Key Arguments**: Extract the strongest points from each analyst, focusing on relevance to the context.
@@ -48,12 +48,12 @@ Focus on actionable insights and continuous improvement. Build on past lessons, 
         new_risk_debate_state = {
             "judge_decision": response.content,
             "history": risk_debate_state["history"],
-            "risky_history": risk_debate_state["risky_history"],
-            "safe_history": risk_debate_state["safe_history"],
+            "aggressive_history": risk_debate_state["aggressive_history"],
+            "conservative_history": risk_debate_state["conservative_history"],
             "neutral_history": risk_debate_state["neutral_history"],
             "latest_speaker": "Judge",
-            "current_risky_response": risk_debate_state["current_risky_response"],
-            "current_safe_response": risk_debate_state["current_safe_response"],
+            "current_aggressive_response": risk_debate_state["current_aggressive_response"],
+            "current_conservative_response": risk_debate_state["current_conservative_response"],
             "current_neutral_response": risk_debate_state["current_neutral_response"],
             "count": risk_debate_state["count"],
         }

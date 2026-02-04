@@ -3,17 +3,11 @@ langchain-openai
 langchain-experimental
 pandas
 yfinance
-praw
-feedparser
 stockstats
-eodhd
 langgraph
-chromadb
+rank-bm25
 setuptools
 backtrader
-akshare
-tushare
-finnhub-python
 parsel
 requests
 tqdm
@@ -21,6 +15,7 @@ pytz
 redis
 chainlit
 rich
+typer
 questionary
 langchain_anthropic
 langchain-google-genai
