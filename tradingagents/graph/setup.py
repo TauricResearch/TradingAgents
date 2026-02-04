@@ -98,9 +98,9 @@ class GraphSetup:
         trader_node = create_trader(self.quick_thinking_llm, self.trader_memory)
 
         # Create risk analysis nodes
-        risky_analyst = create_risky_debator(self.quick_thinking_llm)
+        aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
-        safe_analyst = create_safe_debator(self.quick_thinking_llm)
+        conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
         risk_manager_node = create_risk_manager(
             self.deep_thinking_llm, self.risk_manager_memory
         )
@@ -121,9 +121,9 @@ class GraphSetup:
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
-        workflow.add_node("Risky Analyst", risky_analyst)
+        workflow.add_node("Aggressive Analyst", aggressive_analyst)
         workflow.add_node("Neutral Analyst", neutral_analyst)
-        workflow.add_node("Safe Analyst", safe_analyst)
+        workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Risk Judge", risk_manager_node)
 
         # Define edges
@@ -170,17 +170,17 @@ class GraphSetup:
             },
         )
         workflow.add_edge("Research Manager", "Trader")
-        workflow.add_edge("Trader", "Risky Analyst")
+        workflow.add_edge("Trader", "Aggressive Analyst")
         workflow.add_conditional_edges(
-            "Risky Analyst",
+            "Aggressive Analyst",
             self.conditional_logic.should_continue_risk_analysis,
             {
-                "Safe Analyst": "Safe Analyst",
+                "Conservative Analyst": "Conservative Analyst",
                 "Risk Judge": "Risk Judge",
             },
         )
         workflow.add_conditional_edges(
-            "Safe Analyst",
+            "Conservative Analyst",
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Neutral Analyst": "Neutral Analyst",
@@ -191,7 +191,7 @@ class GraphSetup:
             "Neutral Analyst",
             self.conditional_logic.should_continue_risk_analysis,
             {
-                "Risky Analyst": "Risky Analyst",
+                "Aggressive Analyst": "Aggressive Analyst",
                 "Risk Judge": "Risk Judge",
             },
         )
