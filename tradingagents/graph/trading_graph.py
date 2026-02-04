@@ -144,6 +144,18 @@ class TradingAgentsGraph:
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
+        elif provider == "azure":
+            azure_endpoint = self.config.get("azure_endpoint") or self.config.get("backend_url")
+            if azure_endpoint:
+                kwargs["azure_endpoint"] = azure_endpoint
+
+            api_version = self.config.get("azure_api_version")
+            if api_version:
+                kwargs["api_version"] = api_version
+
+            reasoning_effort = self.config.get("openai_reasoning_effort")
+            if reasoning_effort:
+                kwargs["reasoning_effort"] = reasoning_effort
 
         return kwargs
 

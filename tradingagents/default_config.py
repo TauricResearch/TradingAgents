@@ -15,6 +15,8 @@ DEFAULT_CONFIG = {
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
+    "azure_endpoint": None,             # e.g. https://<resource>.openai.azure.com/
+    "azure_api_version": "2024-10-21",
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
