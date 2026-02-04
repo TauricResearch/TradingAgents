@@ -27,3 +27,11 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
 ]
+
+[build-system]
+requires = ["uv_build>=0.8.5, <0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "tradingagents"
+module-root = ""
