@@ -12,7 +12,7 @@ Date: 2026-02-07
 
 from .correlation_analyzer import CorrelationAnalyzer
 from .multi_asset_processor import MultiAssetProcessor
-from .correlation_regimes_fixed import CorrelationRegimeDetector
+from .correlation_regime_detector import CorrelationRegimeDetector
 
 __version__ = "1.0.0"
 __all__ = [
