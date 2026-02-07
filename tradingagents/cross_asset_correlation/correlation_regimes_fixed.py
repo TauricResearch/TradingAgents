@@ -137,7 +137,7 @@ class CorrelationRegimeDetector:
             DataFrame with transition probabilities and statistics
         """
         if len(regimes) < 2:
-            return pd.DataFrame()
+            return pd.DataFrame(), pd.DataFrame()
             
         # Create transition matrix
         regime_types = [r.regime_type for r in regimes]
