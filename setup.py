@@ -13,6 +13,7 @@ setup(
     url="https://github.com/TauricResearch",
     packages=find_packages(),
     install_requires=[
+        "langchain-core>=0.3.81",
         "langchain>=0.1.0",
         "langchain-openai>=0.0.2",
         "langchain-experimental>=0.0.40",
