@@ -134,6 +134,13 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-5.1 - Flexible reasoning", "gpt-5.1"),
             ("GPT-4.1 - Smartest non-reasoning, 1M context", "gpt-4.1"),
         ],
+        "azure": [
+            ("GPT-5 Mini deployment", "gpt-5-mini"),
+            ("GPT-5 Nano deployment", "gpt-5-nano"),
+            ("GPT-5.2 deployment", "gpt-5.2"),
+            ("GPT-5.1 deployment", "gpt-5.1"),
+            ("GPT-4.1 deployment", "gpt-4.1"),
+        ],
         "anthropic": [
             ("Claude Haiku 4.5 - Fast + extended thinking", "claude-haiku-4-5"),
             ("Claude Sonnet 4.5 - Best for agents/coding", "claude-sonnet-4-5"),
@@ -200,6 +207,14 @@ def select_deep_thinking_agent(provider) -> str:
             ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
             ("GPT-5 Nano - Ultra-fast, high-throughput", "gpt-5-nano"),
         ],
+        "azure": [
+            ("GPT-5.2 deployment", "gpt-5.2"),
+            ("GPT-5.1 deployment", "gpt-5.1"),
+            ("GPT-5 deployment", "gpt-5"),
+            ("GPT-4.1 deployment", "gpt-4.1"),
+            ("GPT-5 Mini deployment", "gpt-5-mini"),
+            ("GPT-5 Nano deployment", "gpt-5-nano"),
+        ],
         "anthropic": [
             ("Claude Sonnet 4.5 - Best for agents/coding", "claude-sonnet-4-5"),
             ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
@@ -253,10 +268,11 @@ def select_deep_thinking_agent(provider) -> str:
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """Select an LLM provider and default API endpoint."""
+    # Define provider options with their corresponding endpoints
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
+        ("Azure", "https://YOUR-RESOURCE.openai.azure.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("xAI", "https://api.x.ai/v1"),
@@ -281,7 +297,7 @@ def select_llm_provider() -> tuple[str, str]:
     ).ask()
     
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
     
     display_name, url = choice
@@ -290,8 +306,8 @@ def select_llm_provider() -> tuple[str, str]:
     return display_name, url
 
 
-def ask_openai_reasoning_effort() -> str:
-    """Ask for OpenAI reasoning effort level."""
+def ask_reasoning_effort() -> str:
+    """Ask for reasoning effort level for supported providers."""
     choices = [
         questionary.Choice("Medium (Default)", "medium"),
         questionary.Choice("High (More thorough)", "high"),
@@ -306,6 +322,11 @@ def ask_openai_reasoning_effort() -> str:
             ("pointer", "fg:cyan noinherit"),
         ]),
     ).ask()
+
+
+def ask_openai_reasoning_effort() -> str:
+    """Backward-compatible alias."""
+    return ask_reasoning_effort()
 
 
 def ask_gemini_thinking_config() -> str | None:
@@ -325,4 +346,31 @@ def ask_gemini_thinking_config() -> str | None:
             ("highlighted", "fg:green noinherit"),
             ("pointer", "fg:green noinherit"),
         ]),
+    ).ask()
+
+
+def ask_azure_endpoint(default: str = "https://YOUR-RESOURCE.openai.azure.com/") -> str:
+    """Ask for Azure OpenAI endpoint URL."""
+    return questionary.text(
+        "Enter Azure OpenAI Endpoint URL:",
+        default=default,
+        validate=lambda x: len(x.strip()) > 0 or "Endpoint URL is required.",
+    ).ask()
+
+
+def ask_azure_api_version(default: str = "2024-10-21") -> str:
+    """Ask for Azure OpenAI API version."""
+    return questionary.text(
+        "Enter Azure OpenAI API Version:",
+        default=default,
+        validate=lambda x: len(x.strip()) > 0 or "API version is required.",
+    ).ask()
+
+
+def ask_azure_deployment_name(label: str, default: str) -> str:
+    """Ask for Azure OpenAI deployment name."""
+    return questionary.text(
+        f"Enter Azure deployment for {label}:",
+        default=default,
+        validate=lambda x: len(x.strip()) > 0 or "Deployment name is required.",
     ).ask()

@@ -162,7 +162,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, OpenRouter, and Ollama.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Azure OpenAI, Google, Anthropic, xAI, OpenRouter, and Ollama.
 
 ### Python Usage
 
@@ -186,7 +186,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
+config["llm_provider"] = "openai"        # openai, azure, google, anthropic, xai, openrouter, ollama
 config["deep_think_llm"] = "gpt-5.2"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2

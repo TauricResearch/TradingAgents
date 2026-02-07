@@ -140,8 +140,21 @@ class TradingAgentsGraph:
             if thinking_level:
                 kwargs["thinking_level"] = thinking_level
 
-        elif provider == "openai":
-            reasoning_effort = self.config.get("openai_reasoning_effort")
+        elif provider == "azure":
+            azure_endpoint = self.config.get("azure_endpoint") or self.config.get("backend_url")
+            if azure_endpoint:
+                kwargs["azure_endpoint"] = azure_endpoint
+
+            api_version = self.config.get("azure_api_version")
+            if api_version:
+                kwargs["api_version"] = api_version
+
+        if provider in ("openai", "azure"):
+            # Backward compatibility: prefer llm_reasoning_effort, then legacy key.
+            reasoning_effort = (
+                self.config.get("llm_reasoning_effort")
+                or self.config.get("openai_reasoning_effort")
+            )
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
 
