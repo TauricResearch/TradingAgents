@@ -346,17 +346,22 @@ class MultiAssetProcessor:
                     class_correlations.loc[class1, class2] = np.nan
                     continue
                     
-                # Get correlations between classes
-                class_corr_values = []
-                for a1 in assets1:
-                    for a2 in assets2:
-                        if a1 != a2:  # Exclude self-correlation
-                            corr_value = corr_matrix.loc[a1, a2]
-                            if not np.isnan(corr_value):
-                                class_corr_values.append(corr_value)
-                                
-                if class_corr_values:
-                    class_correlations.loc[class1, class2] = np.mean(class_corr_values)
+                # Get correlations between classes using vectorized operations
+                sub_matrix = corr_matrix.loc[assets1, assets2].values
+
+                if class1 == class2:
+                    # For intra-class correlation, use upper triangle (excluding diagonal)
+                    if len(assets1) > 1:
+                        corr_values = sub_matrix[np.triu_indices_from(sub_matrix, k=1)]
+                    else:
+                        corr_values = np.array([])
+                else:
+                    # For inter-class correlation, use the whole sub-matrix
+                    corr_values = sub_matrix.flatten()
+
+                # Calculate average correlation, ignoring NaNs
+                if corr_values.size > 0:
+                    class_correlations.loc[class1, class2] = np.nanmean(corr_values)
                 else:
                     class_correlations.loc[class1, class2] = np.nan
                     
