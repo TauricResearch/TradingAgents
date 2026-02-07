@@ -203,11 +203,11 @@ class CorrelationRegimeDetector:
         Returns:
             Tuple of (predicted regime, probability)
         """
-        if current_regime.value not in transition_matrix.index:
+        if current_regime not in transition_matrix.index:
             return current_regime, 1.0
             
         # Get transition probabilities from current regime
-        probs = transition_matrix.loc[current_regime.value]
+        probs = transition_matrix.loc[current_regime]
         
         # Adjust based on market conditions if provided
         if market_conditions:
