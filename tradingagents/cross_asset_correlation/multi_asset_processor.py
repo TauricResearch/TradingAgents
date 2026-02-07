@@ -375,8 +375,8 @@ class MultiAssetProcessor:
         
         # Ensure prices are positive
         if (price_data <= 0).any().any():
-            warnings.warn("Some prices are non-positive. Taking absolute values.")
-            price_data = price_data.abs()
+            warnings.warn("Non-positive prices found. Replacing with NaN.")
+            price_data[price_data <= 0] = np.nan
             
         return price_data
     
