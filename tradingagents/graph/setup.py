@@ -1,7 +1,10 @@
 # TradingAgents/graph/setup.py
 
-from typing import Dict, Any
+from typing import Any, Dict, Union
+
 from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
 
@@ -10,14 +13,17 @@ from tradingagents.agents.utils.agent_states import AgentState
 
 from .conditional_logic import ConditionalLogic
 
+# Union of supported LLM chat model types
+ChatModel = Union[ChatOpenAI, ChatAnthropic, ChatGoogleGenerativeAI]
+
 
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
     def __init__(
         self,
-        quick_thinking_llm: ChatOpenAI,
-        deep_thinking_llm: ChatOpenAI,
+        quick_thinking_llm: ChatModel,
+        deep_thinking_llm: ChatModel,
         tool_nodes: Dict[str, ToolNode],
         bull_memory,
         bear_memory,
