@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "tradingagents"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -31,3 +35,6 @@ dependencies = [
 
 [project.scripts]
 tradingagents = "cli.main:app"
+
+[tool.setuptools.packages.find]
+include = ["tradingagents*", "cli*"]
