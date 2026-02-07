@@ -126,7 +126,7 @@ class CorrelationRegimeDetector:
     def analyze_regime_transitions(
         self,
         regimes: List[RegimeDetectionResult]
-    ) -> pd.DataFrame:
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
         Analyze transitions between regimes.
         
