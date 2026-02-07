@@ -28,3 +28,6 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
 ]
+
+[project.scripts]
+tradingagents = "cli.main:app"
