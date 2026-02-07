@@ -217,7 +217,7 @@ class CorrelationRegimeDetector:
         next_regime = probs.idxmax()
         probability = probs.max()
         
-        return CorrelationRegime(next_regime), probability
+        return next_regime, probability
     
     def detect_crisis_periods(
         self,
