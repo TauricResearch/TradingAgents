@@ -225,7 +225,7 @@ def _get_stock_stats_bulk(
         curr_date_dt = pd.to_datetime(curr_date)
 
         end_date = curr_date_dt  # Use backtest date, NOT today's date
-        start_date = curr_date_dt - pd.DateOffset(years=15)
+        start_date = curr_date_dt - pd.DateOffset(years=2)  # Reduced from 15 years for faster fetching
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
         
@@ -314,16 +314,17 @@ def _filter_fundamentals_by_date(data, curr_date):
 
     try:
         curr_date_dt = pd.to_datetime(curr_date)
-        # Financial reports are typically published ~45 days after the report date
-        # So for a report dated 2024-03-31, it would be available around mid-May
-        publication_delay_days = 45
+        # Financial reports have SEC deadlines (10-K: 60-90 days, 10-Q: 40-45 days)
+        # However, many companies file later and data vendors need processing time
+        # Using 60 days as conservative estimate to prevent future data leakage
+        publication_delay_days = 60
 
         # Filter columns (report dates) to only include those available at curr_date
         valid_columns = []
         for col in data.columns:
             try:
                 report_date = pd.to_datetime(col)
-                # Report would have been published ~45 days after report_date
+                # Report would have been published ~60 days after report_date
                 estimated_publish_date = report_date + pd.Timedelta(days=publication_delay_days)
                 if estimated_publish_date <= curr_date_dt:
                     valid_columns.append(col)

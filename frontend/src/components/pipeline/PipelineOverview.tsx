@@ -101,26 +101,44 @@ export function PipelineOverview({ steps, onStepClick, compact = false }: Pipeli
   }
 
   return (
-    <div className="space-y-4">
-      {/* Progress bar */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
+    <div className="space-y-3">
+      {/* Compact Progress Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex -space-x-0.5">
+            {displaySteps.map((step) => (
+              <div
+                key={step.step_number}
+                className={`w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-800 ${
+                  step.status === 'completed' ? 'bg-green-500' :
+                  step.status === 'running' ? 'bg-blue-500' :
+                  step.status === 'error' ? 'bg-red-500' :
+                  'bg-slate-300 dark:bg-slate-600'
+                }`}
+                title={`${STEP_LABELS[step.step_name]}: ${step.status}`}
+              />
+            ))}
+          </div>
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            {completedCount}/{totalSteps} steps
+          </span>
         </div>
-        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-          {completedCount}/{totalSteps}
-        </span>
+        <div className="flex items-center gap-2">
+          <div className="w-20 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-nifty-500 to-green-500 transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">{progress}%</span>
+        </div>
       </div>
 
-      {/* Pipeline steps */}
-      <div className="flex flex-wrap gap-2">
+      {/* Compact Pipeline Steps Grid */}
+      <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-1.5">
         {displaySteps.map((step) => {
           const StepIcon = STEP_ICONS[step.step_name] || Database;
           const styles = STATUS_STYLES[step.status];
-          const StatusIcon = styles.icon;
           const label = STEP_LABELS[step.step_name] || step.step_name;
 
           return (
@@ -128,24 +146,22 @@ export function PipelineOverview({ steps, onStepClick, compact = false }: Pipeli
               key={step.step_number}
               onClick={() => onStepClick?.(step)}
               className={`
-                flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all
+                relative flex flex-col items-center gap-1 p-2 rounded-lg border transition-all
                 ${styles.bg} ${styles.border} ${styles.text}
-                hover:scale-105 hover:shadow-md
+                hover:shadow-sm
                 ${onStepClick ? 'cursor-pointer' : 'cursor-default'}
               `}
+              title={`${label}: ${step.status}${step.duration_ms ? ` (${(step.duration_ms / 1000).toFixed(1)}s)` : ''}`}
             >
               <div className="relative">
                 <StepIcon className="w-4 h-4" />
-                {StatusIcon && step.status === 'running' && (
-                  <Loader2 className="w-3 h-3 absolute -top-1 -right-1 animate-spin" />
+                {step.status === 'running' && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                 )}
               </div>
-              <span className="text-xs font-medium">{label}</span>
-              {step.duration_ms && (
-                <span className="text-xs opacity-60">
-                  {(step.duration_ms / 1000).toFixed(1)}s
-                </span>
-              )}
+              <span className="text-[9px] font-medium leading-tight text-center line-clamp-1">
+                {label.split(' ')[0]}
+              </span>
             </button>
           );
         })}

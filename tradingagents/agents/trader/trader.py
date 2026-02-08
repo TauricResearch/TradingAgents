@@ -1,6 +1,9 @@
 import functools
 import time
 import json
+from langchain_core.messages import SystemMessage, HumanMessage
+
+from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 
 def create_trader(llm, memory):
@@ -13,29 +16,65 @@ def create_trader(llm, memory):
         fundamentals_report = state["fundamentals_report"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
+        past_memories = None
+        if memory is not None:
+            past_memories = memory.get_memories(curr_situation, n_matches=2)
         if past_memories:
             for i, rec in enumerate(past_memories, 1):
                 past_memory_str += rec["recommendation"] + "\n\n"
         else:
             past_memory_str = "No past memories found."
 
-        context = {
-            "role": "user",
-            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic decision.",
-        }
+        system_content = """You are a Trader at a financial trading desk. You MUST stay in character as a financial trader at all times.
+
+CRITICAL RULES:
+- NEVER mention that you are an AI, Claude, a language model, or an assistant
+- NEVER offer to help with code, software, or implementation tasks
+- NEVER say "I don't have access to" or "I can't see the data" — analyze whatever data is provided below
+- If data sections are empty, state that data is unavailable and make a recommendation based on available information
+
+Your task: Review the investment plan and market data, then provide a clear trading recommendation.
+
+Respond with your trading analysis and conclude with: FINAL TRANSACTION PROPOSAL: **BUY**, **HOLD**, or **SELL**
+
+RESPONSE FORMAT:
+- Maximum 1500 characters. Lead with your recommendation, then key rationale.
+- Complete your ENTIRE response in a SINGLE message.
+
+Provide only your trading analysis. No disclaimers or meta-commentary."""
+
+        user_content = f"""Company: {company_name}
+
+Investment Plan from Analysts:
+{investment_plan}
+
+Past reflections from similar situations:
+{past_memory_str}
+
+Based on this analysis, what is your trading recommendation for {company_name}?"""
 
         messages = [
-            {
-                "role": "system",
-                "content": f"""You are a trading agent analyzing market data to make investment decisions. Based on your analysis, provide a specific recommendation to buy, sell, or hold. End with a firm decision and always conclude your response with 'FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**' to confirm your recommendation. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situatiosn you traded in and the lessons learned: {past_memory_str}""",
-            },
-            context,
+            SystemMessage(content=system_content),
+            HumanMessage(content=user_content),
         ]
 
+        step_timer.start_step("trader")
+        add_log("agent", "trader", f"💰 Trader calling LLM for {company_name}...")
+        t0 = time.time()
         result = llm.invoke(messages)
+        elapsed = time.time() - t0
+        add_log("llm", "trader", f"LLM responded in {elapsed:.1f}s ({len(result.content)} chars)")
+        add_log("agent", "trader", f"✅ Trader plan ready: {result.content[:300]}...")
+        step_timer.end_step("trader", "completed", result.content[:200])
+        symbol_progress.step_done(company_name, "trader")
+        step_timer.set_details("trader", {
+            "system_prompt": system_content,
+            "user_prompt": user_content[:3000],
+            "response": result.content[:3000],
+            "tool_calls": [],
+        })
 
         return {
             "messages": [result],

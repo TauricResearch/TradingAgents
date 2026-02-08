@@ -12,6 +12,9 @@ FRONTEND_BACKEND_PATH = Path(__file__).parent.parent.parent / "frontend" / "back
 if str(FRONTEND_BACKEND_PATH) not in sys.path:
     sys.path.insert(0, str(FRONTEND_BACKEND_PATH))
 
+# Import shared logging
+from tradingagents.log_utils import add_log, step_timer
+
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -92,12 +95,22 @@ class TradingAgentsGraph:
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
         
-        # Initialize memories
-        self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
-        self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
-        self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
-        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
+        # Initialize memories with graceful error handling for ChromaDB race conditions
+        try:
+            self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
+            self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
+            self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
+            self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
+            self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
+        except Exception as e:
+            # ChromaDB can fail with race conditions in parallel execution
+            # Fall back to None memories - agents will work without memory-based recommendations
+            add_log("warning", "system", f"ChromaDB memory initialization failed: {str(e)[:100]}. Continuing without memory.")
+            self.bull_memory = None
+            self.bear_memory = None
+            self.trader_memory = None
+            self.invest_judge_memory = None
+            self.risk_manager_memory = None
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -167,10 +180,15 @@ class TradingAgentsGraph:
 
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date."""
+        import time as _time
 
         self.ticker = company_name
+        pipeline_start = _time.time()
+        step_timer.clear()  # Reset per-agent timings for this run
+        add_log("info", "system", f"🚀 Starting analysis for {company_name} on {trade_date}")
 
         # Initialize state
+        add_log("info", "system", "Initializing agent state...")
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date
         )
@@ -178,6 +196,7 @@ class TradingAgentsGraph:
 
         if self.debug:
             # Debug mode with tracing
+            add_log("info", "system", "Running in debug mode with tracing...")
             trace = []
             for chunk in self.graph.stream(init_agent_state, **args):
                 if len(chunk["messages"]) == 0:
@@ -188,20 +207,59 @@ class TradingAgentsGraph:
 
             final_state = trace[-1]
         else:
-            # Standard mode without tracing
+            # Standard mode - log key stages
+            add_log("info", "system", f"Running full analysis pipeline for {company_name} (deep={self.config.get('deep_think_llm','?')}, quick={self.config.get('quick_think_llm','?')})...")
+            add_log("info", "system", "Pipeline: Data Fetch → Analysts → Bull/Bear Debate → Trader → Risk Debate → Final Decision")
+
+            # Run the full graph (all agents log their own timing)
+            graph_start = _time.time()
             final_state = self.graph.invoke(init_agent_state, **args)
+            graph_elapsed = _time.time() - graph_start
+            add_log("info", "system", f"Graph execution completed in {graph_elapsed:.1f}s")
+
+            # Log completions with report sizes
+            if final_state.get("market_report"):
+                add_log("success", "market_analyst", f"✅ Market report: {len(final_state['market_report'])} chars")
+            if final_state.get("news_report"):
+                add_log("success", "news_analyst", f"✅ News report: {len(final_state['news_report'])} chars")
+            if final_state.get("sentiment_report"):
+                add_log("success", "social_analyst", f"✅ Sentiment report: {len(final_state['sentiment_report'])} chars")
+            if final_state.get("fundamentals_report"):
+                add_log("success", "fundamentals", f"✅ Fundamentals report: {len(final_state['fundamentals_report'])} chars")
+
+            # Log debate results
+            invest_debate = final_state.get("investment_debate_state", {})
+            if invest_debate.get("judge_decision"):
+                add_log("success", "debate", f"✅ Investment debate decided: {invest_debate['judge_decision'][:100]}...")
+            if final_state.get("trader_investment_plan"):
+                add_log("success", "trader", f"✅ Trader plan: {final_state['trader_investment_plan'][:100]}...")
+            risk_debate = final_state.get("risk_debate_state", {})
+            if risk_debate.get("judge_decision"):
+                add_log("success", "risk_manager", f"✅ Risk decision: {risk_debate['judge_decision'][:100]}...")
 
         # Store current state for reflection
         self.curr_state = final_state
+        add_log("info", "system", "Storing analysis results...")
 
         # Log state
         self._log_state(trade_date, final_state)
 
         # Save to frontend database for UI display
+        add_log("info", "system", "Saving pipeline data to database...")
+        t0 = _time.time()
         self._save_to_frontend_db(trade_date, final_state)
+        add_log("info", "system", f"Database save completed in {_time.time() - t0:.1f}s")
 
-        # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        # Extract and log the final decision + hold_days
+        signal_result = self.process_signal(final_state["final_trade_decision"])
+        final_decision = signal_result["decision"]
+        hold_days = signal_result.get("hold_days")
+        total_elapsed = _time.time() - pipeline_start
+        hold_info = f", hold {hold_days}d" if hold_days else ""
+        add_log("success", "system", f"✅ Analysis complete for {company_name}: {final_decision}{hold_info} (total: {total_elapsed:.0f}s)")
+
+        # Return decision, hold_days, and processed signal
+        return final_state, final_decision, hold_days
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
@@ -312,19 +370,92 @@ class TradingAgentsGraph:
                     full_history=risk_debate.get("history", "")
                 )
 
-            # 4. Save pipeline steps (tracking the stages)
-            pipeline_steps = [
-                {"step_number": 1, "step_name": "initialize", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "Pipeline initialized"},
-                {"step_number": 2, "step_name": "market_analysis", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "Market analysis complete" if final_state.get("market_report") else "Skipped"},
-                {"step_number": 3, "step_name": "news_analysis", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "News analysis complete" if final_state.get("news_report") else "Skipped"},
-                {"step_number": 4, "step_name": "social_analysis", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "Social analysis complete" if final_state.get("sentiment_report") else "Skipped"},
-                {"step_number": 5, "step_name": "fundamental_analysis", "status": "completed", "started_at": now, "completed_at": now, "output_summary": "Fundamental analysis complete" if final_state.get("fundamentals_report") else "Skipped"},
-                {"step_number": 6, "step_name": "investment_debate", "status": "completed", "started_at": now, "completed_at": now, "output_summary": invest_debate.get("judge_decision", "")[:100] if invest_debate else "Skipped"},
-                {"step_number": 7, "step_name": "trader_decision", "status": "completed", "started_at": now, "completed_at": now, "output_summary": final_state.get("trader_investment_plan", "")[:100] if final_state.get("trader_investment_plan") else "Skipped"},
-                {"step_number": 8, "step_name": "risk_debate", "status": "completed", "started_at": now, "completed_at": now, "output_summary": risk_debate.get("judge_decision", "")[:100] if risk_debate else "Skipped"},
-                {"step_number": 9, "step_name": "final_decision", "status": "completed", "started_at": now, "completed_at": now, "output_summary": final_state.get("final_trade_decision", "")[:100] if final_state.get("final_trade_decision") else "Pending"},
+            # 4. Save pipeline steps — 12 granular steps with per-agent timing
+            step_timings = step_timer.get_steps()
+
+            # Define the 12 steps with their IDs, names, and fallback output summaries
+            step_defs = [
+                (1, "market_analyst", "market_analysis", final_state.get("market_report", "")[:200]),
+                (2, "social_media_analyst", "social_analysis", final_state.get("sentiment_report", "")[:200]),
+                (3, "news_analyst", "news_analysis", final_state.get("news_report", "")[:200]),
+                (4, "fundamentals_analyst", "fundamental_analysis", final_state.get("fundamentals_report", "")[:200]),
+                (5, "bull_researcher", "bull_research", invest_debate.get("bull_history", "")[:200]),
+                (6, "bear_researcher", "bear_research", invest_debate.get("bear_history", "")[:200]),
+                (7, "research_manager", "research_manager", invest_debate.get("judge_decision", "")[:200]),
+                (8, "trader", "trader_decision", final_state.get("trader_investment_plan", "")[:200]),
+                (9, "aggressive_analyst", "aggressive_analysis", risk_debate.get("risky_history", "")[:200]),
+                (10, "conservative_analyst", "conservative_analysis", risk_debate.get("safe_history", "")[:200]),
+                (11, "neutral_analyst", "neutral_analysis", risk_debate.get("neutral_history", "")[:200]),
+                (12, "risk_manager", "risk_manager", risk_debate.get("judge_decision", "")[:200]),
             ]
+
+            pipeline_steps = []
+            for step_num, timer_id, step_name, fallback_summary in step_defs:
+                timing = step_timings.get(timer_id, {})
+                # Force status to "completed" — we only reach this save code
+                # after the graph has fully executed, so all steps must be done.
+                # The step_timer may show "running" if end_step() wasn't called
+                # due to an exception in the agent.
+                pipeline_steps.append({
+                    "step_number": step_num,
+                    "step_name": step_name,
+                    "status": "completed",
+                    "started_at": timing.get("started_at", now),
+                    "completed_at": timing.get("completed_at", now),
+                    "duration_ms": timing.get("duration_ms"),
+                    "output_summary": timing.get("output_summary") or fallback_summary or "Completed",
+                    "step_details": timing.get("details"),
+                })
+            # 5. Save raw data source logs from the data fetch store
+            from tradingagents.log_utils import raw_data_store
+
+            METHOD_TO_SOURCE = {
+                "get_stock_data": ("market_data", "Yahoo Finance"),
+                "get_YFin_data": ("market_data", "Yahoo Finance"),
+                "get_stock_stats": ("indicators", "Technical Indicators"),
+                "get_stock_stats_indicators": ("indicators", "Technical Indicators"),
+                "get_fundamentals": ("fundamentals", "Financial Data"),
+                "get_balance_sheet": ("fundamentals", "Balance Sheet"),
+                "get_income_statement": ("fundamentals", "Income Statement"),
+                "get_cashflow": ("fundamentals", "Cash Flow"),
+                "get_news": ("news", "Google News"),
+                "get_global_news": ("news", "Global News"),
+                "get_reddit_posts": ("social_media", "Reddit"),
+            }
+
+            raw_entries = raw_data_store.get_entries()
+
+            # Enrich pipeline step tool_calls with result_preview from raw data
+            if raw_entries:
+                for step in pipeline_steps:
+                    details = step.get("step_details")
+                    if details and details.get("tool_calls"):
+                        for tc in details["tool_calls"]:
+                            for entry in raw_entries:
+                                if entry["method"] == tc.get("name"):
+                                    tc["result_preview"] = str(entry["raw_data"])[:500]
+                                    break
+
             save_pipeline_steps_bulk(trade_date, symbol, pipeline_steps)
+
+            if raw_entries:
+                data_source_logs = []
+                for entry in raw_entries:
+                    source_type, source_name = METHOD_TO_SOURCE.get(
+                        entry["method"], ("other", entry["method"])
+                    )
+                    data_source_logs.append({
+                        "source_type": source_type,
+                        "source_name": source_name,
+                        "method": entry["method"],
+                        "args": entry.get("args", ""),
+                        "data_fetched": entry["raw_data"],
+                        "fetch_timestamp": entry["timestamp"],
+                        "success": True,
+                        "error_message": None,
+                    })
+                save_data_source_logs_bulk(trade_date, symbol, data_source_logs)
+                raw_data_store.clear()
 
             print(f"[Frontend DB] Saved pipeline data for {symbol} on {trade_date}")
 

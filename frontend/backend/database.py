@@ -105,9 +105,16 @@ def init_db():
             completed_at TEXT,
             duration_ms INTEGER,
             output_summary TEXT,
+            step_details TEXT,
             UNIQUE(date, symbol, step_number)
         )
     """)
+
+    # Add step_details column if it doesn't exist (migration for existing DBs)
+    try:
+        cursor.execute("ALTER TABLE pipeline_steps ADD COLUMN step_details TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
 
     # Create data_source_logs table (stores what raw data was fetched)
     cursor.execute("""
@@ -117,12 +124,54 @@ def init_db():
             symbol TEXT NOT NULL,
             source_type TEXT,
             source_name TEXT,
+            method TEXT,
+            args TEXT,
             data_fetched TEXT,
             fetch_timestamp TEXT,
             success INTEGER DEFAULT 1,
             error_message TEXT
         )
     """)
+
+    # Migrate: add method/args columns if missing (existing databases)
+    try:
+        cursor.execute("ALTER TABLE data_source_logs ADD COLUMN method TEXT")
+    except Exception:
+        pass  # Column already exists
+    try:
+        cursor.execute("ALTER TABLE data_source_logs ADD COLUMN args TEXT")
+    except Exception:
+        pass  # Column already exists
+
+    # Create backtest_results table (stores calculated backtest accuracy)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS backtest_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            symbol TEXT NOT NULL,
+            decision TEXT,
+            price_at_prediction REAL,
+            price_1d_later REAL,
+            price_1w_later REAL,
+            price_1m_later REAL,
+            return_1d REAL,
+            return_1w REAL,
+            return_1m REAL,
+            prediction_correct INTEGER,
+            calculated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(date, symbol)
+        )
+    """)
+
+    # Add hold_days column if it doesn't exist (migration for existing DBs)
+    try:
+        cursor.execute("ALTER TABLE stock_analysis ADD COLUMN hold_days INTEGER")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    try:
+        cursor.execute("ALTER TABLE backtest_results ADD COLUMN hold_days INTEGER")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
 
     # Create indexes for new tables
     cursor.execute("""
@@ -136,6 +185,9 @@ def init_db():
     """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_data_source_logs_date_symbol ON data_source_logs(date, symbol)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_backtest_results_date ON backtest_results(date)
     """)
 
     conn.commit()
@@ -168,8 +220,8 @@ def save_recommendation(date: str, analysis_data: dict, summary: dict,
         for symbol, analysis in analysis_data.items():
             cursor.execute("""
                 INSERT OR REPLACE INTO stock_analysis
-                (date, symbol, company_name, decision, confidence, risk, raw_analysis)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (date, symbol, company_name, decision, confidence, risk, raw_analysis, hold_days)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 date,
                 symbol,
@@ -177,10 +229,57 @@ def save_recommendation(date: str, analysis_data: dict, summary: dict,
                 analysis.get('decision'),
                 analysis.get('confidence'),
                 analysis.get('risk'),
-                analysis.get('raw_analysis', '')
+                analysis.get('raw_analysis', ''),
+                analysis.get('hold_days')
             ))
 
         conn.commit()
+    finally:
+        conn.close()
+
+
+def save_single_stock_analysis(date: str, symbol: str, analysis: dict):
+    """Save analysis for a single stock.
+
+    Args:
+        date: Date string (YYYY-MM-DD)
+        symbol: Stock symbol
+        analysis: Dict with keys: company_name, decision, confidence, risk, raw_analysis, hold_days
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            INSERT OR REPLACE INTO stock_analysis
+            (date, symbol, company_name, decision, confidence, risk, raw_analysis, hold_days)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            date,
+            symbol,
+            analysis.get('company_name', symbol),
+            analysis.get('decision', 'HOLD'),
+            analysis.get('confidence', 'MEDIUM'),
+            analysis.get('risk', 'MEDIUM'),
+            analysis.get('raw_analysis', ''),
+            analysis.get('hold_days')
+        ))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_analyzed_symbols_for_date(date: str) -> list:
+    """Get list of symbols that already have analysis for a given date.
+
+    Used by bulk analysis to skip already-completed stocks when resuming.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT symbol FROM stock_analysis WHERE date = ?", (date,))
+        return [row['symbol'] for row in cursor.fetchall()]
     finally:
         conn.close()
 
@@ -197,37 +296,60 @@ def get_recommendation_by_date(date: str) -> Optional[dict]:
         """, (date,))
         row = cursor.fetchone()
 
-        if not row:
-            return None
-
         # Get stock analysis for this date
         cursor.execute("""
             SELECT * FROM stock_analysis WHERE date = ?
         """, (date,))
         analysis_rows = cursor.fetchall()
 
+        # If no daily_recommendations AND no stock_analysis, return None
+        if not row and not analysis_rows:
+            return None
+
         analysis = {}
         for a in analysis_rows:
+            decision = (a['decision'] or '').strip().upper()
+            if decision not in ('BUY', 'SELL', 'HOLD'):
+                decision = 'HOLD'
             analysis[a['symbol']] = {
                 'symbol': a['symbol'],
                 'company_name': a['company_name'],
-                'decision': a['decision'],
-                'confidence': a['confidence'],
-                'risk': a['risk'],
-                'raw_analysis': a['raw_analysis']
+                'decision': decision,
+                'confidence': a['confidence'] or 'MEDIUM',
+                'risk': a['risk'] or 'MEDIUM',
+                'raw_analysis': a['raw_analysis'],
+                'hold_days': a['hold_days'] if 'hold_days' in a.keys() else None
             }
 
+        if row:
+            return {
+                'date': row['date'],
+                'analysis': analysis,
+                'summary': {
+                    'total': row['summary_total'],
+                    'buy': row['summary_buy'],
+                    'sell': row['summary_sell'],
+                    'hold': row['summary_hold']
+                },
+                'top_picks': json.loads(row['top_picks']) if row['top_picks'] else [],
+                'stocks_to_avoid': json.loads(row['stocks_to_avoid']) if row['stocks_to_avoid'] else []
+            }
+
+        # Fallback: build summary from stock_analysis when daily_recommendations is missing
+        buy_count = sum(1 for a in analysis.values() if a['decision'] == 'BUY')
+        sell_count = sum(1 for a in analysis.values() if a['decision'] == 'SELL')
+        hold_count = sum(1 for a in analysis.values() if a['decision'] == 'HOLD')
         return {
-            'date': row['date'],
+            'date': date,
             'analysis': analysis,
             'summary': {
-                'total': row['summary_total'],
-                'buy': row['summary_buy'],
-                'sell': row['summary_sell'],
-                'hold': row['summary_hold']
+                'total': len(analysis),
+                'buy': buy_count,
+                'sell': sell_count,
+                'hold': hold_count
             },
-            'top_picks': json.loads(row['top_picks']) if row['top_picks'] else [],
-            'stocks_to_avoid': json.loads(row['stocks_to_avoid']) if row['stocks_to_avoid'] else []
+            'top_picks': [],
+            'stocks_to_avoid': []
         }
     finally:
         conn.close()
@@ -253,13 +375,17 @@ def get_latest_recommendation() -> Optional[dict]:
 
 
 def get_all_dates() -> list:
-    """Get all available dates."""
+    """Get all available dates (union of daily_recommendations and stock_analysis)."""
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
         cursor.execute("""
-            SELECT date FROM daily_recommendations ORDER BY date DESC
+            SELECT DISTINCT date FROM (
+                SELECT date FROM daily_recommendations
+                UNION
+                SELECT date FROM stock_analysis
+            ) ORDER BY date DESC
         """)
         return [row['date'] for row in cursor.fetchall()]
     finally:
@@ -273,21 +399,26 @@ def get_stock_history(symbol: str) -> list:
 
     try:
         cursor.execute("""
-            SELECT date, decision, confidence, risk
+            SELECT date, decision, confidence, risk, hold_days
             FROM stock_analysis
             WHERE symbol = ?
             ORDER BY date DESC
         """, (symbol,))
 
-        return [
-            {
+        results = []
+        for row in cursor.fetchall():
+            decision = (row['decision'] or '').strip().upper()
+            # Sanitize: only allow BUY/SELL/HOLD
+            if decision not in ('BUY', 'SELL', 'HOLD'):
+                decision = 'HOLD'
+            results.append({
                 'date': row['date'],
-                'decision': row['decision'],
-                'confidence': row['confidence'],
-                'risk': row['risk']
-            }
-            for row in cursor.fetchall()
-        ]
+                'decision': decision,
+                'confidence': row['confidence'] or 'MEDIUM',
+                'risk': row['risk'] or 'MEDIUM',
+                'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None
+            })
+        return results
     finally:
         conn.close()
 
@@ -467,11 +598,14 @@ def save_pipeline_steps_bulk(date: str, symbol: str, steps: list):
 
     try:
         for step in steps:
+            step_details = step.get('step_details')
+            if step_details and not isinstance(step_details, str):
+                step_details = json.dumps(step_details)
             cursor.execute("""
                 INSERT OR REPLACE INTO pipeline_steps
                 (date, symbol, step_number, step_name, status,
-                 started_at, completed_at, duration_ms, output_summary)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 started_at, completed_at, duration_ms, output_summary, step_details)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 date, symbol,
                 step.get('step_number'),
@@ -480,7 +614,8 @@ def save_pipeline_steps_bulk(date: str, symbol: str, steps: list):
                 step.get('started_at'),
                 step.get('completed_at'),
                 step.get('duration_ms'),
-                step.get('output_summary')
+                step.get('output_summary'),
+                step_details
             ))
         conn.commit()
     finally:
@@ -499,18 +634,26 @@ def get_pipeline_steps(date: str, symbol: str) -> list:
             ORDER BY step_number
         """, (date, symbol))
 
-        return [
-            {
+        results = []
+        for row in cursor.fetchall():
+            step_details = None
+            raw_details = row['step_details'] if 'step_details' in row.keys() else None
+            if raw_details:
+                try:
+                    step_details = json.loads(raw_details)
+                except (json.JSONDecodeError, TypeError):
+                    step_details = None
+            results.append({
                 'step_number': row['step_number'],
                 'step_name': row['step_name'],
                 'status': row['status'],
                 'started_at': row['started_at'],
                 'completed_at': row['completed_at'],
                 'duration_ms': row['duration_ms'],
-                'output_summary': row['output_summary']
-            }
-            for row in cursor.fetchall()
-        ]
+                'output_summary': row['output_summary'],
+                'step_details': step_details,
+            })
+        return results
     finally:
         conn.close()
 
@@ -550,13 +693,15 @@ def save_data_source_logs_bulk(date: str, symbol: str, logs: list):
         for log in logs:
             cursor.execute("""
                 INSERT INTO data_source_logs
-                (date, symbol, source_type, source_name, data_fetched,
+                (date, symbol, source_type, source_name, method, args, data_fetched,
                  fetch_timestamp, success, error_message)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 date, symbol,
                 log.get('source_type'),
                 log.get('source_name'),
+                log.get('method'),
+                log.get('args'),
                 json.dumps(log.get('data_fetched')) if log.get('data_fetched') else None,
                 log.get('fetch_timestamp') or datetime.now().isoformat(),
                 1 if log.get('success', True) else 0,
@@ -568,7 +713,8 @@ def save_data_source_logs_bulk(date: str, symbol: str, logs: list):
 
 
 def get_data_source_logs(date: str, symbol: str) -> list:
-    """Get all data source logs for a stock on a date."""
+    """Get all data source logs for a stock on a date.
+    Falls back to generating entries from agent_reports if no explicit logs exist."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -579,10 +725,12 @@ def get_data_source_logs(date: str, symbol: str) -> list:
             ORDER BY fetch_timestamp
         """, (date, symbol))
 
-        return [
+        logs = [
             {
                 'source_type': row['source_type'],
                 'source_name': row['source_name'],
+                'method': row['method'] if 'method' in row.keys() else None,
+                'args': row['args'] if 'args' in row.keys() else None,
                 'data_fetched': json.loads(row['data_fetched']) if row['data_fetched'] else None,
                 'fetch_timestamp': row['fetch_timestamp'],
                 'success': bool(row['success']),
@@ -590,6 +738,39 @@ def get_data_source_logs(date: str, symbol: str) -> list:
             }
             for row in cursor.fetchall()
         ]
+
+        if logs:
+            return logs
+
+        # No explicit logs — generate from agent_reports with full raw content
+        AGENT_TO_SOURCE = {
+            'market': ('market_data', 'Yahoo Finance'),
+            'news': ('news', 'Google News'),
+            'social_media': ('social_media', 'Social Sentiment'),
+            'fundamentals': ('fundamentals', 'Financial Data'),
+        }
+
+        cursor.execute("""
+            SELECT agent_type, report_content, created_at
+            FROM agent_reports
+            WHERE date = ? AND symbol = ?
+        """, (date, symbol))
+
+        generated = []
+        for row in cursor.fetchall():
+            source_type, source_name = AGENT_TO_SOURCE.get(
+                row['agent_type'], ('other', row['agent_type'])
+            )
+            generated.append({
+                'source_type': source_type,
+                'source_name': source_name,
+                'data_fetched': row['report_content'],
+                'fetch_timestamp': row['created_at'],
+                'success': True,
+                'error_message': None
+            })
+
+        return generated
     finally:
         conn.close()
 
@@ -696,6 +877,284 @@ def get_pipeline_summary_for_date(date: str) -> list:
         return summaries
     finally:
         conn.close()
+
+
+def save_backtest_result(date: str, symbol: str, decision: str,
+                         price_at_prediction: float, price_1d_later: float = None,
+                         price_1w_later: float = None, price_1m_later: float = None,
+                         return_1d: float = None, return_1w: float = None,
+                         return_1m: float = None, prediction_correct: bool = None,
+                         hold_days: int = None):
+    """Save a backtest result for a stock recommendation."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            INSERT OR REPLACE INTO backtest_results
+            (date, symbol, decision, price_at_prediction,
+             price_1d_later, price_1w_later, price_1m_later,
+             return_1d, return_1w, return_1m, prediction_correct, hold_days)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            date, symbol, decision, price_at_prediction,
+            price_1d_later, price_1w_later, price_1m_later,
+            return_1d, return_1w, return_1m,
+            1 if prediction_correct else 0 if prediction_correct is not None else None,
+            hold_days
+        ))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_backtest_result(date: str, symbol: str) -> Optional[dict]:
+    """Get backtest result for a specific stock and date."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT * FROM backtest_results WHERE date = ? AND symbol = ?
+        """, (date, symbol))
+        row = cursor.fetchone()
+
+        if row:
+            return {
+                'date': row['date'],
+                'symbol': row['symbol'],
+                'decision': row['decision'],
+                'price_at_prediction': row['price_at_prediction'],
+                'price_1d_later': row['price_1d_later'],
+                'price_1w_later': row['price_1w_later'],
+                'price_1m_later': row['price_1m_later'],
+                'return_1d': row['return_1d'],
+                'return_1w': row['return_1w'],
+                'return_1m': row['return_1m'],
+                'prediction_correct': bool(row['prediction_correct']) if row['prediction_correct'] is not None else None,
+                'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None,
+                'calculated_at': row['calculated_at']
+            }
+        return None
+    finally:
+        conn.close()
+
+
+def get_backtest_results_by_date(date: str) -> list:
+    """Get all backtest results for a specific date."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT * FROM backtest_results WHERE date = ?
+        """, (date,))
+
+        return [
+            {
+                'symbol': row['symbol'],
+                'decision': row['decision'],
+                'price_at_prediction': row['price_at_prediction'],
+                'price_1d_later': row['price_1d_later'],
+                'price_1w_later': row['price_1w_later'],
+                'price_1m_later': row['price_1m_later'],
+                'return_1d': row['return_1d'],
+                'return_1w': row['return_1w'],
+                'return_1m': row['return_1m'],
+                'prediction_correct': bool(row['prediction_correct']) if row['prediction_correct'] is not None else None,
+                'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None
+            }
+            for row in cursor.fetchall()
+        ]
+    finally:
+        conn.close()
+
+
+def get_all_backtest_results() -> list:
+    """Get all backtest results for accuracy calculation."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT br.*, sa.confidence, sa.risk
+            FROM backtest_results br
+            LEFT JOIN stock_analysis sa ON br.date = sa.date AND br.symbol = sa.symbol
+            WHERE br.prediction_correct IS NOT NULL
+            ORDER BY br.date DESC
+        """)
+
+        return [
+            {
+                'date': row['date'],
+                'symbol': row['symbol'],
+                'decision': row['decision'],
+                'confidence': row['confidence'],
+                'risk': row['risk'],
+                'price_at_prediction': row['price_at_prediction'],
+                'return_1d': row['return_1d'],
+                'return_1w': row['return_1w'],
+                'return_1m': row['return_1m'],
+                'prediction_correct': bool(row['prediction_correct'])
+            }
+            for row in cursor.fetchall()
+        ]
+    finally:
+        conn.close()
+
+
+def calculate_accuracy_metrics() -> dict:
+    """Calculate overall backtest accuracy metrics."""
+    results = get_all_backtest_results()
+
+    if not results:
+        return {
+            'overall_accuracy': 0,
+            'total_predictions': 0,
+            'correct_predictions': 0,
+            'by_decision': {'BUY': {'accuracy': 0, 'total': 0}, 'SELL': {'accuracy': 0, 'total': 0}, 'HOLD': {'accuracy': 0, 'total': 0}},
+            'by_confidence': {'High': {'accuracy': 0, 'total': 0}, 'Medium': {'accuracy': 0, 'total': 0}, 'Low': {'accuracy': 0, 'total': 0}}
+        }
+
+    total = len(results)
+    correct = sum(1 for r in results if r['prediction_correct'])
+
+    # By decision type
+    by_decision = {}
+    for decision in ['BUY', 'SELL', 'HOLD']:
+        decision_results = [r for r in results if r['decision'] == decision]
+        if decision_results:
+            decision_correct = sum(1 for r in decision_results if r['prediction_correct'])
+            by_decision[decision] = {
+                'accuracy': round(decision_correct / len(decision_results) * 100, 1),
+                'total': len(decision_results),
+                'correct': decision_correct
+            }
+        else:
+            by_decision[decision] = {'accuracy': 0, 'total': 0, 'correct': 0}
+
+    # By confidence level
+    by_confidence = {}
+    for conf in ['High', 'Medium', 'Low']:
+        conf_results = [r for r in results if r.get('confidence') == conf]
+        if conf_results:
+            conf_correct = sum(1 for r in conf_results if r['prediction_correct'])
+            by_confidence[conf] = {
+                'accuracy': round(conf_correct / len(conf_results) * 100, 1),
+                'total': len(conf_results),
+                'correct': conf_correct
+            }
+        else:
+            by_confidence[conf] = {'accuracy': 0, 'total': 0, 'correct': 0}
+
+    return {
+        'overall_accuracy': round(correct / total * 100, 1) if total > 0 else 0,
+        'total_predictions': total,
+        'correct_predictions': correct,
+        'by_decision': by_decision,
+        'by_confidence': by_confidence
+    }
+
+
+def update_daily_recommendation_summary(date: str):
+    """Auto-create/update daily_recommendations from stock_analysis for a date.
+
+    Counts BUY/SELL/HOLD decisions, generates top_picks and stocks_to_avoid,
+    and upserts the daily_recommendations row.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Get all stock analyses for this date
+        cursor.execute("""
+            SELECT symbol, company_name, decision, confidence, risk, raw_analysis
+            FROM stock_analysis WHERE date = ?
+        """, (date,))
+        rows = cursor.fetchall()
+
+        if not rows:
+            return
+
+        buy_count = 0
+        sell_count = 0
+        hold_count = 0
+        buy_stocks = []
+        sell_stocks = []
+
+        for row in rows:
+            decision = (row['decision'] or '').upper()
+            if decision == 'BUY':
+                buy_count += 1
+                buy_stocks.append({
+                    'symbol': row['symbol'],
+                    'company_name': row['company_name'] or row['symbol'],
+                    'decision': 'BUY',
+                    'confidence': row['confidence'] or 'MEDIUM',
+                    'reason': (row['raw_analysis'] or '')[:200]
+                })
+            elif decision == 'SELL':
+                sell_count += 1
+                sell_stocks.append({
+                    'symbol': row['symbol'],
+                    'company_name': row['company_name'] or row['symbol'],
+                    'decision': 'SELL',
+                    'confidence': row['confidence'] or 'MEDIUM',
+                    'reason': (row['raw_analysis'] or '')[:200]
+                })
+            else:
+                hold_count += 1
+
+        total = buy_count + sell_count + hold_count
+
+        # Top picks: up to 5 BUY stocks
+        top_picks = [
+            {'symbol': s['symbol'], 'company_name': s['company_name'],
+             'confidence': s['confidence'], 'reason': s['reason']}
+            for s in buy_stocks[:5]
+        ]
+
+        # Stocks to avoid: up to 5 SELL stocks
+        stocks_to_avoid = [
+            {'symbol': s['symbol'], 'company_name': s['company_name'],
+             'confidence': s['confidence'], 'reason': s['reason']}
+            for s in sell_stocks[:5]
+        ]
+
+        cursor.execute("""
+            INSERT OR REPLACE INTO daily_recommendations
+            (date, summary_total, summary_buy, summary_sell, summary_hold, top_picks, stocks_to_avoid)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            date, total, buy_count, sell_count, hold_count,
+            json.dumps(top_picks),
+            json.dumps(stocks_to_avoid)
+        ))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def rebuild_all_daily_recommendations():
+    """Rebuild daily_recommendations for all dates that have stock_analysis data.
+
+    This ensures dates with stock_analysis but missing daily_recommendations
+    entries become visible to the API.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT DISTINCT date FROM stock_analysis")
+        dates = [row['date'] for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+    for date in dates:
+        update_daily_recommendation_summary(date)
+
+    if dates:
+        print(f"[DB] Rebuilt daily_recommendations for {len(dates)} dates: {sorted(dates)}")
 
 
 # Initialize database on module import

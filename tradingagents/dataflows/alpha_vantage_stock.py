@@ -20,12 +20,13 @@ def get_stock(
     """
     # Parse dates to determine the range
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-    today = datetime.now()
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
-    # Choose outputsize based on whether the requested range is within the latest 100 days
-    # Compact returns latest 100 data points, so check if start_date is recent enough
-    days_from_today_to_start = (today - start_dt).days
-    outputsize = "compact" if days_from_today_to_start < 100 else "full"
+    # FIXED: Use end_date instead of today to determine outputsize
+    # This ensures consistent behavior regardless of when backtest is run
+    # Compact returns latest 100 data points from Alpha Vantage's perspective
+    days_in_range = (end_dt - start_dt).days
+    outputsize = "compact" if days_in_range < 100 else "full"
 
     params = {
         "symbol": symbol,

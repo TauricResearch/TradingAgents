@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { TrendingUp, TrendingDown, Minus, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ChevronRight, Clock } from 'lucide-react';
 import type { StockAnalysis, Decision } from '../types';
 
 interface StockCardProps {
@@ -29,7 +29,9 @@ export function DecisionBadge({ decision, size = 'default' }: { decision: Decisi
     },
   };
 
-  const { bg, text, icon: Icon } = config[decision];
+  const entry = config[decision];
+  if (!entry) return null;
+  const { bg, text, icon: Icon } = entry;
   const sizeClasses = size === 'small'
     ? 'px-2 py-0.5 text-xs gap-1'
     : 'px-2.5 py-0.5 text-xs gap-1';
@@ -75,6 +77,19 @@ export function RiskBadge({ risk }: { risk?: string }) {
   );
 }
 
+export function HoldDaysBadge({ holdDays, decision }: { holdDays?: number | null; decision?: Decision | null }) {
+  if (!holdDays || decision === 'SELL') return null;
+
+  const label = holdDays === 1 ? '1 day' : `${holdDays}d`;
+
+  return (
+    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+      <Clock className="w-3 h-3" />
+      Hold {label}
+    </span>
+  );
+}
+
 export default function StockCard({ stock, showDetails = true, compact = false }: StockCardProps) {
   if (compact) {
     return (
@@ -116,6 +131,7 @@ export default function StockCard({ stock, showDetails = true, compact = false }
           <div className="flex items-center gap-2 mt-1.5">
             <ConfidenceBadge confidence={stock.confidence} />
             <RiskBadge risk={stock.risk} />
+            <HoldDaysBadge holdDays={stock.hold_days} decision={stock.decision} />
           </div>
         )}
       </div>

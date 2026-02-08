@@ -1,63 +1,178 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, RefreshCw, Filter, ChevronRight, TrendingUp, TrendingDown, Minus, History, Search, X, Play, Loader2 } from 'lucide-react';
+import { Calendar, RefreshCw, Filter, ChevronRight, TrendingUp, TrendingDown, Minus, History, Search, X, Play, Loader2, Square, AlertCircle, Terminal } from 'lucide-react';
 import TopPicks, { StocksToAvoid } from '../components/TopPicks';
 import { DecisionBadge } from '../components/StockCard';
+import TerminalModal from '../components/TerminalModal';
 import HowItWorks from '../components/HowItWorks';
 import BackgroundSparkline from '../components/BackgroundSparkline';
-import { getLatestRecommendation, getBacktestResult } from '../data/recommendations';
+import { getLatestRecommendation, getBacktestResult as getStaticBacktestResult } from '../data/recommendations';
 import { api } from '../services/api';
 import { useSettings } from '../contexts/SettingsContext';
-import type { Decision, StockAnalysis } from '../types';
+import { useNotification } from '../contexts/NotificationContext';
+import { NIFTY_50_STOCKS } from '../types';
+import type { Decision, StockAnalysis, DailyRecommendation, NiftyStock } from '../types';
 
 type FilterType = 'ALL' | Decision;
 
 export default function Dashboard() {
-  const recommendation = getLatestRecommendation();
+  // State for real API data
+  const [recommendation, setRecommendation] = useState<DailyRecommendation | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isUsingMockData, setIsUsingMockData] = useState(false);
+
+  // Fetch real recommendation from API
+  const fetchRecommendation = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      const data = await api.getLatestRecommendation();
+      if (data && data.analysis && Object.keys(data.analysis).length > 0) {
+        setRecommendation(data);
+        setIsUsingMockData(false);
+      } else {
+        // API returned empty data, fall back to mock
+        const mockData = getLatestRecommendation();
+        setRecommendation(mockData || null);
+        setIsUsingMockData(true);
+      }
+    } catch (error) {
+      console.error('Failed to fetch recommendation from API:', error);
+      // Fall back to mock data
+      const mockData = getLatestRecommendation();
+      setRecommendation(mockData || null);
+      setIsUsingMockData(true);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, []);
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchRecommendation();
+  }, [fetchRecommendation]);
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const { settings } = useSettings();
+  const { addNotification } = useNotification();
 
-  // Bulk analysis state
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // Terminal modal state
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+
+  // Track completed count to trigger incremental re-fetch
+  const prevCompletedRef = useRef(0);
+
+  // Bulk analysis state — initialize from localStorage for instant display on refresh
+  const [isAnalyzing, setIsAnalyzing] = useState(() => {
+    try {
+      return localStorage.getItem('bulkAnalysisRunning') === 'true';
+    } catch { return false; }
+  });
+  const [isCancelling, setIsCancelling] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState<{
     status: string;
     total: number;
     completed: number;
     failed: number;
+    skipped?: number;
     current_symbol: string | null;
-  } | null>(null);
+    current_symbols: string[];
+    results: Record<string, string>;
+    parallel_workers?: number;
+    stock_progress?: Record<string, { done: number; total: number; current: string | null }>;
+  } | null>(() => {
+    try {
+      const saved = localStorage.getItem('bulkAnalysisProgress');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
 
-  // Check for running analysis on mount
+  // Persist analysis state to localStorage
+  const updateAnalysisState = useCallback((analyzing: boolean, progress: typeof analysisProgress) => {
+    setIsAnalyzing(analyzing);
+    setAnalysisProgress(progress);
+    try {
+      if (analyzing) {
+        localStorage.setItem('bulkAnalysisRunning', 'true');
+        if (progress) localStorage.setItem('bulkAnalysisProgress', JSON.stringify(progress));
+      } else {
+        localStorage.removeItem('bulkAnalysisRunning');
+        localStorage.removeItem('bulkAnalysisProgress');
+      }
+    } catch { /* localStorage unavailable */ }
+  }, []);
+
+  // Validate analysis state against backend on mount
   useEffect(() => {
     const checkAnalysisStatus = async () => {
       try {
         const status = await api.getBulkAnalysisStatus();
         if (status.status === 'running') {
-          setIsAnalyzing(true);
-          setAnalysisProgress(status);
+          updateAnalysisState(true, status);
+        } else if (isAnalyzing) {
+          // localStorage said running but backend says otherwise (server restarted)
+          updateAnalysisState(false, null);
         }
       } catch (e) {
         console.error('Failed to check analysis status:', e);
       }
     };
     checkAnalysisStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Poll for analysis progress
+  // Poll for analysis progress + incremental re-fetch
   useEffect(() => {
     if (!isAnalyzing) return;
 
     const pollInterval = setInterval(async () => {
       try {
         const status = await api.getBulkAnalysisStatus();
-        setAnalysisProgress(status);
+        // Persist progress to localStorage on every poll
+        updateAnalysisState(true, status);
 
-        if (status.status === 'completed' || status.status === 'idle') {
-          setIsAnalyzing(false);
+        // Incremental re-fetch: when completed count increases, refresh recommendation data
+        const newCompleted = status.completed + (status.skipped || 0);
+        if (newCompleted > prevCompletedRef.current) {
+          prevCompletedRef.current = newCompleted;
+          try {
+            const data = await api.getLatestRecommendation();
+            if (data && data.analysis && Object.keys(data.analysis).length > 0) {
+              setRecommendation(data);
+              setIsUsingMockData(false);
+            }
+          } catch (e) {
+            console.warn('Re-fetch during analysis failed:', e);
+          }
+        }
+
+        if (status.status === 'completed') {
+          updateAnalysisState(false, null);
+          prevCompletedRef.current = 0;
           clearInterval(pollInterval);
-          // Refresh the page to show updated data
-          window.location.reload();
+          // Final re-fetch for complete dataset
+          fetchRecommendation();
+          addNotification({
+            type: 'success',
+            title: 'Analysis Complete',
+            message: `Successfully analyzed ${status.completed} stocks.${status.skipped ? ` ${status.skipped} already analyzed (skipped).` : ''} ${status.failed > 0 ? `${status.failed} failed.` : ''}`,
+            duration: 8000,
+          });
+        } else if (status.status === 'cancelled') {
+          updateAnalysisState(false, null);
+          prevCompletedRef.current = 0;
+          setIsCancelling(false);
+          clearInterval(pollInterval);
+          fetchRecommendation();
+          addNotification({
+            type: 'warning',
+            title: 'Analysis Cancelled',
+            message: `Cancelled after analyzing ${status.completed} stocks.`,
+            duration: 5000,
+          });
+        } else if (status.status === 'idle') {
+          updateAnalysisState(false, null);
+          prevCompletedRef.current = 0;
+          clearInterval(pollInterval);
         }
       } catch (e) {
         console.error('Failed to poll analysis status:', e);
@@ -65,19 +180,19 @@ export default function Dashboard() {
     }, 3000);
 
     return () => clearInterval(pollInterval);
-  }, [isAnalyzing]);
+  }, [isAnalyzing, addNotification, updateAnalysisState, fetchRecommendation]);
 
   const handleAnalyzeAll = async () => {
     if (isAnalyzing) return;
 
-    setIsAnalyzing(true);
-    setAnalysisProgress({
+    const initialProgress = {
       status: 'starting',
       total: 50,
       completed: 0,
       failed: 0,
-      current_symbol: null
-    });
+      current_symbol: null as string | null
+    };
+    updateAnalysisState(true, initialProgress);
 
     try {
       // Pass settings from context to the API
@@ -86,43 +201,187 @@ export default function Dashboard() {
         quick_think_model: settings.quickThinkModel,
         provider: settings.provider,
         api_key: settings.provider === 'anthropic_api' ? settings.anthropicApiKey : undefined,
-        max_debate_rounds: settings.maxDebateRounds
+        max_debate_rounds: settings.maxDebateRounds,
+        parallel_workers: settings.parallelWorkers
+      });
+      addNotification({
+        type: 'info',
+        title: 'Analysis Started',
+        message: 'Running AI analysis for all 50 Nifty stocks...',
+        duration: 3000,
       });
     } catch (e) {
       console.error('Failed to start bulk analysis:', e);
-      setIsAnalyzing(false);
-      setAnalysisProgress(null);
+      updateAnalysisState(false, null);
+      addNotification({
+        type: 'error',
+        title: 'Analysis Failed',
+        message: 'Failed to start bulk analysis. Please try again.',
+        duration: 5000,
+      });
     }
   };
 
-  if (!recommendation) {
+  const handleCancelAnalysis = async () => {
+    if (!isAnalyzing || isCancelling) return;
+
+    setIsCancelling(true);
+    try {
+      await api.cancelBulkAnalysis();
+      addNotification({
+        type: 'info',
+        title: 'Cancelling...',
+        message: 'Stopping analysis after current stocks complete.',
+        duration: 3000,
+      });
+    } catch (e) {
+      console.error('Failed to cancel analysis:', e);
+      setIsCancelling(false);
+      addNotification({
+        type: 'error',
+        title: 'Cancel Failed',
+        message: 'Failed to cancel analysis.',
+        duration: 3000,
+      });
+    }
+  };
+
+  // Live state for each stock in the grid
+  type StockLiveState = 'completed' | 'analyzing' | 'pending' | 'failed';
+  interface StockGridItem {
+    symbol: string;
+    company_name: string;
+    liveState: StockLiveState;
+    analysis: StockAnalysis | null;
+  }
+
+  // Build unified stock grid: during analysis show all 50, otherwise only analyzed
+  const stockGridItems = useMemo((): StockGridItem[] => {
+    if (!isAnalyzing || !analysisProgress) {
+      // Normal mode: only show analyzed stocks
+      return (recommendation ? Object.values(recommendation.analysis) : []).map(s => ({
+        symbol: s.symbol,
+        company_name: s.company_name,
+        liveState: 'completed' as StockLiveState,
+        analysis: s,
+      }));
+    }
+
+    // Analysis mode: show all 50 stocks with live states
+    const analysisResults = analysisProgress.results || {};
+    const currentSymbols = new Set(analysisProgress.current_symbols || []);
+    const analysisMap = recommendation?.analysis || {};
+
+    return NIFTY_50_STOCKS.map((niftyStock: NiftyStock): StockGridItem => {
+      const { symbol } = niftyStock;
+      const resultStatus = analysisResults[symbol];
+      const existingAnalysis = analysisMap[symbol] || null;
+
+      let liveState: StockLiveState;
+      if (existingAnalysis) {
+        liveState = 'completed';
+      } else if (resultStatus === 'completed') {
+        liveState = 'completed'; // just completed, data not re-fetched yet
+      } else if (resultStatus && resultStatus.startsWith('error')) {
+        liveState = 'failed';
+      } else if (currentSymbols.has(symbol)) {
+        liveState = 'analyzing';
+      } else {
+        liveState = 'pending';
+      }
+
+      return {
+        symbol,
+        company_name: niftyStock.company_name,
+        liveState,
+        analysis: existingAnalysis,
+      };
+    });
+  }, [isAnalyzing, analysisProgress, recommendation]);
+
+  // Filter grid items based on filter and search query
+  const filteredItems = useMemo(() => {
+    let result = stockGridItems;
+    if (filter !== 'ALL') {
+      // During analysis, show matching completed + all non-completed (so progress stays visible)
+      result = result.filter(item =>
+        item.liveState !== 'completed' || item.analysis?.decision === filter
+      );
+    }
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(item =>
+        item.symbol.toLowerCase().includes(query) ||
+        item.company_name.toLowerCase().includes(query)
+      );
+    }
+    return result;
+  }, [stockGridItems, filter, searchQuery]);
+
+  // Show loading state — but also include analysis progress banner if running
+  if (isLoadingData || !recommendation) {
     return (
-      <div className="min-h-[40vh] flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-10 h-10 text-gray-300 mx-auto mb-3 animate-spin" />
-          <h2 className="text-lg font-semibold text-gray-700">Loading recommendations...</h2>
+      <div className="space-y-4">
+        {isAnalyzing && analysisProgress && (
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  {isCancelling ? 'Cancelling...' : `Analyzing ${analysisProgress.current_symbols?.length > 0 ? analysisProgress.current_symbols.join(', ') : analysisProgress.current_symbol || 'stocks'}...`}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-blue-600 dark:text-blue-400">
+                  {analysisProgress.completed + analysisProgress.failed} / {analysisProgress.total} stocks
+                  {analysisProgress.skipped ? ` (${analysisProgress.skipped} skipped)` : ''}
+                </span>
+                <button
+                  onClick={handleCancelAnalysis}
+                  disabled={isCancelling}
+                  className={`
+                    flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-all
+                    ${isCancelling
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
+                      : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50'
+                    }
+                  `}
+                  title="Cancel analysis"
+                >
+                  <Square className="w-3 h-3" />
+                  {isCancelling ? 'Cancelling...' : 'Cancel'}
+                </button>
+              </div>
+            </div>
+            <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+              <div
+                className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${analysisProgress.total > 0 ? ((analysisProgress.completed + analysisProgress.failed) / analysisProgress.total) * 100 : 0}%` }}
+              />
+            </div>
+            {analysisProgress.failed > 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                {analysisProgress.failed} failed
+              </p>
+            )}
+          </div>
+        )}
+        <div className="min-h-[40vh] flex items-center justify-center">
+          <div className="text-center">
+            <RefreshCw className="w-10 h-10 text-gray-300 mx-auto mb-3 animate-spin" />
+            <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Loading recommendations...</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Fetching data from API...</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  const stocks = Object.values(recommendation.analysis);
-  const filteredStocks = useMemo(() => {
-    let result = filter === 'ALL' ? stocks : stocks.filter(s => s.decision === filter);
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(s =>
-        s.symbol.toLowerCase().includes(query) ||
-        s.company_name.toLowerCase().includes(query)
-      );
-    }
-    return result;
-  }, [stocks, filter, searchQuery]);
-
-  const { buy, sell, hold, total } = recommendation.summary;
-  const buyPct = ((buy / total) * 100).toFixed(0);
-  const holdPct = ((hold / total) * 100).toFixed(0);
-  const sellPct = ((sell / total) * 100).toFixed(0);
+  const { buy, sell, hold, total: analyzedTotal } = recommendation.summary;
+  const total = isAnalyzing ? 50 : analyzedTotal;
+  const buyPct = total > 0 ? ((buy / total) * 100).toFixed(0) : '0';
+  const holdPct = total > 0 ? ((hold / total) * 100).toFixed(0) : '0';
+  const sellPct = total > 0 ? ((sell / total) * 100).toFixed(0) : '0';
 
   return (
     <div className="space-y-4">
@@ -145,13 +404,13 @@ export default function Dashboard() {
           </div>
 
           {/* Analyze All Button + Inline Stats */}
-          <div className="flex items-center gap-3" role="group" aria-label="Summary statistics">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3" role="group" aria-label="Summary statistics">
             {/* Analyze All Button */}
             <button
               onClick={handleAnalyzeAll}
               disabled={isAnalyzing}
               className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all
+                flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-sm font-semibold transition-all
                 ${isAnalyzing
                   ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 cursor-not-allowed'
                   : 'bg-nifty-600 text-white hover:bg-nifty-700 shadow-sm hover:shadow-md'
@@ -164,23 +423,39 @@ export default function Dashboard() {
               ) : (
                 <Play className="w-4 h-4" />
               )}
-              {isAnalyzing ? 'Analyzing...' : 'Analyze All'}
+              <span className="hidden sm:inline">{isAnalyzing ? 'Analyzing...' : 'Analyze All'}</span>
+              <span className="sm:hidden">{isAnalyzing ? '...' : 'All'}</span>
             </button>
 
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-900/30 rounded-lg cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors" onClick={() => setFilter('BUY')} title="Click to filter Buy stocks">
-              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
-              <span className="font-bold text-green-700 dark:text-green-400">{buy}</span>
-              <span className="text-xs text-green-600 dark:text-green-400">Buy ({buyPct}%)</span>
+            {/* Terminal Button - View Live Logs */}
+            <button
+              onClick={() => setIsTerminalOpen(true)}
+              className={`
+                flex items-center justify-center p-1.5 sm:p-2 rounded-lg text-sm transition-all
+                ${isAnalyzing
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 animate-pulse'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
+                }
+              `}
+              title="View live analysis terminal"
+            >
+              <Terminal className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-green-50 dark:bg-green-900/30 rounded-lg cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors" onClick={() => setFilter('BUY')} title="Click to filter Buy stocks">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
+              <span className="font-bold text-sm sm:text-base text-green-700 dark:text-green-400">{buy}</span>
+              <span className="text-xs text-green-600 dark:text-green-400 hidden sm:inline">Buy ({buyPct}%)</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-lg cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors" onClick={() => setFilter('HOLD')} title="Click to filter Hold stocks">
-              <Minus className="w-4 h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-              <span className="font-bold text-amber-700 dark:text-amber-400">{hold}</span>
-              <span className="text-xs text-amber-600 dark:text-amber-400">Hold ({holdPct}%)</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-lg cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors" onClick={() => setFilter('HOLD')} title="Click to filter Hold stocks">
+              <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+              <span className="font-bold text-sm sm:text-base text-amber-700 dark:text-amber-400">{hold}</span>
+              <span className="text-xs text-amber-600 dark:text-amber-400 hidden sm:inline">Hold ({holdPct}%)</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-900/30 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" onClick={() => setFilter('SELL')} title="Click to filter Sell stocks">
-              <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-400" aria-hidden="true" />
-              <span className="font-bold text-red-700 dark:text-red-400">{sell}</span>
-              <span className="text-xs text-red-600 dark:text-red-400">Sell ({sellPct}%)</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-red-50 dark:bg-red-900/30 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" onClick={() => setFilter('SELL')} title="Click to filter Sell stocks">
+              <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 dark:text-red-400" aria-hidden="true" />
+              <span className="font-bold text-sm sm:text-base text-red-700 dark:text-red-400">{sell}</span>
+              <span className="text-xs text-red-600 dark:text-red-400 hidden sm:inline">Sell ({sellPct}%)</span>
             </div>
           </div>
         </div>
@@ -194,6 +469,16 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Mock Data Indicator */}
+        {isUsingMockData && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <span className="text-xs text-amber-700 dark:text-amber-300">
+              Using demo data. Run "Analyze All" or start the backend server for real AI recommendations.
+            </span>
+          </div>
+        )}
+
         {/* Analysis Progress Banner */}
         {isAnalyzing && analysisProgress && (
           <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -201,17 +486,43 @@ export default function Dashboard() {
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  Analyzing {analysisProgress.current_symbol || 'stocks'}...
+                  {isCancelling ? 'Cancelling...' : (
+                    <>
+                      Analyzing{' '}
+                      {analysisProgress.current_symbols?.length > 0
+                        ? analysisProgress.current_symbols.join(', ')
+                        : analysisProgress.current_symbol || 'stocks'}
+                      ...
+                    </>
+                  )}
                 </span>
               </div>
-              <span className="text-xs text-blue-600 dark:text-blue-400">
-                {analysisProgress.completed + analysisProgress.failed} / {analysisProgress.total} stocks
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-blue-600 dark:text-blue-400">
+                  {analysisProgress.completed + analysisProgress.failed} / {analysisProgress.total} stocks
+                  {analysisProgress.skipped ? ` (${analysisProgress.skipped} skipped)` : ''}
+                </span>
+                <button
+                  onClick={handleCancelAnalysis}
+                  disabled={isCancelling}
+                  className={`
+                    flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-all
+                    ${isCancelling
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
+                      : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50'
+                    }
+                  `}
+                  title="Cancel analysis"
+                >
+                  <Square className="w-3 h-3" />
+                  {isCancelling ? 'Cancelling...' : 'Cancel'}
+                </button>
+              </div>
             </div>
             <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
               <div
                 className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${((analysisProgress.completed + analysisProgress.failed) / analysisProgress.total) * 100}%` }}
+                style={{ width: `${analysisProgress.total > 0 ? ((analysisProgress.completed + analysisProgress.failed) / analysisProgress.total) * 100 : 0}%` }}
               />
             </div>
             {analysisProgress.failed > 0 && (
@@ -239,7 +550,9 @@ export default function Dashboard() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                <h2 className="font-semibold text-gray-900 dark:text-gray-100">All {total} Stocks</h2>
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+                  {isAnalyzing ? `All 50 Stocks (${analysisProgress?.completed || 0} analyzed)` : `All ${total} Stocks`}
+                </h2>
               </div>
               <div className="flex gap-1.5" role="group" aria-label="Filter stocks by recommendation">
               <button
@@ -311,40 +624,115 @@ export default function Dashboard() {
         </div>
 
         <div className="p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-[400px] overflow-y-auto" role="list" aria-label="Stock recommendations list">
-          {filteredStocks.map((stock: StockAnalysis) => {
-            const backtest = getBacktestResult(stock.symbol);
-            const trend = stock.decision === 'BUY' ? 'up' : stock.decision === 'SELL' ? 'down' : 'flat';
-            return (
-              <Link
-                key={stock.symbol}
-                to={`/stock/${stock.symbol}`}
-                className="card-hover p-2 group relative overflow-hidden"
-                role="listitem"
-              >
-                {/* Background Chart */}
-                {backtest && (
-                  <div className="absolute inset-0 opacity-[0.06]">
-                    <BackgroundSparkline
-                      data={backtest.price_history.slice(-15)}
-                      trend={trend}
-                    />
+          {filteredItems.map((item) => {
+            // COMPLETED with analysis data: clickable link
+            if (item.liveState === 'completed' && item.analysis) {
+              const backtest = isUsingMockData ? getStaticBacktestResult(item.symbol) : null;
+              const trend = item.analysis.decision === 'BUY' ? 'up' : item.analysis.decision === 'SELL' ? 'down' : 'flat';
+              return (
+                <Link
+                  key={item.symbol}
+                  to={`/stock/${item.symbol}`}
+                  className="card-hover p-2 group relative overflow-hidden"
+                  role="listitem"
+                >
+                  {backtest && (
+                    <div className="absolute inset-0 opacity-[0.06]">
+                      <BackgroundSparkline data={backtest.price_history.slice(-15)} trend={trend} />
+                    </div>
+                  )}
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">{item.symbol}</span>
+                      <DecisionBadge decision={item.analysis.decision} size="small" />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.company_name}</p>
                   </div>
-                )}
+                </Link>
+              );
+            }
 
-                {/* Content */}
-                <div className="relative z-10">
+            // COMPLETED but data not re-fetched yet (brief transition)
+            if (item.liveState === 'completed' && !item.analysis) {
+              return (
+                <div key={item.symbol} className="p-2 rounded-xl border border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10" role="listitem">
                   <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">{stock.symbol}</span>
-                    <DecisionBadge decision={stock.decision} size="small" />
+                    <span className="font-semibold text-sm text-green-700 dark:text-green-300">{item.symbol}</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400">
+                      Done
+                    </span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{stock.company_name}</p>
+                  <p className="text-xs text-green-500 dark:text-green-400 truncate">{item.company_name}</p>
                 </div>
-              </Link>
+              );
+            }
+
+            // ANALYZING: shimmer effect with step progress
+            if (item.liveState === 'analyzing') {
+              const progress = analysisProgress?.stock_progress?.[item.symbol];
+              const stepsDone = progress?.done ?? 0;
+              const stepsTotal = progress?.total ?? 12;
+              return (
+                <div key={item.symbol} className="p-2 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20 overflow-hidden relative" role="listitem">
+                  <div className="absolute inset-0 shimmer-effect" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="font-semibold text-sm text-blue-700 dark:text-blue-300">{item.symbol}</span>
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 gap-0.5">
+                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                        <span className="hidden sm:inline">Analyzing</span>
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-500 dark:text-blue-400 truncate">{item.company_name}</p>
+                    {/* Step progress bar */}
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <div className="flex-1 h-1 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-1 bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-500"
+                          style={{ width: `${stepsTotal > 0 ? (stepsDone / stepsTotal) * 100 : 0}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono text-blue-500 dark:text-blue-400 whitespace-nowrap">
+                        {stepsDone}/{stepsTotal}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // FAILED: error state
+            if (item.liveState === 'failed') {
+              return (
+                <div key={item.symbol} className="p-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-900/10 opacity-75" role="listitem">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="font-semibold text-sm text-red-700 dark:text-red-400">{item.symbol}</span>
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 gap-0.5">
+                      <AlertCircle className="w-2.5 h-2.5" />
+                      Failed
+                    </span>
+                  </div>
+                  <p className="text-xs text-red-500 dark:text-red-400 truncate">{item.company_name}</p>
+                </div>
+              );
+            }
+
+            // PENDING: grayed out, waiting
+            return (
+              <div key={item.symbol} className="p-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 opacity-50" role="listitem">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="font-semibold text-sm text-gray-400 dark:text-gray-500">{item.symbol}</span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-gray-500">
+                    Queued
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 dark:text-gray-600 truncate">{item.company_name}</p>
+              </div>
             );
           })}
         </div>
 
-        {filteredStocks.length === 0 && (
+        {filteredItems.length === 0 && (
           <div className="p-8 text-center">
             <p className="text-gray-500 dark:text-gray-400 text-sm">No stocks match the selected filter.</p>
           </div>
@@ -363,6 +751,13 @@ export default function Dashboard() {
         </div>
         <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
       </Link>
+
+      {/* Terminal Modal */}
+      <TerminalModal
+        isOpen={isTerminalOpen}
+        onClose={() => setIsTerminalOpen(false)}
+        isAnalyzing={isAnalyzing}
+      />
     </div>
   );
 }

@@ -1,6 +1,8 @@
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 import time
 import json
+
+from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 
 def create_bear_researcher(llm, memory):
@@ -16,35 +18,74 @@ def create_bear_researcher(llm, memory):
         fundamentals_report = state["fundamentals_report"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if memory is not None:
+            past_memories = memory.get_memories(curr_situation, n_matches=2)
+            for i, rec in enumerate(past_memories, 1):
+                past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        system_prompt = """You are a Bear Analyst at a financial research firm. You MUST stay in character as a financial analyst at all times.
 
-Key points to focus on:
+CRITICAL RULES:
+- NEVER mention that you are an AI, Claude, a language model, or an assistant
+- NEVER offer to help with code, software, or implementation tasks
+- NEVER say "I don't have access to" or "I can't see the data" — analyze whatever data is provided below
+- If data sections are empty, state that data is unavailable and focus your analysis on the data that IS available
 
-- Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
-- Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
-- Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
-- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
-- Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
+Your role: Present a case AGAINST investing in this stock by highlighting risks, challenges, and negative indicators.
+Focus on: downside risks, competitive weaknesses, negative market signals, valuation concerns, macro headwinds.
 
-Resources available:
+RESPONSE FORMAT:
+- Maximum 2000 characters. Focus on the 3-5 strongest bearish points.
+- Complete your ENTIRE argument in a SINGLE response.
 
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
-Conversation history of the debate: {history}
-Last bull argument: {current_response}
-Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
-"""
+Respond only with your bearish financial analysis. No disclaimers or meta-commentary."""
 
-        response = llm.invoke(prompt)
+        user_prompt = f"""Analyze this stock from a bearish perspective:
+
+MARKET DATA:
+{market_research_report}
+
+SENTIMENT:
+{sentiment_report}
+
+NEWS:
+{news_report}
+
+FUNDAMENTALS:
+{fundamentals_report}
+
+DEBATE HISTORY:
+{history}
+
+BULL'S LAST ARGUMENT:
+{current_response}
+
+PAST LEARNINGS:
+{past_memory_str if past_memory_str else "None"}
+
+Provide your bearish case highlighting risks and concerns."""
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ]
+        step_timer.start_step("bear_researcher")
+        add_log("agent", "bear_researcher", f"🐻 Bear Analyst calling LLM...")
+        t0 = time.time()
+        response = llm.invoke(messages)
+        elapsed = time.time() - t0
+        add_log("llm", "bear_researcher", f"LLM responded in {elapsed:.1f}s ({len(response.content)} chars)")
+        add_log("agent", "bear_researcher", f"✅ Bear argument ready: {response.content[:300]}...")
+        step_timer.end_step("bear_researcher", "completed", response.content[:200])
+        symbol_progress.step_done(state["company_of_interest"], "bear_researcher")
+        step_timer.set_details("bear_researcher", {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt[:3000],
+            "response": response.content[:3000],
+            "tool_calls": [],
+        })
 
         argument = f"Bear Analyst: {response.content}"
 

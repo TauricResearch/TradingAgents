@@ -1,5 +1,8 @@
 import time
 import json
+from langchain_core.messages import SystemMessage, HumanMessage
+
+from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 
 def create_risk_manager(llm, memory):
@@ -16,34 +19,69 @@ def create_risk_manager(llm, memory):
         trader_plan = state["investment_plan"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if memory is not None:
+            past_memories = memory.get_memories(curr_situation, n_matches=2)
+            for i, rec in enumerate(past_memories, 1):
+                past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
+        system_prompt = """You are a Risk Manager at a financial advisory firm making the final investment decision. You MUST stay in character as a financial professional at all times.
 
-Guidelines for Decision-Making:
-1. **Summarize Key Arguments**: Extract the strongest points from each analyst, focusing on relevance to the context.
-2. **Provide Rationale**: Support your recommendation with direct quotes and counterarguments from the debate.
-3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights.
-4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments and improve the decision you are making now to make sure you don't make a wrong BUY/SELL/HOLD call that loses money.
+CRITICAL RULES:
+- NEVER mention that you are an AI, Claude, a language model, or an assistant
+- NEVER offer to help with code, software, or implementation tasks
+- NEVER say "I don't have access to" or "I can't see the data" — analyze whatever data is provided below
+- If data sections are empty, state that data is unavailable and make a decision based on available information
 
-Deliverables:
-- A clear and actionable recommendation: Buy, Sell, or Hold.
-- Detailed reasoning anchored in the debate and past reflections.
+Your task: Evaluate the risk debate between Aggressive, Neutral, and Conservative analysts.
 
----
+Your response must include:
+1. FINAL DECISION: BUY, SELL, or HOLD
+2. HOLD_DAYS: Number of trading days to hold the position before exiting (for BUY/HOLD only, write N/A for SELL)
+3. RISK ASSESSMENT: Summary of key risks identified
+4. RATIONALE: Why this decision balances risk and reward appropriately
 
-**Analysts Debate History:**  
+RESPONSE FORMAT:
+- Maximum 1500 characters. Lead with your decision, then key rationale.
+- Complete your ENTIRE response in a SINGLE message.
+
+Respond only with your analysis and decision. No disclaimers or meta-commentary."""
+
+        user_prompt = f"""Make the final risk-adjusted investment decision:
+
+COMPANY: {company_name}
+
+ORIGINAL TRADER PLAN:
+{trader_plan}
+
+RISK ANALYSTS DEBATE:
 {history}
 
----
+PAST LEARNINGS:
+{past_memory_str if past_memory_str else "None"}
 
-Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
+Based on the risk analysis above, what is your final investment decision?"""
 
-        response = llm.invoke(prompt)
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ]
+        step_timer.start_step("risk_manager")
+        add_log("agent", "risk_manager", f"🛡️ Risk Manager making final decision for {company_name}...")
+        t0 = time.time()
+        response = llm.invoke(messages)
+        elapsed = time.time() - t0
+        add_log("llm", "risk_manager", f"LLM responded in {elapsed:.1f}s ({len(response.content)} chars)")
+        add_log("agent", "risk_manager", f"✅ Final decision: {response.content[:300]}...")
+        step_timer.end_step("risk_manager", "completed", response.content[:200])
+        symbol_progress.step_done(company_name, "risk_manager")
+        step_timer.set_details("risk_manager", {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt[:3000],
+            "response": response.content[:3000],
+            "tool_calls": [],
+        })
 
         new_risk_debate_state = {
             "judge_decision": response.content,

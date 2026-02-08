@@ -352,7 +352,12 @@ function generatePriceHistory(basePrice: number, trend: 'up' | 'down' | 'flat', 
   return history;
 }
 
-// Mock backtest results based on decision type - with next-day returns
+// FALLBACK backtest results - used when real API data is not available
+// For accurate backtesting, use the API endpoints:
+// - GET /backtest/{date}/{symbol} - Get real backtest for a stock
+// - GET /backtest/accuracy - Get real accuracy metrics from database
+// The real backtest calculates actual returns from Yahoo Finance price data
+// and determines prediction accuracy based on actual price movements
 export const mockBacktestResults: Record<string, BacktestResult> = {
   'BAJFINANCE': {
     prediction_correct: true,
@@ -533,18 +538,23 @@ function getSymbolSeed(symbol: string): number {
   return Math.abs(hash);
 }
 
+// Helper function to calculate prediction correctness based on decision and return
+// LONG-ONLY strategy: BUY/HOLD correct if return > 0, SELL correct if return < 0
+function calculatePredictionCorrect(decision: Decision, return1d: number): boolean {
+  if (decision === 'BUY' || decision === 'HOLD') {
+    // BUY and HOLD are correct if stock price went up
+    return return1d > 0;
+  } else {
+    // SELL is correct if stock price went down
+    return return1d < 0;
+  }
+}
+
 // Get backtest result for a symbol - generates dynamically if not in static data
+// NOTE: This is FALLBACK/DEMO data only. For real backtest accuracy:
+// Use api.getBacktestResult(date, symbol) which fetches from the backend
+// The backend calculates real returns using actual Yahoo Finance price data
 export function getBacktestResult(symbol: string): BacktestResult | undefined {
-  // Return existing backtest data if available
-  if (mockBacktestResults[symbol]) {
-    return mockBacktestResults[symbol];
-  }
-
-  // Return cached generated result if available
-  if (generatedBacktestCache[symbol]) {
-    return generatedBacktestCache[symbol];
-  }
-
   // Get the stock's decision from the latest recommendation
   const latestRec = sampleRecommendations[0];
   const stockAnalysis = latestRec?.analysis[symbol];
@@ -553,45 +563,63 @@ export function getBacktestResult(symbol: string): BacktestResult | undefined {
     return undefined;
   }
 
-  // Generate backtest result based on decision type with consistent seeding
   const decision = stockAnalysis.decision;
+
+  // If we have static mock data, use its prices but RECALCULATE prediction_correct
+  if (mockBacktestResults[symbol]) {
+    const mockData = mockBacktestResults[symbol];
+    // Always recalculate prediction_correct based on actual return and decision
+    const correctPrediction = calculatePredictionCorrect(decision, mockData.actual_return_1d);
+    return {
+      ...mockData,
+      prediction_correct: correctPrediction,
+    };
+  }
+
+  // Return cached generated result if available (with recalculated correctness)
+  if (generatedBacktestCache[symbol]) {
+    const cachedData = generatedBacktestCache[symbol];
+    // Always recalculate prediction_correct based on actual return and decision
+    const correctPrediction = calculatePredictionCorrect(decision, cachedData.actual_return_1d);
+    return {
+      ...cachedData,
+      prediction_correct: correctPrediction,
+    };
+  }
+
+  // Generate backtest result based on decision type with consistent seeding
   const seed = getSymbolSeed(symbol);
   const basePrice = 1000 + seededRandom(seed) * 2000; // Consistent base price between 1000-3000
 
-  // Determine trend and accuracy based on decision
+  // First, generate the return randomly (with market-like distribution)
+  // Return can be positive or negative - this is NOT pre-determined by decision
+  const randomReturn = (seededRandom(seed + 1) - 0.45) * 10; // -4.5% to +5.5% range (slight positive bias)
+  const returnMultiplier = 1 + (randomReturn / 100);
+
+  // Determine trend based on actual return
   let trend: 'up' | 'down' | 'flat';
-  let predictionCorrect: boolean;
-  let returnMultiplier: number;
-
-  // Simulate varied but consistent outcomes based on symbol seed
-  const randomOutcome = seededRandom(seed + 1);
-
-  if (decision === 'BUY') {
-    // 75% chance BUY predictions are correct (stock goes up)
-    predictionCorrect = randomOutcome < 0.75;
-    trend = predictionCorrect ? 'up' : 'down';
-    returnMultiplier = predictionCorrect ? (1 + seededRandom(seed + 2) * 0.08) : (1 - seededRandom(seed + 2) * 0.05);
-  } else if (decision === 'SELL') {
-    // 83% chance SELL predictions are correct (stock goes down)
-    predictionCorrect = randomOutcome < 0.83;
-    trend = predictionCorrect ? 'down' : 'up';
-    returnMultiplier = predictionCorrect ? (1 - seededRandom(seed + 2) * 0.08) : (1 + seededRandom(seed + 2) * 0.05);
+  if (randomReturn > 0.5) {
+    trend = 'up';
+  } else if (randomReturn < -0.5) {
+    trend = 'down';
   } else {
-    // HOLD - 70% chance it stays relatively flat
-    predictionCorrect = randomOutcome < 0.70;
     trend = 'flat';
-    returnMultiplier = 1 + (seededRandom(seed + 2) - 0.5) * 0.04; // +/- 2%
   }
 
+  // Calculate actual returns
   const currentPrice = basePrice * returnMultiplier;
   const actualReturn1m = ((currentPrice - basePrice) / basePrice) * 100;
   const actualReturn1w = actualReturn1m * 0.3; // Approximate
   // Next trading day return - about 15-25% of weekly return with some variance
   const actualReturn1d = actualReturn1w * (0.4 + seededRandom(seed + 3) * 0.3);
+  const roundedReturn1d = Math.round(actualReturn1d * 10) / 10;
+
+  // Calculate prediction correctness based on actual return vs decision
+  const predictionCorrect = calculatePredictionCorrect(decision, roundedReturn1d);
 
   const result: BacktestResult = {
     prediction_correct: predictionCorrect,
-    actual_return_1d: Math.round(actualReturn1d * 10) / 10,
+    actual_return_1d: roundedReturn1d,
     actual_return_1w: Math.round(actualReturn1w * 10) / 10,
     actual_return_1m: Math.round(actualReturn1m * 10) / 10,
     price_at_prediction: Math.round(basePrice * 100) / 100,
@@ -1025,29 +1053,23 @@ export function getDateStats(date: string): DateStats | null {
 
     if (backtest.prediction_correct) {
       correctCount++;
-      // For correct predictions:
-      // - BUY that went up: add the positive return
-      // - SELL that went down: add the absolute value (we gained by not holding/shorting)
-      // - HOLD that stayed flat: add the small return (we correctly avoided volatility)
-      if (decision === 'BUY') {
-        correctTotalReturn += return1d; // Positive return
+      // For correct predictions (LONG-ONLY strategy, no short positions):
+      // - BUY/HOLD that went up: add the positive return (we profited from long position)
+      // - SELL that went down: add the absolute value (we avoided loss by exiting)
+      if (decision === 'BUY' || decision === 'HOLD') {
+        correctTotalReturn += return1d; // Positive return from long position
       } else if (decision === 'SELL') {
-        correctTotalReturn += Math.abs(return1d); // We avoided this loss
-      } else {
-        correctTotalReturn += Math.abs(return1d) < 2 ? 0.1 : 0; // Small gain for correct hold
+        correctTotalReturn += Math.abs(return1d); // We avoided this loss by exiting
       }
     } else {
       incorrectCount++;
-      // For incorrect predictions:
-      // - BUY that went down: subtract the loss
-      // - SELL that went up: subtract the missed gain
-      // - HOLD that moved significantly: subtract the missed opportunity
-      if (decision === 'BUY') {
-        incorrectTotalReturn += return1d; // Negative return (loss)
+      // For incorrect predictions (LONG-ONLY strategy, no short positions):
+      // - BUY/HOLD that went down: subtract the loss (we lost on long position)
+      // - SELL that went up: subtract the missed gain (we missed out by exiting)
+      if (decision === 'BUY' || decision === 'HOLD') {
+        incorrectTotalReturn += return1d; // Negative return (loss from long position)
       } else if (decision === 'SELL') {
-        incorrectTotalReturn += -Math.abs(return1d); // We missed this gain
-      } else {
-        incorrectTotalReturn += -Math.abs(return1d); // Missed the move
+        incorrectTotalReturn += -Math.abs(return1d); // We missed this gain by exiting
       }
     }
   }
@@ -1315,6 +1337,8 @@ export function calculateRiskMetrics(): RiskMetrics {
   // Calculate max drawdown
   let peak = 100;
   let maxDrawdown = 0;
+  let maxDrawdownPeak = 100;
+  let maxDrawdownTrough = 100;
   let currentValue = 100;
   for (const ret of dailyReturns) {
     currentValue = currentValue * (1 + ret / 100);
@@ -1324,6 +1348,8 @@ export function calculateRiskMetrics(): RiskMetrics {
     const drawdown = ((peak - currentValue) / peak) * 100;
     if (drawdown > maxDrawdown) {
       maxDrawdown = drawdown;
+      maxDrawdownPeak = peak;
+      maxDrawdownTrough = currentValue;
     }
   }
 
@@ -1342,6 +1368,15 @@ export function calculateRiskMetrics(): RiskMetrics {
     winRate: Math.round(winRate),
     volatility: Math.round(volatility * 100) / 100,
     totalTrades: totalPredictions,
+    // Calculation details for showing formulas
+    meanReturn: Math.round(mean * 100) / 100,
+    riskFreeRate: riskFreeRate,
+    winningTrades: totalCorrect,
+    losingTrades: totalPredictions - totalCorrect,
+    avgWinReturn: Math.round(avgWin * 100) / 100,
+    avgLossReturn: Math.round(avgLoss * 100) / 100,
+    peakValue: Math.round(maxDrawdownPeak * 100) / 100,
+    troughValue: Math.round(maxDrawdownTrough * 100) / 100,
   };
 }
 
@@ -1467,4 +1502,95 @@ export function getAllSectors(): string[] {
     }
   }
   return Array.from(sectors).sort();
+}
+
+// Get stock history with prediction outcomes (1-day return after each prediction)
+export interface StockHistoryWithOutcome {
+  date: string;
+  decision: Decision;
+  outcome: {
+    return1d: number;
+    predictionCorrect: boolean;
+  } | null;
+}
+
+export function getStockHistoryWithOutcomes(symbol: string): StockHistoryWithOutcome[] {
+  const history = getStockHistory(symbol);
+
+  // Map each historical entry with simulated outcomes based on the decision
+  return history.map((entry, index) => {
+    // Use seeded random for consistent outcomes per stock/date combination
+    const seed = getSymbolSeed(symbol) + getSymbolSeed(entry.date) + index;
+
+    // First, generate the return randomly (with market-like distribution)
+    // Return can be positive or negative - this is NOT pre-determined by decision
+    const return1d = (seededRandom(seed) - 0.45) * 6; // -2.7% to +3.3% range (slight positive bias)
+
+    // Determine prediction correctness based on actual return vs decision
+    // This is the CORRECT logic: BUY/HOLD correct if return > 0, SELL correct if return < 0
+    let predictionCorrect: boolean;
+    if (entry.decision === 'BUY' || entry.decision === 'HOLD') {
+      // BUY and HOLD are correct if stock price went up
+      predictionCorrect = return1d > 0;
+    } else {
+      // SELL is correct if stock price went down
+      predictionCorrect = return1d < 0;
+    }
+
+    return {
+      date: entry.date,
+      decision: entry.decision,
+      outcome: {
+        return1d: Math.round(return1d * 10) / 10,
+        predictionCorrect,
+      },
+    };
+  });
+}
+
+// Get prediction accuracy stats for a specific stock
+export function getStockPredictionStats(symbol: string): {
+  totalPredictions: number;
+  correctPredictions: number;
+  accuracy: number;
+  avgReturn: number;
+  buyAccuracy: number;
+  sellAccuracy: number;
+  holdAccuracy: number;
+} {
+  const history = getStockHistoryWithOutcomes(symbol);
+
+  let correct = 0;
+  let totalReturn = 0;
+  let buyTotal = 0, buyCorrect = 0;
+  let sellTotal = 0, sellCorrect = 0;
+  let holdTotal = 0, holdCorrect = 0;
+
+  for (const entry of history) {
+    if (entry.outcome) {
+      totalReturn += entry.outcome.return1d;
+      if (entry.outcome.predictionCorrect) correct++;
+
+      if (entry.decision === 'BUY') {
+        buyTotal++;
+        if (entry.outcome.predictionCorrect) buyCorrect++;
+      } else if (entry.decision === 'SELL') {
+        sellTotal++;
+        if (entry.outcome.predictionCorrect) sellCorrect++;
+      } else {
+        holdTotal++;
+        if (entry.outcome.predictionCorrect) holdCorrect++;
+      }
+    }
+  }
+
+  return {
+    totalPredictions: history.length,
+    correctPredictions: correct,
+    accuracy: history.length > 0 ? Math.round((correct / history.length) * 100) : 0,
+    avgReturn: history.length > 0 ? Math.round((totalReturn / history.length) * 10) / 10 : 0,
+    buyAccuracy: buyTotal > 0 ? Math.round((buyCorrect / buyTotal) * 100) : 0,
+    sellAccuracy: sellTotal > 0 ? Math.round((sellCorrect / sellTotal) * 100) : 0,
+    holdAccuracy: holdTotal > 0 ? Math.round((holdCorrect / holdTotal) * 100) : 0,
+  };
 }

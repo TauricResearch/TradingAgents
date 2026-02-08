@@ -57,6 +57,7 @@ export interface StockAnalysis {
   confidence?: Confidence;
   risk?: Risk;
   raw_analysis?: string;
+  hold_days?: number | null;
   error?: string | null;
 }
 
@@ -85,7 +86,7 @@ export interface StockToAvoid {
 export interface DailyRecommendation {
   date: string;
   analysis: Record<string, StockAnalysis>;
-  ranking: RankingResult;
+  ranking?: RankingResult;  // Optional since API may not return it
   summary: {
     total: number;
     buy: number;
@@ -103,6 +104,7 @@ export interface HistoricalEntry {
   decision: Decision;
   confidence?: Confidence;
   risk?: Risk;
+  hold_days?: number | null;
 }
 
 export interface StockHistory {
@@ -139,6 +141,15 @@ export interface RiskMetrics {
   winRate: number;          // % of winning predictions
   volatility: number;       // std dev of returns
   totalTrades: number;
+  // Additional calculation details for showing formulas
+  meanReturn?: number;
+  riskFreeRate?: number;
+  winningTrades?: number;
+  losingTrades?: number;
+  avgWinReturn?: number;
+  avgLossReturn?: number;
+  peakValue?: number;
+  troughValue?: number;
 }
 
 // Return distribution bucket
@@ -166,6 +177,14 @@ export interface AccuracyTrendPoint {
   buy: number;
   sell: number;
   hold: number;
+}
+
+// Cumulative return data point for index comparison chart
+export interface CumulativeReturnPoint {
+  date: string;
+  value: number;
+  aiReturn: number;
+  indexReturn: number;
 }
 
 export const NIFTY_50_STOCKS: NiftyStock[] = [

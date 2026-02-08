@@ -1,6 +1,8 @@
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 import time
 import json
+
+from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 
 def create_bull_researcher(llm, memory):
@@ -16,33 +18,74 @@ def create_bull_researcher(llm, memory):
         fundamentals_report = state["fundamentals_report"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if memory is not None:
+            past_memories = memory.get_memories(curr_situation, n_matches=2)
+            for i, rec in enumerate(past_memories, 1):
+                past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        system_prompt = """You are a Bull Analyst at a financial research firm. You MUST stay in character as a financial analyst at all times.
 
-Key points to focus on:
-- Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
-- Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
-- Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
-- Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
-- Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
+CRITICAL RULES:
+- NEVER mention that you are an AI, Claude, a language model, or an assistant
+- NEVER offer to help with code, software, or implementation tasks
+- NEVER say "I don't have access to" or "I can't see the data" — analyze whatever data is provided below
+- If data sections are empty, state that data is unavailable and focus your analysis on the data that IS available
 
-Resources available:
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
-Conversation history of the debate: {history}
-Last bear argument: {current_response}
-Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position. You must also address reflections and learn from lessons and mistakes you made in the past.
-"""
+Your role: Advocate for investing in this stock with evidence-based bullish arguments.
+Focus on: growth potential, competitive advantages, positive market indicators, upside catalysts.
 
-        response = llm.invoke(prompt)
+RESPONSE FORMAT:
+- Maximum 2000 characters. Focus on the 3-5 strongest bullish points.
+- Complete your ENTIRE argument in a SINGLE response.
+
+Respond only with your bullish financial analysis. No disclaimers or meta-commentary."""
+
+        user_prompt = f"""Analyze this stock from a bullish perspective:
+
+MARKET DATA:
+{market_research_report}
+
+SENTIMENT:
+{sentiment_report}
+
+NEWS:
+{news_report}
+
+FUNDAMENTALS:
+{fundamentals_report}
+
+DEBATE HISTORY:
+{history}
+
+BEAR'S LAST ARGUMENT:
+{current_response}
+
+PAST LEARNINGS:
+{past_memory_str if past_memory_str else "None"}
+
+Provide your bullish case for this investment."""
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ]
+        step_timer.start_step("bull_researcher")
+        add_log("agent", "bull_researcher", f"🐂 Bull Analyst calling LLM...")
+        t0 = time.time()
+        response = llm.invoke(messages)
+        elapsed = time.time() - t0
+        add_log("llm", "bull_researcher", f"LLM responded in {elapsed:.1f}s ({len(response.content)} chars)")
+        add_log("agent", "bull_researcher", f"✅ Bull argument ready: {response.content[:300]}...")
+        step_timer.end_step("bull_researcher", "completed", response.content[:200])
+        symbol_progress.step_done(state["company_of_interest"], "bull_researcher")
+        step_timer.set_details("bull_researcher", {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt[:3000],
+            "response": response.content[:3000],
+            "tool_calls": [],
+        })
 
         argument = f"Bull Analyst: {response.content}"
 

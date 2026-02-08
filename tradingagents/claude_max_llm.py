@@ -109,14 +109,19 @@ class ClaudeMaxLLM(BaseChatModel):
 
         return "\n\nAvailable tools:\n" + "\n".join(tool_descriptions) + "\n\nTo use a tool, respond with: TOOL_CALL: tool_name(arguments)\n"
 
-    def _format_messages_for_prompt(self, messages: List[BaseMessage]) -> str:
-        """Convert LangChain messages to a single prompt string."""
-        formatted_parts = []
+    def _format_messages_for_prompt(self, messages: List[BaseMessage]) -> tuple:
+        """Convert LangChain messages to a system prompt and user prompt.
+
+        Returns:
+            Tuple of (system_prompt, user_prompt)
+        """
+        system_parts = []
+        user_parts = []
 
         # Add tools description if tools are bound
         tools_prompt = self._format_tools_for_prompt()
         if tools_prompt:
-            formatted_parts.append(tools_prompt)
+            system_parts.append(tools_prompt)
 
         for msg in messages:
             # Handle dict messages (LangChain sometimes passes these)
@@ -124,41 +129,56 @@ class ClaudeMaxLLM(BaseChatModel):
                 role = msg.get("role", msg.get("type", "human"))
                 content = msg.get("content", str(msg))
                 if role in ("system",):
-                    formatted_parts.append(f"<system>\n{content}\n</system>\n")
+                    system_parts.append(content)
                 elif role in ("human", "user"):
-                    formatted_parts.append(f"Human: {content}\n")
+                    user_parts.append(content)
                 elif role in ("ai", "assistant"):
-                    formatted_parts.append(f"Assistant: {content}\n")
+                    user_parts.append(f"Previous response: {content}")
                 else:
-                    formatted_parts.append(f"{content}\n")
+                    user_parts.append(content)
             elif isinstance(msg, SystemMessage):
-                formatted_parts.append(f"<system>\n{msg.content}\n</system>\n")
+                system_parts.append(msg.content)
             elif isinstance(msg, HumanMessage):
-                formatted_parts.append(f"Human: {msg.content}\n")
+                user_parts.append(msg.content)
             elif isinstance(msg, AIMessage):
-                formatted_parts.append(f"Assistant: {msg.content}\n")
+                user_parts.append(f"Previous response: {msg.content}")
             elif isinstance(msg, ToolMessage):
-                formatted_parts.append(f"Tool Result ({msg.name}): {msg.content}\n")
+                user_parts.append(f"Tool Result ({msg.name}): {msg.content}")
             elif hasattr(msg, 'content'):
-                formatted_parts.append(f"{msg.content}\n")
+                user_parts.append(msg.content)
             else:
-                formatted_parts.append(f"{str(msg)}\n")
+                user_parts.append(str(msg))
 
-        return "\n".join(formatted_parts)
+        system_prompt = "\n\n".join(system_parts) if system_parts else ""
+        user_prompt = "\n\n".join(user_parts) if user_parts else ""
 
-    def _call_claude_cli(self, prompt: str) -> str:
-        """Call the Claude CLI and return the response."""
+        return system_prompt, user_prompt
+
+    def _call_claude_cli(self, system_prompt: str, user_prompt: str) -> str:
+        """Call the Claude CLI and return the response.
+
+        Args:
+            system_prompt: The system prompt to use (overrides Claude Code defaults)
+            user_prompt: The user prompt/query
+        """
         # Create environment without ANTHROPIC_API_KEY to force subscription auth
         env = os.environ.copy()
         env.pop("ANTHROPIC_API_KEY", None)
 
-        # Build the command - use --prompt flag with stdin for long prompts
+        # Build the command with --system-prompt to override Claude Code's default behavior
         cmd = [
             self.claude_cli_path,
             "--print",  # Non-interactive mode
             "--model", self.model,
-            "-p", prompt  # Use -p flag for prompt
+            "--tools", "",  # Disable all Claude Code tools - we're just doing analysis
         ]
+
+        # Add system prompt if provided (this overrides Claude Code's default system prompt)
+        if system_prompt:
+            cmd.extend(["--system-prompt", system_prompt])
+
+        # Add the user prompt
+        cmd.extend(["-p", user_prompt])
 
         try:
             result = subprocess.run(
@@ -192,8 +212,8 @@ class ClaudeMaxLLM(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         """Generate a response from the Claude CLI."""
-        prompt = self._format_messages_for_prompt(messages)
-        response_text = self._call_claude_cli(prompt)
+        system_prompt, user_prompt = self._format_messages_for_prompt(messages)
+        response_text = self._call_claude_cli(system_prompt, user_prompt)
 
         # Apply stop sequences if provided
         if stop:

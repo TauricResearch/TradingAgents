@@ -1,5 +1,8 @@
 import time
 import json
+from langchain_core.messages import SystemMessage, HumanMessage
+
+from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 
 def create_risky_debator(llm):
@@ -18,21 +21,71 @@ def create_risky_debator(llm):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Risky Risk Analyst, your role is to actively champion high-reward, high-risk opportunities, emphasizing bold strategies and competitive advantages. When evaluating the trader's decision or plan, focus intently on the potential upside, growth potential, and innovative benefits—even when these come with elevated risk. Use the provided market data and sentiment analysis to strengthen your arguments and challenge the opposing views. Specifically, respond directly to each point made by the conservative and neutral analysts, countering with data-driven rebuttals and persuasive reasoning. Highlight where their caution might miss critical opportunities or where their assumptions may be overly conservative. Here is the trader's decision:
+        system_prompt = """You are an Aggressive Risk Analyst at a financial advisory firm. You MUST stay in character as a financial analyst at all times.
 
+CRITICAL RULES:
+- NEVER mention that you are an AI, Claude, a language model, or an assistant
+- NEVER offer to help with code, software, or implementation tasks
+- NEVER say "I don't have access to" or "I can't see the data" — analyze whatever data is provided below
+- If data sections are empty, state that data is unavailable and focus your analysis on the data that IS available
+
+Your role: Advocate for growth-oriented, higher-risk investment strategies that maximize potential returns.
+Focus on: growth opportunities, upside potential, momentum signals, and why bolder strategies are justified.
+Counter conservative arguments with data-driven rebuttals.
+
+RESPONSE FORMAT:
+- Maximum 2000 characters. Focus on the 3-5 strongest growth-oriented points.
+- Complete your ENTIRE argument in a SINGLE response.
+
+Respond only with your aggressive financial analysis. No disclaimers or meta-commentary."""
+
+        user_prompt = f"""Provide the aggressive/growth-oriented perspective on this investment:
+
+TRADER'S DECISION:
 {trader_decision}
 
-Your task is to create a compelling case for the trader's decision by questioning and critiquing the conservative and neutral stances to demonstrate why your high-reward perspective offers the best path forward. Incorporate insights from the following sources into your arguments:
+MARKET DATA:
+{market_research_report}
 
-Market Research Report: {market_research_report}
-Social Media Sentiment Report: {sentiment_report}
-Latest World Affairs Report: {news_report}
-Company Fundamentals Report: {fundamentals_report}
-Here is the current conversation history: {history} Here are the last arguments from the conservative analyst: {current_safe_response} Here are the last arguments from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
+SENTIMENT:
+{sentiment_report}
 
-Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting."""
+NEWS:
+{news_report}
 
-        response = llm.invoke(prompt)
+FUNDAMENTALS:
+{fundamentals_report}
+
+DEBATE HISTORY:
+{history}
+
+CONSERVATIVE ANALYST'S ARGUMENT:
+{current_safe_response if current_safe_response else "None yet"}
+
+NEUTRAL ANALYST'S ARGUMENT:
+{current_neutral_response if current_neutral_response else "None yet"}
+
+Present your aggressive/growth-oriented case."""
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ]
+        step_timer.start_step("aggressive_analyst")
+        add_log("agent", "aggressive", f"🔥 Aggressive Analyst calling LLM...")
+        t0 = time.time()
+        response = llm.invoke(messages)
+        elapsed = time.time() - t0
+        add_log("llm", "aggressive", f"LLM responded in {elapsed:.1f}s ({len(response.content)} chars)")
+        add_log("agent", "aggressive", f"✅ Aggressive argument ready: {response.content[:300]}...")
+        step_timer.end_step("aggressive_analyst", "completed", response.content[:200])
+        symbol_progress.step_done(state["company_of_interest"], "aggressive_analyst")
+        step_timer.set_details("aggressive_analyst", {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt[:3000],
+            "response": response.content[:3000],
+            "tool_calls": [],
+        })
 
         argument = f"Risky Analyst: {response.content}"
 

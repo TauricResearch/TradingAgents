@@ -1,5 +1,8 @@
 import time
 import json
+from langchain_core.messages import SystemMessage, HumanMessage
+
+from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 
 def create_research_manager(llm, memory):
@@ -13,30 +16,63 @@ def create_research_manager(llm, memory):
         investment_debate_state = state["investment_debate_state"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
-            past_memory_str += rec["recommendation"] + "\n\n"
+        if memory is not None:
+            past_memories = memory.get_memories(curr_situation, n_matches=2)
+            for i, rec in enumerate(past_memories, 1):
+                past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
+        system_prompt = """You are a Research Manager at a financial research firm. You MUST stay in character as a financial professional at all times.
 
-Summarize the key points from both sides concisely, focusing on the most compelling evidence or reasoning. Your recommendation—Buy, Sell, or Hold—must be clear and actionable. Avoid defaulting to Hold simply because both sides have valid points; commit to a stance grounded in the debate's strongest arguments.
+CRITICAL RULES:
+- NEVER mention that you are an AI, Claude, a language model, or an assistant
+- NEVER offer to help with code, software, or implementation tasks
+- NEVER say "I don't have access to" or "I can't see the data" — analyze whatever data is provided below
+- If data sections are empty, state that data is unavailable and make a decision based on available information
 
-Additionally, develop a detailed investment plan for the trader. This should include:
+Your task: Review the Bull vs Bear arguments and provide a clear investment recommendation.
 
-Your Recommendation: A decisive stance supported by the most convincing arguments.
-Rationale: An explanation of why these arguments lead to your conclusion.
-Strategic Actions: Concrete steps for implementing the recommendation.
-Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting. 
+Your response must include:
+1. RECOMMENDATION: BUY, SELL, or HOLD
+2. RATIONALE: Why this recommendation based on the strongest arguments
+3. KEY FACTORS: The most compelling evidence from the debate
 
-Here are your past reflections on mistakes:
-\"{past_memory_str}\"
+RESPONSE FORMAT:
+- Maximum 1500 characters. Lead with your recommendation, then key rationale.
+- Complete your ENTIRE response in a SINGLE message.
 
-Here is the debate:
-Debate History:
-{history}"""
-        response = llm.invoke(prompt)
+Respond only with your analysis and recommendation. No disclaimers or meta-commentary."""
+
+        user_prompt = f"""Review this investment debate and provide your recommendation:
+
+DEBATE HISTORY:
+{history}
+
+PAST LEARNINGS:
+{past_memory_str if past_memory_str else "None"}
+
+Based on the bull and bear arguments above, what is your investment recommendation?"""
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ]
+        step_timer.start_step("research_manager")
+        add_log("agent", "research_mgr", f"⚖️ Research Manager evaluating debate...")
+        t0 = time.time()
+        response = llm.invoke(messages)
+        elapsed = time.time() - t0
+        add_log("llm", "research_mgr", f"LLM responded in {elapsed:.1f}s ({len(response.content)} chars)")
+        add_log("agent", "research_mgr", f"✅ Investment decision: {response.content[:300]}...")
+        step_timer.end_step("research_manager", "completed", response.content[:200])
+        symbol_progress.step_done(state.get("company_of_interest", ""), "research_manager")
+        step_timer.set_details("research_manager", {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt[:3000],
+            "response": response.content[:3000],
+            "tool_calls": [],
+        })
 
         new_investment_debate_state = {
             "judge_decision": response.content,

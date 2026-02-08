@@ -272,6 +272,29 @@ export default function SettingsModal() {
                   <span>5 (More thorough)</span>
                 </div>
               </div>
+
+              {/* Parallel Workers */}
+              <div className="mt-4">
+                <label className="flex items-center justify-between text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                  <span>Parallel Workers (Analyze All)</span>
+                  <span className="text-nifty-600 dark:text-nifty-400">{settings.parallelWorkers}</span>
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={settings.parallelWorkers}
+                  onChange={(e) => updateSettings({ parallelWorkers: parseInt(e.target.value) })}
+                  className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-nifty-600"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>1 (Conservative)</span>
+                  <span>5 (Aggressive)</span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Number of stocks to analyze simultaneously during Analyze All
+                </p>
+              </div>
             </section>
           </div>
 

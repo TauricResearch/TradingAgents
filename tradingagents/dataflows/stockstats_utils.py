@@ -24,6 +24,12 @@ class StockstatsUtils:
         df = None
         data = None
 
+        # CRITICAL: Use curr_date as end date to prevent future data leakage
+        # This ensures backtest doesn't see data beyond the analysis date
+        curr_date_dt = pd.to_datetime(curr_date)
+        end_date_dt = curr_date_dt
+        start_date_dt = curr_date_dt - pd.DateOffset(years=2)  # Reduced from 15 years for faster fetching
+
         if not online:
             try:
                 data = pd.read_csv(
@@ -32,22 +38,20 @@ class StockstatsUtils:
                         f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
                     )
                 )
+                # CRITICAL: Filter local data to prevent future data leakage
+                data["Date"] = pd.to_datetime(data["Date"])
+                data = data[data["Date"] <= curr_date_dt]
                 df = wrap(data)
             except FileNotFoundError:
                 raise Exception("Stockstats fail: Yahoo Finance data not fetched yet!")
         else:
-            # Get today's date as YYYY-mm-dd to add to cache
-            today_date = pd.Timestamp.today()
-            curr_date = pd.to_datetime(curr_date)
-
-            end_date = today_date
-            start_date = today_date - pd.DateOffset(years=15)
-            start_date = start_date.strftime("%Y-%m-%d")
-            end_date = end_date.strftime("%Y-%m-%d")
+            start_date = start_date_dt.strftime("%Y-%m-%d")
+            end_date = end_date_dt.strftime("%Y-%m-%d")
 
             # Get config and ensure cache directory exists
             os.makedirs(config["data_cache_dir"], exist_ok=True)
 
+            # Cache file now uses curr_date (end_date), not today's date
             data_file = os.path.join(
                 config["data_cache_dir"],
                 f"{symbol}-YFin-data-{start_date}-{end_date}.csv",
@@ -70,7 +74,7 @@ class StockstatsUtils:
 
             df = wrap(data)
             df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-            curr_date = curr_date.strftime("%Y-%m-%d")
+            curr_date = curr_date_dt.strftime("%Y-%m-%d")
 
         df[indicator]  # trigger stockstats to calculate the indicator
         matching_rows = df[df["Date"].str.startswith(curr_date)]

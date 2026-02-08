@@ -166,6 +166,18 @@
     }
   }
 
+  /* Shimmer animation for stocks being analyzed */
+  .shimmer-effect {
+    background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.08) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
   /* Smooth scrollbar styling */
   .scroll-smooth {
     scroll-behavior: smooth;

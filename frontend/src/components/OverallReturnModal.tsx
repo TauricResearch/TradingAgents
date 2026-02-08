@@ -1,16 +1,27 @@
 import { X, Activity } from 'lucide-react';
 import { getOverallReturnBreakdown } from '../data/recommendations';
 import CumulativeReturnChart from './CumulativeReturnChart';
+import type { CumulativeReturnPoint } from '../types';
+
+export interface OverallReturnBreakdown {
+  dailyReturns: { date: string; return: number; multiplier: number; cumulative: number }[];
+  finalMultiplier: number;
+  finalReturn: number;
+  formula: string;
+}
 
 interface OverallReturnModalProps {
   isOpen: boolean;
   onClose: () => void;
+  breakdown?: OverallReturnBreakdown;  // Optional prop for real data
+  cumulativeData?: CumulativeReturnPoint[];  // Optional prop for chart data
 }
 
-export default function OverallReturnModal({ isOpen, onClose }: OverallReturnModalProps) {
+export default function OverallReturnModal({ isOpen, onClose, breakdown: propBreakdown, cumulativeData }: OverallReturnModalProps) {
   if (!isOpen) return null;
 
-  const breakdown = getOverallReturnBreakdown();
+  // Use provided breakdown or fall back to mock data
+  const breakdown = propBreakdown || getOverallReturnBreakdown();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -55,7 +66,7 @@ export default function OverallReturnModal({ isOpen, onClose }: OverallReturnMod
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Portfolio Growth</h3>
             <div className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50">
-              <CumulativeReturnChart height={140} />
+              <CumulativeReturnChart height={140} data={cumulativeData} />
             </div>
           </div>
 

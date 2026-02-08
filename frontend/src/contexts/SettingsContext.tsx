@@ -40,6 +40,7 @@ interface Settings {
 
   // Analysis settings
   maxDebateRounds: number;
+  parallelWorkers: number;
 }
 
 interface SettingsContextType {
@@ -57,6 +58,7 @@ const DEFAULT_SETTINGS: Settings = {
   provider: 'claude_subscription',
   anthropicApiKey: '',
   maxDebateRounds: 1,
+  parallelWorkers: 3,
 };
 
 const STORAGE_KEY = 'nifty50ai_settings';

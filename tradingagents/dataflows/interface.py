@@ -1,4 +1,44 @@
 from typing import Annotated
+from functools import lru_cache
+import hashlib
+import json
+import os
+import time as _time
+
+from tradingagents.log_utils import add_log, raw_data_store
+
+# Debug mode - set to False to reduce logging verbosity
+DEBUG_MODE = os.environ.get("TRADING_AGENTS_DEBUG", "false").lower() == "true"
+
+def _debug_print(*args, **kwargs):
+    """Print only when debug mode is enabled."""
+    if DEBUG_MODE:
+        print(*args, **kwargs)
+
+# Simple in-memory cache for data requests within same analysis session
+_request_cache = {}
+
+
+def _make_cache_key(method: str, args: tuple, kwargs: dict) -> str:
+    """Generate a cache key from method name and arguments."""
+    # Convert args to a hashable form
+    key_parts = [method]
+    for arg in args:
+        if isinstance(arg, (str, int, float, bool, type(None))):
+            key_parts.append(str(arg))
+        else:
+            key_parts.append(str(type(arg).__name__))
+    for k, v in sorted(kwargs.items()):
+        if isinstance(v, (str, int, float, bool, type(None))):
+            key_parts.append(f"{k}={v}")
+    return "|".join(key_parts)
+
+
+def clear_request_cache():
+    """Clear the request cache. Call this between different stock analyses."""
+    global _request_cache
+    _request_cache.clear()
+
 
 # Import from vendor-specific modules
 from .local import get_YFin_data, get_finnhub_news, get_finnhub_company_insider_sentiment, get_finnhub_company_insider_transactions, get_simfin_balance_sheet, get_simfin_cashflow, get_simfin_income_statements, get_reddit_global_news, get_reddit_company_news
@@ -171,6 +211,16 @@ def get_vendor(category: str, method: str = None, symbol: str = None) -> str:
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
+    # Check cache first to avoid redundant API calls
+    cache_key = _make_cache_key(method, args, kwargs)
+    if cache_key in _request_cache:
+        add_log("data", "data_fetch", f"📦 {method}({', '.join(str(a) for a in args)}) — cached")
+        return _request_cache[cache_key]
+
+    fetch_start = _time.time()
+    args_str = ', '.join(str(a) for a in args)
+    add_log("data", "data_fetch", f"🔄 Fetching {method}({args_str})...")
+
     category = get_category_for_method(method)
 
     # Extract symbol from args/kwargs for market-aware routing
@@ -206,7 +256,7 @@ def route_to_vendor(method: str, *args, **kwargs):
     # Debug: Print fallback ordering
     primary_str = " → ".join(primary_vendors)
     fallback_str = " → ".join(fallback_vendors)
-    print(f"DEBUG: {method} - Primary: [{primary_str}] | Full fallback order: [{fallback_str}]")
+    _debug_print(f"DEBUG: {method} - Primary: [{primary_str}] | Full fallback order: [{fallback_str}]")
 
     # Track results and execution state
     results = []
@@ -217,7 +267,7 @@ def route_to_vendor(method: str, *args, **kwargs):
     for vendor in fallback_vendors:
         if vendor not in VENDOR_METHODS[method]:
             if vendor in primary_vendors:
-                print(f"INFO: Vendor '{vendor}' not supported for method '{method}', falling back to next vendor")
+                _debug_print(f"INFO: Vendor '{vendor}' not supported for method '{method}', falling back to next vendor")
             continue
 
         vendor_impl = VENDOR_METHODS[method][vendor]
@@ -230,12 +280,12 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         # Debug: Print current attempt
         vendor_type = "PRIMARY" if is_primary_vendor else "FALLBACK"
-        print(f"DEBUG: Attempting {vendor_type} vendor '{vendor}' for {method} (attempt #{vendor_attempt_count})")
+        _debug_print(f"DEBUG: Attempting {vendor_type} vendor '{vendor}' for {method} (attempt #{vendor_attempt_count})")
 
         # Handle list of methods for a vendor
         if isinstance(vendor_impl, list):
             vendor_methods = [(impl, vendor) for impl in vendor_impl]
-            print(f"DEBUG: Vendor '{vendor}' has multiple implementations: {len(vendor_methods)} functions")
+            _debug_print(f"DEBUG: Vendor '{vendor}' has multiple implementations: {len(vendor_methods)} functions")
         else:
             vendor_methods = [(vendor_impl, vendor)]
 
@@ -243,20 +293,20 @@ def route_to_vendor(method: str, *args, **kwargs):
         vendor_results = []
         for impl_func, vendor_name in vendor_methods:
             try:
-                print(f"DEBUG: Calling {impl_func.__name__} from vendor '{vendor_name}'...")
+                _debug_print(f"DEBUG: Calling {impl_func.__name__} from vendor '{vendor_name}'...")
                 result = impl_func(*args, **kwargs)
                 vendor_results.append(result)
-                print(f"SUCCESS: {impl_func.__name__} from vendor '{vendor_name}' completed successfully")
+                _debug_print(f"SUCCESS: {impl_func.__name__} from vendor '{vendor_name}' completed successfully")
                     
             except AlphaVantageRateLimitError as e:
                 if vendor == "alpha_vantage":
-                    print(f"RATE_LIMIT: Alpha Vantage rate limit exceeded, falling back to next available vendor")
-                    print(f"DEBUG: Rate limit details: {e}")
+                    _debug_print(f"RATE_LIMIT: Alpha Vantage rate limit exceeded, falling back to next available vendor")
+                    _debug_print(f"DEBUG: Rate limit details: {e}")
                 # Continue to next vendor for fallback
                 continue
             except Exception as e:
                 # Log error but continue with other implementations
-                print(f"FAILED: {impl_func.__name__} from vendor '{vendor_name}' failed: {e}")
+                _debug_print(f"FAILED: {impl_func.__name__} from vendor '{vendor_name}' failed: {e}")
                 continue
 
         # Add this vendor's results
@@ -264,26 +314,46 @@ def route_to_vendor(method: str, *args, **kwargs):
             results.extend(vendor_results)
             successful_vendor = vendor
             result_summary = f"Got {len(vendor_results)} result(s)"
-            print(f"SUCCESS: Vendor '{vendor}' succeeded - {result_summary}")
+            _debug_print(f"SUCCESS: Vendor '{vendor}' succeeded - {result_summary}")
             
             # Stopping logic: Stop after first successful vendor for single-vendor configs
             # Multiple vendor configs (comma-separated) may want to collect from multiple sources
             if len(primary_vendors) == 1:
-                print(f"DEBUG: Stopping after successful vendor '{vendor}' (single-vendor config)")
+                _debug_print(f"DEBUG: Stopping after successful vendor '{vendor}' (single-vendor config)")
                 break
         else:
-            print(f"FAILED: Vendor '{vendor}' produced no results")
+            _debug_print(f"FAILED: Vendor '{vendor}' produced no results")
 
     # Final result summary
     if not results:
-        print(f"FAILURE: All {vendor_attempt_count} vendor attempts failed for method '{method}'")
+        _debug_print(f"FAILURE: All {vendor_attempt_count} vendor attempts failed for method '{method}'")
         raise RuntimeError(f"All vendor implementations failed for method '{method}'")
     else:
-        print(f"FINAL: Method '{method}' completed with {len(results)} result(s) from {vendor_attempt_count} vendor attempt(s)")
+        _debug_print(f"FINAL: Method '{method}' completed with {len(results)} result(s) from {vendor_attempt_count} vendor attempt(s)")
 
     # Return single result if only one, otherwise concatenate as string
     if len(results) == 1:
-        return results[0]
+        final_result = results[0]
     else:
         # Convert all results to strings and concatenate
-        return '\n'.join(str(result) for result in results)
+        final_result = '\n'.join(str(result) for result in results)
+
+    # Cache the result for subsequent calls
+    _request_cache[cache_key] = final_result
+
+    fetch_elapsed = _time.time() - fetch_start
+    result_len = len(str(final_result))
+    result_preview = str(final_result)[:200].replace('\n', ' ')
+    add_log("data", "data_fetch", f"✅ {method}({args_str}) → {result_len} chars in {fetch_elapsed:.1f}s via {successful_vendor} | {result_preview}...")
+
+    # Capture raw data for frontend debugging
+    raw_data_store.log_fetch(
+        method=method,
+        symbol=str(symbol) if symbol else "",
+        vendor=str(successful_vendor) if successful_vendor else "unknown",
+        raw_data=str(final_result),
+        args_str=args_str,
+        duration_s=fetch_elapsed,
+    )
+
+    return final_result

@@ -1,5 +1,8 @@
 import time
 import json
+from langchain_core.messages import SystemMessage, HumanMessage
+
+from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 
 def create_neutral_debator(llm):
@@ -18,21 +21,70 @@ def create_neutral_debator(llm):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
+        system_prompt = """You are a Neutral Risk Analyst at a financial advisory firm. You MUST stay in character as a financial analyst at all times.
 
+CRITICAL RULES:
+- NEVER mention that you are an AI, Claude, a language model, or an assistant
+- NEVER offer to help with code, software, or implementation tasks
+- NEVER say "I don't have access to" or "I can't see the data" — analyze whatever data is provided below
+- If data sections are empty, state that data is unavailable and focus your analysis on the data that IS available
+
+Your role: Provide a balanced perspective, weighing both potential benefits and risks objectively.
+Focus on: balanced risk/reward assessment, moderate strategies, where both aggressive and conservative views may be flawed.
+
+RESPONSE FORMAT:
+- Maximum 2000 characters. Focus on 3-5 key balanced observations.
+- Complete your ENTIRE argument in a SINGLE response.
+
+Respond only with your balanced financial analysis. No disclaimers or meta-commentary."""
+
+        user_prompt = f"""Provide the balanced/neutral perspective on this investment:
+
+TRADER'S DECISION:
 {trader_decision}
 
-Your task is to challenge both the Risky and Safe Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
+MARKET DATA:
+{market_research_report}
 
-Market Research Report: {market_research_report}
-Social Media Sentiment Report: {sentiment_report}
-Latest World Affairs Report: {news_report}
-Company Fundamentals Report: {fundamentals_report}
-Here is the current conversation history: {history} Here is the last response from the risky analyst: {current_risky_response} Here is the last response from the safe analyst: {current_safe_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
+SENTIMENT:
+{sentiment_report}
 
-Engage actively by analyzing both sides critically, addressing weaknesses in the risky and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting."""
+NEWS:
+{news_report}
 
-        response = llm.invoke(prompt)
+FUNDAMENTALS:
+{fundamentals_report}
+
+DEBATE HISTORY:
+{history}
+
+AGGRESSIVE ANALYST'S ARGUMENT:
+{current_risky_response if current_risky_response else "None yet"}
+
+CONSERVATIVE ANALYST'S ARGUMENT:
+{current_safe_response if current_safe_response else "None yet"}
+
+Present your balanced/neutral case."""
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ]
+        step_timer.start_step("neutral_analyst")
+        add_log("agent", "neutral", f"⚖️ Neutral Analyst calling LLM...")
+        t0 = time.time()
+        response = llm.invoke(messages)
+        elapsed = time.time() - t0
+        add_log("llm", "neutral", f"LLM responded in {elapsed:.1f}s ({len(response.content)} chars)")
+        add_log("agent", "neutral", f"✅ Neutral argument ready: {response.content[:300]}...")
+        step_timer.end_step("neutral_analyst", "completed", response.content[:200])
+        symbol_progress.step_done(state["company_of_interest"], "neutral_analyst")
+        step_timer.set_details("neutral_analyst", {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt[:3000],
+            "response": response.content[:3000],
+            "tool_calls": [],
+        })
 
         argument = f"Neutral Analyst: {response.content}"
 

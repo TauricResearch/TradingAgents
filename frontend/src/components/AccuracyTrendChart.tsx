@@ -1,13 +1,23 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { getAccuracyTrend } from '../data/recommendations';
 
+export interface AccuracyTrendPoint {
+  date: string;
+  overall: number;
+  buy: number;
+  sell: number;
+  hold: number;
+}
+
 interface AccuracyTrendChartProps {
   height?: number;
   className?: string;
+  data?: AccuracyTrendPoint[];  // Optional prop for real data
 }
 
-export default function AccuracyTrendChart({ height = 200, className = '' }: AccuracyTrendChartProps) {
-  const data = getAccuracyTrend();
+export default function AccuracyTrendChart({ height = 200, className = '', data: propData }: AccuracyTrendChartProps) {
+  // Use provided data or fall back to mock data
+  const data = propData || getAccuracyTrend();
 
   if (data.length === 0) {
     return (

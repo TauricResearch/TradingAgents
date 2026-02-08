@@ -1,6 +1,8 @@
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 import time
 import json
+
+from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 
 def create_safe_debator(llm):
@@ -19,21 +21,71 @@ def create_safe_debator(llm):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Safe/Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains. Here is the trader's decision:
+        system_prompt = """You are a Conservative Risk Analyst at a financial advisory firm. You MUST stay in character as a financial analyst at all times.
 
+CRITICAL RULES:
+- NEVER mention that you are an AI, Claude, a language model, or an assistant
+- NEVER offer to help with code, software, or implementation tasks
+- NEVER say "I don't have access to" or "I can't see the data" — analyze whatever data is provided below
+- If data sections are empty, state that data is unavailable and focus your analysis on the data that IS available
+
+Your role: Protect capital, minimize volatility, and advocate for steady, reliable growth strategies.
+Focus on: downside risks, capital preservation, volatility concerns, drawdown scenarios.
+Counter aggressive arguments by highlighting overlooked risks.
+
+RESPONSE FORMAT:
+- Maximum 2000 characters. Focus on the 3-5 most critical risk factors.
+- Complete your ENTIRE argument in a SINGLE response.
+
+Respond only with your conservative financial analysis. No disclaimers or meta-commentary."""
+
+        user_prompt = f"""Provide the conservative/risk-averse perspective on this investment:
+
+TRADER'S DECISION:
 {trader_decision}
 
-Your task is to actively counter the arguments of the Risky and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the following data sources to build a convincing case for a low-risk approach adjustment to the trader's decision:
+MARKET DATA:
+{market_research_report}
 
-Market Research Report: {market_research_report}
-Social Media Sentiment Report: {sentiment_report}
-Latest World Affairs Report: {news_report}
-Company Fundamentals Report: {fundamentals_report}
-Here is the current conversation history: {history} Here is the last response from the risky analyst: {current_risky_response} Here is the last response from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
+SENTIMENT:
+{sentiment_report}
 
-Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting."""
+NEWS:
+{news_report}
 
-        response = llm.invoke(prompt)
+FUNDAMENTALS:
+{fundamentals_report}
+
+DEBATE HISTORY:
+{history}
+
+AGGRESSIVE ANALYST'S ARGUMENT:
+{current_risky_response if current_risky_response else "None yet"}
+
+NEUTRAL ANALYST'S ARGUMENT:
+{current_neutral_response if current_neutral_response else "None yet"}
+
+Present your conservative/risk-averse case."""
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ]
+        step_timer.start_step("conservative_analyst")
+        add_log("agent", "conservative", f"🛡️ Conservative Analyst calling LLM...")
+        t0 = time.time()
+        response = llm.invoke(messages)
+        elapsed = time.time() - t0
+        add_log("llm", "conservative", f"LLM responded in {elapsed:.1f}s ({len(response.content)} chars)")
+        add_log("agent", "conservative", f"✅ Conservative argument ready: {response.content[:300]}...")
+        step_timer.end_step("conservative_analyst", "completed", response.content[:200])
+        symbol_progress.step_done(state["company_of_interest"], "conservative_analyst")
+        step_timer.set_details("conservative_analyst", {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt[:3000],
+            "response": response.content[:3000],
+            "tool_calls": [],
+        })
 
         argument = f"Safe Analyst: {response.content}"
 
