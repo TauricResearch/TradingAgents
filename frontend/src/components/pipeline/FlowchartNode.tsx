@@ -1,10 +1,11 @@
 import {
   TrendingUp, TrendingDown, Users, Newspaper, FileText,
   Scale, Target, Zap, Shield, ShieldCheck,
-  Clock, Loader2, CheckCircle, AlertCircle, ChevronDown, ChevronUp
+  Clock, Loader2, CheckCircle, AlertCircle, ChevronDown, ChevronUp, GitBranch
 } from 'lucide-react';
 import { useState } from 'react';
 import type { FlowchartNodeData, PipelineStepStatus } from '../../types/pipeline';
+import { STEP_INPUT_SOURCES } from '../../types/pipeline';
 
 interface FlowchartNodeProps {
   node: FlowchartNodeData;
@@ -100,6 +101,7 @@ export function FlowchartNode({ node, isSelected, onClick }: FlowchartNodeProps)
 
   const hasPreview = !!(node.output_summary || node.agentReport?.report_content || node.debateContent);
   const previewText = node.output_summary || node.agentReport?.report_content || node.debateContent || '';
+  const inputCount = (STEP_INPUT_SOURCES[node.id] || []).length;
 
   return (
     <div className="w-full">
@@ -145,6 +147,12 @@ export function FlowchartNode({ node, isSelected, onClick }: FlowchartNodeProps)
 
         {/* Status + Duration */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {inputCount > 0 && node.status === 'completed' && (
+            <span className="hidden sm:inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-500 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
+              <GitBranch className="w-2.5 h-2.5" />
+              {inputCount}
+            </span>
+          )}
           {node.duration_ms != null && node.status === 'completed' && (
             <span className="text-[10px] sm:text-xs font-mono font-semibold text-gray-500 dark:text-gray-400">
               {formatDuration(node.duration_ms)}

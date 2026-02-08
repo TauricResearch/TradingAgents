@@ -1,5 +1,6 @@
 # TradingAgents/graph/signal_processing.py
 
+import re
 from langchain_openai import ChatOpenAI
 
 
@@ -12,37 +13,97 @@ class SignalProcessor:
 
     def process_signal(self, full_signal: str) -> dict:
         """
-        Process a full trading signal to extract the core decision and hold_days.
+        Process a full trading signal to extract the core decision, hold_days,
+        confidence, and risk level.
 
         Args:
             full_signal: Complete trading signal text
 
         Returns:
-            Dict with 'decision' (BUY/SELL/HOLD) and 'hold_days' (int or None)
+            Dict with 'decision', 'hold_days', 'confidence', 'risk'
         """
         messages = [
             (
                 "system",
                 "You are an efficient assistant designed to analyze paragraphs or financial reports "
-                "provided by a group of analysts. Extract two pieces of information:\n"
+                "provided by a group of analysts. Extract the following information:\n"
                 "1. The investment decision: SELL, BUY, or HOLD\n"
-                "2. The recommended holding period in trading days (only for BUY or HOLD decisions)\n\n"
+                "2. The recommended holding period in trading days (only for BUY or HOLD decisions)\n"
+                "3. The confidence level of the decision: HIGH, MEDIUM, or LOW\n"
+                "4. The risk level of the investment: HIGH, MEDIUM, or LOW\n\n"
                 "Respond in exactly this format (nothing else):\n"
                 "DECISION: <BUY|SELL|HOLD>\n"
-                "HOLD_DAYS: <number|N/A>\n\n"
+                "HOLD_DAYS: <number|N/A>\n"
+                "CONFIDENCE: <HIGH|MEDIUM|LOW>\n"
+                "RISK_LEVEL: <HIGH|MEDIUM|LOW>\n\n"
                 "For SELL decisions, always use HOLD_DAYS: N/A\n"
-                "For BUY or HOLD decisions, extract the number of days if mentioned, otherwise default to 5.",
+                "For BUY or HOLD decisions, extract the EXACT number of days mentioned in the report. "
+                "Look for phrases like 'N-day hold', 'N trading days', 'hold for N days', "
+                "'N-day horizon', 'over N days'. If no specific number is mentioned, use 5.\n"
+                "For CONFIDENCE and RISK_LEVEL, infer from the tone and content of the report. Default to MEDIUM if unclear.",
             ),
             ("human", full_signal),
         ]
 
         response = self.quick_thinking_llm.invoke(messages).content
-        return self._parse_signal_response(response)
+        result = self._parse_signal_response(response)
+
+        # If LLM returned default hold_days (5) or failed to extract, try regex on original text
+        if result["decision"] != "SELL" and result["hold_days"] == 5:
+            regex_days = self._extract_hold_days_regex(full_signal)
+            if regex_days is not None:
+                result["hold_days"] = regex_days
+
+        return result
+
+    @staticmethod
+    def _extract_hold_days_regex(text: str) -> int | None:
+        """Extract hold period from text using regex patterns.
+
+        Looks for common patterns like '15-day hold', 'hold for 45 days',
+        '30 trading days', 'N-day horizon', etc.
+        """
+        patterns = [
+            # "15-day hold", "45-day horizon", "30-day period"
+            r'(\d+)[\s-]*(?:day|trading[\s-]*day)[\s-]*(?:hold|horizon|period|timeframe)',
+            # "hold for 15 days", "holding period of 45 days"
+            r'(?:hold|holding)[\s\w]*?(?:for|of|period\s+of)[\s]*(\d+)[\s]*(?:trading\s+)?days?',
+            # "setting 45 trading days"
+            r'setting\s+(\d+)\s+(?:trading\s+)?days',
+            # "over 15 days", "within 30 days"
+            r'(?:over|within|next)\s+(\d+)\s+(?:trading\s+)?days',
+            # "N trading days (~2 months)" pattern
+            r'(\d+)\s+trading\s+days?\s*\(',
+        ]
+
+        candidates = []
+        for pattern in patterns:
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                days = int(match.group(1))
+                if 1 <= days <= 90:
+                    candidates.append(days)
+
+        if not candidates:
+            return None
+
+        # If multiple matches, prefer the one that appears in the conclusion
+        # (last ~500 chars of text, which is typically the RATIONALE section)
+        conclusion = text[-500:]
+        for pattern in patterns:
+            for match in re.finditer(pattern, conclusion, re.IGNORECASE):
+                days = int(match.group(1))
+                if 1 <= days <= 90:
+                    return days
+
+        # Fall back to most common candidate
+        return max(set(candidates), key=candidates.count)
 
     def _parse_signal_response(self, response: str) -> dict:
-        """Parse the structured LLM response into decision and hold_days."""
+        """Parse the structured LLM response into decision, hold_days, confidence, risk."""
         decision = "HOLD"
         hold_days = None
+        confidence = "MEDIUM"
+        risk = "MEDIUM"
 
         for line in response.strip().split("\n"):
             line = line.strip()
@@ -63,6 +124,16 @@ class SignalProcessor:
                         hold_days = max(1, min(90, hold_days))
                     except (ValueError, TypeError):
                         hold_days = None
+            elif upper.startswith("CONFIDENCE:"):
+                raw = upper.split(":", 1)[1].strip()
+                raw = raw.replace("*", "").strip()
+                if raw in ("HIGH", "MEDIUM", "LOW"):
+                    confidence = raw
+            elif upper.startswith("RISK_LEVEL:") or upper.startswith("RISK:"):
+                raw = upper.split(":", 1)[1].strip()
+                raw = raw.replace("*", "").strip()
+                if raw in ("HIGH", "MEDIUM", "LOW"):
+                    risk = raw
 
         # Enforce: SELL never has hold_days; BUY/HOLD default to 5 if missing
         if decision == "SELL":
@@ -70,4 +141,4 @@ class SignalProcessor:
         elif hold_days is None:
             hold_days = 5  # Default hold period
 
-        return {"decision": decision, "hold_days": hold_days}
+        return {"decision": decision, "hold_days": hold_days, "confidence": confidence, "risk": risk}

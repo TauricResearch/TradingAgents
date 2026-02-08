@@ -27,6 +27,9 @@ interface BacktestResult {
   decision: string;
   return1d: number | null;
   return1w: number | null;
+  returnAtHold: number | null;
+  holdDays: number | null;
+  primaryReturn: number | null;  // return_at_hold ?? return_1d
   predictionCorrect: boolean | null;
   isLoading?: boolean;
 }
@@ -124,16 +127,14 @@ export default function StockDetail() {
         const backtest = await api.getBacktestResult(entry.date, symbol);
 
         if (backtest.available) {
-          // Calculate prediction correctness based on 1-day return
-          // BUY is correct if return > 0, HOLD is correct if return > 0, SELL is correct if return < 0
+          // Use hold-period return when available (BUY/HOLD with hold_days), else 1-day return
+          const primaryReturn = backtest.return_at_hold ?? backtest.actual_return_1d ?? null;
           let predictionCorrect: boolean | null = null;
-          if (backtest.actual_return_1d !== undefined && backtest.actual_return_1d !== null) {
+          if (primaryReturn !== undefined && primaryReturn !== null) {
             if (entry.decision === 'BUY' || entry.decision === 'HOLD') {
-              // BUY and HOLD are correct if stock price went up
-              predictionCorrect = backtest.actual_return_1d > 0;
+              predictionCorrect = primaryReturn > 0;
             } else if (entry.decision === 'SELL') {
-              // SELL is correct if stock price went down
-              predictionCorrect = backtest.actual_return_1d < 0;
+              predictionCorrect = primaryReturn < 0;
             }
           }
 
@@ -142,6 +143,9 @@ export default function StockDetail() {
             decision: entry.decision,
             return1d: backtest.actual_return_1d ?? null,
             return1w: backtest.actual_return_1w ?? null,
+            returnAtHold: backtest.return_at_hold ?? null,
+            holdDays: backtest.hold_days ?? null,
+            primaryReturn,
             predictionCorrect,
           });
         } else {
@@ -151,6 +155,9 @@ export default function StockDetail() {
             decision: entry.decision,
             return1d: null,
             return1w: null,
+            returnAtHold: null,
+            holdDays: null,
+            primaryReturn: null,
             predictionCorrect: null,
           });
         }
@@ -161,6 +168,9 @@ export default function StockDetail() {
           decision: entry.decision,
           return1d: null,
           return1w: null,
+          returnAtHold: null,
+          holdDays: null,
+          primaryReturn: null,
           predictionCorrect: null,
         });
       }
@@ -179,7 +189,7 @@ export default function StockDetail() {
   const predictionStats = useMemo((): PredictionStats | null => {
     if (backtestResults.length === 0) return null;
 
-    const resultsWithData = backtestResults.filter(r => r.return1d !== null);
+    const resultsWithData = backtestResults.filter(r => r.primaryReturn !== null);
     if (resultsWithData.length === 0) return null;
 
     let correct = 0;
@@ -189,8 +199,8 @@ export default function StockDetail() {
     let holdTotal = 0, holdCorrect = 0;
 
     for (const result of resultsWithData) {
-      if (result.return1d !== null) {
-        totalReturn += result.return1d;
+      if (result.primaryReturn !== null) {
+        totalReturn += result.primaryReturn;
       }
       if (result.predictionCorrect !== null) {
         if (result.predictionCorrect) correct++;
@@ -916,7 +926,7 @@ export default function StockDetail() {
                   )}
                 </div>
                 <span className="text-[10px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-600 px-2 py-0.5 rounded-full">
-                  Real 1-Day Returns
+                  Actual Returns (Hold Period)
                 </span>
               </div>
             </div>
@@ -951,18 +961,20 @@ export default function StockDetail() {
                       )}
                     </div>
 
-                    {/* Outcome - 1 Day Return */}
-                    {entry.return1d !== null ? (
+                    {/* Outcome - Hold Period Return */}
+                    {entry.primaryReturn !== null ? (
                       <>
                         <div className="flex-1 flex items-center gap-2">
                           <div className={`text-sm font-semibold ${
-                            entry.return1d >= 0
+                            entry.primaryReturn >= 0
                               ? 'text-green-600 dark:text-green-400'
                               : 'text-red-600 dark:text-red-400'
                           }`}>
-                            {entry.return1d >= 0 ? '+' : ''}{entry.return1d.toFixed(1)}%
+                            {entry.primaryReturn >= 0 ? '+' : ''}{entry.primaryReturn.toFixed(1)}%
                           </div>
-                          <div className="text-[10px] text-gray-400 dark:text-gray-500">next day</div>
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                            {entry.holdDays && entry.holdDays > 0 ? `${entry.holdDays}d` : '1d'}
+                          </div>
                         </div>
 
                         {/* Prediction Result Icon */}

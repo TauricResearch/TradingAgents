@@ -461,6 +461,63 @@ def get_income_statement(
         return f"Error retrieving income statement for {normalized_ticker}: {str(e)}"
 
 
+def get_fundamentals(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date for reference"] = None,
+) -> str:
+    """Get comprehensive company fundamentals from yfinance (.info)."""
+    try:
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+        info = ticker_obj.info
+
+        if not info or len(info) < 5:
+            return f"No fundamentals data found for symbol '{normalized_ticker}'"
+
+        # Select the most useful keys for analysis
+        key_groups = {
+            "Valuation": ["marketCap", "enterpriseValue", "trailingPE", "forwardPE",
+                          "priceToBook", "priceToSalesTrailing12Months", "enterpriseToRevenue",
+                          "enterpriseToEbitda"],
+            "Profitability": ["profitMargins", "operatingMargins", "grossMargins",
+                              "returnOnAssets", "returnOnEquity", "revenueGrowth",
+                              "earningsGrowth", "earningsQuarterlyGrowth"],
+            "Dividends": ["dividendRate", "dividendYield", "payoutRatio",
+                          "fiveYearAvgDividendYield", "trailingAnnualDividendRate"],
+            "Financial Health": ["totalCash", "totalDebt", "debtToEquity",
+                                 "currentRatio", "quickRatio", "freeCashflow",
+                                 "operatingCashflow", "totalRevenue", "ebitda"],
+            "Trading": ["currentPrice", "targetHighPrice", "targetLowPrice",
+                        "targetMeanPrice", "recommendationKey", "numberOfAnalystOpinions",
+                        "fiftyTwoWeekHigh", "fiftyTwoWeekLow", "fiftyDayAverage",
+                        "twoHundredDayAverage", "beta", "volume", "averageVolume"],
+            "Company Info": ["sector", "industry", "fullTimeEmployees", "country", "city"],
+        }
+
+        sections = []
+        sections.append(f"# Fundamentals for {normalized_ticker}")
+        if curr_date:
+            sections.append(f"# As of: {curr_date}")
+        sections.append(f"# Company: {info.get('longName', info.get('shortName', ticker))}")
+        sections.append("")
+
+        for group_name, keys in key_groups.items():
+            group_lines = []
+            for key in keys:
+                val = info.get(key)
+                if val is not None:
+                    group_lines.append(f"  {key}: {val}")
+            if group_lines:
+                sections.append(f"## {group_name}")
+                sections.extend(group_lines)
+                sections.append("")
+
+        return "\n".join(sections)
+
+    except Exception as e:
+        return f"Error retrieving fundamentals for {ticker}: {str(e)}"
+
+
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"]
 ):

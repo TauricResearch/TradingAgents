@@ -211,6 +211,25 @@ export const DEBATE_ROLES = {
   }
 } as const;
 
+/**
+ * Maps each pipeline step to the IDs of steps whose output is forwarded as context.
+ * Steps 1-4 are independent (no forwarded context).
+ */
+export const STEP_INPUT_SOURCES: Record<string, string[]> = {
+  market_analyst: [],
+  social_analyst: [],
+  news_analyst: [],
+  fundamentals_analyst: [],
+  bull_researcher: ['market_analyst', 'social_analyst', 'news_analyst', 'fundamentals_analyst'],
+  bear_researcher: ['market_analyst', 'social_analyst', 'news_analyst', 'fundamentals_analyst'],
+  research_manager: ['bull_researcher', 'bear_researcher', 'market_analyst', 'social_analyst', 'news_analyst', 'fundamentals_analyst'],
+  trader: ['research_manager', 'market_analyst', 'social_analyst', 'news_analyst', 'fundamentals_analyst'],
+  aggressive_analyst: ['trader', 'market_analyst', 'social_analyst', 'news_analyst', 'fundamentals_analyst'],
+  conservative_analyst: ['trader', 'market_analyst', 'social_analyst', 'news_analyst', 'fundamentals_analyst'],
+  neutral_analyst: ['trader', 'market_analyst', 'social_analyst', 'news_analyst', 'fundamentals_analyst'],
+  risk_manager: ['aggressive_analyst', 'conservative_analyst', 'neutral_analyst', 'trader', 'market_analyst', 'social_analyst', 'news_analyst', 'fundamentals_analyst'],
+};
+
 // ============================================================
 // Flowchart types for the 12-step visual pipeline debug view
 // ============================================================
@@ -335,5 +354,16 @@ export function mapPipelineToFlowchart(data: FullPipelineData | null): Flowchart
       agentReport,
       debateContent,
     };
+  });
+}
+
+/**
+ * Get human-readable labels for a step's input sources.
+ */
+export function getInputSourceLabels(stepId: string): { id: string; label: string }[] {
+  const sources = STEP_INPUT_SOURCES[stepId] || [];
+  return sources.map(id => {
+    const step = FLOWCHART_STEPS.find(s => s.id === id);
+    return { id, label: step?.label || id };
   });
 }

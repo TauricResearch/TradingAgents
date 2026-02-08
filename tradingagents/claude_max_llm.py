@@ -36,7 +36,7 @@ class ClaudeMaxLLM(BaseChatModel):
 
     model: str = "sonnet"  # Use alias for Claude Max subscription
     max_tokens: int = 4096
-    temperature: float = 0.7
+    temperature: float = 0.2
     claude_cli_path: str = "claude"
     tools: List[Any] = []  # Bound tools
 

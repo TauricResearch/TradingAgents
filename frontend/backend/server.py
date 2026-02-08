@@ -228,7 +228,7 @@ def run_analysis_task(symbol: str, date: str, analysis_config: dict = None):
         add_log("agent", "system", f"Starting propagation for {symbol}...")
         add_log("data", "data_fetch", f"Fetching market data for {symbol}...")
 
-        final_state, decision, hold_days = ta.propagate(symbol, date)
+        final_state, decision, hold_days, confidence, risk = ta.propagate(symbol, date)
 
         # Check cancellation after graph execution (skip saving results)
         if _is_cancelled(symbol):
@@ -251,8 +251,8 @@ def run_analysis_task(symbol: str, date: str, analysis_config: dict = None):
         analysis_data = {
             "company_name": symbol,
             "decision": decision.upper() if decision else "HOLD",
-            "confidence": "MEDIUM",
-            "risk": "MEDIUM",
+            "confidence": confidence or "MEDIUM",
+            "risk": risk or "MEDIUM",
             "raw_analysis": raw_analysis,
             "hold_days": hold_days
         }
@@ -947,9 +947,10 @@ async def get_backtest_result(date: str, symbol: str):
         'actual_return_1d': result['return_1d'],
         'actual_return_1w': result['return_1w'],
         'actual_return_1m': result['return_1m'],
+        'return_at_hold': result.get('return_at_hold'),
+        'hold_days': result.get('hold_days'),
         'price_at_prediction': result['price_at_prediction'],
         'current_price': result.get('price_1m_later') or result.get('price_1w_later'),
-        'hold_days': result.get('hold_days'),
     }
 
 

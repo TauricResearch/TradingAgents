@@ -408,6 +408,8 @@ class ApiService {
       return_1d?: number;
       return_1w?: number;
       return_1m?: number;
+      return_at_hold?: number;
+      hold_days?: number;
       prediction_correct?: boolean;
     }>;
   }> {

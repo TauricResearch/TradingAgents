@@ -81,17 +81,18 @@ class TradingAgentsGraph:
             exist_ok=True,
         )
 
-        # Initialize LLMs
+        # Initialize LLMs with low temperature for deterministic financial analysis
+        llm_temp = self.config.get("llm_temperature", 0.2)
         if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
+            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"], temperature=llm_temp)
+            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"], temperature=llm_temp)
         elif self.config["llm_provider"].lower() == "anthropic":
             # Use ClaudeMaxLLM to leverage Claude Max subscription via CLI
-            self.deep_thinking_llm = ClaudeMaxLLM(model=self.config["deep_think_llm"])
-            self.quick_thinking_llm = ClaudeMaxLLM(model=self.config["quick_think_llm"])
+            self.deep_thinking_llm = ClaudeMaxLLM(model=self.config["deep_think_llm"], temperature=llm_temp)
+            self.quick_thinking_llm = ClaudeMaxLLM(model=self.config["quick_think_llm"], temperature=llm_temp)
         elif self.config["llm_provider"].lower() == "google":
-            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
-            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"], temperature=llm_temp)
+            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"], temperature=llm_temp)
         else:
             raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
         
@@ -116,7 +117,10 @@ class TradingAgentsGraph:
         self.tool_nodes = self._create_tool_nodes()
 
         # Initialize components
-        self.conditional_logic = ConditionalLogic()
+        self.conditional_logic = ConditionalLogic(
+            max_debate_rounds=self.config.get("max_debate_rounds", 1),
+            max_risk_discuss_rounds=self.config.get("max_risk_discuss_rounds", 1),
+        )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
@@ -250,16 +254,18 @@ class TradingAgentsGraph:
         self._save_to_frontend_db(trade_date, final_state)
         add_log("info", "system", f"Database save completed in {_time.time() - t0:.1f}s")
 
-        # Extract and log the final decision + hold_days
+        # Extract and log the final decision + hold_days + confidence + risk
         signal_result = self.process_signal(final_state["final_trade_decision"])
         final_decision = signal_result["decision"]
         hold_days = signal_result.get("hold_days")
+        confidence = signal_result.get("confidence", "MEDIUM")
+        risk = signal_result.get("risk", "MEDIUM")
         total_elapsed = _time.time() - pipeline_start
         hold_info = f", hold {hold_days}d" if hold_days else ""
-        add_log("success", "system", f"✅ Analysis complete for {company_name}: {final_decision}{hold_info} (total: {total_elapsed:.0f}s)")
+        add_log("success", "system", f"✅ Analysis complete for {company_name}: {final_decision}{hold_info}, confidence={confidence}, risk={risk} (total: {total_elapsed:.0f}s)")
 
-        # Return decision, hold_days, and processed signal
-        return final_state, final_decision, hold_days
+        # Return decision, hold_days, confidence, risk
+        return final_state, final_decision, hold_days, confidence, risk
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""

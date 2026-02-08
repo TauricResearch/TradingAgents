@@ -136,7 +136,8 @@ def calculate_and_save_backtest(date: str, symbol: str, decision: str,
             return_1w=result['return_1w'],
             return_1m=result['return_1m'],
             prediction_correct=result['prediction_correct'],
-            hold_days=result.get('hold_days')
+            hold_days=result.get('hold_days'),
+            return_at_hold=result.get('return_at_hold'),
         )
 
     return result
@@ -231,6 +232,8 @@ def get_backtest_data_for_frontend(date: str, symbol: str) -> dict:
         'actual_return_1d': result['return_1d'],
         'actual_return_1w': result['return_1w'],
         'actual_return_1m': result['return_1m'],
+        'return_at_hold': result.get('return_at_hold'),
+        'hold_days': result.get('hold_days'),
         'price_at_prediction': result['price_at_prediction'],
         'current_price': result.get('price_1m_later') or result.get('price_1w_later'),
         'price_history': price_history

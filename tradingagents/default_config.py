@@ -13,6 +13,7 @@ DEFAULT_CONFIG = {
     "deep_think_llm": "o4-mini",
     "quick_think_llm": "gpt-4o-mini",
     "backend_url": "https://api.openai.com/v1",
+    "llm_temperature": 0.2,  # Low temperature for deterministic financial analysis
     # Anthropic-specific config for Claude models (using aliases for Claude Max subscription)
     "anthropic_config": {
         "deep_think_llm": "opus",  # Claude Opus 4.5 for deep analysis

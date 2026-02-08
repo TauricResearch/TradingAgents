@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, RefreshCw, Filter, ChevronRight, TrendingUp, TrendingDown, Minus, History, Search, X, Play, Loader2, Square, AlertCircle, Terminal } from 'lucide-react';
 import TopPicks, { StocksToAvoid } from '../components/TopPicks';
-import { DecisionBadge } from '../components/StockCard';
+import { DecisionBadge, HoldDaysBadge } from '../components/StockCard';
 import TerminalModal from '../components/TerminalModal';
 import HowItWorks from '../components/HowItWorks';
 import BackgroundSparkline from '../components/BackgroundSparkline';
@@ -196,7 +196,7 @@ export default function Dashboard() {
 
     try {
       // Pass settings from context to the API
-      await api.runBulkAnalysis(undefined, {
+      const result = await api.runBulkAnalysis(undefined, {
         deep_think_model: settings.deepThinkModel,
         quick_think_model: settings.quickThinkModel,
         provider: settings.provider,
@@ -204,10 +204,25 @@ export default function Dashboard() {
         max_debate_rounds: settings.maxDebateRounds,
         parallel_workers: settings.parallelWorkers
       });
+
+      // If all stocks already analyzed, exit analyzing mode
+      if (result.status === 'completed' || result.total_stocks === 0) {
+        updateAnalysisState(false, null);
+        addNotification({
+          type: 'info',
+          title: 'Already Analyzed',
+          message: result.skipped
+            ? `All ${result.skipped} stocks already analyzed for today.`
+            : 'All stocks already analyzed for today.',
+          duration: 5000,
+        });
+        return;
+      }
+
       addNotification({
         type: 'info',
         title: 'Analysis Started',
-        message: 'Running AI analysis for all 50 Nifty stocks...',
+        message: `Running AI analysis for ${result.total_stocks} stocks${result.skipped ? ` (${result.skipped} already done)` : ''}...`,
         duration: 3000,
       });
     } catch (e) {
@@ -647,6 +662,11 @@ export default function Dashboard() {
                       <DecisionBadge decision={item.analysis.decision} size="small" />
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.company_name}</p>
+                    {item.analysis.hold_days != null && item.analysis.hold_days > 0 && item.analysis.decision !== 'SELL' && (
+                      <div className="mt-1">
+                        <HoldDaysBadge holdDays={item.analysis.hold_days} decision={item.analysis.decision} />
+                      </div>
+                    )}
                   </div>
                 </Link>
               );

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, TrendingUp, TrendingDown, Minus, ChevronRight, BarChart3, Target, HelpCircle, Activity, Calculator, LineChart, PieChart, Shield, Filter, Loader2, AlertCircle } from 'lucide-react';
 import { sampleRecommendations, getBacktestResult as getStaticBacktestResult, calculateAccuracyMetrics as calculateStaticAccuracyMetrics, getDateStats as getStaticDateStats, getOverallStats as getStaticOverallStats, getReturnBreakdown as getStaticReturnBreakdown } from '../data/recommendations';
+import type { ReturnBreakdown } from '../data/recommendations';
 import { DecisionBadge, HoldDaysBadge } from '../components/StockCard';
 import Sparkline from '../components/Sparkline';
 import AccuracyBadge from '../components/AccuracyBadge';
@@ -23,6 +24,9 @@ interface RealBacktestData {
   decision: string;
   return1d: number | null;
   return1w: number | null;
+  returnAtHold: number | null;
+  holdDays: number | null;
+  primaryReturn: number | null;  // return_at_hold ?? return_1d
   predictionCorrect: boolean | null;
   priceHistory?: Array<{ date: string; price: number }>;
 }
@@ -70,6 +74,21 @@ function InvestmentModeToggle({
       >
         Top Picks
       </button>
+    </div>
+  );
+}
+
+// Pulsing skeleton bar for loading states
+function SkeletonBar({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse bg-gray-200 dark:bg-slate-700 rounded ${className}`} />;
+}
+
+// Loading overlay for chart sections
+function SectionLoader({ message = 'Calculating backtest results...' }: { message?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 gap-2">
+      <Loader2 className="w-6 h-6 text-nifty-500 animate-spin" />
+      <span className="text-xs text-gray-500 dark:text-gray-400">{message}</span>
     </div>
   );
 }
@@ -163,7 +182,7 @@ export default function History() {
 
   // Batch-fetch all backtest results per date (used by both accuracy trend and chart data)
   const [batchBacktestByDate, setBatchBacktestByDate] = useState<
-    Record<string, Record<string, { return_1d?: number; return_1w?: number; return_1m?: number; prediction_correct?: boolean; decision: string }>>
+    Record<string, Record<string, { return_1d?: number; return_1w?: number; return_1m?: number; return_at_hold?: number; hold_days?: number; prediction_correct?: boolean; decision: string }>>
   >({});
   const [isBatchLoading, setIsBatchLoading] = useState(false);
 
@@ -203,6 +222,8 @@ export default function History() {
                 return_1d: r.return_1d,
                 return_1w: r.return_1w,
                 return_1m: r.return_1m,
+                return_at_hold: r.return_at_hold,
+                hold_days: r.hold_days,
                 prediction_correct: r.prediction_correct,
                 decision: r.decision,
               };
@@ -245,11 +266,12 @@ export default function History() {
       for (const symbol of Object.keys(rec.analysis)) {
         const stockAnalysis = rec.analysis[symbol];
         const bt = dateBacktest[symbol];
-        if (!stockAnalysis?.decision || !bt || bt.return_1d === undefined || bt.return_1d === null) continue;
+        const primaryRet = bt?.return_at_hold ?? bt?.return_1d;
+        if (!stockAnalysis?.decision || primaryRet === undefined || primaryRet === null) continue;
 
         const predictionCorrect = (stockAnalysis.decision === 'BUY' || stockAnalysis.decision === 'HOLD')
-          ? bt.return_1d > 0
-          : bt.return_1d < 0;
+          ? primaryRet > 0
+          : primaryRet < 0;
 
         if (stockAnalysis.decision === 'BUY') { totalBuy++; if (predictionCorrect) correctBuy++; }
         else if (stockAnalysis.decision === 'SELL') { totalSell++; if (predictionCorrect) correctSell++; }
@@ -361,32 +383,31 @@ export default function History() {
         for (const symbol of Object.keys(rec.analysis)) {
           const stockAnalysis = rec.analysis[symbol];
           const bt = dateBacktest[symbol];
-          if (!stockAnalysis?.decision || !bt || bt.return_1d === undefined || bt.return_1d === null) continue;
-
-          const return1d = bt.return_1d;
+          const primaryRet = bt?.return_at_hold ?? bt?.return_1d;
+          if (!stockAnalysis?.decision || primaryRet === undefined || primaryRet === null) continue;
 
           // Store for PortfolioSimulator
           if (!allBacktest[date]) allBacktest[date] = {};
-          allBacktest[date][symbol] = return1d;
+          allBacktest[date][symbol] = primaryRet;
 
           const predictionCorrect = (stockAnalysis.decision === 'BUY' || stockAnalysis.decision === 'HOLD')
-            ? return1d > 0
-            : return1d < 0;
+            ? primaryRet > 0
+            : primaryRet < 0;
 
           totalPredictions++;
           if (predictionCorrect) {
             totalCorrect++;
             dateCorrectCount++;
             if (stockAnalysis.decision === 'BUY' || stockAnalysis.decision === 'HOLD') {
-              dateCorrectReturn += return1d;
+              dateCorrectReturn += primaryRet;
             } else {
-              dateCorrectReturn += Math.abs(return1d);
+              dateCorrectReturn += Math.abs(primaryRet);
             }
           } else {
             if (stockAnalysis.decision === 'BUY' || stockAnalysis.decision === 'HOLD') {
-              dateIncorrectReturn += return1d;
+              dateIncorrectReturn += primaryRet;
             } else {
-              dateIncorrectReturn += -Math.abs(return1d);
+              dateIncorrectReturn += -Math.abs(primaryRet);
             }
           }
           dateTotalCount++;
@@ -428,9 +449,10 @@ export default function History() {
         if (rec && dateBacktest) {
           for (const symbol of Object.keys(rec.analysis)) {
             const bt = dateBacktest[symbol];
-            if (!bt || bt.return_1d === undefined || bt.return_1d === null) continue;
+            const retVal = bt?.return_at_hold ?? bt?.return_1d;
+            if (retVal === undefined || retVal === null) continue;
             for (const bucket of returnBuckets) {
-              if (bt.return_1d >= bucket.min && bt.return_1d < bucket.max) {
+              if (retVal >= bucket.min && retVal < bucket.max) {
                 bucket.count++;
                 bucket.stocks.push(symbol);
                 break;
@@ -535,8 +557,9 @@ export default function History() {
 
         for (const pick of rec.top_picks) {
           const bt = dateBacktest[pick.symbol];
-          if (bt && bt.return_1d !== undefined && bt.return_1d !== null) {
-            dateReturn += bt.return_1d;
+          const retVal = bt?.return_at_hold ?? bt?.return_1d;
+          if (retVal !== undefined && retVal !== null) {
+            dateReturn += retVal;
             dateCount++;
           }
         }
@@ -564,9 +587,10 @@ export default function History() {
         if (rec && dateBacktest) {
           for (const pick of rec.top_picks) {
             const bt = dateBacktest[pick.symbol];
-            if (bt && bt.return_1d !== undefined && bt.return_1d !== null) {
+            const retVal = bt?.return_at_hold ?? bt?.return_1d;
+            if (retVal !== undefined && retVal !== null) {
               for (const bucket of topPicksDistribution) {
-                if (bt.return_1d >= bucket.min && bt.return_1d < bucket.max) {
+                if (retVal >= bucket.min && retVal < bucket.max) {
                   bucket.count++;
                   bucket.stocks.push(pick.symbol);
                   break;
@@ -690,14 +714,14 @@ export default function History() {
         const backtest = await api.getBacktestResult(date, stock.symbol);
 
         if (backtest.available) {
-          // Calculate prediction correctness based on 1-day return
-          // BUY/HOLD correct if return > 0, SELL correct if return < 0
+          // Use hold-period return when available, fall back to 1-day
+          const primaryReturn = backtest.return_at_hold ?? backtest.actual_return_1d ?? null;
           let predictionCorrect: boolean | null = null;
-          if (backtest.actual_return_1d !== undefined && backtest.actual_return_1d !== null) {
+          if (primaryReturn !== null) {
             if (stock.decision === 'BUY' || stock.decision === 'HOLD') {
-              predictionCorrect = backtest.actual_return_1d > 0;
+              predictionCorrect = primaryReturn > 0;
             } else if (stock.decision === 'SELL') {
-              predictionCorrect = backtest.actual_return_1d < 0;
+              predictionCorrect = primaryReturn < 0;
             }
           }
 
@@ -706,6 +730,9 @@ export default function History() {
             decision: stock.decision,
             return1d: backtest.actual_return_1d ?? null,
             return1w: backtest.actual_return_1w ?? null,
+            returnAtHold: backtest.return_at_hold ?? null,
+            holdDays: backtest.hold_days ?? null,
+            primaryReturn,
             predictionCorrect,
             priceHistory: backtest.price_history,
           };
@@ -752,8 +779,9 @@ export default function History() {
       rec.top_picks.map(pick => {
         // Try real backtest data first
         const realData = realBacktestData[pick.symbol];
-        if (realData?.return1d !== null && realData?.return1d !== undefined) {
-          return realData.return1d;
+        const primaryRet = realData?.primaryReturn ?? realData?.return1d;
+        if (primaryRet !== null && primaryRet !== undefined) {
+          return primaryRet;
         }
         // Only fall back to mock when actually using mock data
         return isUsingMockData ? getStaticBacktestResult(pick.symbol)?.actual_return_1d : undefined;
@@ -809,6 +837,71 @@ export default function History() {
     return Object.values(rec.analysis);
   };
 
+  // Build ReturnBreakdown from real batch backtest data for the modal
+  const buildReturnBreakdown = useCallback((date: string): ReturnBreakdown | null => {
+    const rec = recommendations.find(r => r.date === date);
+    const dateBacktest = batchBacktestByDate[date];
+    if (!rec || !dateBacktest) return null;
+
+    const correctStocks: { symbol: string; decision: string; return1d: number }[] = [];
+    const incorrectStocks: { symbol: string; decision: string; return1d: number }[] = [];
+    let correctTotal = 0;
+    let incorrectTotal = 0;
+
+    for (const symbol of Object.keys(rec.analysis)) {
+      const stockAnalysis = rec.analysis[symbol];
+      const bt = dateBacktest[symbol];
+      const retVal = bt?.return_at_hold ?? bt?.return_1d;
+      if (!stockAnalysis?.decision || retVal === undefined || retVal === null) continue;
+
+      const isCorrect = (stockAnalysis.decision === 'BUY' || stockAnalysis.decision === 'HOLD')
+        ? retVal > 0
+        : retVal < 0;
+
+      const entry = { symbol, decision: stockAnalysis.decision, return1d: retVal };
+      if (isCorrect) {
+        correctStocks.push(entry);
+        correctTotal += (stockAnalysis.decision === 'BUY' || stockAnalysis.decision === 'HOLD') ? retVal : Math.abs(retVal);
+      } else {
+        incorrectStocks.push(entry);
+        incorrectTotal += (stockAnalysis.decision === 'BUY' || stockAnalysis.decision === 'HOLD') ? retVal : -Math.abs(retVal);
+      }
+    }
+
+    const totalCount = correctStocks.length + incorrectStocks.length;
+    if (totalCount === 0) return null;
+
+    const correctAvg = correctStocks.length > 0 ? correctTotal / correctStocks.length : 0;
+    const incorrectAvg = incorrectStocks.length > 0 ? incorrectTotal / incorrectStocks.length : 0;
+    const correctWeight = correctStocks.length / totalCount;
+    const incorrectWeight = incorrectStocks.length / totalCount;
+    const weightedReturn = (correctAvg * correctWeight) + (incorrectAvg * incorrectWeight);
+
+    // Sort stocks by return magnitude
+    correctStocks.sort((a, b) => Math.abs(b.return1d) - Math.abs(a.return1d));
+    incorrectStocks.sort((a, b) => Math.abs(b.return1d) - Math.abs(a.return1d));
+
+    return {
+      correctPredictions: {
+        count: correctStocks.length,
+        totalReturn: correctTotal,
+        avgReturn: correctAvg,
+        stocks: correctStocks.slice(0, 5),
+      },
+      incorrectPredictions: {
+        count: incorrectStocks.length,
+        totalReturn: incorrectTotal,
+        avgReturn: incorrectAvg,
+        stocks: incorrectStocks.slice(0, 5),
+      },
+      weightedReturn: Math.round(weightedReturn * 10) / 10,
+      formula: `(${correctAvg.toFixed(2)}% × ${correctStocks.length}/${totalCount}) + (${incorrectAvg.toFixed(2)}% × ${incorrectStocks.length}/${totalCount}) = ${weightedReturn.toFixed(2)}%`,
+    };
+  }, [recommendations, batchBacktestByDate]);
+
+  // Whether any backtest data is still loading (for skeleton states)
+  const isBacktestDataLoading = isBatchLoading || (!isUsingMockData && !isLoadingRecommendations && Object.keys(batchBacktestByDate).length === 0);
+
   // Show loading state
   if (isLoadingRecommendations) {
     return (
@@ -859,6 +952,9 @@ export default function History() {
           <div className="flex items-center gap-2">
             <Target className="w-5 h-5 text-nifty-600 dark:text-nifty-400" />
             <h2 className="font-semibold text-gray-900 dark:text-gray-100">Prediction Accuracy</h2>
+            {isBacktestDataLoading && (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-nifty-500" />
+            )}
           </div>
           <button
             onClick={() => setShowAccuracyModal(true)}
@@ -869,34 +965,48 @@ export default function History() {
             <span className="hidden sm:inline">How it's calculated</span>
           </button>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 rounded-lg bg-nifty-50 dark:bg-nifty-900/20 text-center">
-            <div className="text-2xl font-bold text-nifty-600 dark:text-nifty-400">
-              {(accuracyMetrics.success_rate * 100).toFixed(0)}%
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Overall Accuracy</div>
+        {isBacktestDataLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {['nifty', 'green', 'red', 'amber'].map(color => (
+              <div key={color} className={`p-3 rounded-lg bg-${color === 'nifty' ? 'nifty-50 dark:bg-nifty-900/20' : `${color}-50 dark:bg-${color}-900/20`} text-center`}>
+                <SkeletonBar className="h-7 w-16 mx-auto mb-1" />
+                <SkeletonBar className="h-3 w-20 mx-auto" />
+              </div>
+            ))}
           </div>
-          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-center">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {(accuracyMetrics.buy_accuracy * 100).toFixed(0)}%
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 rounded-lg bg-nifty-50 dark:bg-nifty-900/20 text-center">
+              <div className="text-2xl font-bold text-nifty-600 dark:text-nifty-400">
+                {(accuracyMetrics.success_rate * 100).toFixed(0)}%
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Overall Accuracy</div>
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Buy Accuracy</div>
-          </div>
-          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-center">
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {(accuracyMetrics.sell_accuracy * 100).toFixed(0)}%
+            <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-center">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {(accuracyMetrics.buy_accuracy * 100).toFixed(0)}%
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Buy Accuracy</div>
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Sell Accuracy</div>
-          </div>
-          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-center">
-            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-              {(accuracyMetrics.hold_accuracy * 100).toFixed(0)}%
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-center">
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                {(accuracyMetrics.sell_accuracy * 100).toFixed(0)}%
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Sell Accuracy</div>
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Hold Accuracy</div>
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-center">
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                {(accuracyMetrics.hold_accuracy * 100).toFixed(0)}%
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Hold Accuracy</div>
+            </div>
           </div>
-        </div>
+        )}
         <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
-          Based on {accuracyMetrics.total_predictions} predictions tracked over time
+          {isBacktestDataLoading
+            ? 'Fetching backtest data from market...'
+            : `Based on ${accuracyMetrics.total_predictions} predictions tracked over time`
+          }
         </p>
       </section>
 
@@ -914,23 +1024,28 @@ export default function History() {
             </div>
           )}
         </div>
-        {/* Pass real data if available, use mock fallback only when in mock mode */}
-        <AccuracyTrendChart
-          height={200}
-          data={isUsingMockData
-            ? (accuracyTrendData.length > 0 ? accuracyTrendData : undefined)
-            : accuracyTrendData
-          }
-        />
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
-          {accuracyTrendData.length > 0 ? (
-            <>Prediction accuracy from real backtest data over {accuracyTrendData.length} trading days</>
-          ) : isUsingMockData ? (
-            <>Demo data - Start backend for real accuracy tracking</>
-          ) : (
-            <>Prediction accuracy over the past {dates.length} trading days</>
-          )}
-        </p>
+        {isBacktestDataLoading && !isUsingMockData ? (
+          <SectionLoader message="Computing accuracy trend from backtest data..." />
+        ) : (
+          <>
+            <AccuracyTrendChart
+              height={200}
+              data={isUsingMockData
+                ? (accuracyTrendData.length > 0 ? accuracyTrendData : undefined)
+                : accuracyTrendData
+              }
+            />
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
+              {accuracyTrendData.length > 0 ? (
+                <>Prediction accuracy from real backtest data over {accuracyTrendData.length} trading days</>
+              ) : isUsingMockData ? (
+                <>Demo data - Start backend for real accuracy tracking</>
+              ) : (
+                <>Prediction accuracy over the past {dates.length} trading days</>
+              )}
+            </p>
+          </>
+        )}
       </section>
 
       {/* Risk Metrics */}
@@ -947,19 +1062,25 @@ export default function History() {
             </div>
           )}
         </div>
-        <RiskMetricsCard metrics={!isUsingMockData && !realRiskMetrics ? {
-          sharpeRatio: 0, maxDrawdown: 0, winLossRatio: 0, winRate: 0,
-          volatility: 0, totalTrades: 0,
-        } : realRiskMetrics} />
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
-          {realRiskMetrics ? (
-            <>Risk-adjusted performance from real backtest data ({realRiskMetrics.totalTrades} trades)</>
-          ) : isUsingMockData ? (
-            <>Demo data - Start backend for real risk metrics</>
-          ) : (
-            <>Risk-adjusted performance metrics for the AI trading strategy</>
-          )}
-        </p>
+        {isBacktestDataLoading && !isUsingMockData ? (
+          <SectionLoader message="Computing risk metrics from backtest data..." />
+        ) : (
+          <>
+            <RiskMetricsCard metrics={!isUsingMockData && !realRiskMetrics ? {
+              sharpeRatio: 0, maxDrawdown: 0, winLossRatio: 0, winRate: 0,
+              volatility: 0, totalTrades: 0,
+            } : realRiskMetrics} />
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
+              {realRiskMetrics ? (
+                <>Risk-adjusted performance from real backtest data ({realRiskMetrics.totalTrades} trades)</>
+              ) : isUsingMockData ? (
+                <>Demo data - Start backend for real risk metrics</>
+              ) : (
+                <>Risk-adjusted performance metrics for the AI trading strategy</>
+              )}
+            </p>
+          </>
+        )}
       </section>
 
       {/* Portfolio Simulator */}
@@ -987,6 +1108,7 @@ export default function History() {
             const rec = getRecommendation(date);
             const stats = dateStatsMap[date];
             const avgReturn = stats?.avgReturn1d ?? 0;
+            const hasBacktestData = !isUsingMockData ? (realDateReturns[date] !== undefined) : true;
             const isPositive = avgReturn >= 0;
 
             // Calculate filtered summary for this date
@@ -1005,11 +1127,21 @@ export default function History() {
                   }`}
                 >
                   <div className="font-semibold">{new Date(date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}</div>
-                  <div className={`text-sm font-bold mt-0.5 ${
-                    selectedDate === date ? 'text-white' : getValueColorClass(avgReturn)
-                  }`}>
-                    {isPositive ? '+' : ''}{avgReturn.toFixed(1)}%
-                  </div>
+                  {!hasBacktestData && isBacktestDataLoading ? (
+                    <div className={`text-sm font-bold mt-0.5 ${selectedDate === date ? 'text-white/60' : 'text-gray-400 dark:text-gray-500'}`}>
+                      <span className="inline-block w-8 h-4 animate-pulse bg-gray-300 dark:bg-slate-600 rounded" />
+                    </div>
+                  ) : !hasBacktestData ? (
+                    <div className={`text-sm mt-0.5 ${selectedDate === date ? 'text-white/60' : 'text-gray-400 dark:text-gray-500'}`}>
+                      Pending
+                    </div>
+                  ) : (
+                    <div className={`text-sm font-bold mt-0.5 ${
+                      selectedDate === date ? 'text-white' : getValueColorClass(avgReturn)
+                    }`}>
+                      {isPositive ? '+' : ''}{avgReturn.toFixed(1)}%
+                    </div>
+                  )}
                   <div className={`text-[10px] mt-0.5 ${selectedDate === date ? 'text-white/80' : 'opacity-60'}`}>
                     {filteredSummary.buy}B/{filteredSummary.sell}S/{filteredSummary.hold}H
                   </div>
@@ -1118,8 +1250,8 @@ export default function History() {
                 let predictionCorrect: boolean | null = null;
 
                 if (!isUsingMockData) {
-                  // Real data mode: only use real backtest, no mock fallback
-                  nextDayReturn = realData?.return1d ?? null;
+                  // Real data mode: use hold-period return when available
+                  nextDayReturn = realData?.primaryReturn ?? realData?.return1d ?? null;
                   priceHistory = realData?.priceHistory;
                   if (realData?.predictionCorrect !== undefined) {
                     predictionCorrect = realData.predictionCorrect;
@@ -1127,7 +1259,7 @@ export default function History() {
                 } else {
                   // Mock data mode: use real if available, fall back to mock
                   const mockBacktest = getStaticBacktestResult(stock.symbol);
-                  nextDayReturn = realData?.return1d ?? mockBacktest?.actual_return_1d ?? 0;
+                  nextDayReturn = realData?.primaryReturn ?? realData?.return1d ?? mockBacktest?.actual_return_1d ?? 0;
                   priceHistory = realData?.priceHistory ?? mockBacktest?.price_history;
                   if (realData?.predictionCorrect !== undefined) {
                     predictionCorrect = realData.predictionCorrect;
@@ -1159,6 +1291,12 @@ export default function History() {
                     <div className="flex items-center gap-3">
                       <DecisionBadge decision={stock.decision} size="small" />
                       <HoldDaysBadge holdDays={stock.hold_days} decision={stock.decision} />
+                      {nextDayReturn !== null && (
+                        <span className={`text-xs font-medium tabular-nums ${getValueColorClass(nextDayReturn)}`} title={realData?.holdDays ? `${realData.holdDays}d return` : '1d return'}>
+                          {nextDayReturn >= 0 ? '+' : ''}{nextDayReturn.toFixed(1)}%
+                          {realData?.holdDays && <span className="text-[9px] opacity-60 ml-0.5">/{realData.holdDays}d</span>}
+                        </span>
+                      )}
                       {predictionCorrect !== null && (
                         <AccuracyBadge
                           correct={predictionCorrect}
@@ -1193,54 +1331,67 @@ export default function History() {
           </div>
           <InvestmentModeToggle mode={summaryMode} onChange={setSummaryMode} />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div
-            className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-            onClick={() => setActiveSummaryModal('daysTracked')}
-          >
-            <div className="text-xl font-bold text-nifty-600 dark:text-nifty-400">{filteredStats.totalDays}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
-              Days Tracked <HelpCircle className="w-3 h-3" />
+        {isBacktestDataLoading && !isUsingMockData ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-center">
+                <SkeletonBar className="h-6 w-12 mx-auto mb-1" />
+                <SkeletonBar className="h-3 w-20 mx-auto" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div
+              className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              onClick={() => setActiveSummaryModal('daysTracked')}
+            >
+              <div className="text-xl font-bold text-nifty-600 dark:text-nifty-400">{filteredStats.totalDays}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
+                Days Tracked <HelpCircle className="w-3 h-3" />
+              </div>
+            </div>
+            <div
+              className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              onClick={() => setActiveSummaryModal('avgReturn')}
+            >
+              <div className={`text-xl font-bold ${getValueColorClass(filteredStats.avgDailyReturn)}`}>
+                {filteredStats.avgDailyReturn >= 0 ? '+' : ''}{filteredStats.avgDailyReturn.toFixed(1)}%
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
+                Avg Return <HelpCircle className="w-3 h-3" />
+              </div>
+            </div>
+            <div
+              className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              onClick={() => setActiveSummaryModal('buySignals')}
+            >
+              <div className="text-xl font-bold text-green-600 dark:text-green-400">
+                {filteredStats.buySignals}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
+                {summaryMode === 'topPicks' ? 'Top Pick Signals' : 'Buy Signals'} <HelpCircle className="w-3 h-3" />
+              </div>
+            </div>
+            <div
+              className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              onClick={() => setActiveSummaryModal('sellSignals')}
+            >
+              <div className="text-xl font-bold text-red-600 dark:text-red-400">
+                {filteredStats.sellSignals}
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
+                Sell Signals <HelpCircle className="w-3 h-3" />
+              </div>
             </div>
           </div>
-          <div
-            className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-            onClick={() => setActiveSummaryModal('avgReturn')}
-          >
-            <div className={`text-xl font-bold ${getValueColorClass(filteredStats.avgDailyReturn)}`}>
-              {filteredStats.avgDailyReturn >= 0 ? '+' : ''}{filteredStats.avgDailyReturn.toFixed(1)}%
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
-              Avg Next-Day Return <HelpCircle className="w-3 h-3" />
-            </div>
-          </div>
-          <div
-            className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-            onClick={() => setActiveSummaryModal('buySignals')}
-          >
-            <div className="text-xl font-bold text-green-600 dark:text-green-400">
-              {filteredStats.buySignals}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
-              {summaryMode === 'topPicks' ? 'Top Pick Signals' : 'Buy Signals'} <HelpCircle className="w-3 h-3" />
-            </div>
-          </div>
-          <div
-            className="p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 text-center cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-            onClick={() => setActiveSummaryModal('sellSignals')}
-          >
-            <div className="text-xl font-bold text-red-600 dark:text-red-400">
-              {filteredStats.sellSignals}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center justify-center gap-1">
-              Sell Signals <HelpCircle className="w-3 h-3" />
-            </div>
-          </div>
-        </div>
+        )}
         <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-3 text-center">
-          {summaryMode === 'topPicks'
-            ? 'Performance based on Top Picks recommendations only (3 stocks per day)'
-            : 'Next-day return = Price change on the trading day after recommendation'
+          {isBacktestDataLoading && !isUsingMockData
+            ? 'Loading performance data from market...'
+            : summaryMode === 'topPicks'
+              ? 'Performance based on Top Picks recommendations only (3 stocks per day)'
+              : 'Returns measured over hold period (or 1-day when no hold period specified)'
           }
         </p>
       </div>
@@ -1262,25 +1413,31 @@ export default function History() {
             <InvestmentModeToggle mode={indexChartMode} onChange={setIndexChartMode} />
           </div>
         </div>
-        <IndexComparisonChart
-          height={220}
-          data={isUsingMockData
-            ? undefined
-            : (indexChartMode === 'topPicks' ? topPicksCumulativeReturns : realCumulativeReturns) ?? []
-          }
-        />
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
-          {(indexChartMode === 'topPicks' ? topPicksCumulativeReturns : realCumulativeReturns)?.length ? (
-            <>
-              Cumulative returns for {indexChartMode === 'topPicks' ? 'Top Picks' : 'All 50 stocks'} over{' '}
-              {(indexChartMode === 'topPicks' ? topPicksCumulativeReturns : realCumulativeReturns)?.length} trading days
-            </>
-          ) : isUsingMockData ? (
-            <>Demo data - Start backend for real performance comparison</>
-          ) : (
-            <>Comparison of cumulative returns between AI strategy and Nifty50 index</>
-          )}
-        </p>
+        {isBacktestDataLoading && !isUsingMockData ? (
+          <SectionLoader message="Computing cumulative returns vs Nifty50 index..." />
+        ) : (
+          <>
+            <IndexComparisonChart
+              height={220}
+              data={isUsingMockData
+                ? undefined
+                : (indexChartMode === 'topPicks' ? topPicksCumulativeReturns : realCumulativeReturns) ?? []
+              }
+            />
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
+              {(indexChartMode === 'topPicks' ? topPicksCumulativeReturns : realCumulativeReturns)?.length ? (
+                <>
+                  Cumulative returns for {indexChartMode === 'topPicks' ? 'Top Picks' : 'All 50 stocks'} over{' '}
+                  {(indexChartMode === 'topPicks' ? topPicksCumulativeReturns : realCumulativeReturns)?.length} trading days
+                </>
+              ) : isUsingMockData ? (
+                <>Demo data - Start backend for real performance comparison</>
+              ) : (
+                <>Comparison of cumulative returns between AI strategy and Nifty50 index</>
+              )}
+            </p>
+          </>
+        )}
       </section>
 
       {/* Return Distribution */}
@@ -1300,22 +1457,28 @@ export default function History() {
             <InvestmentModeToggle mode={distributionMode} onChange={setDistributionMode} />
           </div>
         </div>
-        <ReturnDistributionChart
-          height={200}
-          data={isUsingMockData
-            ? undefined
-            : (distributionMode === 'topPicks' ? topPicksReturnDistribution : realReturnDistribution) ?? []
-          }
-        />
-        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
-          {(distributionMode === 'topPicks' ? topPicksReturnDistribution : realReturnDistribution) ? (
-            <>Distribution of {distributionMode === 'topPicks' ? 'Top Picks' : 'all 50 stocks'} next-day returns. Click bars to see stocks.</>
-          ) : isUsingMockData ? (
-            <>Demo data - Start backend for real return distribution</>
-          ) : (
-            <>Distribution of next-day returns across all predictions. Click bars to see stocks.</>
-          )}
-        </p>
+        {isBacktestDataLoading && !isUsingMockData ? (
+          <SectionLoader message="Computing return distribution from backtest data..." />
+        ) : (
+          <>
+            <ReturnDistributionChart
+              height={200}
+              data={isUsingMockData
+                ? undefined
+                : (distributionMode === 'topPicks' ? topPicksReturnDistribution : realReturnDistribution) ?? []
+              }
+            />
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
+              {(distributionMode === 'topPicks' ? topPicksReturnDistribution : realReturnDistribution) ? (
+                <>Distribution of {distributionMode === 'topPicks' ? 'Top Picks' : 'all 50 stocks'} hold-period returns. Click bars to see stocks.</>
+              ) : isUsingMockData ? (
+                <>Demo data - Start backend for real return distribution</>
+              ) : (
+                <>Distribution of hold-period returns across all predictions. Click bars to see stocks.</>
+              )}
+            </p>
+          </>
+        )}
       </section>
 
       {/* Accuracy Explanation Modal */}
@@ -1329,7 +1492,7 @@ export default function History() {
       <ReturnExplainModal
         isOpen={showReturnModal}
         onClose={() => setShowReturnModal(false)}
-        breakdown={returnModalDate ? (isUsingMockData ? getStaticReturnBreakdown(returnModalDate) : null) : null}
+        breakdown={returnModalDate ? (isUsingMockData ? getStaticReturnBreakdown(returnModalDate) : buildReturnBreakdown(returnModalDate)) : null}
         date={returnModalDate || ''}
       />
 
@@ -1361,19 +1524,20 @@ export default function History() {
       <InfoModal
         isOpen={activeSummaryModal === 'avgReturn'}
         onClose={() => setActiveSummaryModal(null)}
-        title="Average Next-Day Return"
+        title="Average Return"
         icon={<TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />}
       >
         <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
-          <p><strong>Average Next-Day Return</strong> measures the mean percentage price change one trading day after each recommendation.</p>
+          <p><strong>Average Return</strong> measures the mean percentage price change over each stock's recommended hold period.</p>
           <div className="p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
             <div className="font-semibold mb-1">How it's calculated:</div>
             <ol className="text-xs space-y-1 list-decimal list-inside">
               <li>Record stock price at recommendation time</li>
-              <li>Record price at next trading day close</li>
-              <li>Calculate: (Next Day Price - Rec Price) / Rec Price × 100</li>
-              <li>Average all these returns</li>
+              <li>Record price after the recommended hold period (e.g. 15 days)</li>
+              <li>Calculate: (Exit Price - Entry Price) / Entry Price × 100</li>
+              <li>Average all these returns across stocks</li>
             </ol>
+            <p className="text-xs text-gray-500 mt-2">If no hold period is specified, falls back to 1-day return.</p>
           </div>
           <div className={`p-3 ${filteredStats.avgDailyReturn >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'} rounded-lg`}>
             <div className="text-xs text-gray-500 mb-1">Current Average:</div>

@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement, get_insider_sentiment, get_insider_transactions
+from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement, get_insider_sentiment, get_insider_transactions, execute_text_tool_calls, needs_followup_call, execute_default_tools, generate_analysis_from_data
 from tradingagents.dataflows.config import get_config
 
 from tradingagents.log_utils import add_log, step_timer, symbol_progress
@@ -70,6 +70,23 @@ def create_fundamentals_analyst(llm):
         if len(result.tool_calls) == 0:
             report = result.content
             add_log("llm", "fundamentals", f"LLM responded in {elapsed:.1f}s ({len(report)} chars)")
+            tool_results = execute_text_tool_calls(report, tools)
+            if tool_results:
+                add_log("data", "fundamentals", f"Executed {len(tool_results)} tool calls: {', '.join(t['name'] for t in tool_results)}")
+            else:
+                add_log("agent", "fundamentals", f"🔄 No tool calls found, proactively fetching data for {ticker}...")
+                tool_results = execute_default_tools(tools, ticker, current_date)
+                add_log("data", "fundamentals", f"Proactively fetched {len(tool_results)} data sources")
+
+            if tool_results and needs_followup_call(report):
+                add_log("agent", "fundamentals", f"🔄 Generating analysis from {len(tool_results)} tool results...")
+                t1 = time.time()
+                followup = generate_analysis_from_data(llm, tool_results, system_message, ticker, current_date)
+                elapsed2 = time.time() - t1
+                if followup and len(followup) > 100:
+                    report = followup
+                    add_log("llm", "fundamentals", f"Follow-up analysis generated in {elapsed2:.1f}s ({len(report)} chars)")
+
             add_log("agent", "fundamentals", f"✅ Fundamentals report ready: {report[:300]}...")
             step_timer.end_step("fundamentals_analyst", "completed", report[:200])
             symbol_progress.step_done(ticker, "fundamentals_analyst")
@@ -77,6 +94,7 @@ def create_fundamentals_analyst(llm):
                 "system_prompt": system_message[:2000],
                 "user_prompt": f"Analyze fundamentals for {ticker} on {current_date}",
                 "response": report[:3000],
+                "tool_calls": tool_results if tool_results else [],
             })
         else:
             tool_call_info = [{"name": tc["name"], "args": str(tc.get("args", {}))[:200]} for tc in result.tool_calls]

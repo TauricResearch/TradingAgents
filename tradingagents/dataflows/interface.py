@@ -42,8 +42,8 @@ def clear_request_cache():
 
 # Import from vendor-specific modules
 from .local import get_YFin_data, get_finnhub_news, get_finnhub_company_insider_sentiment, get_finnhub_company_insider_transactions, get_simfin_balance_sheet, get_simfin_cashflow, get_simfin_income_statements, get_reddit_global_news, get_reddit_company_news
-from .y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions
-from .google import get_google_news
+from .y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions, get_fundamentals as get_yfinance_fundamentals
+from .google import get_google_news, get_google_global_news
 from .openai import get_stock_news_openai, get_global_news_openai, get_fundamentals_openai
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
@@ -122,6 +122,7 @@ VENDOR_METHODS = {
     },
     # fundamental_data
     "get_fundamentals": {
+        "yfinance": get_yfinance_fundamentals,
         "alpha_vantage": get_alpha_vantage_fundamentals,
         "openai": get_fundamentals_openai,
     },
@@ -148,8 +149,9 @@ VENDOR_METHODS = {
         "local": [get_finnhub_news, get_reddit_company_news, get_google_news],
     },
     "get_global_news": {
+        "google": get_google_global_news,
         "openai": get_global_news_openai,
-        "local": get_reddit_global_news
+        "local": get_reddit_global_news,
     },
     "get_insider_sentiment": {
         "local": get_finnhub_company_insider_sentiment

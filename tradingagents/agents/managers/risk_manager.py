@@ -14,7 +14,7 @@ def create_risk_manager(llm, memory):
         risk_debate_state = state["risk_debate_state"]
         market_research_report = state["market_report"]
         news_report = state["news_report"]
-        fundamentals_report = state["news_report"]
+        fundamentals_report = state["fundamentals_report"]
         sentiment_report = state["sentiment_report"]
         trader_plan = state["investment_plan"]
 
@@ -39,8 +39,10 @@ Your task: Evaluate the risk debate between Aggressive, Neutral, and Conservativ
 Your response must include:
 1. FINAL DECISION: BUY, SELL, or HOLD
 2. HOLD_DAYS: Number of trading days to hold the position before exiting (for BUY/HOLD only, write N/A for SELL)
-3. RISK ASSESSMENT: Summary of key risks identified
-4. RATIONALE: Why this decision balances risk and reward appropriately
+3. CONFIDENCE: HIGH, MEDIUM, or LOW (how confident you are in this decision)
+4. RISK_LEVEL: HIGH, MEDIUM, or LOW (overall risk level of this investment)
+5. RISK ASSESSMENT: Summary of key risks identified
+6. RATIONALE: Why this decision balances risk and reward appropriately
 
 RESPONSE FORMAT:
 - Maximum 1500 characters. Lead with your decision, then key rationale.

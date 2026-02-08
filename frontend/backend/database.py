@@ -172,6 +172,13 @@ def init_db():
         cursor.execute("ALTER TABLE backtest_results ADD COLUMN hold_days INTEGER")
     except sqlite3.OperationalError:
         pass  # Column already exists
+    try:
+        cursor.execute("ALTER TABLE backtest_results ADD COLUMN return_at_hold REAL")
+        # New column added — delete stale backtest data so it gets recalculated with return_at_hold
+        cursor.execute("DELETE FROM backtest_results")
+        print("Migration: Added return_at_hold column, cleared stale backtest data for recalculation")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
 
     # Create indexes for new tables
     cursor.execute("""
@@ -192,6 +199,80 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+    # Re-extract hold_days from raw_analysis for rows that have the default value (5)
+    # This fixes data where the signal processor LLM failed to extract the actual hold period
+    _fix_default_hold_days()
+
+
+def _fix_default_hold_days():
+    """Re-extract hold_days from raw_analysis for rows where hold_days is NULL or 5 (defaults).
+
+    The signal processor sometimes defaults to 5 or leaves hold_days NULL when the
+    LLM fails to extract the actual hold period. This function uses regex on the
+    raw_analysis text to find the correct value.
+    """
+    import re
+
+    patterns = [
+        r'(\d+)[\s-]*(?:day|trading[\s-]*day)[\s-]*(?:hold|horizon|period|timeframe)',
+        r'(?:hold|holding)[\s\w]*?(?:for|of|period\s+of)[\s]*(\d+)[\s]*(?:trading\s+)?days?',
+        r'setting\s+(\d+)\s+(?:trading\s+)?days',
+        r'(?:over|within|next)\s+(\d+)\s+(?:trading\s+)?days',
+        r'(\d+)\s+trading\s+days?\s*\(',
+    ]
+
+    def extract_days(text):
+        if not text:
+            return None
+        # Search the conclusion/rationale section first (last 500 chars)
+        conclusion = text[-500:]
+        for pattern in patterns:
+            for match in re.finditer(pattern, conclusion, re.IGNORECASE):
+                days = int(match.group(1))
+                if 1 <= days <= 90:
+                    return days
+        # Fall back to full text
+        for pattern in patterns:
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                days = int(match.group(1))
+                if 1 <= days <= 90:
+                    return days
+        return None
+
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    try:
+        # Fix rows where hold_days is NULL or the default 5
+        cursor.execute(
+            "SELECT id, symbol, date, raw_analysis, hold_days, decision FROM stock_analysis "
+            "WHERE (hold_days IS NULL OR hold_days = 5) "
+            "AND decision != 'SELL' "
+            "AND raw_analysis IS NOT NULL AND raw_analysis != ''"
+        )
+        rows = cursor.fetchall()
+        fixed = 0
+        for row in rows:
+            extracted = extract_days(row['raw_analysis'])
+            old_val = row['hold_days']
+            if extracted is not None and extracted != old_val:
+                cursor.execute(
+                    "UPDATE stock_analysis SET hold_days = ? WHERE id = ?",
+                    (extracted, row['id'])
+                )
+                fixed += 1
+                print(f"  Fixed hold_days for {row['symbol']} ({row['date']}): {old_val} -> {extracted}")
+
+        if fixed > 0:
+            conn.commit()
+            # Also clear backtest results so they recalculate with correct hold_days
+            cursor.execute("DELETE FROM backtest_results")
+            conn.commit()
+            print(f"Fixed {fixed} stock(s) with missing/default hold_days. Cleared backtest cache.")
+    finally:
+        conn.close()
 
 
 def save_recommendation(date: str, analysis_data: dict, summary: dict,
@@ -884,7 +965,7 @@ def save_backtest_result(date: str, symbol: str, decision: str,
                          price_1w_later: float = None, price_1m_later: float = None,
                          return_1d: float = None, return_1w: float = None,
                          return_1m: float = None, prediction_correct: bool = None,
-                         hold_days: int = None):
+                         hold_days: int = None, return_at_hold: float = None):
     """Save a backtest result for a stock recommendation."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -894,14 +975,14 @@ def save_backtest_result(date: str, symbol: str, decision: str,
             INSERT OR REPLACE INTO backtest_results
             (date, symbol, decision, price_at_prediction,
              price_1d_later, price_1w_later, price_1m_later,
-             return_1d, return_1w, return_1m, prediction_correct, hold_days)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             return_1d, return_1w, return_1m, prediction_correct, hold_days, return_at_hold)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             date, symbol, decision, price_at_prediction,
             price_1d_later, price_1w_later, price_1m_later,
             return_1d, return_1w, return_1m,
             1 if prediction_correct else 0 if prediction_correct is not None else None,
-            hold_days
+            hold_days, return_at_hold
         ))
         conn.commit()
     finally:
@@ -933,6 +1014,7 @@ def get_backtest_result(date: str, symbol: str) -> Optional[dict]:
                 'return_1m': row['return_1m'],
                 'prediction_correct': bool(row['prediction_correct']) if row['prediction_correct'] is not None else None,
                 'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None,
+                'return_at_hold': row['return_at_hold'] if 'return_at_hold' in row.keys() else None,
                 'calculated_at': row['calculated_at']
             }
         return None
@@ -962,7 +1044,8 @@ def get_backtest_results_by_date(date: str) -> list:
                 'return_1w': row['return_1w'],
                 'return_1m': row['return_1m'],
                 'prediction_correct': bool(row['prediction_correct']) if row['prediction_correct'] is not None else None,
-                'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None
+                'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None,
+                'return_at_hold': row['return_at_hold'] if 'return_at_hold' in row.keys() else None,
             }
             for row in cursor.fetchall()
         ]
@@ -995,7 +1078,9 @@ def get_all_backtest_results() -> list:
                 'return_1d': row['return_1d'],
                 'return_1w': row['return_1w'],
                 'return_1m': row['return_1m'],
-                'prediction_correct': bool(row['prediction_correct'])
+                'prediction_correct': bool(row['prediction_correct']),
+                'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None,
+                'return_at_hold': row['return_at_hold'] if 'return_at_hold' in row.keys() else None,
             }
             for row in cursor.fetchall()
         ]
@@ -1013,7 +1098,7 @@ def calculate_accuracy_metrics() -> dict:
             'total_predictions': 0,
             'correct_predictions': 0,
             'by_decision': {'BUY': {'accuracy': 0, 'total': 0}, 'SELL': {'accuracy': 0, 'total': 0}, 'HOLD': {'accuracy': 0, 'total': 0}},
-            'by_confidence': {'High': {'accuracy': 0, 'total': 0}, 'Medium': {'accuracy': 0, 'total': 0}, 'Low': {'accuracy': 0, 'total': 0}}
+            'by_confidence': {'HIGH': {'accuracy': 0, 'total': 0}, 'MEDIUM': {'accuracy': 0, 'total': 0}, 'LOW': {'accuracy': 0, 'total': 0}}
         }
 
     total = len(results)
@@ -1035,7 +1120,7 @@ def calculate_accuracy_metrics() -> dict:
 
     # By confidence level
     by_confidence = {}
-    for conf in ['High', 'Medium', 'Low']:
+    for conf in ['HIGH', 'MEDIUM', 'LOW']:
         conf_results = [r for r in results if r.get('confidence') == conf]
         if conf_results:
             conf_correct = sum(1 for r in conf_results if r['prediction_correct'])

@@ -1,108 +1,157 @@
-import json
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-import time
-import random
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    retry_if_result,
-)
-
-
-def is_rate_limited(response):
-    """Check if the response indicates rate limiting (status code 429)"""
-    return response.status_code == 429
-
-
-@retry(
-    retry=(retry_if_result(is_rate_limited)),
-    wait=wait_exponential(multiplier=1, min=4, max=60),
-    stop=stop_after_attempt(5),
-)
-def make_request(url, headers):
-    """Make a request with retry logic for rate limiting"""
-    # Random delay before each request to avoid detection
-    time.sleep(random.uniform(2, 6))
-    response = requests.get(url, headers=headers)
-    return response
+import urllib.parse
 
 
 def getNewsData(query, start_date, end_date):
     """
-    Scrape Google News search results for a given query and date range.
-    query: str - search query
-    start_date: str - start date in the format yyyy-mm-dd or mm/dd/yyyy
-    end_date: str - end date in the format yyyy-mm-dd or mm/dd/yyyy
-    """
-    if "-" in start_date:
-        start_date = datetime.strptime(start_date, "%Y-%m-%d")
-        start_date = start_date.strftime("%m/%d/%Y")
-    if "-" in end_date:
-        end_date = datetime.strptime(end_date, "%Y-%m-%d")
-        end_date = end_date.strftime("%m/%d/%Y")
+    Fetch Google News via RSS feed for a given query and date range.
 
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/101.0.4951.54 Safari/537.36"
-        )
-    }
+    Uses Google News RSS which is reliable (no JS rendering or CSS selectors needed).
+    Results are filtered to only include articles within the date range.
+
+    query: str - search query (spaces or '+' separated)
+    start_date: str - start date in yyyy-mm-dd or mm/dd/yyyy format
+    end_date: str - end date in yyyy-mm-dd or mm/dd/yyyy format
+    """
+    # Normalize dates to datetime objects for filtering
+    if "/" in str(start_date):
+        start_dt = datetime.strptime(start_date, "%m/%d/%Y")
+    else:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+
+    if "/" in str(end_date):
+        end_dt = datetime.strptime(end_date, "%m/%d/%Y")
+    else:
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+
+    # Clean up query (replace + with spaces for URL encoding)
+    clean_query = query.replace("+", " ")
+    encoded_query = urllib.parse.quote(clean_query)
+
+    # Use Google News RSS feed — reliable, no scraping issues
+    url = f"https://news.google.com/rss/search?q={encoded_query}+after:{start_dt.strftime('%Y-%m-%d')}+before:{end_dt.strftime('%Y-%m-%d')}&hl=en-IN&gl=IN&ceid=IN:en"
 
     news_results = []
-    page = 0
-    while True:
-        offset = page * 10
-        url = (
-            f"https://www.google.com/search?q={query}"
-            f"&tbs=cdr:1,cd_min:{start_date},cd_max:{end_date}"
-            f"&tbm=nws&start={offset}"
-        )
+    try:
+        resp = requests.get(url, timeout=15)
+        if resp.status_code != 200:
+            return news_results
 
-        try:
-            response = make_request(url, headers)
-            soup = BeautifulSoup(response.content, "html.parser")
-            results_on_page = soup.select("div.SoaBEf")
+        soup = BeautifulSoup(resp.content, "xml")
+        items = soup.find_all("item")
 
-            if not results_on_page:
-                break  # No more results found
+        for item in items[:20]:  # Limit to 20 articles
+            try:
+                title = item.find("title").text if item.find("title") else ""
+                pub_date_str = item.find("pubDate").text if item.find("pubDate") else ""
+                source = item.find("source").text if item.find("source") else ""
+                link = item.find("link").text if item.find("link") else ""
+                # Description often contains HTML snippet
+                desc_tag = item.find("description")
+                snippet = ""
+                if desc_tag:
+                    desc_soup = BeautifulSoup(desc_tag.text, "html.parser")
+                    snippet = desc_soup.get_text()[:300]
 
-            for el in results_on_page:
-                try:
-                    link = el.find("a")["href"]
-                    title = el.select_one("div.MBeuO").get_text()
-                    snippet = el.select_one(".GI74Re").get_text()
-                    date = el.select_one(".LfVVr").get_text()
-                    source = el.select_one(".NUnG9d span").get_text()
-                    news_results.append(
-                        {
-                            "link": link,
-                            "title": title,
-                            "snippet": snippet,
-                            "date": date,
-                            "source": source,
-                        }
-                    )
-                except Exception as e:
-                    print(f"Error processing result: {e}")
-                    # If one of the fields is not found, skip this result
-                    continue
+                # Parse and filter by date
+                if pub_date_str:
+                    try:
+                        pub_dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S %Z")
+                        if pub_dt.date() < start_dt.date() or pub_dt.date() > end_dt.date():
+                            continue
+                        date_display = pub_dt.strftime("%Y-%m-%d")
+                    except ValueError:
+                        date_display = pub_date_str
+                else:
+                    date_display = ""
 
-            # Update the progress bar with the current count of results scraped
+                news_results.append({
+                    "link": link,
+                    "title": title,
+                    "snippet": snippet if snippet else title,
+                    "date": date_display,
+                    "source": source,
+                })
+            except Exception:
+                continue
 
-            # Check for the "Next" link (pagination)
-            next_link = soup.find("a", id="pnnext")
-            if not next_link:
-                break
-
-            page += 1
-
-        except Exception as e:
-            print(f"Failed after multiple retries: {e}")
-            break
+    except Exception as e:
+        print(f"Google News RSS fetch failed: {e}")
 
     return news_results
+
+
+def getGlobalNewsData(curr_date, look_back_days=7, limit=10):
+    """
+    Fetch global/macro news via Google News RSS feed.
+
+    Uses broad financial/market queries to get macroeconomic news.
+    """
+    if isinstance(curr_date, str):
+        end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    else:
+        end_dt = curr_date
+
+    from dateutil.relativedelta import relativedelta
+    start_dt = end_dt - relativedelta(days=look_back_days)
+
+    queries = [
+        "stock market India NSE Nifty",
+        "global economy markets finance",
+    ]
+
+    all_results = []
+    seen_titles = set()
+
+    for query in queries:
+        encoded = urllib.parse.quote(query)
+        url = f"https://news.google.com/rss/search?q={encoded}+after:{start_dt.strftime('%Y-%m-%d')}+before:{end_dt.strftime('%Y-%m-%d')}&hl=en-IN&gl=IN&ceid=IN:en"
+
+        try:
+            resp = requests.get(url, timeout=15)
+            if resp.status_code != 200:
+                continue
+
+            soup = BeautifulSoup(resp.content, "xml")
+            items = soup.find_all("item")
+
+            for item in items:
+                try:
+                    title = item.find("title").text if item.find("title") else ""
+                    if title in seen_titles:
+                        continue
+                    seen_titles.add(title)
+
+                    pub_date_str = item.find("pubDate").text if item.find("pubDate") else ""
+                    source = item.find("source").text if item.find("source") else ""
+                    desc_tag = item.find("description")
+                    snippet = ""
+                    if desc_tag:
+                        desc_soup = BeautifulSoup(desc_tag.text, "html.parser")
+                        snippet = desc_soup.get_text()[:300]
+
+                    date_display = ""
+                    if pub_date_str:
+                        try:
+                            pub_dt = datetime.strptime(pub_date_str, "%a, %d %b %Y %H:%M:%S %Z")
+                            date_display = pub_dt.strftime("%Y-%m-%d")
+                        except ValueError:
+                            date_display = pub_date_str
+
+                    all_results.append({
+                        "title": title,
+                        "snippet": snippet if snippet else title,
+                        "date": date_display,
+                        "source": source,
+                    })
+                except Exception:
+                    continue
+
+        except Exception:
+            continue
+
+    # Sort by date descending and limit
+    all_results.sort(key=lambda x: x.get("date", ""), reverse=True)
+    return all_results[:limit]
