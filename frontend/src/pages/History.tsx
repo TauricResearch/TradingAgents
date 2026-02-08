@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, TrendingUp, TrendingDown, Minus, ChevronRight, BarChart3, Target, HelpCircle, Activity, Calculator, LineChart, PieChart, Shield, Filter, Loader2, AlertCircle } from 'lucide-react';
 import { sampleRecommendations, getBacktestResult as getStaticBacktestResult, calculateAccuracyMetrics as calculateStaticAccuracyMetrics, getDateStats as getStaticDateStats, getOverallStats as getStaticOverallStats, getReturnBreakdown as getStaticReturnBreakdown } from '../data/recommendations';
-import { DecisionBadge } from '../components/StockCard';
+import { DecisionBadge, HoldDaysBadge } from '../components/StockCard';
 import Sparkline from '../components/Sparkline';
 import AccuracyBadge from '../components/AccuracyBadge';
 import AccuracyExplainModal from '../components/AccuracyExplainModal';
@@ -1158,6 +1158,7 @@ export default function History() {
                     </div>
                     <div className="flex items-center gap-3">
                       <DecisionBadge decision={stock.decision} size="small" />
+                      <HoldDaysBadge holdDays={stock.hold_days} decision={stock.decision} />
                       {predictionCorrect !== null && (
                         <AccuracyBadge
                           correct={predictionCorrect}
