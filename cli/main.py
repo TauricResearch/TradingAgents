@@ -536,13 +536,16 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: OpenAI backend
+    # Step 5: LLM Provider
     console.print(
         create_question_box(
-            "Step 5: OpenAI backend", "Select which service to talk to"
+            "Step 5: LLM Provider", "Select which service to talk to"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
+
+    # Normalize provider key for dict lookups: "Azure Foundry" -> "azure_foundry"
+    provider_key = selected_llm_provider.lower().replace(" ", "_")
     
     # Step 6: Thinking agents
     console.print(
@@ -550,14 +553,14 @@ def get_user_selections():
             "Step 6: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+    selected_shallow_thinker = select_shallow_thinking_agent(provider_key)
+    selected_deep_thinker = select_deep_thinking_agent(provider_key)
 
     # Step 7: Provider-specific thinking configuration
     thinking_level = None
     reasoning_effort = None
 
-    provider_lower = selected_llm_provider.lower()
+    provider_lower = provider_key
     if provider_lower == "google":
         console.print(
             create_question_box(
@@ -580,7 +583,7 @@ def get_user_selections():
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
-        "llm_provider": selected_llm_provider.lower(),
+        "llm_provider": provider_key,
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
@@ -623,19 +626,19 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
     analyst_parts = []
     if final_state.get("market_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "market.md").write_text(final_state["market_report"])
+        (analysts_dir / "market.md").write_text(final_state["market_report"], encoding="utf-8")
         analyst_parts.append(("Market Analyst", final_state["market_report"]))
     if final_state.get("sentiment_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"])
+        (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"], encoding="utf-8")
         analyst_parts.append(("Social Analyst", final_state["sentiment_report"]))
     if final_state.get("news_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "news.md").write_text(final_state["news_report"])
+        (analysts_dir / "news.md").write_text(final_state["news_report"], encoding="utf-8")
         analyst_parts.append(("News Analyst", final_state["news_report"]))
     if final_state.get("fundamentals_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"])
+        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
         analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
@@ -648,15 +651,15 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         research_parts = []
         if debate.get("bull_history"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "bull.md").write_text(debate["bull_history"])
+            (research_dir / "bull.md").write_text(debate["bull_history"], encoding="utf-8")
             research_parts.append(("Bull Researcher", debate["bull_history"]))
         if debate.get("bear_history"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "bear.md").write_text(debate["bear_history"])
+            (research_dir / "bear.md").write_text(debate["bear_history"], encoding="utf-8")
             research_parts.append(("Bear Researcher", debate["bear_history"]))
         if debate.get("judge_decision"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "manager.md").write_text(debate["judge_decision"])
+            (research_dir / "manager.md").write_text(debate["judge_decision"], encoding="utf-8")
             research_parts.append(("Research Manager", debate["judge_decision"]))
         if research_parts:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
@@ -666,7 +669,7 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
     if final_state.get("trader_investment_plan"):
         trading_dir = save_path / "3_trading"
         trading_dir.mkdir(exist_ok=True)
-        (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"])
+        (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"], encoding="utf-8")
         sections.append(f"## III. Trading Team Plan\n\n### Trader\n{final_state['trader_investment_plan']}")
 
     # 4. Risk Management
@@ -676,15 +679,15 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         risk_parts = []
         if risk.get("aggressive_history"):
             risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "aggressive.md").write_text(risk["aggressive_history"])
+            (risk_dir / "aggressive.md").write_text(risk["aggressive_history"], encoding="utf-8")
             risk_parts.append(("Aggressive Analyst", risk["aggressive_history"]))
         if risk.get("conservative_history"):
             risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "conservative.md").write_text(risk["conservative_history"])
+            (risk_dir / "conservative.md").write_text(risk["conservative_history"], encoding="utf-8")
             risk_parts.append(("Conservative Analyst", risk["conservative_history"]))
         if risk.get("neutral_history"):
             risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "neutral.md").write_text(risk["neutral_history"])
+            (risk_dir / "neutral.md").write_text(risk["neutral_history"], encoding="utf-8")
             risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
         if risk_parts:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
@@ -694,12 +697,12 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         if risk.get("judge_decision"):
             portfolio_dir = save_path / "5_portfolio"
             portfolio_dir.mkdir(exist_ok=True)
-            (portfolio_dir / "decision.md").write_text(risk["judge_decision"])
+            (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
             sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections))
+    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
     return save_path / "complete_report.md"
 
 
@@ -907,7 +910,12 @@ def run_analysis():
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
-    config["llm_provider"] = selections["llm_provider"].lower()
+    config["llm_provider"] = selections["llm_provider"]
+    # Azure Foundry: use endpoint from config/env, not backend_url
+    if selections["llm_provider"] == "azure_foundry":
+        # Keep the default azure_foundry_endpoint from config (or env var)
+        # Don't overwrite it with the empty backend_url from the provider list
+        pass
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
@@ -948,7 +956,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
     
@@ -959,7 +967,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
 
@@ -972,7 +980,7 @@ def run_analysis():
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
-                    with open(report_dir / file_name, "w") as f:
+                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(content)
         return wrapper
 

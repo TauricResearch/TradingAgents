@@ -63,6 +63,31 @@ VALID_MODELS = {
         "grok-4-fast-reasoning",
         "grok-4-fast-non-reasoning",
     ],
+    # Azure Foundry can host any model from the catalog;
+    # list common ones here but any model name is accepted.
+    "azure_foundry": [
+        # OpenAI models on Azure
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        "o4-mini",
+        "o3",
+        "o3-mini",
+        # Meta Llama models
+        "Meta-Llama-3.3-70B-Instruct",
+        "Meta-Llama-3.1-405B-Instruct",
+        # Mistral models
+        "Mistral-Large-2",
+        "Mistral-Small",
+        # Cohere models
+        "Cohere-command-r-plus",
+        "Cohere-command-r",
+        # DeepSeek models
+        "DeepSeek-R1",
+        "DeepSeek-V3",
+    ],
 }
 
 
@@ -73,7 +98,7 @@ def validate_model(provider: str, model: str) -> bool:
     """
     provider_lower = provider.lower()
 
-    if provider_lower in ("ollama", "openrouter"):
+    if provider_lower in ("ollama", "openrouter", "azure_foundry"):
         return True
 
     if provider_lower not in VALID_MODELS:

@@ -145,6 +145,14 @@ class TradingAgentsGraph:
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
 
+        elif provider == "azure_foundry":
+            endpoint = self.config.get("azure_foundry_endpoint")
+            if endpoint:
+                kwargs["azure_foundry_endpoint"] = endpoint
+            api_key = self.config.get("azure_foundry_api_key")
+            if api_key:
+                kwargs["api_key"] = api_key
+
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:

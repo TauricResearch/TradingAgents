@@ -160,6 +160,20 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
         ],
+        "azure_foundry": [
+            ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
+            ("GPT-5 Nano - Ultra-fast, high-throughput", "gpt-5-nano"),
+            ("GPT-5.2 - Latest flagship", "gpt-5.2"),
+            ("GPT-5.1 - Flexible reasoning", "gpt-5.1"),
+            ("GPT-4.1 - Smartest non-reasoning, 1M context", "gpt-4.1"),
+            ("Claude Haiku 4.5 - Fast + extended thinking", "claude-haiku-4-5"),
+            ("Claude Sonnet 4.5 - Best for agents/coding", "claude-sonnet-4-5"),
+            ("Claude Sonnet 4 - High-performance", "claude-sonnet-4-20250514"),
+            ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
+            ("Gemini 2.5 Flash - Balanced, recommended", "gemini-2.5-flash"),
+            ("Gemini 3 Pro - Reasoning-first", "gemini-3-pro-preview"),
+            ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
+        ],
     }
 
     choice = questionary.select(
@@ -228,6 +242,22 @@ def select_deep_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
+        "azure_foundry": [
+            ("GPT-5.2 - Latest flagship", "gpt-5.2"),
+            ("GPT-5.1 - Flexible reasoning", "gpt-5.1"),
+            ("GPT-5 - Advanced reasoning", "gpt-5"),
+            ("GPT-4.1 - Smartest non-reasoning, 1M context", "gpt-4.1"),
+            ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
+            ("GPT-5 Nano - Ultra-fast, high-throughput", "gpt-5-nano"),
+            ("Claude Sonnet 4.5 - Best for agents/coding", "claude-sonnet-4-5"),
+            ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
+            ("Claude Opus 4.1 - Most capable model", "claude-opus-4-1-20250805"),
+            ("Claude Haiku 4.5 - Fast + extended thinking", "claude-haiku-4-5"),
+            ("Claude Sonnet 4 - High-performance", "claude-sonnet-4-20250514"),
+            ("Gemini 3 Pro - Reasoning-first", "gemini-3-pro-preview"),
+            ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
+            ("Gemini 2.5 Flash - Balanced, recommended", "gemini-2.5-flash"),
+        ],
     }
 
     choice = questionary.select(
@@ -260,6 +290,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("xAI", "https://api.x.ai/v1"),
+        ("Azure Foundry", ""),  # Endpoint read from config/env var
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
