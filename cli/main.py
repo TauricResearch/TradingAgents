@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Callable
 import datetime
 import typer
 from pathlib import Path
@@ -895,6 +895,120 @@ def format_tool_args(args, max_length=80) -> str:
     if len(result) > max_length:
         return result[:max_length - 3] + "..."
     return result
+
+
+def run_analysis_programmatic(
+    selections: dict,
+    log_callback: Optional[Callable[[str], None]] = None,
+) -> tuple[Optional[dict], Optional[Path], Optional[str]]:
+    """Run the same analysis pipeline as the CLI without interactive prompts.
+
+    Used by the Streamlit UI (and any other programmatic caller). No business
+    logic is duplicated: this uses the same config, graph, and save_report_to_disk.
+
+    Args:
+        selections: Dict with keys ticker, analysis_date, analysts (list of
+            analyst keys e.g. ["market", "news"] or AnalystType enums),
+            research_depth, llm_provider, backend_url, shallow_thinker,
+            deep_thinker, google_thinking_level (optional), openai_reasoning_effort (optional).
+        log_callback: Optional callable(line: str) invoked for each log line
+            (messages, tool calls, section updates) for live UI display.
+
+    Returns:
+        (final_state, report_file_path, error_message).
+        On success: (final_state, Path to complete_report.md, None).
+        On failure: (None, None, error_message string).
+    """
+    from cli.stats_handler import StatsCallbackHandler
+
+    def log(line: str) -> None:
+        if log_callback:
+            log_callback(line)
+
+    try:
+        # Normalize analysts to list of strings
+        raw_analysts = selections.get("analysts") or ["market", "news", "fundamentals"]
+        selected_set = set()
+        for a in raw_analysts:
+            selected_set.add(a.value if hasattr(a, "value") else a)
+        selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
+        if not selected_analyst_keys:
+            selected_analyst_keys = ["market", "news"]
+
+        config = DEFAULT_CONFIG.copy()
+        config["max_debate_rounds"] = selections.get("research_depth", 1)
+        config["max_risk_discuss_rounds"] = selections.get("research_depth", 1)
+        config["quick_think_llm"] = selections.get("shallow_thinker", config["quick_think_llm"])
+        config["deep_think_llm"] = selections.get("deep_thinker", config["deep_think_llm"])
+        config["backend_url"] = selections.get("backend_url", config["backend_url"])
+        config["llm_provider"] = (selections.get("llm_provider") or "openai").lower()
+        config["google_thinking_level"] = selections.get("google_thinking_level")
+        config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
+
+        stats_handler = StatsCallbackHandler()
+        graph = TradingAgentsGraph(
+            selected_analyst_keys,
+            config=config,
+            debug=True,
+            callbacks=[stats_handler],
+        )
+
+        ticker = (selections.get("ticker") or "SPY").strip().upper()
+        analysis_date = selections.get("analysis_date") or datetime.datetime.now().strftime("%Y-%m-%d")
+
+        log(f"Starting analysis: {ticker} @ {analysis_date}")
+        log(f"Analysts: {', '.join(selected_analyst_keys)}")
+
+        init_agent_state = graph.propagator.create_initial_state(ticker, analysis_date)
+        args = graph.propagator.get_graph_args(callbacks=[stats_handler])
+
+        _last_message_id = None
+        trace = []
+        for chunk in graph.graph.stream(init_agent_state, **args):
+            if len(chunk.get("messages", [])) > 0:
+                last_message = chunk["messages"][-1]
+                msg_id = getattr(last_message, "id", None)
+                if msg_id != _last_message_id:
+                    _last_message_id = msg_id
+                    msg_type, content = classify_message_type(last_message)
+                    if content and content.strip():
+                        ts = datetime.datetime.now().strftime("%H:%M:%S")
+                        preview = (content[:200] + "...") if len(content) > 200 else content
+                        log(f"[{ts}] [{msg_type}] {preview}")
+                    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+                        for tc in last_message.tool_calls:
+                            name = tc.get("name", getattr(tc, "name", "?"))
+                            targs = tc.get("args", getattr(tc, "args", {}))
+                            ts = datetime.datetime.now().strftime("%H:%M:%S")
+                            log(f"[{ts}] [Tool] {name}({format_tool_args(targs)})")
+            if chunk.get("investment_debate_state") and chunk["investment_debate_state"].get("judge_decision"):
+                log("[Section] Research Team decision ready")
+            if chunk.get("trader_investment_plan"):
+                log("[Section] Trading Team plan ready")
+            if chunk.get("risk_debate_state") and chunk["risk_debate_state"].get("judge_decision"):
+                log("[Section] Portfolio Manager decision ready")
+            trace.append(chunk)
+
+        if not trace:
+            return None, None, "No output from pipeline"
+
+        final_state = trace[-1]
+        log("Analysis complete. Saving report...")
+
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = Path.cwd() / "reports" / f"{ticker}_{timestamp}"
+        report_file = save_report_to_disk(final_state, ticker, save_path)
+        log(f"Report saved: {report_file}")
+
+        return final_state, report_file, None
+    except Exception as e:
+        import traceback
+        err_msg = f"{type(e).__name__}: {e}"
+        log(f"Error: {err_msg}")
+        if log_callback:
+            log_callback(traceback.format_exc())
+        return None, None, err_msg
+
 
 def run_analysis():
     # First get all user selections

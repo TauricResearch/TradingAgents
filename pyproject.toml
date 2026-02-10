@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "streamlit>=1.28.0",
     "backtrader>=1.9.78.123",
     "chainlit>=2.5.5",
     "langchain-anthropic>=0.3.15",
