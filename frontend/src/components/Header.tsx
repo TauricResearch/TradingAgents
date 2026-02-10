@@ -18,42 +18,41 @@ export default function Header() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-50 transition-colors">
+    <header className="sticky top-0 z-50 transition-colors border-b border-gray-200/50 dark:border-slate-700/50 bg-white/70 dark:bg-slate-900/80" style={{ backdropFilter: 'blur(16px) saturate(180%)' }}>
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-        <div className="flex justify-between items-center h-12">
+        <div className="flex justify-between items-center h-14">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-nifty-500 to-nifty-700 rounded-lg flex items-center justify-center">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105" style={{ background: 'linear-gradient(135deg, #0ea5e9, #0369a1)' }}>
               <TrendingUp className="w-4 h-4 text-white" />
             </div>
-            <span className="font-display font-bold gradient-text text-sm">Nifty50 AI</span>
+            <span className="font-display font-bold gradient-text text-base tracking-tight">Nifty50 AI</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-0.5" aria-label="Main navigation">
+          <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
             {navItems.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
                 to={path}
                 aria-current={isActive(path) ? 'page' : undefined}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nifty-500 ${
+                className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive(path)
-                    ? 'bg-nifty-50 dark:bg-nifty-900/30 text-nifty-700 dark:text-nifty-400'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100'
+                    ? 'text-nifty-700 dark:text-nifty-400 bg-nifty-50/80 dark:bg-nifty-900/20'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-800/50'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+                <Icon className="w-4 h-4" aria-hidden="true" />
                 {label}
               </Link>
             ))}
           </nav>
 
           {/* Settings, Theme Toggle & Mobile Menu */}
-          <div className="flex items-center gap-2">
-            {/* Settings Button */}
+          <div className="flex items-center gap-1.5">
             <button
               onClick={openSettings}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-gray-600 dark:text-gray-300"
+              className="p-2 rounded-lg hover:bg-gray-100/80 dark:hover:bg-slate-800/50 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               aria-label="Open settings"
               title="Settings"
             >
@@ -66,7 +65,7 @@ export default function Header() {
               <ThemeToggle compact />
             </div>
             <button
-              className="md:hidden p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-nifty-500 transition-colors text-gray-600 dark:text-gray-300"
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100/80 dark:hover:bg-slate-800/50 transition-colors text-gray-500 dark:text-gray-400"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
@@ -79,17 +78,17 @@ export default function Header() {
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <nav id="mobile-menu" className="md:hidden py-2 border-t border-gray-100 dark:border-slate-700 animate-in slide-in-from-top-2 duration-200" aria-label="Mobile navigation">
+          <nav id="mobile-menu" className="md:hidden py-2 border-t border-gray-100 dark:border-slate-700/50 animate-in slide-in-from-top-2 duration-200" aria-label="Mobile navigation">
             {navItems.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
                 to={path}
                 onClick={() => setMobileMenuOpen(false)}
                 aria-current={isActive(path) ? 'page' : undefined}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive(path)
-                    ? 'bg-nifty-50 dark:bg-nifty-900/30 text-nifty-700 dark:text-nifty-400'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+                    ? 'bg-nifty-50/80 dark:bg-nifty-900/20 text-nifty-700 dark:text-nifty-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800/50'
                 }`}
               >
                 <Icon className="w-4 h-4" aria-hidden="true" />

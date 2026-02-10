@@ -8,7 +8,7 @@ import {
 import { NIFTY_50_STOCKS } from '../types';
 import type { DailyRecommendation, StockAnalysis } from '../types';
 import { sampleRecommendations, getStockHistory as getStaticStockHistory, getRawAnalysis } from '../data/recommendations';
-import { DecisionBadge, ConfidenceBadge, RiskBadge, HoldDaysBadge } from '../components/StockCard';
+import { DecisionBadge, ConfidenceBadge, RiskBadge, HoldDaysBadge, RankBadge } from '../components/StockCard';
 import AIAnalysisPanel from '../components/AIAnalysisPanel';
 import StockPriceChart from '../components/StockPriceChart';
 import {
@@ -31,6 +31,7 @@ interface BacktestResult {
   holdDays: number | null;
   primaryReturn: number | null;  // return_at_hold ?? return_1d
   predictionCorrect: boolean | null;
+  rank?: number | null;
   isLoading?: boolean;
 }
 
@@ -68,7 +69,7 @@ export default function StockDetail() {
   // API-first loading for recommendation data
   const [latestRecommendation, setLatestRecommendation] = useState<DailyRecommendation | null>(null);
   const [analysis, setAnalysis] = useState<StockAnalysis | undefined>(undefined);
-  const [history, setHistory] = useState<Array<{ date: string; decision: string; confidence?: string; risk?: string }>>([]);
+  const [history, setHistory] = useState<Array<{ date: string; decision: string; confidence?: string; risk?: string; hold_days?: number | null; rank?: number | null }>>([]);
   // Fetch recommendation and stock history from API
   useEffect(() => {
     const fetchData = async () => {
@@ -147,6 +148,7 @@ export default function StockDetail() {
             holdDays: backtest.hold_days ?? null,
             primaryReturn,
             predictionCorrect,
+            rank: entry.rank,
           });
         } else {
           // No backtest data available for this date
@@ -159,6 +161,7 @@ export default function StockDetail() {
             holdDays: null,
             primaryReturn: null,
             predictionCorrect: null,
+            rank: entry.rank,
           });
         }
       } catch (err) {
@@ -172,6 +175,7 @@ export default function StockDetail() {
           holdDays: null,
           primaryReturn: null,
           predictionCorrect: null,
+          rank: entry.rank,
         });
       }
     }
@@ -585,6 +589,11 @@ export default function StockDetail() {
             <div className="flex items-center gap-3">
               <div>
                 <div className="flex items-center gap-2">
+                  {analysis?.rank && (
+                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold bg-white/20 text-white" title={`Rank #${analysis.rank}`}>
+                      #{analysis.rank}
+                    </span>
+                  )}
                   <h1 className="text-2xl font-display font-bold">{stock.symbol}</h1>
                   {analysis?.decision && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-white/20">
@@ -631,6 +640,12 @@ export default function StockDetail() {
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Hold:</span>
                 <HoldDaysBadge holdDays={analysis.hold_days} decision={analysis.decision} />
+              </div>
+            )}
+            {analysis.rank && (
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">Rank:</span>
+                <RankBadge rank={analysis.rank} />
               </div>
             )}
           </div>
@@ -953,8 +968,9 @@ export default function StockDetail() {
                       </div>
                     </div>
 
-                    {/* Decision Badge + Hold Days */}
+                    {/* Rank + Decision Badge + Hold Days */}
                     <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <RankBadge rank={entry.rank} size="small" />
                       <DecisionBadge decision={entry.decision as 'BUY' | 'SELL' | 'HOLD'} size="small" />
                       {entry.holdDays && entry.decision !== 'SELL' && (
                         <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">{entry.holdDays}d</span>

@@ -7,7 +7,7 @@ import database as db
 
 
 def get_trading_day_price(ticker: yf.Ticker, target_date: datetime,
-                          direction: str = 'forward', max_days: int = 7) -> Optional[float]:
+                          direction: str = 'forward', max_days: int = 7) -> tuple[Optional[float], Optional[datetime]]:
     """
     Get the closing price for a trading day near the target date.
 
@@ -18,7 +18,7 @@ def get_trading_day_price(ticker: yf.Ticker, target_date: datetime,
         max_days: Maximum days to search
 
     Returns:
-        Closing price or None if not found
+        Tuple of (closing_price, actual_date) or (None, None) if not found
     """
     for i in range(max_days):
         if direction == 'forward':
@@ -32,9 +32,9 @@ def get_trading_day_price(ticker: yf.Ticker, target_date: datetime,
         hist = ticker.history(start=start.strftime('%Y-%m-%d'),
                              end=end.strftime('%Y-%m-%d'))
         if not hist.empty:
-            return hist['Close'].iloc[0]
+            return hist['Close'].iloc[0], check_date
 
-    return None
+    return None, None
 
 
 def calculate_backtest_for_recommendation(date: str, symbol: str, decision: str,
@@ -61,7 +61,7 @@ def calculate_backtest_for_recommendation(date: str, symbol: str, decision: str,
         ticker = yf.Ticker(yf_symbol)
 
         # Get price at prediction date (or next trading day)
-        price_at_pred = get_trading_day_price(ticker, pred_date, 'forward')
+        price_at_pred, actual_pred_date = get_trading_day_price(ticker, pred_date, 'forward')
         if price_at_pred is None:
             return None
 
@@ -70,11 +70,16 @@ def calculate_backtest_for_recommendation(date: str, symbol: str, decision: str,
         date_1w = pred_date + timedelta(weeks=1)
         date_1m = pred_date + timedelta(days=30)
 
-        price_1d = get_trading_day_price(ticker, date_1d, 'forward')
-        price_1w = get_trading_day_price(ticker, date_1w, 'forward')
-        price_1m = get_trading_day_price(ticker, date_1m, 'forward')
+        price_1d, actual_1d_date = get_trading_day_price(ticker, date_1d, 'forward')
+        price_1w, actual_1w_date = get_trading_day_price(ticker, date_1w, 'forward')
+        price_1m, actual_1m_date = get_trading_day_price(ticker, date_1m, 'forward')
 
-        # Calculate returns
+        # Detect same-day resolution: if pred and 1d resolved to the same trading day,
+        # the 0% return is meaningless — treat as no data
+        if price_1d and actual_pred_date and actual_1d_date and actual_pred_date == actual_1d_date:
+            price_1d = None
+
+        # Calculate returns (only when we have a genuinely different trading day)
         return_1d = ((price_1d - price_at_pred) / price_at_pred * 100) if price_1d else None
         return_1w = ((price_1w - price_at_pred) / price_at_pred * 100) if price_1w else None
         return_1m = ((price_1m - price_at_pred) / price_at_pred * 100) if price_1m else None
@@ -83,24 +88,34 @@ def calculate_backtest_for_recommendation(date: str, symbol: str, decision: str,
         return_at_hold = None
         if hold_days and hold_days > 0:
             date_hold = pred_date + timedelta(days=hold_days)
-            price_at_hold = get_trading_day_price(ticker, date_hold, 'forward')
-            if price_at_hold:
+            price_at_hold, actual_hold_date = get_trading_day_price(ticker, date_hold, 'forward')
+            # Only count if we found a different day than the prediction date
+            if price_at_hold and actual_hold_date and actual_hold_date != actual_pred_date:
                 return_at_hold = round(((price_at_hold - price_at_pred) / price_at_pred * 100), 2)
 
+        # Skip if we have no usable return data at all
+        if return_1d is None and return_1w is None and return_at_hold is None:
+            return None
+
         # Determine if prediction was correct
-        # Use hold_days return when available, fall back to 1-week return
+        # Use hold_days return when available, fall back to 1-day return
         prediction_correct = None
-        check_return = return_at_hold if return_at_hold is not None else return_1w
+        check_return = return_at_hold if return_at_hold is not None else return_1d
         if check_return is not None:
             if decision == 'BUY' or decision == 'HOLD':
                 prediction_correct = check_return > 0
             elif decision == 'SELL':
                 prediction_correct = check_return < 0
 
+        # Sanitize the decision value before storing
+        clean_decision = decision.strip().upper()
+        if clean_decision not in ('BUY', 'SELL', 'HOLD'):
+            clean_decision = 'HOLD'
+
         return {
             'date': date,
             'symbol': symbol,
-            'decision': decision,
+            'decision': clean_decision,
             'price_at_prediction': round(price_at_pred, 2),
             'price_1d_later': round(price_1d, 2) if price_1d else None,
             'price_1w_later': round(price_1w, 2) if price_1w else None,

@@ -37,13 +37,22 @@ from tradingagents.agents.utils.fundamental_data_tools import (
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
-    get_income_statement
+    get_income_statement,
+    get_analyst_recommendations,
+    get_earnings_data,
+    get_institutional_holders,
 )
 from tradingagents.agents.utils.news_data_tools import (
     get_news,
     get_insider_sentiment,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_earnings_calendar,
+)
+from tradingagents.agents.utils.social_sentiment_tools import (
+    get_yfinance_news,
+    get_analyst_sentiment,
+    get_sector_performance,
 )
 
 def strip_tool_call_lines(text):
@@ -85,6 +94,13 @@ def execute_default_tools(tools, ticker, current_date):
         "get_balance_sheet": {"ticker": ticker, "curr_date": current_date},
         "get_cashflow": {"ticker": ticker, "curr_date": current_date},
         "get_income_statement": {"ticker": ticker, "curr_date": current_date},
+        "get_analyst_recommendations": {"ticker": ticker, "curr_date": current_date},
+        "get_earnings_data": {"ticker": ticker, "curr_date": current_date},
+        "get_institutional_holders": {"ticker": ticker, "curr_date": current_date},
+        "get_yfinance_news": {"ticker": ticker, "curr_date": current_date},
+        "get_analyst_sentiment": {"ticker": ticker, "curr_date": current_date},
+        "get_sector_performance": {"ticker": ticker, "curr_date": current_date},
+        "get_earnings_calendar": {"ticker": ticker, "curr_date": current_date},
     }
 
     results = []

@@ -1,18 +1,40 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement, get_insider_sentiment, get_insider_transactions, execute_text_tool_calls, needs_followup_call, execute_default_tools, generate_analysis_from_data
+from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement, get_insider_sentiment, get_insider_transactions, get_analyst_recommendations, get_earnings_data, get_institutional_holders, execute_text_tool_calls, needs_followup_call, execute_default_tools, generate_analysis_from_data
 from tradingagents.dataflows.config import get_config
 
 from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 ANALYST_RESPONSE_FORMAT = """
 
-RESPONSE FORMAT RULES:
-- Keep your analysis concise: maximum 3000 characters total
-- Use a compact markdown table to organize key findings
-- Do NOT repeat raw data values verbatim — summarize trends and insights
-- Complete your ENTIRE analysis in a SINGLE response — do not split across multiple messages"""
+RESPONSE FORMAT (follow this structure exactly):
+
+## EXECUTIVE SUMMARY
+2-3 sentences: Key fundamental finding and directional bias (BULLISH / BEARISH / NEUTRAL).
+
+## KEY DATA POINTS
+- Bullet list of the 5 most significant fundamental metrics with specific numbers
+- Include valuation, profitability, institutional positioning, analyst consensus
+
+## SIGNAL ASSESSMENT
+Your overall reading: BULLISH / BEARISH / NEUTRAL
+1-2 sentences explaining why, referencing specific financial data.
+
+## RISK FACTORS
+2-3 specific fundamental risks (debt, margins, earnings misses, etc.).
+
+## CONFIDENCE: HIGH / MEDIUM / LOW
+1 sentence justifying your confidence level.
+
+| Metric | Value | Signal | Significance |
+|--------|-------|--------|-------------|
+| (fill with key fundamental metrics) |
+
+RULES:
+- Maximum 3000 characters total
+- Do NOT repeat raw data verbatim — summarize trends and insights
+- Complete your ENTIRE analysis in a SINGLE response"""
 
 
 def create_fundamentals_analyst(llm):
@@ -26,12 +48,20 @@ def create_fundamentals_analyst(llm):
             get_balance_sheet,
             get_cashflow,
             get_income_statement,
+            get_analyst_recommendations,
+            get_earnings_data,
+            get_institutional_holders,
         ]
 
         system_message = (
-            "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
+            "You are a fundamentals analyst tasked with analyzing a company's financial health, valuation, and institutional positioning. "
+            "Use ALL available tools to build a comprehensive fundamental picture:\n"
+            "- `get_fundamentals`: Company overview, valuation ratios, profitability metrics\n"
+            "- `get_balance_sheet`, `get_cashflow`, `get_income_statement`: Financial statements\n"
+            "- `get_analyst_recommendations`: Wall Street analyst consensus and recent rating changes\n"
+            "- `get_earnings_data`: Earnings dates, EPS estimates vs actuals, earnings surprises\n"
+            "- `get_institutional_holders`: Top institutional holders, insider vs institutional ownership\n\n"
+            "Provide specific numbers and quantitative evidence. Do not simply state trends are mixed."
             + ANALYST_RESPONSE_FORMAT,
         )
 

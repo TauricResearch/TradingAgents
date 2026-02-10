@@ -21,7 +21,7 @@ export function SummaryPieChart({ buy, sell, hold }: SummaryChartProps) {
 
   return (
     <div style={{ width: '100%', height: '256px' }}>
-      <ResponsiveContainer width="100%" height={256}>
+      <ResponsiveContainer width="100%" height={256} minWidth={0} minHeight={0}>
         <PieChart>
           <Pie
             data={data}
@@ -77,7 +77,7 @@ export function HistoricalBarChart({ data }: HistoricalChartProps) {
 
   return (
     <div className="h-72">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={formattedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis

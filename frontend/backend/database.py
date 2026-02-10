@@ -1,11 +1,46 @@
 """SQLite database module for storing stock recommendations."""
 import sqlite3
 import json
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
 DB_PATH = Path(__file__).parent / "recommendations.db"
+
+
+def sanitize_decision(raw: str) -> str:
+    """Extract BUY/SELL/HOLD from potentially noisy LLM output.
+
+    Handles: 'BUY', '**SELL**', 'HOLD\n\n---\nHOWEVER...', 'The decision is: **BUY**', etc.
+    Returns 'HOLD' as fallback.
+    """
+    if not raw:
+        return 'HOLD'
+    text = raw.strip()
+
+    # Quick exact match (most common case)
+    upper = text.upper()
+    if upper in ('BUY', 'SELL', 'HOLD'):
+        return upper
+
+    # Strip markdown bold/italic: **SELL** → SELL, *BUY* → BUY
+    stripped = re.sub(r'[*_]+', '', text).strip().upper()
+    if stripped in ('BUY', 'SELL', 'HOLD'):
+        return stripped
+
+    # First word after stripping markdown
+    first_word = stripped.split()[0] if stripped else ''
+    if first_word in ('BUY', 'SELL', 'HOLD'):
+        return first_word
+
+    # Search for decision keyword in the text (prioritize earlier occurrences)
+    # Look for standalone BUY/SELL/HOLD words (not part of longer words)
+    for keyword in ('BUY', 'SELL', 'HOLD'):
+        if re.search(r'\b' + keyword + r'\b', upper):
+            return keyword
+
+    return 'HOLD'
 
 
 def get_connection():
@@ -180,6 +215,12 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
 
+    # Add rank column if it doesn't exist (migration for existing DBs)
+    try:
+        cursor.execute("ALTER TABLE stock_analysis ADD COLUMN rank INTEGER")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
     # Create indexes for new tables
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_agent_reports_date_symbol ON agent_reports(date, symbol)
@@ -200,9 +241,10 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # Re-extract hold_days from raw_analysis for rows that have the default value (5)
-    # This fixes data where the signal processor LLM failed to extract the actual hold period
+    # Fix data quality issues at startup
     _fix_default_hold_days()
+    _fix_garbage_decisions()
+    _cleanup_bad_backtest_data()
 
 
 def _fix_default_hold_days():
@@ -271,6 +313,133 @@ def _fix_default_hold_days():
             cursor.execute("DELETE FROM backtest_results")
             conn.commit()
             print(f"Fixed {fixed} stock(s) with missing/default hold_days. Cleared backtest cache.")
+    finally:
+        conn.close()
+
+
+def _fix_garbage_decisions():
+    """Fix stock_analysis rows where the decision field contains garbage LLM output.
+
+    Uses sanitize_decision() to extract the real BUY/SELL/HOLD from the text,
+    then updates the DB rows and rebuilds daily_recommendations summaries.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Find rows where decision is not a clean BUY/SELL/HOLD
+        cursor.execute(
+            "SELECT id, date, symbol, decision FROM stock_analysis "
+            "WHERE decision NOT IN ('BUY', 'SELL', 'HOLD') AND decision IS NOT NULL"
+        )
+        rows = cursor.fetchall()
+        if not rows:
+            return
+
+        fixed = 0
+        affected_dates = set()
+        for row in rows:
+            clean = sanitize_decision(row['decision'])
+            if clean != row['decision']:
+                cursor.execute(
+                    "UPDATE stock_analysis SET decision = ? WHERE id = ?",
+                    (clean, row['id'])
+                )
+                fixed += 1
+                affected_dates.add(row['date'])
+                old_preview = row['decision'][:40].replace('\n', ' ')
+                print(f"  Fixed decision for {row['symbol']} ({row['date']}): '{old_preview}...' -> {clean}")
+
+        if fixed > 0:
+            conn.commit()
+            print(f"Fixed {fixed} stock(s) with garbage decision values.")
+
+            # Rebuild daily_recommendations summaries for affected dates
+            for date in affected_dates:
+                cursor.execute(
+                    "SELECT decision FROM stock_analysis WHERE date = ?", (date,)
+                )
+                decisions = [sanitize_decision(r['decision']) for r in cursor.fetchall()]
+                buy_count = decisions.count('BUY')
+                sell_count = decisions.count('SELL')
+                hold_count = decisions.count('HOLD')
+                cursor.execute(
+                    "UPDATE daily_recommendations SET summary_buy=?, summary_sell=?, summary_hold=?, summary_total=? WHERE date=?",
+                    (buy_count, sell_count, hold_count, len(decisions), date)
+                )
+            conn.commit()
+            print(f"Rebuilt summaries for {len(affected_dates)} date(s).")
+
+            # Clear backtest results that may have wrong decisions stored
+            cursor.execute("DELETE FROM backtest_results WHERE decision NOT IN ('BUY', 'SELL', 'HOLD')")
+            conn.commit()
+    finally:
+        conn.close()
+
+
+def _cleanup_bad_backtest_data():
+    """Remove backtest results that have invalid data.
+
+    Deletes rows where:
+    - return_1d is exactly 0.0 AND return_1w is also 0.0 or NULL (indicates same-day resolution)
+    - return_1d is NULL and return_1w is NULL and return_at_hold is NULL (no usable data)
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Delete rows where return_1d=0 and no other useful return data
+        # This typically means pred_date and next-day resolved to the same trading day
+        cursor.execute(
+            "DELETE FROM backtest_results "
+            "WHERE return_1d = 0.0 AND (return_1w IS NULL OR return_1w = 0.0) "
+            "AND (return_at_hold IS NULL OR return_at_hold = 0.0)"
+        )
+        deleted_zero = cursor.rowcount
+
+        # Delete rows where all returns are NULL (no price data available)
+        cursor.execute(
+            "DELETE FROM backtest_results "
+            "WHERE return_1d IS NULL AND return_1w IS NULL AND return_at_hold IS NULL"
+        )
+        deleted_null = cursor.rowcount
+
+        if deleted_zero + deleted_null > 0:
+            conn.commit()
+            print(f"Cleaned up backtest data: removed {deleted_zero} zero-return rows, {deleted_null} null-return rows.")
+
+        # Fix rows where prediction_correct is NULL but we have return data
+        # Cross-reference with stock_analysis for the correct decision
+        cursor.execute("""
+            SELECT br.id, br.date, br.symbol, br.return_1d, br.return_at_hold,
+                   sa.decision as sa_decision
+            FROM backtest_results br
+            JOIN stock_analysis sa ON br.date = sa.date AND br.symbol = sa.symbol
+            WHERE br.prediction_correct IS NULL
+              AND (br.return_1d IS NOT NULL OR br.return_at_hold IS NOT NULL)
+        """)
+        null_correct_rows = cursor.fetchall()
+        fixed_count = 0
+        for row in null_correct_rows:
+            decision = sanitize_decision(row['sa_decision'])
+            primary_return = row['return_at_hold'] if row['return_at_hold'] is not None else row['return_1d']
+            if primary_return is None:
+                continue
+            if decision in ('BUY', 'HOLD'):
+                is_correct = 1 if primary_return > 0 else 0
+            elif decision == 'SELL':
+                is_correct = 1 if primary_return < 0 else 0
+            else:
+                continue
+            cursor.execute(
+                "UPDATE backtest_results SET prediction_correct = ?, decision = ? WHERE id = ?",
+                (is_correct, decision, row['id'])
+            )
+            fixed_count += 1
+
+        if fixed_count > 0:
+            conn.commit()
+            print(f"Fixed prediction_correct for {fixed_count} backtest rows.")
     finally:
         conn.close()
 
@@ -389,9 +558,7 @@ def get_recommendation_by_date(date: str) -> Optional[dict]:
 
         analysis = {}
         for a in analysis_rows:
-            decision = (a['decision'] or '').strip().upper()
-            if decision not in ('BUY', 'SELL', 'HOLD'):
-                decision = 'HOLD'
+            decision = sanitize_decision(a['decision'])
             analysis[a['symbol']] = {
                 'symbol': a['symbol'],
                 'company_name': a['company_name'],
@@ -399,7 +566,8 @@ def get_recommendation_by_date(date: str) -> Optional[dict]:
                 'confidence': a['confidence'] or 'MEDIUM',
                 'risk': a['risk'] or 'MEDIUM',
                 'raw_analysis': a['raw_analysis'],
-                'hold_days': a['hold_days'] if 'hold_days' in a.keys() else None
+                'hold_days': a['hold_days'] if 'hold_days' in a.keys() else None,
+                'rank': a['rank'] if 'rank' in a.keys() else None
             }
 
         if row:
@@ -480,7 +648,7 @@ def get_stock_history(symbol: str) -> list:
 
     try:
         cursor.execute("""
-            SELECT date, decision, confidence, risk, hold_days
+            SELECT date, decision, confidence, risk, hold_days, rank
             FROM stock_analysis
             WHERE symbol = ?
             ORDER BY date DESC
@@ -488,16 +656,14 @@ def get_stock_history(symbol: str) -> list:
 
         results = []
         for row in cursor.fetchall():
-            decision = (row['decision'] or '').strip().upper()
-            # Sanitize: only allow BUY/SELL/HOLD
-            if decision not in ('BUY', 'SELL', 'HOLD'):
-                decision = 'HOLD'
+            decision = sanitize_decision(row['decision'])
             results.append({
                 'date': row['date'],
                 'decision': decision,
                 'confidence': row['confidence'] or 'MEDIUM',
                 'risk': row['risk'] or 'MEDIUM',
-                'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None
+                'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None,
+                'rank': row['rank'] if 'rank' in row.keys() else None
             })
         return results
     finally:
@@ -1089,72 +1255,167 @@ def get_all_backtest_results() -> list:
 
 
 def calculate_accuracy_metrics() -> dict:
-    """Calculate overall backtest accuracy metrics."""
-    results = get_all_backtest_results()
+    """Calculate overall backtest accuracy metrics.
 
-    if not results:
-        return {
-            'overall_accuracy': 0,
-            'total_predictions': 0,
-            'correct_predictions': 0,
-            'by_decision': {'BUY': {'accuracy': 0, 'total': 0}, 'SELL': {'accuracy': 0, 'total': 0}, 'HOLD': {'accuracy': 0, 'total': 0}},
-            'by_confidence': {'HIGH': {'accuracy': 0, 'total': 0}, 'MEDIUM': {'accuracy': 0, 'total': 0}, 'LOW': {'accuracy': 0, 'total': 0}}
-        }
-
-    total = len(results)
-    correct = sum(1 for r in results if r['prediction_correct'])
-
-    # By decision type
-    by_decision = {}
-    for decision in ['BUY', 'SELL', 'HOLD']:
-        decision_results = [r for r in results if r['decision'] == decision]
-        if decision_results:
-            decision_correct = sum(1 for r in decision_results if r['prediction_correct'])
-            by_decision[decision] = {
-                'accuracy': round(decision_correct / len(decision_results) * 100, 1),
-                'total': len(decision_results),
-                'correct': decision_correct
-            }
-        else:
-            by_decision[decision] = {'accuracy': 0, 'total': 0, 'correct': 0}
-
-    # By confidence level
-    by_confidence = {}
-    for conf in ['HIGH', 'MEDIUM', 'LOW']:
-        conf_results = [r for r in results if r.get('confidence') == conf]
-        if conf_results:
-            conf_correct = sum(1 for r in conf_results if r['prediction_correct'])
-            by_confidence[conf] = {
-                'accuracy': round(conf_correct / len(conf_results) * 100, 1),
-                'total': len(conf_results),
-                'correct': conf_correct
-            }
-        else:
-            by_confidence[conf] = {'accuracy': 0, 'total': 0, 'correct': 0}
-
-    return {
-        'overall_accuracy': round(correct / total * 100, 1) if total > 0 else 0,
-        'total_predictions': total,
-        'correct_predictions': correct,
-        'by_decision': by_decision,
-        'by_confidence': by_confidence
+    Cross-references backtest_results with stock_analysis to use the correct
+    (sanitized) decision values and compute prediction correctness accurately.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    empty = {
+        'overall_accuracy': 0,
+        'total_predictions': 0,
+        'correct_predictions': 0,
+        'by_decision': {'BUY': {'accuracy': 0, 'total': 0, 'correct': 0},
+                        'SELL': {'accuracy': 0, 'total': 0, 'correct': 0},
+                        'HOLD': {'accuracy': 0, 'total': 0, 'correct': 0}},
+        'by_confidence': {}
     }
+
+    try:
+        # Join backtest_results with stock_analysis to get the correct decision
+        cursor.execute("""
+            SELECT br.date, br.symbol, br.return_1d, br.return_1w, br.return_at_hold,
+                   sa.decision as sa_decision, sa.confidence
+            FROM backtest_results br
+            JOIN stock_analysis sa ON br.date = sa.date AND br.symbol = sa.symbol
+            WHERE br.return_1d IS NOT NULL OR br.return_at_hold IS NOT NULL
+        """)
+        rows = cursor.fetchall()
+
+        if not rows:
+            return empty
+
+        # Compute accuracy using sanitized decisions and primaryReturn logic
+        total = 0
+        correct = 0
+        by_decision = {'BUY': {'total': 0, 'correct': 0}, 'SELL': {'total': 0, 'correct': 0}, 'HOLD': {'total': 0, 'correct': 0}}
+
+        for row in rows:
+            decision = sanitize_decision(row['sa_decision'])
+            primary_return = row['return_at_hold'] if row['return_at_hold'] is not None else row['return_1d']
+            if primary_return is None:
+                continue
+
+            total += 1
+            if decision in by_decision:
+                by_decision[decision]['total'] += 1
+
+            if decision in ('BUY', 'HOLD'):
+                is_correct = primary_return > 0
+            elif decision == 'SELL':
+                is_correct = primary_return < 0
+            else:
+                continue
+
+            if is_correct:
+                correct += 1
+                if decision in by_decision:
+                    by_decision[decision]['correct'] += 1
+
+        # Build response
+        for d in by_decision:
+            t = by_decision[d]['total']
+            c = by_decision[d]['correct']
+            by_decision[d]['accuracy'] = round(c / t * 100, 1) if t > 0 else 0
+
+        return {
+            'overall_accuracy': round(correct / total * 100, 1) if total > 0 else 0,
+            'total_predictions': total,
+            'correct_predictions': correct,
+            'by_decision': by_decision,
+            'by_confidence': {}
+        }
+    finally:
+        conn.close()
+
+
+def compute_stock_rankings(date: str):
+    """Compute and store rank (1..N) for all stocks analyzed on a given date.
+
+    Uses a deterministic composite score:
+      decision:   BUY=30, HOLD=15, SELL=0
+      confidence: HIGH=20, MEDIUM=10, LOW=0
+      risk (inv): LOW=15, MEDIUM=8, HIGH=0
+      hold bonus: BUY with short hold gets up to +5
+
+    Score range: 0-70. Sorted descending; ties broken alphabetically.
+    """
+    DECISION_W = {'BUY': 30, 'HOLD': 15, 'SELL': 0}
+    CONFIDENCE_W = {'HIGH': 20, 'MEDIUM': 10, 'LOW': 0}
+    RISK_W = {'LOW': 15, 'MEDIUM': 8, 'HIGH': 0}
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT id, symbol, decision, confidence, risk, hold_days
+            FROM stock_analysis WHERE date = ?
+        """, (date,))
+        rows = cursor.fetchall()
+
+        if not rows:
+            return
+
+        scored = []
+        for row in rows:
+            decision = sanitize_decision(row['decision'])
+            confidence = (row['confidence'] or 'MEDIUM').upper()
+            risk = (row['risk'] or 'MEDIUM').upper()
+            hold_days = row['hold_days']
+
+            score = DECISION_W.get(decision, 0)
+            score += CONFIDENCE_W.get(confidence, 0)
+            score += RISK_W.get(risk, 0)
+
+            # Hold days bonus: BUY with shorter hold = more immediate opportunity
+            if decision == 'BUY' and hold_days and hold_days > 0:
+                if hold_days <= 5:
+                    score += 5
+                elif hold_days <= 10:
+                    score += 4
+                elif hold_days <= 15:
+                    score += 3
+                elif hold_days <= 20:
+                    score += 2
+                else:
+                    score += 1
+
+            scored.append((row['id'], row['symbol'], score))
+
+        # Sort by score descending, then symbol ascending for ties
+        scored.sort(key=lambda x: (-x[2], x[1]))
+
+        for rank, (row_id, _symbol, _score) in enumerate(scored, start=1):
+            cursor.execute(
+                "UPDATE stock_analysis SET rank = ? WHERE id = ?",
+                (rank, row_id)
+            )
+
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def update_daily_recommendation_summary(date: str):
     """Auto-create/update daily_recommendations from stock_analysis for a date.
 
-    Counts BUY/SELL/HOLD decisions, generates top_picks and stocks_to_avoid,
-    and upserts the daily_recommendations row.
+    Computes rankings first, then counts BUY/SELL/HOLD decisions, generates
+    rank-ordered top_picks and stocks_to_avoid, and upserts the row.
     """
+    # Compute rankings first so top_picks/stocks_to_avoid use rank order
+    compute_stock_rankings(date)
+
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
-        # Get all stock analyses for this date
+        # Get all stock analyses ordered by rank
         cursor.execute("""
-            SELECT symbol, company_name, decision, confidence, risk, raw_analysis
+            SELECT symbol, company_name, decision, confidence, risk, raw_analysis, rank
             FROM stock_analysis WHERE date = ?
+            ORDER BY rank ASC NULLS LAST
         """, (date,))
         rows = cursor.fetchall()
 
@@ -1168,42 +1429,44 @@ def update_daily_recommendation_summary(date: str):
         sell_stocks = []
 
         for row in rows:
-            decision = (row['decision'] or '').upper()
+            decision = sanitize_decision(row['decision'])
             if decision == 'BUY':
                 buy_count += 1
                 buy_stocks.append({
                     'symbol': row['symbol'],
                     'company_name': row['company_name'] or row['symbol'],
-                    'decision': 'BUY',
                     'confidence': row['confidence'] or 'MEDIUM',
-                    'reason': (row['raw_analysis'] or '')[:200]
+                    'reason': (row['raw_analysis'] or '')[:200],
+                    'rank': row['rank']
                 })
             elif decision == 'SELL':
                 sell_count += 1
                 sell_stocks.append({
                     'symbol': row['symbol'],
                     'company_name': row['company_name'] or row['symbol'],
-                    'decision': 'SELL',
                     'confidence': row['confidence'] or 'MEDIUM',
-                    'reason': (row['raw_analysis'] or '')[:200]
+                    'reason': (row['raw_analysis'] or '')[:200],
+                    'rank': row['rank']
                 })
             else:
                 hold_count += 1
 
         total = buy_count + sell_count + hold_count
 
-        # Top picks: up to 5 BUY stocks
+        # Top picks: top 5 BUY stocks by rank (already rank-sorted)
         top_picks = [
             {'symbol': s['symbol'], 'company_name': s['company_name'],
-             'confidence': s['confidence'], 'reason': s['reason']}
+             'confidence': s['confidence'], 'reason': s['reason'],
+             'rank': s['rank']}
             for s in buy_stocks[:5]
         ]
 
-        # Stocks to avoid: up to 5 SELL stocks
+        # Stocks to avoid: bottom-ranked SELL stocks (last 5)
         stocks_to_avoid = [
             {'symbol': s['symbol'], 'company_name': s['company_name'],
-             'confidence': s['confidence'], 'reason': s['reason']}
-            for s in sell_stocks[:5]
+             'confidence': s['confidence'], 'reason': s['reason'],
+             'rank': s['rank']}
+            for s in sell_stocks[-5:]
         ]
 
         cursor.execute("""

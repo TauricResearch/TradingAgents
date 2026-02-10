@@ -40,7 +40,7 @@ export default function BackgroundSparkline({
 
   return (
     <div className={`w-full h-full ${className}`} style={{ filter: 'blur(1px)' }}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <AreaChart data={normalizedData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
           <YAxis domain={[minPrice - padding, maxPrice + padding]} hide />
           <defs>

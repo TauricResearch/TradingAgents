@@ -42,7 +42,7 @@ def clear_request_cache():
 
 # Import from vendor-specific modules
 from .local import get_YFin_data, get_finnhub_news, get_finnhub_company_insider_sentiment, get_finnhub_company_insider_transactions, get_simfin_balance_sheet, get_simfin_cashflow, get_simfin_income_statements, get_reddit_global_news, get_reddit_company_news
-from .y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions, get_fundamentals as get_yfinance_fundamentals
+from .y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions, get_fundamentals as get_yfinance_fundamentals, get_analyst_recommendations as get_yfinance_analyst_recommendations, get_earnings_data as get_yfinance_earnings_data, get_institutional_holders as get_yfinance_institutional_holders, get_yfinance_news as get_yfinance_news_feed, get_analyst_sentiment as get_yfinance_analyst_sentiment, get_sector_performance as get_yfinance_sector_performance, get_earnings_calendar as get_yfinance_earnings_calendar
 from .google import get_google_news, get_google_global_news
 from .openai import get_stock_news_openai, get_global_news_openai, get_fundamentals_openai
 from .alpha_vantage import (
@@ -82,7 +82,10 @@ TOOLS_CATEGORIES = {
             "get_fundamentals",
             "get_balance_sheet",
             "get_cashflow",
-            "get_income_statement"
+            "get_income_statement",
+            "get_analyst_recommendations",
+            "get_earnings_data",
+            "get_institutional_holders",
         ]
     },
     "news_data": {
@@ -92,6 +95,15 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_sentiment",
             "get_insider_transactions",
+            "get_earnings_calendar",
+        ]
+    },
+    "social_sentiment_data": {
+        "description": "Social sentiment and market perception",
+        "tools": [
+            "get_yfinance_news",
+            "get_analyst_sentiment",
+            "get_sector_performance",
         ]
     }
 }
@@ -160,6 +172,30 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
         "local": get_finnhub_company_insider_transactions,
+    },
+    # New fundamental tools
+    "get_analyst_recommendations": {
+        "yfinance": get_yfinance_analyst_recommendations,
+    },
+    "get_earnings_data": {
+        "yfinance": get_yfinance_earnings_data,
+    },
+    "get_institutional_holders": {
+        "yfinance": get_yfinance_institutional_holders,
+    },
+    # New social sentiment tools
+    "get_yfinance_news": {
+        "yfinance": get_yfinance_news_feed,
+    },
+    "get_analyst_sentiment": {
+        "yfinance": get_yfinance_analyst_sentiment,
+    },
+    "get_sector_performance": {
+        "yfinance": get_yfinance_sector_performance,
+    },
+    # New news tool
+    "get_earnings_calendar": {
+        "yfinance": get_yfinance_earnings_calendar,
     },
 }
 

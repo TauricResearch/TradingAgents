@@ -1,18 +1,40 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_news, get_global_news, execute_text_tool_calls, needs_followup_call, execute_default_tools, generate_analysis_from_data
+from tradingagents.agents.utils.agent_utils import get_news, get_global_news, get_earnings_calendar, execute_text_tool_calls, needs_followup_call, execute_default_tools, generate_analysis_from_data
 from tradingagents.dataflows.config import get_config
 
 from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 ANALYST_RESPONSE_FORMAT = """
 
-RESPONSE FORMAT RULES:
-- Keep your analysis concise: maximum 3000 characters total
-- Use a compact markdown table to organize key findings
-- Do NOT repeat raw data values verbatim — summarize trends and insights
-- Complete your ENTIRE analysis in a SINGLE response — do not split across multiple messages"""
+RESPONSE FORMAT (follow this structure exactly):
+
+## EXECUTIVE SUMMARY
+2-3 sentences: Key news finding and directional bias (BULLISH / BEARISH / NEUTRAL).
+
+## KEY DATA POINTS
+- Bullet list of the 5 most significant news items with specific details
+- Include company-specific news, macro factors, upcoming catalysts
+
+## SIGNAL ASSESSMENT
+Your overall reading: BULLISH / BEARISH / NEUTRAL
+1-2 sentences explaining why, referencing specific news events.
+
+## RISK FACTORS
+2-3 specific risks from the news landscape.
+
+## CONFIDENCE: HIGH / MEDIUM / LOW
+1 sentence justifying your confidence level.
+
+| News Item | Impact | Direction | Timing |
+|-----------|--------|-----------|--------|
+| (fill with key news events and their expected impact) |
+
+RULES:
+- Maximum 3000 characters total
+- Do NOT repeat raw data verbatim — summarize trends and insights
+- Complete your ENTIRE analysis in a SINGLE response"""
 
 
 def create_news_analyst(llm):
@@ -23,11 +45,17 @@ def create_news_analyst(llm):
         tools = [
             get_news,
             get_global_news,
+            get_earnings_calendar,
         ]
 
         system_message = (
-            "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for company-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            "You are a news and macro analyst tasked with analyzing recent news, global trends, and upcoming catalysts. "
+            "Use ALL available tools:\n"
+            "- `get_news(ticker, start_date, end_date)`: Company-specific news from Google News\n"
+            "- `get_global_news(curr_date, look_back_days, limit)`: Broader macroeconomic and market news\n"
+            "- `get_earnings_calendar(ticker, curr_date)`: Upcoming earnings dates, ex-dividend dates, and dividend info\n\n"
+            "Focus on: (1) company-specific catalysts, (2) macro headwinds/tailwinds, (3) upcoming events that could move the stock. "
+            "Quantify impact where possible. Do not simply state trends are mixed — provide specific, actionable insights."
             + ANALYST_RESPONSE_FORMAT
         )
 

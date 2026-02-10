@@ -25,22 +25,31 @@ class SignalProcessor:
         messages = [
             (
                 "system",
-                "You are an efficient assistant designed to analyze paragraphs or financial reports "
+                "You are an efficient assistant designed to analyze financial reports "
                 "provided by a group of analysts. Extract the following information:\n"
                 "1. The investment decision: SELL, BUY, or HOLD\n"
                 "2. The recommended holding period in trading days (only for BUY or HOLD decisions)\n"
                 "3. The confidence level of the decision: HIGH, MEDIUM, or LOW\n"
-                "4. The risk level of the investment: HIGH, MEDIUM, or LOW\n\n"
-                "Respond in exactly this format (nothing else):\n"
+                "4. The risk level of the investment: HIGH, MEDIUM, or LOW\n"
+                "5. A brief rationale explaining the decision\n"
+                "6. Key supporting evidence (top 3 data points)\n"
+                "7. Key opposing evidence (top 2 data points arguing against the decision)\n\n"
+                "Respond in exactly this format:\n"
                 "DECISION: <BUY|SELL|HOLD>\n"
                 "HOLD_DAYS: <number|N/A>\n"
                 "CONFIDENCE: <HIGH|MEDIUM|LOW>\n"
-                "RISK_LEVEL: <HIGH|MEDIUM|LOW>\n\n"
+                "RISK_LEVEL: <HIGH|MEDIUM|LOW>\n"
+                "RATIONALE: <2-3 sentence explanation of WHY this decision>\n"
+                "SUPPORTING: <top 3 data points, semicolon-separated>\n"
+                "OPPOSING: <top 2 counter-arguments, semicolon-separated>\n\n"
                 "For SELL decisions, always use HOLD_DAYS: N/A\n"
                 "For BUY or HOLD decisions, extract the EXACT number of days mentioned in the report. "
                 "Look for phrases like 'N-day hold', 'N trading days', 'hold for N days', "
                 "'N-day horizon', 'over N days'. If no specific number is mentioned, use 5.\n"
-                "For CONFIDENCE and RISK_LEVEL, infer from the tone and content of the report. Default to MEDIUM if unclear.",
+                "For CONFIDENCE and RISK_LEVEL, infer from the tone and content of the report. Default to MEDIUM if unclear.\n"
+                "For RATIONALE, summarize the core reasoning in 2-3 sentences.\n"
+                "For SUPPORTING, list the 3 strongest data points that support the decision.\n"
+                "For OPPOSING, list the 2 strongest counter-arguments or risks.",
             ),
             ("human", full_signal),
         ]
@@ -99,11 +108,14 @@ class SignalProcessor:
         return max(set(candidates), key=candidates.count)
 
     def _parse_signal_response(self, response: str) -> dict:
-        """Parse the structured LLM response into decision, hold_days, confidence, risk."""
+        """Parse the structured LLM response into decision, hold_days, confidence, risk, and explainability fields."""
         decision = "HOLD"
         hold_days = None
         confidence = "MEDIUM"
         risk = "MEDIUM"
+        rationale = ""
+        supporting = ""
+        opposing = ""
 
         for line in response.strip().split("\n"):
             line = line.strip()
@@ -134,6 +146,12 @@ class SignalProcessor:
                 raw = raw.replace("*", "").strip()
                 if raw in ("HIGH", "MEDIUM", "LOW"):
                     risk = raw
+            elif upper.startswith("RATIONALE:"):
+                rationale = line.split(":", 1)[1].strip()
+            elif upper.startswith("SUPPORTING:"):
+                supporting = line.split(":", 1)[1].strip()
+            elif upper.startswith("OPPOSING:"):
+                opposing = line.split(":", 1)[1].strip()
 
         # Enforce: SELL never has hold_days; BUY/HOLD default to 5 if missing
         if decision == "SELL":
@@ -141,4 +159,11 @@ class SignalProcessor:
         elif hold_days is None:
             hold_days = 5  # Default hold period
 
-        return {"decision": decision, "hold_days": hold_days, "confidence": confidence, "risk": risk}
+        result = {"decision": decision, "hold_days": hold_days, "confidence": confidence, "risk": risk}
+        if rationale:
+            result["rationale"] = rationale
+        if supporting:
+            result["supporting"] = supporting
+        if opposing:
+            result["opposing"] = opposing
+        return result

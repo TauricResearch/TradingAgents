@@ -58,6 +58,7 @@ export interface StockAnalysis {
   risk?: Risk;
   raw_analysis?: string;
   hold_days?: number | null;
+  rank?: number | null;
   error?: string | null;
 }
 
@@ -105,6 +106,7 @@ export interface HistoricalEntry {
   confidence?: Confidence;
   risk?: Risk;
   hold_days?: number | null;
+  rank?: number | null;
 }
 
 export interface StockHistory {

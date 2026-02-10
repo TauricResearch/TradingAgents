@@ -76,3 +76,20 @@ def get_insider_transactions(
         str: A report of insider transaction data
     """
     return route_to_vendor("get_insider_transactions", ticker, curr_date)
+
+
+@tool
+def get_earnings_calendar(
+    ticker: Annotated[str, "ticker symbol"],
+    curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
+) -> str:
+    """
+    Retrieve upcoming earnings and dividend calendar for a company.
+    Returns next earnings date, ex-dividend date, and dividend information.
+    Args:
+        ticker (str): Ticker symbol of the company
+        curr_date (str): Current date you are trading at, yyyy-mm-dd
+    Returns:
+        str: A formatted report of upcoming earnings and dividend events
+    """
+    return route_to_vendor("get_earnings_calendar", ticker, curr_date)

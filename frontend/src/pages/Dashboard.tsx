@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, RefreshCw, Filter, ChevronRight, TrendingUp, TrendingDown, Minus, History, Search, X, Play, Loader2, Square, AlertCircle, Terminal } from 'lucide-react';
 import TopPicks, { StocksToAvoid } from '../components/TopPicks';
-import { DecisionBadge, HoldDaysBadge } from '../components/StockCard';
+import { DecisionBadge, HoldDaysBadge, RankBadge } from '../components/StockCard';
 import TerminalModal from '../components/TerminalModal';
 import HowItWorks from '../components/HowItWorks';
 import BackgroundSparkline from '../components/BackgroundSparkline';
@@ -52,6 +52,7 @@ export default function Dashboard() {
   }, [fetchRecommendation]);
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'rank' | 'symbol'>('rank');
   const { settings } = useSettings();
   const { addNotification } = useNotification();
 
@@ -314,7 +315,7 @@ export default function Dashboard() {
     });
   }, [isAnalyzing, analysisProgress, recommendation]);
 
-  // Filter grid items based on filter and search query
+  // Filter grid items based on filter and search query, then sort
   const filteredItems = useMemo(() => {
     let result = stockGridItems;
     if (filter !== 'ALL') {
@@ -330,8 +331,16 @@ export default function Dashboard() {
         item.company_name.toLowerCase().includes(query)
       );
     }
+    if (sortBy === 'rank') {
+      result = [...result].sort((a, b) => {
+        const aRank = a.analysis?.rank ?? Infinity;
+        const bRank = b.analysis?.rank ?? Infinity;
+        if (aRank !== bRank) return aRank - bRank;
+        return a.symbol.localeCompare(b.symbol);
+      });
+    }
     return result;
-  }, [stockGridItems, filter, searchQuery]);
+  }, [stockGridItems, filter, searchQuery, sortBy]);
 
   // Show loading state — but also include analysis progress banner if running
   if (isLoadingData || !recommendation) {
@@ -401,13 +410,13 @@ export default function Dashboard() {
   return (
     <div className="space-y-4">
       {/* Compact Header with Stats */}
-      <section className="card p-4">
+      <section className="card p-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-2xl font-display font-bold text-gray-900 dark:text-gray-100 tracking-tight">
               Nifty 50 <span className="gradient-text">AI Recommendations</span>
             </h1>
-            <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex items-center gap-2 mt-1.5 text-sm text-gray-500 dark:text-gray-400">
               <Calendar className="w-3.5 h-3.5" />
               <span>{new Date(recommendation.date).toLocaleDateString('en-IN', {
                 weekday: 'short',
@@ -476,11 +485,11 @@ export default function Dashboard() {
         </div>
 
         {/* Progress bar */}
-        <div className="mt-3">
-          <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-slate-700">
-            <div className="bg-green-500 transition-all" style={{ width: `${buyPct}%` }} />
-            <div className="bg-amber-500 transition-all" style={{ width: `${holdPct}%` }} />
-            <div className="bg-red-500 transition-all" style={{ width: `${sellPct}%` }} />
+        <div className="mt-4">
+          <div className="flex h-1.5 rounded-full overflow-hidden bg-gray-100 dark:bg-slate-700/50">
+            <div className="transition-all duration-500 rounded-l-full" style={{ width: `${buyPct}%`, background: 'linear-gradient(90deg, #10b981, #059669)' }} />
+            <div className="transition-all duration-500" style={{ width: `${holdPct}%`, background: 'linear-gradient(90deg, #f59e0b, #d97706)' }} />
+            <div className="transition-all duration-500 rounded-r-full" style={{ width: `${sellPct}%`, background: 'linear-gradient(90deg, #ef4444, #dc2626)' }} />
           </div>
         </div>
 
@@ -560,12 +569,12 @@ export default function Dashboard() {
 
       {/* All Stocks Section with Integrated Filter */}
       <section className="card">
-        <div className="p-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-700/50">
+        <div className="p-4 border-b border-gray-100/80 dark:border-slate-700/40">
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+                <h2 className="font-display font-bold text-gray-900 dark:text-gray-100 text-sm tracking-tight">
                   {isAnalyzing ? `All 50 Stocks (${analysisProgress?.completed || 0} analyzed)` : `All ${total} Stocks`}
                 </h2>
               </div>
@@ -614,6 +623,17 @@ export default function Dashboard() {
               >
                 Sell ({sell})
               </button>
+              <span className="mx-0.5 text-gray-300 dark:text-gray-600">|</span>
+              <button
+                onClick={() => setSortBy(sortBy === 'rank' ? 'symbol' : 'rank')}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                  sortBy === 'rank'
+                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
+                    : 'bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-500'
+                }`}
+              >
+                {sortBy === 'rank' ? '#Rank' : 'A-Z'}
+              </button>
               </div>
             </div>
             {/* Search Bar */}
@@ -658,6 +678,7 @@ export default function Dashboard() {
                   )}
                   <div className="relative z-10">
                     <div className="flex items-center gap-1.5 mb-0.5">
+                      <RankBadge rank={item.analysis.rank} size="small" />
                       <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">{item.symbol}</span>
                       <DecisionBadge decision={item.analysis.decision} size="small" />
                     </div>
@@ -762,14 +783,18 @@ export default function Dashboard() {
       {/* Compact CTA */}
       <Link
         to="/history"
-        className="card flex items-center justify-between p-4 bg-gradient-to-r from-nifty-600 to-nifty-700 text-white hover:from-nifty-700 hover:to-nifty-800 transition-all group focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-2"
+        className="flex items-center justify-between p-4 rounded-xl text-white group focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-2 transition-all hover:shadow-lg"
+        style={{
+          background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+          boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)',
+        }}
         aria-label="View historical stock recommendations"
       >
         <div className="flex items-center gap-3">
-          <History className="w-5 h-5" aria-hidden="true" />
-          <span className="font-semibold">View Historical Recommendations</span>
+          <History className="w-5 h-5 opacity-80" aria-hidden="true" />
+          <span className="font-display font-bold tracking-tight">View Historical Recommendations</span>
         </div>
-        <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+        <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform opacity-80" aria-hidden="true" />
       </Link>
 
       {/* Terminal Modal */}

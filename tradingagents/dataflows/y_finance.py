@@ -130,6 +130,35 @@ def get_stock_stats_indicators_window(
             "Usage: Identify overbought (>80) or oversold (<20) conditions and confirm the strength of trends or reversals. "
             "Tips: Use alongside RSI or MACD to confirm signals; divergence between price and MFI can indicate potential reversals."
         ),
+        # Short-term Moving Average
+        "close_20_sma": (
+            "20 SMA: A short-term trend indicator and Bollinger Band baseline. "
+            "Usage: Identify short-term trend direction and mean-reversion levels. "
+            "Tips: More responsive than 50 SMA; works well for swing trading setups."
+        ),
+        "close_5_ema": (
+            "5 EMA: An ultra-responsive short-term average. "
+            "Usage: Capture very short-term momentum shifts and identify immediate trend direction. "
+            "Tips: Highly sensitive to noise; best used as a trigger in conjunction with slower averages."
+        ),
+        # Trend Strength
+        "adx": (
+            "ADX: Average Directional Index measures trend strength regardless of direction. "
+            "Usage: Values above 25 suggest a strong trend; below 20 suggests ranging/consolidation. "
+            "Tips: Combine with +DI/-DI for directional bias; ADX alone doesn't indicate direction."
+        ),
+        # Mean Reversion
+        "cci": (
+            "CCI: Commodity Channel Index measures price deviation from its statistical mean. "
+            "Usage: Values above +100 signal overbought; below -100 signal oversold. "
+            "Tips: Effective for identifying cyclical turns; combine with trend indicators to avoid false reversals."
+        ),
+        # Stochastic Oscillator
+        "kdjk": (
+            "Stochastic %K: Compares closing price to the price range over a period. "
+            "Usage: Values above 80 suggest overbought; below 20 suggest oversold conditions. "
+            "Tips: Complements RSI with a different calculation method; crossovers with %D provide entry signals."
+        ),
     }
 
     if indicator not in best_ind_params:
@@ -516,6 +545,385 @@ def get_fundamentals(
 
     except Exception as e:
         return f"Error retrieving fundamentals for {ticker}: {str(e)}"
+
+
+def get_analyst_recommendations(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date for reference"] = None,
+) -> str:
+    """Get analyst recommendations summary and recent upgrades/downgrades from yfinance."""
+    try:
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+
+        sections = [f"# Analyst Recommendations for {normalized_ticker}"]
+        if curr_date:
+            sections.append(f"# As of: {curr_date}")
+        sections.append("")
+
+        # Recommendations summary (buy/sell/hold counts)
+        try:
+            rec_summary = ticker_obj.recommendations_summary
+            if rec_summary is not None and not rec_summary.empty:
+                sections.append("## Analyst Consensus")
+                csv_string = rec_summary.to_csv(index=True)
+                sections.append(csv_string)
+                sections.append("")
+        except Exception:
+            sections.append("## Analyst Consensus\nNo recommendations summary available\n")
+
+        # Recent upgrades/downgrades
+        try:
+            upgrades = ticker_obj.upgrades_downgrades
+            if upgrades is not None and not upgrades.empty:
+                # Limit to most recent 15 entries
+                recent = upgrades.head(15)
+                sections.append("## Recent Upgrades/Downgrades")
+                csv_string = recent.to_csv(index=True)
+                sections.append(csv_string)
+                sections.append("")
+        except Exception:
+            sections.append("## Recent Upgrades/Downgrades\nNo upgrade/downgrade data available\n")
+
+        return "\n".join(sections)
+
+    except Exception as e:
+        return f"Error retrieving analyst recommendations for {ticker}: {str(e)}"
+
+
+def get_earnings_data(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date for reference"] = None,
+) -> str:
+    """Get earnings dates and historical EPS data from yfinance."""
+    try:
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+
+        sections = [f"# Earnings Data for {normalized_ticker}"]
+        if curr_date:
+            sections.append(f"# As of: {curr_date}")
+        sections.append("")
+
+        # Earnings dates (upcoming and recent)
+        try:
+            earnings_dates = ticker_obj.earnings_dates
+            if earnings_dates is not None and not earnings_dates.empty:
+                sections.append("## Earnings Dates (Upcoming & Recent)")
+                # Show up to 8 entries
+                csv_string = earnings_dates.head(8).to_csv(index=True)
+                sections.append(csv_string)
+                sections.append("")
+        except Exception:
+            sections.append("## Earnings Dates\nNo earnings dates available\n")
+
+        # Earnings history (EPS estimates vs actuals)
+        try:
+            earnings_hist = ticker_obj.earnings_history
+            if earnings_hist is not None and not earnings_hist.empty:
+                sections.append("## Earnings History (EPS Estimates vs Actuals)")
+                csv_string = earnings_hist.to_csv(index=True)
+                sections.append(csv_string)
+                sections.append("")
+        except Exception:
+            sections.append("## Earnings History\nNo earnings history available\n")
+
+        return "\n".join(sections)
+
+    except Exception as e:
+        return f"Error retrieving earnings data for {ticker}: {str(e)}"
+
+
+def get_institutional_holders(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date for reference"] = None,
+) -> str:
+    """Get institutional holders and major holders breakdown from yfinance."""
+    try:
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+
+        sections = [f"# Institutional Holders for {normalized_ticker}"]
+        if curr_date:
+            sections.append(f"# As of: {curr_date}")
+        sections.append("")
+
+        # Major holders (% breakdown)
+        try:
+            major = ticker_obj.major_holders
+            if major is not None and not major.empty:
+                sections.append("## Major Holders Breakdown")
+                csv_string = major.to_csv(index=True)
+                sections.append(csv_string)
+                sections.append("")
+        except Exception:
+            sections.append("## Major Holders Breakdown\nNo major holders data available\n")
+
+        # Top institutional holders
+        try:
+            inst = ticker_obj.institutional_holders
+            if inst is not None and not inst.empty:
+                sections.append("## Top Institutional Holders")
+                csv_string = inst.head(10).to_csv(index=False)
+                sections.append(csv_string)
+                sections.append("")
+        except Exception:
+            sections.append("## Top Institutional Holders\nNo institutional holders data available\n")
+
+        return "\n".join(sections)
+
+    except Exception as e:
+        return f"Error retrieving institutional holders for {ticker}: {str(e)}"
+
+
+def get_yfinance_news(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date for reference"] = None,
+) -> str:
+    """Get aggregated news for a ticker from Yahoo Finance's curated feed."""
+    try:
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+
+        sections = [f"# Yahoo Finance News for {normalized_ticker}"]
+        if curr_date:
+            sections.append(f"# As of: {curr_date}")
+        sections.append("")
+
+        try:
+            news = ticker_obj.news
+            if news and len(news) > 0:
+                for i, article in enumerate(news[:10]):
+                    title = article.get("title", "No title")
+                    publisher = article.get("publisher", "Unknown")
+                    publish_time = article.get("providerPublishTime", "")
+                    if publish_time:
+                        try:
+                            from datetime import datetime as _dt
+                            publish_time = _dt.fromtimestamp(publish_time).strftime("%Y-%m-%d %H:%M")
+                        except Exception:
+                            pass
+                    related = article.get("relatedTickers", [])
+                    related_str = ", ".join(related) if related else "N/A"
+
+                    sections.append(f"## Article {i+1}: {title}")
+                    sections.append(f"  Publisher: {publisher}")
+                    sections.append(f"  Published: {publish_time}")
+                    sections.append(f"  Related Tickers: {related_str}")
+                    sections.append("")
+            else:
+                sections.append("No news articles available from Yahoo Finance.\n")
+        except Exception:
+            sections.append("Unable to fetch Yahoo Finance news feed.\n")
+
+        return "\n".join(sections)
+
+    except Exception as e:
+        return f"Error retrieving Yahoo Finance news for {ticker}: {str(e)}"
+
+
+def get_analyst_sentiment(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date for reference"] = None,
+) -> str:
+    """Get analyst sentiment: price targets + recommendation distribution from yfinance."""
+    try:
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+
+        sections = [f"# Analyst Sentiment for {normalized_ticker}"]
+        if curr_date:
+            sections.append(f"# As of: {curr_date}")
+        sections.append("")
+
+        # Analyst price targets
+        try:
+            targets = ticker_obj.analyst_price_targets
+            if targets is not None:
+                sections.append("## Analyst Price Targets")
+                if isinstance(targets, dict):
+                    for k, v in targets.items():
+                        sections.append(f"  {k}: {v}")
+                else:
+                    sections.append(str(targets))
+                sections.append("")
+        except Exception:
+            sections.append("## Analyst Price Targets\nNo price target data available\n")
+
+        # Recommendations summary for sentiment distribution
+        try:
+            rec_summary = ticker_obj.recommendations_summary
+            if rec_summary is not None and not rec_summary.empty:
+                sections.append("## Analyst Rating Distribution")
+                csv_string = rec_summary.to_csv(index=True)
+                sections.append(csv_string)
+                sections.append("")
+        except Exception:
+            sections.append("## Analyst Rating Distribution\nNo rating distribution data available\n")
+
+        # Current price vs targets for sentiment gauge
+        try:
+            info = ticker_obj.info
+            current_price = info.get("currentPrice")
+            target_mean = info.get("targetMeanPrice")
+            if current_price and target_mean:
+                upside = ((target_mean - current_price) / current_price) * 100
+                sections.append("## Price vs Target Analysis")
+                sections.append(f"  Current Price: {current_price}")
+                sections.append(f"  Mean Target: {target_mean}")
+                sections.append(f"  Implied Upside: {upside:.1f}%")
+                sentiment = "BULLISH" if upside > 10 else "BEARISH" if upside < -10 else "NEUTRAL"
+                sections.append(f"  Analyst Sentiment: {sentiment}")
+                sections.append("")
+        except Exception:
+            pass
+
+        return "\n".join(sections)
+
+    except Exception as e:
+        return f"Error retrieving analyst sentiment for {ticker}: {str(e)}"
+
+
+def get_sector_performance(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date for reference"] = None,
+) -> str:
+    """Get sector performance context — how is this stock's sector performing vs the market."""
+    try:
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+
+        sections = [f"# Sector Performance Context for {normalized_ticker}"]
+        if curr_date:
+            sections.append(f"# As of: {curr_date}")
+        sections.append("")
+
+        info = ticker_obj.info
+        sector = info.get("sector", "Unknown")
+        industry = info.get("industry", "Unknown")
+        sections.append(f"## Stock Sector: {sector}")
+        sections.append(f"## Industry: {industry}")
+        sections.append("")
+
+        # Get stock's own performance metrics
+        beta = info.get("beta")
+        fifty_day_avg = info.get("fiftyDayAverage")
+        two_hundred_day_avg = info.get("twoHundredDayAverage")
+        current_price = info.get("currentPrice")
+        fifty_two_high = info.get("fiftyTwoWeekHigh")
+        fifty_two_low = info.get("fiftyTwoWeekLow")
+
+        sections.append("## Stock vs Moving Averages")
+        if current_price and fifty_day_avg:
+            pct_vs_50d = ((current_price - fifty_day_avg) / fifty_day_avg) * 100
+            sections.append(f"  Current Price: {current_price}")
+            sections.append(f"  50-Day Avg: {fifty_day_avg} ({pct_vs_50d:+.1f}%)")
+        if current_price and two_hundred_day_avg:
+            pct_vs_200d = ((current_price - two_hundred_day_avg) / two_hundred_day_avg) * 100
+            sections.append(f"  200-Day Avg: {two_hundred_day_avg} ({pct_vs_200d:+.1f}%)")
+        if current_price and fifty_two_high and fifty_two_low:
+            range_pct = ((current_price - fifty_two_low) / (fifty_two_high - fifty_two_low)) * 100 if fifty_two_high != fifty_two_low else 50
+            sections.append(f"  52-Week Range: {fifty_two_low} - {fifty_two_high} (currently at {range_pct:.0f}% of range)")
+        if beta:
+            sections.append(f"  Beta: {beta}")
+        sections.append("")
+
+        # Nifty50 index comparison (for Indian stocks)
+        if is_nifty_50_stock(ticker):
+            try:
+                end_date = curr_date or datetime.now().strftime("%Y-%m-%d")
+                from dateutil.relativedelta import relativedelta as _rd
+                start_date_dt = datetime.strptime(end_date, "%Y-%m-%d") - _rd(days=30)
+                start_date = start_date_dt.strftime("%Y-%m-%d")
+
+                nifty = yf.Ticker("^NSEI")
+                nifty_hist = nifty.history(start=start_date, end=end_date)
+                if not nifty_hist.empty:
+                    nifty_return = ((nifty_hist['Close'].iloc[-1] - nifty_hist['Close'].iloc[0]) / nifty_hist['Close'].iloc[0]) * 100
+                    sections.append("## Nifty50 Index (30-day)")
+                    sections.append(f"  Nifty50 Return: {nifty_return:.1f}%")
+
+                stock_hist = ticker_obj.history(start=start_date, end=end_date)
+                if not stock_hist.empty:
+                    stock_return = ((stock_hist['Close'].iloc[-1] - stock_hist['Close'].iloc[0]) / stock_hist['Close'].iloc[0]) * 100
+                    sections.append(f"  {normalized_ticker} Return: {stock_return:.1f}%")
+                    alpha = stock_return - nifty_return
+                    sections.append(f"  Alpha vs Nifty: {alpha:+.1f}%")
+                sections.append("")
+            except Exception:
+                sections.append("## Nifty50 Comparison\nUnable to fetch index data\n")
+
+        return "\n".join(sections)
+
+    except Exception as e:
+        return f"Error retrieving sector performance for {ticker}: {str(e)}"
+
+
+def get_earnings_calendar(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    curr_date: Annotated[str, "current date for reference"] = None,
+) -> str:
+    """Get upcoming earnings and dividend calendar from yfinance."""
+    try:
+        normalized_ticker = normalize_symbol(ticker, target="yfinance")
+        ticker_obj = yf.Ticker(normalized_ticker)
+
+        sections = [f"# Earnings & Dividend Calendar for {normalized_ticker}"]
+        if curr_date:
+            sections.append(f"# As of: {curr_date}")
+        sections.append("")
+
+        # Calendar data
+        try:
+            calendar = ticker_obj.calendar
+            if calendar is not None:
+                if isinstance(calendar, dict):
+                    for k, v in calendar.items():
+                        sections.append(f"  {k}: {v}")
+                else:
+                    sections.append(str(calendar))
+                sections.append("")
+        except Exception:
+            sections.append("No calendar data available\n")
+
+        # Earnings dates for more detail
+        try:
+            earnings_dates = ticker_obj.earnings_dates
+            if earnings_dates is not None and not earnings_dates.empty:
+                sections.append("## Upcoming & Recent Earnings Dates")
+                csv_string = earnings_dates.head(4).to_csv(index=True)
+                sections.append(csv_string)
+                sections.append("")
+        except Exception:
+            pass
+
+        # Dividend info
+        try:
+            info = ticker_obj.info
+            div_rate = info.get("dividendRate")
+            div_yield = info.get("dividendYield")
+            ex_div_date = info.get("exDividendDate")
+            if div_rate or div_yield:
+                sections.append("## Dividend Information")
+                if div_rate:
+                    sections.append(f"  Dividend Rate: {div_rate}")
+                if div_yield:
+                    sections.append(f"  Dividend Yield: {div_yield * 100:.2f}%")
+                if ex_div_date:
+                    try:
+                        from datetime import datetime as _dt
+                        ex_date_str = _dt.fromtimestamp(ex_div_date).strftime("%Y-%m-%d")
+                        sections.append(f"  Ex-Dividend Date: {ex_date_str}")
+                    except Exception:
+                        sections.append(f"  Ex-Dividend Date: {ex_div_date}")
+                sections.append("")
+        except Exception:
+            pass
+
+        return "\n".join(sections)
+
+    except Exception as e:
+        return f"Error retrieving earnings calendar for {ticker}: {str(e)}"
 
 
 def get_insider_transactions(

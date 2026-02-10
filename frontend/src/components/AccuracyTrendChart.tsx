@@ -35,7 +35,7 @@ export default function AccuracyTrendChart({ height = 200, className = '', data:
 
   return (
     <div className={className} style={{ height }}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <LineChart data={formattedData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-slate-700" />
           <XAxis

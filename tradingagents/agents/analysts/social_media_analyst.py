@@ -1,18 +1,40 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_news, execute_text_tool_calls, needs_followup_call, execute_default_tools, generate_analysis_from_data
+from tradingagents.agents.utils.agent_utils import get_yfinance_news, get_analyst_sentiment, get_sector_performance, execute_text_tool_calls, needs_followup_call, execute_default_tools, generate_analysis_from_data
 from tradingagents.dataflows.config import get_config
 
 from tradingagents.log_utils import add_log, step_timer, symbol_progress
 
 ANALYST_RESPONSE_FORMAT = """
 
-RESPONSE FORMAT RULES:
-- Keep your analysis concise: maximum 3000 characters total
-- Use a compact markdown table to organize key findings
-- Do NOT repeat raw data values verbatim — summarize trends and insights
-- Complete your ENTIRE analysis in a SINGLE response — do not split across multiple messages"""
+RESPONSE FORMAT (follow this structure exactly):
+
+## EXECUTIVE SUMMARY
+2-3 sentences: Key sentiment finding and directional bias (BULLISH / BEARISH / NEUTRAL).
+
+## KEY DATA POINTS
+- Bullet list of the 5 most significant sentiment signals with specific numbers
+- Include analyst consensus, price target implied upside, sector positioning
+
+## SIGNAL ASSESSMENT
+Your overall sentiment reading: BULLISH / BEARISH / NEUTRAL
+1-2 sentences explaining why, referencing specific data.
+
+## RISK FACTORS
+2-3 specific risks or sentiment divergences.
+
+## CONFIDENCE: HIGH / MEDIUM / LOW
+1 sentence justifying your confidence level.
+
+| Signal Source | Finding | Sentiment | Weight |
+|--------------|---------|-----------|--------|
+| (fill with key sentiment signals) |
+
+RULES:
+- Maximum 3000 characters total
+- Do NOT repeat raw data verbatim — summarize trends and insights
+- Complete your ENTIRE analysis in a SINGLE response"""
 
 
 def create_social_media_analyst(llm):
@@ -22,12 +44,20 @@ def create_social_media_analyst(llm):
         company_name = state["company_of_interest"]
 
         tools = [
-            get_news,
+            get_yfinance_news,
+            get_analyst_sentiment,
+            get_sector_performance,
         ]
 
         system_message = (
-            "You are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for a specific company over the past week. You will be given a company's name your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders and investors on this company's current state after looking at social media and what people are saying about that company, analyzing sentiment data of what people feel each day about the company, and looking at recent company news. Use the get_news(query, start_date, end_date) tool to search for company-specific news and social media discussions. Try to look at all sources possible from social media to sentiment to news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            "You are a sentiment and market perception analyst. Your job is to assess the overall market sentiment around a company "
+            "by synthesizing multiple signal sources:\n"
+            "- `get_yfinance_news`: Curated news from Yahoo Finance (multiple publishers) — analyze headlines, publishers, recency, and tone\n"
+            "- `get_analyst_sentiment`: Wall Street consensus — price targets, buy/sell/hold distribution, implied upside/downside\n"
+            "- `get_sector_performance`: Sector context — how the stock is positioned vs moving averages, 52-week range, beta, and index\n\n"
+            "Synthesize these into a unified sentiment assessment. Quantify sentiment where possible (e.g., '70% of analysts rate Buy', "
+            "'trading at 85% of 52-week range', 'implied upside of 15%'). Identify sentiment divergences (e.g., analysts bullish but "
+            "price below moving averages). Do not simply state trends are mixed — provide specific, actionable insights."
             + ANALYST_RESPONSE_FORMAT,
         )
 

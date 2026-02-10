@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Calendar, TrendingUp, TrendingDown, Minus, ChevronRight, BarChart3, Target, HelpCircle, Activity, Calculator, LineChart, PieChart, Shield, Filter, Loader2, AlertCircle } from 'lucide-react';
 import { sampleRecommendations, getBacktestResult as getStaticBacktestResult, calculateAccuracyMetrics as calculateStaticAccuracyMetrics, getDateStats as getStaticDateStats, getOverallStats as getStaticOverallStats, getReturnBreakdown as getStaticReturnBreakdown } from '../data/recommendations';
 import type { ReturnBreakdown } from '../data/recommendations';
-import { DecisionBadge, HoldDaysBadge } from '../components/StockCard';
+import { DecisionBadge, HoldDaysBadge, RankBadge } from '../components/StockCard';
 import Sparkline from '../components/Sparkline';
 import AccuracyBadge from '../components/AccuracyBadge';
 import AccuracyExplainModal from '../components/AccuracyExplainModal';
@@ -280,6 +280,9 @@ export default function History() {
 
       const totalPredictions = totalBuy + totalSell + totalHold;
       const totalCorrect = correctBuy + correctSell + correctHold;
+
+      // Only include dates with enough data points for meaningful accuracy
+      if (totalPredictions < 3) continue;
 
       trendData.push({
         date,
@@ -831,10 +834,18 @@ export default function History() {
     const rec = getRecommendation(date);
     if (!rec) return [];
 
+    let stocks: StockAnalysis[];
     if (dateFilterMode === 'topPicks') {
-      return rec.top_picks.map(pick => rec.analysis[pick.symbol]).filter(Boolean);
+      stocks = rec.top_picks.map(pick => rec.analysis[pick.symbol]).filter(Boolean);
+    } else {
+      stocks = Object.values(rec.analysis);
     }
-    return Object.values(rec.analysis);
+    // Sort by rank when available
+    return [...stocks].sort((a, b) => {
+      const aRank = a.rank ?? Infinity;
+      const bRank = b.rank ?? Infinity;
+      return aRank - bRank;
+    });
   };
 
   // Build ReturnBreakdown from real batch backtest data for the modal
@@ -1280,6 +1291,7 @@ export default function History() {
                     className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors group"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <RankBadge rank={stock.rank} size="small" />
                       <span className="font-medium text-gray-900 dark:text-gray-100 text-sm">{stock.symbol}</span>
                       <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline truncate">{stock.company_name}</span>
                       {realData && (

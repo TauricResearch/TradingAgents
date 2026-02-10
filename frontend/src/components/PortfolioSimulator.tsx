@@ -525,7 +525,7 @@ export default function PortfolioSimulator({
       {/* Chart with Nifty Comparison - Fixed Y-axis */}
       {portfolioData.length > 0 && (
         <div className="h-48 mb-4">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <LineChart data={portfolioData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-slate-700" />
               <XAxis
@@ -604,7 +604,7 @@ export default function PortfolioSimulator({
           </div>
           <div className="h-64 overflow-y-auto">
             <div style={{ height: Math.max(200, stats.trades.length * 28) }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart
                   data={stats.trades.map((t, i) => ({
                     ...t,

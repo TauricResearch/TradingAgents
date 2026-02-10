@@ -26,13 +26,15 @@
   --color-hold-dark: #b45309;
 
   /* Custom fonts */
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-display: 'Lexend', system-ui, sans-serif;
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   html.dark {
@@ -40,30 +42,99 @@
   }
 
   body {
-    @apply font-sans antialiased bg-gray-50 text-gray-900;
+    @apply font-sans antialiased text-gray-900;
     margin: 0;
+    background: linear-gradient(135deg, #f8fafc 0%, #f0f4f8 50%, #e8eef4 100%);
+    min-height: 100vh;
   }
 
   html.dark body {
-    @apply bg-slate-900 text-gray-100;
+    @apply text-gray-100;
+    background: linear-gradient(135deg, #0b1120 0%, #0f172a 40%, #131c31 100%);
+  }
+
+  /* Subtle dot grid background pattern */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.08) 1px, transparent 0);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  html.dark body::before {
+    background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.04) 1px, transparent 0);
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Better default focus styles */
+  :focus-visible {
+    outline: 2px solid var(--color-nifty-500);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden;
+    @apply bg-white/80 rounded-xl border border-gray-200/60 overflow-hidden;
+    backdrop-filter: blur(12px);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.04),
+      0 2px 8px rgba(0, 0, 0, 0.02);
   }
 
   html.dark .card {
-    @apply bg-slate-800 border-slate-700;
+    @apply border-slate-700/60;
+    background: rgba(30, 41, 59, 0.7);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      0 0 0 1px rgba(148, 163, 184, 0.04);
   }
 
   .card-hover {
-    @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:border-gray-200 focus-within:ring-2 focus-within:ring-nifty-500 focus-within:ring-offset-1;
+    @apply bg-white/80 rounded-xl border border-gray-200/60 overflow-hidden;
+    backdrop-filter: blur(12px);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.04),
+      0 2px 8px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover:hover {
+    @apply border-gray-300/80;
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.06),
+      0 1px 3px rgba(0, 0, 0, 0.04);
+    transform: translateY(-1px);
+  }
+
+  .card-hover:focus-within {
+    @apply ring-2 ring-nifty-500 ring-offset-1;
   }
 
   html.dark .card-hover {
-    @apply bg-slate-800 border-slate-700 hover:border-slate-600;
+    @apply border-slate-700/60;
+    background: rgba(30, 41, 59, 0.7);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      0 0 0 1px rgba(148, 163, 184, 0.04);
+  }
+
+  html.dark .card-hover:hover {
+    @apply border-slate-600/80;
+    box-shadow:
+      0 4px 16px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(148, 163, 184, 0.08);
   }
 
   html.dark .card-hover:focus-within {
@@ -71,11 +142,25 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200;
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-nifty-600 text-white hover:bg-nifty-700 focus:ring-2 focus:ring-nifty-500 focus:ring-offset-2;
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold text-white;
+    background: linear-gradient(135deg, var(--color-nifty-600), var(--color-nifty-700));
+    box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(135deg, var(--color-nifty-700), var(--color-nifty-800));
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transform: translateY(-0.5px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
   }
 
   html.dark .btn-primary {
@@ -83,7 +168,8 @@
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200;
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium bg-gray-100 text-gray-700 hover:bg-gray-200;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   html.dark .btn-secondary {
@@ -91,11 +177,12 @@
   }
 
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+    letter-spacing: 0.01em;
   }
 
   .badge-buy {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bull-light text-bull-dark;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-bull-light text-bull-dark;
   }
 
   html.dark .badge-buy {
@@ -103,7 +190,7 @@
   }
 
   .badge-sell {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-bear-light text-bear-dark;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-bear-light text-bear-dark;
   }
 
   html.dark .badge-sell {
@@ -111,7 +198,7 @@
   }
 
   .badge-hold {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-hold-light text-hold-dark;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-hold-light text-hold-dark;
   }
 
   html.dark .badge-hold {
@@ -119,15 +206,17 @@
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-nifty-600 to-nifty-800 bg-clip-text text-transparent;
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, var(--color-nifty-500), var(--color-nifty-700));
   }
 
   html.dark .gradient-text {
-    @apply from-nifty-400 to-nifty-600;
+    background-image: linear-gradient(135deg, var(--color-nifty-400), var(--color-nifty-500));
   }
 
   .section-title {
-    @apply text-2xl font-display font-semibold text-gray-900;
+    @apply text-2xl font-display font-bold text-gray-900;
+    letter-spacing: -0.02em;
   }
 
   html.dark .section-title {
@@ -146,9 +235,9 @@
     min-width: 44px;
   }
 
-  /* Animation utilities */
+  /* Entrance animation */
   .animate-in {
-    animation: animate-in 0.2s ease-out;
+    animation: animate-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .slide-in-from-top-2 {
@@ -166,16 +255,42 @@
     }
   }
 
+  /* Staggered fade-in for lists */
+  .fade-in-up {
+    animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   /* Shimmer animation for stocks being analyzed */
   .shimmer-effect {
-    background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.08) 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.06) 50%, transparent 100%);
     background-size: 200% 100%;
-    animation: shimmer 1.5s ease-in-out infinite;
+    animation: shimmer 2s ease-in-out infinite;
   }
 
   @keyframes shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+  }
+
+  /* Subtle pulse glow for active elements */
+  .pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+    50% { box-shadow: 0 0 12px 2px rgba(14, 165, 233, 0.15); }
   }
 
   /* Smooth scrollbar styling */
@@ -189,9 +304,9 @@
     background-color: transparent !important;
   }
 
-  /* Custom scrollbar for stock lists */
+  /* Premium scrollbar */
   .overflow-y-auto::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
   }
 
   .overflow-y-auto::-webkit-scrollbar-track {
@@ -199,19 +314,24 @@
   }
 
   .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 3px;
+    background: rgba(156, 163, 175, 0.4);
+    border-radius: 100px;
   }
 
   .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+    background: rgba(156, 163, 175, 0.6);
   }
 
   html.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #475569;
+    background: rgba(71, 85, 105, 0.5);
   }
 
   html.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
+    background: rgba(100, 116, 139, 0.6);
+  }
+
+  /* Number tabular for data alignment */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }

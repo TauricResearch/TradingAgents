@@ -43,7 +43,14 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_insider_sentiment,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_analyst_recommendations,
+    get_earnings_data,
+    get_institutional_holders,
+    get_yfinance_news,
+    get_analyst_sentiment,
+    get_sector_performance,
+    get_earnings_calendar,
 )
 
 from .conditional_logic import ConditionalLogic
@@ -152,23 +159,26 @@ class TradingAgentsGraph:
                 [
                     # Core stock data tools
                     get_stock_data,
-                    # Technical indicators
+                    # Technical indicators (18 indicators available)
                     get_indicators,
                 ]
             ),
             "social": ToolNode(
                 [
-                    # News tools for social media analysis
-                    get_news,
+                    # Sentiment and market perception tools
+                    get_yfinance_news,
+                    get_analyst_sentiment,
+                    get_sector_performance,
                 ]
             ),
             "news": ToolNode(
                 [
-                    # News and insider information
+                    # News, insider information, and upcoming catalysts
                     get_news,
                     get_global_news,
                     get_insider_sentiment,
                     get_insider_transactions,
+                    get_earnings_calendar,
                 ]
             ),
             "fundamentals": ToolNode(
@@ -178,6 +188,9 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                    get_analyst_recommendations,
+                    get_earnings_data,
+                    get_institutional_holders,
                 ]
             ),
         }
@@ -424,9 +437,16 @@ class TradingAgentsGraph:
                 "get_balance_sheet": ("fundamentals", "Balance Sheet"),
                 "get_income_statement": ("fundamentals", "Income Statement"),
                 "get_cashflow": ("fundamentals", "Cash Flow"),
+                "get_analyst_recommendations": ("fundamentals", "Analyst Recommendations"),
+                "get_earnings_data": ("fundamentals", "Earnings Data"),
+                "get_institutional_holders": ("fundamentals", "Institutional Holders"),
                 "get_news": ("news", "Google News"),
                 "get_global_news": ("news", "Global News"),
+                "get_earnings_calendar": ("news", "Earnings Calendar"),
                 "get_reddit_posts": ("social_media", "Reddit"),
+                "get_yfinance_news": ("social_media", "Yahoo Finance News"),
+                "get_analyst_sentiment": ("social_media", "Analyst Sentiment"),
+                "get_sector_performance": ("social_media", "Sector Performance"),
             }
 
             raw_entries = raw_data_store.get_entries()
