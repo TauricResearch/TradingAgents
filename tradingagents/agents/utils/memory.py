@@ -4,6 +4,9 @@ from chromadb.config import Settings
 
 
 class FinancialSituationMemory:
+    # Class-level cache: share a single SentenceTransformer instance across all memory objects
+    _model_cache: dict = {}
+
     def __init__(self, name, config):
         """
         Initialize the memory with configurable embedding provider.
@@ -42,12 +45,17 @@ class FinancialSituationMemory:
         model_name = config.get("embedding_model", "all-MiniLM-L6-v2")
         
         import logging
-        logging.info(f"Loading local embedding model: {model_name}")
         
-        self.model = SentenceTransformer(model_name)
+        # Reuse cached model if already loaded (avoids loading 5 copies and OOM)
+        if model_name not in FinancialSituationMemory._model_cache:
+            logging.info(f"Loading local embedding model: {model_name}")
+            FinancialSituationMemory._model_cache[model_name] = SentenceTransformer(model_name)
+            logging.info(f"Local embedding model loaded successfully.")
+        else:
+            logging.info(f"Reusing cached embedding model: {model_name}")
+        
+        self.model = FinancialSituationMemory._model_cache[model_name]
         self.embedding_dim = self.model.get_sentence_embedding_dimension()
-        
-        logging.info(f"Local embedding model loaded. Dimension: {self.embedding_dim}")
 
     def _init_openai_embedding(self, config):
         """Initialize OpenAI embedding client."""
