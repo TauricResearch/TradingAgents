@@ -29,7 +29,15 @@ class UnifiedChatOpenAI(ChatOpenAI):
 
 
 class OpenAIClient(BaseLLMClient):
-    """Client for OpenAI, Ollama, OpenRouter, and xAI providers."""
+    """Client for OpenAI-compatible providers.
+
+    Supported providers:
+    - openai      → OpenAI platform
+    - ollama      → Local Ollama server (no auth)
+    - openrouter  → OpenRouter API
+    - xai         → xAI / Grok API
+    - ark         → ByteDance Ark (OpenAI-compatible API)
+    """
 
     def __init__(
         self,
@@ -58,6 +66,16 @@ class OpenAIClient(BaseLLMClient):
         elif self.provider == "ollama":
             llm_kwargs["base_url"] = "http://localhost:11434/v1"
             llm_kwargs["api_key"] = "ollama"  # Ollama doesn't require auth
+        elif self.provider == "ark":
+            # ByteDance Ark (OpenAI-compatible) – API key from ARK_API_KEY
+            # Default base_url matches official docs but can be overridden.
+            llm_kwargs["base_url"] = (
+                self.base_url
+                or "https://ark.ap-southeast.bytepluses.com/api/v3"
+            )
+            api_key = os.environ.get("ARK_API_KEY")
+            if api_key:
+                llm_kwargs["api_key"] = api_key
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
