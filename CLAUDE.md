@@ -8,6 +8,15 @@ TradingAgents is a multi-agent LLM financial trading framework built with LangGr
 
 ## Essential Commands
 
+### Python Environment
+Always activate the project's virtual environment before running Python commands:
+```bash
+# Windows
+.venv\Scripts\activate
+# Linux/macOS
+source .venv/bin/activate
+```
+
 ### Installation (requires Python >=3.10)
 ```bash
 pip install -r requirements.txt
