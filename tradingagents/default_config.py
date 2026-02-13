@@ -8,7 +8,7 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
-    "llm_provider": "openai",
+    "llm_provider": "openai",  # openai, google, anthropic, xai, openrouter, ollama, zhipu, minimax
     "deep_think_llm": "gpt-5.2",
     "quick_think_llm": "gpt-5-mini",
     "backend_url": "https://api.openai.com/v1",
