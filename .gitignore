@@ -15,3 +15,6 @@ node_modules/
 
 # Frontend dev artifacts
 .frontend-dev/
+
+# Runtime config
+schedule_config.json

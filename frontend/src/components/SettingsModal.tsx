@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X, Settings, Cpu, Key, Zap, Brain, Sparkles,
-  Eye, EyeOff, Check, AlertCircle, RefreshCw
+  Eye, EyeOff, Check, AlertCircle, RefreshCw, Clock
 } from 'lucide-react';
-import { useSettings, MODELS, PROVIDERS } from '../contexts/SettingsContext';
-import type { ModelId, ProviderId } from '../contexts/SettingsContext';
+import { useSettings, MODELS, PROVIDERS, TIMEZONES } from '../contexts/SettingsContext';
+import type { ModelId, ProviderId, TimezoneId } from '../contexts/SettingsContext';
 
 export default function SettingsModal() {
   const { settings, updateSettings, resetSettings, isSettingsOpen, closeSettings } = useSettings();
@@ -52,7 +53,7 @@ export default function SettingsModal() {
 
   const selectedProvider = PROVIDERS[settings.provider];
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
@@ -296,6 +297,102 @@ export default function SettingsModal() {
                 </p>
               </div>
             </section>
+
+            {/* Auto-Analyze Schedule */}
+            <section>
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                <Clock className="w-4 h-4 text-indigo-500" />
+                Auto-Analyze Schedule
+              </h3>
+
+              {/* Enable Toggle */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    Daily Auto-Analyze
+                  </div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                    Automatically run Analyze All at the scheduled time
+                  </div>
+                </div>
+                <button
+                  onClick={() => updateSettings({ autoAnalyzeEnabled: !settings.autoAnalyzeEnabled })}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${
+                    settings.autoAnalyzeEnabled
+                      ? 'bg-nifty-600'
+                      : 'bg-gray-300 dark:bg-slate-600'
+                  }`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    settings.autoAnalyzeEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`} />
+                </button>
+              </div>
+
+              {/* Timezone */}
+              <div className={`mb-3 ${!settings.autoAnalyzeEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
+                <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1 block">Timezone</label>
+                <select
+                  value={settings.autoAnalyzeTimezone}
+                  onChange={(e) => updateSettings({ autoAnalyzeTimezone: e.target.value as TimezoneId })}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-nifty-500"
+                >
+                  {TIMEZONES.map(tz => (
+                    <option key={tz.id} value={tz.id}>
+                      {tz.label} (UTC{tz.offset})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Time Picker */}
+              <div className={`flex items-center gap-3 ${!settings.autoAnalyzeEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
+                <div className="flex-1">
+                  <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1 block">Hour</label>
+                  <select
+                    value={settings.autoAnalyzeTime.split(':')[0]}
+                    onChange={(e) => {
+                      const minute = settings.autoAnalyzeTime.split(':')[1];
+                      updateSettings({ autoAnalyzeTime: `${e.target.value}:${minute}` });
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-nifty-500"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={String(i).padStart(2, '0')}>
+                        {String(i).padStart(2, '0')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <span className="text-lg font-bold text-gray-400 dark:text-gray-500 mt-4">:</span>
+                <div className="flex-1">
+                  <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-1 block">Minute</label>
+                  <select
+                    value={settings.autoAnalyzeTime.split(':')[1]}
+                    onChange={(e) => {
+                      const hour = settings.autoAnalyzeTime.split(':')[0];
+                      updateSettings({ autoAnalyzeTime: `${hour}:${e.target.value}` });
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-nifty-500"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i} value={String(i * 5).padStart(2, '0')}>
+                        {String(i * 5).padStart(2, '0')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Preview */}
+              {settings.autoAnalyzeEnabled && (
+                <div className="mt-3 p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800">
+                  <p className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">
+                    Runs daily at {settings.autoAnalyzeTime} {TIMEZONES.find(tz => tz.id === settings.autoAnalyzeTimezone)?.label || settings.autoAnalyzeTimezone} when the backend is running
+                  </p>
+                </div>
+              )}
+            </section>
           </div>
 
           {/* Footer */}
@@ -315,6 +412,7 @@ export default function SettingsModal() {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

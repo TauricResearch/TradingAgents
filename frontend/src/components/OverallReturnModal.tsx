@@ -1,5 +1,5 @@
 import { X, Activity } from 'lucide-react';
-import { getOverallReturnBreakdown } from '../data/recommendations';
+import { createPortal } from 'react-dom';
 import CumulativeReturnChart from './CumulativeReturnChart';
 import type { CumulativeReturnPoint } from '../types';
 
@@ -20,10 +20,9 @@ interface OverallReturnModalProps {
 export default function OverallReturnModal({ isOpen, onClose, breakdown: propBreakdown, cumulativeData }: OverallReturnModalProps) {
   if (!isOpen) return null;
 
-  // Use provided breakdown or fall back to mock data
-  const breakdown = propBreakdown || getOverallReturnBreakdown();
+  const breakdown = propBreakdown || { dailyReturns: [], finalMultiplier: 1, finalReturn: 0, formula: '' };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -246,6 +245,7 @@ export default function OverallReturnModal({ isOpen, onClose, breakdown: propBre
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

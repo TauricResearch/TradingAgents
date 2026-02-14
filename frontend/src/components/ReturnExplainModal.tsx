@@ -1,5 +1,6 @@
 import { X, CheckCircle, XCircle, Calculator } from 'lucide-react';
-import type { ReturnBreakdown } from '../data/recommendations';
+import { createPortal } from 'react-dom';
+import type { ReturnBreakdown } from '../types';
 
 interface ReturnExplainModalProps {
   isOpen: boolean;
@@ -18,7 +19,7 @@ export default function ReturnExplainModal({ isOpen, onClose, breakdown, date }:
     year: 'numeric',
   });
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -214,6 +215,7 @@ export default function ReturnExplainModal({ isOpen, onClose, breakdown, date }:
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

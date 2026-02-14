@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Use class-based dark mode (html.dark) instead of media query */
+@variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Custom colors */
   --color-nifty-50: #f0f9ff;

@@ -1,9 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Trophy, AlertTriangle, TrendingUp, TrendingDown, ChevronRight } from 'lucide-react';
 import type { TopPick, StockToAvoid } from '../types';
-import BackgroundSparkline from './BackgroundSparkline';
 import { RankBadge } from './StockCard';
-import { getBacktestResult } from '../data/recommendations';
 
 interface TopPicksProps {
   picks: TopPick[];
@@ -24,7 +22,6 @@ export default function TopPicks({ picks }: TopPicksProps) {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {picks.map((pick, index) => {
-          const backtest = getBacktestResult(pick.symbol);
           return (
             <Link
               key={pick.symbol}
@@ -36,11 +33,6 @@ export default function TopPicks({ picks }: TopPicksProps) {
                   : 'linear-gradient(135deg, rgba(16,185,129,0.04), rgba(5,150,105,0.01))',
               }}
             >
-              {backtest && (
-                <div className="absolute inset-0 opacity-[0.06]">
-                  <BackgroundSparkline data={backtest.price_history} trend="up" />
-                </div>
-              )}
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -91,7 +83,6 @@ export function StocksToAvoid({ stocks }: StocksToAvoidProps) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {stocks.map((stock) => {
-          const backtest = getBacktestResult(stock.symbol);
           return (
             <Link
               key={stock.symbol}
@@ -99,11 +90,6 @@ export function StocksToAvoid({ stocks }: StocksToAvoidProps) {
               className="group relative overflow-hidden rounded-xl border border-red-200/40 dark:border-red-800/25 p-3 transition-all hover:border-red-300 dark:hover:border-red-700/40"
               style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.04), rgba(220,38,38,0.01))' }}
             >
-              {backtest && (
-                <div className="absolute inset-0 opacity-[0.06]">
-                  <BackgroundSparkline data={backtest.price_history} trend="down" />
-                </div>
-              )}
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-bold text-gray-900 dark:text-gray-100 text-sm">{stock.symbol}</span>

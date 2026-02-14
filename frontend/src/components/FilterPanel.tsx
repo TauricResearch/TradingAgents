@@ -1,5 +1,5 @@
 import { SlidersHorizontal, ArrowUpDown } from 'lucide-react';
-import { getAllSectors } from '../data/recommendations';
+import { NIFTY_50_STOCKS } from '../types';
 import type { FilterState } from '../types';
 
 interface FilterPanelProps {
@@ -9,7 +9,7 @@ interface FilterPanelProps {
 }
 
 export default function FilterPanel({ filters, onFilterChange, className = '' }: FilterPanelProps) {
-  const sectors = getAllSectors();
+  const sectors = ['All', ...Array.from(new Set(NIFTY_50_STOCKS.map(s => s.sector).filter(Boolean))).sort()];
 
   const decisions: Array<FilterState['decision']> = ['ALL', 'BUY', 'SELL', 'HOLD'];
   const sortOptions: Array<{ value: FilterState['sortBy']; label: string }> = [

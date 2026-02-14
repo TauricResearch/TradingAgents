@@ -2,6 +2,23 @@ export type Decision = 'BUY' | 'SELL' | 'HOLD';
 export type Confidence = 'HIGH' | 'MEDIUM' | 'LOW';
 export type Risk = 'HIGH' | 'MEDIUM' | 'LOW';
 
+export interface ReturnBreakdown {
+  correctPredictions: {
+    count: number;
+    totalReturn: number;
+    avgReturn: number;
+    stocks: { symbol: string; decision: string; return1d: number }[];
+  };
+  incorrectPredictions: {
+    count: number;
+    totalReturn: number;
+    avgReturn: number;
+    stocks: { symbol: string; decision: string; return1d: number }[];
+  };
+  weightedReturn: number;
+  formula: string;
+}
+
 // Backtest Types
 export interface PricePoint {
   date: string;

@@ -238,7 +238,7 @@ npm run dev  # http://localhost:5173
 | **Stock Ranking (1-50)** | Composite scoring algorithm ranks stocks from best to worst investment opportunity |
 | **Analysis Pipeline** | 12-step visualization showing data collection, agent analysis, debate, and decision |
 | **Investment Debates** | Full bull vs bear debate transcripts with research manager synthesis |
-| **Backtesting** | Prediction accuracy tracking, risk metrics (Sharpe, drawdown), win/loss ratios |
+| **Backtesting** | Prediction accuracy tracking, risk metrics (Sharpe, drawdown), win/loss ratios, date backtest runner with cancel support |
 | **Portfolio Simulator** | Paper trading simulation with Zerodha-accurate brokerage charges and Nifty50 benchmarking |
 | **Settings Panel** | Configure LLM provider (Claude/OpenAI), model tiers, debate rounds, parallel workers |
 | **Dark Mode** | Automatic system theme detection with manual toggle |

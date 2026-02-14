@@ -1,4 +1,5 @@
 import { X, HelpCircle, TrendingUp, TrendingDown, Minus, CheckCircle } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import type { AccuracyMetrics } from '../types';
 
 interface AccuracyExplainModalProps {
@@ -17,7 +18,7 @@ export default function AccuracyExplainModal({ isOpen, onClose, metrics }: Accur
   const holdCorrect = Math.round(metrics.hold_accuracy * metrics.total_predictions * 0.66); // ~33 hold signals
   const holdTotal = Math.round(metrics.total_predictions * 0.66);
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -172,6 +173,7 @@ export default function AccuracyExplainModal({ isOpen, onClose, metrics }: Accur
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -162,8 +162,10 @@ class ClaudeMaxLLM(BaseChatModel):
             user_prompt: The user prompt/query
         """
         # Create environment without ANTHROPIC_API_KEY to force subscription auth
+        # Also remove CLAUDECODE to allow nested CLI calls from within Claude Code sessions
         env = os.environ.copy()
         env.pop("ANTHROPIC_API_KEY", None)
+        env.pop("CLAUDECODE", None)
 
         # Build the command with --system-prompt to override Claude Code's default behavior
         cmd = [

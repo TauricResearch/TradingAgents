@@ -1219,6 +1219,42 @@ def get_backtest_results_by_date(date: str) -> list:
         conn.close()
 
 
+def get_all_backtest_results_grouped() -> dict:
+    """Get all backtest results grouped by date for the History page bundle.
+
+    Returns: { date: { symbol: { return_1d, return_1w, return_1m, return_at_hold, hold_days, prediction_correct, decision } } }
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT date, symbol, decision, return_1d, return_1w, return_1m,
+                   return_at_hold, hold_days, prediction_correct,
+                   price_at_prediction
+            FROM backtest_results
+            ORDER BY date
+        """)
+
+        grouped: dict = {}
+        for row in cursor.fetchall():
+            date = row['date']
+            if date not in grouped:
+                grouped[date] = {}
+            grouped[date][row['symbol']] = {
+                'return_1d': row['return_1d'],
+                'return_1w': row['return_1w'],
+                'return_1m': row['return_1m'],
+                'return_at_hold': row['return_at_hold'],
+                'hold_days': row['hold_days'] if 'hold_days' in row.keys() else None,
+                'prediction_correct': bool(row['prediction_correct']) if row['prediction_correct'] is not None else None,
+                'decision': row['decision'],
+            }
+        return grouped
+    finally:
+        conn.close()
+
+
 def get_all_backtest_results() -> list:
     """Get all backtest results for accuracy calculation."""
     conn = get_connection()

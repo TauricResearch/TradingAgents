@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend, BarChart, Bar, Cell, LabelList } from 'recharts';
-import { Calculator, ChevronDown, ChevronUp, IndianRupee, Settings2, BarChart3, Info, TrendingUp, TrendingDown, ArrowRightLeft, Wallet, PiggyBank, Receipt, HelpCircle, AlertCircle } from 'lucide-react';
-import { sampleRecommendations, getNifty50IndexHistory, getBacktestResult } from '../data/recommendations';
+import { Calculator, ChevronDown, ChevronUp, IndianRupee, Settings2, BarChart3, Info, TrendingUp, TrendingDown, ArrowRightLeft, Wallet, PiggyBank, Receipt, HelpCircle } from 'lucide-react';
 import { calculateBrokerage, formatINR, type BrokerageBreakdown } from '../utils/brokerageCalculator';
 import InfoModal, { InfoButton } from './InfoModal';
 import type { Decision, DailyRecommendation } from '../types';
@@ -9,7 +8,6 @@ import type { Decision, DailyRecommendation } from '../types';
 interface PortfolioSimulatorProps {
   className?: string;
   recommendations?: DailyRecommendation[];
-  isUsingMockData?: boolean;
   nifty50Prices?: Record<string, number>;
   allBacktestData?: Record<string, Record<string, number>>;
 }
@@ -37,7 +35,7 @@ interface TradeStats {
 
 // Smart trade counting logic using Zerodha brokerage for Equity Delivery
 function calculateSmartTrades(
-  recommendations: typeof sampleRecommendations,
+  recommendations: DailyRecommendation[],
   mode: InvestmentMode,
   startingAmount: number,
   nifty50Prices?: Record<string, number>,
@@ -48,7 +46,6 @@ function calculateSmartTrades(
   openPositions: Record<string, { entryDate: string; entryPrice: number; decision: Decision }>;
 } {
   const hasRealNifty = nifty50Prices && Object.keys(nifty50Prices).length > 0;
-  const niftyHistory = hasRealNifty ? null : getNifty50IndexHistory();
   const sortedRecs = [...recommendations].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   // Precompute real Nifty start price for comparison
@@ -75,7 +72,6 @@ function calculateSmartTrades(
 
   let portfolioValue = startingAmount;
   let niftyValue = startingAmount;
-  const niftyStartValue = niftyHistory?.[0]?.value || 21500;
 
   const portfolioData = sortedRecs.map((rec) => {
     const stocks = getStocksToTrack(rec);
@@ -89,8 +85,7 @@ function calculateSmartTrades(
       const decision = analysis.decision;
       const prevPosition = openPositions[symbol];
 
-      const backtest = getBacktestResult(symbol);
-      const currentPrice = backtest?.current_price || 1000;
+      const currentPrice = 1000; // Nominal price for position sizing
       const quantity = Math.floor(investmentPerStock / currentPrice);
 
       if (decision === 'BUY') {
@@ -160,11 +155,6 @@ function calculateSmartTrades(
       if (closestDate && nifty50Prices[closestDate]) {
         niftyValue = startingAmount * (nifty50Prices[closestDate] / niftyStartPrice);
       }
-    } else if (niftyHistory) {
-      const niftyPoint = niftyHistory.find(n => n.date === rec.date);
-      if (niftyPoint) {
-        niftyValue = startingAmount * (niftyPoint.value / niftyStartValue);
-      }
     }
 
     return {
@@ -214,8 +204,7 @@ function getValueColorClass(value: number): string {
 
 export default function PortfolioSimulator({
   className = '',
-  recommendations = sampleRecommendations,
-  isUsingMockData = true,  // Default to true since this uses simulated returns
+  recommendations = [],
   nifty50Prices,
   allBacktestData,
 }: PortfolioSimulatorProps) {
@@ -702,16 +691,6 @@ export default function PortfolioSimulator({
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Demo Data Notice */}
-      {isUsingMockData && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mt-3">
-          <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-          <span className="text-[10px] text-amber-700 dark:text-amber-300">
-            Simulation uses demo data. Results are illustrative only.
-          </span>
         </div>
       )}
 

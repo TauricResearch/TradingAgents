@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { NIFTY_50_STOCKS } from '../types';
 import type { DailyRecommendation, StockAnalysis } from '../types';
-import { sampleRecommendations, getStockHistory as getStaticStockHistory, getRawAnalysis } from '../data/recommendations';
 import { DecisionBadge, ConfidenceBadge, RiskBadge, HoldDaysBadge, RankBadge } from '../components/StockCard';
 import AIAnalysisPanel from '../components/AIAnalysisPanel';
 import StockPriceChart from '../components/StockPriceChart';
@@ -79,17 +78,9 @@ export default function StockDetail() {
         if (rec && rec.analysis && Object.keys(rec.analysis).length > 0) {
           setLatestRecommendation(rec);
           setAnalysis(rec.analysis[symbol || '']);
-        } else {
-          // Fallback to static data
-          const mockRec = sampleRecommendations[0];
-          setLatestRecommendation(mockRec);
-          setAnalysis(mockRec?.analysis[symbol || '']);
         }
-      } catch {
-        // Fallback to static data
-        const mockRec = sampleRecommendations[0];
-        setLatestRecommendation(mockRec);
-        setAnalysis(mockRec?.analysis[symbol || '']);
+      } catch (err) {
+        console.error('Failed to fetch recommendation:', err);
       }
 
       try {
@@ -97,13 +88,9 @@ export default function StockDetail() {
         const historyData = await api.getStockHistory(symbol || '');
         if (historyData && historyData.history && historyData.history.length > 0) {
           setHistory(historyData.history);
-        } else {
-          // Fallback to static data
-          setHistory(symbol ? getStaticStockHistory(symbol) : []);
         }
-      } catch {
-        // Fallback to static data
-        setHistory(symbol ? getStaticStockHistory(symbol) : []);
+      } catch (err) {
+        console.error('Failed to fetch stock history:', err);
       }
 
     };
@@ -824,9 +811,9 @@ export default function StockDetail() {
           </section>
 
           {/* AI Analysis Panel */}
-          {analysis && (analysis.raw_analysis || getRawAnalysis(symbol || '')) && (
+          {analysis?.raw_analysis && (
             <AIAnalysisPanel
-              analysis={analysis.raw_analysis || getRawAnalysis(symbol || '') || ''}
+              analysis={analysis.raw_analysis}
               decision={analysis.decision}
             />
           )}

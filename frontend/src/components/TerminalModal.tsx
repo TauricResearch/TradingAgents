@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Terminal, Trash2, Download, Pause, Play, ChevronDown, Plus, Minus } from 'lucide-react';
 
 interface LogEntry {
@@ -224,7 +225,7 @@ export default function TerminalModal({ isOpen, onClose, isAnalyzing }: Terminal
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -407,6 +408,7 @@ export default function TerminalModal({ isOpen, onClose, isAnalyzing }: Terminal
           </span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

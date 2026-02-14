@@ -1,4 +1,5 @@
 import { X, Info } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 
 interface InfoModalProps {
@@ -12,7 +13,7 @@ interface InfoModalProps {
 export default function InfoModal({ isOpen, onClose, title, children, icon }: InfoModalProps) {
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
@@ -38,7 +39,7 @@ export default function InfoModal({ isOpen, onClose, title, children, icon }: In
           </div>
 
           {/* Content */}
-          <div className="p-4">
+          <div className="p-4 max-h-[70vh] overflow-y-auto">
             {children}
           </div>
 
@@ -53,7 +54,8 @@ export default function InfoModal({ isOpen, onClose, title, children, icon }: In
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

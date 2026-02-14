@@ -8,7 +8,7 @@ import database as db
 import sys
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
@@ -549,6 +549,29 @@ bulk_analysis_state = {
     "cancelled": False  # Flag to signal cancellation
 }
 
+# Auto-analyze schedule config
+SCHEDULE_FILE = Path(__file__).parent / "schedule_config.json"
+
+def _load_schedule_config():
+    """Load schedule config from JSON file."""
+    if SCHEDULE_FILE.exists():
+        try:
+            with open(SCHEDULE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"enabled": False, "time": "09:00", "config": {}, "last_run_date": None}
+
+def _save_schedule_config(config):
+    """Persist schedule config to JSON file."""
+    try:
+        with open(SCHEDULE_FILE, "w") as f:
+            json.dump(config, f, indent=2)
+    except Exception as e:
+        print(f"[AutoSchedule] Failed to save config: {e}")
+
+schedule_config = _load_schedule_config()
+
 # List of Nifty 50 stocks
 NIFTY_50_SYMBOLS = [
     "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK", "HINDUNILVR", "ITC", "SBIN",
@@ -919,6 +942,69 @@ async def cancel_analysis(symbol: str):
     }
 
 
+# ============== History Bundle Endpoint ==============
+
+# In-memory cache for Nifty50 index prices (fetched once, refreshed lazily)
+_nifty50_cache = {"prices": {}, "fetched_at": None}
+
+def _fetch_nifty50_prices_sync():
+    """Fetch Nifty50 index prices (called once and cached)."""
+    try:
+        import yfinance as yf
+        from datetime import timedelta
+
+        dates = db.get_all_dates()
+        if not dates:
+            return {}
+
+        start_date = (datetime.strptime(min(dates), "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
+        end_date = (datetime.strptime(max(dates), "%Y-%m-%d") + timedelta(days=7)).strftime("%Y-%m-%d")
+
+        nifty = yf.Ticker("^NSEI")
+        hist = nifty.history(start=start_date, end=end_date, interval="1d")
+
+        prices = {}
+        for idx, row in hist.iterrows():
+            date_str = idx.strftime("%Y-%m-%d")
+            prices[date_str] = round(float(row['Close']), 2)
+        return prices
+    except Exception:
+        return {}
+
+
+@app.get("/history/bundle")
+async def get_history_bundle():
+    """Return ALL data the History page needs in a single response.
+
+    Combines: recommendations + all backtest results + accuracy metrics.
+    Everything comes from SQLite (instant), no yfinance calls.
+    Nifty50 prices are served from cache.
+    """
+    recommendations = db.get_all_recommendations()
+    backtest_by_date = db.get_all_backtest_results_grouped()
+    accuracy = db.calculate_accuracy_metrics()
+
+    # Serve Nifty50 from cache, refresh in background if stale
+    nifty_prices = _nifty50_cache.get("prices", {})
+    if not _nifty50_cache.get("fetched_at"):
+        # First request — return empty, trigger background fetch
+        def bg_fetch():
+            prices = _fetch_nifty50_prices_sync()
+            _nifty50_cache["prices"] = prices
+            _nifty50_cache["fetched_at"] = datetime.now().isoformat()
+        thread = threading.Thread(target=bg_fetch, daemon=True)
+        thread.start()
+    else:
+        nifty_prices = _nifty50_cache["prices"]
+
+    return {
+        "recommendations": recommendations,
+        "backtest_by_date": backtest_by_date,
+        "accuracy": accuracy,
+        "nifty50_prices": nifty_prices,
+    }
+
+
 # ============== Backtest Endpoints ==============
 # NOTE: Static routes must come BEFORE parameterized routes to avoid
 # "accuracy" being matched as a {date} parameter.
@@ -928,6 +1014,149 @@ async def get_accuracy_metrics():
     """Get overall backtest accuracy metrics."""
     metrics = db.calculate_accuracy_metrics()
     return metrics
+
+
+@app.get("/backtest/{date}/detailed")
+async def get_detailed_backtest(date: str):
+    """Get enriched backtest data with live prices, formulas, agent reports, and debate summaries."""
+    import yfinance as yf
+
+    rec = db.get_recommendation_by_date(date)
+    if not rec or 'analysis' not in rec:
+        return {"date": date, "total_stocks": 0, "stocks": []}
+
+    analysis = rec['analysis']
+    backtest_results = db.get_backtest_results_by_date(date)
+    bt_by_symbol = {r['symbol']: r for r in backtest_results}
+
+    pred_date = datetime.strptime(date, '%Y-%m-%d')
+    today = datetime.now()
+
+    # Collect symbols that need live prices (active hold periods)
+    symbols_needing_live = []
+    for symbol, stock_data in analysis.items():
+        hold_days = stock_data.get('hold_days') or 0
+        hold_end = pred_date + timedelta(days=hold_days) if hold_days > 0 else pred_date + timedelta(days=1)
+        if today < hold_end:
+            symbols_needing_live.append(symbol)
+
+    # Batch-fetch live prices for active holds
+    live_prices = {}
+    if symbols_needing_live:
+        def fetch_live_batch():
+            for sym in symbols_needing_live:
+                try:
+                    yf_sym = sym if '.' in sym else f"{sym}.NS"
+                    t = yf.Ticker(yf_sym)
+                    hist = t.history(period='1d')
+                    if not hist.empty:
+                        live_prices[sym] = round(float(hist['Close'].iloc[-1]), 2)
+                except Exception:
+                    pass
+        fetch_live_batch()
+
+    stocks = []
+    for symbol, stock_data in analysis.items():
+        decision = stock_data.get('decision', 'HOLD')
+        confidence = stock_data.get('confidence', 'MEDIUM')
+        risk = stock_data.get('risk', 'MEDIUM')
+        hold_days = stock_data.get('hold_days') or 0
+        raw_analysis = stock_data.get('raw_analysis', '')
+
+        bt = bt_by_symbol.get(symbol, {})
+        price_pred = bt.get('price_at_prediction')
+
+        # Calculate hold period status
+        hold_end_date = pred_date + timedelta(days=hold_days) if hold_days > 0 else pred_date + timedelta(days=1)
+        days_elapsed = (today - pred_date).days
+        hold_period_active = today < hold_end_date and hold_days > 0
+
+        # Determine display price and return
+        price_current = live_prices.get(symbol)
+        price_at_hold_end = None
+        return_current = None
+        return_at_hold = bt.get('return_at_hold')
+
+        if price_pred:
+            if hold_period_active and price_current:
+                return_current = round(((price_current - price_pred) / price_pred) * 100, 2)
+            elif not hold_period_active:
+                # Hold completed — use stored data
+                if return_at_hold is not None:
+                    price_at_hold_end = round(price_pred * (1 + return_at_hold / 100), 2)
+                elif bt.get('return_1d') is not None:
+                    return_current = bt['return_1d']
+
+        # Build formula string
+        formula = ""
+        if price_pred:
+            if hold_period_active and price_current:
+                ret = return_current or 0
+                sign = "+" if ret >= 0 else ""
+                formula = f"Return = (₹{price_current} - ₹{price_pred}) / ₹{price_pred} × 100 = {sign}{ret}%"
+            elif return_at_hold is not None:
+                p_end = price_at_hold_end or round(price_pred * (1 + return_at_hold / 100), 2)
+                sign = "+" if return_at_hold >= 0 else ""
+                formula = f"Return = (₹{p_end} - ₹{price_pred}) / ₹{price_pred} × 100 = {sign}{return_at_hold}%"
+            elif bt.get('return_1d') is not None:
+                p_1d = bt.get('price_1d_later', 0)
+                r_1d = bt['return_1d']
+                sign = "+" if r_1d >= 0 else ""
+                formula = f"Return = (₹{p_1d} - ₹{price_pred}) / ₹{price_pred} × 100 = {sign}{r_1d}%"
+
+        # Prediction correctness
+        prediction_correct = bt.get('prediction_correct')
+        if hold_period_active:
+            prediction_correct = None  # Can't judge while hold is active
+
+        # Agent reports (condensed)
+        agent_summary = {}
+        try:
+            reports = db.get_agent_reports(date, symbol)
+            for agent_type, report_data in reports.items():
+                content = report_data.get('report_content', '')
+                # Take first 300 chars as summary
+                agent_summary[agent_type] = content[:300] + ('...' if len(content) > 300 else '')
+        except Exception:
+            pass
+
+        # Debate summary
+        debate_summary = {}
+        try:
+            debates = db.get_debate_history(date, symbol)
+            for debate_type, debate_data in debates.items():
+                judge = debate_data.get('judge_decision', '')
+                judge_short = judge[:200] + ('...' if len(judge) > 200 else '') if judge else ''
+                debate_summary[debate_type] = judge_short
+        except Exception:
+            pass
+
+        stocks.append({
+            "symbol": symbol,
+            "company_name": stock_data.get('company_name', symbol),
+            "rank": stock_data.get('rank'),
+            "decision": decision,
+            "confidence": confidence,
+            "risk": risk,
+            "hold_days": hold_days,
+            "hold_days_elapsed": min(days_elapsed, hold_days) if hold_days > 0 else days_elapsed,
+            "hold_period_active": hold_period_active,
+            "price_at_prediction": price_pred,
+            "price_current": price_current,
+            "price_at_hold_end": price_at_hold_end,
+            "return_current": return_current,
+            "return_at_hold": return_at_hold,
+            "prediction_correct": prediction_correct,
+            "formula": formula,
+            "raw_analysis": raw_analysis[:500] if raw_analysis else '',
+            "agent_summary": agent_summary,
+            "debate_summary": debate_summary,
+        })
+
+    # Sort by rank
+    stocks.sort(key=lambda s: s.get('rank') or 999)
+
+    return {"date": date, "total_stocks": len(stocks), "stocks": stocks}
 
 
 @app.get("/backtest/{date}/{symbol}")
@@ -1045,10 +1274,197 @@ async def get_nifty50_history():
         return {"dates": [], "prices": {}, "error": str(e)}
 
 
+# ============== Schedule Endpoints ==============
+
+class ScheduleRequest(BaseModel):
+    enabled: bool = False
+    time: str = "09:00"
+    timezone: str = "Asia/Kolkata"
+    config: dict = {}
+
+@app.post("/settings/schedule")
+async def set_schedule(request: ScheduleRequest):
+    """Set the auto-analyze schedule."""
+    global schedule_config
+    schedule_config["enabled"] = request.enabled
+    schedule_config["time"] = request.time
+    schedule_config["timezone"] = request.timezone
+    schedule_config["config"] = request.config
+    _save_schedule_config(schedule_config)
+    status = "enabled" if request.enabled else "disabled"
+    print(f"[AutoSchedule] Schedule updated: {request.time} {request.timezone} ({status})")
+    return {"status": "ok", "message": f"Schedule {status} at {request.time} {request.timezone}"}
+
+@app.get("/settings/schedule")
+async def get_schedule():
+    """Get the current auto-analyze schedule."""
+    return {
+        "enabled": schedule_config.get("enabled", False),
+        "time": schedule_config.get("time", "09:00"),
+        "timezone": schedule_config.get("timezone", "Asia/Kolkata"),
+        "config": schedule_config.get("config", {}),
+        "last_run_date": schedule_config.get("last_run_date"),
+    }
+
+
+# ============== Scheduler Thread ==============
+
+def _auto_analyze_scheduler():
+    """Background thread that triggers Analyze All at the scheduled time daily."""
+    from zoneinfo import ZoneInfo
+    global schedule_config, bulk_analysis_state
+    print("[AutoSchedule] Scheduler thread started")
+
+    while True:
+        try:
+            time.sleep(30)
+
+            if not schedule_config.get("enabled"):
+                continue
+
+            # Get current time in the configured timezone
+            tz_name = schedule_config.get("timezone", "Asia/Kolkata")
+            try:
+                tz = ZoneInfo(tz_name)
+            except Exception:
+                tz = ZoneInfo("Asia/Kolkata")
+
+            now = datetime.now(tz)
+            scheduled_time = schedule_config.get("time", "09:00")
+            today_str = now.strftime("%Y-%m-%d")
+
+            # Already ran today (in the configured timezone)?
+            if schedule_config.get("last_run_date") == today_str:
+                continue
+
+            # Parse scheduled hour:minute
+            try:
+                sched_hour, sched_minute = map(int, scheduled_time.split(":"))
+            except (ValueError, AttributeError):
+                continue
+
+            # Check if we're within a 2-minute window of the scheduled time
+            current_minutes = now.hour * 60 + now.minute
+            scheduled_minutes = sched_hour * 60 + sched_minute
+            if abs(current_minutes - scheduled_minutes) > 1:
+                continue
+
+            # Don't trigger if already running
+            if bulk_analysis_state.get("status") == "running":
+                print(f"[AutoSchedule] Skipping — bulk analysis already running")
+                continue
+
+            print(f"[AutoSchedule] Triggering daily analysis at {scheduled_time} {tz_name}")
+            schedule_config["last_run_date"] = today_str
+            _save_schedule_config(schedule_config)
+
+            # Build analysis config
+            config = schedule_config.get("config", {})
+            analysis_config = {
+                "deep_think_model": config.get("deep_think_model", "opus"),
+                "quick_think_model": config.get("quick_think_model", "sonnet"),
+                "provider": config.get("provider", "claude_subscription"),
+                "api_key": config.get("api_key"),
+                "max_debate_rounds": config.get("max_debate_rounds", 1),
+            }
+            parallel_workers = max(1, min(5, config.get("parallel_workers", 3)))
+
+            # Same logic as POST /analyze/all
+            analysis_date = today_str
+            already_analyzed = set(db.get_analyzed_symbols_for_date(analysis_date))
+            symbols_to_analyze = [s for s in NIFTY_50_SYMBOLS if s not in already_analyzed]
+
+            if not symbols_to_analyze:
+                print(f"[AutoSchedule] All stocks already analyzed for {analysis_date}")
+                continue
+
+            def run_auto_bulk():
+                global bulk_analysis_state
+                bulk_analysis_state = {
+                    "status": "running",
+                    "total": len(symbols_to_analyze),
+                    "total_all": len(NIFTY_50_SYMBOLS),
+                    "skipped": len(already_analyzed),
+                    "completed": 0,
+                    "failed": 0,
+                    "current_symbols": [],
+                    "started_at": datetime.now().isoformat(),
+                    "completed_at": None,
+                    "results": {},
+                    "parallel_workers": parallel_workers,
+                    "cancelled": False,
+                }
+
+                with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+                    def analyze_one(symbol):
+                        try:
+                            if bulk_analysis_state.get("cancelled"):
+                                return (symbol, "cancelled", None)
+                            run_analysis_task(symbol, analysis_date, analysis_config)
+                            max_wait = 600
+                            waited = 0
+                            while waited < max_wait:
+                                if bulk_analysis_state.get("cancelled"):
+                                    return (symbol, "cancelled", None)
+                                if symbol not in running_analyses:
+                                    return (symbol, "unknown", None)
+                                status = running_analyses[symbol].get("status")
+                                if status not in ("running", "initializing"):
+                                    return (symbol, status, None)
+                                time.sleep(2)
+                                waited += 2
+                            return (symbol, "timeout", None)
+                        except Exception as e:
+                            return (symbol, "error", str(e))
+
+                    future_to_sym = {
+                        executor.submit(analyze_one, sym): sym
+                        for sym in symbols_to_analyze
+                    }
+                    bulk_analysis_state["current_symbols"] = list(symbols_to_analyze[:parallel_workers])
+
+                    for future in as_completed(future_to_sym):
+                        sym = future_to_sym[future]
+                        try:
+                            sym, status, error = future.result()
+                            bulk_analysis_state["results"][sym] = status if not error else f"error: {error}"
+                            if status == "completed":
+                                bulk_analysis_state["completed"] += 1
+                            else:
+                                bulk_analysis_state["failed"] += 1
+                            remaining = [s for s in symbols_to_analyze if s not in bulk_analysis_state["results"]]
+                            bulk_analysis_state["current_symbols"] = remaining[:parallel_workers]
+                        except Exception as e:
+                            bulk_analysis_state["results"][sym] = f"error: {str(e)}"
+                            bulk_analysis_state["failed"] += 1
+
+                bulk_analysis_state["status"] = "completed"
+                bulk_analysis_state["current_symbols"] = []
+                bulk_analysis_state["completed_at"] = datetime.now().isoformat()
+                print(f"[AutoSchedule] Daily analysis completed: {bulk_analysis_state['completed']} succeeded, {bulk_analysis_state['failed']} failed")
+
+            threading.Thread(target=run_auto_bulk, daemon=True).start()
+
+        except Exception as e:
+            print(f"[AutoSchedule] Scheduler error: {e}")
+            time.sleep(60)
+
+
 @app.on_event("startup")
 async def startup_event():
     """Rebuild daily_recommendations and trigger backtest calculations at startup."""
     db.rebuild_all_daily_recommendations()
+
+    # Start auto-analyze scheduler
+    threading.Thread(target=_auto_analyze_scheduler, daemon=True).start()
+
+    # Warm Nifty50 cache in background
+    def warm_nifty_cache():
+        prices = _fetch_nifty50_prices_sync()
+        _nifty50_cache["prices"] = prices
+        _nifty50_cache["fetched_at"] = datetime.now().isoformat()
+        print(f"[Nifty50] Cached {len(prices)} index prices")
+    threading.Thread(target=warm_nifty_cache, daemon=True).start()
 
     # Trigger backtest calculation for all dates in background
     def startup_backtest():

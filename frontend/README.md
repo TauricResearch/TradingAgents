@@ -80,11 +80,18 @@ Track AI performance over time with comprehensive analytics:
 - **Prediction Accuracy**: Overall and per-recommendation-type accuracy
 - **Accuracy Trend**: Visualize accuracy over time
 - **Risk Metrics**: Sharpe ratio, max drawdown, win rate
-- **Portfolio Simulator**: Test different investment amounts
+- **Portfolio Simulator**: Test different investment amounts with Zerodha-accurate brokerage charges
 - **AI vs Nifty50**: Compare AI strategy performance against the index
-- **Return Distribution**: Histogram of next-day returns
+- **Return Distribution**: Histogram of hold-period returns
+- **Date Backtest Runner**: Run AI analysis for any date directly from the History page
+- **Cancel Support**: Cancel in-progress bulk analysis
 
 ![History Page](docs/screenshots/10-history-page.png)
+
+#### Date Selection & Stock List
+Select any date to view all 50 ranked stocks with decisions, hold periods, and returns:
+
+![History Stocks Expanded](docs/screenshots/11-history-stocks-expanded.png)
 
 ## Tech Stack
 

@@ -5,8 +5,6 @@ import TopPicks, { StocksToAvoid } from '../components/TopPicks';
 import { DecisionBadge, HoldDaysBadge, RankBadge } from '../components/StockCard';
 import TerminalModal from '../components/TerminalModal';
 import HowItWorks from '../components/HowItWorks';
-import BackgroundSparkline from '../components/BackgroundSparkline';
-import { getLatestRecommendation, getBacktestResult as getStaticBacktestResult } from '../data/recommendations';
 import { api } from '../services/api';
 import { useSettings } from '../contexts/SettingsContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -19,28 +17,17 @@ export default function Dashboard() {
   // State for real API data
   const [recommendation, setRecommendation] = useState<DailyRecommendation | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [isUsingMockData, setIsUsingMockData] = useState(false);
 
-  // Fetch real recommendation from API
+  // Fetch recommendation from API
   const fetchRecommendation = useCallback(async () => {
     setIsLoadingData(true);
     try {
       const data = await api.getLatestRecommendation();
       if (data && data.analysis && Object.keys(data.analysis).length > 0) {
         setRecommendation(data);
-        setIsUsingMockData(false);
-      } else {
-        // API returned empty data, fall back to mock
-        const mockData = getLatestRecommendation();
-        setRecommendation(mockData || null);
-        setIsUsingMockData(true);
       }
     } catch (error) {
       console.error('Failed to fetch recommendation from API:', error);
-      // Fall back to mock data
-      const mockData = getLatestRecommendation();
-      setRecommendation(mockData || null);
-      setIsUsingMockData(true);
     } finally {
       setIsLoadingData(false);
     }
@@ -493,16 +480,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Mock Data Indicator */}
-        {isUsingMockData && (
-          <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-            <span className="text-xs text-amber-700 dark:text-amber-300">
-              Using demo data. Run "Analyze All" or start the backend server for real AI recommendations.
-            </span>
-          </div>
-        )}
-
         {/* Analysis Progress Banner */}
         {isAnalyzing && analysisProgress && (
           <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -662,8 +639,6 @@ export default function Dashboard() {
           {filteredItems.map((item) => {
             // COMPLETED with analysis data: clickable link
             if (item.liveState === 'completed' && item.analysis) {
-              const backtest = isUsingMockData ? getStaticBacktestResult(item.symbol) : null;
-              const trend = item.analysis.decision === 'BUY' ? 'up' : item.analysis.decision === 'SELL' ? 'down' : 'flat';
               return (
                 <Link
                   key={item.symbol}
@@ -671,11 +646,6 @@ export default function Dashboard() {
                   className="card-hover p-2 group relative overflow-hidden"
                   role="listitem"
                 >
-                  {backtest && (
-                    <div className="absolute inset-0 opacity-[0.06]">
-                      <BackgroundSparkline data={backtest.price_history.slice(-15)} trend={trend} />
-                    </div>
-                  )}
                   <div className="relative z-10">
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <RankBadge rank={item.analysis.rank} size="small" />

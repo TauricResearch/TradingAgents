@@ -694,22 +694,19 @@ def get_yfinance_news(
             news = ticker_obj.news
             if news and len(news) > 0:
                 for i, article in enumerate(news[:10]):
-                    title = article.get("title", "No title")
-                    publisher = article.get("publisher", "Unknown")
-                    publish_time = article.get("providerPublishTime", "")
-                    if publish_time:
-                        try:
-                            from datetime import datetime as _dt
-                            publish_time = _dt.fromtimestamp(publish_time).strftime("%Y-%m-%d %H:%M")
-                        except Exception:
-                            pass
-                    related = article.get("relatedTickers", [])
-                    related_str = ", ".join(related) if related else "N/A"
+                    # yfinance news has nested 'content' structure
+                    content = article.get("content", article)
+                    title = content.get("title", article.get("title", "No title"))
+                    provider = content.get("provider", {})
+                    publisher = provider.get("displayName", article.get("publisher", "Unknown")) if isinstance(provider, dict) else "Unknown"
+                    publish_time = content.get("pubDate", article.get("providerPublishTime", ""))
+                    summary = content.get("summary", "")
 
                     sections.append(f"## Article {i+1}: {title}")
                     sections.append(f"  Publisher: {publisher}")
                     sections.append(f"  Published: {publish_time}")
-                    sections.append(f"  Related Tickers: {related_str}")
+                    if summary:
+                        sections.append(f"  Summary: {summary[:200]}")
                     sections.append("")
             else:
                 sections.append("No news articles available from Yahoo Finance.\n")

@@ -349,6 +349,35 @@ class ApiService {
     return this.fetch('/analyze/all/cancel', { method: 'POST', noCache: true });
   }
 
+  // ============== Schedule Methods ==============
+
+  /**
+   * Set the auto-analyze schedule
+   */
+  async setSchedule(config: {
+    enabled: boolean;
+    time: string;
+    config: Record<string, unknown>;
+  }): Promise<{ status: string; message: string }> {
+    return this.fetch('/settings/schedule', {
+      method: 'POST',
+      body: JSON.stringify(config),
+      noCache: true,
+    });
+  }
+
+  /**
+   * Get the current auto-analyze schedule
+   */
+  async getSchedule(): Promise<{
+    enabled: boolean;
+    time: string;
+    config: Record<string, unknown>;
+    last_run_date: string | null;
+  }> {
+    return this.fetch('/settings/schedule', { noCache: true });
+  }
+
   // ============== Stock Price History Methods ==============
 
   /**
@@ -373,6 +402,35 @@ class ApiService {
     error?: string;
   }> {
     return this.fetch('/nifty50/history');
+  }
+
+  // ============== History Bundle ==============
+
+  /**
+   * Get all data the History page needs in a single call.
+   * Returns recommendations + all backtest results + accuracy metrics + nifty50 prices.
+   */
+  async getHistoryBundle(): Promise<{
+    recommendations: DailyRecommendation[];
+    backtest_by_date: Record<string, Record<string, {
+      return_1d?: number;
+      return_1w?: number;
+      return_1m?: number;
+      return_at_hold?: number;
+      hold_days?: number;
+      prediction_correct?: boolean;
+      decision: string;
+    }>>;
+    accuracy: {
+      overall_accuracy: number;
+      total_predictions: number;
+      correct_predictions: number;
+      by_decision: Record<string, { accuracy: number; total: number; correct: number }>;
+      by_confidence: Record<string, { accuracy: number; total: number; correct: number }>;
+    };
+    nifty50_prices: Record<string, number>;
+  }> {
+    return this.fetch('/history/bundle');
   }
 
   // ============== Backtest Methods ==============
@@ -414,6 +472,37 @@ class ApiService {
     }>;
   }> {
     return this.fetch(`/backtest/${date}`);
+  }
+
+  /**
+   * Get detailed backtest data with live prices, formulas, agent reports
+   */
+  async getDetailedBacktest(date: string): Promise<{
+    date: string;
+    total_stocks: number;
+    stocks: Array<{
+      symbol: string;
+      company_name: string;
+      rank?: number;
+      decision: string;
+      confidence: string;
+      risk: string;
+      hold_days: number;
+      hold_days_elapsed: number;
+      hold_period_active: boolean;
+      price_at_prediction: number | null;
+      price_current: number | null;
+      price_at_hold_end: number | null;
+      return_current: number | null;
+      return_at_hold: number | null;
+      prediction_correct: boolean | null;
+      formula: string;
+      raw_analysis: string;
+      agent_summary: Record<string, string>;
+      debate_summary: Record<string, string>;
+    }>;
+  }> {
+    return this.fetch(`/backtest/${date}/detailed`, { noCache: true });
   }
 
   /**

@@ -1,15 +1,29 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Building2 } from 'lucide-react';
 import { NIFTY_50_STOCKS } from '../types';
-import { getLatestRecommendation } from '../data/recommendations';
+import type { DailyRecommendation } from '../types';
 import { DecisionBadge, ConfidenceBadge } from '../components/StockCard';
+import { api } from '../services/api';
 
 export default function Stocks() {
   const [search, setSearch] = useState('');
   const [sectorFilter, setSectorFilter] = useState<string>('ALL');
+  const [recommendation, setRecommendation] = useState<DailyRecommendation | null>(null);
 
-  const recommendation = getLatestRecommendation();
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const rec = await api.getLatestRecommendation();
+        if (rec && rec.analysis && Object.keys(rec.analysis).length > 0) {
+          setRecommendation(rec);
+        }
+      } catch (err) {
+        console.error('Failed to fetch recommendations:', err);
+      }
+    };
+    fetchData();
+  }, []);
 
   const sectors = useMemo(() => {
     const sectorSet = new Set(NIFTY_50_STOCKS.map(s => s.sector).filter(Boolean));

@@ -1,17 +1,15 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { getCumulativeReturns } from '../data/recommendations';
 import type { CumulativeReturnPoint } from '../types';
 
 export interface IndexComparisonChartProps {
   height?: number;
   className?: string;
-  data?: CumulativeReturnPoint[];  // Optional prop for real data
+  data?: CumulativeReturnPoint[];
 }
 
 export default function IndexComparisonChart({ height = 220, className = '', data: propData }: IndexComparisonChartProps) {
-  // Use provided data or fall back to mock data
-  const data = propData || getCumulativeReturns();
+  const data = propData || [];
 
   if (data.length === 0) {
     return (

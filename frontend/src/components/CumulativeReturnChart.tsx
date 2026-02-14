@@ -1,16 +1,14 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { getCumulativeReturns } from '../data/recommendations';
 import type { CumulativeReturnPoint } from '../types';
 
 interface CumulativeReturnChartProps {
   height?: number;
   className?: string;
-  data?: CumulativeReturnPoint[];  // Optional prop for real data
+  data?: CumulativeReturnPoint[];
 }
 
 export default function CumulativeReturnChart({ height = 160, className = '', data: propData }: CumulativeReturnChartProps) {
-  // Use provided data or fall back to mock data
-  const data = propData || getCumulativeReturns();
+  const data = propData || [];
 
   if (data.length === 0) {
     return (

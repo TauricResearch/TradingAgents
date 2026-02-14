@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { X } from 'lucide-react';
-import { getReturnDistribution } from '../data/recommendations';
 import type { ReturnBucket } from '../types';
 
 export interface ReturnDistributionChartProps {
   height?: number;
   className?: string;
-  data?: ReturnBucket[];  // Optional prop for real data
+  data?: ReturnBucket[];
 }
 
 export default function ReturnDistributionChart({ height = 200, className = '', data: propData }: ReturnDistributionChartProps) {
   const [selectedBucket, setSelectedBucket] = useState<{ range: string; stocks: string[] } | null>(null);
-  // Use provided data or fall back to mock data
-  const data = propData || getReturnDistribution();
+  const data = propData || [];
 
   if (data.every(d => d.count === 0)) {
     return (

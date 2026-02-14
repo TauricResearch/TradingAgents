@@ -27,6 +27,30 @@ export const PROVIDERS = {
 export type ModelId = keyof typeof MODELS;
 export type ProviderId = keyof typeof PROVIDERS;
 
+// Common timezones with labels and IANA identifiers
+export const TIMEZONES = [
+  { id: 'Asia/Kolkata', label: 'IST (India)', offset: '+05:30' },
+  { id: 'Asia/Tokyo', label: 'JST (Japan)', offset: '+09:00' },
+  { id: 'Asia/Shanghai', label: 'CST (China)', offset: '+08:00' },
+  { id: 'Asia/Singapore', label: 'SGT (Singapore)', offset: '+08:00' },
+  { id: 'Asia/Dubai', label: 'GST (Dubai)', offset: '+04:00' },
+  { id: 'Asia/Hong_Kong', label: 'HKT (Hong Kong)', offset: '+08:00' },
+  { id: 'Europe/London', label: 'GMT/BST (London)', offset: '+00:00' },
+  { id: 'Europe/Paris', label: 'CET (Paris/Berlin)', offset: '+01:00' },
+  { id: 'Europe/Moscow', label: 'MSK (Moscow)', offset: '+03:00' },
+  { id: 'America/New_York', label: 'EST (New York)', offset: '-05:00' },
+  { id: 'America/Chicago', label: 'CST (Chicago)', offset: '-06:00' },
+  { id: 'America/Los_Angeles', label: 'PST (Los Angeles)', offset: '-08:00' },
+  { id: 'America/Sao_Paulo', label: 'BRT (Sao Paulo)', offset: '-03:00' },
+  { id: 'Australia/Sydney', label: 'AEST (Sydney)', offset: '+10:00' },
+  { id: 'Australia/Perth', label: 'AWST (Perth)', offset: '+08:00' },
+  { id: 'Pacific/Auckland', label: 'NZST (Auckland)', offset: '+12:00' },
+  { id: 'Africa/Johannesburg', label: 'SAST (Johannesburg)', offset: '+02:00' },
+  { id: 'UTC', label: 'UTC', offset: '+00:00' },
+] as const;
+
+export type TimezoneId = typeof TIMEZONES[number]['id'];
+
 interface Settings {
   // Model settings
   deepThinkModel: ModelId;
@@ -41,6 +65,11 @@ interface Settings {
   // Analysis settings
   maxDebateRounds: number;
   parallelWorkers: number;
+
+  // Auto-analyze schedule
+  autoAnalyzeEnabled: boolean;
+  autoAnalyzeTime: string; // "HH:MM" in 24hr format
+  autoAnalyzeTimezone: TimezoneId;
 }
 
 interface SettingsContextType {
@@ -59,6 +88,9 @@ const DEFAULT_SETTINGS: Settings = {
   anthropicApiKey: '',
   maxDebateRounds: 1,
   parallelWorkers: 3,
+  autoAnalyzeEnabled: false,
+  autoAnalyzeTime: '09:00',
+  autoAnalyzeTimezone: 'Asia/Kolkata',
 };
 
 const STORAGE_KEY = 'nifty50ai_settings';
@@ -91,6 +123,34 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     }
   }, [settings]);
+
+  // Sync auto-analyze schedule to backend whenever it changes
+  useEffect(() => {
+    const syncSchedule = async () => {
+      try {
+        await fetch('http://localhost:8001/settings/schedule', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled: settings.autoAnalyzeEnabled,
+            time: settings.autoAnalyzeTime,
+            timezone: settings.autoAnalyzeTimezone,
+            config: {
+              deep_think_model: settings.deepThinkModel,
+              quick_think_model: settings.quickThinkModel,
+              provider: settings.provider,
+              api_key: settings.anthropicApiKey || undefined,
+              max_debate_rounds: settings.maxDebateRounds,
+              parallel_workers: settings.parallelWorkers,
+            },
+          }),
+        });
+      } catch {
+        // Backend may not be running — silently ignore
+      }
+    };
+    syncSchedule();
+  }, [settings.autoAnalyzeEnabled, settings.autoAnalyzeTime, settings.autoAnalyzeTimezone, settings.deepThinkModel, settings.quickThinkModel, settings.provider, settings.anthropicApiKey, settings.maxDebateRounds, settings.parallelWorkers]);
 
   const updateSettings = (newSettings: Partial<Settings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));

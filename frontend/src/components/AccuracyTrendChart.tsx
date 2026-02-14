@@ -1,5 +1,4 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { getAccuracyTrend } from '../data/recommendations';
 
 export interface AccuracyTrendPoint {
   date: string;
@@ -12,12 +11,11 @@ export interface AccuracyTrendPoint {
 interface AccuracyTrendChartProps {
   height?: number;
   className?: string;
-  data?: AccuracyTrendPoint[];  // Optional prop for real data
+  data?: AccuracyTrendPoint[];
 }
 
 export default function AccuracyTrendChart({ height = 200, className = '', data: propData }: AccuracyTrendChartProps) {
-  // Use provided data or fall back to mock data
-  const data = propData || getAccuracyTrend();
+  const data = propData || [];
 
   if (data.length === 0) {
     return (

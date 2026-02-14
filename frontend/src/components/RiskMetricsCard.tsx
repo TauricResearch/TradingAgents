@@ -1,20 +1,22 @@
 import { TrendingUp, TrendingDown, Activity, Target } from 'lucide-react';
-import { calculateRiskMetrics } from '../data/recommendations';
 import { useState } from 'react';
 import InfoModal, { InfoButton } from './InfoModal';
 import type { RiskMetrics } from '../types';
 
 export interface RiskMetricsCardProps {
   className?: string;
-  metrics?: RiskMetrics;  // Optional prop for real data
+  metrics?: RiskMetrics;
 }
 
 type MetricModal = 'sharpe' | 'drawdown' | 'winloss' | 'winrate' | null;
 
+const defaultMetrics: RiskMetrics = {
+  sharpeRatio: 0, maxDrawdown: 0, winLossRatio: 0, winRate: 0, volatility: 0, totalTrades: 0,
+};
+
 export default function RiskMetricsCard({ className = '', metrics: propMetrics }: RiskMetricsCardProps) {
   const [activeModal, setActiveModal] = useState<MetricModal>(null);
-  // Use provided metrics or fall back to mock data
-  const metrics = propMetrics || calculateRiskMetrics();
+  const metrics = propMetrics || defaultMetrics;
 
   // Color classes for metric values
   const COLOR_GOOD = 'text-green-600 dark:text-green-400';
