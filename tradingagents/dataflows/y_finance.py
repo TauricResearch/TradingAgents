@@ -12,7 +12,7 @@ import pandas as pd  # for polygon data processing
 from polygon import RESTClient  # for polygon client (need to pip install polygon-api-client)
 
 # Polygon API Key: free registration https://polygon.io/ (free layer 5min/day enough)
-POLYGON_API_KEY = "your key"  # replace with your key
+POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "your key")
 
 def get_YFin_data_online(  # rename? or keep, add fallback inside
     symbol: Annotated[str, "ticker symbol of the company"],
