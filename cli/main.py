@@ -29,7 +29,14 @@ from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
+import re
 
+def safe_ticker(ticker: str) -> str:
+    """Sanitize ticker symbol to prevent path traversal attacks."""
+    if not re.match(r'^[A-Za-z0-9.\-]+$', ticker):
+        raise ValueError(f"Invalid ticker symbol: {ticker}")
+    return ticker
+    
 console = Console()
 
 app = typer.Typer(
@@ -899,6 +906,7 @@ def format_tool_args(args, max_length=80) -> str:
 def run_analysis():
     # First get all user selections
     selections = get_user_selections()
+    selections["ticker"] = safe_ticker(selections["ticker"])
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
