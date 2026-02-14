@@ -1,7 +1,7 @@
 [project]
 name = "tradingagents"
 version = "0.1.0"
-description = "Add your description here"
+description = "Multi-Agent LLM Financial Trading Framework with AI-powered stock analysis, structured debates, and backtesting"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

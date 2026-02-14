@@ -10,7 +10,7 @@ setup(
     description="Multi-Agents LLM Financial Trading Framework",
     author="TradingAgents Team",
     author_email="yijia.xiao@cs.ucla.edu",
-    url="https://github.com/hjlabs/TradingAgents",
+    url="https://github.com/hemangjoshi37a/TradingAgents",
     packages=find_packages(),
     install_requires=[
         "langchain>=0.1.0",

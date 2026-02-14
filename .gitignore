@@ -18,3 +18,10 @@ node_modules/
 
 # Runtime config
 schedule_config.json
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Test screenshots (root level)
+test-*.png
+prediction-accuracy-new.png

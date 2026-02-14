@@ -8,7 +8,7 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv)](https://arxiv.org/abs/2412.20138)
 [![Python 3.13+](https://img.shields.io/badge/Python-3.13+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![React](https://img.shields.io/badge/React_18-TypeScript-61DAFB?logo=react&logoColor=white)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
@@ -19,7 +19,7 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 
 <br />
 
-[Getting Started](#-getting-started) &nbsp;&bull;&nbsp; [Web Dashboard](#-nifty50-ai-web-dashboard) &nbsp;&bull;&nbsp; [Python API](#-python-api) &nbsp;&bull;&nbsp; [Architecture](#-architecture) &nbsp;&bull;&nbsp; [Contributing](#-contributing)
+[Getting Started](#getting-started) &nbsp;&bull;&nbsp; [Web Dashboard](#nifty50-ai-web-dashboard) &nbsp;&bull;&nbsp; [Python API](#python-api) &nbsp;&bull;&nbsp; [Architecture](#architecture) &nbsp;&bull;&nbsp; [Contributing](#contributing)
 
 <br />
 
@@ -56,7 +56,7 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 <summary><b>Dashboard &mdash; AI Recommendations at a Glance</b></summary>
 <br />
 <p align="center">
-  <img src="frontend/docs/screenshots/01-dashboard.png" width="100%" alt="TradingAgents Dashboard showing all 50 Nifty stocks with AI recommendations, rank badges, and decision filters" />
+  <img src="frontend/docs/screenshots/01-dashboard.png" width="100%" alt="TradingAgents Dashboard showing all 50 Nifty stocks with AI-powered BUY, SELL, HOLD recommendations, rank badges, confidence levels, and decision filters" />
 </p>
 </details>
 
@@ -64,7 +64,7 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 <summary><b>History &mdash; Backtesting & Portfolio Simulation</b></summary>
 <br />
 <p align="center">
-  <img src="frontend/docs/screenshots/10-history-page.png" width="100%" alt="Historical analysis page with prediction accuracy, risk metrics, portfolio simulator, and AI vs Nifty50 comparison" />
+  <img src="frontend/docs/screenshots/10-history-page.png" width="100%" alt="Historical backtesting page with prediction accuracy tracking, Sharpe ratio, max drawdown, win rate, portfolio simulator with Zerodha brokerage, and AI vs Nifty50 index comparison chart" />
 </p>
 </details>
 
@@ -72,7 +72,23 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 <summary><b>Stock Detail &mdash; Deep Analysis View</b></summary>
 <br />
 <p align="center">
-  <img src="frontend/docs/screenshots/03-stock-detail-overview.png" width="100%" alt="Stock detail page showing SBIN analysis with rank badge, recommendation history, and prediction accuracy" />
+  <img src="frontend/docs/screenshots/03-stock-detail-overview.png" width="100%" alt="Individual stock analysis page showing AI recommendation with confidence level, risk assessment, recommendation history timeline, and detailed analysis summary" />
+</p>
+</details>
+
+<details>
+<summary><b>Analysis Pipeline &mdash; 12-Step AI Decision Process</b></summary>
+<br />
+<p align="center">
+  <img src="frontend/docs/screenshots/04-analysis-pipeline.png" width="100%" alt="12-step analysis pipeline visualization showing data collection, technical analysis, fundamental analysis, sentiment analysis, bull vs bear debate, and final trading decision" />
+</p>
+</details>
+
+<details>
+<summary><b>Investment Debates &mdash; Bull vs Bear AI Agents</b></summary>
+<br />
+<p align="center">
+  <img src="frontend/docs/screenshots/05-debates-tab.png" width="100%" alt="AI-powered investment debate between bull and bear researcher agents with research manager synthesis and final judgment" />
 </p>
 </details>
 
@@ -80,7 +96,7 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 <summary><b>Historical Date View &mdash; Ranked Stock Lists</b></summary>
 <br />
 <p align="center">
-  <img src="frontend/docs/screenshots/11-history-stocks-expanded.png" width="100%" alt="History page with date cards showing buy/sell/hold breakdown and expanded ranked stock list" />
+  <img src="frontend/docs/screenshots/11-history-stocks-expanded.png" width="100%" alt="History page with date cards showing buy/sell/hold breakdown, return percentages, and expanded ranked stock list with hold periods" />
 </p>
 </details>
 
@@ -88,7 +104,7 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 <summary><b>How It Works &mdash; Multi-Agent AI System</b></summary>
 <br />
 <p align="center">
-  <img src="frontend/docs/screenshots/09-how-it-works.png" width="100%" alt="Educational page explaining the multi-agent AI system with agent cards and debate process" />
+  <img src="frontend/docs/screenshots/09-how-it-works.png" width="100%" alt="Educational page explaining the multi-agent AI system architecture with agent role cards and structured debate process flow" />
 </p>
 </details>
 
@@ -96,7 +112,7 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 <summary><b>Settings &mdash; Configurable AI Models</b></summary>
 <br />
 <p align="center">
-  <img src="frontend/docs/screenshots/02-settings-modal.png" width="60%" alt="Settings panel for configuring LLM provider, model selection, and analysis parameters" />
+  <img src="frontend/docs/screenshots/02-settings-modal.png" width="60%" alt="Settings panel for configuring LLM provider selection between Claude and OpenAI, model tier selection, API key management, and debate round configuration" />
 </p>
 </details>
 
@@ -104,7 +120,7 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 <summary><b>Dark Mode</b></summary>
 <br />
 <p align="center">
-  <img src="frontend/docs/screenshots/08-dashboard-dark-mode.png" width="100%" alt="Dashboard in dark mode with glassmorphic cards and premium styling" />
+  <img src="frontend/docs/screenshots/08-dashboard-dark-mode.png" width="100%" alt="Dashboard in dark mode with glassmorphic card design, premium styling, and automatic system theme detection" />
 </p>
 </details>
 
@@ -115,32 +131,32 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 TradingAgents mirrors the structure of real-world trading firms by decomposing complex trading tasks into specialized roles:
 
 ```
-                    ┌─────────────────────────────────────┐
-                    │         Data Collection              │
-                    │  (Market, News, Social, Financials)  │
-                    └──────────────┬──────────────────────┘
-                                   │
-                    ┌──────────────▼──────────────────────┐
-                    │          Analyst Team                │
-                    │  Technical ┃ Fundamental ┃ Sentiment │
-                    │            ┃  News       ┃          │
-                    └──────────────┬──────────────────────┘
-                                   │
-                    ┌──────────────▼──────────────────────┐
-                    │        Researcher Team               │
-                    │    Bull Researcher ⚔ Bear Researcher │
-                    │      (Structured AI Debate)          │
-                    └──────────────┬──────────────────────┘
-                                   │
-                    ┌──────────────▼──────────────────────┐
-                    │         Trader Agent                 │
-                    │   Synthesizes reports → Decision     │
-                    └──────────────┬──────────────────────┘
-                                   │
-                    ┌──────────────▼──────────────────────┐
-                    │    Risk Management & Portfolio Mgr   │
-                    │  Evaluates risk → Approves/Rejects   │
-                    └─────────────────────────────────────┘
+                    +-------------------------------------+
+                    |         Data Collection              |
+                    |  (Market, News, Social, Financials)  |
+                    +-----------------+-------------------+
+                                      |
+                    +-----------------v-------------------+
+                    |          Analyst Team                |
+                    |  Technical | Fundamental | Sentiment |
+                    |            |  News       |           |
+                    +-----------------+-------------------+
+                                      |
+                    +-----------------v-------------------+
+                    |        Researcher Team               |
+                    |    Bull Researcher vs Bear Researcher |
+                    |      (Structured AI Debate)          |
+                    +-----------------+-------------------+
+                                      |
+                    +-----------------v-------------------+
+                    |         Trader Agent                 |
+                    |   Synthesizes reports -> Decision    |
+                    +-----------------+-------------------+
+                                      |
+                    +-----------------v-------------------+
+                    |    Risk Management & Portfolio Mgr   |
+                    |  Evaluates risk -> Approves/Rejects  |
+                    +-------------------------------------+
 ```
 
 <details>
@@ -173,7 +189,7 @@ TradingAgents mirrors the structure of real-world trading firms by decomposing c
 
 ```bash
 # Clone the repository
-git clone https://github.com/hjlabs/TradingAgents.git
+git clone https://github.com/hemangjoshi37a/TradingAgents.git
 cd TradingAgents
 
 # Create virtual environment
@@ -207,7 +223,7 @@ python -m cli.main
 Select your tickers, date, LLMs, and research depth from the interactive interface.
 
 <p align="center">
-  <img src="assets/cli/cli_init.png" width="100%" alt="TradingAgents CLI interface" />
+  <img src="assets/cli/cli_init.png" width="100%" alt="TradingAgents CLI interface showing ticker selection, date picker, and LLM configuration" />
 </p>
 
 ---
@@ -247,7 +263,7 @@ npm run dev  # http://localhost:5173
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18 + TypeScript, Vite, Tailwind CSS |
+| Frontend | React 18 + TypeScript, Vite, Tailwind CSS 4 |
 | Charts | Recharts |
 | Icons | Lucide React |
 | Backend | FastAPI (Python) |
