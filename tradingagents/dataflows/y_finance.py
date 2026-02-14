@@ -41,7 +41,7 @@ def get_YFin_data_online(  # rename? or keep, add fallback inside
             if not data.empty:
                 return _format_data_to_csv(data, symbol, start_date, end_date)  # extract formatting function
             else:
-                print("yfinance returned empty data, trying Polygon...")
+                logging.warning("yfinance returned empty data, trying Polygon...")
                 break  # 空数据也fallback
         except YFRateLimitError:
             if attempt == max_retries - 1:
