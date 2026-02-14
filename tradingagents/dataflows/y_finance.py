@@ -3,7 +3,6 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import time
 from yfinance.exceptions import YFRateLimitError
-import requests
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils
