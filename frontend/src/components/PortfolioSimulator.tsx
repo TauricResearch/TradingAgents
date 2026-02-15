@@ -142,7 +142,8 @@ function calculateSmartTrades(
 
           delete openPositions[symbol];
         }
-        stocksTracked++;
+        // SELL exits position to cash — don't count in stocksTracked
+        // since no capital is deployed and return is 0
       }
     });
 

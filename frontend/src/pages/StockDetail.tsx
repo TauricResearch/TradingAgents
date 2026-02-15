@@ -1080,7 +1080,7 @@ export default function StockDetail() {
                 <div>
                   <span className="font-semibold text-green-800 dark:text-green-300 text-sm">Top Pick: </span>
                   <span className="text-sm text-green-700 dark:text-green-400">
-                    {latestRecommendation.top_picks.find(p => p.symbol === symbol)?.reason}
+                    {latestRecommendation.top_picks.find(p => p.symbol === symbol)?.reason?.replace(/\*\*/g, '').replace(/\*/g, '')}
                   </span>
                 </div>
               </div>
@@ -1094,7 +1094,7 @@ export default function StockDetail() {
                 <div>
                   <span className="font-semibold text-red-800 dark:text-red-300 text-sm">Avoid: </span>
                   <span className="text-sm text-red-700 dark:text-red-400">
-                    {latestRecommendation.stocks_to_avoid.find(s => s.symbol === symbol)?.reason}
+                    {latestRecommendation.stocks_to_avoid.find(s => s.symbol === symbol)?.reason?.replace(/\*\*/g, '').replace(/\*/g, '')}
                   </span>
                 </div>
               </div>

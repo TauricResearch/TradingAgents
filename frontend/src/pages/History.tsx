@@ -35,6 +35,13 @@ function getValueColorClass(value: number): string {
     : 'text-red-500 dark:text-red-400';
 }
 
+// Format percentage without negative zero (e.g. "-0.0" becomes "0.0")
+function fmtPct(val: number, decimals = 1): string {
+  const s = val.toFixed(decimals);
+  if (s === '-0.0' || s === '-0.00') return s.replace('-', '');
+  return s;
+}
+
 // Investment Mode Toggle Component
 function InvestmentModeToggle({
   mode,
@@ -287,6 +294,8 @@ export default function History() {
         topPicksReturnDistribution: undefined as ReturnBucket[] | undefined,
         dateReturns: {} as Record<string, number>,
         allBacktestData: {} as Record<string, Record<string, number>>,
+        dailyReturnsArray: [] as number[],
+        topPicksDailyReturns: [] as number[],
       };
     }
 
@@ -313,21 +322,19 @@ export default function History() {
 
     // Cumulative returns
     const cumulativeData: CumulativeReturnPoint[] = [];
-    let aiMultiplier = 1, indexMultiplier = 1;
+    let aiMultiplier = 1;
 
-    // Nifty daily returns
+    // Nifty50 price ratio approach: direct comparison to start price
+    // This avoids losing Nifty returns on days without backtest data
     const sortedNiftyDates = Object.keys(nifty50Prices).sort();
-    const niftyDailyReturns: Record<string, number> = {};
-    for (let i = 1; i < sortedNiftyDates.length; i++) {
-      const prevPrice = nifty50Prices[sortedNiftyDates[i - 1]];
-      const currPrice = nifty50Prices[sortedNiftyDates[i]];
-      niftyDailyReturns[sortedNiftyDates[i]] = ((currPrice - prevPrice) / prevPrice) * 100;
-    }
+    const hasNiftyData = sortedNiftyDates.length > 0;
+    const niftyStartPrice = hasNiftyData ? nifty50Prices[sortedNiftyDates[0]] : null;
 
-    const getNiftyReturn = (date: string): number => {
-      if (niftyDailyReturns[date] !== undefined) return niftyDailyReturns[date];
+    const getNiftyReturnForDate = (date: string): number => {
+      if (!hasNiftyData || !niftyStartPrice) return 0;
       const closestDate = sortedNiftyDates.find(d => d >= date) || sortedNiftyDates[sortedNiftyDates.length - 1];
-      return (closestDate && niftyDailyReturns[closestDate] !== undefined) ? niftyDailyReturns[closestDate] : 0;
+      if (!closestDate || !nifty50Prices[closestDate]) return 0;
+      return ((nifty50Prices[closestDate] / niftyStartPrice) - 1) * 100;
     };
 
     const dateReturnsMap: Record<string, number> = {};
@@ -381,14 +388,13 @@ export default function History() {
         else if (weightedReturn < 0) { losses++; totalLossReturn += Math.abs(weightedReturn); }
 
         aiMultiplier *= (1 + weightedReturn / 100);
-        const indexDailyReturn = getNiftyReturn(date);
-        indexMultiplier *= (1 + indexDailyReturn / 100);
+        const niftyCumulativeReturn = getNiftyReturnForDate(date);
 
         cumulativeData.push({
           date,
           value: Math.round(aiMultiplier * 10000) / 100,
           aiReturn: Math.round((aiMultiplier - 1) * 1000) / 10,
-          indexReturn: Math.round((indexMultiplier - 1) * 1000) / 10,
+          indexReturn: Math.round(niftyCumulativeReturn * 10) / 10,
         });
       }
     }
@@ -431,7 +437,7 @@ export default function History() {
       }
 
       const avgWin = wins > 0 ? totalWinReturn / wins : 0;
-      const avgLoss = losses > 0 ? totalLossReturn / losses : 1;
+      const avgLoss = losses > 0 ? totalLossReturn / losses : 0;
 
       riskMetrics = {
         sharpeRatio: Math.round(sharpeRatio * 100) / 100,
@@ -492,8 +498,9 @@ export default function History() {
       { range: '2% to 3%', min: 2, max: 3, count: 0, stocks: [] },
       { range: '> 3%', min: 3, max: Infinity, count: 0, stocks: [] },
     ];
-    let topPicksMultiplier = 1, topPicksIndexMultiplier = 1;
+    let topPicksMultiplier = 1;
     let latestTopPicksDateWithData: string | null = null;
+    const topPicksDailyReturnsArr: number[] = [];
 
     for (const date of sortedDates) {
       const rec = recommendations.find(r => r.date === date);
@@ -511,14 +518,14 @@ export default function History() {
 
       if (dateCount > 0) {
         const avgReturn = dateReturn / dateCount;
+        topPicksDailyReturnsArr.push(avgReturn);
         topPicksMultiplier *= (1 + avgReturn / 100);
-        const indexDailyReturn = getNiftyReturn(date);
-        topPicksIndexMultiplier *= (1 + indexDailyReturn / 100);
+        const topPicksNiftyReturn = getNiftyReturnForDate(date);
         topPicksCumulative.push({
           date,
           value: Math.round(topPicksMultiplier * 10000) / 100,
           aiReturn: Math.round((topPicksMultiplier - 1) * 1000) / 10,
-          indexReturn: Math.round((topPicksIndexMultiplier - 1) * 1000) / 10,
+          indexReturn: Math.round(topPicksNiftyReturn * 10) / 10,
         });
       }
     }
@@ -548,17 +555,19 @@ export default function History() {
       topPicksReturnDistribution: topPicksDistribution,
       dateReturns: dateReturnsMap,
       allBacktestData: allBacktest,
+      dailyReturnsArray: dailyReturns,
+      topPicksDailyReturns: topPicksDailyReturnsArr,
     };
   }, [batchBacktestByDate, hasBacktestData, recommendations, nifty50Prices]);
 
   // Overall stats
   const overallStats = useMemo(() => {
-    if (recommendations.length > 0 && chartData.cumulativeReturns && chartData.cumulativeReturns.length > 0) {
-      const lastPoint = chartData.cumulativeReturns[chartData.cumulativeReturns.length - 1];
+    if (recommendations.length > 0 && chartData.dailyReturnsArray && chartData.dailyReturnsArray.length > 0) {
+      const mean = chartData.dailyReturnsArray.reduce((a, b) => a + b, 0) / chartData.dailyReturnsArray.length;
       return {
         totalDays: recommendations.length,
         totalPredictions: accuracyMetrics.total_predictions,
-        avgDailyReturn: Math.round((lastPoint.aiReturn / chartData.cumulativeReturns.length) * 10) / 10,
+        avgDailyReturn: Math.round(mean * 10) / 10,
         avgMonthlyReturn: 0,
         overallAccuracy: Math.round(accuracyMetrics.success_rate * 100),
         bestDay: null,
@@ -566,7 +575,7 @@ export default function History() {
       };
     }
     return { totalDays: recommendations.length, totalPredictions: 0, avgDailyReturn: 0, avgMonthlyReturn: 0, overallAccuracy: 0, bestDay: null, worstDay: null };
-  }, [recommendations, chartData.cumulativeReturns, accuracyMetrics]);
+  }, [recommendations, chartData.dailyReturnsArray, accuracyMetrics]);
 
   // Filtered stats for Performance Summary
   const filteredStats = useMemo(() => {
@@ -578,14 +587,17 @@ export default function History() {
       return { totalDays: dates.length, avgDailyReturn: overallStats.avgDailyReturn, buySignals: signalTotals.buy, sellSignals: signalTotals.sell, holdSignals: signalTotals.hold };
     }
 
+    const topPicksMean = chartData.topPicksDailyReturns.length > 0
+      ? chartData.topPicksDailyReturns.reduce((a, b) => a + b, 0) / chartData.topPicksDailyReturns.length
+      : 0;
     return {
       totalDays: dates.length,
-      avgDailyReturn: 0,
+      avgDailyReturn: Math.round(topPicksMean * 10) / 10,
       buySignals: recommendations.reduce((acc, r) => acc + r.top_picks.length, 0),
       sellSignals: 0,
       holdSignals: 0,
     };
-  }, [summaryMode, dates.length, overallStats.avgDailyReturn, recommendations]);
+  }, [summaryMode, dates.length, overallStats.avgDailyReturn, recommendations, chartData.topPicksDailyReturns]);
 
   // Date stats
   const dateStatsMap = useMemo(() => {
@@ -1069,7 +1081,7 @@ export default function History() {
                     <div className={`text-sm font-bold mt-0.5 ${
                       selectedDate === date ? 'text-white' : getValueColorClass(avgReturn)
                     }`}>
-                      {isPositive ? '+' : ''}{avgReturn.toFixed(1)}%
+                      {isPositive ? '+' : ''}{fmtPct(avgReturn)}%
                     </div>
                   )}
                   <div className={`text-[10px] mt-0.5 ${selectedDate === date ? 'text-white/80' : 'opacity-60'}`}>
@@ -1098,7 +1110,7 @@ export default function History() {
                 Overall
               </div>
               <div className="text-sm font-bold mt-0.5">
-                {overallStats.avgDailyReturn >= 0 ? '+' : ''}{overallStats.avgDailyReturn.toFixed(1)}%
+                {overallStats.avgDailyReturn >= 0 ? '+' : ''}{fmtPct(overallStats.avgDailyReturn)}%
               </div>
               <div className="text-[10px] mt-0.5 text-white/80">
                 {overallStats.overallAccuracy}% accurate
@@ -1391,7 +1403,7 @@ export default function History() {
                             ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                             : getValueColorClass(nextDayReturn)
                         }`} title={bt?.hold_days ? `${bt.hold_days}d return` : '1d return'}>
-                          {nextDayReturn >= 0 ? '+' : ''}{nextDayReturn.toFixed(1)}%
+                          {nextDayReturn >= 0 ? '+' : ''}{fmtPct(nextDayReturn)}%
                           {bt?.hold_days && <span className="text-[9px] opacity-60">/{bt.hold_days}d</span>}
                         </span>
                       )}
@@ -1415,7 +1427,7 @@ export default function History() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Days Tracked', value: filteredStats.totalDays.toString(), icon: <Clock className="w-4 h-4" />, color: 'nifty', modal: 'daysTracked' as SummaryModalType },
-            { label: 'Avg Return', value: `${filteredStats.avgDailyReturn >= 0 ? '+' : ''}${filteredStats.avgDailyReturn.toFixed(1)}%`, icon: <TrendingUp className="w-4 h-4" />, color: filteredStats.avgDailyReturn >= 0 ? 'emerald' : 'red', modal: 'avgReturn' as SummaryModalType },
+            { label: 'Avg Return', value: `${filteredStats.avgDailyReturn >= 0 ? '+' : ''}${fmtPct(filteredStats.avgDailyReturn)}%`, icon: <TrendingUp className="w-4 h-4" />, color: filteredStats.avgDailyReturn >= 0 ? 'emerald' : 'red', modal: 'avgReturn' as SummaryModalType },
             { label: summaryMode === 'topPicks' ? 'Top Picks' : 'Buy Signals', value: filteredStats.buySignals.toString(), icon: <ArrowUpRight className="w-4 h-4" />, color: 'emerald', modal: 'buySignals' as SummaryModalType },
             { label: 'Sell Signals', value: filteredStats.sellSignals.toString(), icon: <ArrowDownRight className="w-4 h-4" />, color: 'red', modal: 'sellSignals' as SummaryModalType },
           ].map(({ label, value, icon, color, modal }) => (

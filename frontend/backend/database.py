@@ -1497,12 +1497,12 @@ def update_daily_recommendation_summary(date: str):
             for s in buy_stocks[:5]
         ]
 
-        # Stocks to avoid: bottom-ranked SELL stocks (last 5)
+        # Stocks to avoid: all SELL stocks
         stocks_to_avoid = [
             {'symbol': s['symbol'], 'company_name': s['company_name'],
              'confidence': s['confidence'], 'reason': s['reason'],
              'rank': s['rank']}
-            for s in sell_stocks[-5:]
+            for s in sell_stocks
         ]
 
         cursor.execute("""

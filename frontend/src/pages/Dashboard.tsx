@@ -540,7 +540,9 @@ export default function Dashboard() {
 
       {/* Top Picks and Avoid Section - Side by Side Compact */}
       <div className="grid lg:grid-cols-2 gap-4">
-        <TopPicks picks={recommendation.top_picks} />
+        {recommendation.top_picks.length > 0 && (
+          <TopPicks picks={recommendation.top_picks} />
+        )}
         <StocksToAvoid stocks={recommendation.stocks_to_avoid} />
       </div>
 

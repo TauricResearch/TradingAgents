@@ -44,7 +44,7 @@ export default function TopPicks({ picks }: TopPicksProps) {
                     BUY
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">{pick.reason}</p>
+                <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">{pick.reason?.replace(/\*\*/g, '').replace(/\*/g, '')}</p>
                 <div className="flex items-center justify-between">
                   <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium border ${
                     pick.risk_level === 'LOW' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/30' :
@@ -98,7 +98,7 @@ export function StocksToAvoid({ stocks }: StocksToAvoidProps) {
                     SELL
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">{stock.reason}</p>
+                <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">{stock.reason?.replace(/\*\*/g, '').replace(/\*/g, '')}</p>
                 <ChevronRight className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" />
               </div>
             </Link>

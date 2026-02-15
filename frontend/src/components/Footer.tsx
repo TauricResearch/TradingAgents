@@ -20,16 +20,16 @@ export default function Footer() {
             <Link to="/history" className="hover:text-gray-900 dark:hover:text-gray-200 transition-colors">History</Link>
             <Link to="/about" className="hover:text-gray-900 dark:hover:text-gray-200 transition-colors">How It Works</Link>
             <span className="text-gray-200 dark:text-gray-700">|</span>
-            <a href="#" className="hover:text-gray-900 dark:hover:text-gray-200 transition-colors">Disclaimer</a>
-            <a href="#" className="hover:text-gray-900 dark:hover:text-gray-200 transition-colors">Privacy</a>
+            <a href="#disclaimer" title="AI-generated recommendations for educational purposes only. Not financial advice." className="hover:text-gray-900 dark:hover:text-gray-200 transition-colors">Disclaimer</a>
+            <a href="#privacy" title="We don't collect any personal data. All analysis runs locally." className="hover:text-gray-900 dark:hover:text-gray-200 transition-colors">Privacy</a>
           </div>
 
           {/* Social & Copyright */}
           <div className="flex items-center gap-3">
-            <a href="#" className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <a href="https://github.com/hemangjoshi37a/TradingAgents" target="_blank" rel="noopener noreferrer" className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
               <Github className="w-4 h-4" />
             </a>
-            <a href="#" className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+            <a href="https://x.com/heaborla" target="_blank" rel="noopener noreferrer" className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
               <Twitter className="w-4 h-4" />
             </a>
             <span className="text-xs text-gray-400 dark:text-gray-500">&copy; {new Date().getFullYear()}</span>

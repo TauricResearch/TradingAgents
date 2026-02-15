@@ -120,7 +120,7 @@ export default function AIAnalysisPanel({
           <Brain className="w-5 h-5" />
           <span className="font-semibold text-sm">AI Analysis</span>
           <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
-            {sections.length} sections
+            {sections.length} {sections.length === 1 ? 'section' : 'sections'}
           </span>
         </div>
         <div className="flex items-center gap-2">
