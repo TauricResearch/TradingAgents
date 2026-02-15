@@ -1,17 +1,23 @@
 <div align="center">
 
-<img src="assets/schema.png" width="120" alt="TradingAgents Logo" />
+<img src="assets/schema.png" width="120" alt="TradingAgents - Multi-Agent LLM Financial Trading Framework Logo" />
 
 # TradingAgents
 
 ### Multi-Agent LLM Financial Trading Framework
 
 [![arXiv](https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv)](https://arxiv.org/abs/2412.20138)
-[![Python 3.13+](https://img.shields.io/badge/Python-3.13+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![React](https://img.shields.io/badge/React_18-TypeScript-61DAFB?logo=react&logoColor=white)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+
+[![Website](https://img.shields.io/badge/Website-hjlabs.in-FF6B6B?logo=googlechrome&logoColor=white)](https://hjlabs.in)
+[![GitHub stars](https://img.shields.io/github/stars/hemangjoshi37a/TradingAgents?style=social)](https://github.com/hemangjoshi37a/TradingAgents/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/hemangjoshi37a/TradingAgents?style=social)](https://github.com/hemangjoshi37a/TradingAgents/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/hemangjoshi37a/TradingAgents)](https://github.com/hemangjoshi37a/TradingAgents/issues)
+[![GitHub last commit](https://img.shields.io/github/last-commit/hemangjoshi37a/TradingAgents)](https://github.com/hemangjoshi37a/TradingAgents/commits/main)
 
 <br />
 
@@ -19,7 +25,7 @@ An open-source framework that deploys **specialized AI agents** &mdash; analysts
 
 <br />
 
-[Getting Started](#getting-started) &nbsp;&bull;&nbsp; [Web Dashboard](#nifty50-ai-web-dashboard) &nbsp;&bull;&nbsp; [Python API](#python-api) &nbsp;&bull;&nbsp; [Architecture](#architecture) &nbsp;&bull;&nbsp; [Contributing](#contributing)
+[Getting Started](#getting-started) &nbsp;&bull;&nbsp; [Web Dashboard](#nifty50-ai-web-dashboard) &nbsp;&bull;&nbsp; [Python API](#python-api) &nbsp;&bull;&nbsp; [Architecture](#architecture) &nbsp;&bull;&nbsp; [Contributing](#contributing) &nbsp;&bull;&nbsp; [hjlabs.in](https://hjlabs.in)
 
 <br />
 
@@ -375,8 +381,15 @@ If you find TradingAgents useful in your research, please cite:
 
 <div align="center">
 
-Built and maintained by **[hjlabs.in](https://hjlabs.in)**
+### Built and maintained by **[hjlabs.in](https://hjlabs.in)**
+
+[![Website](https://img.shields.io/badge/hjlabs.in-Visit_Website-FF6B6B?style=for-the-badge&logo=googlechrome&logoColor=white)](https://hjlabs.in)
+[![GitHub](https://img.shields.io/badge/GitHub-hemangjoshi37a-181717?style=for-the-badge&logo=github)](https://github.com/hemangjoshi37a)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-hemang--joshi-0A66C2?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/hemang-joshi/)
+[![YouTube](https://img.shields.io/badge/YouTube-hjlabs-FF0000?style=for-the-badge&logo=youtube)](https://www.youtube.com/@hjlabs)
 
 <sub>Made with AI agents that actually debate before deciding.</sub>
+
+If you find this project useful, please consider giving it a star on GitHub!
 
 </div>

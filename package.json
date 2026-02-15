@@ -27,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/hemangjoshi37a/TradingAgents/issues"
   },
-  "homepage": "https://github.com/hemangjoshi37a/TradingAgents#readme",
+  "homepage": "https://hjlabs.in",
   "dependencies": {
     "playwright": "^1.58.1"
   }

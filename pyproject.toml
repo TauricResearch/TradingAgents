@@ -4,6 +4,27 @@ version = "0.1.0"
 description = "Multi-Agent LLM Financial Trading Framework with AI-powered stock analysis, structured debates, and backtesting"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Hemang Joshi", email = "hemangjoshi37a@gmail.com"},
+]
+keywords = [
+    "trading", "ai", "multi-agent", "llm", "stock-analysis",
+    "nifty50", "backtesting", "langchain", "langgraph",
+    "algorithmic-trading", "quantitative-finance", "stock-market",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "akshare>=1.16.98",
     "backtrader>=1.9.78.123",
@@ -33,3 +54,10 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
 ]
+
+[project.urls]
+Homepage = "https://hjlabs.in"
+Repository = "https://github.com/hemangjoshi37a/TradingAgents"
+Documentation = "https://github.com/hemangjoshi37a/TradingAgents#readme"
+Issues = "https://github.com/hemangjoshi37a/TradingAgents/issues"
+"Research Paper" = "https://arxiv.org/abs/2412.20138"

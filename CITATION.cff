@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: "TradingAgents: Multi-Agents LLM Financial Trading Framework"
+message: "If you use this software, please cite our paper."
+type: software
+license: Apache-2.0
+url: "https://github.com/hemangjoshi37a/TradingAgents"
+repository-code: "https://github.com/hemangjoshi37a/TradingAgents"
+preferred-citation:
+  type: article
+  title: "TradingAgents: Multi-Agents LLM Financial Trading Framework"
+  authors:
+    - family-names: Xiao
+      given-names: Yijia
+    - family-names: Joshi
+      given-names: Hemang
+  year: 2024
+  journal: "arXiv preprint"
+  doi: "10.48550/arXiv.2412.20138"
+  url: "https://arxiv.org/abs/2412.20138"
+keywords:
+  - multi-agent systems
+  - financial trading
+  - large language models
+  - stock analysis
+  - algorithmic trading
+  - quantitative finance

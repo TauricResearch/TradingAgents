@@ -1,8 +1,17 @@
 {
-  "name": "frontend",
+  "name": "nifty50-ai-dashboard",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "Nifty50 AI Web Dashboard - Real-time AI stock recommendations with backtesting",
+  "homepage": "https://hjlabs.in",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hemangjoshi37a/TradingAgents.git",
+    "directory": "frontend"
+  },
+  "author": "hjlabs.in",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
