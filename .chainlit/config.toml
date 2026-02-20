@@ -1,0 +1,16 @@
+[project]
+enable_telemetry = false
+
+[UI]
+name = "TradingAgents"
+description = "Multi-Agent LLM Trading Analysis"
+default_collapse_content = true
+hide_cot = false
+
+[UI.theme.light]
+primary = "#1a73e8"
+background = "#ffffff"
+
+[UI.theme.dark]
+primary = "#00f0ff"
+background = "#09090b"
