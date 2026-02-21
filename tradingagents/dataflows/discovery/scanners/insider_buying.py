@@ -90,6 +90,9 @@ class InsiderBuyingScanner(BaseScanner):
                 else:
                     context = f"{title} {insider_name} purchased {value_str} of {ticker}"
 
+                # Scoring: cluster buys > C-suite > dollar value
+                insider_score = value + (num_insiders * 500_000) + (1_000_000 if is_c_suite else 0)
+
                 candidates.append(
                     {
                         "ticker": ticker,
@@ -101,11 +104,13 @@ class InsiderBuyingScanner(BaseScanner):
                         "insider_title": title,
                         "transaction_value": value,
                         "num_insiders_buying": num_insiders,
+                        "insider_score": insider_score,
                     }
                 )
 
-                if len(candidates) >= self.limit:
-                    break
+            # Sort by signal quality, then limit
+            candidates.sort(key=lambda c: c.get("insider_score", 0), reverse=True)
+            candidates = candidates[: self.limit]
 
             logger.info(f"Insider buying: {len(candidates)} candidates")
             return candidates

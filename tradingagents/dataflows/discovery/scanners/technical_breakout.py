@@ -85,12 +85,12 @@ class TechnicalBreakoutScanner(BaseScanner):
             result = self._check_breakout(ticker, data)
             if result:
                 candidates.append(result)
-            if len(candidates) >= self.limit * 2:
-                break
 
+        # Sort by strongest breakout signal, then limit
         candidates.sort(key=lambda c: c.get("volume_multiple", 0), reverse=True)
+        candidates = candidates[: self.limit]
         logger.info(f"Technical breakouts: {len(candidates)} candidates")
-        return candidates[: self.limit]
+        return candidates
 
     def _check_breakout(self, ticker: str, data: pd.DataFrame) -> Optional[Dict[str, Any]]:
         """Check if ticker has a volume-confirmed breakout."""

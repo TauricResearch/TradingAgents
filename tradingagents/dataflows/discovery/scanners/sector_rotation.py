@@ -123,18 +123,20 @@ class SectorRotationScanner(BaseScanner):
                 continue
 
         # Step 3: Only call get_ticker_info() for laggard tickers (< 2% 5d move).
-        # This dramatically reduces API calls from max_tickers down to ~20-30%.
-        candidates = []
-        for ticker, ret_5d in ticker_returns.items():
-            if ret_5d > 2.0:
-                continue  # Already moved — not a laggard
+        # Sort by most-negative return first — best laggards checked before limit.
+        laggards = [(t, r) for t, r in ticker_returns.items() if r <= 2.0]
+        laggards.sort(key=lambda x: x[1])
 
-            if len(candidates) >= self.limit:
+        candidates = []
+        api_calls = 0
+        max_api_calls = self.limit * 3  # budget for get_ticker_info calls
+        for ticker, ret_5d in laggards:
+            if len(candidates) >= self.limit or api_calls >= max_api_calls:
                 break
 
+            api_calls += 1
             result = self._check_sector_laggard(ticker, accelerating_sectors, get_ticker_info)
             if result:
-                # Overwrite ret_5d with the value we already computed
                 result["stock_5d_return"] = round(ret_5d, 2)
                 candidates.append(result)
 
