@@ -85,13 +85,12 @@ class OptionsFlowScanner(BaseScanner):
                     result = future.result()
                     if result:
                         candidates.append(result)
-                        if len(candidates) >= self.limit:
-                            # Cancel remaining futures
-                            for f in futures:
-                                f.cancel()
-                            break
                 except Exception:
                     continue
+
+        # Sort by signal quality: unusual strike count, then bullish bias
+        candidates.sort(key=lambda c: c.get("options_score", 0), reverse=True)
+        candidates = candidates[: self.limit]
 
         logger.info(f"Found {len(candidates)} unusual options flows")
         return candidates
@@ -193,6 +192,10 @@ class OptionsFlowScanner(BaseScanner):
                 f"{total_unusual_calls} unusual calls / {total_unusual_puts} unusual puts"
             )
 
+            # Scoring: unusual strike count + bullish call bias bonus
+            # Calls weighted 1.5x to favour bullish directional flow
+            options_score = total_unusual_puts + (total_unusual_calls * 1.5)
+
             return {
                 "ticker": ticker,
                 "source": self.name,
@@ -203,6 +206,7 @@ class OptionsFlowScanner(BaseScanner):
                 "unusual_calls": total_unusual_calls,
                 "unusual_puts": total_unusual_puts,
                 "best_expiration": best_expiration,
+                "options_score": options_score,
             }
 
         except Exception as e:
