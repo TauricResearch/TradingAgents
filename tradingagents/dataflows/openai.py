@@ -113,18 +113,18 @@ def get_batch_stock_news_openai(
     class PortfolioUpdate(BaseModel):
         items: List[TickerNews]
 
-    from tqdm import tqdm
-
     client = _get_openai_client()
     results = {}
+    total_batches = (len(tickers) + batch_size - 1) // batch_size
 
     # Process in batches to avoid output token limits
-    with tqdm(total=len(tickers), desc="📰 OpenAI batch news", unit="ticker") as pbar:
-        for i in range(0, len(tickers), batch_size):
-            batch = tickers[i : i + batch_size]
+    for i in range(0, len(tickers), batch_size):
+        batch = tickers[i : i + batch_size]
+        batch_num = i // batch_size + 1
+        logger.info(f"📰 OpenAI news batch {batch_num}/{total_batches}: {batch}")
 
-            # Request comprehensive news summaries for better ranker LLM context
-            prompt = f"""Find the most significant news stories for {batch} from {start_date} to {end_date}.
+        # Request comprehensive news summaries for better ranker LLM context
+        prompt = f"""Find the most significant news stories for {batch} from {start_date} to {end_date}.
 
 Focus on business catalysts: earnings, product launches, partnerships, analyst changes, regulatory news.
 
@@ -135,32 +135,29 @@ For each ticker, provide a comprehensive summary (5-8 sentences) covering:
 - Market reaction or implications
 - Any forward-looking statements or guidance"""
 
-            try:
-                completion = client.responses.parse(
-                    model="gpt-5-nano",
-                    tools=[{"type": "web_search"}],
-                    input=prompt,
-                    text_format=PortfolioUpdate,
-                )
+        try:
+            completion = client.responses.parse(
+                model="gpt-5-nano",
+                tools=[{"type": "web_search"}],
+                input=prompt,
+                text_format=PortfolioUpdate,
+            )
 
-                # Extract structured output
-                if completion.output_parsed:
-                    for item in completion.output_parsed.items:
-                        results[item.ticker.upper()] = item.news_summary
-                else:
-                    # Fallback if parsing failed
-                    logger.warning(f"Structured parsing returned None for batch: {batch}")
-                    for ticker in batch:
-                        results[ticker.upper()] = ""
-
-            except Exception as e:
-                logger.error(f"Error fetching batch news for {batch}: {e}")
-                # On error, set empty string for all tickers in batch
+            # Extract structured output
+            if completion.output_parsed:
+                for item in completion.output_parsed.items:
+                    results[item.ticker.upper()] = item.news_summary
+            else:
+                # Fallback if parsing failed
+                logger.warning(f"Structured parsing returned None for batch: {batch}")
                 for ticker in batch:
                     results[ticker.upper()] = ""
 
-            # Update progress bar
-            pbar.update(len(batch))
+        except Exception as e:
+            logger.error(f"Error fetching batch news for {batch}: {e}")
+            # On error, set empty string for all tickers in batch
+            for ticker in batch:
+                results[ticker.upper()] = ""
 
     return results
 
@@ -218,15 +215,16 @@ def get_batch_stock_news_google(
     ).with_structured_output(PortfolioUpdate, method="json_schema")
     results = {}
 
-    from tqdm import tqdm
+    total_batches = (len(tickers) + batch_size - 1) // batch_size
 
     # Process in batches
-    with tqdm(total=len(tickers), desc="📰 Google batch news", unit="ticker") as pbar:
-        for i in range(0, len(tickers), batch_size):
-            batch = tickers[i : i + batch_size]
+    for i in range(0, len(tickers), batch_size):
+        batch = tickers[i : i + batch_size]
+        batch_num = i // batch_size + 1
+        logger.info(f"📰 Google news batch {batch_num}/{total_batches}: {batch}")
 
-            # Request comprehensive news summaries for better ranker LLM context
-            prompt = f"""Find the most significant news stories for {batch} from {start_date} to {end_date}.
+        # Request comprehensive news summaries for better ranker LLM context
+        prompt = f"""Find the most significant news stories for {batch} from {start_date} to {end_date}.
 
 Focus on business catalysts: earnings, product launches, partnerships, analyst changes, regulatory news.
 
@@ -237,33 +235,30 @@ For each ticker, provide a comprehensive summary (5-8 sentences) covering:
 - Market reaction or implications
 - Any forward-looking statements or guidance"""
 
-            try:
-                # Step 1: Perform Google search (grounded response)
-                raw_news = search_llm.invoke(prompt)
+        try:
+            # Step 1: Perform Google search (grounded response)
+            raw_news = search_llm.invoke(prompt)
 
-                # Step 2: Structure the grounded results
-                structured_result = structured_llm.invoke(
-                    f"Using this verified news data: {raw_news.content}\n\n"
-                    f"Format the news for these tickers into the JSON structure: {batch}\n"
-                    f"Include all tickers from the list, even if no news was found."
-                )
+            # Step 2: Structure the grounded results
+            structured_result = structured_llm.invoke(
+                f"Using this verified news data: {raw_news.content}\n\n"
+                f"Format the news for these tickers into the JSON structure: {batch}\n"
+                f"Include all tickers from the list, even if no news was found."
+            )
 
-                # Extract results
-                if structured_result and hasattr(structured_result, "items"):
-                    for item in structured_result.items:
-                        results[item.ticker.upper()] = item.news_summary
-                else:
-                    logger.warning(f"Structured output invalid for batch: {batch}")
-                    for ticker in batch:
-                        results[ticker.upper()] = ""
-
-            except Exception as e:
-                logger.error(f"Error fetching Google batch news for {batch}: {e}")
-                # On error, set empty string for all tickers in batch
+            # Extract results
+            if structured_result and hasattr(structured_result, "items"):
+                for item in structured_result.items:
+                    results[item.ticker.upper()] = item.news_summary
+            else:
+                logger.warning(f"Structured output invalid for batch: {batch}")
                 for ticker in batch:
                     results[ticker.upper()] = ""
 
-            # Update progress bar
-            pbar.update(len(batch))
+        except Exception as e:
+            logger.error(f"Error fetching Google batch news for {batch}: {e}")
+            # On error, set empty string for all tickers in batch
+            for ticker in batch:
+                results[ticker.upper()] = ""
 
     return results

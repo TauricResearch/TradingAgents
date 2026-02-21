@@ -342,7 +342,8 @@ def get_reddit_undiscovered_dd(
     top_n: Annotated[int, "Number of top DD posts to return"] = 10,
     num_comments: Annotated[int, "Number of top comments to include"] = 10,
     llm_evaluator=None,  # Will be passed from discovery graph
-) -> str:
+    as_list: bool = False,
+) -> str | list:
     """
     Find high-quality undiscovered DD using LLM evaluation.
 
@@ -383,18 +384,19 @@ def get_reddit_undiscovered_dd(
             if not submission.selftext or len(submission.selftext) < 200:
                 continue
 
-            # Get top comments for community validation
-            submission.comment_sort = "top"
-            submission.comments.replace_more(limit=0)
             top_comments = []
-            for comment in submission.comments[:num_comments]:
-                if hasattr(comment, "body") and hasattr(comment, "score"):
-                    top_comments.append(
-                        {
-                            "body": comment.body[:1000],  # Include more of each comment
-                            "score": comment.score,
-                        }
-                    )
+            if llm_evaluator:
+                # Get top comments for community validation
+                submission.comment_sort = "top"
+                submission.comments.replace_more(limit=0)
+                for comment in submission.comments[:num_comments]:
+                    if hasattr(comment, "body") and hasattr(comment, "score"):
+                        top_comments.append(
+                            {
+                                "body": comment.body[:1000],  # Include more of each comment
+                                "score": comment.score,
+                            }
+                        )
 
             candidate_posts.append(
                 {
@@ -517,27 +519,11 @@ Extract all stock ticker symbols mentioned in the post or comments."""
 
                 return post
 
-            # Parallel evaluation with progress tracking
-            try:
-                from tqdm import tqdm
-
-                use_tqdm = True
-            except ImportError:
-                use_tqdm = False
-
+            # Parallel evaluation
+            logger.info(f"Scanning {len(candidate_posts)} Reddit posts with LLM...")
             with ThreadPoolExecutor(max_workers=10) as executor:
                 futures = [executor.submit(evaluate_post, post) for post in candidate_posts]
-
-                if use_tqdm:
-                    # With progress bar
-                    evaluated = []
-                    for future in tqdm(
-                        as_completed(futures), total=len(futures), desc="   Evaluating posts"
-                    ):
-                        evaluated.append(future.result())
-                else:
-                    # Without progress bar (fallback)
-                    evaluated = [f.result() for f in as_completed(futures)]
+                evaluated = [f.result() for f in as_completed(futures)]
 
             # Filter quality threshold (55+ = decent DD)
             quality_dd = [p for p in evaluated if p["quality_score"] >= 55]
@@ -558,6 +544,18 @@ Extract all stock ticker symbols mentioned in the post or comments."""
             # No LLM - sort by length + engagement
             candidate_posts.sort(key=lambda x: x["full_length"] + (x["score"] * 10), reverse=True)
             top_dd = candidate_posts[:top_n]
+
+        if as_list:
+            if not llm_evaluator:
+                import re
+
+                ticker_pattern = r"\$([A-Z]{2,5})\b|^([A-Z]{2,5})\s"
+                for post in top_dd:
+                    matches = re.findall(ticker_pattern, post["title"] + " " + post["text"])
+                    tickers = list(set([t[0] or t[1] for t in matches if t[0] or t[1]]))
+                    post["ticker"] = tickers[0] if tickers else ""
+                    post["quality_score"] = 75  # default to Medium priority
+            return top_dd
 
         if not top_dd:
             return f"# Undiscovered DD\n\nNo high-quality DD found (scanned {len(candidate_posts)} posts)."
