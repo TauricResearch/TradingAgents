@@ -5,15 +5,16 @@
       "count": 136,
       "wins_1d": 65,
       "losses_1d": 71,
-      "wins_7d": 44,
+      "wins_7d": 46,
       "losses_7d": 71,
-      "wins_30d": 0,
-      "losses_30d": 0,
+      "wins_30d": 1,
+      "losses_30d": 2,
       "avg_return_1d": -0.14,
-      "avg_return_7d": -0.9,
-      "avg_return_30d": 0,
+      "avg_return_7d": -0.85,
+      "avg_return_30d": 1.45,
       "win_rate_1d": 47.8,
-      "win_rate_7d": 38.3
+      "win_rate_7d": 39.3,
+      "win_rate_30d": 33.3
     },
     "early_accumulation": {
       "count": 9,
@@ -32,44 +33,45 @@
     "insider_buying": {
       "count": 62,
       "wins_1d": 28,
-      "losses_1d": 28,
-      "wins_7d": 24,
-      "losses_7d": 9,
-      "wins_30d": 0,
-      "losses_30d": 0,
-      "avg_return_1d": 0.59,
-      "avg_return_7d": 2.09,
-      "avg_return_30d": 0,
-      "win_rate_1d": 50.0,
-      "win_rate_7d": 72.7
+      "losses_1d": 34,
+      "wins_7d": 26,
+      "losses_7d": 11,
+      "wins_30d": 1,
+      "losses_30d": 1,
+      "avg_return_1d": 0.21,
+      "avg_return_7d": 1.12,
+      "avg_return_30d": -10.56,
+      "win_rate_1d": 45.2,
+      "win_rate_7d": 70.3,
+      "win_rate_30d": 50.0
     },
     "options_flow": {
       "count": 50,
-      "wins_1d": 17,
-      "losses_1d": 29,
-      "wins_7d": 11,
-      "losses_7d": 13,
+      "wins_1d": 19,
+      "losses_1d": 31,
+      "wins_7d": 15,
+      "losses_7d": 15,
       "wins_30d": 0,
       "losses_30d": 0,
-      "avg_return_1d": 0.21,
-      "avg_return_7d": -1.21,
+      "avg_return_1d": 0.16,
+      "avg_return_7d": -0.98,
       "avg_return_30d": 0,
-      "win_rate_1d": 37.0,
-      "win_rate_7d": 45.8
+      "win_rate_1d": 38.0,
+      "win_rate_7d": 50.0
     },
     "earnings_play": {
       "count": 42,
       "wins_1d": 18,
-      "losses_1d": 22,
+      "losses_1d": 24,
       "wins_7d": 10,
-      "losses_7d": 19,
+      "losses_7d": 21,
       "wins_30d": 0,
       "losses_30d": 0,
-      "avg_return_1d": -1.0,
-      "avg_return_7d": -0.83,
+      "avg_return_1d": -0.98,
+      "avg_return_7d": -1.51,
       "avg_return_30d": 0,
-      "win_rate_1d": 45.0,
-      "win_rate_7d": 34.5
+      "win_rate_1d": 42.9,
+      "win_rate_7d": 32.3
     },
     "contrarian_value": {
       "count": 7,
@@ -78,12 +80,13 @@
       "wins_7d": 3,
       "losses_7d": 4,
       "wins_30d": 0,
-      "losses_30d": 0,
+      "losses_30d": 2,
       "avg_return_1d": -4.94,
       "avg_return_7d": -5.27,
-      "avg_return_30d": 0,
+      "avg_return_30d": -11.25,
       "win_rate_1d": 42.9,
-      "win_rate_7d": 42.9
+      "win_rate_7d": 42.9,
+      "win_rate_30d": 0.0
     },
     "news_catalyst": {
       "count": 4,
@@ -105,13 +108,14 @@
       "losses_1d": 5,
       "wins_7d": 6,
       "losses_7d": 4,
-      "wins_30d": 0,
-      "losses_30d": 0,
+      "wins_30d": 2,
+      "losses_30d": 1,
       "avg_return_1d": 0.56,
       "avg_return_7d": 2.15,
-      "avg_return_30d": 0,
+      "avg_return_30d": 4.81,
       "win_rate_1d": 50.0,
-      "win_rate_7d": 60.0
+      "win_rate_7d": 60.0,
+      "win_rate_30d": 66.7
     },
     "pre_earnings_accumulation": {
       "count": 7,
@@ -130,15 +134,15 @@
     "analyst_upgrade": {
       "count": 11,
       "wins_1d": 6,
-      "losses_1d": 3,
+      "losses_1d": 5,
       "wins_7d": 6,
       "losses_7d": 2,
       "wins_30d": 0,
       "losses_30d": 0,
-      "avg_return_1d": 1.17,
+      "avg_return_1d": 0.5,
       "avg_return_7d": 0.99,
       "avg_return_30d": 0,
-      "win_rate_1d": 66.7,
+      "win_rate_1d": 54.5,
       "win_rate_7d": 75.0
     },
     "ipo_opportunity": {
@@ -158,13 +162,13 @@
     "social_hype": {
       "count": 11,
       "wins_1d": 0,
-      "losses_1d": 10,
+      "losses_1d": 11,
       "wins_7d": 0,
-      "losses_7d": 3,
+      "losses_7d": 4,
       "wins_30d": 0,
       "losses_30d": 0,
-      "avg_return_1d": -4.22,
-      "avg_return_7d": -6.37,
+      "avg_return_1d": -4.11,
+      "avg_return_7d": -7.07,
       "avg_return_30d": 0,
       "win_rate_1d": 0.0,
       "win_rate_7d": 0.0
@@ -185,20 +189,21 @@
     }
   },
   "overall_1d": {
-    "count": 345,
-    "wins": 152,
-    "avg_return": -0.32,
-    "win_rate": 44.1
+    "count": 360,
+    "wins": 154,
+    "avg_return": -0.39,
+    "win_rate": 42.8
   },
   "overall_7d": {
-    "count": 255,
-    "wins": 113,
-    "avg_return": -0.64,
-    "win_rate": 44.3
+    "count": 270,
+    "wins": 121,
+    "avg_return": -0.81,
+    "win_rate": 44.8
   },
   "overall_30d": {
-    "count": 0,
-    "wins": 0,
-    "avg_return": 0
+    "count": 10,
+    "wins": 4,
+    "avg_return": -2.48,
+    "win_rate": 40.0
   }
 }
