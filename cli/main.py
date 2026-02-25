@@ -536,10 +536,10 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: OpenAI backend
+    # Step 5: LLM provider
     console.print(
         create_question_box(
-            "Step 5: OpenAI backend", "Select which service to talk to"
+            "Step 5: LLM Provider", "Select which service to talk to"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
@@ -555,7 +555,9 @@ def get_user_selections():
 
     # Step 7: Provider-specific thinking configuration
     thinking_level = None
-    reasoning_effort = None
+    llm_reasoning_effort = None
+    azure_endpoint = None
+    azure_api_version = None
 
     provider_lower = selected_llm_provider.lower()
     if provider_lower == "google":
@@ -570,10 +572,29 @@ def get_user_selections():
         console.print(
             create_question_box(
                 "Step 7: Reasoning Effort",
-                "Configure OpenAI reasoning effort level"
+                "Configure reasoning effort level"
             )
         )
-        reasoning_effort = ask_openai_reasoning_effort()
+        llm_reasoning_effort = ask_reasoning_effort()
+    elif provider_lower == "azure":
+        console.print(
+            create_question_box(
+                "Step 7: Azure OpenAI",
+                "Configure endpoint, API version, and deployment names"
+            )
+        )
+        azure_endpoint = ask_azure_endpoint(backend_url)
+        azure_api_version = ask_azure_api_version()
+        selected_shallow_thinker = ask_azure_deployment_name(
+            "Quick-Thinking LLM",
+            selected_shallow_thinker,
+        )
+        selected_deep_thinker = ask_azure_deployment_name(
+            "Deep-Thinking LLM",
+            selected_deep_thinker,
+        )
+        backend_url = azure_endpoint
+        llm_reasoning_effort = ask_reasoning_effort()
 
     return {
         "ticker": selected_ticker,
@@ -585,7 +606,9 @@ def get_user_selections():
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
         "google_thinking_level": thinking_level,
-        "openai_reasoning_effort": reasoning_effort,
+        "llm_reasoning_effort": llm_reasoning_effort,
+        "azure_endpoint": azure_endpoint,
+        "azure_api_version": azure_api_version,
     }
 
 
@@ -910,7 +933,10 @@ def run_analysis():
     config["llm_provider"] = selections["llm_provider"].lower()
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
-    config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
+    config["llm_reasoning_effort"] = selections.get("llm_reasoning_effort")
+    config["openai_reasoning_effort"] = selections.get("llm_reasoning_effort")
+    config["azure_endpoint"] = selections.get("azure_endpoint")
+    config["azure_api_version"] = selections.get("azure_api_version")
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
