@@ -158,6 +158,17 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+### Streamlit UI
+
+A web UI runs the same pipeline as the CLI without duplicating logic:
+
+```bash
+pip install streamlit
+streamlit run ui/streamlit_app.py
+```
+
+Use the sidebar to choose agents, ticker, date range, and optional CLI flags (research depth, LLM provider, models). Click **Run Trading Agent** to execute; the report can be previewed and downloaded as `complete_report.md` (identical to the CLI output). The UI lives under `ui/` and does not affect `python -m cli.main`.
+
 ## TradingAgents Package
 
 ### Implementation Details
