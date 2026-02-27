@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-02-27 13:40:04",
-  "total_recommendations": 360,
+  "last_updated": "2026-02-27 13:40:57",
+  "total_recommendations": 361,
   "recommendations_by_date": {
     "2026-02-10": [
       {
@@ -7662,6 +7662,23 @@
         "last_updated": "2026-02-27",
         "return_1d": 0.6,
         "win_1d": true
+      }
+    ],
+    "2026-02-27": [
+      {
+        "ticker": "UBER",
+        "rank": 1,
+        "company_name": "Uber Technologies, Inc.",
+        "description": "Uber Technologies, Inc. operates a proprietary technology application that connects consumers with independent providers of ride services and food delivery.",
+        "strategy_match": "insider_buying",
+        "pipeline": "insider_buying",
+        "final_score": 78,
+        "confidence": 8,
+        "risk_level": "moderate",
+        "reason": "This trade is driven by a high-conviction insider purchase, where CFO Krishnamurthy Balaji bought approximately $1.6M in stock. Historically, the insider buying strategy has demonstrated a robust 70.5% win rate over a 7-day period, significantly outperforming general market probability. While the stock remains in a broader downtrend below the 50 SMA ($79.26) and 200 SMA ($88.60), short-term technicals signal a reversal with a bullish MACD crossover and price reclaiming the 20 EMA. The rising On-Balance Volume (OBV) confirms accumulation alongside the insider activity. The primary risk is the overhead resistance at the 50 SMA, but the strong insider vote of confidence suggests value at these levels.",
+        "entry_price": null,
+        "discovery_date": "2026-02-27",
+        "status": "open"
       }
     ]
   }
