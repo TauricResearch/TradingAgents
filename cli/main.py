@@ -560,8 +560,7 @@ def get_user_selections():
     thinking_level = None
     reasoning_effort = None
 
-    provider_lower = provider_key
-    if provider_lower == "google":
+    if provider_key == "google":
         console.print(
             create_question_box(
                 "Step 7: Thinking Mode",
