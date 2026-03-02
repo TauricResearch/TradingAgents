@@ -8,6 +8,7 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
+    # Supported providers: openai, anthropic, google, xai, ollama, openrouter, azure_foundry
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.2",
     "quick_think_llm": "gpt-5-mini",
@@ -15,7 +16,9 @@ DEFAULT_CONFIG = {
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
-    # Debate and discussion settings
+    # Azure Foundry settings (set env var AZURE_FOUNDRY_API_KEY in .env,
+    # and AZURE_FOUNDRY_ENDPOINT here or as env var)
+    "azure_foundry_endpoint": "https://<resource>.openai.azure.com/openai/v1/",
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
