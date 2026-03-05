@@ -7,14 +7,14 @@
       "losses_1d": 71,
       "wins_7d": 54,
       "losses_7d": 82,
-      "wins_30d": 17,
-      "losses_30d": 26,
+      "wins_30d": 21,
+      "losses_30d": 27,
       "avg_return_1d": -0.14,
       "avg_return_7d": -0.8,
-      "avg_return_30d": -1.11,
+      "avg_return_30d": -0.47,
       "win_rate_1d": 47.8,
       "win_rate_7d": 39.7,
-      "win_rate_30d": 39.5
+      "win_rate_30d": 43.8
     },
     "early_accumulation": {
       "count": 14,
@@ -67,13 +67,13 @@
       "wins_7d": 16,
       "losses_7d": 26,
       "wins_30d": 5,
-      "losses_30d": 5,
+      "losses_30d": 7,
       "avg_return_1d": -1.27,
       "avg_return_7d": -2.75,
-      "avg_return_30d": 2.64,
+      "avg_return_30d": 0.52,
       "win_rate_1d": 40.0,
       "win_rate_7d": 38.1,
-      "win_rate_30d": 50.0
+      "win_rate_30d": 41.7
     },
     "contrarian_value": {
       "count": 7,
@@ -97,10 +97,10 @@
       "wins_7d": 0,
       "losses_7d": 4,
       "wins_30d": 0,
-      "losses_30d": 2,
+      "losses_30d": 3,
       "avg_return_1d": -10.16,
       "avg_return_7d": -10.35,
-      "avg_return_30d": -31.29,
+      "avg_return_30d": -26.77,
       "win_rate_1d": 0.0,
       "win_rate_7d": 0.0,
       "win_rate_30d": 0.0
@@ -126,14 +126,14 @@
       "losses_1d": 5,
       "wins_7d": 2,
       "losses_7d": 5,
-      "wins_30d": 1,
-      "losses_30d": 3,
+      "wins_30d": 2,
+      "losses_30d": 4,
       "avg_return_1d": -2.0,
       "avg_return_7d": -1.94,
-      "avg_return_30d": -4.96,
+      "avg_return_30d": -0.11,
       "win_rate_1d": 28.6,
       "win_rate_7d": 28.6,
-      "win_rate_30d": 25.0
+      "win_rate_30d": 33.3
     },
     "analyst_upgrade": {
       "count": 18,
@@ -141,11 +141,11 @@
       "losses_1d": 12,
       "wins_7d": 6,
       "losses_7d": 5,
-      "wins_30d": 2,
-      "losses_30d": 2,
+      "wins_30d": 3,
+      "losses_30d": 3,
       "avg_return_1d": 0.12,
       "avg_return_7d": -0.64,
-      "avg_return_30d": 0.96,
+      "avg_return_30d": 2.17,
       "win_rate_1d": 33.3,
       "win_rate_7d": 54.5,
       "win_rate_30d": 50.0
@@ -172,13 +172,13 @@
       "wins_7d": 2,
       "losses_7d": 9,
       "wins_30d": 1,
-      "losses_30d": 0,
+      "losses_30d": 1,
       "avg_return_1d": -4.5,
       "avg_return_7d": -4.26,
-      "avg_return_30d": 10.26,
+      "avg_return_30d": -3.14,
       "win_rate_1d": 0.0,
       "win_rate_7d": 18.2,
-      "win_rate_30d": 100.0
+      "win_rate_30d": 50.0
     },
     "social_dd": {
       "count": 14,
@@ -186,13 +186,14 @@
       "losses_1d": 8,
       "wins_7d": 5,
       "losses_7d": 5,
-      "wins_30d": 0,
-      "losses_30d": 0,
+      "wins_30d": 1,
+      "losses_30d": 1,
       "avg_return_1d": 0.67,
       "avg_return_7d": 0.69,
-      "avg_return_30d": 0,
+      "avg_return_30d": -0.57,
       "win_rate_1d": 42.9,
-      "win_rate_7d": 50.0
+      "win_rate_7d": 50.0,
+      "win_rate_30d": 50.0
     }
   },
   "overall_1d": {
@@ -208,9 +209,9 @@
     "win_rate": 46.1
   },
   "overall_30d": {
-    "count": 95,
-    "wins": 39,
-    "avg_return": -1.87,
-    "win_rate": 41.1
+    "count": 110,
+    "wins": 46,
+    "avg_return": -1.63,
+    "win_rate": 41.8
   }
 }
