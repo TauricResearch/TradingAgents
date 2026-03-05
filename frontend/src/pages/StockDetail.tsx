@@ -20,6 +20,21 @@ import { api } from '../services/api';
 import { useSettings } from '../contexts/SettingsContext';
 import type { FullPipelineData, PipelineStep, PipelineStepStatus } from '../types/pipeline';
 
+/** Extract just the risk assessment reasoning from raw LLM output */
+function cleanReason(reason?: string): string {
+  if (!reason) return '';
+  let text = reason.replace(/\*\*/g, '').replace(/\*/g, '');
+  // Try to extract text after "RISK ASSESSMENT:" or "RISK_ASSESSMENT:"
+  const riskMatch = text.match(/RISK[_ ]ASSESSMENT:\s*([\s\S]*)/i);
+  if (riskMatch) return riskMatch[1].trim();
+  // Fallback: strip known metadata prefixes
+  text = text.replace(/FINAL DECISION:\s*\w+\s*/i, '');
+  text = text.replace(/HOLD_DAYS:\s*\S+\s*/i, '');
+  text = text.replace(/CONFIDENCE:\s*\w+\s*/i, '');
+  text = text.replace(/RISK_LEVEL:\s*\w+\s*/i, '');
+  return text.trim();
+}
+
 // Type for real backtest data from API
 interface BacktestResult {
   date: string;
@@ -940,17 +955,31 @@ export default function StockDetail() {
               </div>
             ) : backtestResults.length > 0 ? (
               <div className="divide-y divide-gray-100 dark:divide-slate-700 max-h-[320px] overflow-y-auto">
-                {backtestResults.map((entry, idx) => (
-                  <div key={idx} className="px-3 py-2.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                {backtestResults.map((entry, idx) => {
+                  const isWeekend = [0, 6].includes(new Date(entry.date).getDay());
+                  return (
+                  <div key={idx} className={`px-3 py-2.5 flex items-center gap-3 transition-colors ${
+                    isWeekend
+                      ? 'bg-gray-50/50 dark:bg-slate-800/30 opacity-60 hover:opacity-80'
+                      : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'
+                  }`}>
                     {/* Date */}
                     <div className="w-16 flex-shrink-0">
-                      <div className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                      <div className={`text-xs font-medium ${
+                        [0, 6].includes(new Date(entry.date).getDay())
+                          ? 'text-gray-400 dark:text-gray-500'
+                          : 'text-gray-700 dark:text-gray-300'
+                      }`}>
                         {new Date(entry.date).toLocaleDateString('en-IN', {
                           day: 'numeric',
                           month: 'short',
                         })}
                       </div>
-                      <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                      <div className={`text-[10px] ${
+                        [0, 6].includes(new Date(entry.date).getDay())
+                          ? 'text-amber-500 dark:text-amber-400'
+                          : 'text-gray-400 dark:text-gray-500'
+                      }`}>
                         {new Date(entry.date).toLocaleDateString('en-IN', { weekday: 'short' })}
                       </div>
                     </div>
@@ -1005,7 +1034,8 @@ export default function StockDetail() {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : history.length > 0 ? (
               <div className="p-8 text-center">
@@ -1077,10 +1107,10 @@ export default function StockDetail() {
             <section className="card p-3 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
               <div className="flex items-center gap-3">
                 <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                <div>
+                <div className="min-w-0">
                   <span className="font-semibold text-green-800 dark:text-green-300 text-sm">Top Pick: </span>
-                  <span className="text-sm text-green-700 dark:text-green-400">
-                    {latestRecommendation.top_picks.find(p => p.symbol === symbol)?.reason?.replace(/\*\*/g, '').replace(/\*/g, '')}
+                  <span className="text-sm text-green-700 dark:text-green-400 line-clamp-3">
+                    {cleanReason(latestRecommendation.top_picks.find(p => p.symbol === symbol)?.reason)}
                   </span>
                 </div>
               </div>
@@ -1091,10 +1121,10 @@ export default function StockDetail() {
             <section className="card p-3 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
-                <div>
+                <div className="min-w-0">
                   <span className="font-semibold text-red-800 dark:text-red-300 text-sm">Avoid: </span>
-                  <span className="text-sm text-red-700 dark:text-red-400">
-                    {latestRecommendation.stocks_to_avoid.find(s => s.symbol === symbol)?.reason?.replace(/\*\*/g, '').replace(/\*/g, '')}
+                  <span className="text-sm text-red-700 dark:text-red-400 line-clamp-3">
+                    {cleanReason(latestRecommendation.stocks_to_avoid.find(s => s.symbol === symbol)?.reason)}
                   </span>
                 </div>
               </div>

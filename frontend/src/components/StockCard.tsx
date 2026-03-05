@@ -1,6 +1,13 @@
 import { Link } from 'react-router-dom';
 import { TrendingUp, TrendingDown, Minus, ChevronRight, Clock } from 'lucide-react';
 import type { StockAnalysis, Decision } from '../types';
+import { NIFTY_50_STOCKS } from '../types';
+
+/** Resolve the display name for a stock, falling back to NIFTY_50_STOCKS when the backend stored the ticker as company_name */
+function getCompanyName(symbol: string, providedName?: string): string {
+  if (providedName && providedName !== symbol) return providedName;
+  return NIFTY_50_STOCKS.find(s => s.symbol === symbol)?.company_name || symbol;
+}
 
 interface StockCardProps {
   stock: StockAnalysis;
@@ -151,7 +158,7 @@ export default function StockCard({ stock, showDetails = true, compact = false }
           }`} aria-hidden="true" />
           <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{stock.symbol}</span>
           <span className="text-gray-300 dark:text-gray-600 text-xs hidden sm:inline" aria-hidden="true">&middot;</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400 truncate hidden sm:inline">{stock.company_name}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 truncate hidden sm:inline">{getCompanyName(stock.symbol, stock.company_name)}</span>
         </div>
         <div className="flex items-center gap-2">
           <DecisionBadge decision={stock.decision} />
@@ -172,7 +179,7 @@ export default function StockCard({ stock, showDetails = true, compact = false }
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate text-sm">{stock.symbol}</h3>
           <DecisionBadge decision={stock.decision} />
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{stock.company_name}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{getCompanyName(stock.symbol, stock.company_name)}</p>
         {showDetails && (
           <div className="flex items-center gap-2 mt-1.5">
             <ConfidenceBadge confidence={stock.confidence} />
@@ -201,7 +208,7 @@ export function StockCardCompact({ stock }: { stock: StockAnalysis }) {
         <div>
           <span className="font-semibold text-gray-900 dark:text-gray-100">{stock.symbol}</span>
           <span className="text-gray-300 dark:text-gray-600 mx-2">&middot;</span>
-          <span className="text-sm text-gray-500 dark:text-gray-400">{stock.company_name}</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{getCompanyName(stock.symbol, stock.company_name)}</span>
         </div>
       </div>
       <DecisionBadge decision={stock.decision} />

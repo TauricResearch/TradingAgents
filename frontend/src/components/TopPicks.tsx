@@ -3,6 +3,21 @@ import { Trophy, AlertTriangle, TrendingUp, TrendingDown, ChevronRight } from 'l
 import type { TopPick, StockToAvoid } from '../types';
 import { RankBadge } from './StockCard';
 
+/** Extract just the risk assessment reasoning from raw LLM output */
+function cleanReason(reason?: string): string {
+  if (!reason) return '';
+  let text = reason.replace(/\*\*/g, '').replace(/\*/g, '');
+  // Try to extract text after "RISK ASSESSMENT:" or "RISK_ASSESSMENT:"
+  const riskMatch = text.match(/RISK[_ ]ASSESSMENT:\s*([\s\S]*)/i);
+  if (riskMatch) return riskMatch[1].trim();
+  // Fallback: strip known metadata prefixes
+  text = text.replace(/FINAL DECISION:\s*\w+\s*/i, '');
+  text = text.replace(/HOLD_DAYS:\s*\S+\s*/i, '');
+  text = text.replace(/CONFIDENCE:\s*\w+\s*/i, '');
+  text = text.replace(/RISK_LEVEL:\s*\w+\s*/i, '');
+  return text.trim();
+}
+
 interface TopPicksProps {
   picks: TopPick[];
 }
@@ -44,7 +59,7 @@ export default function TopPicks({ picks }: TopPicksProps) {
                     BUY
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">{pick.reason?.replace(/\*\*/g, '').replace(/\*/g, '')}</p>
+                <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">{cleanReason(pick.reason)}</p>
                 <div className="flex items-center justify-between">
                   <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium border ${
                     pick.risk_level === 'LOW' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/30' :
@@ -81,7 +96,7 @@ export function StocksToAvoid({ stocks }: StocksToAvoidProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         {stocks.map((stock) => {
           return (
             <Link
@@ -91,14 +106,17 @@ export function StocksToAvoid({ stocks }: StocksToAvoidProps) {
               style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.04), rgba(220,38,38,0.01))' }}
             >
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-gray-900 dark:text-gray-100 text-sm">{stock.symbol}</span>
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold text-white" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
                     <TrendingDown className="w-3 h-3" />
                     SELL
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">{stock.reason?.replace(/\*\*/g, '').replace(/\*/g, '')}</p>
+                {stock.company_name && stock.company_name !== stock.symbol && (
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5 truncate">{stock.company_name}</p>
+                )}
+                <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2 mb-2 leading-relaxed">{cleanReason(stock.reason)}</p>
                 <ChevronRight className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors" />
               </div>
             </Link>

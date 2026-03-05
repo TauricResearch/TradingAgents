@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, TrendingUp, TrendingDown, Minus, ChevronRight, ChevronDown, BarChart3, Target, HelpCircle, Activity, Calculator, LineChart, PieChart, Shield, Filter, Clock, Zap, Award, ArrowUpRight, ArrowDownRight, Play, Loader2, FileText, MessageSquare, Search, XCircle, AlertTriangle } from 'lucide-react';
 import type { ReturnBreakdown } from '../types';
+import { NIFTY_50_STOCKS } from '../types';
 import { DecisionBadge, HoldDaysBadge, RankBadge } from '../components/StockCard';
 import Sparkline from '../components/Sparkline';
 import AccuracyExplainModal from '../components/AccuracyExplainModal';
@@ -1390,7 +1391,7 @@ export default function History() {
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <RankBadge rank={stock.rank} size="small" />
                       <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{stock.symbol}</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline truncate">{stock.company_name}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline truncate">{(stock.company_name && stock.company_name !== stock.symbol) ? stock.company_name : (NIFTY_50_STOCKS.find(n => n.symbol === stock.symbol)?.company_name || stock.company_name)}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <DecisionBadge decision={stock.decision} size="small" />

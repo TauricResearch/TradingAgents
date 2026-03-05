@@ -264,7 +264,7 @@ export default function Dashboard() {
       // Normal mode: only show analyzed stocks
       return (recommendation ? Object.values(recommendation.analysis) : []).map(s => ({
         symbol: s.symbol,
-        company_name: s.company_name,
+        company_name: NIFTY_50_STOCKS.find(n => n.symbol === s.symbol)?.company_name || s.company_name,
         liveState: 'completed' as StockLiveState,
         analysis: s,
       }));
@@ -538,8 +538,8 @@ export default function Dashboard() {
       {/* How It Works Section */}
       <HowItWorks collapsed={true} />
 
-      {/* Top Picks and Avoid Section - Side by Side Compact */}
-      <div className="grid lg:grid-cols-2 gap-4">
+      {/* Top Picks and Avoid Section - Side by Side when both present */}
+      <div className={`grid gap-4 ${recommendation.top_picks.length > 0 ? 'lg:grid-cols-2' : ''}`}>
         {recommendation.top_picks.length > 0 && (
           <TopPicks picks={recommendation.top_picks} />
         )}
@@ -561,10 +561,10 @@ export default function Dashboard() {
               <button
                 onClick={() => setFilter('ALL')}
                 aria-pressed={filter === 'ALL'}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
                   filter === 'ALL'
                     ? 'bg-nifty-600 text-white shadow-sm'
-                    : 'bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-500'
+                    : 'bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-500 active:scale-95'
                 }`}
               >
                 All ({total})
@@ -572,10 +572,10 @@ export default function Dashboard() {
               <button
                 onClick={() => setFilter('BUY')}
                 aria-pressed={filter === 'BUY'}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
                   filter === 'BUY'
                     ? 'bg-green-600 text-white shadow-sm'
-                    : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50'
+                    : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50 active:scale-95'
                 }`}
               >
                 Buy ({buy})
@@ -583,10 +583,10 @@ export default function Dashboard() {
               <button
                 onClick={() => setFilter('HOLD')}
                 aria-pressed={filter === 'HOLD'}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
                   filter === 'HOLD'
                     ? 'bg-amber-600 text-white shadow-sm'
-                    : 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50'
+                    : 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 active:scale-95'
                 }`}
               >
                 Hold ({hold})
@@ -594,10 +594,10 @@ export default function Dashboard() {
               <button
                 onClick={() => setFilter('SELL')}
                 aria-pressed={filter === 'SELL'}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
                   filter === 'SELL'
                     ? 'bg-red-600 text-white shadow-sm'
-                    : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50'
+                    : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 active:scale-95'
                 }`}
               >
                 Sell ({sell})
@@ -605,7 +605,7 @@ export default function Dashboard() {
               <span className="mx-0.5 text-gray-300 dark:text-gray-600">|</span>
               <button
                 onClick={() => setSortBy(sortBy === 'rank' ? 'symbol' : 'rank')}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-1 dark:focus:ring-offset-slate-800 active:scale-95 ${
                   sortBy === 'rank'
                     ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
                     : 'bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-slate-500'
@@ -623,7 +623,7 @@ export default function Dashboard() {
                 placeholder="Search by symbol or company name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:border-transparent"
+                className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:border-nifty-400 dark:focus:border-nifty-500 transition-all duration-200"
               />
               {searchQuery && (
                 <button
@@ -637,7 +637,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-[400px] overflow-y-auto" role="list" aria-label="Stock recommendations list">
+        <div className="p-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-[400px] overflow-y-auto" role="list" aria-label="Stock recommendations list">
           {filteredItems.map((item) => {
             // COMPLETED with analysis data: clickable link
             if (item.liveState === 'completed' && item.analysis) {
@@ -645,14 +645,14 @@ export default function Dashboard() {
                 <Link
                   key={item.symbol}
                   to={`/stock/${item.symbol}`}
-                  className="card-hover p-2 group relative overflow-hidden"
+                  className="card-hover p-2 group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-nifty-300 dark:hover:border-nifty-600 hover:scale-[1.02]"
                   role="listitem"
                 >
                   <div className="relative z-10">
-                    <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mb-0.5 min-w-0">
                       <RankBadge rank={item.analysis.rank} size="small" />
                       <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">{item.symbol}</span>
-                      <DecisionBadge decision={item.analysis.decision} size="small" />
+                      <span className="flex-shrink-0"><DecisionBadge decision={item.analysis.decision} size="small" /></span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.company_name}</p>
                     {item.analysis.hold_days != null && item.analysis.hold_days > 0 && item.analysis.decision !== 'SELL' && (
@@ -755,7 +755,7 @@ export default function Dashboard() {
       {/* Compact CTA */}
       <Link
         to="/history"
-        className="flex items-center justify-between p-4 rounded-xl text-white group focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-2 transition-all hover:shadow-lg"
+        className="flex items-center justify-between p-4 rounded-xl text-white group focus:outline-none focus:ring-2 focus:ring-nifty-500 focus:ring-offset-2 transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
         style={{
           background: 'linear-gradient(135deg, #0284c7, #0369a1)',
           boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)',

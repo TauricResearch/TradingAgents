@@ -8,6 +8,118 @@ from typing import Optional
 
 DB_PATH = Path(__file__).parent / "recommendations.db"
 
+NIFTY_50_NAMES = {
+    'RELIANCE': 'Reliance Industries Ltd',
+    'TCS': 'Tata Consultancy Services Ltd',
+    'HDFCBANK': 'HDFC Bank Ltd',
+    'INFY': 'Infosys Ltd',
+    'ICICIBANK': 'ICICI Bank Ltd',
+    'HINDUNILVR': 'Hindustan Unilever Ltd',
+    'ITC': 'ITC Ltd',
+    'SBIN': 'State Bank of India',
+    'BHARTIARTL': 'Bharti Airtel Ltd',
+    'KOTAKBANK': 'Kotak Mahindra Bank Ltd',
+    'LT': 'Larsen & Toubro Ltd',
+    'AXISBANK': 'Axis Bank Ltd',
+    'ASIANPAINT': 'Asian Paints Ltd',
+    'MARUTI': 'Maruti Suzuki India Ltd',
+    'HCLTECH': 'HCL Technologies Ltd',
+    'SUNPHARMA': 'Sun Pharmaceutical Industries Ltd',
+    'TITAN': 'Titan Company Ltd',
+    'BAJFINANCE': 'Bajaj Finance Ltd',
+    'WIPRO': 'Wipro Ltd',
+    'ULTRACEMCO': 'UltraTech Cement Ltd',
+    'NESTLEIND': 'Nestle India Ltd',
+    'NTPC': 'NTPC Ltd',
+    'POWERGRID': 'Power Grid Corporation of India Ltd',
+    'M&M': 'Mahindra & Mahindra Ltd',
+    'TATAMOTORS': 'Tata Motors Ltd',
+    'ONGC': 'Oil & Natural Gas Corporation Ltd',
+    'JSWSTEEL': 'JSW Steel Ltd',
+    'TATASTEEL': 'Tata Steel Ltd',
+    'ADANIENT': 'Adani Enterprises Ltd',
+    'ADANIPORTS': 'Adani Ports and SEZ Ltd',
+    'COALINDIA': 'Coal India Ltd',
+    'BAJAJFINSV': 'Bajaj Finserv Ltd',
+    'TECHM': 'Tech Mahindra Ltd',
+    'HDFCLIFE': 'HDFC Life Insurance Company Ltd',
+    'SBILIFE': 'SBI Life Insurance Company Ltd',
+    'GRASIM': 'Grasim Industries Ltd',
+    'DIVISLAB': "Divi's Laboratories Ltd",
+    'DRREDDY': "Dr. Reddy's Laboratories Ltd",
+    'CIPLA': 'Cipla Ltd',
+    'BRITANNIA': 'Britannia Industries Ltd',
+    'EICHERMOT': 'Eicher Motors Ltd',
+    'APOLLOHOSP': 'Apollo Hospitals Enterprise Ltd',
+    'INDUSINDBK': 'IndusInd Bank Ltd',
+    'HEROMOTOCO': 'Hero MotoCorp Ltd',
+    'TATACONSUM': 'Tata Consumer Products Ltd',
+    'BPCL': 'Bharat Petroleum Corporation Ltd',
+    'UPL': 'UPL Ltd',
+    'HINDALCO': 'Hindalco Industries Ltd',
+    'BAJAJ-AUTO': 'Bajaj Auto Ltd',
+    'LTIM': 'LTIMindtree Ltd',
+}
+
+
+def _truncate_at_word(text: str, max_len: int) -> str:
+    """Truncate text at a word boundary to avoid mid-word cuts."""
+    if len(text) <= max_len:
+        return text
+    truncated = text[:max_len]
+    last_space = truncated.rfind(' ')
+    if last_space > max_len * 0.6:
+        return truncated[:last_space] + '...'
+    return truncated + '...'
+
+
+def _extract_reason(raw_analysis: str) -> str:
+    """Extract clean reason text from raw LLM analysis output.
+
+    Strips markdown bold markers and skips the metadata prefix
+    (FINAL DECISION, HOLD_DAYS, CONFIDENCE, RISK_LEVEL) to return
+    the actual analytical content, truncated at word boundaries.
+    """
+    if not raw_analysis:
+        return ''
+
+    text = raw_analysis.replace('**', '').strip()
+
+    # Look for "RISK ASSESSMENT:" or "RISK_ASSESSMENT:" and return text after it
+    for marker in ('RISK ASSESSMENT:', 'RISK_ASSESSMENT:'):
+        idx = text.upper().find(marker.upper())
+        if idx != -1:
+            after = text[idx + len(marker):].strip()
+            if after:
+                return _truncate_at_word(after, 500)
+
+    # Look for the last substantive paragraph after metadata lines
+    lines = text.split('\n')
+    content_lines = []
+    past_metadata = False
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        upper_line = stripped.upper()
+        is_metadata = (
+            upper_line.startswith('FINAL DECISION:')
+            or upper_line.startswith('HOLD_DAYS:')
+            or upper_line.startswith('CONFIDENCE:')
+            or upper_line.startswith('RISK_LEVEL:')
+        )
+        if is_metadata:
+            past_metadata = True
+            continue
+        if past_metadata or not is_metadata:
+            content_lines.append(stripped)
+
+    if content_lines:
+        return _truncate_at_word(' '.join(content_lines), 500)
+
+    # Fallback: return original text truncated
+    return _truncate_at_word(text, 500)
+
 
 def sanitize_decision(raw: str) -> str:
     """Extract BUY/SELL/HOLD from potentially noisy LLM output.
@@ -1470,18 +1582,18 @@ def update_daily_recommendation_summary(date: str):
                 buy_count += 1
                 buy_stocks.append({
                     'symbol': row['symbol'],
-                    'company_name': row['company_name'] or row['symbol'],
+                    'company_name': NIFTY_50_NAMES.get(row['symbol'], row['company_name'] or row['symbol']),
                     'confidence': row['confidence'] or 'MEDIUM',
-                    'reason': (row['raw_analysis'] or '')[:200],
+                    'reason': _extract_reason(row['raw_analysis'] or ''),
                     'rank': row['rank']
                 })
             elif decision == 'SELL':
                 sell_count += 1
                 sell_stocks.append({
                     'symbol': row['symbol'],
-                    'company_name': row['company_name'] or row['symbol'],
+                    'company_name': NIFTY_50_NAMES.get(row['symbol'], row['company_name'] or row['symbol']),
                     'confidence': row['confidence'] or 'MEDIUM',
-                    'reason': (row['raw_analysis'] or '')[:200],
+                    'reason': _extract_reason(row['raw_analysis'] or ''),
                     'rank': row['rank']
                 })
             else:
