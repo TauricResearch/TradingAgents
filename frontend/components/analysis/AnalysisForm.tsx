@@ -589,18 +589,6 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                               <span>Claude Sonnet 4</span>
                             </div>
                           </SelectItem>
-                          <SelectItem value="claude-3-7-sonnet-20250219">
-                            <div className="flex items-center gap-2">
-                              <Image src="/logos/claude-color.svg" alt="Claude" width={16} height={16} className="shrink-0" />
-                              <span>Claude 3.7 Sonnet</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="claude-3-5-haiku-20241022">
-                            <div className="flex items-center gap-2">
-                              <Image src="/logos/claude-color.svg" alt="Claude" width={16} height={16} className="shrink-0" />
-                              <span>Claude 3.5 Haiku</span>
-                            </div>
-                          </SelectItem>
                           <SelectItem value="claude-3-haiku-20240307">
                             <div className="flex items-center gap-2">
                               <Image src="/logos/claude-color.svg" alt="Claude" width={16} height={16} className="shrink-0" />
@@ -827,18 +815,6 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                             <div className="flex items-center gap-2">
                               <Image src="/logos/claude-color.svg" alt="Claude" width={16} height={16} className="shrink-0" />
                               <span>Claude Sonnet 4</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="claude-3-7-sonnet-20250219">
-                            <div className="flex items-center gap-2">
-                              <Image src="/logos/claude-color.svg" alt="Claude" width={16} height={16} className="shrink-0" />
-                              <span>Claude 3.7 Sonnet</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="claude-3-5-haiku-20241022">
-                            <div className="flex items-center gap-2">
-                              <Image src="/logos/claude-color.svg" alt="Claude" width={16} height={16} className="shrink-0" />
-                              <span>Claude 3.5 Haiku</span>
                             </div>
                           </SelectItem>
                           <SelectItem value="claude-3-haiku-20240307">
