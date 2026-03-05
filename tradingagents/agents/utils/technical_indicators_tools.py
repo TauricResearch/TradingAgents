@@ -14,10 +14,13 @@ def get_indicators(
     Uses the configured technical_indicators vendor.
     Args:
         symbol (str): Ticker symbol of the company, e.g. AAPL, TSM
-        indicator (str): Technical indicator to get the analysis and report of
+        indicator (str): Technical indicator. Supported: close_50_sma, close_200_sma, close_10_ema, macd, macds, macdh, rsi, boll, boll_ub, boll_lb, atr, vwma, mfi
         curr_date (str): The current trading date you are trading on, YYYY-mm-dd
         look_back_days (int): How many days to look back, default is 30
     Returns:
         str: A formatted dataframe containing the technical indicators for the specified ticker symbol and indicator.
     """
-    return route_to_vendor("get_indicators", symbol, indicator, curr_date, look_back_days)
+    try:
+        return route_to_vendor("get_indicators", symbol, indicator, curr_date, look_back_days)
+    except ValueError as e:
+        return str(e)
