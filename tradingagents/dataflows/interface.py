@@ -165,7 +165,7 @@ def route_to_vendor(method: str, *args, **kwargs):
         try:
             return impl_func(*args, **kwargs)
         except Exception as e:
-            errors.append(f"{vendor}: {type(e).__name__}: {e}")
+            errors.append(f"{vendor}: {type(e).__name__}")
             continue
 
     details = " | ".join(errors) if errors else "no vendor candidates"
