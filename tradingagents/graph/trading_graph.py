@@ -145,6 +145,10 @@ class TradingAgentsGraph:
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
 
+        default_headers = self.config.get("default_headers")
+        if default_headers:
+            kwargs["default_headers"] = default_headers
+
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:

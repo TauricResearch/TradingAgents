@@ -132,10 +132,17 @@ def get_vendor(category: str, method: str = None) -> str:
     return config.get("data_vendors", {}).get(category, "default")
 
 def route_to_vendor(method: str, *args, **kwargs):
-    """Route method calls to appropriate vendor implementation with fallback support."""
+    """Route method calls to appropriate vendor implementation with fallback support.
+
+    Fallback policy:
+    - Try configured vendor order first, then other available vendors.
+    - On any vendor error, continue trying next vendor.
+    - Return first successful result.
+    - If all vendors fail, raise a summarized runtime error.
+    """
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
-    primary_vendors = [v.strip() for v in vendor_config.split(',')]
+    primary_vendors = [v.strip() for v in vendor_config.split(',') if v.strip()]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
@@ -147,6 +154,7 @@ def route_to_vendor(method: str, *args, **kwargs):
         if vendor not in fallback_vendors:
             fallback_vendors.append(vendor)
 
+    errors = []
     for vendor in fallback_vendors:
         if vendor not in VENDOR_METHODS[method]:
             continue
@@ -156,7 +164,9 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
-            continue  # Only rate limits trigger fallback
+        except Exception as e:
+            errors.append(f"{vendor}: {type(e).__name__}: {e}")
+            continue
 
-    raise RuntimeError(f"No available vendor for '{method}'")
+    details = " | ".join(errors) if errors else "no vendor candidates"
+    raise RuntimeError(f"No available vendor for '{method}'. Tried: {details}")
