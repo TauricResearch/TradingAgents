@@ -1,0 +1,37 @@
+{
+  "rules": [
+    {
+      "name": "AI capex acceleration",
+      "signal": "bullish",
+      "weight": "high",
+      "thesis": "Sustained AI infrastructure capex can support revenue growth and pricing power for leading compute and semiconductor firms.",
+      "conditions": [
+        "Management guides for rising AI-related backlog or enterprise demand.",
+        "Gross margin remains resilient while capex grows."
+      ],
+      "rationale": "Use this rule when the company is a direct beneficiary of AI infrastructure demand and execution quality remains strong."
+    },
+    {
+      "name": "Valuation stretch under slowing growth",
+      "signal": "bearish",
+      "weight": "high",
+      "thesis": "If valuation stays elevated while growth momentum decelerates, downside risk increases materially.",
+      "conditions": [
+        "Forward growth guidance is revised down.",
+        "Multiple expansion outpaces earnings revision."
+      ],
+      "rationale": "Use this rule as a cautionary overlay when expectations appear richer than operating reality."
+    },
+    {
+      "name": "Balance sheet resilience",
+      "signal": "bullish",
+      "weight": "medium",
+      "thesis": "Net cash, high operating cash flow, and low refinancing pressure improve resilience during drawdowns.",
+      "conditions": [
+        "Net cash or modest leverage profile.",
+        "Healthy free cash flow conversion."
+      ],
+      "rationale": "This factor matters most when macro conditions tighten and investors reward durability."
+    }
+  ]
+}

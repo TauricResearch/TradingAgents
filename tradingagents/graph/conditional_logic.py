@@ -43,6 +43,10 @@ class ConditionalLogic:
             return "tools_fundamentals"
         return "Msg Clear Fundamentals"
 
+    def should_continue_factor_rules(self, state: AgentState):
+        """Factor rule analyst is a pure context node with no tool loop."""
+        return "Msg Clear Factor_rules"
+
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""
 
