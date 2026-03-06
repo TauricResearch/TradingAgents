@@ -32,7 +32,14 @@ def load_factor_rules(config: Optional[Dict[str, Any]] = None) -> Tuple[List[Dic
             continue
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        rules = data.get("rules", data if isinstance(data, list) else [])
+
+        if isinstance(data, list):
+            rules = data
+        elif isinstance(data, dict):
+            rules = data.get("rules", [])
+        else:
+            rules = []
+
         if not isinstance(rules, list):
             raise ValueError("Factor rules file must contain a list under 'rules' or be a list itself.")
         return rules, str(path)
