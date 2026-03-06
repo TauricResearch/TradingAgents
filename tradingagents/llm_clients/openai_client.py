@@ -50,6 +50,13 @@ class OpenAIClient(BaseLLMClient):
             api_key = os.environ.get("XAI_API_KEY")
             if api_key:
                 llm_kwargs["api_key"] = api_key
+        elif self.provider == "deepseek":
+            llm_kwargs["base_url"] = "https://api.deepseek.com"
+            api_key = os.environ.get("DEEPSEEK_API_KEY")
+            if api_key:
+                llm_kwargs["api_key"] = api_key
+            else:
+                raise ValueError("DEEPSEEK_API_KEY environment variable is required for DeepSeek provider")
         elif self.provider == "openrouter":
             llm_kwargs["base_url"] = "https://openrouter.ai/api/v1"
             api_key = os.environ.get("OPENROUTER_API_KEY")

@@ -30,6 +30,9 @@ def create_llm_client(
 
     if provider_lower in ("openai", "ollama", "openrouter"):
         return OpenAIClient(model, base_url, provider=provider_lower, **kwargs)
+    
+    if provider_lower == "deepseek":
+        return OpenAIClient(model, base_url, provider="deepseek", **kwargs)
 
     if provider_lower == "xai":
         return OpenAIClient(model, base_url, provider="xai", **kwargs)
