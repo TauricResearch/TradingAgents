@@ -4,9 +4,18 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 
+_ALLOWED_RULE_FILENAMES = {"factor_rules.json"}
+
+
 def _candidate_rule_paths(config: Optional[Dict[str, Any]] = None) -> List[Path]:
     config = config or {}
     candidates = []
+
+    project_dir = Path(config.get("project_dir", Path(__file__).resolve().parents[2])).resolve()
+    allowed_dirs = {
+        project_dir.resolve(),
+        (project_dir / "examples").resolve(),
+    }
 
     explicit = config.get("factor_rules_path")
     if explicit:
@@ -16,14 +25,24 @@ def _candidate_rule_paths(config: Optional[Dict[str, Any]] = None) -> List[Path]
     if env_path:
         candidates.append(Path(env_path))
 
-    project_dir = Path(config.get("project_dir", Path(__file__).resolve().parents[2]))
     candidates.extend(
         [
             project_dir / "examples" / "factor_rules.json",
             project_dir / "factor_rules.json",
         ]
     )
-    return candidates
+
+    safe_candidates = []
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+        except Exception:
+            continue
+        if resolved.name not in _ALLOWED_RULE_FILENAMES:
+            continue
+        if any(parent == resolved.parent or parent in resolved.parents for parent in allowed_dirs):
+            safe_candidates.append(resolved)
+    return safe_candidates
 
 
 def load_factor_rules(config: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict[str, Any]], Optional[str]]:
