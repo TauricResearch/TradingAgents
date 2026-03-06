@@ -145,6 +145,13 @@ class TradingAgentsGraph:
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
 
+        elif provider == "vllm":
+            # vllm specific settings
+            api_base = self.config.get("vllm_api_base")
+            if api_base:
+                kwargs["base_url"] = api_base
+            # Add any vllm-specific parameters here if needed
+
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
