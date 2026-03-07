@@ -69,6 +69,35 @@ class FactorRulesPathTests(unittest.TestCase):
             self.assertEqual(rules, [])
             self.assertIsNone(loaded_path)
 
+    def test_non_standard_rule_filename_is_ignored(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir)
+            examples_dir = project_dir / "examples"
+            examples_dir.mkdir()
+            wrong_name = examples_dir / "manual_rules.json"
+            wrong_name.write_text(json.dumps({"rules": [{"name": "Ignored"}]}), encoding="utf-8")
+
+            rules, loaded_path = load_factor_rules(
+                {
+                    "project_dir": str(project_dir),
+                    "factor_rules_path": str(wrong_name),
+                }
+            )
+
+            self.assertEqual(rules, [])
+            self.assertIsNone(loaded_path)
+
+    def test_invalid_rules_object_raises_value_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir)
+            examples_dir = project_dir / "examples"
+            examples_dir.mkdir()
+            rule_path = examples_dir / "factor_rules.json"
+            rule_path.write_text(json.dumps({"rules": {"name": "bad-shape"}}), encoding="utf-8")
+
+            with self.assertRaises(ValueError):
+                load_factor_rules({"project_dir": str(project_dir)})
+
     def test_summarize_factor_rules_counts_biases(self):
         summary = summarize_factor_rules(
             [
