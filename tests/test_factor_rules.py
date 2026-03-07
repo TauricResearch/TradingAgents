@@ -185,6 +185,16 @@ class FactorRulesPathTests(unittest.TestCase):
         self.assertIn("- Signal bias: bullish", summary)
         self.assertIn("- Weight: high", summary)
 
+    def test_summarize_factor_rules_defaults_missing_conditions(self):
+        summary = summarize_factor_rules(
+            [{"name": "Liquidity", "signal": "neutral", "rationale": "No screen provided"}],
+            ticker="AMD",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Conditions: No explicit conditions provided", summary)
+        self.assertIn("- Rationale: No screen provided", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
