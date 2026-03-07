@@ -4,6 +4,7 @@ from .base_client import BaseLLMClient
 from .openai_client import OpenAIClient
 from .anthropic_client import AnthropicClient
 from .google_client import GoogleClient
+from .azure_foundry_client import AzureFoundryClient
 
 
 def create_llm_client(
@@ -39,5 +40,8 @@ def create_llm_client(
 
     if provider_lower == "google":
         return GoogleClient(model, base_url, **kwargs)
+
+    if provider_lower == "azure_foundry":
+        return AzureFoundryClient(model, base_url, **kwargs)
 
     raise ValueError(f"Unsupported LLM provider: {provider}")
