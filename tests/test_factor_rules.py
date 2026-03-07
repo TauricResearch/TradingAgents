@@ -53,6 +53,19 @@ class FactorRulesPathTests(unittest.TestCase):
             self.assertEqual(rules, payload["rules"])
             self.assertEqual(Path(loaded_path), rule_path.resolve())
 
+    def test_load_factor_rules_accepts_top_level_list(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir)
+            examples_dir = project_dir / "examples"
+            examples_dir.mkdir()
+            rule_path = examples_dir / "factor_rules.json"
+            payload = [{"name": "Value", "signal": "bullish"}]
+            rule_path.write_text(json.dumps(payload), encoding="utf-8")
+
+            rules, loaded_path = load_factor_rules({"project_dir": str(project_dir)})
+            self.assertEqual(rules, payload)
+            self.assertEqual(Path(loaded_path), rule_path.resolve())
+
     def test_outside_project_rule_path_is_rejected(self):
         with tempfile.TemporaryDirectory() as project_tmp, tempfile.TemporaryDirectory() as outside_tmp:
             project_dir = Path(project_tmp)
