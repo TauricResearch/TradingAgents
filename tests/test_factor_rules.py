@@ -11,6 +11,7 @@ SPEC.loader.exec_module(factor_rules)
 
 _candidate_rule_paths = factor_rules._candidate_rule_paths
 load_factor_rules = factor_rules.load_factor_rules
+summarize_factor_rules = factor_rules.summarize_factor_rules
 
 
 class FactorRulesPathTests(unittest.TestCase):
@@ -67,6 +68,27 @@ class FactorRulesPathTests(unittest.TestCase):
 
             self.assertEqual(rules, [])
             self.assertIsNone(loaded_path)
+
+    def test_summarize_factor_rules_counts_biases(self):
+        summary = summarize_factor_rules(
+            [
+                {"name": "Value", "signal": "bullish", "weight": "high"},
+                {"name": "Momentum", "signal": "bearish", "weight": "medium"},
+                {"name": "Quality", "signal": "neutral", "weight": "low"},
+            ],
+            ticker="AAPL",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("Loaded 3 manually curated factor rules.", summary)
+        self.assertIn("- Bullish leaning rules: 1", summary)
+        self.assertIn("- Bearish leaning rules: 1", summary)
+        self.assertIn("- Neutral / mixed rules: 1", summary)
+
+    def test_summarize_factor_rules_empty_list_warns_against_fabrication(self):
+        summary = summarize_factor_rules([], ticker="MSFT", trade_date="2026-03-07")
+        self.assertIn("No factor rules were loaded", summary)
+        self.assertIn("do not fabricate rule-based signals", summary)
 
 
 if __name__ == "__main__":
