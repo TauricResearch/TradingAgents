@@ -159,6 +159,21 @@ class FactorRulesPathTests(unittest.TestCase):
         self.assertIn("- Bearish leaning rules: 1", summary)
         self.assertIn("- Neutral / mixed rules: 1", summary)
 
+    def test_summarize_factor_rules_counts_buy_sell_aliases(self):
+        summary = summarize_factor_rules(
+            [
+                {"name": "Value", "signal": "buy"},
+                {"name": "Quality", "signal": "sell"},
+                {"name": "Balance", "signal": "hold"},
+            ],
+            ticker="TSLA",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Bullish leaning rules: 1", summary)
+        self.assertIn("- Bearish leaning rules: 1", summary)
+        self.assertIn("- Neutral / mixed rules: 1", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
