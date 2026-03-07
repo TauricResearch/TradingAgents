@@ -300,6 +300,15 @@ class FactorRulesPathTests(unittest.TestCase):
 
         self.assertIn("- Weight: False", summary)
 
+    def test_summarize_factor_rules_stringifies_dict_conditions(self):
+        summary = summarize_factor_rules(
+            [{"name": "Carry", "signal": "neutral", "conditions": [{"threshold": 5}]}],
+            ticker="HYG",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Conditions: {'threshold': 5}", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
