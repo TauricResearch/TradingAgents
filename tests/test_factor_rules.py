@@ -204,6 +204,16 @@ class FactorRulesPathTests(unittest.TestCase):
 
         self.assertIn("- Conditions: 1; True; 3.14", summary)
 
+    def test_summarize_factor_rules_defaults_missing_thesis_to_empty_string(self):
+        summary = summarize_factor_rules(
+            [{"name": "Sentiment", "signal": "bullish", "rationale": "Momentum improving"}],
+            ticker="AMZN",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Thesis: ", summary)
+        self.assertIn("- Rationale: Momentum improving", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
