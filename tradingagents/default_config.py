@@ -30,9 +30,8 @@ DEFAULT_CONFIG = {
     "backend_embedding_url": "http://localhost:8081/v1",
     # "backend_embedding_url":"https://api.z.ai/api/v1",
     # "backend_url": "http://localhost:11434/v1",
-    "api_key": os.environ.get("OPENAI_API_KEY", "your-api-key-here")
-    "embedding_api_key": os.environ.get("OPENAI_API_KEY", "your-api-key-here")
-}
+    "api_key": os.environ.get("OPENAI_API_KEY", "your-api-key-here"),
+    "embedding_api_key": os.environ.get("OPENAI_API_KEY", "your-api-key-here"),
     # Debate and discussion settings
     "max_debate_rounds": 5,
     "max_risk_discuss_rounds": 5,
