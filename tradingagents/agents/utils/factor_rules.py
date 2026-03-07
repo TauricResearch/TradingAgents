@@ -33,6 +33,7 @@ def _candidate_rule_paths(config: Optional[Dict[str, Any]] = None) -> List[Path]
     )
 
     safe_candidates = []
+    seen = set()
     for candidate in candidates:
         try:
             resolved = candidate.resolve()
@@ -40,8 +41,12 @@ def _candidate_rule_paths(config: Optional[Dict[str, Any]] = None) -> List[Path]
             continue
         if resolved.name not in _ALLOWED_RULE_FILENAMES:
             continue
-        if any(parent == resolved.parent or parent in resolved.parents for parent in allowed_dirs):
-            safe_candidates.append(resolved)
+        if not any(parent == resolved.parent or parent in resolved.parents for parent in allowed_dirs):
+            continue
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        safe_candidates.append(resolved)
     return safe_candidates
 
 
