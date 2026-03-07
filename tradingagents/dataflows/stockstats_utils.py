@@ -4,6 +4,7 @@ from stockstats import wrap
 from typing import Annotated
 import os
 from .config import get_config, DATA_DIR
+from .utils import safe_read_csv
 
 
 class StockstatsUtils:
@@ -26,7 +27,7 @@ class StockstatsUtils:
 
         if not online:
             try:
-                data = pd.read_csv(
+                data = safe_read_csv(
                     os.path.join(
                         DATA_DIR,
                         f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
@@ -54,7 +55,7 @@ class StockstatsUtils:
             )
 
             if os.path.exists(data_file):
-                data = pd.read_csv(data_file)
+                data = safe_read_csv(data_file)
                 data["Date"] = pd.to_datetime(data["Date"])
             else:
                 data = yf.download(

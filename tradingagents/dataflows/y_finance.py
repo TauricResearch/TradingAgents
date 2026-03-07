@@ -4,6 +4,7 @@ from dateutil.relativedelta import relativedelta
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils
+from .utils import safe_read_csv
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -205,7 +206,7 @@ def _get_stock_stats_bulk(
     if not online:
         # Local data path
         try:
-            data = pd.read_csv(
+            data = safe_read_csv(
                 os.path.join(
                     config.get("data_cache_dir", "data"),
                     f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
@@ -232,7 +233,7 @@ def _get_stock_stats_bulk(
         )
         
         if os.path.exists(data_file):
-            data = pd.read_csv(data_file)
+            data = safe_read_csv(data_file)
             data["Date"] = pd.to_datetime(data["Date"])
         else:
             data = yf.download(

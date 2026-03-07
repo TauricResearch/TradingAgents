@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import shutil
 from typing import Dict
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -17,7 +18,18 @@ class TauricResearcher:
         os.environ["OPENAI_API_KEY"] = "sk-xxxx"  # IGNORE
         os.environ["ALPHA_VANTAGE_API_KEY"] = "J13IJQQOT4NLKF3A"
         os.environ["OLLAMA_API_KEY"] = "85a41aff1f814d3ca81f0a957ac02114.HGH8TZywvA0zbLe2y09Kvv4F"
-            
+        
+    def clear_data_cache(self):
+        """Clear the data cache directory to ensure fresh data retrieval."""
+        cache_dir = DEFAULT_CONFIG["data_cache_dir"]
+        if os.path.isdir(cache_dir):
+            for name in os.listdir(cache_dir):
+                path = os.path.join(cache_dir, name)
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
+                    
     def run(self, stock_symbol: str = "NVDA", date: str = None, config: dict = DEFAULT_CONFIG.copy()) -> dict:
         """
         Run the trading agent to generate a trading decision for a stock.
@@ -28,12 +40,16 @@ class TauricResearcher:
         Returns:
             The evaluated trading decision as a Python object.
         """
+        self.clear_data_cache()
         # Initialize the trading graph with debug mode enabled
         ta = TradingAgentsGraph(debug=True, config=config)
 
         # Forward propagate through the graph to get trading decision for NVDA
         _, decision = ta.propagate(stock_symbol, date)
-        decision = eval(decision)
+        try:
+            decision = eval(decision)
+        except Exception as e:
+            pass
         
         # Evaluate and return the decision string as a Python object
         return decision

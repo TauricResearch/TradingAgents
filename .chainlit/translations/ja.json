@@ -1,0 +1,244 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "\u30ad\u30e3\u30f3\u30bb\u30eb",
+            "confirm": "\u78ba\u8a8d",
+            "continue": "\u7d9a\u3051\u308b",
+            "goBack": "\u623b\u308b",
+            "reset": "\u30ea\u30bb\u30c3\u30c8",
+            "submit": "\u9001\u4fe1"
+        },
+        "status": {
+            "loading": "\u8aad\u307f\u8fbc\u307f\u4e2d...",
+            "error": {
+                "default": "\u30a8\u30e9\u30fc\u304c\u767a\u751f\u3057\u307e\u3057\u305f",
+                "serverConnection": "\u30b5\u30fc\u30d0\u30fc\u306b\u63a5\u7d9a\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f"
+            }
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "\u30a2\u30d7\u30ea\u306b\u30ed\u30b0\u30a4\u30f3",
+            "form": {
+                "email": {
+                    "label": "\u30e1\u30fc\u30eb\u30a2\u30c9\u30ec\u30b9",
+                    "required": "\u30e1\u30fc\u30eb\u30a2\u30c9\u30ec\u30b9\u306f\u5fc5\u9808\u9805\u76ee\u3067\u3059",
+                    "placeholder": "me@example.com"
+                },
+                "password": {
+                    "label": "\u30d1\u30b9\u30ef\u30fc\u30c9",
+                    "required": "\u30d1\u30b9\u30ef\u30fc\u30c9\u306f\u5fc5\u9808\u9805\u76ee\u3067\u3059"
+                },
+                "actions": {
+                    "signin": "\u30b5\u30a4\u30f3\u30a4\u30f3"
+                },
+                "alternativeText": {
+                    "or": "\u307e\u305f\u306f"
+                }
+            },
+            "errors": {
+                "default": "\u30b5\u30a4\u30f3\u30a4\u30f3\u3067\u304d\u307e\u305b\u3093",
+                "signin": "\u5225\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u3067\u30b5\u30a4\u30f3\u30a4\u30f3\u3057\u3066\u304f\u3060\u3055\u3044",
+                "oauthSignin": "\u5225\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u3067\u30b5\u30a4\u30f3\u30a4\u30f3\u3057\u3066\u304f\u3060\u3055\u3044",
+                "redirectUriMismatch": "\u30ea\u30c0\u30a4\u30ec\u30af\u30c8URI\u304cOAuth\u30a2\u30d7\u30ea\u306e\u8a2d\u5b9a\u3068\u4e00\u81f4\u3057\u307e\u305b\u3093",
+                "oauthCallback": "\u5225\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u3067\u30b5\u30a4\u30f3\u30a4\u30f3\u3057\u3066\u304f\u3060\u3055\u3044",
+                "oauthCreateAccount": "\u5225\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u3067\u30b5\u30a4\u30f3\u30a4\u30f3\u3057\u3066\u304f\u3060\u3055\u3044",
+                "emailCreateAccount": "\u5225\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u3067\u30b5\u30a4\u30f3\u30a4\u30f3\u3057\u3066\u304f\u3060\u3055\u3044",
+                "callback": "\u5225\u306e\u30a2\u30ab\u30a6\u30f3\u30c8\u3067\u30b5\u30a4\u30f3\u30a4\u30f3\u3057\u3066\u304f\u3060\u3055\u3044",
+                "oauthAccountNotLinked": "\u672c\u4eba\u78ba\u8a8d\u306e\u305f\u3081\u3001\u6700\u521d\u306b\u4f7f\u7528\u3057\u305f\u306e\u3068\u540c\u3058\u30a2\u30ab\u30a6\u30f3\u30c8\u3067\u30b5\u30a4\u30f3\u30a4\u30f3\u3057\u3066\u304f\u3060\u3055\u3044",
+                "emailSignin": "\u30e1\u30fc\u30eb\u3092\u9001\u4fe1\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f",
+                "emailVerify": "\u30e1\u30fc\u30eb\u30a2\u30c9\u30ec\u30b9\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002\u65b0\u3057\u3044\u30e1\u30fc\u30eb\u304c\u9001\u4fe1\u3055\u308c\u307e\u3057\u305f",
+                "credentialsSignin": "\u30b5\u30a4\u30f3\u30a4\u30f3\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002\u5165\u529b\u3057\u305f\u60c5\u5831\u304c\u6b63\u3057\u3044\u304b\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044",
+                "sessionRequired": "\u3053\u306e\u30da\u30fc\u30b8\u306b\u30a2\u30af\u30bb\u30b9\u3059\u308b\u306b\u306f\u30b5\u30a4\u30f3\u30a4\u30f3\u3057\u3066\u304f\u3060\u3055\u3044"
+            }
+        },
+        "provider": {
+            "continue": "{{provider}}\u3067\u7d9a\u3051\u308b"
+        }
+    },
+    "chat": {
+        "input": {
+            "placeholder": "\u30e1\u30c3\u30bb\u30fc\u30b8\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044...",
+            "actions": {
+                "send": "\u30e1\u30c3\u30bb\u30fc\u30b8\u3092\u9001\u4fe1",
+                "stop": "\u30bf\u30b9\u30af\u3092\u505c\u6b62",
+                "attachFiles": "\u30d5\u30a1\u30a4\u30eb\u3092\u6dfb\u4ed8"
+            }
+        },
+        "speech": {
+            "start": "\u9332\u97f3\u958b\u59cb",
+            "stop": "\u9332\u97f3\u505c\u6b62",
+            "connecting": "\u63a5\u7d9a\u4e2d"
+        },
+        "commands": {
+            "button": "\u30c4\u30fc\u30eb",
+            "changeTool": "\u30c4\u30fc\u30eb\u3092\u5909\u66f4",
+            "availableTools": "\u5229\u7528\u53ef\u80fd\u306a\u30c4\u30fc\u30eb"
+        },
+        "fileUpload": {
+            "dragDrop": "\u3053\u3053\u306b\u30d5\u30a1\u30a4\u30eb\u3092\u30c9\u30e9\u30c3\u30b0\uff06\u30c9\u30ed\u30c3\u30d7",
+            "sizeLimit": "\u5236\u9650\uff1a",
+            "errors": {
+                "failed": "\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9\u306b\u5931\u6557\u3057\u307e\u3057\u305f",
+                "cancelled": "\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9\u3092\u30ad\u30e3\u30f3\u30bb\u30eb\u3057\u307e\u3057\u305f\uff1a"
+            },
+            "actions": {
+                "cancelUpload": "\u30a2\u30c3\u30d7\u30ed\u30fc\u30c9\u3092\u30ad\u30e3\u30f3\u30bb\u30eb",
+                "removeAttachment": "\u6dfb\u4ed8\u30d5\u30a1\u30a4\u30eb\u3092\u524a\u9664"
+            }
+        },
+        "messages": {
+            "status": {
+                "using": "\u4f7f\u7528\u4e2d",
+                "used": "\u4f7f\u7528\u6e08\u307f"
+            },
+            "actions": {
+                "copy": {
+                    "button": "\u30af\u30ea\u30c3\u30d7\u30dc\u30fc\u30c9\u306b\u30b3\u30d4\u30fc",
+                    "success": "\u30b3\u30d4\u30fc\u3057\u307e\u3057\u305f\uff01"
+                }
+            },
+            "feedback": {
+                "positive": "\u5f79\u306b\u7acb\u3063\u305f",
+                "negative": "\u5f79\u306b\u7acb\u305f\u306a\u304b\u3063\u305f",
+                "edit": "\u30d5\u30a3\u30fc\u30c9\u30d0\u30c3\u30af\u3092\u7de8\u96c6",
+                "dialog": {
+                    "title": "\u30b3\u30e1\u30f3\u30c8\u3092\u8ffd\u52a0",
+                    "submit": "\u30d5\u30a3\u30fc\u30c9\u30d0\u30c3\u30af\u3092\u9001\u4fe1",
+                    "yourFeedback": "\u3042\u306a\u305f\u306e\u30d5\u30a3\u30fc\u30c9\u30d0\u30c3\u30af..."
+                },
+                "status": {
+                    "updating": "\u66f4\u65b0\u4e2d",
+                    "updated": "\u30d5\u30a3\u30fc\u30c9\u30d0\u30c3\u30af\u3092\u66f4\u65b0\u3057\u307e\u3057\u305f"
+                }
+            }
+        },
+        "history": {
+            "title": "\u6700\u8fd1\u306e\u5165\u529b",
+            "empty": "\u4f55\u3082\u3042\u308a\u307e\u305b\u3093...",
+            "show": "\u5c65\u6b74\u3092\u8868\u793a"
+        },
+        "settings": {
+            "title": "\u8a2d\u5b9a\u30d1\u30cd\u30eb",
+            "customize": "\u3053\u3053\u3067\u30c1\u30e3\u30c3\u30c8\u8a2d\u5b9a\u3092\u30ab\u30b9\u30bf\u30de\u30a4\u30ba\u3057\u307e\u3059"
+        },
+        "watermark": "\u5927\u898f\u6a21\u8a00\u8a9e\u30e2\u30c7\u30eb\u306f\u9593\u9055\u3044\u3092\u72af\u3059\u53ef\u80fd\u6027\u304c\u3042\u308a\u307e\u3059\u3002\u91cd\u8981\u306a\u60c5\u5831\u306b\u3064\u3044\u3066\u306f\u78ba\u8a8d\u3092\u691c\u8a0e\u3057\u3066\u304f\u3060\u3055\u3044\u3002"
+    },
+    "threadHistory": {
+        "sidebar": {
+            "title": "\u904e\u53bb\u306e\u30c1\u30e3\u30c3\u30c8",
+            "filters": {
+                "search": "\u691c\u7d22",
+                "placeholder": "Search conversations..."
+            },
+            "timeframes": {
+                "today": "\u4eca\u65e5",
+                "yesterday": "\u6628\u65e5",
+                "previous7days": "\u904e\u53bb7\u65e5\u9593",
+                "previous30days": "\u904e\u53bb30\u65e5\u9593"
+            },
+            "empty": "\u30b9\u30ec\u30c3\u30c9\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093",
+            "actions": {
+                "close": "\u30b5\u30a4\u30c9\u30d0\u30fc\u3092\u9589\u3058\u308b",
+                "open": "\u30b5\u30a4\u30c9\u30d0\u30fc\u3092\u958b\u304f"
+            }
+        },
+        "thread": {
+            "untitled": "\u7121\u984c\u306e\u4f1a\u8a71",
+            "menu": {
+                "rename": "\u540d\u524d\u3092\u5909\u66f4",
+                "share": "\u5171\u6709",
+                "delete": "\u524a\u9664"
+            },
+            "actions": {
+                "share": {
+                    "title": "\u30c1\u30e3\u30c3\u30c8\u306e\u30ea\u30f3\u30af\u3092\u5171\u6709",
+                    "button": "\u5171\u6709",
+                    "status": {
+                        "copied": "\u30ea\u30f3\u30af\u3092\u30b3\u30d4\u30fc\u3057\u307e\u3057\u305f",
+                        "created": "\u5171\u6709\u30ea\u30f3\u30af\u3092\u4f5c\u6210\u3057\u307e\u3057\u305f\uff01",
+                        "unshared": "\u3053\u306e\u30b9\u30ec\u30c3\u30c9\u306e\u5171\u6709\u3092\u7121\u52b9\u306b\u3057\u307e\u3057\u305f"
+                    },
+                    "error": {
+                        "create": "\u5171\u6709\u30ea\u30f3\u30af\u306e\u4f5c\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f",
+                        "unshare": "\u30b9\u30ec\u30c3\u30c9\u306e\u5171\u6709\u89e3\u9664\u306b\u5931\u6557\u3057\u307e\u3057\u305f"
+                    }
+                },
+                "delete": {
+                    "title": "\u524a\u9664\u306e\u78ba\u8a8d",
+                    "description": "\u3053\u306e\u30b9\u30ec\u30c3\u30c9\u3068\u305d\u306e\u30e1\u30c3\u30bb\u30fc\u30b8\u3001\u8981\u7d20\u304c\u524a\u9664\u3055\u308c\u307e\u3059\u3002\u3053\u306e\u64cd\u4f5c\u306f\u53d6\u308a\u6d88\u305b\u307e\u305b\u3093",
+                    "success": "\u30c1\u30e3\u30c3\u30c8\u3092\u524a\u9664\u3057\u307e\u3057\u305f",
+                    "inProgress": "\u30c1\u30e3\u30c3\u30c8\u3092\u524a\u9664\u4e2d"
+                },
+                "rename": {
+                    "title": "\u30b9\u30ec\u30c3\u30c9\u306e\u540d\u524d\u3092\u5909\u66f4",
+                    "description": "\u3053\u306e\u30b9\u30ec\u30c3\u30c9\u306e\u65b0\u3057\u3044\u540d\u524d\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044",
+                    "form": {
+                        "name": {
+                            "label": "\u540d\u524d",
+                            "placeholder": "\u65b0\u3057\u3044\u540d\u524d\u3092\u5165\u529b"
+                        }
+                    },
+                    "success": "\u30b9\u30ec\u30c3\u30c9\u540d\u3092\u5909\u66f4\u3057\u307e\u3057\u305f\uff01",
+                    "inProgress": "\u30b9\u30ec\u30c3\u30c9\u540d\u3092\u5909\u66f4\u4e2d"
+                }
+            }
+        }
+    },
+    "navigation": {
+        "header": {
+            "chat": "\u30c1\u30e3\u30c3\u30c8",
+            "readme": "\u8aac\u660e\u66f8",
+            "theme": {
+                "light": "Light Theme",
+                "dark": "Dark Theme",
+                "system": "Follow System"
+            }
+        },
+        "newChat": {
+            "button": "\u65b0\u898f\u30c1\u30e3\u30c3\u30c8",
+            "dialog": {
+                "title": "\u65b0\u898f\u30c1\u30e3\u30c3\u30c8\u306e\u4f5c\u6210",
+                "description": "\u73fe\u5728\u306e\u30c1\u30e3\u30c3\u30c8\u5c65\u6b74\u304c\u30af\u30ea\u30a2\u3055\u308c\u307e\u3059\u3002\u7d9a\u884c\u3057\u307e\u3059\u304b\uff1f",
+                "tooltip": "\u65b0\u898f\u30c1\u30e3\u30c3\u30c8"
+            }
+        },
+        "user": {
+            "menu": {
+                "settings": "\u8a2d\u5b9a",
+                "settingsKey": "S",
+                "apiKeys": "API\u30ad\u30fc",
+                "logout": "\u30ed\u30b0\u30a2\u30a6\u30c8"
+            }
+        }
+    },
+    "apiKeys": {
+        "title": "\u5fc5\u8981\u306aAPI\u30ad\u30fc",
+        "description": "\u3053\u306e\u30a2\u30d7\u30ea\u3092\u4f7f\u7528\u3059\u308b\u306b\u306f\u3001\u4ee5\u4e0b\u306eAPI\u30ad\u30fc\u304c\u5fc5\u8981\u3067\u3059\u3002\u30ad\u30fc\u306f\u304a\u4f7f\u3044\u306e\u30c7\u30d0\u30a4\u30b9\u306e\u30ed\u30fc\u30ab\u30eb\u30b9\u30c8\u30ec\u30fc\u30b8\u306b\u4fdd\u5b58\u3055\u308c\u307e\u3059\u3002",
+        "success": {
+            "saved": "\u4fdd\u5b58\u304c\u5b8c\u4e86\u3057\u307e\u3057\u305f"
+        }
+    },
+    "alerts": {
+        "info": "Info",
+        "note": "Note",
+        "tip": "Tip",
+        "important": "Important",
+        "warning": "Warning",
+        "caution": "Caution",
+        "debug": "Debug",
+        "example": "Example",
+        "success": "Success",
+        "help": "Help",
+        "idea": "Idea",
+        "pending": "Pending",
+        "security": "Security",
+        "beta": "Beta",
+        "best-practice": "Best Practice"
+    },
+    "components": {
+        "MultiSelectInput": {
+            "placeholder": "\u9078\u629e..."
+        }
+    }
+}

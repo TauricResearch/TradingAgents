@@ -73,14 +73,20 @@ class TradingAgentsGraph:
 
         # Initialize LLMs
         if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"],
-            base_url=self.config["backend_url"],
-            temperature=self.config["temperature"],
-            top_p=self.config["top_p"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"],
-            base_url=self.config["backend_url"],
-            temperature=self.config["temperature"],
-            top_p=self.config["top_p"])
+            self.deep_thinking_llm = ChatOpenAI(
+                api_key=self.config["api_key"],
+                model=self.config["deep_think_llm"],
+                base_url=self.config["backend_url"],
+                temperature=self.config["temperature"],
+                # top_p=self.config["top_p"]
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                api_key=self.config["api_key"],
+                model=self.config["quick_think_llm"],
+                base_url=self.config["backend_url"],
+                temperature=self.config["temperature"],
+                # top_p=self.config["top_p"]
+            )
         elif self.config["llm_provider"].lower() == "anthropic":
             self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"],
             base_url=self.config["backend_url"],
@@ -155,7 +161,7 @@ class TradingAgentsGraph:
                     get_news,
                     # get_global_news,
                     # get_insider_sentiment,
-                    get_insider_transactions,
+                    # get_insider_transactions,
                 ]
             ),
             "fundamentals": ToolNode(
@@ -199,7 +205,7 @@ class TradingAgentsGraph:
         self.curr_state = final_state
 
         # Log state
-        # self._log_state(trade_date, final_state)
+        self._log_state(trade_date, final_state)
 
         # Return decision and processed signal
         return final_state, self.process_signal(final_state["final_trade_decision"])
@@ -237,11 +243,11 @@ class TradingAgentsGraph:
         }
 
         # Save to file
-        directory = Path(f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/")
+        directory = Path(self.config["results_dir"]) / str(self.ticker)
         directory.mkdir(parents=True, exist_ok=True)
 
         with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
+            f"{directory}/{trade_date}.json",
             "w",
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)

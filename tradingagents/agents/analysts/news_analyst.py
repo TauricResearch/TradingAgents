@@ -16,17 +16,8 @@ def create_news_analyst(llm):
         ]
 
         system_message = (
-            "You are a News Analyst focused on IMMEDIATE market impact (1-2 weeks). "
-            "Interpret breaking news and upcoming macro events (CPI, Fed, Geopolitics) to determine short-term direction. "
-            "Focus on the 'Narrative' — what story is the market telling itself right now? "
-            "Use the available tools: get_news(query, start_date, end_date) for company-specific news. "
-            "Filter out noise and old news. Prioritize news that changes the short-term outlook."
-            + "\n\nDECISION LOGIC:"
-            + "\n- LONG: Distinct positive news cycle, analyst upgrades, or strong macro tailwinds."
-            + "\n- SHORT: Distinct negative news cycle, lawsuits, regulatory hits, or macro headwinds."
-            + "\n- HOLD: Mixed news, stale news, or high uncertainty waiting for a major event."
+            "You are a news researcher tasked with analyzing recent news and trends for SHORT-TERM trading (1-2 week horizon). Focus on breaking news, upcoming events (earnings, conferences, product launches), regulatory decisions, and any catalysts that could impact the stock price in the next 1-2 weeks. Please write a comprehensive report highlighting near-term news drivers and events that could affect short-term price movement. Use the available tools: get_news(query, start_date, end_date) for company-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make SHORT-TERM decisions within the next 1-2 weeks."
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
-            + "\n\nYOU MUST CONCLUDE YOUR REPORT WITH: 'SIGNAL: [LONG/SHORT/HOLD]'"
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -37,8 +28,8 @@ def create_news_analyst(llm):
                     " Use the provided tools to progress towards answering the question."
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
                     " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **LONG/HOLD/SHORT** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **LONG/HOLD/SHORT** so the team knows to stop."
+                    " If you or any other assistant has the FINAL POSITION RECOMMENDATION: **LONG/HOLD/SHORT** or deliverable,"
+                    " prefix your response with FINAL POSITION RECOMMENDATION: **LONG/HOLD/SHORT** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
                     "For your reference, the current date is {current_date}. We are looking at the company {ticker}",
                 ),

@@ -18,11 +18,11 @@ def create_neutral_debator(llm):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
+        prompt = f"""As the Neutral Risk Analyst for SHORT-TERM trading (1-2 week horizon), your role is to provide a balanced perspective on the trader's position decision (LONG/SHORT/HOLD) for the next 1-2 weeks. You prioritize a well-rounded approach, evaluating near-term upsides and downsides while factoring in upcoming events, short-term market trends, and immediate catalysts. Here is the trader's position decision:
 
 {trader_decision}
 
-Your task is to challenge both the Risky and Safe Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
+Your task is to challenge both the Risky and Safe Analysts on their short-term views, pointing out where each perspective may be overly optimistic or overly cautious for the 1-2 week timeframe. Use insights from the following data sources to support a balanced short-term position strategy:
 
 Market Research Report: {market_research_report}
 Social Media Sentiment Report: {sentiment_report}
@@ -30,7 +30,7 @@ Latest World Affairs Report: {news_report}
 Company Fundamentals Report: {fundamentals_report}
 Here is the current conversation history: {history} Here is the last response from the risky analyst: {current_risky_response} Here is the last response from the safe analyst: {current_safe_response}. If there are no responses from the other viewpoints, do not halluncinate and just present your point.
 
-Engage actively by analyzing both sides critically, addressing weaknesses in the risky and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting."""
+Engage actively by analyzing both sides critically for the short-term horizon, addressing weaknesses in the risky and conservative arguments. Challenge each of their points to illustrate why a balanced approach (whether LONG, SHORT, or HOLD) might offer the best risk-reward for the next 1-2 weeks. Focus on debating rather than simply presenting data, aiming to show that a balanced view optimized for short-term trading can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting."""
 
         response = llm.invoke(prompt)
 

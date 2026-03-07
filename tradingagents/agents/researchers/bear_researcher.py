@@ -22,14 +22,14 @@ def create_bear_researcher(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock for the **Short Term (1-2 Weeks)**. Your goal is to present a well-reasoned argument emphasizing immediate risks, technical breakdowns, and negative catalysts that will drive the price down in the next 10 days.
+        prompt = f"""You are a Bear Analyst making the case for taking a SHORT position on the stock for SHORT-TERM trading (1-2 week horizon). Your goal is to present a well-reasoned argument emphasizing near-term risks, negative catalysts, and bearish short-term signals. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
 
-Key points to focus on:
+Key points to focus on for the next 1-2 weeks:
 
-- Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
-- Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
-- Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
-- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
+- Near-Term Risks: Highlight upcoming events, earnings risks, negative catalysts, or announcements that could drive the price down in the next 1-2 weeks.
+- Short-Term Weakness: Emphasize negative technical signals, overbought conditions, and recent price action supporting a SHORT position.
+- Negative Short-Term Indicators: Use recent adverse news, sentiment deterioration, and market headwinds to support the SHORT position in the near term.
+- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions that make LONG risky for the next 1-2 weeks.
 - Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
 
 Resources available:
@@ -41,7 +41,7 @@ Company fundamentals report: {fundamentals_report}
 Conversation history of the debate: {history}
 Last bull argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
+Use this information to deliver a compelling bear argument for a SHORT-TERM SHORT position (1-2 weeks), refute the bull's claims, and engage in a dynamic debate that demonstrates why SHORT is preferable over LONG for the near term. You must also address reflections and learn from lessons and mistakes you made in the past.
 """
 
         response = llm.invoke(prompt)

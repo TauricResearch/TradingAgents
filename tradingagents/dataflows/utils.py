@@ -1,4 +1,5 @@
 import os
+from io import StringIO
 import json
 import pandas as pd
 from datetime import date, timedelta, datetime
@@ -37,3 +38,14 @@ def get_next_weekday(date):
         return next_weekday
     else:
         return date
+    
+def safe_read_csv(text, **kwargs):
+    """
+    Try the default C engine first; on ParserError fall back to python engine
+    and skip bad lines to avoid tokenizing errors from malformed rows.
+    """
+    try:
+        return pd.read_csv(StringIO(text), **kwargs)
+    except pd.errors.ParserError:
+        return pd.read_csv(StringIO(text), engine='python', on_bad_lines='skip', **kwargs)
+    

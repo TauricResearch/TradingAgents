@@ -1,0 +1,245 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "\ucde8\uc18c",
+            "confirm": "\ud655\uc778",
+            "continue": "\uacc4\uc18d",
+            "goBack": "\ub4a4\ub85c \uac00\uae30",
+            "reset": "\ucd08\uae30\ud654",
+            "submit": "\uc81c\ucd9c"
+        },
+        "status": {
+            "loading": "\ub85c\ub529 \uc911...",
+            "error": {
+                "default": "\uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4",
+                "serverConnection": "\uc11c\ubc84\uc5d0 \uc5f0\uacb0\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4"
+            }
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "\uc571\uc5d0 \uc811\uadfc\ud558\ub824\uba74 \ub85c\uadf8\uc778\ud558\uc138\uc694",
+            "form": {
+                "email": {
+                    "label": "\uc774\uba54\uc77c \uc8fc\uc18c",
+                    "required": "\uc774\uba54\uc77c\uc740 \ud544\uc218 \uc785\ub825 \ud56d\ubaa9\uc785\ub2c8\ub2e4",
+                    "placeholder": "me@example.com"
+                },
+                "password": {
+                    "label": "\ube44\ubc00\ubc88\ud638",
+                    "required": "\ube44\ubc00\ubc88\ud638\ub294 \ud544\uc218 \uc785\ub825 \ud56d\ubaa9\uc785\ub2c8\ub2e4"
+                },
+                "actions": {
+                    "signin": "\ub85c\uadf8\uc778"
+                },
+                "alternativeText": {
+                    "or": "\ub610\ub294"
+                }
+            },
+            "errors": {
+                "default": "\ub85c\uadf8\uc778\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4",
+                "signin": "\ub2e4\ub978 \uacc4\uc815\uc73c\ub85c \ub85c\uadf8\uc778\ud574\ubcf4\uc138\uc694",
+                "oauthSignin": "\ub2e4\ub978 \uacc4\uc815\uc73c\ub85c \ub85c\uadf8\uc778\ud574\ubcf4\uc138\uc694",
+                "redirectUriMismatch": "\ub9ac\ub2e4\uc774\ub809\ud2b8 URI\uac00 OAuth \uc571 \uc124\uc815\uacfc \uc77c\uce58\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4",
+                "oauthCallback": "\ub2e4\ub978 \uacc4\uc815\uc73c\ub85c \ub85c\uadf8\uc778\ud574\ubcf4\uc138\uc694",
+                "oauthCreateAccount": "\ub2e4\ub978 \uacc4\uc815\uc73c\ub85c \ub85c\uadf8\uc778\ud574\ubcf4\uc138\uc694",
+                "emailCreateAccount": "\ub2e4\ub978 \uacc4\uc815\uc73c\ub85c \ub85c\uadf8\uc778\ud574\ubcf4\uc138\uc694",
+                "callback": "\ub2e4\ub978 \uacc4\uc815\uc73c\ub85c \ub85c\uadf8\uc778\ud574\ubcf4\uc138\uc694",
+                "oauthAccountNotLinked": "\uc2e0\uc6d0\uc744 \ud655\uc778\ud558\ub824\uba74 \uc6d0\ub798 \uc0ac\uc6a9\ud588\ub358 \uacc4\uc815\uc73c\ub85c \ub85c\uadf8\uc778\ud558\uc138\uc694",
+                "emailSignin": "\uc774\uba54\uc77c\uc744 \ubcf4\ub0bc \uc218 \uc5c6\uc2b5\ub2c8\ub2e4",
+                "emailVerify": "\uc774\uba54\uc77c\uc744 \ud655\uc778\ud574\uc8fc\uc138\uc694. \uc0c8\ub85c\uc6b4 \uc774\uba54\uc77c\uc774 \ubc1c\uc1a1\ub418\uc5c8\uc2b5\ub2c8\ub2e4",
+                "credentialsSignin": "\ub85c\uadf8\uc778 \uc2e4\ud328. \uc81c\uacf5\ud55c \uc815\ubcf4\uac00 \uc62c\ubc14\ub978\uc9c0 \ud655\uc778\ud558\uc138\uc694",
+                "sessionRequired": "\uc774 \ud398\uc774\uc9c0\uc5d0 \uc811\uadfc\ud558\ub824\uba74 \ub85c\uadf8\uc778\ud574\uc8fc\uc138\uc694"
+            }
+        },
+        "provider": {
+            "continue": "{{provider}}\ub85c \uacc4\uc18d\ud558\uae30"
+        }
+    },
+    "chat": {
+        "input": {
+            "placeholder": "\uc5ec\uae30\uc5d0 \uba54\uc2dc\uc9c0\ub97c \uc785\ub825\ud558\uc138\uc694...",
+            "actions": {
+                "send": "\uba54\uc2dc\uc9c0 \ubcf4\ub0b4\uae30",
+                "stop": "\uc791\uc5c5 \uc911\uc9c0",
+                "attachFiles": "\ud30c\uc77c \ucca8\ubd80"
+            }
+        },
+        "commands": {
+            "button": "\ub3c4\uad6c",
+            "changeTool": "\ub3c4\uad6c \ubcc0\uacbd",
+            "availableTools": "\uc0ac\uc6a9 \uac00\ub2a5\ud55c \ub3c4\uad6c"
+        },
+        "speech": {
+            "start": "\ub179\uc74c \uc2dc\uc791",
+            "stop": "\ub179\uc74c \uc911\uc9c0",
+            "connecting": "\uc5f0\uacb0 \uc911"
+        },
+        "fileUpload": {
+            "dragDrop": "\uc5ec\uae30\uc5d0 \ud30c\uc77c\uc744 \ub4dc\ub798\uadf8 \uc564 \ub4dc\ub86d\ud558\uc138\uc694",
+            "browse": "\ud30c\uc77c \ucc3e\uc544\ubcf4\uae30",
+            "sizeLimit": "\uc81c\ud55c:",
+            "errors": {
+                "failed": "\uc5c5\ub85c\ub4dc \uc2e4\ud328",
+                "cancelled": "\uc5c5\ub85c\ub4dc \ucde8\uc18c:"
+            },
+            "actions": {
+                "cancelUpload": "\uc5c5\ub85c\ub4dc \ucde8\uc18c",
+                "removeAttachment": "\ucca8\ubd80 \ud30c\uc77c \uc81c\uac70"
+            }
+        },
+        "messages": {
+            "status": {
+                "using": "\uc0ac\uc6a9 \uc911",
+                "used": "\uc0ac\uc6a9\ub428"
+            },
+            "actions": {
+                "copy": {
+                    "button": "\ud074\ub9bd\ubcf4\ub4dc\ub85c \ubcf5\uc0ac",
+                    "success": "\ubcf5\uc0ac\ub418\uc5c8\uc2b5\ub2c8\ub2e4!"
+                }
+            },
+            "feedback": {
+                "positive": "\ub3c4\uc6c0\uc774 \ub418\uc5c8\uc74c",
+                "negative": "\ub3c4\uc6c0\uc774 \ub418\uc9c0 \uc54a\uc74c",
+                "edit": "\ud53c\ub4dc\ubc31 \uc218\uc815",
+                "dialog": {
+                    "title": "\ub313\uae00 \ucd94\uac00",
+                    "submit": "\ud53c\ub4dc\ubc31 \uc81c\ucd9c",
+                    "yourFeedback": "\uadc0\ud558\uc758 \ud53c\ub4dc\ubc31..."
+                },
+                "status": {
+                    "updating": "\uc5c5\ub370\uc774\ud2b8 \uc911",
+                    "updated": "\ud53c\ub4dc\ubc31\uc774 \uc5c5\ub370\uc774\ud2b8\ub418\uc5c8\uc2b5\ub2c8\ub2e4"
+                }
+            }
+        },
+        "history": {
+            "title": "\ucd5c\uadfc \uc785\ub825",
+            "empty": "\ube44\uc5b4 \uc788\uc2b5\ub2c8\ub2e4...",
+            "show": "\uae30\ub85d \ud45c\uc2dc"
+        },
+        "settings": {
+            "title": "\uc124\uc815 \ud328\ub110",
+            "customize": "\uc5ec\uae30\uc5d0\uc11c \ucc44\ud305 \uc124\uc815\uc744 \uc0ac\uc6a9\uc790 \uc9c0\uc815\ud558\uc138\uc694"
+        },
+        "watermark": "LLM\uc740 \uc2e4\uc218\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4. \uc911\uc694\ud55c \uc815\ubcf4\ub294 \ud655\uc778\ud558\uc138\uc694."
+    },
+    "threadHistory": {
+        "sidebar": {
+            "title": "\uc774\uc804 \ucc44\ud305",
+            "filters": {
+                "search": "\uac80\uc0c9",
+                "placeholder": "\ub300\ud654 \uac80\uc0c9..."
+            },
+            "timeframes": {
+                "today": "\uc624\ub298",
+                "yesterday": "\uc5b4\uc81c",
+                "previous7days": "\uc9c0\ub09c 7\uc77c",
+                "previous30days": "\uc9c0\ub09c 30\uc77c"
+            },
+            "empty": "\uc2a4\ub808\ub4dc\ub97c \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4",
+            "actions": {
+                "close": "\uc0ac\uc774\ub4dc\ubc14 \ub2eb\uae30",
+                "open": "\uc0ac\uc774\ub4dc\ubc14 \uc5f4\uae30"
+            }
+        },
+        "thread": {
+            "untitled": "\uc81c\ubaa9 \uc5c6\ub294 \ub300\ud654",
+            "menu": {
+                "rename": "\uc774\ub984 \ubcc0\uacbd",
+                "share": "\uacf5\uc720",
+                "delete": "\uc0ad\uc81c"
+            },
+            "actions": {
+                "share": {
+                    "title": "\ucc44\ud305 \ub9c1\ud06c \uacf5\uc720",
+                    "button": "\uacf5\uc720",
+                    "status": {
+                        "copied": "\ub9c1\ud06c \ubcf5\uc0ac\ub428",
+                        "created": "\uacf5\uc720 \ub9c1\ud06c\uac00 \uc0dd\uc131\ub418\uc5c8\uc2b5\ub2c8\ub2e4!",
+                        "unshared": "\uc774 \uc2a4\ub808\ub4dc\uc758 \uacf5\uc720\uac00 \ube44\ud65c\uc131\ud654\ub418\uc5c8\uc2b5\ub2c8\ub2e4"
+                    },
+                    "error": {
+                        "create": "\uacf5\uc720 \ub9c1\ud06c \uc0dd\uc131 \uc2e4\ud328",
+                        "unshare": "\uc2a4\ub808\ub4dc \uacf5\uc720 \ud574\uc81c \uc2e4\ud328"
+                    }
+                },
+                "delete": {
+                    "title": "\uc0ad\uc81c \ud655\uc778",
+                    "description": "\uc774\ub807\uac8c \ud558\uba74 \uc2a4\ub808\ub4dc\uc640 \uadf8 \uba54\uc2dc\uc9c0 \ubc0f \uc694\uc18c\uac00 \uc0ad\uc81c\ub429\ub2c8\ub2e4. \uc774 \uc791\uc5c5\uc740 \ucde8\uc18c\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4",
+                    "success": "\ucc44\ud305\uc774 \uc0ad\uc81c\ub418\uc5c8\uc2b5\ub2c8\ub2e4",
+                    "inProgress": "\ucc44\ud305 \uc0ad\uc81c \uc911"
+                },
+                "rename": {
+                    "title": "\uc2a4\ub808\ub4dc \uc774\ub984 \ubcc0\uacbd",
+                    "description": "\uc774 \uc2a4\ub808\ub4dc\uc758 \uc0c8 \uc774\ub984\uc744 \uc785\ub825\ud558\uc138\uc694",
+                    "form": {
+                        "name": {
+                            "label": "\uc774\ub984",
+                            "placeholder": "\uc0c8 \uc774\ub984 \uc785\ub825"
+                        }
+                    },
+                    "success": "\uc2a4\ub808\ub4dc \uc774\ub984\uc774 \ubcc0\uacbd\ub418\uc5c8\uc2b5\ub2c8\ub2e4!",
+                    "inProgress": "\uc2a4\ub808\ub4dc \uc774\ub984 \ubcc0\uacbd \uc911"
+                }
+            }
+        }
+    },
+    "navigation": {
+        "header": {
+            "chat": "\ucc44\ud305",
+            "readme": "\uc77d\uc5b4\ubcf4\uae30",
+            "theme": {
+                "light": "\ubc1d\uc740 \ud14c\ub9c8",
+                "dark": "\uc5b4\ub450\uc6b4 \ud14c\ub9c8",
+                "system": "\uc2dc\uc2a4\ud15c \ub530\ub77c\uac00\uae30"
+            }
+        },
+        "newChat": {
+            "button": "\uc0c8 \ucc44\ud305",
+            "dialog": {
+                "title": "\uc0c8 \ucc44\ud305 \ub9cc\ub4e4\uae30",
+                "description": "\uc774\ub807\uac8c \ud558\uba74 \ud604\uc7ac \ucc44\ud305 \uae30\ub85d\uc774 \uc9c0\uc6cc\uc9d1\ub2c8\ub2e4. \uacc4\uc18d\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?",
+                "tooltip": "\uc0c8 \ucc44\ud305"
+            }
+        },
+        "user": {
+            "menu": {
+                "settings": "\uc124\uc815",
+                "settingsKey": "S",
+                "apiKeys": "API \ud0a4",
+                "logout": "\ub85c\uadf8\uc544\uc6c3"
+            }
+        }
+    },
+    "apiKeys": {
+        "title": "\ud544\uc694\ud55c API \ud0a4",
+        "description": "\uc774 \uc571\uc744 \uc0ac\uc6a9\ud558\ub824\uba74 \ub2e4\uc74c API \ud0a4\uac00 \ud544\uc694\ud569\ub2c8\ub2e4. \ud0a4\ub294 \uae30\uae30\uc758 \ub85c\uceec \uc800\uc7a5\uc18c\uc5d0 \uc800\uc7a5\ub429\ub2c8\ub2e4.",
+        "success": {
+            "saved": "\uc131\uacf5\uc801\uc73c\ub85c \uc800\uc7a5\ub418\uc5c8\uc2b5\ub2c8\ub2e4"
+        }
+    },
+    "alerts": {
+        "info": "\uc815\ubcf4",
+        "note": "\ucc38\uace0",
+        "tip": "\ud301",
+        "important": "\uc911\uc694",
+        "warning": "\uacbd\uace0",
+        "caution": "\uc8fc\uc758",
+        "debug": "\ub514\ubc84\uadf8",
+        "example": "\uc608\uc2dc",
+        "success": "\uc131\uacf5",
+        "help": "\ub3c4\uc6c0\ub9d0",
+        "idea": "\uc544\uc774\ub514\uc5b4",
+        "pending": "\ub300\uae30 \uc911",
+        "security": "\ubcf4\uc548",
+        "beta": "\ubca0\ud0c0",
+        "best-practice": "\ubaa8\ubc94 \uc0ac\ub840"
+    },
+    "components": {
+        "MultiSelectInput": {
+            "placeholder": "\uc120\ud0dd..."
+        }
+    }
+}

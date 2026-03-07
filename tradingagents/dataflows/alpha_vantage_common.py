@@ -5,6 +5,8 @@ import json
 from datetime import datetime
 from io import StringIO
 
+from .utils import safe_read_csv
+
 API_BASE_URL = "https://www.alphavantage.co/query"
 
 def get_api_key() -> str:
@@ -101,7 +103,7 @@ def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> 
 
     try:
         # Parse CSV data
-        df = pd.read_csv(StringIO(csv_data))
+        df = safe_read_csv(csv_data)
 
         # Assume the first column is the date column (timestamp)
         date_col = df.columns[0]

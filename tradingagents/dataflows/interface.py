@@ -48,9 +48,9 @@ TOOLS_CATEGORIES = {
         "description": "News (public/insiders, original/processed)",
         "tools": [
             "get_news",
-            "get_global_news",
+            # "get_global_news",
             # "get_insider_sentiment",
-            "get_insider_transactions",
+            # "get_insider_transactions",
         ]
     }
 }

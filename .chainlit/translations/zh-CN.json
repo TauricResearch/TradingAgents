@@ -1,0 +1,245 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "\u53d6\u6d88",
+            "confirm": "\u786e\u8ba4",
+            "continue": "\u7ee7\u7eed",
+            "goBack": "\u8fd4\u56de",
+            "reset": "\u91cd\u7f6e",
+            "submit": "\u63d0\u4ea4"
+        },
+        "status": {
+            "loading": "\u52a0\u8f7d\u4e2d...",
+            "error": {
+                "default": "\u53d1\u751f\u9519\u8bef",
+                "serverConnection": "\u65e0\u6cd5\u8fde\u63a5\u5230\u670d\u52a1\u5668"
+            }
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "\u767b\u5f55\u4ee5\u8bbf\u95ee\u5e94\u7528",
+            "form": {
+                "email": {
+                    "label": "\u7535\u5b50\u90ae\u7bb1",
+                    "required": "\u90ae\u7bb1\u662f\u5fc5\u586b\u9879",
+                    "placeholder": "me@example.com"
+                },
+                "password": {
+                    "label": "\u5bc6\u7801",
+                    "required": "\u5bc6\u7801\u662f\u5fc5\u586b\u9879"
+                },
+                "actions": {
+                    "signin": "\u767b\u5f55"
+                },
+                "alternativeText": {
+                    "or": "\u6216"
+                }
+            },
+            "errors": {
+                "default": "\u65e0\u6cd5\u767b\u5f55",
+                "signin": "\u8bf7\u5c1d\u8bd5\u4f7f\u7528\u5176\u4ed6\u8d26\u53f7\u767b\u5f55",
+                "oauthSignin": "\u8bf7\u5c1d\u8bd5\u4f7f\u7528\u5176\u4ed6\u8d26\u53f7\u767b\u5f55",
+                "redirectUriMismatch": "\u91cd\u5b9a\u5411URI\u4e0eOAuth\u5e94\u7528\u914d\u7f6e\u4e0d\u5339\u914d",
+                "oauthCallback": "\u8bf7\u5c1d\u8bd5\u4f7f\u7528\u5176\u4ed6\u8d26\u53f7\u767b\u5f55",
+                "oauthCreateAccount": "\u8bf7\u5c1d\u8bd5\u4f7f\u7528\u5176\u4ed6\u8d26\u53f7\u767b\u5f55",
+                "emailCreateAccount": "\u8bf7\u5c1d\u8bd5\u4f7f\u7528\u5176\u4ed6\u8d26\u53f7\u767b\u5f55",
+                "callback": "\u8bf7\u5c1d\u8bd5\u4f7f\u7528\u5176\u4ed6\u8d26\u53f7\u767b\u5f55",
+                "oauthAccountNotLinked": "\u4e3a\u786e\u8ba4\u60a8\u7684\u8eab\u4efd\uff0c\u8bf7\u4f7f\u7528\u539f\u59cb\u8d26\u53f7\u767b\u5f55",
+                "emailSignin": "\u90ae\u4ef6\u53d1\u9001\u5931\u8d25",
+                "emailVerify": "\u8bf7\u9a8c\u8bc1\u60a8\u7684\u90ae\u7bb1\uff0c\u65b0\u7684\u9a8c\u8bc1\u90ae\u4ef6\u5df2\u53d1\u9001",
+                "credentialsSignin": "\u767b\u5f55\u5931\u8d25\u3002\u8bf7\u68c0\u67e5\u60a8\u63d0\u4f9b\u7684\u4fe1\u606f\u662f\u5426\u6b63\u786e",
+                "sessionRequired": "\u8bf7\u767b\u5f55\u4ee5\u8bbf\u95ee\u6b64\u9875\u9762"
+            }
+        },
+        "provider": {
+            "continue": "\u7ee7\u7eed\u4f7f\u7528{{provider}}"
+        }
+    },
+    "chat": {
+        "input": {
+            "placeholder": "\u5728\u6b64\u8f93\u5165\u60a8\u7684\u6d88\u606f...",
+            "actions": {
+                "send": "\u53d1\u9001\u6d88\u606f",
+                "stop": "\u505c\u6b62\u4efb\u52a1",
+                "attachFiles": "\u9644\u52a0\u6587\u4ef6"
+            }
+        },
+        "speech": {
+            "start": "\u5f00\u59cb\u5f55\u97f3",
+            "stop": "\u505c\u6b62\u5f55\u97f3",
+            "connecting": "\u8fde\u63a5\u4e2d"
+        },
+        "fileUpload": {
+            "dragDrop": "\u5c06\u6587\u4ef6\u62d6\u653e\u5230\u8fd9\u91cc",
+            "browse": "\u6d4f\u89c8\u6587\u4ef6",
+            "sizeLimit": "\u9650\u5236\uff1a",
+            "errors": {
+                "failed": "\u4e0a\u4f20\u5931\u8d25",
+                "cancelled": "\u5df2\u53d6\u6d88\u4e0a\u4f20"
+            },
+            "actions": {
+                "cancelUpload": "\u53d6\u6d88\u4e0a\u4f20",
+                "removeAttachment": "\u79fb\u9664\u9644\u4ef6"
+            }
+        },
+        "commands": {
+            "button": "\u5de5\u5177",
+            "changeTool": "\u66f4\u6362\u5de5\u5177",
+            "availableTools": "\u53ef\u7528\u5de5\u5177"
+        },
+        "messages": {
+            "status": {
+                "using": "\u4f7f\u7528\u4e2d",
+                "used": "\u5df2\u4f7f\u7528"
+            },
+            "actions": {
+                "copy": {
+                    "button": "\u590d\u5236\u5230\u526a\u8d34\u677f",
+                    "success": "\u5df2\u590d\u5236\uff01"
+                }
+            },
+            "feedback": {
+                "positive": "\u6709\u5e2e\u52a9",
+                "negative": "\u6ca1\u6709\u5e2e\u52a9",
+                "edit": "\u7f16\u8f91\u53cd\u9988",
+                "dialog": {
+                    "title": "\u6dfb\u52a0\u8bc4\u8bba",
+                    "submit": "\u63d0\u4ea4\u53cd\u9988",
+                    "yourFeedback": "\u60a8\u7684\u53cd\u9988..."
+                },
+                "status": {
+                    "updating": "\u66f4\u65b0\u4e2d",
+                    "updated": "\u53cd\u9988\u5df2\u66f4\u65b0"
+                }
+            }
+        },
+        "history": {
+            "title": "\u6700\u8fd1\u8f93\u5165",
+            "empty": "\u7a7a\u7a7a\u5982\u4e5f...",
+            "show": "\u663e\u793a\u5386\u53f2"
+        },
+        "settings": {
+            "title": "\u8bbe\u7f6e\u9762\u677f",
+            "customize": "\u5728\u6b64\u81ea\u5b9a\u4e49\u60a8\u7684\u804a\u5929\u8bbe\u7f6e"
+        },
+        "watermark": "\u5927\u8bed\u8a00\u6a21\u578b\u53ef\u80fd\u4f1a\u72af\u9519\u3002\u8bf7\u6838\u5b9e\u91cd\u8981\u4fe1\u606f\u3002"
+    },
+    "threadHistory": {
+        "sidebar": {
+            "title": "\u5386\u53f2\u5bf9\u8bdd",
+            "filters": {
+                "search": "\u641c\u7d22",
+                "placeholder": "\u641c\u7d22\u4f1a\u8bdd..."
+            },
+            "timeframes": {
+                "today": "\u4eca\u5929",
+                "yesterday": "\u6628\u5929",
+                "previous7days": "\u8fc7\u53bb7\u5929",
+                "previous30days": "\u8fc7\u53bb30\u5929"
+            },
+            "empty": "\u672a\u627e\u5230\u5bf9\u8bdd",
+            "actions": {
+                "close": "\u5173\u95ed\u4fa7\u8fb9\u680f",
+                "open": "\u6253\u5f00\u4fa7\u8fb9\u680f"
+            }
+        },
+        "thread": {
+            "untitled": "\u672a\u547d\u540d\u5bf9\u8bdd",
+            "menu": {
+                "rename": "\u91cd\u547d\u540d",
+                "share": "\u5206\u4eab",
+                "delete": "\u5220\u9664"
+            },
+            "actions": {
+                "share": {
+                    "title": "\u5206\u4eab\u804a\u5929\u94fe\u63a5",
+                    "button": "\u5206\u4eab",
+                    "status": {
+                        "copied": "\u94fe\u63a5\u5df2\u590d\u5236",
+                        "created": "\u5206\u4eab\u94fe\u63a5\u5df2\u521b\u5efa\uff01",
+                        "unshared": "\u5df2\u7981\u7528\u6b64\u5bf9\u8bdd\u7684\u5206\u4eab"
+                    },
+                    "error": {
+                        "create": "\u521b\u5efa\u5206\u4eab\u94fe\u63a5\u5931\u8d25",
+                        "unshare": "\u53d6\u6d88\u5bf9\u8bdd\u5206\u4eab\u5931\u8d25"
+                    }
+                },
+                "delete": {
+                    "title": "\u786e\u8ba4\u5220\u9664",
+                    "description": "\u8fd9\u5c06\u5220\u9664\u8be5\u5bf9\u8bdd\u53ca\u5176\u6240\u6709\u6d88\u606f\u548c\u5143\u7d20\u3002\u6b64\u64cd\u4f5c\u65e0\u6cd5\u64a4\u9500",
+                    "success": "\u5bf9\u8bdd\u5df2\u5220\u9664",
+                    "inProgress": "\u6b63\u5728\u5220\u9664\u5bf9\u8bdd"
+                },
+                "rename": {
+                    "title": "\u91cd\u547d\u540d\u5bf9\u8bdd",
+                    "description": "\u4e3a\u6b64\u5bf9\u8bdd\u8f93\u5165\u65b0\u540d\u79f0",
+                    "form": {
+                        "name": {
+                            "label": "\u540d\u79f0",
+                            "placeholder": "\u8f93\u5165\u65b0\u540d\u79f0"
+                        }
+                    },
+                    "success": "\u5bf9\u8bdd\u5df2\u91cd\u547d\u540d\uff01",
+                    "inProgress": "\u6b63\u5728\u91cd\u547d\u540d\u5bf9\u8bdd"
+                }
+            }
+        }
+    },
+    "navigation": {
+        "header": {
+            "chat": "\u804a\u5929",
+            "readme": "\u8bf4\u660e",
+            "theme": {
+                "light": "\u6d45\u8272\u4e3b\u9898",
+                "dark": "\u6df1\u8272\u4e3b\u9898",
+                "system": "\u8ddf\u968f\u7cfb\u7edf"
+            }
+        },
+        "newChat": {
+            "button": "\u65b0\u5efa\u5bf9\u8bdd",
+            "dialog": {
+                "title": "\u521b\u5efa\u65b0\u5bf9\u8bdd",
+                "description": "\u8fd9\u5c06\u6e05\u9664\u60a8\u5f53\u524d\u7684\u804a\u5929\u8bb0\u5f55\u3002\u786e\u5b9a\u8981\u7ee7\u7eed\u5417\uff1f",
+                "tooltip": "\u65b0\u5efa\u5bf9\u8bdd"
+            }
+        },
+        "user": {
+            "menu": {
+                "settings": "\u8bbe\u7f6e",
+                "settingsKey": "S",
+                "apiKeys": "API\u5bc6\u94a5",
+                "logout": "\u9000\u51fa\u767b\u5f55"
+            }
+        }
+    },
+    "apiKeys": {
+        "title": "\u6240\u9700API\u5bc6\u94a5",
+        "description": "\u4f7f\u7528\u6b64\u5e94\u7528\u9700\u8981\u4ee5\u4e0bAPI\u5bc6\u94a5\u3002\u8fd9\u4e9b\u5bc6\u94a5\u5b58\u50a8\u5728\u60a8\u8bbe\u5907\u7684\u672c\u5730\u5b58\u50a8\u4e2d\u3002",
+        "success": {
+            "saved": "\u4fdd\u5b58\u6210\u529f"
+        }
+    },
+    "alerts": {
+        "info": "\u4fe1\u606f",
+        "note": "\u6ce8\u91ca",
+        "tip": "\u63d0\u793a",
+        "important": "\u91cd\u8981",
+        "warning": "\u8b66\u544a",
+        "caution": "\u6ce8\u610f",
+        "debug": "\u8c03\u8bd5",
+        "example": "\u793a\u4f8b",
+        "success": "\u6210\u529f",
+        "help": "\u5e2e\u52a9",
+        "idea": "\u60f3\u6cd5",
+        "pending": "\u5f85\u5904\u7406",
+        "security": "\u5b89\u5168",
+        "beta": "\u6d4b\u8bd5",
+        "best-practice": "\u6700\u4f73\u5b9e\u8df5"
+    },
+    "components": {
+        "MultiSelectInput": {
+            "placeholder": "\u9009\u62e9..."
+        }
+    }
+}

@@ -1,0 +1,245 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "Annuleren",
+            "confirm": "Bevestigen",
+            "continue": "Doorgaan",
+            "goBack": "Terug",
+            "reset": "Herstellen",
+            "submit": "Versturen"
+        },
+        "status": {
+            "loading": "Laden...",
+            "error": {
+                "default": "Er is een fout opgetreden",
+                "serverConnection": "Kon geen verbinding maken met de server"
+            }
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "Inloggen om toegang te krijgen tot de app",
+            "form": {
+                "email": {
+                    "label": "E-mailadres",
+                    "required": "e-mail is een verplicht veld",
+                    "placeholder": "me@example.com"
+                },
+                "password": {
+                    "label": "Wachtwoord",
+                    "required": "wachtwoord is een verplicht veld"
+                },
+                "actions": {
+                    "signin": "Inloggen"
+                },
+                "alternativeText": {
+                    "or": "OF"
+                }
+            },
+            "errors": {
+                "default": "Kan niet inloggen",
+                "signin": "Probeer in te loggen met een ander account",
+                "oauthSignin": "Probeer in te loggen met een ander account",
+                "redirectUriMismatch": "De redirect URI komt niet overeen met de oauth app configuratie",
+                "oauthCallback": "Probeer in te loggen met een ander account",
+                "oauthCreateAccount": "Probeer in te loggen met een ander account",
+                "emailCreateAccount": "Probeer in te loggen met een ander account",
+                "callback": "Probeer in te loggen met een ander account",
+                "oauthAccountNotLinked": "Om je identiteit te bevestigen, log in met hetzelfde account dat je oorspronkelijk hebt gebruikt",
+                "emailSignin": "De e-mail kon niet worden verzonden",
+                "emailVerify": "Verifieer je e-mail, er is een nieuwe e-mail verzonden",
+                "credentialsSignin": "Inloggen mislukt. Controleer of de ingevoerde gegevens correct zijn",
+                "sessionRequired": "Log in om toegang te krijgen tot deze pagina"
+            }
+        },
+        "provider": {
+            "continue": "Doorgaan met {{provider}}"
+        }
+    },
+    "chat": {
+        "input": {
+            "placeholder": "Typ hier je bericht...",
+            "actions": {
+                "send": "Bericht versturen",
+                "stop": "Taak stoppen",
+                "attachFiles": "Bestanden bijvoegen"
+            }
+        },
+        "speech": {
+            "start": "Start opname",
+            "stop": "Stop opname",
+            "connecting": "Verbinden"
+        },
+        "fileUpload": {
+            "dragDrop": "Sleep bestanden hierheen",
+            "browse": "Bestanden zoeken",
+            "sizeLimit": "Limiet:",
+            "errors": {
+                "failed": "Uploaden mislukt",
+                "cancelled": "Upload geannuleerd van"
+            },
+            "actions": {
+                "cancelUpload": "Annuleer upload",
+                "removeAttachment": "Verwijder bijlage"
+            }
+        },
+        "commands": {
+            "button": "Hulpmiddelen",
+            "changeTool": "Wijzig hulpmiddel",
+            "availableTools": "Beschikbare hulpmiddelen"
+        },
+        "messages": {
+            "status": {
+                "using": "In gebruik",
+                "used": "Gebruikt"
+            },
+            "actions": {
+                "copy": {
+                    "button": "Kopi\u00ebren naar klembord",
+                    "success": "Gekopieerd!"
+                }
+            },
+            "feedback": {
+                "positive": "Nuttig",
+                "negative": "Niet nuttig",
+                "edit": "Feedback bewerken",
+                "dialog": {
+                    "title": "Voeg een opmerking toe",
+                    "submit": "Feedback versturen",
+                    "yourFeedback": "Je feedback..."
+                },
+                "status": {
+                    "updating": "Bijwerken",
+                    "updated": "Feedback bijgewerkt"
+                }
+            }
+        },
+        "history": {
+            "title": "Laatste invoer",
+            "empty": "Zo leeg...",
+            "show": "Toon geschiedenis"
+        },
+        "settings": {
+            "title": "Instellingenpaneel",
+            "customize": "Pas hier je chatinstellingen aan"
+        },
+        "watermark": "LLM's kunnen fouten maken. Overweeg het controleren van belangrijke informatie."
+    },
+    "threadHistory": {
+        "sidebar": {
+            "title": "Eerdere chats",
+            "filters": {
+                "search": "Zoeken",
+                "placeholder": "Search conversations..."
+            },
+            "timeframes": {
+                "today": "Vandaag",
+                "yesterday": "Gisteren",
+                "previous7days": "Afgelopen 7 dagen",
+                "previous30days": "Afgelopen 30 dagen"
+            },
+            "empty": "Geen gesprekken gevonden",
+            "actions": {
+                "close": "Zijbalk sluiten",
+                "open": "Zijbalk openen"
+            }
+        },
+        "thread": {
+            "untitled": "Naamloos gesprek",
+            "menu": {
+                "rename": "Hernoemen",
+                "share": "Delen",
+                "delete": "Verwijderen"
+            },
+            "actions": {
+                "share": {
+                    "title": "Deel link naar chat",
+                    "button": "Delen",
+                    "status": {
+                        "copied": "Link gekopieerd",
+                        "created": "Deellink gemaakt!",
+                        "unshared": "Delen uitgeschakeld voor dit gesprek"
+                    },
+                    "error": {
+                        "create": "Aanmaken van deellink mislukt",
+                        "unshare": "Delen van gesprek stoppen mislukt"
+                    }
+                },
+                "delete": {
+                    "title": "Verwijdering bevestigen",
+                    "description": "Dit zal het gesprek en bijbehorende berichten en elementen verwijderen. Deze actie kan niet ongedaan worden gemaakt",
+                    "success": "Chat verwijderd",
+                    "inProgress": "Chat verwijderen"
+                },
+                "rename": {
+                    "title": "Gesprek hernoemen",
+                    "description": "Voer een nieuwe naam in voor dit gesprek",
+                    "form": {
+                        "name": {
+                            "label": "Naam",
+                            "placeholder": "Voer nieuwe naam in"
+                        }
+                    },
+                    "success": "Gesprek hernoemd!",
+                    "inProgress": "Gesprek hernoemen"
+                }
+            }
+        }
+    },
+    "navigation": {
+        "header": {
+            "chat": "Chat",
+            "readme": "Leesmij",
+            "theme": {
+                "light": "Light Theme",
+                "dark": "Dark Theme",
+                "system": "Follow System"
+            }
+        },
+        "newChat": {
+            "button": "Nieuwe chat",
+            "dialog": {
+                "title": "Nieuwe chat aanmaken",
+                "description": "Dit zal je huidige chatgeschiedenis wissen. Weet je zeker dat je door wilt gaan?",
+                "tooltip": "Nieuwe chat"
+            }
+        },
+        "user": {
+            "menu": {
+                "settings": "Instellingen",
+                "settingsKey": "I",
+                "apiKeys": "API-sleutels",
+                "logout": "Uitloggen"
+            }
+        }
+    },
+    "apiKeys": {
+        "title": "Vereiste API-sleutels",
+        "description": "Om deze app te gebruiken zijn de volgende API-sleutels vereist. De sleutels worden opgeslagen in de lokale opslag van je apparaat.",
+        "success": {
+            "saved": "Succesvol opgeslagen"
+        }
+    },
+    "alerts": {
+        "info": "Info",
+        "note": "Note",
+        "tip": "Tip",
+        "important": "Important",
+        "warning": "Warning",
+        "caution": "Caution",
+        "debug": "Debug",
+        "example": "Example",
+        "success": "Success",
+        "help": "Help",
+        "idea": "Idea",
+        "pending": "Pending",
+        "security": "Security",
+        "beta": "Beta",
+        "best-practice": "Best Practice"
+    },
+    "components": {
+        "MultiSelectInput": {
+            "placeholder": "Selecteer..."
+        }
+    }
+}

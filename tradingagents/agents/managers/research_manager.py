@@ -19,24 +19,23 @@ def create_research_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision for the **Short Term (1-2 Weeks)**: align with the bear analyst, the bull analyst, or choose Hold.
+        prompt = f"""As the portfolio manager and debate facilitator for SHORT-TERM trading (1-2 week horizon), your role is to critically evaluate this round of debate and make a definitive position decision: align with the bull analyst (LONG), the bear analyst (SHORT), or choose HOLD only if it is strongly justified based on the arguments presented.
 
-        Summarize the key points from both sides concisely, focusing on the most compelling evidence for immediate price action. Your recommendation—**Long, Short, or Hold**—must be clear and actionable. Avoid defaulting to Hold simply because both sides have valid points; commit to a stance grounded in the debate's strongest short-term arguments.
+Focus on SHORT-TERM factors: near-term catalysts, momentum, upcoming events, and what is likely to happen in the next 1-2 weeks. Summarize the key points from both sides concisely, focusing on the most compelling evidence for short-term price movement. Your position recommendation—LONG, SHORT, or HOLD—must be clear and actionable for a 1-2 week holding period. Avoid defaulting to HOLD simply because both sides have valid points; commit to a stance grounded in the debate's strongest short-term arguments.
 
-        Additionally, develop a detailed short-term investment plan for the trader. This should include:
+Additionally, develop a detailed SHORT-TERM investment plan for the trader. This should include:
 
-        Your Recommendation: A decisive stance (Long/Short/Hold) supported by the most convincing arguments for the next 2 weeks.
-        Rationale: An explanation of why these arguments lead to your conclusion.
-        Strategic Actions: Concrete steps for implementing the recommendation (e.g., entry zones, stop losses).
-        
-        Take into account your past mistakes on similar situations. Use these insights to refine your decision-making. Present your analysis conversationally, as if speaking naturally, without special formatting.
+Your Position Recommendation: A decisive stance (LONG/SHORT/HOLD) for the next 1-2 weeks supported by the most convincing arguments.
+Rationale: An explanation of why these arguments lead to your conclusion for the short-term.
+Strategic Actions: Concrete steps for implementing the recommendation with a 1-2 week timeframe in mind.
+Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting.
 
-        Here are your past reflections on mistakes:
-        \"{past_memory_str}\"
+Here are your past reflections on mistakes:
+\"{past_memory_str}\"
 
-        Here is the debate:
-        Debate History:
-        {history}"""
+Here is the debate:
+Debate History:
+{history}"""
         response = llm.invoke(prompt)
 
         new_investment_debate_state = {

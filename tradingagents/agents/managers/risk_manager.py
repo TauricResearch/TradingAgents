@@ -22,25 +22,27 @@ def create_risk_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best course of action for the trader for the **Short Term (1-2 Weeks)**. Your decision must result in a clear recommendation: **Long, Short, or Hold**. Choose Hold only if strongly justified by specific arguments, not as a fallback.
+        prompt = f"""As the Risk Management Judge and Debate Facilitator for SHORT-TERM trading (1-2 week horizon), your goal is to evaluate the debate between three risk analysts—Risky, Neutral, and Safe/Conservative—and determine the best position for the trader over the next 1-2 weeks. Your decision must result in a clear position recommendation: LONG, SHORT, or HOLD. Choose HOLD only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
 
-        Guidelines for Decision-Making:
-        1. **Summarize Key Arguments**: Extract the strongest points regarding short-term volatility and risk.
-        2. **Provide Rationale**: Support your recommendation with direct quotes and counterarguments.
-        3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights to fit a 1-2 week horizon.
-        4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments.
+Guidelines for Decision-Making (1-2 week timeframe):
+1. **Summarize Key Arguments**: Extract the strongest points from each analyst, focusing on relevance to SHORT-TERM price movement.
+2. **Provide Rationale**: Support your recommendation with direct quotes and counterarguments from the debate, emphasizing near-term factors.
+3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights for a 1-2 week holding period.
+4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments and improve the decision you are making now to make sure you don't make a wrong LONG/SHORT/HOLD call that loses money in the short term.
 
-        Deliverables:
-        - A clear and actionable recommendation: **Signal: [Long/Short/Hold]**.
-        - Detailed reasoning anchored in the debate and past reflections.
+Deliverables:
+- A clear and actionable position recommendation: LONG, SHORT, or HOLD for the next 1-2 weeks.
+- Detailed reasoning anchored in the debate and past reflections, focusing on short-term factors.
 
-        ---
+---
 
-        **Analysts Debate History:** {history}
+**Analysts Debate History:**
+{history}
 
-        ---
+---
 
-        Focus on actionable insights and continuous improvement for the short term."""
+Focus on actionable SHORT-TERM insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision optimizes for the 1-2 week timeframe."""
+
         response = llm.invoke(prompt)
 
         new_risk_debate_state = {

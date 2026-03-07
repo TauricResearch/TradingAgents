@@ -1,0 +1,245 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "Cancelar",
+            "confirm": "Confirmar",
+            "continue": "Continuar",
+            "goBack": "Volver",
+            "reset": "Restablecer",
+            "submit": "Enviar"
+        },
+        "status": {
+            "loading": "Cargando...",
+            "error": {
+                "default": "Ocurri\u00f3 un error",
+                "serverConnection": "No se pudo conectar con el servidor"
+            }
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "Inicia sesi\u00f3n para acceder a la aplicaci\u00f3n",
+            "form": {
+                "email": {
+                    "label": "Correo electr\u00f3nico",
+                    "required": "el correo electr\u00f3nico es obligatorio",
+                    "placeholder": "me@example.com"
+                },
+                "password": {
+                    "label": "Contrase\u00f1a",
+                    "required": "la contrase\u00f1a es obligatoria"
+                },
+                "actions": {
+                    "signin": "Iniciar sesi\u00f3n"
+                },
+                "alternativeText": {
+                    "or": "O"
+                }
+            },
+            "errors": {
+                "default": "No se pudo iniciar sesi\u00f3n",
+                "signin": "Intenta iniciar sesi\u00f3n con otra cuenta",
+                "oauthSignin": "Intenta iniciar sesi\u00f3n con otra cuenta",
+                "redirectUriMismatch": "El URI de redirecci\u00f3n no coincide con la configuraci\u00f3n de la aplicaci\u00f3n OAuth",
+                "oauthCallback": "Intenta iniciar sesi\u00f3n con otra cuenta",
+                "oauthCreateAccount": "Intenta iniciar sesi\u00f3n con otra cuenta",
+                "emailCreateAccount": "Intenta iniciar sesi\u00f3n con otra cuenta",
+                "callback": "Intenta iniciar sesi\u00f3n con otra cuenta",
+                "oauthAccountNotLinked": "Para confirmar tu identidad, inicia sesi\u00f3n con la misma cuenta que usaste originalmente",
+                "emailSignin": "No se pudo enviar el correo electr\u00f3nico",
+                "emailVerify": "Por favor verifica tu correo, se ha enviado un nuevo correo",
+                "credentialsSignin": "Error al iniciar sesi\u00f3n. Verifica que los datos proporcionados sean correctos",
+                "sessionRequired": "Por favor inicia sesi\u00f3n para acceder a esta p\u00e1gina"
+            }
+        },
+        "provider": {
+            "continue": "Continuar con {{provider}}"
+        }
+    },
+    "chat": {
+        "input": {
+            "placeholder": "Escribe tu mensaje aqu\u00ed...",
+            "actions": {
+                "send": "Enviar mensaje",
+                "stop": "Detener tarea",
+                "attachFiles": "Adjuntar archivos"
+            }
+        },
+        "commands": {
+            "button": "Herramientas",
+            "changeTool": "Cambiar herramienta",
+            "availableTools": "Herramientas disponibles"
+        },
+        "speech": {
+            "start": "Comenzar grabaci\u00f3n",
+            "stop": "Detener grabaci\u00f3n",
+            "connecting": "Conectando"
+        },
+        "fileUpload": {
+            "dragDrop": "Arrastra y suelta archivos aqu\u00ed",
+            "browse": "Buscar archivos",
+            "sizeLimit": "L\u00edmite:",
+            "errors": {
+                "failed": "Error al subir",
+                "cancelled": "Carga cancelada de"
+            },
+            "actions": {
+                "cancelUpload": "Cancelar subida",
+                "removeAttachment": "Eliminar adjunto"
+            }
+        },
+        "messages": {
+            "status": {
+                "using": "Usando",
+                "used": "Usado"
+            },
+            "actions": {
+                "copy": {
+                    "button": "Copiar al portapapeles",
+                    "success": "\u00a1Copiado!"
+                }
+            },
+            "feedback": {
+                "positive": "\u00datil",
+                "negative": "No \u00fatil",
+                "edit": "Editar comentario",
+                "dialog": {
+                    "title": "Agregar un comentario",
+                    "submit": "Enviar comentario",
+                    "yourFeedback": "Tu comentario..."
+                },
+                "status": {
+                    "updating": "Actualizando",
+                    "updated": "Comentario actualizado"
+                }
+            }
+        },
+        "history": {
+            "title": "\u00daltimas entradas",
+            "empty": "Tan vac\u00edo...",
+            "show": "Mostrar historial"
+        },
+        "settings": {
+            "title": "Panel de configuraci\u00f3n",
+            "customize": "Personaliza la configuraci\u00f3n de tu chat aqu\u00ed"
+        },
+        "watermark": "Los LLM pueden cometer errores. Verifica la informaci\u00f3n importante."
+    },
+    "threadHistory": {
+        "sidebar": {
+            "title": "Chats anteriores",
+            "filters": {
+                "search": "Buscar",
+                "placeholder": "Buscar conversaciones..."
+            },
+            "timeframes": {
+                "today": "Hoy",
+                "yesterday": "Ayer",
+                "previous7days": "\u00daltimos 7 d\u00edas",
+                "previous30days": "\u00daltimos 30 d\u00edas"
+            },
+            "empty": "No se encontraron conversaciones",
+            "actions": {
+                "close": "Cerrar barra lateral",
+                "open": "Abrir barra lateral"
+            }
+        },
+        "thread": {
+            "untitled": "Conversaci\u00f3n sin t\u00edtulo",
+            "menu": {
+                "rename": "Renombrar",
+                "share": "Compartir",
+                "delete": "Eliminar"
+            },
+            "actions": {
+                "share": {
+                    "title": "Compartir enlace del chat",
+                    "button": "Compartir",
+                    "status": {
+                        "copied": "Enlace copiado",
+                        "created": "\u00a1Enlace de uso compartido creado!",
+                        "unshared": "Uso compartido deshabilitado para este hilo"
+                    },
+                    "error": {
+                        "create": "Error al crear el enlace de uso compartido",
+                        "unshare": "Error al dejar de compartir el hilo"
+                    }
+                },
+                "delete": {
+                    "title": "Confirmar eliminaci\u00f3n",
+                    "description": "Esto eliminar\u00e1 la conversaci\u00f3n, sus mensajes y elementos. Esta acci\u00f3n no se puede deshacer",
+                    "success": "Chat eliminado",
+                    "inProgress": "Eliminando chat"
+                },
+                "rename": {
+                    "title": "Renombrar conversaci\u00f3n",
+                    "description": "Ingresa un nuevo nombre para esta conversaci\u00f3n",
+                    "form": {
+                        "name": {
+                            "label": "Nombre",
+                            "placeholder": "Ingresa nuevo nombre"
+                        }
+                    },
+                    "success": "\u00a1Conversaci\u00f3n renombrada!",
+                    "inProgress": "Renombrando conversaci\u00f3n"
+                }
+            }
+        }
+    },
+    "navigation": {
+        "header": {
+            "chat": "Chat",
+            "readme": "L\u00e9eme",
+            "theme": {
+                "light": "Tema claro",
+                "dark": "Tema oscuro",
+                "system": "Seguir sistema"
+            }
+        },
+        "newChat": {
+            "button": "Nuevo chat",
+            "dialog": {
+                "title": "Crear nuevo chat",
+                "description": "Esto borrar\u00e1 tu historial de chat actual. \u00bfSeguro que quieres continuar?",
+                "tooltip": "Nuevo chat"
+            }
+        },
+        "user": {
+            "menu": {
+                "settings": "Configuraci\u00f3n",
+                "settingsKey": "S",
+                "apiKeys": "Claves API",
+                "logout": "Cerrar sesi\u00f3n"
+            }
+        }
+    },
+    "apiKeys": {
+        "title": "Claves API requeridas",
+        "description": "Para usar esta aplicaci\u00f3n, se requieren las siguientes claves API. Las claves se almacenan en el almacenamiento local de tu dispositivo.",
+        "success": {
+            "saved": "Guardado exitosamente"
+        }
+    },
+    "alerts": {
+        "info": "Informaci\u00f3n",
+        "note": "Nota",
+        "tip": "Consejo",
+        "important": "Importante",
+        "warning": "Advertencia",
+        "caution": "Precauci\u00f3n",
+        "debug": "Depuraci\u00f3n",
+        "example": "Ejemplo",
+        "success": "\u00c9xito",
+        "help": "Ayuda",
+        "idea": "Idea",
+        "pending": "Pendiente",
+        "security": "Seguridad",
+        "beta": "Beta",
+        "best-practice": "Mejor pr\u00e1ctica"
+    },
+    "components": {
+        "MultiSelectInput": {
+            "placeholder": "Seleccionar..."
+        }
+    }
+}

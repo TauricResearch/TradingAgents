@@ -1,0 +1,245 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "\u53d6\u6d88",
+            "confirm": "\u78ba\u8a8d",
+            "continue": "\u7e7c\u7e8c",
+            "goBack": "\u8fd4\u56de",
+            "reset": "\u91cd\u8a2d",
+            "submit": "\u9001\u51fa"
+        },
+        "status": {
+            "loading": "\u8f09\u5165\u4e2d...",
+            "error": {
+                "default": "\u767c\u751f\u932f\u8aa4",
+                "serverConnection": "\u7121\u6cd5\u9023\u7dda\u5230\u4f3a\u670d\u5668"
+            }
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "\u767b\u5165\u4ee5\u5b58\u53d6\u61c9\u7528\u7a0b\u5f0f",
+            "form": {
+                "email": {
+                    "label": "\u96fb\u5b50\u4fe1\u7bb1",
+                    "required": "\u4fe1\u7bb1\u662f\u5fc5\u586b\u9805\u76ee",
+                    "placeholder": "me@example.com"
+                },
+                "password": {
+                    "label": "\u5bc6\u78bc",
+                    "required": "\u5bc6\u78bc\u662f\u5fc5\u586b\u9805\u76ee"
+                },
+                "actions": {
+                    "signin": "\u767b\u5165"
+                },
+                "alternativeText": {
+                    "or": "\u6216"
+                }
+            },
+            "errors": {
+                "default": "\u7121\u6cd5\u767b\u5165",
+                "signin": "\u8acb\u5617\u8a66\u4f7f\u7528\u5176\u5b83\u5e33\u865f\u767b\u5165",
+                "oauthSignin": "\u8acb\u5617\u8a66\u4f7f\u7528\u5176\u5b83\u5e33\u865f\u767b\u5165",
+                "redirectUriMismatch": "\u91cd\u65b0\u5c0e\u5411URI\u8207OAuth App\u8a2d\u5b9a\u4e0d\u76f8\u7b26",
+                "oauthCallback": "\u8acb\u5617\u8a66\u4f7f\u7528\u5176\u5b83\u5e33\u865f\u767b\u5165",
+                "oauthCreateAccount": "\u8acb\u5617\u8a66\u4f7f\u7528\u5176\u5b83\u5e33\u865f\u767b\u5165",
+                "emailCreateAccount": "\u8acb\u5617\u8a66\u4f7f\u7528\u5176\u5b83\u5e33\u865f\u767b\u5165",
+                "callback": "\u8acb\u5617\u8a66\u4f7f\u7528\u5176\u5b83\u5e33\u865f\u767b\u5165",
+                "oauthAccountNotLinked": "\u70ba\u78ba\u8a8d\u60a8\u7684\u8eab\u4efd\uff0c\u8acb\u4ee5\u539f\u672c\u4f7f\u7528\u7684\u5e33\u865f\u767b\u5165",
+                "emailSignin": "\u96fb\u5b50\u90f5\u4ef6\u767c\u9001\u5931\u6557",
+                "emailVerify": "\u8acb\u9a57\u8b49\u60a8\u7684\u96fb\u5b50\u4fe1\u7bb1\uff0c\u65b0\u7684\u9a57\u8b49\u90f5\u4ef6\u5df2\u767c\u9001",
+                "credentialsSignin": "\u767b\u5165\u5931\u6557\u3002\u8acb\u6aa2\u67e5\u60a8\u63d0\u4f9b\u7684\u8cc7\u8a0a\u662f\u5426\u6b63\u78ba",
+                "sessionRequired": "\u8acb\u767b\u5165\u4ee5\u5b58\u53d6\u6b64\u9801\u9762"
+            }
+        },
+        "provider": {
+            "continue": "\u7e7c\u7e8c\u4f7f\u7528{{provider}}"
+        }
+    },
+    "chat": {
+        "input": {
+            "placeholder": "\u5728\u6b64\u8f38\u5165\u60a8\u7684\u8a0a\u606f...",
+            "actions": {
+                "send": "\u767c\u9001\u8a0a\u606f",
+                "stop": "\u505c\u6b62\u4efb\u52d9",
+                "attachFiles": "\u9644\u52a0\u6a94\u6848"
+            }
+        },
+        "speech": {
+            "start": "\u958b\u59cb\u9304\u97f3",
+            "stop": "\u505c\u6b62\u9304\u97f3",
+            "connecting": "\u9023\u7dda\u4e2d"
+        },
+        "fileUpload": {
+            "dragDrop": "\u62d6\u66f3\u6a94\u6848\u5230\u9019\u88e1",
+            "browse": "\u700f\u89bd\u6a94\u6848",
+            "sizeLimit": "\u9650\u5236\uff1a",
+            "errors": {
+                "failed": "\u4e0a\u50b3\u5931\u6557",
+                "cancelled": "\u5df2\u53d6\u6d88\u4e0a\u50b3"
+            },
+            "actions": {
+                "cancelUpload": "\u53d6\u6d88\u4e0a\u50b3",
+                "removeAttachment": "\u79fb\u9664\u9644\u4ef6"
+            }
+        },
+        "commands": {
+            "button": "\u5de5\u5177",
+            "changeTool": "\u66f4\u63db\u5de5\u5177",
+            "availableTools": "\u53ef\u7528\u5de5\u5177"
+        },
+        "messages": {
+            "status": {
+                "using": "\u6b63\u5728\u4f7f\u7528",
+                "used": "\u5df2\u4f7f\u7528"
+            },
+            "actions": {
+                "copy": {
+                    "button": "\u8907\u88fd\u5230\u526a\u8cbc\u7c3f",
+                    "success": "\u5df2\u8907\u88fd\uff01"
+                }
+            },
+            "feedback": {
+                "positive": "\u6709\u5e6b\u52a9",
+                "negative": "\u6c92\u6709\u5e6b\u52a9",
+                "edit": "\u7de8\u8f2f\u56de\u994b",
+                "dialog": {
+                    "title": "\u65b0\u589e\u8a55\u8ad6",
+                    "submit": "\u9001\u51fa\u56de\u994b",
+                    "yourFeedback": "\u60a8\u7684\u56de\u994b..."
+                },
+                "status": {
+                    "updating": "\u66f4\u65b0\u4e2d",
+                    "updated": "\u56de\u994b\u5df2\u66f4\u65b0"
+                }
+            }
+        },
+        "history": {
+            "title": "\u6700\u8fd1\u8f38\u5165",
+            "empty": "\u7a7a\u7a7a\u5982\u4e5f...",
+            "show": "\u986f\u793a\u6b77\u53f2"
+        },
+        "settings": {
+            "title": "\u8a2d\u5b9a\u9762\u677f",
+            "customize": "\u5728\u6b64\u81ea\u5b9a\u7fa9\u60a8\u7684\u804a\u5929\u8a2d\u5b9a"
+        },
+        "watermark": "\u5927\u578b\u8a9e\u8a00\u6a21\u578b\u53ef\u80fd\u6703\u72af\u932f\u3002\u8acb\u6838\u5be6\u91cd\u8981\u8cc7\u8a0a\u3002"
+    },
+    "threadHistory": {
+        "sidebar": {
+            "title": "\u6b77\u53f2\u5c0d\u8a71",
+            "filters": {
+                "search": "\u641c\u5c0b",
+                "placeholder": "\u641c\u5c0b\u5c0d\u8a71..."
+            },
+            "timeframes": {
+                "today": "\u4eca\u5929",
+                "yesterday": "\u6628\u5929",
+                "previous7days": "\u904e\u53bb7\u5929",
+                "previous30days": "\u904e\u53bb30\u5929"
+            },
+            "empty": "\u672a\u627e\u5230\u5c0d\u8a71",
+            "actions": {
+                "close": "\u95dc\u9589\u5074\u908a\u6b04",
+                "open": "\u6253\u958b\u5074\u908a\u6b04"
+            }
+        },
+        "thread": {
+            "untitled": "\u672a\u547d\u540d\u5c0d\u8a71",
+            "menu": {
+                "rename": "\u91cd\u65b0\u547d\u540d",
+                "share": "\u5206\u4eab",
+                "delete": "\u522a\u9664"
+            },
+            "actions": {
+                "share": {
+                    "title": "\u5206\u4eab\u804a\u5929\u9023\u7d50",
+                    "button": "\u5206\u4eab",
+                    "status": {
+                        "copied": "\u9023\u7d50\u5df2\u8907\u88fd",
+                        "created": "\u5206\u4eab\u9023\u7d50\u5df2\u5efa\u7acb\uff01",
+                        "unshared": "\u5df2\u505c\u7528\u6b64\u5c0d\u8a71\u7684\u5206\u4eab"
+                    },
+                    "error": {
+                        "create": "\u5efa\u7acb\u5206\u4eab\u9023\u7d50\u5931\u6557",
+                        "unshare": "\u53d6\u6d88\u5c0d\u8a71\u5206\u4eab\u5931\u6557"
+                    }
+                },
+                "delete": {
+                    "title": "\u78ba\u8a8d\u522a\u9664",
+                    "description": "\u9019\u5c07\u522a\u9664\u8a72\u5c0d\u8a71\u53ca\u5176\u6240\u6709\u8a0a\u606f\u548c\u5143\u4ef6\u3002\u6b64\u64cd\u4f5c\u7121\u6cd5\u5fa9\u539f\u3002",
+                    "success": "\u5c0d\u8a71\u5df2\u522a\u9664",
+                    "inProgress": "\u6b63\u5728\u522a\u9664\u5c0d\u8a71"
+                },
+                "rename": {
+                    "title": "\u91cd\u65b0\u547d\u540d\u5c0d\u8a71",
+                    "description": "\u70ba\u6b64\u5c0d\u8a71\u8f38\u5165\u65b0\u540d\u7a31",
+                    "form": {
+                        "name": {
+                            "label": "\u540d\u7a31",
+                            "placeholder": "\u8f38\u5165\u65b0\u540d\u7a31"
+                        }
+                    },
+                    "success": "\u5c0d\u8a71\u5df2\u91cd\u65b0\u547d\u540d\uff01",
+                    "inProgress": "\u6b63\u5728\u91cd\u65b0\u547d\u540d\u5c0d\u8a71"
+                }
+            }
+        }
+    },
+    "navigation": {
+        "header": {
+            "chat": "\u804a\u5929",
+            "readme": "\u8aaa\u660e",
+            "theme": {
+                "light": "\u6dfa\u8272\u4e3b\u984c",
+                "dark": "\u6df1\u8272\u4e3b\u984c",
+                "system": "\u8ddf\u96a8\u7cfb\u7d71"
+            }
+        },
+        "newChat": {
+            "button": "\u65b0\u5efa\u5c0d\u8a71",
+            "dialog": {
+                "title": "\u5275\u5efa\u65b0\u5c0d\u8a71",
+                "description": "\u9019\u5c07\u6e05\u9664\u60a8\u7576\u524d\u7684\u804a\u5929\u8a18\u9304\u3002\u78ba\u5b9a\u8981\u7e7c\u7e8c\u55ce\uff1f",
+                "tooltip": "\u65b0\u5efa\u5c0d\u8a71"
+            }
+        },
+        "user": {
+            "menu": {
+                "settings": "\u8a2d\u5b9a",
+                "settingsKey": "S",
+                "apiKeys": "API\u91d1\u9470",
+                "logout": "\u767b\u51fa"
+            }
+        }
+    },
+    "apiKeys": {
+        "title": "\u6240\u9700API\u91d1\u9470",
+        "description": "\u4f7f\u7528\u6b64\u61c9\u7528\u7a0b\u5f0f\u9700\u8981\u4ee5\u4e0bAPI\u91d1\u9470\u3002\u9019\u4e9b\u91d1\u9470\u5132\u5b58\u5728\u60a8\u8a2d\u5099\u7684\u672c\u5730\u5132\u5b58\u7a7a\u9593\u4e2d\u3002",
+        "success": {
+            "saved": "\u5132\u5b58\u6210\u529f"
+        }
+    },
+    "alerts": {
+        "info": "\u8cc7\u8a0a",
+        "note": "\u6ce8\u91cb",
+        "tip": "\u63d0\u793a",
+        "important": "\u91cd\u8981",
+        "warning": "\u8b66\u544a",
+        "caution": "\u6ce8\u610f",
+        "debug": "\u9664\u932f",
+        "example": "\u7bc4\u4f8b",
+        "success": "\u6210\u529f",
+        "help": "\u5e6b\u52a9",
+        "idea": "\u60f3\u6cd5",
+        "pending": "\u5f85\u8655\u7406",
+        "security": "\u5b89\u5168",
+        "beta": "\u6e2c\u8a66",
+        "best-practice": "\u6700\u4f73\u5be6\u8e10"
+    },
+    "components": {
+        "MultiSelectInput": {
+            "placeholder": "\u9078\u64c7..."
+        }
+    }
+}

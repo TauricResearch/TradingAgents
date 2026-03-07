@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 import json
 from .reddit_utils import fetch_top_from_category
 from tqdm import tqdm
+from .utils import safe_read_csv
 
 def get_YFin_data_window(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -19,7 +20,7 @@ def get_YFin_data_window(
     start_date = before.strftime("%Y-%m-%d")
 
     # read in data
-    data = pd.read_csv(
+    data = safe_read_csv(
         os.path.join(
             DATA_DIR,
             f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
@@ -54,7 +55,7 @@ def get_YFin_data(
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ) -> str:
     # read in data
-    data = pd.read_csv(
+    data = safe_read_csv(
         os.path.join(
             DATA_DIR,
             f"market_data/price_data/{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
@@ -241,7 +242,7 @@ def get_simfin_balance_sheet(
         "us",
         f"us-balance-{freq}.csv",
     )
-    df = pd.read_csv(data_path, sep=";")
+    df = safe_read_csv(data_path, sep=";")
 
     # Convert date strings to datetime objects and remove any time components
     df["Report Date"] = pd.to_datetime(df["Report Date"], utc=True).dt.normalize()
@@ -288,7 +289,7 @@ def get_simfin_cashflow(
         "us",
         f"us-cashflow-{freq}.csv",
     )
-    df = pd.read_csv(data_path, sep=";")
+    df = safe_read_csv(data_path, sep=";")
 
     # Convert date strings to datetime objects and remove any time components
     df["Report Date"] = pd.to_datetime(df["Report Date"], utc=True).dt.normalize()
@@ -335,7 +336,7 @@ def get_simfin_income_statements(
         "us",
         f"us-income-{freq}.csv",
     )
-    df = pd.read_csv(data_path, sep=";")
+    df = safe_read_csv(data_path, sep=";")
 
     # Convert date strings to datetime objects and remove any time components
     df["Report Date"] = pd.to_datetime(df["Report Date"], utc=True).dt.normalize()

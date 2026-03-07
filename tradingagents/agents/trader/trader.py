@@ -24,15 +24,13 @@ def create_trader(llm, memory):
 
         context = {
             "role": "user",
-            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic decision.",
+            "content": f"Based on a comprehensive analysis by a team of analysts, here is a SHORT-TERM investment plan (1-2 week horizon) tailored for {company_name}. This plan incorporates insights from current technical market trends, near-term catalysts, and social media sentiment. Use this plan as a foundation for evaluating your next SHORT-TERM position decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic position decision for the next 1-2 weeks.",
         }
 
         messages = [
             {
                 "role": "system",
-                "content": f"""You are a trading agent analyzing market data to make investment decisions. Based on your analysis, provide a specific position to long, short, or hold.
-                End with a firm decision. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situatiosn you traded in and the lessons learned: {past_memory_str}"""
-                 + """Output strictly a JSON block with the following format: {"position": "Long" | "Short" | "Hold", explanation: str, "profit_estimate_pct": float, "risk_level": "Low" | "Medium" | "High", "trade_duration_days": int}""",
+                "content": f"""You are a trading agent analyzing market data to make SHORT-TERM position decisions (1-2 week horizon). Based on your analysis, provide a specific position recommendation: LONG (bullish, expecting price increase in 1-2 weeks), SHORT (bearish, expecting price decrease in 1-2 weeks), or HOLD (neutral, no position change). Focus on near-term catalysts, momentum, and what is likely to happen in the next 1-2 weeks. End with a firm decision and always conclude your response with 'FINAL POSITION RECOMMENDATION: **LONG/HOLD/SHORT**' to confirm your recommendation. Do not forget to utilize lessons from past decisions to learn from your mistakes. Here is some reflections from similar situations you traded in and the lessons learned: {past_memory_str}""",
             },
             context,
         ]

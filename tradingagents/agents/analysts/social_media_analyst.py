@@ -16,16 +16,8 @@ def create_social_media_analyst(llm):
         ]
 
         system_message = (
-            "You are a Social Media Analyst focused on RETAIL SENTIMENT trends for the next 1-2 weeks. "
-            "Gauge the crowd's psychological state. Look for Momentum (Hype) or Reversals (Extreme Panic/Euphoria). "
-            "Determine if the volume of discussion is rising (indicating incoming volatility)."
-            "Use the get_news tool to search for social media discussions and sentiment data."
-            + "\n\nDECISION LOGIC:"
-            + "\n- LONG: Rising organic hype (Momentum) OR Extreme Panic (Contrarian Buy)."
-            + "\n- SHORT: 'Sell the news' sentiment OR Extreme Euphoria (Contrarian Sell)."
-            + "\n- HOLD: Neutral sentiment, low social volume, or bots/spam noise."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
-            + "\n\nYOU MUST CONCLUDE YOUR REPORT WITH: 'SIGNAL: [LONG/SHORT/HOLD]'"
+            "You are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for SHORT-TERM trading (1-2 week horizon). Focus on current sentiment momentum, viral discussions, trending topics, and any social media catalysts that could drive short-term price movement. You will be given a company's name and your objective is to write a comprehensive report detailing your analysis of what people are currently saying about that company, sentiment trends over the past week, and any viral or trending discussions that could impact the stock in the next 1-2 weeks. Use the get_news(query, start_date, end_date) tool to search for company-specific news and social media discussions. Try to look at all sources possible from social media to sentiment to news. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make SHORT-TERM decisions within the next 1-2 weeks."
+            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read.""",
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -36,8 +28,8 @@ def create_social_media_analyst(llm):
                     " Use the provided tools to progress towards answering the question."
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
                     " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **LONG/HOLD/SHORT** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **LONG/HOLD/SHORT** so the team knows to stop."
+                    " If you or any other assistant has the FINAL POSITION RECOMMENDATION: **LONG/HOLD/SHORT** or deliverable,"
+                    " prefix your response with FINAL POSITION RECOMMENDATION: **LONG/HOLD/SHORT** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
                     "For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}",
                 ),

@@ -1,0 +1,245 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "Cancel",
+            "confirm": "Confirm",
+            "continue": "Continue",
+            "goBack": "Go Back",
+            "reset": "Reset",
+            "submit": "Submit"
+        },
+        "status": {
+            "loading": "Loading...",
+            "error": {
+                "default": "An error occurred",
+                "serverConnection": "Could not reach the server"
+            }
+        }
+    },
+    "auth": {
+        "login": {
+            "title": "Login to access the app",
+            "form": {
+                "email": {
+                    "label": "Email address",
+                    "required": "email is a required field",
+                    "placeholder": "me@example.com"
+                },
+                "password": {
+                    "label": "Password",
+                    "required": "password is a required field"
+                },
+                "actions": {
+                    "signin": "Sign In"
+                },
+                "alternativeText": {
+                    "or": "OR"
+                }
+            },
+            "errors": {
+                "default": "Unable to sign in",
+                "signin": "Try signing in with a different account",
+                "oauthSignin": "Try signing in with a different account",
+                "redirectUriMismatch": "The redirect URI is not matching the oauth app configuration",
+                "oauthCallback": "Try signing in with a different account",
+                "oauthCreateAccount": "Try signing in with a different account",
+                "emailCreateAccount": "Try signing in with a different account",
+                "callback": "Try signing in with a different account",
+                "oauthAccountNotLinked": "To confirm your identity, sign in with the same account you used originally",
+                "emailSignin": "The e-mail could not be sent",
+                "emailVerify": "Please verify your email, a new email has been sent",
+                "credentialsSignin": "Sign in failed. Check the details you provided are correct",
+                "sessionRequired": "Please sign in to access this page"
+            }
+        },
+        "provider": {
+            "continue": "Continue with {{provider}}"
+        }
+    },
+    "chat": {
+        "input": {
+            "placeholder": "Type your message here...",
+            "actions": {
+                "send": "Send message",
+                "stop": "Stop Task",
+                "attachFiles": "Attach files"
+            }
+        },
+        "commands": {
+            "button": "Tools",
+            "changeTool": "Change Tool",
+            "availableTools": "Available Tools"
+        },
+        "speech": {
+            "start": "Start recording",
+            "stop": "Stop recording",
+            "connecting": "Connecting"
+        },
+        "fileUpload": {
+            "dragDrop": "Drag and drop files here",
+            "browse": "Browse Files",
+            "sizeLimit": "Limit:",
+            "errors": {
+                "failed": "Failed to upload",
+                "cancelled": "Cancelled upload of"
+            },
+            "actions": {
+                "cancelUpload": "Cancel upload",
+                "removeAttachment": "Remove attachment"
+            }
+        },
+        "messages": {
+            "status": {
+                "using": "Using",
+                "used": "Used"
+            },
+            "actions": {
+                "copy": {
+                    "button": "Copy to clipboard",
+                    "success": "Copied!"
+                }
+            },
+            "feedback": {
+                "positive": "Helpful",
+                "negative": "Not helpful",
+                "edit": "Edit feedback",
+                "dialog": {
+                    "title": "Add a comment",
+                    "submit": "Submit feedback",
+                    "yourFeedback": "Your feedback..."
+                },
+                "status": {
+                    "updating": "Updating",
+                    "updated": "Feedback updated"
+                }
+            }
+        },
+        "history": {
+            "title": "Last Inputs",
+            "empty": "Such empty...",
+            "show": "Show history"
+        },
+        "settings": {
+            "title": "Settings panel",
+            "customize": "Customize your chat settings here"
+        },
+        "watermark": "LLMs can make mistakes. Check important info."
+    },
+    "threadHistory": {
+        "sidebar": {
+            "title": "Past Chats",
+            "filters": {
+                "search": "Search",
+                "placeholder": "Search conversations..."
+            },
+            "timeframes": {
+                "today": "Today",
+                "yesterday": "Yesterday",
+                "previous7days": "Previous 7 days",
+                "previous30days": "Previous 30 days"
+            },
+            "empty": "No threads found",
+            "actions": {
+                "close": "Close sidebar",
+                "open": "Open sidebar"
+            }
+        },
+        "thread": {
+            "untitled": "Untitled Conversation",
+            "menu": {
+                "rename": "Rename",
+                "share": "Share",
+                "delete": "Delete"
+            },
+            "actions": {
+                "share": {
+                    "title": "Share link to chat",
+                    "button": "Share",
+                    "status": {
+                        "copied": "Link copied",
+                        "created": "Share link created!",
+                        "unshared": "Sharing disabled for this thread"
+                    },
+                    "error": {
+                        "create": "Failed to create share link",
+                        "unshare": "Failed to unshare thread"
+                    }
+                },
+                "delete": {
+                    "title": "Confirm deletion",
+                    "description": "This will delete the thread as well as its messages and elements. This action cannot be undone",
+                    "success": "Chat deleted",
+                    "inProgress": "Deleting chat"
+                },
+                "rename": {
+                    "title": "Rename Thread",
+                    "description": "Enter a new name for this thread",
+                    "form": {
+                        "name": {
+                            "label": "Name",
+                            "placeholder": "Enter new name"
+                        }
+                    },
+                    "success": "Thread renamed!",
+                    "inProgress": "Renaming thread"
+                }
+            }
+        }
+    },
+    "navigation": {
+        "header": {
+            "chat": "Chat",
+            "readme": "Readme",
+            "theme": {
+                "light": "Light Theme",
+                "dark": "Dark Theme",
+                "system": "Follow System"
+            }
+        },
+        "newChat": {
+            "button": "New Chat",
+            "dialog": {
+                "title": "Create New Chat",
+                "description": "This will clear your current chat history. Are you sure you want to continue?",
+                "tooltip": "New Chat"
+            }
+        },
+        "user": {
+            "menu": {
+                "settings": "Settings",
+                "settingsKey": "S",
+                "apiKeys": "API Keys",
+                "logout": "Logout"
+            }
+        }
+    },
+    "apiKeys": {
+        "title": "Required API Keys",
+        "description": "To use this app, the following API keys are required. The keys are stored on your device's local storage.",
+        "success": {
+            "saved": "Saved successfully"
+        }
+    },
+    "alerts": {
+        "info": "Info",
+        "note": "Note",
+        "tip": "Tip",
+        "important": "Important",
+        "warning": "Warning",
+        "caution": "Caution",
+        "debug": "Debug",
+        "example": "Example",
+        "success": "Success",
+        "help": "Help",
+        "idea": "Idea",
+        "pending": "Pending",
+        "security": "Security",
+        "beta": "Beta",
+        "best-practice": "Best Practice"
+    },
+    "components": {
+        "MultiSelectInput": {
+            "placeholder": "Select..."
+        }
+    }
+}
