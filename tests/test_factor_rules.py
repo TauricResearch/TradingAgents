@@ -195,6 +195,15 @@ class FactorRulesPathTests(unittest.TestCase):
         self.assertIn("- Conditions: No explicit conditions provided", summary)
         self.assertIn("- Rationale: No screen provided", summary)
 
+    def test_summarize_factor_rules_stringifies_non_string_conditions(self):
+        summary = summarize_factor_rules(
+            [{"name": "Macro", "signal": "neutral", "conditions": [1, True, 3.14]}],
+            ticker="QQQ",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Conditions: 1; True; 3.14", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
