@@ -568,7 +568,7 @@ def get_user_selections():
             )
         )
         thinking_level = ask_gemini_thinking_config()
-    elif provider_lower == "openai":
+    elif provider_key == "openai":
         console.print(
             create_question_box(
                 "Step 7: Reasoning Effort",
