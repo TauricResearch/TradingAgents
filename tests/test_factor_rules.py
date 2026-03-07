@@ -291,6 +291,15 @@ class FactorRulesPathTests(unittest.TestCase):
 
         self.assertIn("- Weight: 0", summary)
 
+    def test_summarize_factor_rules_preserves_false_weight_value(self):
+        summary = summarize_factor_rules(
+            [{"name": "Carry", "signal": "neutral", "weight": False}],
+            ticker="SLV",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Weight: False", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
