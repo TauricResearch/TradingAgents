@@ -1,3 +1,5 @@
+import os
+import requests
 import questionary
 from typing import List, Optional, Tuple, Dict
 
@@ -122,7 +124,41 @@ def select_research_depth() -> int:
     return choice
 
 
-def select_shallow_thinking_agent(provider) -> str:
+def _normalize_ollama_base_url(url: str) -> str:
+    if not url:
+        return url
+    url = url.rstrip("/")
+    if url.endswith("/v1"):
+        url = url[:-3]
+    return url
+
+
+def fetch_ollama_models(
+    base_url: str,
+    api_key: Optional[str] = None,
+    timeout: float = 5.0,
+) -> List[str]:
+    """Fetch available models from Ollama /api/tags endpoint."""
+    if not base_url:
+        return []
+    base_url = _normalize_ollama_base_url(base_url)
+    url = f"{base_url}/api/tags"
+    headers = {"Authorization": api_key} if api_key else None
+    try:
+        resp = requests.get(url, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        data = resp.json()
+        models = []
+        for item in data.get("models", []):
+            name = item.get("name") or item.get("model")
+            if name:
+                models.append(name)
+        return models
+    except Exception:
+        return []
+
+
+def select_shallow_thinking_agent(provider, ollama_models: Optional[List[str]] = None) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
     # Define shallow thinking llm engine options with their corresponding model names
@@ -162,12 +198,17 @@ def select_shallow_thinking_agent(provider) -> str:
         ],
     }
 
-    choice = questionary.select(
-        "Select Your [Quick-Thinking LLM Engine]:",
-        choices=[
+    if provider.lower() == "ollama" and ollama_models:
+        choices = [questionary.Choice(m, value=m) for m in ollama_models]
+    else:
+        choices = [
             questionary.Choice(display, value=value)
             for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
-        ],
+        ]
+
+    choice = questionary.select(
+        "Select Your [Quick-Thinking LLM Engine]:",
+        choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -187,7 +228,7 @@ def select_shallow_thinking_agent(provider) -> str:
     return choice
 
 
-def select_deep_thinking_agent(provider) -> str:
+def select_deep_thinking_agent(provider, ollama_models: Optional[List[str]] = None) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
     # Define deep thinking llm engine options with their corresponding model names
@@ -230,12 +271,17 @@ def select_deep_thinking_agent(provider) -> str:
         ],
     }
 
-    choice = questionary.select(
-        "Select Your [Deep-Thinking LLM Engine]:",
-        choices=[
+    if provider.lower() == "ollama" and ollama_models:
+        choices = [questionary.Choice(m, value=m) for m in ollama_models]
+    else:
+        choices = [
             questionary.Choice(display, value=value)
             for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
-        ],
+        ]
+
+    choice = questionary.select(
+        "Select Your [Deep-Thinking LLM Engine]:",
+        choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
