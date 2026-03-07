@@ -144,6 +144,21 @@ class FactorRulesPathTests(unittest.TestCase):
         self.assertIn("No factor rules were loaded", summary)
         self.assertIn("do not fabricate rule-based signals", summary)
 
+    def test_summarize_factor_rules_treats_signal_case_insensitively(self):
+        summary = summarize_factor_rules(
+            [
+                {"name": "Value", "signal": "BULLISH"},
+                {"name": "Quality", "signal": "Negative"},
+                {"name": "Balance", "signal": "NeUtRaL"},
+            ],
+            ticker="NVDA",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Bullish leaning rules: 1", summary)
+        self.assertIn("- Bearish leaning rules: 1", summary)
+        self.assertIn("- Neutral / mixed rules: 1", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
