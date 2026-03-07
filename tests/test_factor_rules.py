@@ -234,6 +234,16 @@ class FactorRulesPathTests(unittest.TestCase):
         self.assertIn("- Rationale: ", summary)
         self.assertIn("- Thesis: Range-bound", summary)
 
+    def test_summarize_factor_rules_preserves_blank_signal_line(self):
+        summary = summarize_factor_rules(
+            [{"name": "Carry", "weight": "low", "thesis": "Sideways"}],
+            ticker="DIA",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Signal bias: neutral", summary)
+        self.assertIn("- Weight: low", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
