@@ -174,6 +174,17 @@ class FactorRulesPathTests(unittest.TestCase):
         self.assertIn("- Bearish leaning rules: 1", summary)
         self.assertIn("- Neutral / mixed rules: 1", summary)
 
+    def test_summarize_factor_rules_includes_default_rule_name(self):
+        summary = summarize_factor_rules(
+            [{"signal": "bullish", "weight": "high"}],
+            ticker="META",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("Rule 1: Rule 1", summary)
+        self.assertIn("- Signal bias: bullish", summary)
+        self.assertIn("- Weight: high", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
