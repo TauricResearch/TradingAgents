@@ -253,6 +253,15 @@ class FactorRulesPathTests(unittest.TestCase):
 
         self.assertIn("- Conditions: No explicit conditions provided", summary)
 
+    def test_summarize_factor_rules_preserves_explicit_empty_rationale(self):
+        summary = summarize_factor_rules(
+            [{"name": "Carry", "signal": "neutral", "rationale": ""}],
+            ticker="XLF",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Rationale: ", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
