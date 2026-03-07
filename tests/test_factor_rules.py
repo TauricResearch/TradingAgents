@@ -262,6 +262,16 @@ class FactorRulesPathTests(unittest.TestCase):
 
         self.assertIn("- Rationale: ", summary)
 
+    def test_summarize_factor_rules_preserves_empty_name_as_blank_label(self):
+        summary = summarize_factor_rules(
+            [{"name": "", "signal": "neutral"}],
+            ticker="TLT",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("Rule 1: ", summary)
+        self.assertIn("- Signal bias: neutral", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
