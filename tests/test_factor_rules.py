@@ -111,6 +111,18 @@ class FactorRulesPathTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_factor_rules({"project_dir": str(project_dir)})
 
+    def test_invalid_top_level_payload_returns_empty_rules(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir)
+            examples_dir = project_dir / "examples"
+            examples_dir.mkdir()
+            rule_path = examples_dir / "factor_rules.json"
+            rule_path.write_text(json.dumps("unexpected-string"), encoding="utf-8")
+
+            rules, loaded_path = load_factor_rules({"project_dir": str(project_dir)})
+            self.assertEqual(rules, [])
+            self.assertEqual(Path(loaded_path), rule_path.resolve())
+
     def test_summarize_factor_rules_counts_biases(self):
         summary = summarize_factor_rules(
             [
