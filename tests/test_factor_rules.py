@@ -224,6 +224,16 @@ class FactorRulesPathTests(unittest.TestCase):
         self.assertIn("- Weight: medium", summary)
         self.assertIn("- Thesis: Cheap relative to peers", summary)
 
+    def test_summarize_factor_rules_preserves_blank_rationale_line(self):
+        summary = summarize_factor_rules(
+            [{"name": "Carry", "signal": "neutral", "thesis": "Range-bound"}],
+            ticker="SPY",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Rationale: ", summary)
+        self.assertIn("- Thesis: Range-bound", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
