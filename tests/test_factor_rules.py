@@ -214,6 +214,16 @@ class FactorRulesPathTests(unittest.TestCase):
         self.assertIn("- Thesis: ", summary)
         self.assertIn("- Rationale: Momentum improving", summary)
 
+    def test_summarize_factor_rules_defaults_missing_weight_to_medium(self):
+        summary = summarize_factor_rules(
+            [{"name": "Value", "signal": "bullish", "thesis": "Cheap relative to peers"}],
+            ticker="NFLX",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Weight: medium", summary)
+        self.assertIn("- Thesis: Cheap relative to peers", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
