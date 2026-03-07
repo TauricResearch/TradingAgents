@@ -30,8 +30,9 @@ DEFAULT_CONFIG = {
     "backend_embedding_url": "http://localhost:8081/v1",
     # "backend_embedding_url":"https://api.z.ai/api/v1",
     # "backend_url": "http://localhost:11434/v1",
-    "api_key": "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",
-    "embedding_api_key": "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",
+    "api_key": os.environ.get("OPENAI_API_KEY", "your-api-key-here")
+    "embedding_api_key": os.environ.get("OPENAI_API_KEY", "your-api-key-here")
+}
     # Debate and discussion settings
     "max_debate_rounds": 5,
     "max_risk_discuss_rounds": 5,

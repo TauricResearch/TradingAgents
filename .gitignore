@@ -14,4 +14,12 @@ llamacpp.txt
 nohup.out
 out.txt
 test_llamacppserver.ipynb
-venv/
+venv/# Secrets
+*.pem
+*.key
+secrets.json
+credentials.json
+.env.local
+
+# Notebooks with secrets
+*.ipynb_checkpoints/
