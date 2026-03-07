@@ -318,6 +318,15 @@ class FactorRulesPathTests(unittest.TestCase):
 
         self.assertIn("- Conditions: ('threshold', 5)", summary)
 
+    def test_summarize_factor_rules_preserves_empty_condition_entries(self):
+        summary = summarize_factor_rules(
+            [{"name": "Carry", "signal": "neutral", "conditions": ["", "macro-ok"]}],
+            ticker="IEF",
+            trade_date="2026-03-07",
+        )
+
+        self.assertIn("- Conditions: ; macro-ok", summary)
+
     def test_summarize_factor_rules_preserves_empty_string_condition_entries(self):
         summary = summarize_factor_rules(
             [{"name": "Carry", "signal": "neutral", "conditions": ["", "fallback"]}],
