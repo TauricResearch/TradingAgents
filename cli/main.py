@@ -598,10 +598,10 @@ def get_user_selections():
                 console.print(
                     Panel(
                         f"[yellow]Warning:[/yellow] `OLLAMA_MODEL={env_model}` "
-                        "n'existe pas dans /api/tags. "
-                        "Le serveur risque de renvoyer une erreur. "
-                        "Mets `OLLAMA_MODEL` sur un nom présent dans la liste "
-                        "ou supprime la variable pour utiliser la selection CLI.",
+                        "does not exist in /api/tags. "
+                        "The server may return an error. "
+                        "Set `OLLAMA_MODEL` to a name from the list "
+                        "or unset the variable to use the CLI selection.",
                         border_style="yellow",
                         padding=(1, 2),
                     )
