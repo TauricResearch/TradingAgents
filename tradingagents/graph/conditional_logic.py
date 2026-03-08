@@ -3,6 +3,9 @@
 from tradingagents.agents.utils.agent_states import AgentState
 
 
+FACTOR_RULES_CLEAR_NODE = "Msg Clear Factor_rules"
+
+
 class ConditionalLogic:
     """Handles conditional logic for determining graph flow."""
 
@@ -45,7 +48,7 @@ class ConditionalLogic:
 
     def should_continue_factor_rules(self, state: AgentState):
         """Factor rule analyst is a pure context node with no tool loop."""
-        return "Msg Clear Factor_rules"
+        return FACTOR_RULES_CLEAR_NODE
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""

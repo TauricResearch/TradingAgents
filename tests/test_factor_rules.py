@@ -7,6 +7,7 @@ from pathlib import Path
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "agents" / "utils" / "factor_rules.py"
 GRAPH_SETUP_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "graph" / "setup.py"
+CONDITIONAL_LOGIC_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "graph" / "conditional_logic.py"
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "default_config.py"
 FACTOR_RULE_ANALYST_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "agents" / "analysts" / "factor_rule_analyst.py"
 SPEC = importlib.util.spec_from_file_location("factor_rules", MODULE_PATH)
@@ -397,6 +398,17 @@ class GraphSetupSourceTests(unittest.TestCase):
         self.assertIsInstance(setup_graph.args.defaults[0], ast.Constant)
         self.assertIsNone(setup_graph.args.defaults[0].value)
         self.assertIn('selected_analysts = ["market", "social", "news", "fundamentals", "factor_rules"]', source)
+
+
+class ConditionalLogicSourceTests(unittest.TestCase):
+    def test_factor_rules_clear_node_uses_shared_constant(self):
+        conditional_source = CONDITIONAL_LOGIC_PATH.read_text(encoding="utf-8")
+        setup_source = GRAPH_SETUP_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('FACTOR_RULES_CLEAR_NODE = "Msg Clear Factor_rules"', conditional_source)
+        self.assertIn('return FACTOR_RULES_CLEAR_NODE', conditional_source)
+        self.assertIn('from .conditional_logic import ConditionalLogic, FACTOR_RULES_CLEAR_NODE', setup_source)
+        self.assertIn('FACTOR_RULES_CLEAR_NODE', setup_source)
 
 
 class DefaultConfigSourceTests(unittest.TestCase):

@@ -8,7 +8,7 @@ from langgraph.prebuilt import ToolNode
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
 
-from .conditional_logic import ConditionalLogic
+from .conditional_logic import ConditionalLogic, FACTOR_RULES_CLEAR_NODE
 
 
 class GraphSetup:
@@ -146,7 +146,11 @@ class GraphSetup:
         for i, analyst_type in enumerate(selected_analysts):
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
-            current_clear = f"Msg Clear {analyst_type.capitalize()}"
+            current_clear = (
+                FACTOR_RULES_CLEAR_NODE
+                if analyst_type == "factor_rules"
+                else f"Msg Clear {analyst_type.capitalize()}"
+            )
 
             # Add conditional edges for current analyst
             continue_fn = getattr(self.conditional_logic, f"should_continue_{analyst_type}")
