@@ -7,6 +7,7 @@ from pathlib import Path
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "agents" / "utils" / "factor_rules.py"
 GRAPH_SETUP_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "graph" / "setup.py"
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "default_config.py"
 SPEC = importlib.util.spec_from_file_location("factor_rules", MODULE_PATH)
 factor_rules = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(factor_rules)
@@ -395,6 +396,33 @@ class GraphSetupSourceTests(unittest.TestCase):
         self.assertIsInstance(setup_graph.args.defaults[0], ast.Constant)
         self.assertIsNone(setup_graph.args.defaults[0].value)
         self.assertIn('selected_analysts = ["market", "social", "news", "fundamentals", "factor_rules"]', source)
+
+
+class DefaultConfigSourceTests(unittest.TestCase):
+    def test_default_headers_is_opt_in_none(self):
+        source = DEFAULT_CONFIG_PATH.read_text(encoding="utf-8")
+        module = ast.parse(source)
+
+        default_config_value = None
+        for node in module.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == "DEFAULT_CONFIG":
+                        default_config_value = node.value
+                        break
+
+        self.assertIsNotNone(default_config_value)
+        self.assertIsInstance(default_config_value, ast.Dict)
+
+        config_map = {}
+        for key_node, value_node in zip(default_config_value.keys, default_config_value.values):
+            if isinstance(key_node, ast.Constant):
+                config_map[key_node.value] = value_node
+
+        self.assertIn("default_headers", config_map)
+        self.assertIsInstance(config_map["default_headers"], ast.Constant)
+        self.assertIsNone(config_map["default_headers"].value)
+        self.assertIn('"default_headers": None', source)
 
 
 if __name__ == "__main__":

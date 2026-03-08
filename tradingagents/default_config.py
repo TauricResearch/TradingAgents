@@ -12,7 +12,7 @@ DEFAULT_CONFIG = {
     "deep_think_llm": "gpt-5.2",
     "quick_think_llm": "gpt-5-mini",
     "backend_url": "https://api.openai.com/v1",
-    "default_headers": {"User-Agent": "curl/8.0"},
+    "default_headers": None,  # Optional HTTP headers; override per endpoint if needed
     "factor_rules_path": os.getenv("TRADINGAGENTS_FACTOR_RULES_PATH", ""),
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
