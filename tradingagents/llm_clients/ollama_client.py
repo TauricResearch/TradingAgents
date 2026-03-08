@@ -14,8 +14,9 @@ class OllamaClient(BaseLLMClient):
 
     def _normalize_base_url(self, url: str) -> str:
         # ChatOllama expects the root URL, not a /v1 suffix.
-        if url.endswith("/v1/"):
-            return url[:-4]
+        if not url:
+            return url
+        url = url.rstrip("/")
         if url.endswith("/v1"):
             return url[:-3]
         return url
