@@ -183,7 +183,7 @@ You can also adjust the default configuration to set your own choice of LLMs, de
 
 ### Factor Rule Analyst
 
-TradingAgents now supports an optional `factor_rules` analyst that loads manually curated factor rules from JSON and injects them into the analyst → researcher → trader workflow.
+TradingAgents now supports an optional `factor_rules` analyst that loads manually curated factor rules from JSON and injects them into the analyst → researcher → trader workflow. The analyst is opt-in: add `"factor_rules"` to `selected_analysts` when you want it enabled.
 
 Default lookup order for factor rules:
 1. `config["factor_rules_path"]`
