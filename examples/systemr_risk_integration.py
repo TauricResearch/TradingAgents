@@ -78,7 +78,7 @@ def call_systemr_pre_trade_gate(
         "Content-Type": "application/json",
     }
     if key:
-        headers["Authorization"] = f"Bearer {key}"
+        headers["X-API-Key"] = key
 
     payload = {
         "symbol": symbol,
@@ -116,7 +116,7 @@ def run_with_systemr_risk_gate(
     entry_price: Optional[float] = None,
     stop_price: Optional[float] = None,
     config: Optional[dict] = None,
-) -> Tuple[str, str, dict]:
+) -> Tuple[str, dict, dict]:
     """Run TradingAgents and validate the result through System R.
 
     Args:
@@ -132,7 +132,7 @@ def run_with_systemr_risk_gate(
         Tuple of (final_decision, full_signal, systemr_response).
     """
     # 1. Run the standard TradingAgents pipeline
-    cfg = config or DEFAULT_CONFIG.copy()
+    cfg = {**DEFAULT_CONFIG, **(config or {})}
     ta = TradingAgentsGraph(debug=False, config=cfg)
     full_signal, decision = ta.propagate(ticker, trade_date)
 
