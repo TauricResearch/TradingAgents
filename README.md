@@ -183,7 +183,7 @@ You can also adjust the default configuration to set your own choice of LLMs, de
 
 ### Factor Rule Analyst
 
-TradingAgents now supports an optional `factor_rules` analyst that loads manually curated factor rules from JSON and injects them into the analyst → researcher → trader workflow. The analyst is opt-in: add `"factor_rules"` to `selected_analysts` when you want it enabled.
+TradingAgents now supports an optional `factor_rules` analyst that loads manually curated factor rules from JSON and injects them into the analyst → researcher → trader workflow. By default, the graph uses `market`, `social`, `news`, and `fundamentals`; add `"factor_rules"` to `selected_analysts` when you want the extra analyst enabled.
 
 Default lookup order for factor rules:
 1. `config["factor_rules_path"]`
@@ -208,7 +208,7 @@ Example rule file format:
 }
 ```
 
-Example config and usage:
+Example config and usage with `factor_rules` enabled:
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
