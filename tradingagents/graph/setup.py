@@ -51,7 +51,7 @@ class GraphSetup:
                 - "factor_rules": Factor rule analyst
         """
         if selected_analysts is None:
-            selected_analysts = ["market", "social", "news", "fundamentals", "factor_rules"]
+            selected_analysts = ["market", "social", "news", "fundamentals"]
 
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")

@@ -397,7 +397,8 @@ class GraphSetupSourceTests(unittest.TestCase):
         self.assertEqual(len(setup_graph.args.defaults), 1)
         self.assertIsInstance(setup_graph.args.defaults[0], ast.Constant)
         self.assertIsNone(setup_graph.args.defaults[0].value)
-        self.assertIn('selected_analysts = ["market", "social", "news", "fundamentals", "factor_rules"]', source)
+        self.assertIn('selected_analysts = ["market", "social", "news", "fundamentals"]', source)
+        self.assertNotIn('selected_analysts = ["market", "social", "news", "fundamentals", "factor_rules"]', source)
 
 
 class ConditionalLogicSourceTests(unittest.TestCase):
