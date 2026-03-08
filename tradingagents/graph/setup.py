@@ -1,6 +1,6 @@
 # TradingAgents/graph/setup.py
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
@@ -38,7 +38,7 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
 
     def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals", "factor_rules"]
+        self, selected_analysts: Optional[List[str]] = None
     ):
         """Set up and compile the agent workflow graph.
 
@@ -50,6 +50,9 @@ class GraphSetup:
                 - "fundamentals": Fundamentals analyst
                 - "factor_rules": Factor rule analyst
         """
+        if selected_analysts is None:
+            selected_analysts = ["market", "social", "news", "fundamentals", "factor_rules"]
+
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
 
