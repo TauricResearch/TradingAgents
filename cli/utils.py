@@ -154,7 +154,7 @@ def fetch_ollama_models(
             if name:
                 models.append(name)
         return models
-    except Exception:
+    except requests.exceptions.RequestException:
         return []
 
 
