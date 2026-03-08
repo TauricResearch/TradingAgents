@@ -64,7 +64,7 @@ TradingAgents is a multi-agent trading framework that mirrors the dynamics of re
 Our framework decomposes complex trading tasks into specialized roles. This ensures the system achieves a robust, scalable approach to market analysis and decision-making.
 
 ### Analyst Team
-- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
+- Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags. For Korean-listed companies, it also leverages [OpenDART](https://opendart.fss.or.kr/) data including official financial statements and regulatory disclosures.
 - Sentiment Analyst: Analyzes social media and public sentiment using sentiment scoring algorithms to gauge short-term market mood.
 - News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
@@ -127,6 +127,7 @@ export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export OPENDART_API_KEY=...        # OpenDART (Korean DART disclosures)
 ```
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.
@@ -197,6 +198,26 @@ print(decision)
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
+
+### Korean Market Support (OpenDART)
+
+TradingAgents supports Korean-listed companies through the [OpenDART API](https://opendart.fss.or.kr/), which provides official financial statements and regulatory disclosures from Korea's DART (Data Analysis, Retrieval and Transfer) system.
+
+To enable Korean market support:
+
+1. Get an API key from [OpenDART](https://opendart.fss.or.kr/)
+2. Set the environment variable:
+   ```bash
+   export OPENDART_API_KEY=your_api_key_here
+   ```
+3. Use 6-digit Korean stock ticker codes (e.g., `005930` for Samsung Electronics):
+   ```python
+   _, decision = ta.propagate("005930", "2026-03-08")
+   ```
+
+The Fundamentals Analyst will automatically use `get_dart_financials` and `get_dart_disclosures` tools when analyzing Korean stocks, retrieving:
+- **Financial Statements**: Revenue, operating profit, net income, and OPM from quarterly/annual DART filings
+- **Disclosures**: Recent regulatory filings, earnings reports, and corporate actions from the last 30 days
 
 ## Contributing
 

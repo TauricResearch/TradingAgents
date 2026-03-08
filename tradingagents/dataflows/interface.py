@@ -1,3 +1,17 @@
+# Copyright 2026 herald.k, HongSoo Kim
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from typing import Annotated
 
 # Import from vendor-specific modules
@@ -23,6 +37,10 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .opendart import (
+    get_dart_financials as get_opendart_financials,
+    get_dart_disclosures as get_opendart_disclosures,
+)
 
 # Configuration and routing logic
 from .config import get_config
@@ -57,12 +75,20 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_transactions",
         ]
+    },
+    "dart_data": {
+        "description": "Korean DART disclosure and financial data",
+        "tools": [
+            "get_dart_financials",
+            "get_dart_disclosures",
+        ]
     }
 }
 
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "opendart",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -106,6 +132,13 @@ VENDOR_METHODS = {
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+    },
+    # dart_data
+    "get_dart_financials": {
+        "opendart": get_opendart_financials,
+    },
+    "get_dart_disclosures": {
+        "opendart": get_opendart_disclosures,
     },
 }
 
