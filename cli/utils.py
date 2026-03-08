@@ -160,7 +160,7 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
         ],
-        "vllm": [("Qwen/Qwen3.5-2B", "Qwen/Qwen3.5-2B")]
+        "vllm": [("./Downloads/Qwen3.5-2B", "./Downloads/Qwen3.5-2B")]
     }
 
     choice = questionary.select(
@@ -229,7 +229,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
-        "vllm": [("Qwen/Qwen3.5-2B", "Qwen/Qwen3.5-2B")]
+        "vllm": [("./Downloads/Qwen3.5-2B", "./Downloads/Qwen3.5-2B")]
     }
 
     choice = questionary.select(
@@ -334,7 +334,7 @@ def ask_gemini_thinking_config() -> str | None:
 def ask_vllm_config() -> tuple[str | None, str | None]:
     """Ask for VLLM configuration. """
     import os
-    default_base = os.environ.get("VLLM_API_BASE", "https://localhost:8000/v1")
+    default_base = os.environ.get("VLLM_API_BASE", "http://localhost:8000/v1")
     api_base = questionary.text("Enter VLLM API URL:", default=default_base, style=questionary.Style(
         [
             ("text", "fg:green"),
