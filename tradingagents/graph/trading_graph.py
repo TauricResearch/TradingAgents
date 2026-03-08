@@ -78,16 +78,21 @@ class TradingAgentsGraph:
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
 
+        provider = self.config["llm_provider"].lower()
+        if provider == "vllm":
+            base_url = self.config.get("vllm_api_base") or self.config["backend_url"]
+        else:
+            base_url = self.config["backend_url"]
         deep_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["deep_think_llm"],
-            base_url=self.config.get("backend_url"),
+            base_url=base_url,
             **llm_kwargs,
         )
         quick_client = create_llm_client(
             provider=self.config["llm_provider"],
             model=self.config["quick_think_llm"],
-            base_url=self.config.get("backend_url"),
+            base_url=base_url,
             **llm_kwargs,
         )
 
@@ -144,6 +149,13 @@ class TradingAgentsGraph:
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
+
+        elif provider == "vllm":
+            # vllm specific settings
+            api_key = self.config.get("vllm_api_key")
+            if api_key:
+                kwargs["api_key"] = api_key
+            # Add any vllm-specific parameters here if needed
 
         return kwargs
 

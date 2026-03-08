@@ -556,6 +556,8 @@ def get_user_selections():
     # Step 7: Provider-specific thinking configuration
     thinking_level = None
     reasoning_effort = None
+    vllm_api_base = None
+    vllm_api_key = None
 
     provider_lower = selected_llm_provider.lower()
     if provider_lower == "google":
@@ -574,6 +576,14 @@ def get_user_selections():
             )
         )
         reasoning_effort = ask_openai_reasoning_effort()
+    elif provider_lower == "vllm":
+        console.print(
+            create_question_box(
+                "Step 7 : vLLM Configuration",
+                "Configure vLLM API configuration"
+            )
+        )
+        vllm_api_base, vllm_api_key = ask_vllm_config()
 
     return {
         "ticker": selected_ticker,
@@ -586,6 +596,8 @@ def get_user_selections():
         "deep_thinker": selected_deep_thinker,
         "google_thinking_level": thinking_level,
         "openai_reasoning_effort": reasoning_effort,
+        "vllm_api_base": vllm_api_base,
+        "vllm_api_key": vllm_api_key,
     }
 
 
@@ -911,7 +923,11 @@ def run_analysis():
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
-
+    if selections["llm_provider"] == "vllm":
+        if selections.get("vllm_api_base"):
+            config["backend_url"] = selections["vllm_api_base"]
+        config["vllm_api_base"] = selections.get("vllm_api_base")
+        config["vllm_api_key"] = selections.get("vllm_api_key")
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
 
