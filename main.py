@@ -20,6 +20,9 @@ config["data_vendors"] = {
     "news_data": "yfinance",                 # Options: alpha_vantage, yfinance
 }
 
+# Optional: inject manual factor rules
+config["factor_rules_path"] = "./tradingagents/examples/factor_rules.json"
+
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 

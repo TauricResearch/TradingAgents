@@ -181,6 +181,35 @@ print(decision)
 
 You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
 
+### Factor Rule Analyst
+
+TradingAgents now supports an optional `factor_rules` analyst that loads manually curated factor rules from JSON and injects them into the analyst → researcher → trader workflow. By default, the graph uses `market`, `social`, `news`, and `fundamentals`; add `"factor_rules"` to `selected_analysts` when you want the extra analyst enabled.
+
+Default lookup order for factor rules:
+1. `config["factor_rules_path"]`
+2. `TRADINGAGENTS_FACTOR_RULES_PATH`
+3. `tradingagents/examples/factor_rules.json`
+4. `tradingagents/factor_rules.json`
+
+Example rule file format:
+
+```json
+{
+  "rules": [
+    {
+      "name": "AI capex acceleration",
+      "signal": "bullish",
+      "weight": "high",
+      "thesis": "AI infrastructure demand supports growth.",
+      "conditions": ["Backlog rising", "Margins stable"],
+      "rationale": "Use when execution quality remains strong."
+    }
+  ]
+}
+```
+
+Example config and usage with `factor_rules` enabled:
+
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -190,8 +219,13 @@ config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openr
 config["deep_think_llm"] = "gpt-5.2"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
+config["factor_rules_path"] = "./tradingagents/examples/factor_rules.json"
 
-ta = TradingAgentsGraph(debug=True, config=config)
+ta = TradingAgentsGraph(
+    debug=True,
+    config=config,
+    selected_analysts=["market", "social", "news", "fundamentals", "factor_rules"],
+)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 print(decision)
 ```
