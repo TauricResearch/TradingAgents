@@ -51,7 +51,18 @@ def _candidate_rule_paths(config: Optional[Dict[str, Any]] = None) -> List[Path]
 
 
 def load_factor_rules(config: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    config = config or {}
+    explicit = config.get("factor_rules_path")
+    explicit_path = None
+    if explicit:
+        try:
+            explicit_path = Path(explicit).resolve()
+        except Exception:
+            explicit_path = None
+
     for path in _candidate_rule_paths(config):
+        if explicit_path and path == explicit_path and not path.exists():
+            return [], str(path)
         if not path.exists():
             continue
         with open(path, "r", encoding="utf-8") as f:

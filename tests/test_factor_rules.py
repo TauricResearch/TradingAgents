@@ -100,6 +100,26 @@ class FactorRulesPathTests(unittest.TestCase):
             self.assertEqual(rules, [])
             self.assertIsNone(loaded_path)
 
+    def test_missing_explicit_rule_path_does_not_fall_back_silently(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir)
+            examples_dir = project_dir / "examples"
+            examples_dir.mkdir()
+            default_rule_path = examples_dir / "factor_rules.json"
+            default_rule_path.write_text(json.dumps({"rules": [{"name": "Default"}]}), encoding="utf-8")
+            missing_explicit_path = project_dir / "factor_rules.json"
+            missing_explicit_path.unlink(missing_ok=True)
+
+            rules, loaded_path = load_factor_rules(
+                {
+                    "project_dir": str(project_dir),
+                    "factor_rules_path": str(missing_explicit_path),
+                }
+            )
+
+            self.assertEqual(rules, [])
+            self.assertEqual(Path(loaded_path), missing_explicit_path.resolve())
+
     def test_invalid_rules_object_raises_value_error(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             project_dir = Path(tmpdir)
