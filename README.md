@@ -208,17 +208,7 @@ Example rule file format:
 }
 ```
 
-Example config:
-
-```python
-config = DEFAULT_CONFIG.copy()
-config["factor_rules_path"] = "./tradingagents/examples/factor_rules.json"
-ta = TradingAgentsGraph(
-    debug=True,
-    config=config,
-    selected_analysts=["market", "social", "news", "fundamentals", "factor_rules"],
-)
-```
+Example config and usage:
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -229,8 +219,13 @@ config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openr
 config["deep_think_llm"] = "gpt-5.2"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
+config["factor_rules_path"] = "./tradingagents/examples/factor_rules.json"
 
-ta = TradingAgentsGraph(debug=True, config=config)
+ta = TradingAgentsGraph(
+    debug=True,
+    config=config,
+    selected_analysts=["market", "social", "news", "fundamentals", "factor_rules"],
+)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 print(decision)
 ```
