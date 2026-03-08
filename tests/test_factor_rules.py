@@ -8,6 +8,7 @@ from pathlib import Path
 MODULE_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "agents" / "utils" / "factor_rules.py"
 GRAPH_SETUP_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "graph" / "setup.py"
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "default_config.py"
+FACTOR_RULE_ANALYST_PATH = Path(__file__).resolve().parents[1] / "tradingagents" / "agents" / "analysts" / "factor_rule_analyst.py"
 SPEC = importlib.util.spec_from_file_location("factor_rules", MODULE_PATH)
 factor_rules = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(factor_rules)
@@ -423,6 +424,23 @@ class DefaultConfigSourceTests(unittest.TestCase):
         self.assertIsInstance(config_map["default_headers"], ast.Constant)
         self.assertIsNone(config_map["default_headers"].value)
         self.assertIn('"default_headers": None', source)
+
+
+class FactorRuleAnalystSourceTests(unittest.TestCase):
+    def test_factor_rule_analyst_short_circuits_when_rules_missing(self):
+        source = FACTOR_RULE_ANALYST_PATH.read_text(encoding="utf-8")
+        module = ast.parse(source)
+
+        create_fn = None
+        for node in module.body:
+            if isinstance(node, ast.FunctionDef) and node.name == "create_factor_rule_analyst":
+                create_fn = node
+                break
+
+        self.assertIsNotNone(create_fn)
+        self.assertIn("if not rules:", source)
+        self.assertIn('"messages": []', source)
+        self.assertIn('"factor_rules_report": summary', source)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,12 @@ def create_factor_rule_analyst(llm):
         rules, rule_path = load_factor_rules(config)
         summary = _sanitize_text(summarize_factor_rules(rules, ticker, current_date))
 
+        if not rules:
+            return {
+                "messages": [],
+                "factor_rules_report": summary,
+            }
+
         system_prompt = """You are a Factor Rule Analyst for a trading research team.
 Your job is to interpret manually curated factor rules and produce a concise, practical analyst report.
 You must:
