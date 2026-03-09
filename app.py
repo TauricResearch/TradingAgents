@@ -1,4 +1,4 @@
-"""FastAPI SSE backend for TradingAgents."""
+"""FastAPI SSE backend for the structured equity ranking engine."""
 
 import os
 import time
@@ -21,14 +21,8 @@ if not os.environ.get("OPENAI_API_KEY"):
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from cli.stats_handler import StatsCallbackHandler
-from cli.main import (
-    MessageBuffer,
-    classify_message_type,
-    update_analyst_statuses,
-)
 
-app = FastAPI(title="TradingAgents API")
+app = FastAPI(title="TradingAgents Structured Pipeline")
 
 # --- CORS ---
 _cors_env = os.getenv("CORS_ORIGINS", "")
@@ -40,13 +34,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Auth dependency ---
+# --- Auth ---
 _API_KEY = os.getenv("AGENTS_API_KEY", "")
 
 
 async def verify_api_key(request: Request):
     if not _API_KEY:
-        return  # dev mode — no auth
+        return
     auth = request.headers.get("Authorization", "")
     if auth != f"Bearer {_API_KEY}":
         raise HTTPException(401, "Invalid or missing API key")
@@ -56,7 +50,6 @@ async def verify_api_key(request: Request):
 MAX_CONCURRENT = int(os.getenv("MAX_CONCURRENT_ANALYSES", "3"))
 _semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
-# Active analysis state: id -> {queue, events (replay buffer), done, created_at}
 analyses: dict[str, dict] = {}
 
 
@@ -66,7 +59,7 @@ class AnalyzeRequest(BaseModel):
 
 
 def build_config():
-    """Build TradingAgents config — uses Groq (OpenAI-compatible) by default."""
+    """Build TradingAgents config from env vars."""
     config = DEFAULT_CONFIG.copy()
     config["llm_provider"] = os.getenv("LLM_PROVIDER", "openai")
     config["deep_think_llm"] = os.getenv("DEEP_THINK_MODEL", "deepseek-v3.1:671b-cloud")
@@ -80,236 +73,163 @@ def build_config():
         "fundamental_data": "yfinance",
         "news_data": "yfinance",
     }
-    config["parallel_analysts"] = True
-    print(f"[CONFIG] provider={config['llm_provider']}, deep={config['deep_think_llm']}, quick={config['quick_think_llm']}, url={config['backend_url']}", flush=True)
+    print(
+        f"[CONFIG] provider={config['llm_provider']}, "
+        f"deep={config['deep_think_llm']}, "
+        f"quick={config['quick_think_llm']}, "
+        f"url={config['backend_url']}",
+        flush=True,
+    )
     return config
 
 
-def get_stats_dict(stats_handler, buf, start_time):
-    """Build stats dict for SSE events."""
-    s = stats_handler.get_stats()
-    agents_done = sum(1 for v in buf.agent_status.values() if v == "completed")
-    elapsed = time.time() - start_time
-    return {
-        "agents_done": agents_done,
-        "agents_total": len(buf.agent_status),
-        "llm_calls": s["llm_calls"],
-        "tool_calls": s["tool_calls"],
-        "tokens_in": s["tokens_in"],
-        "tokens_out": s["tokens_out"],
-        "reports_done": buf.get_completed_reports_count(),
-        "reports_total": len(buf.report_sections),
-        "elapsed": round(elapsed, 1),
-    }
+# ---------------------------------------------------------------------------
+# Stage/agent mapping for SSE events
+# ---------------------------------------------------------------------------
+
+# Maps state field → (agent display name, pipeline stage)
+FIELD_AGENT_MAP = {
+    "validation": ("Validation", "validation"),
+    "company_card": ("Company Card", "validation"),
+    "macro": ("Macro Regime", "tier1"),
+    "liquidity": ("Liquidity", "tier1"),
+    "business_quality": ("Business Quality", "tier2"),
+    "institutional_flow": ("Institutional Flow", "tier2"),
+    "valuation": ("Valuation", "tier2"),
+    "entry_timing": ("Entry Timing", "tier2"),
+    "earnings_revisions": ("Earnings Revisions", "tier2"),
+    "sector_rotation": ("Sector Rotation", "tier2"),
+    "backlog": ("Backlog / Order Momentum", "tier2"),
+    "crowding": ("Narrative Crowding", "tier2"),
+    "archetype": ("Archetype", "scoring"),
+    "master_score": ("Master Score", "scoring"),
+    "bull_case": ("Bull Researcher", "debate"),
+    "bear_case": ("Bear Researcher", "debate"),
+    "debate": ("Debate Referee", "debate"),
+    "risk": ("Risk / Invalidation", "decision"),
+    "final_decision": ("Final Decision", "decision"),
+}
+
+ALL_AGENTS = [name for name, _ in FIELD_AGENT_MAP.values()]
+ALL_STAGES = ["validation", "tier1", "tier2", "scoring", "debate", "decision"]
 
 
-def _agent_stage(agent_name):
-    """Map agent name to pipeline stage."""
-    if agent_name in ("Market Analyst", "Social Analyst", "News Analyst", "Fundamentals Analyst"):
-        return "analysts"
-    if agent_name in ("Bull Researcher", "Bear Researcher", "Research Manager"):
-        return "research"
-    if agent_name == "Trader":
-        return "trading"
-    if agent_name in ("Aggressive Analyst", "Conservative Analyst", "Neutral Analyst"):
-        return "risk"
-    if agent_name == "Portfolio Manager":
-        return "decision"
-    return "unknown"
-
+# ---------------------------------------------------------------------------
+# Analysis runner
+# ---------------------------------------------------------------------------
 
 async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
-    """Core analysis logic."""
+    """Core analysis logic — streams structured pipeline state changes as SSE."""
     state = analyses[analysis_id]
     q = state["queue"]
     config = build_config()
-    stats_handler = StatsCallbackHandler()
-    selected_analysts = ["market", "social", "news", "fundamentals"]
 
     try:
-        graph = TradingAgentsGraph(
-            selected_analysts=selected_analysts,
-            debug=False,
-            config=config,
-            callbacks=[stats_handler],
+        graph = TradingAgentsGraph(debug=False, config=config)
+        print(
+            f"[ANALYSIS] LLM types: deep={type(graph.deep_thinking_llm).__name__}, "
+            f"quick={type(graph.quick_thinking_llm).__name__}",
+            flush=True,
         )
-        print(f"[ANALYSIS] LLM types: deep={type(graph.deep_thinking_llm).__name__}, quick={type(graph.quick_thinking_llm).__name__}", flush=True)
     except Exception as e:
         print(f"[ANALYSIS] Init failed: {e}\n{_tb.format_exc()}", flush=True)
         await q.put({"type": "error", "message": f"Init failed: {e}"})
         await q.put(None)
         return
 
-    buf = MessageBuffer()
-    buf.init_for_analysis(selected_analysts)
-    init_state = graph.propagator.create_initial_state(ticker, trade_date)
-    args = graph.propagator.get_graph_args(callbacks=[stats_handler])
+    init_state = graph._create_initial_state(ticker, trade_date)
     start_time = time.time()
-
-    emitted_reports = set()
-    research_emitted = False
-    trader_emitted = False
-    risk_emitted = False
+    emitted_fields = set()
+    prev_agent_statuses = {}
     final_state = None
-    prev_statuses = {}
 
-    # Emit all analysts as "in_progress" immediately (they run in parallel)
-    analyst_name_map = {
-        "market": "Market Analyst",
-        "social": "Social Analyst",
-        "news": "News Analyst",
-        "fundamentals": "Fundamentals Analyst",
-    }
-    for analyst_type in selected_analysts:
-        agent_name = analyst_name_map[analyst_type]
-        buf.update_agent_status(agent_name, "in_progress")
-        st = get_stats_dict(stats_handler, buf, start_time)
+    # Emit initial status: all agents pending
+    for field, (agent_name, stage) in FIELD_AGENT_MAP.items():
+        prev_agent_statuses[field] = "pending"
         evt = {
             "type": "agent_update",
             "agent": agent_name,
-            "stage": "analysts",
-            "status": "in_progress",
-            "stats": st,
+            "stage": stage,
+            "status": "pending",
+            "stats": _stats(start_time, emitted_fields),
         }
         state["events"].append(evt)
         await q.put(evt)
-        prev_statuses[agent_name] = "in_progress"
 
     try:
-        async for chunk in graph.graph.astream(init_state, **args):
+        async for chunk in graph.graph.astream(
+            init_state,
+            stream_mode="values",
+            config={"recursion_limit": 50},
+        ):
             final_state = chunk
 
-            # Process messages (same logic as Chainlit app)
-            if chunk.get("messages") and len(chunk["messages"]) > 0:
-                last_msg = chunk["messages"][-1]
-                msg_id = getattr(last_msg, "id", None)
-                if msg_id != buf._last_message_id:
-                    buf._last_message_id = msg_id
-                    msg_type, content = classify_message_type(last_msg)
-                    if content and content.strip():
-                        buf.add_message(msg_type, content)
-                    if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-                        for tc in last_msg.tool_calls:
-                            if isinstance(tc, dict):
-                                buf.add_tool_call(tc["name"], tc["args"])
-                            else:
-                                buf.add_tool_call(tc.name, tc.args)
+            # Detect newly populated fields
+            for field, (agent_name, stage) in FIELD_AGENT_MAP.items():
+                if field in emitted_fields:
+                    continue
 
-            update_analyst_statuses(buf, chunk)
-            st = get_stats_dict(stats_handler, buf, start_time)
+                value = chunk.get(field)
+                if value is None:
+                    continue
 
-            # Emit agent status changes only (avoid flooding)
-            for agent, status in buf.agent_status.items():
-                if prev_statuses.get(agent) != status:
-                    prev_statuses[agent] = status
-                    evt = {
-                        "type": "agent_update",
-                        "agent": agent,
-                        "stage": _agent_stage(agent),
-                        "status": status,
-                        "stats": st,
-                    }
-                    state["events"].append(evt)
-                    await q.put(evt)
+                emitted_fields.add(field)
+                st = _stats(start_time, emitted_fields)
 
-            # Analyst reports
-            report_map = {
-                "market_report": ("Market Analyst", "analysts"),
-                "sentiment_report": ("Social Analyst", "analysts"),
-                "news_report": ("News Analyst", "analysts"),
-                "fundamentals_report": ("Fundamentals Analyst", "analysts"),
-            }
-            for field, (agent_name, stage) in report_map.items():
-                if field not in emitted_reports and chunk.get(field):
-                    emitted_reports.add(field)
+                # Mark this agent completed
+                prev_agent_statuses[field] = "completed"
+                evt = {
+                    "type": "agent_update",
+                    "agent": agent_name,
+                    "stage": stage,
+                    "status": "completed",
+                    "stats": st,
+                }
+                state["events"].append(evt)
+                await q.put(evt)
+
+                # Emit report data for key fields
+                if field in ("validation", "company_card"):
                     evt = {
                         "type": "report",
                         "agent": agent_name,
                         "stage": stage,
                         "field": field,
-                        "report": chunk[field],
+                        "report": _format_report(field, value),
                         "stats": st,
                     }
                     state["events"].append(evt)
                     await q.put(evt)
 
-            # Research debate
-            if chunk.get("investment_debate_state") and not research_emitted:
-                debate = chunk["investment_debate_state"]
-                bull = debate.get("bull_history", "").strip()
-                bear = debate.get("bear_history", "").strip()
-                judge = debate.get("judge_decision", "").strip()
-
-                if bull or bear:
-                    for a in ("Bull Researcher", "Bear Researcher", "Research Manager"):
-                        buf.update_agent_status(a, "in_progress")
-
-                if judge:
-                    research_emitted = True
-                    for a in ("Bull Researcher", "Bear Researcher", "Research Manager"):
-                        buf.update_agent_status(a, "completed")
-                    buf.update_agent_status("Trader", "in_progress")
-                    buf.update_report_section("investment_plan", judge)
+                elif field == "debate":
+                    bull = chunk.get("bull_case") or {}
+                    bear = chunk.get("bear_case") or {}
                     evt = {
                         "type": "debate",
-                        "stage": "research",
-                        "bull": bull,
-                        "bear": bear,
-                        "judge": judge,
-                        "stats": get_stats_dict(stats_handler, buf, start_time),
+                        "stage": "debate",
+                        "bull": bull.get("thesis", ""),
+                        "bear": bear.get("thesis", ""),
+                        "judge": (value or {}).get("reasoning", ""),
+                        "winner": (value or {}).get("winner", ""),
+                        "stats": st,
                     }
                     state["events"].append(evt)
                     await q.put(evt)
 
-            # Trader plan
-            if chunk.get("trader_investment_plan") and not trader_emitted:
-                trader_emitted = True
-                buf.update_agent_status("Trader", "completed")
-                buf.update_agent_status("Aggressive Analyst", "in_progress")
-                buf.update_agent_status("Conservative Analyst", "in_progress")
-                buf.update_agent_status("Neutral Analyst", "in_progress")
-                buf.update_report_section("trader_investment_plan", chunk["trader_investment_plan"])
-                evt = {
-                    "type": "trader",
-                    "stage": "trading",
-                    "plan": chunk["trader_investment_plan"],
-                    "stats": get_stats_dict(stats_handler, buf, start_time),
-                }
-                state["events"].append(evt)
-                await q.put(evt)
-
-            # Risk debate
-            if chunk.get("risk_debate_state") and not risk_emitted:
-                risk = chunk["risk_debate_state"]
-                agg = risk.get("aggressive_history", "").strip()
-                con = risk.get("conservative_history", "").strip()
-                neu = risk.get("neutral_history", "").strip()
-                judge = risk.get("judge_decision", "").strip()
-
-                if agg:
-                    buf.update_agent_status("Aggressive Analyst", "in_progress")
-                if con:
-                    buf.update_agent_status("Conservative Analyst", "in_progress")
-                if neu:
-                    buf.update_agent_status("Neutral Analyst", "in_progress")
-
-                if judge:
-                    risk_emitted = True
-                    buf.update_agent_status("Aggressive Analyst", "completed")
-                    buf.update_agent_status("Conservative Analyst", "completed")
-                    buf.update_agent_status("Neutral Analyst", "completed")
-                    buf.update_agent_status("Portfolio Manager", "completed")
+                elif field == "master_score":
                     evt = {
-                        "type": "risk",
-                        "stage": "risk",
-                        "aggressive": agg,
-                        "conservative": con,
-                        "neutral": neu,
-                        "judge": judge,
-                        "stats": get_stats_dict(stats_handler, buf, start_time),
+                        "type": "score",
+                        "stage": "scoring",
+                        "master_score": value,
+                        "adjusted_score": chunk.get("adjusted_score"),
+                        "position_role": chunk.get("position_role"),
+                        "stats": st,
                     }
                     state["events"].append(evt)
                     await q.put(evt)
+
+            # Mark in-progress agents for upcoming stages
+            _update_in_progress(chunk, emitted_fields, prev_agent_statuses, state, q, start_time)
 
     except Exception as e:
         print(f"[ANALYSIS] Stream error: {e}\n{_tb.format_exc()}", flush=True)
@@ -320,49 +240,112 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
         await q.put(None)
         return
 
-    # Final decision
+    # Final decision event
     if final_state:
-        decision_text = final_state.get("final_trade_decision", "No decision reached.")
-        signal = graph.process_signal(decision_text)
-        buf.update_report_section("final_trade_decision", decision_text)
-        for agent in buf.agent_status:
-            buf.update_agent_status(agent, "completed")
-        st = get_stats_dict(stats_handler, buf, start_time)
-        for agent, status in buf.agent_status.items():
-            if prev_statuses.get(agent) != "completed":
-                prev_statuses[agent] = "completed"
+        decision = final_state.get("final_decision") or {}
+        st = _stats(start_time, emitted_fields)
+
+        # Mark all remaining as completed
+        for field in FIELD_AGENT_MAP:
+            if prev_agent_statuses.get(field) != "completed":
+                agent_name, stage = FIELD_AGENT_MAP[field]
+                prev_agent_statuses[field] = "completed"
                 evt = {
                     "type": "agent_update",
-                    "agent": agent,
-                    "stage": _agent_stage(agent),
+                    "agent": agent_name,
+                    "stage": stage,
                     "status": "completed",
                     "stats": st,
                 }
                 state["events"].append(evt)
                 await q.put(evt)
+
         evt = {
             "type": "decision",
             "stage": "decision",
-            "signal": signal,
-            "decision_text": decision_text,
+            "signal": decision.get("action", "AVOID"),
+            "decision_text": decision.get("narrative", ""),
+            "master_score": final_state.get("master_score"),
+            "adjusted_score": final_state.get("adjusted_score"),
+            "position_role": final_state.get("position_role"),
+            "final_decision": decision,
             "stats": st,
         }
         state["events"].append(evt)
         await q.put(evt)
 
     state["done"] = True
-    await q.put(None)  # sentinel — stream done
+    await q.put(None)
+
+
+async def _update_in_progress(chunk, emitted, statuses, state, q, start_time):
+    """Heuristic: mark agents as in_progress based on stage progression."""
+    # If validation is done, mark tier 1 as in_progress
+    if "validation" in emitted:
+        for field in ("macro", "liquidity"):
+            if field not in emitted and statuses.get(field) == "pending":
+                statuses[field] = "in_progress"
+                agent_name, stage = FIELD_AGENT_MAP[field]
+                evt = {
+                    "type": "agent_update",
+                    "agent": agent_name,
+                    "stage": stage,
+                    "status": "in_progress",
+                    "stats": _stats(start_time, emitted),
+                }
+                state["events"].append(evt)
+                await q.put(evt)
+
+    # If tier 1 done, mark tier 2 in_progress
+    if "macro" in emitted and "liquidity" in emitted:
+        tier2_fields = [
+            "business_quality", "institutional_flow", "valuation",
+            "entry_timing", "earnings_revisions", "sector_rotation",
+            "backlog", "crowding",
+        ]
+        for field in tier2_fields:
+            if field not in emitted and statuses.get(field) == "pending":
+                statuses[field] = "in_progress"
+                agent_name, stage = FIELD_AGENT_MAP[field]
+                evt = {
+                    "type": "agent_update",
+                    "agent": agent_name,
+                    "stage": stage,
+                    "status": "in_progress",
+                    "stats": _stats(start_time, emitted),
+                }
+                state["events"].append(evt)
+                await q.put(evt)
+
+
+def _stats(start_time: float, emitted_fields: set) -> dict:
+    return {
+        "agents_done": len(emitted_fields),
+        "agents_total": len(FIELD_AGENT_MAP),
+        "elapsed": round(time.time() - start_time, 1),
+    }
+
+
+def _format_report(field: str, value) -> str:
+    """Format a state field value as a readable report string."""
+    if isinstance(value, dict):
+        if "summary_1_sentence" in value:
+            return value["summary_1_sentence"]
+        if "company_name" in value:
+            return f"{value.get('company_name', '')} ({value.get('ticker', '')}) — {value.get('sector', '')} / {value.get('industry', '')}"
+        return json.dumps(value, indent=2, default=str)[:500]
+    return str(value)[:500]
 
 
 async def run_analysis(analysis_id: str, ticker: str, trade_date: str):
-    """Background task: acquires semaphore, runs analysis with timeout."""
+    """Background task with semaphore and timeout."""
     state = analyses[analysis_id]
     q = state["queue"]
     async with _semaphore:
         try:
             await asyncio.wait_for(
                 _run_analysis_inner(analysis_id, ticker, trade_date),
-                timeout=3600,  # 60 minutes
+                timeout=3600,
             )
         except asyncio.TimeoutError:
             print(f"[ANALYSIS] Timeout for {analysis_id}", flush=True)
@@ -373,9 +356,8 @@ async def run_analysis(analysis_id: str, ticker: str, trade_date: str):
             await q.put(None)
 
 
-# --- Memory cleanup background task ---
+# --- Cleanup ---
 async def _cleanup_loop():
-    """Remove analyses older than 30 minutes every 5 minutes."""
     while True:
         await asyncio.sleep(300)
         now = time.time()
@@ -412,22 +394,19 @@ async def start_analysis(req: AnalyzeRequest):
 
 @app.get("/analyze/{analysis_id}/stream", dependencies=[Depends(verify_api_key)])
 async def stream_analysis(analysis_id: str, last_event: int = 0):
-    """Stream SSE events. Supports reconnection via ?last_event=N to replay missed events."""
+    """Stream SSE events. Supports reconnection via ?last_event=N."""
     if analysis_id not in analyses:
         raise HTTPException(404, "Analysis not found")
     state = analyses[analysis_id]
 
     async def event_generator():
         idx = last_event
-        # Replay any events the client missed
         while idx < len(state["events"]):
             evt = state["events"][idx]
             idx += 1
             yield {"id": str(idx), "data": json.dumps(evt)}
-        # If analysis already done after replay, stop
         if state["done"]:
             return
-        # Stream new events from queue
         q = state["queue"]
         while True:
             try:
@@ -445,4 +424,4 @@ async def stream_analysis(analysis_id: str, last_event: int = 0):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "engine": "structured_pipeline"}

@@ -1,243 +1,188 @@
-# TradingAgents/graph/setup.py
+"""Graph setup for the structured equity ranking pipeline.
 
-from typing import Dict, Any
-from langchain_openai import ChatOpenAI
-from langgraph.graph import END, StateGraph, START
-from langgraph.prebuilt import ToolNode
+Pipeline stages:
+  START → Validation → [veto gate] → Tier 1 (Macro+Liquidity parallel)
+        → Tier 2 (8 agents parallel) → Scoring (Archetype+MasterScore)
+        → Tier 3 (Bull+Bear parallel → Debate → Risk → FinalDecision)
+        → END
+"""
 
-from tradingagents.agents import *
-from tradingagents.agents.utils.agent_states import AgentState
+from __future__ import annotations
 
-from .conditional_logic import ConditionalLogic
-from .parallel_analysts import (
-    create_parallel_analyst_node,
-    create_parallel_research_node,
-    create_parallel_risk_node,
-)
+import asyncio
+import logging
+import time
+from typing import Any, Dict, List
+
+from langgraph.graph import END, START, StateGraph
+
+from tradingagents.agents.utils.agent_states import PipelineState
+
+logger = logging.getLogger(__name__)
 
 
-class GraphSetup:
-    """Handles the setup and configuration of the agent graph."""
+class StructuredGraphSetup:
+    """Builds the structured equity ranking LangGraph."""
 
-    def __init__(
-        self,
-        quick_thinking_llm: ChatOpenAI,
-        deep_thinking_llm: ChatOpenAI,
-        tool_nodes: Dict[str, ToolNode],
-        bull_memory,
-        bear_memory,
-        trader_memory,
-        invest_judge_memory,
-        risk_manager_memory,
-        conditional_logic: ConditionalLogic,
-    ):
-        """Initialize with required components."""
-        self.quick_thinking_llm = quick_thinking_llm
-        self.deep_thinking_llm = deep_thinking_llm
-        self.tool_nodes = tool_nodes
-        self.bull_memory = bull_memory
-        self.bear_memory = bear_memory
-        self.trader_memory = trader_memory
-        self.invest_judge_memory = invest_judge_memory
-        self.risk_manager_memory = risk_manager_memory
-        self.conditional_logic = conditional_logic
+    def __init__(self, quick_llm, deep_llm):
+        self.quick_llm = quick_llm
+        self.deep_llm = deep_llm
 
-    def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"],
-        parallel=False,
-    ):
-        """Set up and compile the agent workflow graph.
-
-        Args:
-            selected_analysts (list): List of analyst types to include. Options are:
-                - "market": Market analyst
-                - "social": Social media analyst
-                - "news": News analyst
-                - "fundamentals": Fundamentals analyst
-            parallel (bool): Run analysts in parallel instead of sequentially.
-        """
-        if len(selected_analysts) == 0:
-            raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
-
-        # Create analyst node functions and tool nodes
-        analyst_nodes = {}
-        delete_nodes = {}
-        tool_nodes = {}
-
-        if "market" in selected_analysts:
-            analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["market"] = create_msg_delete()
-            tool_nodes["market"] = self.tool_nodes["market"]
-
-        if "social" in selected_analysts:
-            analyst_nodes["social"] = create_social_media_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["social"] = create_msg_delete()
-            tool_nodes["social"] = self.tool_nodes["social"]
-
-        if "news" in selected_analysts:
-            analyst_nodes["news"] = create_news_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["news"] = create_msg_delete()
-            tool_nodes["news"] = self.tool_nodes["news"]
-
-        if "fundamentals" in selected_analysts:
-            analyst_nodes["fundamentals"] = create_fundamentals_analyst(
-                self.quick_thinking_llm
-            )
-            delete_nodes["fundamentals"] = create_msg_delete()
-            tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
-
-        # Create researcher and manager nodes
-        bull_researcher_node = create_bull_researcher(
-            self.quick_thinking_llm, self.bull_memory
-        )
-        bear_researcher_node = create_bear_researcher(
-            self.quick_thinking_llm, self.bear_memory
-        )
-        research_manager_node = create_research_manager(
-            self.deep_thinking_llm, self.invest_judge_memory
-        )
-        trader_node = create_trader(self.quick_thinking_llm, self.trader_memory)
-
-        # Create risk analysis nodes
-        aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
-        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
-        conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
-        risk_manager_node = create_risk_manager(
-            self.deep_thinking_llm, self.risk_manager_memory
+    def setup_graph(self):
+        """Build and compile the structured pipeline graph."""
+        from tradingagents.agents.structured import (
+            create_archetype_node,
+            create_backlog_node,
+            create_bear_case_node,
+            create_bull_case_node,
+            create_business_quality_node,
+            create_crowding_node,
+            create_debate_node,
+            create_earnings_revisions_node,
+            create_entry_timing_node,
+            create_final_decision_node,
+            create_institutional_flow_node,
+            create_liquidity_node,
+            create_macro_node,
+            create_risk_node,
+            create_scoring_node,
+            create_sector_rotation_node,
+            create_validation_node,
+            create_valuation_node,
         )
 
-        # Create workflow
-        workflow = StateGraph(AgentState)
+        # Create node functions
+        # Tier 1: cheap model (or no LLM for validation)
+        validation_fn = create_validation_node()
+        macro_fn = create_macro_node(self.quick_llm)
+        liquidity_fn = create_liquidity_node(self.quick_llm)
 
-        if parallel:
-            # Single node runs all analysts concurrently
-            parallel_node = create_parallel_analyst_node(
-                analyst_nodes, tool_nodes, selected_analysts
-            )
-            workflow.add_node("Parallel Analysts", parallel_node)
-        else:
-            # Add analyst nodes individually for sequential execution
-            for analyst_type, node in analyst_nodes.items():
-                workflow.add_node(f"{analyst_type.capitalize()} Analyst", node)
-                workflow.add_node(
-                    f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
-                )
-                workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
+        # Tier 2: cheap model for analysis
+        bq_fn = create_business_quality_node(self.quick_llm)
+        inst_fn = create_institutional_flow_node(self.quick_llm)
+        val_fn = create_valuation_node(self.quick_llm)
+        et_fn = create_entry_timing_node(self.quick_llm)
+        er_fn = create_earnings_revisions_node(self.quick_llm)
+        sr_fn = create_sector_rotation_node(self.quick_llm)
+        bl_fn = create_backlog_node(self.quick_llm)
+        cr_fn = create_crowding_node(self.quick_llm)
+        arch_fn = create_archetype_node(self.quick_llm)
+        score_fn = create_scoring_node()
 
-        if parallel:
-            # --- Parallel mode ---
-            # Analysts: single parallel node
-            # Research: Bull+Bear run concurrently in one node
-            # Risk: Agg+Con+Neu run concurrently in one node
+        # Tier 3: deep model for reasoning/debate
+        bull_fn = create_bull_case_node(self.deep_llm)
+        bear_fn = create_bear_case_node(self.deep_llm)
+        debate_fn = create_debate_node(self.deep_llm)
+        risk_fn = create_risk_node(self.deep_llm)
+        final_fn = create_final_decision_node(self.deep_llm)
 
-            parallel_research = create_parallel_research_node(
-                bull_researcher_node, bear_researcher_node
-            )
-            parallel_risk = create_parallel_risk_node(
-                aggressive_analyst, conservative_analyst, neutral_analyst
-            )
+        # Build parallel wrapper nodes
+        parallel_tier1 = _create_parallel_node(
+            [("macro", macro_fn), ("liquidity", liquidity_fn)],
+            "Tier 1",
+        )
+        parallel_tier2 = _create_parallel_node(
+            [
+                ("business_quality", bq_fn),
+                ("institutional_flow", inst_fn),
+                ("valuation", val_fn),
+                ("entry_timing", et_fn),
+                ("earnings_revisions", er_fn),
+                ("sector_rotation", sr_fn),
+                ("backlog", bl_fn),
+                ("crowding", cr_fn),
+            ],
+            "Tier 2",
+        )
+        parallel_bull_bear = _create_parallel_node(
+            [("bull_case", bull_fn), ("bear_case", bear_fn)],
+            "Bull/Bear",
+        )
 
-            workflow.add_node("Research Manager", research_manager_node)
-            workflow.add_node("Trader", trader_node)
-            workflow.add_node("Parallel Research", parallel_research)
-            workflow.add_node("Parallel Risk", parallel_risk)
-            workflow.add_node("Risk Judge", risk_manager_node)
+        # Archetype + Score combined node
+        def archetype_and_score(state):
+            arch_result = arch_fn(state)
+            merged = {**state, **arch_result}
+            score_result = score_fn(merged)
+            return {**arch_result, **score_result}
 
-            # Parallel Analysts → Parallel Research → Manager → Trader → Parallel Risk → Judge → END
-            workflow.add_edge(START, "Parallel Analysts")
-            workflow.add_edge("Parallel Analysts", "Parallel Research")
-            workflow.add_edge("Parallel Research", "Research Manager")
-            workflow.add_edge("Research Manager", "Trader")
-            workflow.add_edge("Trader", "Parallel Risk")
-            workflow.add_edge("Parallel Risk", "Risk Judge")
-            workflow.add_edge("Risk Judge", END)
+        # Risk + Final Decision combined node
+        def risk_and_decision(state):
+            risk_result = risk_fn(state)
+            merged = {**state, **risk_result}
+            final_result = final_fn(merged)
+            return {**risk_result, **final_result}
 
-        else:
-            # --- Sequential mode ---
-            # Individual analyst nodes with tool-calling loops
-            # Bull/Bear debate with conditional routing
-            # Agg/Con/Neu risk debate with conditional routing
+        # Build graph
+        workflow = StateGraph(PipelineState)
 
-            workflow.add_node("Bull Researcher", bull_researcher_node)
-            workflow.add_node("Bear Researcher", bear_researcher_node)
-            workflow.add_node("Research Manager", research_manager_node)
-            workflow.add_node("Trader", trader_node)
-            workflow.add_node("Aggressive Analyst", aggressive_analyst)
-            workflow.add_node("Neutral Analyst", neutral_analyst)
-            workflow.add_node("Conservative Analyst", conservative_analyst)
-            workflow.add_node("Risk Judge", risk_manager_node)
+        workflow.add_node("Validation", validation_fn)
+        workflow.add_node("Tier 1 Analysis", parallel_tier1)
+        workflow.add_node("Tier 2 Analysis", parallel_tier2)
+        workflow.add_node("Scoring", archetype_and_score)
+        workflow.add_node("Debate", parallel_bull_bear)
+        workflow.add_node("Debate Referee", debate_fn)
+        workflow.add_node("Decision", risk_and_decision)
 
-            first_analyst = selected_analysts[0]
-            workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+        # Edges
+        workflow.add_edge(START, "Validation")
+        workflow.add_conditional_edges(
+            "Validation",
+            _veto_gate,
+            {END: END, "continue": "Tier 1 Analysis"},
+        )
+        workflow.add_edge("Tier 1 Analysis", "Tier 2 Analysis")
+        workflow.add_edge("Tier 2 Analysis", "Scoring")
+        workflow.add_edge("Scoring", "Debate")
+        workflow.add_edge("Debate", "Debate Referee")
+        workflow.add_edge("Debate Referee", "Decision")
+        workflow.add_edge("Decision", END)
 
-            for i, analyst_type in enumerate(selected_analysts):
-                current_analyst = f"{analyst_type.capitalize()} Analyst"
-                current_tools = f"tools_{analyst_type}"
-                current_clear = f"Msg Clear {analyst_type.capitalize()}"
-
-                workflow.add_conditional_edges(
-                    current_analyst,
-                    getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
-                    [current_tools, current_clear],
-                )
-                workflow.add_edge(current_tools, current_analyst)
-
-                if i < len(selected_analysts) - 1:
-                    next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
-                    workflow.add_edge(current_clear, next_analyst)
-                else:
-                    workflow.add_edge(current_clear, "Bull Researcher")
-
-            workflow.add_conditional_edges(
-                "Bull Researcher",
-                self.conditional_logic.should_continue_debate,
-                {
-                    "Bear Researcher": "Bear Researcher",
-                    "Research Manager": "Research Manager",
-                },
-            )
-            workflow.add_conditional_edges(
-                "Bear Researcher",
-                self.conditional_logic.should_continue_debate,
-                {
-                    "Bull Researcher": "Bull Researcher",
-                    "Research Manager": "Research Manager",
-                },
-            )
-            workflow.add_edge("Research Manager", "Trader")
-            workflow.add_edge("Trader", "Aggressive Analyst")
-            workflow.add_conditional_edges(
-                "Aggressive Analyst",
-                self.conditional_logic.should_continue_risk_analysis,
-                {
-                    "Conservative Analyst": "Conservative Analyst",
-                    "Risk Judge": "Risk Judge",
-                },
-            )
-            workflow.add_conditional_edges(
-                "Conservative Analyst",
-                self.conditional_logic.should_continue_risk_analysis,
-                {
-                    "Neutral Analyst": "Neutral Analyst",
-                    "Risk Judge": "Risk Judge",
-                },
-            )
-            workflow.add_conditional_edges(
-                "Neutral Analyst",
-                self.conditional_logic.should_continue_risk_analysis,
-                {
-                    "Aggressive Analyst": "Aggressive Analyst",
-                    "Risk Judge": "Risk Judge",
-                },
-            )
-
-            workflow.add_edge("Risk Judge", END)
-
-        # Compile and return
         return workflow.compile()
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _veto_gate(state: Dict[str, Any]) -> str:
+    """Check if validation resulted in a hard veto."""
+    if state.get("hard_veto"):
+        return END
+    validation = state.get("validation") or {}
+    if validation.get("veto"):
+        return END
+    return "continue"
+
+
+def _create_parallel_node(agent_fns: List[tuple], label: str):
+    """Create an async node that runs multiple agent functions in parallel.
+
+    Args:
+        agent_fns: List of (name, fn) tuples.
+        label: Label for logging.
+    """
+
+    async def parallel_node(state):
+        t0 = time.time()
+
+        async def run_one(name, fn):
+            logger.debug("[%s] %s starting", label, name)
+            result = await asyncio.to_thread(fn, state)
+            logger.debug("[%s] %s done (%.1fs)", label, name, time.time() - t0)
+            return result
+
+        tasks = [run_one(name, fn) for name, fn in agent_fns]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        merged: Dict[str, Any] = {}
+        for (name, _), result in zip(agent_fns, results):
+            if isinstance(result, Exception):
+                logger.error("[%s] %s failed: %s", label, name, result)
+                continue
+            merged.update(result)
+
+        logger.info("[%s] completed in %.1fs", label, time.time() - t0)
+        return merged
+
+    return parallel_node

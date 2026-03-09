@@ -1,80 +1,49 @@
-# TradingAgents/graph/trading_graph.py
+"""Main orchestrator for the structured equity ranking engine.
 
-import os
-from pathlib import Path
+Replaces the old TradingAgentsGraph with a tiered Pydantic-based pipeline.
+"""
+
+from __future__ import annotations
+
 import json
+import os
+import logging
 from datetime import date
-from typing import Dict, Any, Tuple, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from langgraph.prebuilt import ToolNode
-
-from tradingagents.llm_clients import create_llm_client
-
-from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.agents.utils.memory import FinancialSituationMemory
-from tradingagents.agents.utils.agent_states import (
-    AgentState,
-    InvestDebateState,
-    RiskDebateState,
-)
+from tradingagents.llm_clients import create_llm_client
 from tradingagents.dataflows.config import set_config
 
-# Import the new abstract tool methods from agent_utils
-from tradingagents.agents.utils.agent_utils import (
-    get_stock_data,
-    get_indicators,
-    get_fundamentals,
-    get_balance_sheet,
-    get_cashflow,
-    get_income_statement,
-    get_news,
-    get_insider_transactions,
-    get_global_news
-)
+from .setup import StructuredGraphSetup
 
-from .conditional_logic import ConditionalLogic
-from .setup import GraphSetup
-from .propagation import Propagator
-from .reflection import Reflector
-from .signal_processing import SignalProcessor
+logger = logging.getLogger(__name__)
 
 
 class TradingAgentsGraph:
-    """Main class that orchestrates the trading agents framework."""
+    """Structured equity ranking engine built on LangGraph."""
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
+        selected_analysts=None,  # ignored — all agents run in structured pipeline
         debug=False,
-        config: Dict[str, Any] = None,
+        config: Optional[Dict[str, Any]] = None,
         callbacks: Optional[List] = None,
     ):
-        """Initialize the trading agents graph and components.
-
-        Args:
-            selected_analysts: List of analyst types to include
-            debug: Whether to run in debug mode
-            config: Configuration dictionary. If None, uses default config
-            callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
-        """
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
 
-        # Update the interface's config
         set_config(self.config)
 
-        # Create necessary directories
         os.makedirs(
             os.path.join(self.config["project_dir"], "dataflows/data_cache"),
             exist_ok=True,
         )
 
-        # Initialize LLMs with provider-specific thinking configuration
+        # Initialize LLMs
         llm_kwargs = self._get_provider_kwargs()
-
-        # Add callbacks to kwargs if provided (passed to LLM constructor)
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
 
@@ -93,192 +62,133 @@ class TradingAgentsGraph:
 
         self.deep_thinking_llm = deep_client.get_llm()
         self.quick_thinking_llm = quick_client.get_llm()
-        
-        # Initialize memories
-        self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
-        self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
-        self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
-        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.risk_manager_memory = FinancialSituationMemory("risk_manager_memory", self.config)
 
-        # Create tool nodes
-        self.tool_nodes = self._create_tool_nodes()
-
-        # Initialize components
-        self.conditional_logic = ConditionalLogic()
-        self.graph_setup = GraphSetup(
-            self.quick_thinking_llm,
-            self.deep_thinking_llm,
-            self.tool_nodes,
-            self.bull_memory,
-            self.bear_memory,
-            self.trader_memory,
-            self.invest_judge_memory,
-            self.risk_manager_memory,
-            self.conditional_logic,
+        # Build the structured pipeline graph
+        graph_setup = StructuredGraphSetup(
+            self.quick_thinking_llm, self.deep_thinking_llm
         )
-
-        self.propagator = Propagator()
-        self.reflector = Reflector(self.quick_thinking_llm)
-        self.signal_processor = SignalProcessor(self.quick_thinking_llm)
+        self.graph = graph_setup.setup_graph()
 
         # State tracking
         self.curr_state = None
         self.ticker = None
-        self.log_states_dict = {}  # date to full state dict
-
-        # Set up the graph (parallel analysts for speed when enabled)
-        parallel = self.config.get("parallel_analysts", False)
-        self.graph = self.graph_setup.setup_graph(selected_analysts, parallel=parallel)
 
     def _get_provider_kwargs(self) -> Dict[str, Any]:
-        """Get provider-specific kwargs for LLM client creation."""
         kwargs = {}
         provider = self.config.get("llm_provider", "").lower()
-
         if provider == "google":
             thinking_level = self.config.get("google_thinking_level")
             if thinking_level:
                 kwargs["thinking_level"] = thinking_level
-
         elif provider == "openai":
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
-
         return kwargs
 
-    def _create_tool_nodes(self) -> Dict[str, ToolNode]:
-        """Create tool nodes for different data sources using abstract methods."""
-        return {
-            "market": ToolNode(
-                [
-                    # Core stock data tools
-                    get_stock_data,
-                    # Technical indicators
-                    get_indicators,
-                ]
-            ),
-            "social": ToolNode(
-                [
-                    # News tools for social media analysis
-                    get_news,
-                ]
-            ),
-            "news": ToolNode(
-                [
-                    # News and insider information
-                    get_news,
-                    get_global_news,
-                    get_insider_transactions,
-                ]
-            ),
-            "fundamentals": ToolNode(
-                [
-                    # Fundamental analysis tools
-                    get_fundamentals,
-                    get_balance_sheet,
-                    get_cashflow,
-                    get_income_statement,
-                ]
-            ),
-        }
-
-    def propagate(self, company_name, trade_date):
-        """Run the trading agents graph for a company on a specific date."""
+    async def propagate(self, company_name: str, trade_date: str):
+        """Run the structured pipeline for a company (async — parallel nodes)."""
+        import asyncio
 
         self.ticker = company_name
-
-        # Initialize state
-        init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date
-        )
-        args = self.propagator.get_graph_args()
+        init_state = self._create_initial_state(company_name, trade_date)
+        args = {"config": {"recursion_limit": 50}}
 
         if self.debug:
-            # Debug mode with tracing
             trace = []
-            for chunk in self.graph.stream(init_agent_state, **args):
-                if len(chunk["messages"]) == 0:
-                    pass
-                else:
-                    chunk["messages"][-1].pretty_print()
-                    trace.append(chunk)
-
-            final_state = trace[-1]
+            async for chunk in self.graph.astream(init_state, stream_mode="values", **args):
+                trace.append(chunk)
+            final_state = trace[-1] if trace else init_state
         else:
-            # Standard mode without tracing
-            final_state = self.graph.invoke(init_agent_state, **args)
+            final_state = await self.graph.ainvoke(init_state, **args)
 
-        # Store current state for reflection
         self.curr_state = final_state
-
-        # Log state
         self._log_state(trade_date, final_state)
 
-        # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        decision = final_state.get("final_decision") or {}
+        signal = decision.get("action", "AVOID")
+        return final_state, signal
 
-    def _log_state(self, trade_date, final_state):
-        """Log the final state to a JSON file."""
-        self.log_states_dict[str(trade_date)] = {
-            "company_of_interest": final_state["company_of_interest"],
-            "trade_date": final_state["trade_date"],
-            "market_report": final_state["market_report"],
-            "sentiment_report": final_state["sentiment_report"],
-            "news_report": final_state["news_report"],
-            "fundamentals_report": final_state["fundamentals_report"],
-            "investment_debate_state": {
-                "bull_history": final_state["investment_debate_state"]["bull_history"],
-                "bear_history": final_state["investment_debate_state"]["bear_history"],
-                "history": final_state["investment_debate_state"]["history"],
-                "current_response": final_state["investment_debate_state"][
-                    "current_response"
-                ],
-                "judge_decision": final_state["investment_debate_state"][
-                    "judge_decision"
-                ],
-            },
-            "trader_investment_decision": final_state["trader_investment_plan"],
-            "risk_debate_state": {
-                "aggressive_history": final_state["risk_debate_state"]["aggressive_history"],
-                "conservative_history": final_state["risk_debate_state"]["conservative_history"],
-                "neutral_history": final_state["risk_debate_state"]["neutral_history"],
-                "history": final_state["risk_debate_state"]["history"],
-                "judge_decision": final_state["risk_debate_state"]["judge_decision"],
-            },
-            "investment_plan": final_state["investment_plan"],
-            "final_trade_decision": final_state["final_trade_decision"],
+    def _create_initial_state(self, ticker: str, trade_date: str) -> Dict[str, Any]:
+        return {
+            "ticker": ticker.upper(),
+            "trade_date": str(trade_date),
+            "validation": None,
+            "company_card": None,
+            "macro": None,
+            "liquidity": None,
+            "sector_rotation": None,
+            "business_quality": None,
+            "institutional_flow": None,
+            "valuation": None,
+            "entry_timing": None,
+            "earnings_revisions": None,
+            "backlog": None,
+            "crowding": None,
+            "archetype": None,
+            "master_score": None,
+            "adjusted_score": None,
+            "position_role": None,
+            "bull_case": None,
+            "bear_case": None,
+            "debate": None,
+            "risk": None,
+            "final_decision": None,
+            "hard_veto": False,
+            "hard_veto_reason": None,
+            "global_flags": [],
         }
 
-        # Save to file
-        directory = Path(f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/")
+    def _log_state(self, trade_date: str, state: Dict[str, Any]):
+        """Log the final state to JSON."""
+        log_data = {
+            "ticker": state.get("ticker"),
+            "trade_date": str(trade_date),
+            "master_score": state.get("master_score"),
+            "adjusted_score": state.get("adjusted_score"),
+            "position_role": state.get("position_role"),
+            "hard_veto": state.get("hard_veto"),
+            "validation": state.get("validation"),
+            "company_card": state.get("company_card"),
+            "macro": state.get("macro"),
+            "liquidity": state.get("liquidity"),
+            "business_quality": state.get("business_quality"),
+            "institutional_flow": state.get("institutional_flow"),
+            "valuation": state.get("valuation"),
+            "entry_timing": state.get("entry_timing"),
+            "earnings_revisions": state.get("earnings_revisions"),
+            "sector_rotation": state.get("sector_rotation"),
+            "backlog": state.get("backlog"),
+            "crowding": state.get("crowding"),
+            "archetype": state.get("archetype"),
+            "bull_case": state.get("bull_case"),
+            "bear_case": state.get("bear_case"),
+            "debate": state.get("debate"),
+            "risk": state.get("risk"),
+            "final_decision": state.get("final_decision"),
+        }
+
+        directory = Path(f"eval_results/{self.ticker}/StructuredPipeline_logs/")
         directory.mkdir(parents=True, exist_ok=True)
 
-        with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
-            "w",
-        ) as f:
-            json.dump(self.log_states_dict, f, indent=4)
+        filepath = directory / f"analysis_{trade_date}.json"
+        with open(filepath, "w") as f:
+            json.dump(log_data, f, indent=2, default=str)
+        logger.info("State logged to %s", filepath)
+
+    def process_signal(self, decision_text: str) -> str:
+        """Extract signal from decision text (legacy compatibility)."""
+        if isinstance(decision_text, dict):
+            return decision_text.get("action", "AVOID")
+        text = str(decision_text).upper()
+        if "BUY" in text:
+            return "BUY"
+        if "SELL" in text:
+            return "SELL"
+        if "HOLD" in text:
+            return "HOLD"
+        return "AVOID"
 
     def reflect_and_remember(self, returns_losses):
-        """Reflect on decisions and update memory based on returns."""
-        self.reflector.reflect_bull_researcher(
-            self.curr_state, returns_losses, self.bull_memory
-        )
-        self.reflector.reflect_bear_researcher(
-            self.curr_state, returns_losses, self.bear_memory
-        )
-        self.reflector.reflect_trader(
-            self.curr_state, returns_losses, self.trader_memory
-        )
-        self.reflector.reflect_invest_judge(
-            self.curr_state, returns_losses, self.invest_judge_memory
-        )
-        self.reflector.reflect_risk_manager(
-            self.curr_state, returns_losses, self.risk_manager_memory
-        )
-
-    def process_signal(self, full_signal):
-        """Process a signal to extract the core decision."""
-        return self.signal_processor.process_signal(full_signal)
+        """No-op for structured pipeline (no BM25 memory)."""
+        pass

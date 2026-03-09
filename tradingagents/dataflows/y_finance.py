@@ -462,3 +462,146 @@ def get_insider_transactions(
         
     except Exception as e:
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"
+
+
+# --- Macro data functions (used by interface.py routing) ---
+# These are thin wrappers that delegate to yfinance directly.
+# The actual @tool versions live in agents/utils/macro_data_tools.py.
+
+import json as _json
+
+
+def _safe_get_yf(info, key, default=None):
+    val = info.get(key)
+    return default if val is None else val
+
+
+def _fmt_num(val):
+    if val is None:
+        return None
+    if abs(val) >= 1e12:
+        return f"${val/1e12:.2f}T"
+    if abs(val) >= 1e9:
+        return f"${val/1e9:.2f}B"
+    if abs(val) >= 1e6:
+        return f"${val/1e6:.2f}M"
+    return f"${val:,.0f}"
+
+
+def _period_return(ticker_obj, months):
+    import pandas as pd
+    try:
+        end_dt = pd.Timestamp.today()
+        start_dt = end_dt - pd.DateOffset(months=months)
+        data = ticker_obj.history(start=start_dt.strftime("%Y-%m-%d"), end=end_dt.strftime("%Y-%m-%d"))
+        if data.empty or len(data) < 2:
+            return None
+        return ((data["Close"].iloc[-1] / data["Close"].iloc[0]) - 1) * 100
+    except Exception:
+        return None
+
+
+def get_company_profile(ticker, curr_date=None):
+    """Get company profile via yfinance (plain function for interface routing)."""
+    try:
+        t = yf.Ticker(ticker.upper())
+        info = t.info
+        if not info or not info.get("longName"):
+            return _json.dumps({"error": f"No data for {ticker}", "ticker": ticker})
+        mc = _safe_get_yf(info, "marketCap")
+        cat = "large_cap" if mc and mc >= 10e9 else "mid_cap" if mc and mc >= 2e9 else "small_cap" if mc and mc >= 300e6 else "micro_cap" if mc else "unknown"
+        profile = {
+            "company_name": _safe_get_yf(info, "longName", "Unknown"),
+            "ticker": ticker.upper(),
+            "sector": _safe_get_yf(info, "sector", "Unknown"),
+            "industry": _safe_get_yf(info, "industry", "Unknown"),
+            "description": _safe_get_yf(info, "longBusinessSummary", ""),
+            "market_cap": mc,
+            "market_cap_formatted": _fmt_num(mc),
+            "market_cap_category": cat,
+            "current_price": _safe_get_yf(info, "currentPrice") or _safe_get_yf(info, "regularMarketPrice"),
+        }
+        return _json.dumps(profile, default=str)
+    except Exception as e:
+        return _json.dumps({"error": str(e), "ticker": ticker})
+
+
+def get_macro_indicators(curr_date=None):
+    """Get macro indicators via yfinance (plain function for interface routing)."""
+    results = {}
+    try:
+        vix = yf.Ticker("^VIX")
+        vd = vix.history(period="5d")
+        if not vd.empty:
+            results["vix_level"] = round(vd["Close"].iloc[-1], 2)
+    except Exception:
+        pass
+    try:
+        tnx = yf.Ticker("^TNX")
+        td = tnx.history(period="5d")
+        if not td.empty:
+            results["ten_year_yield"] = round(td["Close"].iloc[-1], 3)
+    except Exception:
+        pass
+    return _json.dumps(results, default=str)
+
+
+def get_sector_rotation(ticker, curr_date=None):
+    """Get sector rotation data via yfinance (plain function for interface routing)."""
+    try:
+        t = yf.Ticker(ticker.upper())
+        info = t.info
+        sector = _safe_get_yf(info, "sector", "Unknown")
+        return _json.dumps({"ticker": ticker.upper(), "sector": sector}, default=str)
+    except Exception as e:
+        return _json.dumps({"error": str(e)})
+
+
+def get_institutional_flow(ticker):
+    """Get institutional flow data via yfinance (plain function for interface routing)."""
+    try:
+        t = yf.Ticker(ticker.upper())
+        info = t.info
+        return _json.dumps({
+            "ticker": ticker.upper(),
+            "average_volume": _safe_get_yf(info, "averageVolume"),
+            "average_volume_10d": _safe_get_yf(info, "averageVolume10days"),
+            "float_shares": _safe_get_yf(info, "floatShares"),
+            "shares_short": _safe_get_yf(info, "sharesShort"),
+            "short_ratio": _safe_get_yf(info, "shortRatio"),
+            "held_percent_institutions": _safe_get_yf(info, "heldPercentInstitutions"),
+        }, default=str)
+    except Exception as e:
+        return _json.dumps({"error": str(e)})
+
+
+def get_earnings_estimates(ticker):
+    """Get earnings estimates via yfinance (plain function for interface routing)."""
+    try:
+        t = yf.Ticker(ticker.upper())
+        info = t.info
+        return _json.dumps({
+            "ticker": ticker.upper(),
+            "trailing_eps": _safe_get_yf(info, "trailingEps"),
+            "forward_eps": _safe_get_yf(info, "forwardEps"),
+            "current_price": _safe_get_yf(info, "currentPrice") or _safe_get_yf(info, "regularMarketPrice"),
+        }, default=str)
+    except Exception as e:
+        return _json.dumps({"error": str(e)})
+
+
+def get_valuation_peers(ticker):
+    """Get valuation peer data via yfinance (plain function for interface routing)."""
+    try:
+        t = yf.Ticker(ticker.upper())
+        info = t.info
+        return _json.dumps({
+            "ticker": ticker.upper(),
+            "trailing_pe": _safe_get_yf(info, "trailingPE"),
+            "forward_pe": _safe_get_yf(info, "forwardPE"),
+            "peg_ratio": _safe_get_yf(info, "pegRatio"),
+            "price_to_book": _safe_get_yf(info, "priceToBook"),
+            "ev_to_ebitda": _safe_get_yf(info, "enterpriseToEbitda"),
+        }, default=str)
+    except Exception as e:
+        return _json.dumps({"error": str(e)})

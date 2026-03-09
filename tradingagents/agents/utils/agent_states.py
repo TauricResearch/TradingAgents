@@ -1,76 +1,105 @@
-from typing import Annotated, Sequence
-from datetime import date, timedelta, datetime
-from typing_extensions import TypedDict, Optional
+"""State definitions for the TradingAgents pipeline.
+
+PipelineState is the new structured state used by the equity ranking engine.
+Legacy state types are preserved for backward compatibility.
+"""
+
+from __future__ import annotations
+
+import operator
+from typing import Annotated, Optional, Sequence
+
+from typing_extensions import TypedDict
+
 from langchain_openai import ChatOpenAI
-from tradingagents.agents import *
-from langgraph.prebuilt import ToolNode
-from langgraph.graph import END, StateGraph, START, MessagesState
+from langgraph.graph import MessagesState
 
 
-# Researcher team state
+# ---------------------------------------------------------------------------
+# New structured pipeline state
+# ---------------------------------------------------------------------------
+
+class PipelineState(TypedDict):
+    """Shared state for the structured equity ranking pipeline.
+
+    Each agent writes its output as a dict (Pydantic .model_dump()).
+    The scoring node computes master_score/adjusted_score deterministically.
+    global_flags uses operator.add to accumulate across all agents.
+    """
+    ticker: str
+    trade_date: str
+
+    # Tier 1
+    validation: Optional[dict]
+    company_card: Optional[dict]
+    macro: Optional[dict]
+    liquidity: Optional[dict]
+
+    # Tier 2
+    sector_rotation: Optional[dict]
+    business_quality: Optional[dict]
+    institutional_flow: Optional[dict]
+    valuation: Optional[dict]
+    entry_timing: Optional[dict]
+    earnings_revisions: Optional[dict]
+    backlog: Optional[dict]
+    crowding: Optional[dict]
+    archetype: Optional[dict]
+
+    # Scoring (deterministic)
+    master_score: Optional[float]
+    adjusted_score: Optional[float]
+    position_role: Optional[str]
+
+    # Tier 3
+    bull_case: Optional[dict]
+    bear_case: Optional[dict]
+    debate: Optional[dict]
+    risk: Optional[dict]
+    final_decision: Optional[dict]
+
+    # Control
+    hard_veto: bool
+    hard_veto_reason: Optional[str]
+    global_flags: Annotated[list, operator.add]
+
+
+# ---------------------------------------------------------------------------
+# Legacy state types (preserved for backward compatibility)
+# ---------------------------------------------------------------------------
+
 class InvestDebateState(TypedDict):
-    bull_history: Annotated[
-        str, "Bullish Conversation history"
-    ]  # Bullish Conversation history
-    bear_history: Annotated[
-        str, "Bearish Conversation history"
-    ]  # Bullish Conversation history
-    history: Annotated[str, "Conversation history"]  # Conversation history
-    current_response: Annotated[str, "Latest response"]  # Last response
-    judge_decision: Annotated[str, "Final judge decision"]  # Last response
-    count: Annotated[int, "Length of the current conversation"]  # Conversation length
+    bull_history: Annotated[str, "Bullish Conversation history"]
+    bear_history: Annotated[str, "Bearish Conversation history"]
+    history: Annotated[str, "Conversation history"]
+    current_response: Annotated[str, "Latest response"]
+    judge_decision: Annotated[str, "Final judge decision"]
+    count: Annotated[int, "Length of the current conversation"]
 
 
-# Risk management team state
 class RiskDebateState(TypedDict):
-    aggressive_history: Annotated[
-        str, "Aggressive Agent's Conversation history"
-    ]  # Conversation history
-    conservative_history: Annotated[
-        str, "Conservative Agent's Conversation history"
-    ]  # Conversation history
-    neutral_history: Annotated[
-        str, "Neutral Agent's Conversation history"
-    ]  # Conversation history
-    history: Annotated[str, "Conversation history"]  # Conversation history
+    aggressive_history: Annotated[str, "Aggressive Agent's Conversation history"]
+    conservative_history: Annotated[str, "Conservative Agent's Conversation history"]
+    neutral_history: Annotated[str, "Neutral Agent's Conversation history"]
+    history: Annotated[str, "Conversation history"]
     latest_speaker: Annotated[str, "Analyst that spoke last"]
-    current_aggressive_response: Annotated[
-        str, "Latest response by the aggressive analyst"
-    ]  # Last response
-    current_conservative_response: Annotated[
-        str, "Latest response by the conservative analyst"
-    ]  # Last response
-    current_neutral_response: Annotated[
-        str, "Latest response by the neutral analyst"
-    ]  # Last response
+    current_aggressive_response: Annotated[str, "Latest response by the aggressive analyst"]
+    current_conservative_response: Annotated[str, "Latest response by the conservative analyst"]
+    current_neutral_response: Annotated[str, "Latest response by the neutral analyst"]
     judge_decision: Annotated[str, "Judge's decision"]
-    count: Annotated[int, "Length of the current conversation"]  # Conversation length
+    count: Annotated[int, "Length of the current conversation"]
 
 
 class AgentState(MessagesState):
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     trade_date: Annotated[str, "What date we are trading at"]
-
     sender: Annotated[str, "Agent that sent this message"]
-
-    # research step
     market_report: Annotated[str, "Report from the Market Analyst"]
     sentiment_report: Annotated[str, "Report from the Social Media Analyst"]
-    news_report: Annotated[
-        str, "Report from the News Researcher of current world affairs"
-    ]
+    news_report: Annotated[str, "Report from the News Researcher"]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
-
-    # researcher team discussion step
-    investment_debate_state: Annotated[
-        InvestDebateState, "Current state of the debate on if to invest or not"
-    ]
+    investment_debate_state: Annotated[InvestDebateState, "Current state of the investment debate"]
     investment_plan: Annotated[str, "Plan generated by the Analyst"]
-
     trader_investment_plan: Annotated[str, "Plan generated by the Trader"]
-
-    # risk management team discussion step
-    risk_debate_state: Annotated[
-        RiskDebateState, "Current state of the debate on evaluating risk"
-    ]
+    risk_debate_state: Annotated[RiskDebateState, "Current state of the risk debate"]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
