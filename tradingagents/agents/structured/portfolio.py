@@ -104,13 +104,35 @@ def create_theme_substitution_node(llm):
             industry = card.get("industry", "")
             sector = card.get("sector", "")
 
-        # Fetch peer data for comparison
-        # First, ask LLM to identify theme peers, then we'll fetch their data
+        # Fetch competitor/peer data to ground the LLM's comparison
+        competitors = card.get("competitors") or []
+        peer_data = _fetch_peer_basics(competitors) if competitors else []
+        peer_summary = ""
+        if peer_data:
+            lines = []
+            for p in peer_data:
+                if p.get("error"):
+                    continue
+                rg = p.get("revenue_growth")
+                rg_str = f"{rg*100:.1f}%" if rg else "N/A"
+                pm = p.get("profit_margins")
+                pm_str = f"{pm*100:.1f}%" if pm else "N/A"
+                lines.append(
+                    f"  {p['ticker']}: P/E={p.get('trailing_pe', 'N/A')}, "
+                    f"Fwd P/E={p.get('forward_pe', 'N/A')}, "
+                    f"RevGrowth={rg_str}, "
+                    f"Margins={pm_str}, "
+                    f"52W={p.get('52w_range_pct', 'N/A')}%"
+                )
+            peer_summary = "\n".join(lines)
+
         theme_prompt = f"""You are a Theme Substitution Analyst. Your job: determine if {ticker} is the BEST
 expression of its investment theme, or if better alternatives exist.
 
 CANDIDATE STOCK:
 {summary}
+
+{f'PEER FUNDAMENTALS (live data):{chr(10)}{peer_summary}' if peer_summary else 'No live peer data available — use your knowledge of these companies.'}
 
 INSTRUCTIONS — do this in order:
 
@@ -120,9 +142,10 @@ INSTRUCTIONS — do this in order:
    Name it clearly in theme_name.
 
 2. LIST THEME PEERS: Name 3-6 other publicly traded stocks that express the SAME theme.
-   These should be the strongest competitors for capital allocation in this theme.
-   For each peer, estimate a master_score_estimate (0-10) based on your knowledge of
-   their fundamentals, momentum, and positioning vs {ticker}.
+   Use the peer data above if available. These should be the strongest competitors
+   for capital allocation in this theme.
+   For each peer, score master_score_estimate (0-10) based on fundamentals, momentum,
+   and positioning vs {ticker}.
 
 3. RANK WITHIN THEME: Rank all stocks (including {ticker}) by investment quality.
    The stock with the best combination of: business quality, valuation, momentum,

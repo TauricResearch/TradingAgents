@@ -188,13 +188,13 @@ INSTRUCTIONS:
 2. Classify liquidity_regime: "expansion" / "contraction" / "neutral".
    - expansion: falling yields, dovish Fed, credit flowing, dollar weakening.
    - contraction: rising yields, hawkish Fed, tight credit, dollar strengthening.
-3. Set regime_score_adjustment (-2 to +2):
-   - +2 = strong macro tailwind for this specific stock/sector.
-   - +1 = mild tailwind.
+3. Set regime_score_adjustment (-10 to +10):
+   - +5 to +10 = strong macro tailwind for this specific stock/sector.
+   - +1 to +4 = mild tailwind.
    -  0 = neutral.
-   - -1 = mild headwind.
-   - -2 = severe macro headwind (risk-off + contraction + hostile sector).
-   This adjustment directly modifies the master score for ALL stocks.
+   - -1 to -4 = mild headwind.
+   - -5 to -10 = severe macro headwind (risk-off + contraction + hostile sector).
+   This adjustment directly modifies the 0-100 master score for ALL stocks.
 4. Score macro_alignment_0_to_10: how well macro supports {ticker} specifically.
 5. Also provide score_0_to_10 (overall macro health).
 6. Set regime_label: descriptive label (e.g., "Late Cycle Risk-Off").

@@ -121,9 +121,9 @@ class MacroRegimeOutput(AgentBaseOutput):
     risk_appetite: str = "neutral"  # risk-on / risk-off / transitional
     liquidity_regime: str = "neutral"  # expansion / contraction / neutral
     regime_score_adjustment: float = Field(
-        default=0.0, ge=-2, le=2,
-        description="Adjustment applied to all downstream scores. "
-                    "+2 = strong macro tailwind, -2 = severe macro headwind.",
+        default=0.0, ge=-10, le=10,
+        description="Adjustment applied to the 0-100 master score. "
+                    "+10 = strong macro tailwind, -10 = severe macro headwind.",
     )
 
 

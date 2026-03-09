@@ -1,6 +1,7 @@
 """FastAPI SSE backend for the structured equity ranking engine."""
 
 import os
+import re
 import time
 import uuid
 import asyncio
@@ -231,7 +232,7 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
                     await q.put(evt)
 
             # Mark in-progress agents for upcoming stages
-            _update_in_progress(chunk, emitted_fields, prev_agent_statuses, state, q, start_time)
+            await _update_in_progress(chunk, emitted_fields, prev_agent_statuses, state, q, start_time)
 
     except Exception as e:
         print(f"[ANALYSIS] Stream error: {e}\n{_tb.format_exc()}", flush=True)
@@ -396,7 +397,7 @@ async def _start_cleanup():
 @app.post("/analyze", dependencies=[Depends(verify_api_key)])
 async def start_analysis(req: AnalyzeRequest):
     ticker = req.ticker.upper().strip()
-    if not ticker or len(ticker) > 5 or not ticker.isalpha():
+    if not ticker or not re.match(r'^[A-Z0-9.\-]{1,6}$', ticker):
         raise HTTPException(400, "Invalid ticker")
     trade_date = req.date or str(date.today())
     analysis_id = str(uuid.uuid4())

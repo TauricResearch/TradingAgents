@@ -191,11 +191,16 @@ def _create_parallel_node(agent_fns: List[tuple], label: str):
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         merged: Dict[str, Any] = {}
+        all_flags: list = []
         for (name, _), result in zip(agent_fns, results):
             if isinstance(result, Exception):
                 logger.error("[%s] %s failed: %s", label, name, result)
                 continue
+            flags = result.pop("global_flags", [])
+            all_flags.extend(flags)
             merged.update(result)
+        if all_flags:
+            merged["global_flags"] = all_flags
 
         logger.info("[%s] completed in %.1fs", label, time.time() - t0)
         return merged

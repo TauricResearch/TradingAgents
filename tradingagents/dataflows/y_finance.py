@@ -613,7 +613,7 @@ def get_institutional_flow(ticker):
                     {
                         "holder": str(r.get("Holder", "")),
                         "shares": int(r["Shares"]) if r.get("Shares") else None,
-                        "pct_out": float(r["% Out"]) if r.get("% Out") else None,
+                        "pct_out": round(float(r["% Out"]) * 100, 2) if r.get("% Out") else None,
                         "value": float(r["Value"]) if r.get("Value") else None,
                     }
                     for r in top
