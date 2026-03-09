@@ -498,6 +498,18 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
+    # Step 0: Select language
+    console.print(
+        create_question_box(
+            "Step 0: Report Language", "Choose the language for the analysis report"
+        )
+    )
+    from cli.utils import select_language
+    selected_language = select_language()
+    console.print(
+        f"[green]Selected language:[/green] {'English' if selected_language == 'en' else '繁體中文'}"
+    )
+
     # Step 1: Ticker symbol
     console.print(
         create_question_box(
@@ -576,6 +588,7 @@ def get_user_selections():
         reasoning_effort = ask_openai_reasoning_effort()
 
     return {
+        "language": selected_language,
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
@@ -902,6 +915,7 @@ def run_analysis():
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
+    config["language"] = selections.get("language", "en")
     config["max_debate_rounds"] = selections["research_depth"]
     config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]

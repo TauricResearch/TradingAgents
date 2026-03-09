@@ -326,3 +326,24 @@ def ask_gemini_thinking_config() -> str | None:
             ("pointer", "fg:green noinherit"),
         ]),
     ).ask()
+
+
+def select_language() -> str:
+    """Select report language: English or Traditional Chinese."""
+    choice = questionary.select(
+        "Select Report Language:",
+        choices=[
+            questionary.Choice("English", "en"),
+            questionary.Choice("繁體中文 (Traditional Chinese)", "zh_TW"),
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style([
+            ("selected", "fg:yellow noinherit"),
+            ("highlighted", "fg:yellow noinherit"),
+            ("pointer", "fg:yellow noinherit"),
+        ]),
+    ).ask()
+    
+    if choice is None:
+        return "en"  # Default to English
+    return choice
