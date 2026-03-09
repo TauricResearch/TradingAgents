@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -36,9 +37,28 @@ class GoogleClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatGoogleGenerativeAI instance."""
+        import certifi
+        
+        # Fix SSL certificate path issue on Windows with conda
+        # Conda sets SSL_CERT_FILE to a non-existent path, so we clear it
+        # and let certifi handle it properly
+        ssl_cert_file = os.environ.get("SSL_CERT_FILE", "")
+        if ssl_cert_file and not os.path.exists(ssl_cert_file):
+            # Remove invalid SSL_CERT_FILE and use certifi instead
+            os.environ.pop("SSL_CERT_FILE", None)
+            os.environ["SSL_CERT_FILE"] = certifi.where()
+        
         llm_kwargs = {"model": self.model}
 
-        for key in ("timeout", "max_retries", "google_api_key", "callbacks"):
+        # Get Google API key from kwargs or environment
+        if "google_api_key" in self.kwargs:
+            llm_kwargs["google_api_key"] = self.kwargs["google_api_key"]
+        else:
+            api_key = os.environ.get("GOOGLE_API_KEY")
+            if api_key:
+                llm_kwargs["google_api_key"] = api_key
+
+        for key in ("timeout", "max_retries", "callbacks"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 

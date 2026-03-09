@@ -43,6 +43,17 @@ class OpenAIClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatOpenAI instance."""
+        import certifi
+        
+        # Fix SSL certificate path issue on Windows with conda
+        # Conda sets SSL_CERT_FILE to a non-existent path, so we clear it
+        # and let certifi handle it properly
+        ssl_cert_file = os.environ.get("SSL_CERT_FILE", "")
+        if ssl_cert_file and not os.path.exists(ssl_cert_file):
+            # Remove invalid SSL_CERT_FILE and use certifi instead
+            os.environ.pop("SSL_CERT_FILE", None)
+            os.environ["SSL_CERT_FILE"] = certifi.where()
+        
         llm_kwargs = {"model": self.model}
 
         if self.provider == "xai":
@@ -61,9 +72,15 @@ class OpenAIClient(BaseLLMClient):
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
-        for key in ("timeout", "max_retries", "reasoning_effort", "api_key", "callbacks"):
+        for key in ("timeout", "max_retries", "api_key", "callbacks"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+        
+        # Only add reasoning_effort for O1/O3 models that support it
+        if "reasoning_effort" in self.kwargs:
+            model_lower = self.model.lower()
+            if model_lower.startswith("o1") or model_lower.startswith("o3"):
+                llm_kwargs["reasoning_effort"] = self.kwargs["reasoning_effort"]
 
         return UnifiedChatOpenAI(**llm_kwargs)
 
