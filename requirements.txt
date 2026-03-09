@@ -9,6 +9,7 @@ langgraph
 rank-bm25
 setuptools
 requests
+alpaca-py
 tqdm
 pytz
 fastapi

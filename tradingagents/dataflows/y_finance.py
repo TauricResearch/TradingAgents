@@ -1,45 +1,48 @@
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import logging
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils
+
+_logger = logging.getLogger(__name__)
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
     start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
     end_date: Annotated[str, "End date in yyyy-mm-dd format"],
 ):
-
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
 
-    # Create ticker object
-    ticker = yf.Ticker(symbol.upper())
+    # Try Alpaca first (10k calls/min, 7yr history)
+    try:
+        from .alpaca_data import alpaca_available, get_bars_csv
+        if alpaca_available():
+            result = get_bars_csv(symbol, start_date, end_date)
+            if not result.startswith("Error"):
+                return result
+            _logger.info("Alpaca bars failed, falling back to yfinance for %s", symbol)
+    except Exception as e:
+        _logger.debug("Alpaca unavailable: %s", e)
 
-    # Fetch historical data for the specified date range
+    # Fallback: yfinance
+    ticker = yf.Ticker(symbol.upper())
     data = ticker.history(start=start_date, end=end_date)
 
-    # Check if data is empty
     if data.empty:
-        return (
-            f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
-        )
+        return f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
 
-    # Remove timezone info from index for cleaner output
     if data.index.tz is not None:
         data.index = data.index.tz_localize(None)
 
-    # Round numerical values to 2 decimal places for cleaner display
     numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
     for col in numeric_columns:
         if col in data.columns:
             data[col] = data[col].round(2)
 
-    # Convert DataFrame to CSV string
     csv_string = data.to_csv()
-
-    # Add header information
     header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
     header += f"# Total records: {len(data)}\n"
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
@@ -526,9 +529,39 @@ def get_company_profile(ticker, curr_date=None):
         return _json.dumps({"error": str(e), "ticker": ticker})
 
 
+_SECTOR_ETF_MAP = {
+    "Technology": "XLK",
+    "Financial Services": "XLF",
+    "Financials": "XLF",
+    "Energy": "XLE",
+    "Healthcare": "XLV",
+    "Health Care": "XLV",
+    "Industrials": "XLI",
+    "Consumer Cyclical": "XLY",
+    "Consumer Discretionary": "XLY",
+    "Consumer Defensive": "XLP",
+    "Consumer Staples": "XLP",
+    "Utilities": "XLU",
+    "Real Estate": "XLRE",
+    "Basic Materials": "XLB",
+    "Materials": "XLB",
+    "Communication Services": "XLC",
+}
+
+_SECTOR_ETFS = {
+    "SPY": "S&P 500",
+    "XLK": "Technology", "XLF": "Financials", "XLE": "Energy",
+    "XLV": "Health Care", "XLI": "Industrials", "XLY": "Consumer Discretionary",
+    "XLP": "Consumer Staples", "XLU": "Utilities", "XLRE": "Real Estate",
+    "XLB": "Materials", "XLC": "Communication Services",
+}
+
+
 def get_macro_indicators(curr_date=None):
-    """Get macro indicators via yfinance (plain function for interface routing)."""
+    """Get macro indicators. VIX/TNX from yfinance (indices), sector ETFs from Alpaca."""
     results = {}
+
+    # VIX and TNX are indices — yfinance only (Alpaca doesn't serve index tickers)
     try:
         vix = yf.Ticker("^VIX")
         vd = vix.history(period="5d")
@@ -543,16 +576,118 @@ def get_macro_indicators(curr_date=None):
             results["ten_year_yield"] = round(td["Close"].iloc[-1], 3)
     except Exception:
         pass
+
+    # Sector ETF performance — Alpaca first (10k calls/min), yfinance fallback
+    try:
+        from .alpaca_data import alpaca_available, get_sector_etf_performance
+        if alpaca_available():
+            perf = get_sector_etf_performance(list(_SECTOR_ETFS.keys()))
+            if perf:
+                sector_performance = {}
+                for sym, data in perf.items():
+                    sector_performance[sym] = {
+                        "name": _SECTOR_ETFS.get(sym, sym),
+                        "return_1m": data.get("return_1m"),
+                        "return_3m": data.get("return_3m"),
+                        "price": data.get("price"),
+                    }
+                results["sector_performance"] = sector_performance
+    except Exception as e:
+        _logger.debug("Alpaca sector ETFs failed: %s", e)
+
+    # Fallback: yfinance for sector ETFs
+    if "sector_performance" not in results:
+        sector_performance = {}
+        for sym, name in _SECTOR_ETFS.items():
+            try:
+                t = yf.Ticker(sym)
+                hist = t.history(period="3mo")
+                if hist.empty or len(hist) < 5:
+                    continue
+                close = hist["Close"]
+                current = float(close.iloc[-1])
+                ret_1m = round((current - float(close.iloc[-22])) / float(close.iloc[-22]) * 100, 2) if len(close) >= 22 else None
+                ret_3m = round((current - float(close.iloc[-63])) / float(close.iloc[-63]) * 100, 2) if len(close) >= 63 else None
+                sector_performance[sym] = {"name": name, "return_1m": ret_1m, "return_3m": ret_3m, "price": current}
+            except Exception:
+                pass
+        if sector_performance:
+            results["sector_performance"] = sector_performance
+
     return _json.dumps(results, default=str)
 
 
 def get_sector_rotation(ticker, curr_date=None):
-    """Get sector rotation data via yfinance (plain function for interface routing)."""
+    """Get sector rotation data with relative performance vs SPY."""
     try:
         t = yf.Ticker(ticker.upper())
-        info = t.info
+        info = t.info or {}
         sector = _safe_get_yf(info, "sector", "Unknown")
-        return _json.dumps({"ticker": ticker.upper(), "sector": sector}, default=str)
+        sector_etf = _SECTOR_ETF_MAP.get(sector)
+
+        result = {"ticker": ticker.upper(), "sector": sector, "sector_etf": sector_etf}
+
+        if not sector_etf:
+            return _json.dumps(result, default=str)
+
+        # Get sector ETF + SPY performance for relative strength
+        etfs_to_fetch = [sector_etf, "SPY"]
+        perf = {}
+
+        try:
+            from .alpaca_data import alpaca_available, get_sector_etf_performance
+            if alpaca_available():
+                perf = get_sector_etf_performance(etfs_to_fetch)
+        except Exception:
+            pass
+
+        # Fallback: yfinance
+        if not perf:
+            for sym in etfs_to_fetch:
+                try:
+                    hist = yf.Ticker(sym).history(period="3mo")
+                    if hist.empty or len(hist) < 5:
+                        continue
+                    close = hist["Close"]
+                    current = float(close.iloc[-1])
+                    ret_1m = round((current - float(close.iloc[-22])) / float(close.iloc[-22]) * 100, 2) if len(close) >= 22 else None
+                    ret_3m = round((current - float(close.iloc[-63])) / float(close.iloc[-63]) * 100, 2) if len(close) >= 63 else None
+                    perf[sym] = {"return_1m": ret_1m, "return_3m": ret_3m, "price": current}
+                except Exception:
+                    pass
+
+        # Compute relative strength vs SPY
+        spy_data = perf.get("SPY", {})
+        etf_data = perf.get(sector_etf, {})
+        spy_1m = spy_data.get("return_1m")
+        spy_3m = spy_data.get("return_3m")
+        etf_1m = etf_data.get("return_1m")
+        etf_3m = etf_data.get("return_3m")
+
+        if etf_1m is not None and spy_1m is not None:
+            result["stock_sector_vs_spy_1m"] = round(etf_1m - spy_1m, 2)
+        if etf_3m is not None and spy_3m is not None:
+            result["stock_sector_vs_spy_3m"] = round(etf_3m - spy_3m, 2)
+
+        # Rank sector among all sector ETFs (from macro_indicators cache or fresh)
+        try:
+            macro_raw = get_macro_indicators()
+            macro = _json.loads(macro_raw) if isinstance(macro_raw, str) else macro_raw
+            sector_perf = macro.get("sector_performance", {})
+            # Rank by 1M return (exclude SPY from ranking)
+            ranked = sorted(
+                [(s, d.get("return_1m", -999)) for s, d in sector_perf.items() if s != "SPY"],
+                key=lambda x: x[1], reverse=True,
+            )
+            for i, (sym, _) in enumerate(ranked, 1):
+                if sym == sector_etf:
+                    result["stock_sector_rank"] = i
+                    result["total_sectors"] = len(ranked)
+                    break
+        except Exception:
+            pass
+
+        return _json.dumps(result, default=str)
     except Exception as e:
         return _json.dumps({"error": str(e)})
 

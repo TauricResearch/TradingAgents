@@ -261,21 +261,39 @@ def create_entry_timing_node(llm):
     def node(state: Dict[str, Any]) -> Dict[str, Any]:
         ticker = state["ticker"]
 
+        price = ma50 = ma200 = hi52 = lo52 = range_pct = None
+
+        # Try Alpaca first (computed from actual bar data — more reliable than yfinance info)
         try:
-            t = yf.Ticker(ticker.upper())
-            info = t.info or {}
-        except Exception:
-            info = {}
+            from tradingagents.dataflows.alpaca_data import alpaca_available, get_moving_averages
+            if alpaca_available():
+                ma_data = get_moving_averages(ticker)
+                if ma_data:
+                    price = ma_data.get("current_price")
+                    ma50 = ma_data.get("fifty_day_avg")
+                    ma200 = ma_data.get("two_hundred_day_avg")
+                    hi52 = ma_data.get("fifty_two_week_high")
+                    lo52 = ma_data.get("fifty_two_week_low")
+                    range_pct = ma_data.get("vs_52w_range_pct")
+        except Exception as e:
+            logger.debug("Alpaca MAs failed for %s: %s", ticker, e)
 
-        price = _safe(info, "currentPrice") or _safe(info, "regularMarketPrice")
-        ma50 = _safe(info, "fiftyDayAverage")
-        ma200 = _safe(info, "twoHundredDayAverage")
-        hi52 = _safe(info, "fiftyTwoWeekHigh")
-        lo52 = _safe(info, "fiftyTwoWeekLow")
+        # Fallback: yfinance info
+        if price is None:
+            try:
+                t = yf.Ticker(ticker.upper())
+                info = t.info or {}
+            except Exception:
+                info = {}
 
-        range_pct = None
-        if hi52 and lo52 and price and (hi52 - lo52) > 0:
-            range_pct = round(((price - lo52) / (hi52 - lo52)) * 100, 1)
+            price = _safe(info, "currentPrice") or _safe(info, "regularMarketPrice")
+            ma50 = _safe(info, "fiftyDayAverage")
+            ma200 = _safe(info, "twoHundredDayAverage")
+            hi52 = _safe(info, "fiftyTwoWeekHigh")
+            lo52 = _safe(info, "fiftyTwoWeekLow")
+
+            if hi52 and lo52 and price and (hi52 - lo52) > 0:
+                range_pct = round(((price - lo52) / (hi52 - lo52)) * 100, 1)
 
         ma_rel = "unknown"
         if ma50 and ma200:
