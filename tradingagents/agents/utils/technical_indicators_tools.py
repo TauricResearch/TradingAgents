@@ -35,6 +35,7 @@ def get_indicators(
     Returns:
         str: 一個格式化的數據框，包含指定股票代碼和指標的技術指標。
     """
+    look_back_days = int(look_back_days)
     # 規範化指標名稱以匹配供應商的預期格式
     indicator_lower = indicator.lower().strip()
     

@@ -36,6 +36,8 @@ def get_global_news(
     Returns:
         str: 一個包含全球新聞數據的格式化字串
     """
+    look_back_days = int(look_back_days)
+    limit = int(limit)
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
 @tool
