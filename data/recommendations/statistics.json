@@ -33,16 +33,16 @@
     },
     "insider_buying": {
       "count": 90,
-      "wins_1d": 29,
-      "losses_1d": 55,
+      "wins_1d": 30,
+      "losses_1d": 59,
       "wins_7d": 45,
       "losses_7d": 26,
       "wins_30d": 11,
       "losses_30d": 7,
-      "avg_return_1d": -0.03,
+      "avg_return_1d": -0.09,
       "avg_return_7d": 0.71,
       "avg_return_30d": 2.98,
-      "win_rate_1d": 34.5,
+      "win_rate_1d": 33.7,
       "win_rate_7d": 63.4,
       "win_rate_30d": 61.1
     },
@@ -64,7 +64,7 @@
     "earnings_play": {
       "count": 50,
       "wins_1d": 19,
-      "losses_1d": 30,
+      "losses_1d": 31,
       "wins_7d": 17,
       "losses_7d": 26,
       "wins_30d": 9,
@@ -72,7 +72,7 @@
       "avg_return_1d": -0.9,
       "avg_return_7d": -2.52,
       "avg_return_30d": -0.75,
-      "win_rate_1d": 38.8,
+      "win_rate_1d": 38.0,
       "win_rate_7d": 39.5,
       "win_rate_30d": 42.9
     },
@@ -139,15 +139,15 @@
     "analyst_upgrade": {
       "count": 23,
       "wins_1d": 7,
-      "losses_1d": 15,
+      "losses_1d": 16,
       "wins_7d": 10,
       "losses_7d": 7,
       "wins_30d": 4,
       "losses_30d": 4,
-      "avg_return_1d": 0.12,
+      "avg_return_1d": -0.0,
       "avg_return_7d": -0.67,
       "avg_return_30d": 3.79,
-      "win_rate_1d": 31.8,
+      "win_rate_1d": 30.4,
       "win_rate_7d": 58.8,
       "win_rate_30d": 50.0
     },
@@ -198,10 +198,10 @@
     }
   },
   "overall_1d": {
-    "count": 432,
-    "wins": 161,
-    "avg_return": -0.41,
-    "win_rate": 37.3
+    "count": 439,
+    "wins": 162,
+    "avg_return": -0.43,
+    "win_rate": 36.9
   },
   "overall_7d": {
     "count": 390,
