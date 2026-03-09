@@ -214,6 +214,22 @@ class TradingService:
                 try:
                     price_df = PriceService.load_price_data(ticker, config.get("data_cache_dir"))
                     if price_df is not None:
+                        # 將價格數據限制在分析日期前 1 年的範圍內
+                        import polars as pl_filter
+                        from datetime import datetime as dt_filter, timedelta as td_filter
+                        
+                        try:
+                            analysis_date_dt = dt_filter.strptime(analysis_date, "%Y-%m-%d")
+                            one_year_ago = analysis_date_dt - td_filter(days=365)
+                            
+                            price_df = price_df.filter(
+                                (pl_filter.col("Date") >= one_year_ago) &
+                                (pl_filter.col("Date") <= analysis_date_dt)
+                            )
+                            logger.info(f"Filtered price data to 1-year window: {one_year_ago.strftime('%Y-%m-%d')} ~ {analysis_date}")
+                        except Exception as filter_err:
+                            logger.warning(f"Could not filter price data to 1-year window: {filter_err}")
+                        
                         price_data = PriceService.prepare_chart_data(price_df)
                         price_stats = PriceService.calculate_stats(price_df)
                         logger.info(f"Loaded {len(price_data)} price data points for {ticker}")
