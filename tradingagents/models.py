@@ -117,6 +117,14 @@ class MacroRegimeOutput(AgentBaseOutput):
     spy_1m_return: Optional[float] = None
     regime_label: str = "unknown"
     macro_alignment_0_to_10: float = Field(default=5.0, ge=0, le=10)
+    # Regime awareness
+    risk_appetite: str = "neutral"  # risk-on / risk-off / transitional
+    liquidity_regime: str = "neutral"  # expansion / contraction / neutral
+    regime_score_adjustment: float = Field(
+        default=0.0, ge=-2, le=2,
+        description="Adjustment applied to all downstream scores. "
+                    "+2 = strong macro tailwind, -2 = severe macro headwind.",
+    )
 
 
 class LiquidityOutput(AgentBaseOutput):
@@ -156,6 +164,12 @@ class InstitutionalFlowOutput(AgentBaseOutput):
     short_ratio: Optional[float] = None
     float_turnover_pct: Optional[float] = None
     accumulation_signal: str = "unknown"
+    # Smart-money tracking
+    top_holders_change: str = "unknown"  # increasing / decreasing / stable
+    fund_accumulation_pattern: str = "unknown"  # accumulating / distributing / holding
+    short_interest_trend: str = "unknown"  # rising / falling / stable
+    insider_transaction_signal: str = "unknown"  # buying / selling / none
+    smart_money_signal: str = "unknown"  # bullish / bearish / neutral
 
 
 class ValuationOutput(AgentBaseOutput):
@@ -294,6 +308,48 @@ class FinalDecisionOutput(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Theme Substitution & Position Replacement outputs
+# ---------------------------------------------------------------------------
+
+class ThemeStock(BaseModel):
+    """A stock ranked within a theme."""
+    ticker: str
+    company_name: str = ""
+    master_score_estimate: float = Field(default=5.0, ge=0, le=10)
+    key_advantage: str = ""
+    key_weakness: str = ""
+
+
+class ThemeSubstitutionOutput(BaseModel):
+    """Identifies whether a stock is the best expression of its theme."""
+    theme_name: str = ""
+    theme_description: str = ""
+    theme_stocks_ranked: List[ThemeStock] = Field(default_factory=list)
+    best_expression_of_theme: bool = True
+    best_expression_ticker: str = ""
+    stronger_alternatives: List[str] = Field(default_factory=list)
+    relative_score_gap: float = 0.0
+    portfolio_overlap_warning: str = ""
+    reasoning: str = ""
+
+
+class PositionReplacementOutput(BaseModel):
+    """Identifies when a new stock is a better use of capital."""
+    replace_candidate: str = ""
+    replace_with: str = ""
+    score_difference: float = 0.0
+    theme_overlap: str = ""
+    replacement_reason: str = ""
+    conviction_level: str = "low"  # low / medium / high
+    stronger_on: List[str] = Field(
+        default_factory=list,
+        description="Dimensions where candidate beats replacement target",
+    )
+    weaker_on: List[str] = Field(default_factory=list)
+    should_replace: bool = False
+
+
+# ---------------------------------------------------------------------------
 # Deterministic scoring functions
 # ---------------------------------------------------------------------------
 
@@ -306,6 +362,7 @@ def compute_master_score(
     earnings_revisions: float,
     backlog: float,
     crowding: float,
+    regime_adjustment: float = 0.0,
 ) -> float:
     """Compute weighted master score (0-100).
 
@@ -318,6 +375,8 @@ def compute_master_score(
         10% earnings_revisions
         5%  backlog
         5%  crowding
+
+    regime_adjustment: -2 to +2, applied as direct offset to the 0-100 score.
     """
     weighted = (
         0.25 * business_quality
@@ -329,7 +388,9 @@ def compute_master_score(
         + 0.05 * backlog
         + 0.05 * crowding
     )
-    return round(weighted * 10, 2)
+    raw = weighted * 10
+    adjusted = max(0.0, min(100.0, raw + regime_adjustment))
+    return round(adjusted, 2)
 
 
 def assign_position_role(score: float) -> str:

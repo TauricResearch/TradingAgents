@@ -44,9 +44,11 @@ class StructuredGraphSetup:
             create_institutional_flow_node,
             create_liquidity_node,
             create_macro_node,
+            create_position_replacement_node,
             create_risk_node,
             create_scoring_node,
             create_sector_rotation_node,
+            create_theme_substitution_node,
             create_validation_node,
             create_valuation_node,
         )
@@ -68,6 +70,10 @@ class StructuredGraphSetup:
         cr_fn = create_crowding_node(self.quick_llm)
         arch_fn = create_archetype_node(self.quick_llm)
         score_fn = create_scoring_node()
+
+        # Portfolio-level: deep model for theme/replacement analysis
+        theme_fn = create_theme_substitution_node(self.deep_llm)
+        replace_fn = create_position_replacement_node(self.deep_llm)
 
         # Tier 3: deep model for reasoning/debate
         bull_fn = create_bull_case_node(self.deep_llm)
@@ -106,6 +112,13 @@ class StructuredGraphSetup:
             score_result = score_fn(merged)
             return {**arch_result, **score_result}
 
+        # Theme + Replacement combined node (sequential: theme feeds replacement)
+        def theme_and_replacement(state):
+            theme_result = theme_fn(state)
+            merged = {**state, **theme_result}
+            replace_result = replace_fn(merged)
+            return {**theme_result, **replace_result}
+
         # Risk + Final Decision combined node
         def risk_and_decision(state):
             risk_result = risk_fn(state)
@@ -120,6 +133,7 @@ class StructuredGraphSetup:
         workflow.add_node("Tier 1 Analysis", parallel_tier1)
         workflow.add_node("Tier 2 Analysis", parallel_tier2)
         workflow.add_node("Scoring", archetype_and_score)
+        workflow.add_node("Portfolio Analysis", theme_and_replacement)
         workflow.add_node("Debate", parallel_bull_bear)
         workflow.add_node("Debate Referee", debate_fn)
         workflow.add_node("Decision", risk_and_decision)
@@ -133,7 +147,8 @@ class StructuredGraphSetup:
         )
         workflow.add_edge("Tier 1 Analysis", "Tier 2 Analysis")
         workflow.add_edge("Tier 2 Analysis", "Scoring")
-        workflow.add_edge("Scoring", "Debate")
+        workflow.add_edge("Scoring", "Portfolio Analysis")
+        workflow.add_edge("Portfolio Analysis", "Debate")
         workflow.add_edge("Debate", "Debate Referee")
         workflow.add_edge("Debate Referee", "Decision")
         workflow.add_edge("Decision", END)

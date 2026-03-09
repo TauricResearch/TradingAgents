@@ -30,7 +30,13 @@ def create_scoring_node():
         bl = (state.get("backlog") or {}).get("score_0_to_10", 5.0)
         cr = (state.get("crowding") or {}).get("score_0_to_10", 5.0)
 
-        master = compute_master_score(bq, macro, inst, val, et, er, bl, cr)
+        # Regime adjustment from macro agent
+        regime_adj = (state.get("macro") or {}).get("regime_score_adjustment", 0.0)
+
+        master = compute_master_score(
+            bq, macro, inst, val, et, er, bl, cr,
+            regime_adjustment=regime_adj,
+        )
 
         # Collect all data quality flags
         all_flags = []

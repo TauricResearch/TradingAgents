@@ -103,6 +103,8 @@ FIELD_AGENT_MAP = {
     "crowding": ("Narrative Crowding", "tier2"),
     "archetype": ("Archetype", "scoring"),
     "master_score": ("Master Score", "scoring"),
+    "theme_substitution": ("Theme Substitution", "portfolio"),
+    "position_replacement": ("Position Replacement", "portfolio"),
     "bull_case": ("Bull Researcher", "debate"),
     "bear_case": ("Bear Researcher", "debate"),
     "debate": ("Debate Referee", "debate"),
@@ -111,7 +113,7 @@ FIELD_AGENT_MAP = {
 }
 
 ALL_AGENTS = [name for name, _ in FIELD_AGENT_MAP.values()]
-ALL_STAGES = ["validation", "tier1", "tier2", "scoring", "debate", "decision"]
+ALL_STAGES = ["validation", "tier1", "tier2", "scoring", "portfolio", "debate", "decision"]
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +306,22 @@ async def _update_in_progress(chunk, emitted, statuses, state, q, start_time):
             "backlog", "crowding",
         ]
         for field in tier2_fields:
+            if field not in emitted and statuses.get(field) == "pending":
+                statuses[field] = "in_progress"
+                agent_name, stage = FIELD_AGENT_MAP[field]
+                evt = {
+                    "type": "agent_update",
+                    "agent": agent_name,
+                    "stage": stage,
+                    "status": "in_progress",
+                    "stats": _stats(start_time, emitted),
+                }
+                state["events"].append(evt)
+                await q.put(evt)
+
+    # If scoring done, mark portfolio analysis in_progress
+    if "master_score" in emitted:
+        for field in ("theme_substitution", "position_replacement"):
             if field not in emitted and statuses.get(field) == "pending":
                 statuses[field] = "in_progress"
                 agent_name, stage = FIELD_AGENT_MAP[field]

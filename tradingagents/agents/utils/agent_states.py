@@ -51,6 +51,10 @@ class PipelineState(TypedDict):
     adjusted_score: Optional[float]
     position_role: Optional[str]
 
+    # Portfolio-level
+    theme_substitution: Optional[dict]
+    position_replacement: Optional[dict]
+
     # Tier 3
     bull_case: Optional[dict]
     bear_case: Optional[dict]

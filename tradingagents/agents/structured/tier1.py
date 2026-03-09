@@ -181,12 +181,24 @@ SECTOR PERFORMANCE (1M):
 {chr(10).join(sector_lines[:12]) or 'N/A'}
 
 INSTRUCTIONS:
-1. Classify the macro regime (risk-on / risk-off / transitional).
-2. Score macro_alignment_0_to_10: how well the current macro supports {ticker} specifically.
-   - 0 = macro is hostile to this stock; 10 = macro tailwinds are perfect.
-3. Also provide the standard score_0_to_10 (overall macro health).
-4. List key positives, negatives, risks for the macro environment.
-5. Be concise. One sentence summary."""
+1. Classify risk_appetite: "risk-on" / "risk-off" / "transitional".
+   - risk-on: VIX low, spreads tight, SPY up, breadth strong.
+   - risk-off: VIX elevated, spreads widening, SPY down, flight to safety.
+   - transitional: mixed signals.
+2. Classify liquidity_regime: "expansion" / "contraction" / "neutral".
+   - expansion: falling yields, dovish Fed, credit flowing, dollar weakening.
+   - contraction: rising yields, hawkish Fed, tight credit, dollar strengthening.
+3. Set regime_score_adjustment (-2 to +2):
+   - +2 = strong macro tailwind for this specific stock/sector.
+   - +1 = mild tailwind.
+   -  0 = neutral.
+   - -1 = mild headwind.
+   - -2 = severe macro headwind (risk-off + contraction + hostile sector).
+   This adjustment directly modifies the master score for ALL stocks.
+4. Score macro_alignment_0_to_10: how well macro supports {ticker} specifically.
+5. Also provide score_0_to_10 (overall macro health).
+6. Set regime_label: descriptive label (e.g., "Late Cycle Risk-Off").
+7. List key positives, negatives, risks. Be concise."""
 
         try:
             result = invoke_structured(llm, MacroRegimeOutput, prompt)

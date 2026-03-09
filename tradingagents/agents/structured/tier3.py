@@ -60,8 +60,12 @@ def _summarize_tier2(state: Dict[str, Any]) -> str:
         f"  Liquidity:           {liq.get('score_0_to_10', 'N/A')} — {liq.get('summary_1_sentence', '')}",
         "",
         f"  Macro Regime: {macro.get('regime_label', '?')} | VIX: {macro.get('vix_level', '?')}",
+        f"  Risk Appetite: {macro.get('risk_appetite', '?')} | Liquidity Regime: {macro.get('liquidity_regime', '?')}",
+        f"  Regime Score Adjustment: {macro.get('regime_score_adjustment', 0):+.1f}",
         f"  Moat: {bq.get('competitive_moat', '?')} | Valuation: {val.get('valuation_verdict', '?')}",
-        f"  Accumulation: {inst.get('accumulation_signal', '?')} | Timing: {et.get('timing_verdict', '?')}",
+        f"  Smart Money: {inst.get('smart_money_signal', '?')} | Accumulation: {inst.get('accumulation_signal', '?')}",
+        f"  Short Trend: {inst.get('short_interest_trend', '?')} | Insider Signal: {inst.get('insider_transaction_signal', '?')}",
+        f"  Timing: {et.get('timing_verdict', '?')}",
     ]
     return "\n".join(lines)
 
@@ -262,6 +266,8 @@ def create_final_decision_node(llm):
         bear = state.get("bear_case") or {}
         debate = state.get("debate") or {}
         risk = state.get("risk") or {}
+        theme = state.get("theme_substitution") or {}
+        replacement = state.get("position_replacement") or {}
 
         master_score = state.get("master_score", 0)
         adjusted_score = state.get("adjusted_score", 0)
@@ -284,12 +290,29 @@ def create_final_decision_node(llm):
         else:
             action = "AVOID"
 
+        # Theme/replacement context
+        theme_lines = ""
+        if theme.get("theme_name"):
+            theme_lines = (
+                f"\nTHEME CONTEXT:"
+                f"\n  Theme: {theme.get('theme_name', '?')}"
+                f"\n  Best expression: {'Yes' if theme.get('best_expression_of_theme') else 'No'}"
+                f"\n  Stronger alternatives: {', '.join(theme.get('stronger_alternatives', [])) or 'None'}"
+                f"\n  Score gap vs best: {theme.get('relative_score_gap', 0):.1f}"
+            )
+        if replacement.get("should_replace"):
+            theme_lines += (
+                f"\n  REPLACEMENT FLAG: Consider {replacement.get('replace_with', '?')} instead"
+                f"\n  Reason: {replacement.get('replacement_reason', '')}"
+            )
+
         prompt = f"""You are the Final Decision Synthesizer for {ticker}.
 
 {summary}
 
 DEBATE: {debate.get('winner', '?')} won | Conviction adjustment: {conviction_adj:+.1f}
 RISK: {risk.get('overall_risk_level', '?')} | Max position: {risk.get('max_position_size_pct', '?')}%
+{theme_lines}
 
 FINAL SCORES:
   Master Score: {master_score}
@@ -304,6 +327,8 @@ Write a concise narrative (3-5 sentences) that:
 2. Highlights the top 2-3 catalysts and top 2-3 risks.
 3. States the action ({action}) and position role ({final_role}).
 4. Notes what would change the thesis (invalidation triggers).
+5. If theme analysis found stronger alternatives, mention them and whether
+   this stock is still the best expression of the theme.
 
 Also provide:
 - thesis_summary (one sentence)

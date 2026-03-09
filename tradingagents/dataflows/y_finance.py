@@ -558,19 +558,89 @@ def get_sector_rotation(ticker, curr_date=None):
 
 
 def get_institutional_flow(ticker):
-    """Get institutional flow data via yfinance (plain function for interface routing)."""
+    """Get institutional flow data via yfinance including 13F holders and insider transactions."""
     try:
         t = yf.Ticker(ticker.upper())
-        info = t.info
-        return _json.dumps({
+        info = t.info or {}
+
+        # Base metrics
+        result = {
             "ticker": ticker.upper(),
             "average_volume": _safe_get_yf(info, "averageVolume"),
             "average_volume_10d": _safe_get_yf(info, "averageVolume10days"),
             "float_shares": _safe_get_yf(info, "floatShares"),
             "shares_short": _safe_get_yf(info, "sharesShort"),
+            "shares_short_prior": _safe_get_yf(info, "sharesShortPriorMonth"),
             "short_ratio": _safe_get_yf(info, "shortRatio"),
             "held_percent_institutions": _safe_get_yf(info, "heldPercentInstitutions"),
-        }, default=str)
+            "held_percent_insiders": _safe_get_yf(info, "heldPercentInsiders"),
+        }
+
+        # Volume ratio (10d vs avg)
+        vol_10d = _safe_get_yf(info, "averageVolume10days")
+        vol_avg = _safe_get_yf(info, "averageVolume")
+        if vol_10d and vol_avg and vol_avg > 0:
+            result["volume_ratio"] = round(vol_10d / vol_avg, 2)
+
+        # Short % of float
+        float_shares = _safe_get_yf(info, "floatShares")
+        shares_short = _safe_get_yf(info, "sharesShort")
+        if float_shares and shares_short and float_shares > 0:
+            result["short_pct_of_float"] = round(shares_short / float_shares * 100, 2)
+
+        # Short interest trend (current vs prior month)
+        prior = _safe_get_yf(info, "sharesShortPriorMonth")
+        if shares_short is not None and prior is not None and prior > 0:
+            pct_change = (shares_short - prior) / prior * 100
+            result["short_interest_change_pct"] = round(pct_change, 1)
+            if pct_change > 5:
+                result["short_interest_trend"] = "rising"
+            elif pct_change < -5:
+                result["short_interest_trend"] = "falling"
+            else:
+                result["short_interest_trend"] = "stable"
+
+        # Float turnover (5d volume / float)
+        if vol_10d and float_shares and float_shares > 0:
+            result["float_turnover_5d_pct"] = round(vol_10d * 5 / float_shares * 100, 2)
+
+        # Top institutional holders (13F data)
+        try:
+            holders = t.institutional_holders
+            if holders is not None and not holders.empty:
+                top = holders.head(10).to_dict("records")
+                result["top_institutional_holders"] = [
+                    {
+                        "holder": str(r.get("Holder", "")),
+                        "shares": int(r["Shares"]) if r.get("Shares") else None,
+                        "pct_out": float(r["% Out"]) if r.get("% Out") else None,
+                        "value": float(r["Value"]) if r.get("Value") else None,
+                    }
+                    for r in top
+                ]
+                result["top_holders_count"] = len(top)
+        except Exception:
+            pass
+
+        # Insider transactions
+        try:
+            insiders = t.insider_transactions
+            if insiders is not None and not insiders.empty:
+                recent = insiders.head(10).to_dict("records")
+                buys = sum(1 for r in recent if "Purchase" in str(r.get("Text", "")))
+                sells = sum(1 for r in recent if "Sale" in str(r.get("Text", "")))
+                result["insider_buys_recent"] = buys
+                result["insider_sells_recent"] = sells
+                if buys > sells:
+                    result["insider_transaction_signal"] = "buying"
+                elif sells > buys:
+                    result["insider_transaction_signal"] = "selling"
+                else:
+                    result["insider_transaction_signal"] = "none"
+        except Exception:
+            pass
+
+        return _json.dumps(result, default=str)
     except Exception as e:
         return _json.dumps({"error": str(e)})
 

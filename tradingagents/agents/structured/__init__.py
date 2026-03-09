@@ -24,6 +24,10 @@ from .tier3 import (
     create_final_decision_node,
 )
 from .scoring import create_scoring_node
+from .portfolio import (
+    create_theme_substitution_node,
+    create_position_replacement_node,
+)
 
 __all__ = [
     "create_validation_node",
@@ -44,4 +48,6 @@ __all__ = [
     "create_risk_node",
     "create_final_decision_node",
     "create_scoring_node",
+    "create_theme_substitution_node",
+    "create_position_replacement_node",
 ]

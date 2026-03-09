@@ -115,11 +115,21 @@ def create_institutional_flow_node(llm):
         except Exception:
             data = {}
 
+        # Format top holders for prompt
+        holders = data.get("top_institutional_holders", [])
+        holder_lines = []
+        for h in holders[:5]:
+            pct = h.get("pct_out")
+            holder_lines.append(
+                f"  {h.get('holder', '?')}: {pct:.1f}%" if pct else f"  {h.get('holder', '?')}"
+            )
+
         prompt = f"""You are an Institutional Flow Analyst in a structured equity ranking pipeline.
+Your job: track real smart-money movement — not just static ownership percentages.
 
 Ticker: {ticker}
 
-FLOW DATA:
+OWNERSHIP & VOLUME:
 - Institutional Ownership: {data.get('held_percent_institutions', 'N/A')}%
 - Insider Ownership: {data.get('held_percent_insiders', 'N/A')}%
 - Volume Ratio (10d/avg): {data.get('volume_ratio', 'N/A')}
@@ -127,11 +137,32 @@ FLOW DATA:
 - Short Ratio (days): {data.get('short_ratio', 'N/A')}
 - Float Turnover 5d: {data.get('float_turnover_5d_pct', 'N/A')}%
 
+SHORT INTEREST TREND:
+- Short Interest Change (vs prior month): {data.get('short_interest_change_pct', 'N/A')}%
+- Short Interest Trend: {data.get('short_interest_trend', 'N/A')}
+
+TOP INSTITUTIONAL HOLDERS (13F):
+{chr(10).join(holder_lines) or '  No data available'}
+- Total top holders tracked: {data.get('top_holders_count', 'N/A')}
+
+INSIDER TRANSACTIONS (recent):
+- Insider Buys: {data.get('insider_buys_recent', 'N/A')}
+- Insider Sells: {data.get('insider_sells_recent', 'N/A')}
+- Insider Signal: {data.get('insider_transaction_signal', 'N/A')}
+
 INSTRUCTIONS:
-1. Score institutional flow signal 0-10.
-   High ownership + rising volume + low short interest = bullish.
+1. Score institutional flow signal 0-10 (this has 15% weight — make it count).
+   High ownership + rising volume + low short interest + insider buying = bullish.
 2. Classify accumulation_signal: accumulating / distributing / neutral.
-3. This score has 15% weight in the master score — make it count."""
+3. Classify top_holders_change: increasing / decreasing / stable.
+   (Based on holder concentration and any visible 13F patterns.)
+4. Classify fund_accumulation_pattern: accumulating / distributing / holding.
+   (Volume + ownership trends suggest funds are adding or reducing.)
+5. Classify short_interest_trend: rising / falling / stable.
+6. Classify insider_transaction_signal: buying / selling / none.
+7. Classify smart_money_signal: bullish / bearish / neutral.
+   (Synthesize all signals: 13F, insiders, short interest, volume.)
+8. Be concise."""
 
         try:
             result = invoke_structured(llm, InstitutionalFlowOutput, prompt)
@@ -142,12 +173,18 @@ INSTRUCTIONS:
                 summary_1_sentence="Institutional flow analysis unavailable",
             )
 
+        # Override with actual fetched data
         result.institutional_ownership_pct = data.get("held_percent_institutions")
         result.insider_ownership_pct = data.get("held_percent_insiders")
         result.volume_ratio = data.get("volume_ratio")
         result.short_interest_pct = data.get("short_pct_of_float")
         result.short_ratio = data.get("short_ratio")
         result.float_turnover_pct = data.get("float_turnover_5d_pct")
+        # Override trend fields with actual data when available
+        if data.get("short_interest_trend"):
+            result.short_interest_trend = data["short_interest_trend"]
+        if data.get("insider_transaction_signal"):
+            result.insider_transaction_signal = data["insider_transaction_signal"]
 
         flags = [f.model_dump() for f in result.data_quality_flags]
         return {"institutional_flow": result.model_dump(), "global_flags": flags}
