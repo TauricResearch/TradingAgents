@@ -101,7 +101,7 @@ class TradingAgentsXGraph:
                 model=model,
                 base_url=base_url,
                 openai_api_key=api_key,
-                max_tokens= 8192  # Prevent report truncation
+                max_tokens= 16384  # Prevent report truncation
             )
 
         # Initialize LLMs independently
