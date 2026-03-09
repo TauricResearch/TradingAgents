@@ -324,7 +324,7 @@ docker compose down -v
 
 查看完整的 PDF 分析報告範例：
 
-📥 **[AVGO 博通公司分析報告 (2025-12-15)](report/zh_tw/AVGO_Combined_Report_2025-12-15.pdf)**
+📥 **[NVDA 博通公司分析報告 (2026-03-09)](report/zh_tw/NVDA_Combined_Report_2026-03-09.pdf)**
 
 ---
 
