@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -56,7 +56,7 @@ const AVAILABLE_MODELS = [
   { id: "custom", name: "⚙️ 其他 (自訂模型)", provider: "custom" },
 ];
 
-export default function HistoryChatPage() {
+function HistoryChatContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t, locale } = useLanguage();
@@ -506,5 +506,20 @@ export default function HistoryChatPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function HistoryChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-purple-50/30 via-pink-50/20 to-purple-50/30 flex flex-col items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-purple-600 mb-4" />
+          <p className="text-gray-500">Loading chat...</p>
+        </div>
+      }
+    >
+      <HistoryChatContent />
+    </Suspense>
   );
 }
