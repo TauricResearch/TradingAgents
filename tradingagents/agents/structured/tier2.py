@@ -59,15 +59,17 @@ def create_business_quality_node(llm):
 Ticker: {ticker} | Sector: {card.get('sector', 'Unknown')} | Industry: {card.get('industry', 'Unknown')}
 Market Cap: {card.get('market_cap_formatted', 'N/A')}
 
-FINANCIALS:
-- Revenue Growth: {_pct(_safe(info, 'revenueGrowth'))}
-- Profit Margins: {_pct(_safe(info, 'profitMargins'))}
-- Operating Margins: {_pct(_safe(info, 'operatingMargins'))}
-- ROE: {_pct(_safe(info, 'returnOnEquity'))}
-- ROA: {_pct(_safe(info, 'returnOnAssets'))}
-- Debt/Equity: {_safe(info, 'debtToEquity', 'N/A')}
-- Free Cash Flow: {_safe(info, 'freeCashflow', 'N/A')}
-- Current Ratio: {_safe(info, 'currentRatio', 'N/A')}
+FINANCIALS (source: yfinance):
+- Revenue Growth: {_pct(_safe(info, 'revenueGrowth'))} (source: yfinance)
+- Profit Margins: {_pct(_safe(info, 'profitMargins'))} (source: yfinance)
+- Operating Margins: {_pct(_safe(info, 'operatingMargins'))} (source: yfinance)
+- ROE: {_pct(_safe(info, 'returnOnEquity'))} (source: yfinance)
+- ROA: {_pct(_safe(info, 'returnOnAssets'))} (source: yfinance)
+- Debt/Equity: {_safe(info, 'debtToEquity', 'N/A')} (source: yfinance)
+- Free Cash Flow: {_safe(info, 'freeCashflow', 'N/A')} (source: yfinance)
+- Current Ratio: {_safe(info, 'currentRatio', 'N/A')} (source: yfinance)
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Score business quality 0-10 based on margins, growth, returns, balance sheet.
@@ -82,6 +84,10 @@ INSTRUCTIONS:
             result = BusinessQualityOutput(
                 score_0_to_10=5.0, confidence_0_to_1=0.1,
                 summary_1_sentence="Business quality analysis unavailable",
+                data_quality_flags=[
+                    DataFlag(field="business_quality", severity="moderate",
+                             message="Tier 2 analysis used fallback defaults due to LLM failure")
+                ],
             )
 
         # Override with actual data
@@ -129,26 +135,28 @@ Your job: track real smart-money movement — not just static ownership percenta
 
 Ticker: {ticker}
 
-OWNERSHIP & VOLUME:
-- Institutional Ownership: {data.get('held_percent_institutions', 'N/A')}%
-- Insider Ownership: {data.get('held_percent_insiders', 'N/A')}%
-- Volume Ratio (10d/avg): {data.get('volume_ratio', 'N/A')}
-- Short % of Float: {data.get('short_pct_of_float', 'N/A')}%
-- Short Ratio (days): {data.get('short_ratio', 'N/A')}
-- Float Turnover 5d: {data.get('float_turnover_5d_pct', 'N/A')}%
+OWNERSHIP & VOLUME (source: yfinance):
+- Institutional Ownership: {data.get('held_percent_institutions', 'N/A')}% (source: yfinance)
+- Insider Ownership: {data.get('held_percent_insiders', 'N/A')}% (source: yfinance)
+- Volume Ratio (10d/avg): {data.get('volume_ratio', 'N/A')} (source: yfinance)
+- Short % of Float: {data.get('short_pct_of_float', 'N/A')}% (source: yfinance)
+- Short Ratio (days): {data.get('short_ratio', 'N/A')} (source: yfinance)
+- Float Turnover 5d: {data.get('float_turnover_5d_pct', 'N/A')}% (source: yfinance)
 
-SHORT INTEREST TREND:
+SHORT INTEREST TREND (source: yfinance):
 - Short Interest Change (vs prior month): {data.get('short_interest_change_pct', 'N/A')}%
 - Short Interest Trend: {data.get('short_interest_trend', 'N/A')}
 
-TOP INSTITUTIONAL HOLDERS (13F):
+TOP INSTITUTIONAL HOLDERS (13F, source: yfinance):
 {chr(10).join(holder_lines) or '  No data available'}
 - Total top holders tracked: {data.get('top_holders_count', 'N/A')}
 
-INSIDER TRANSACTIONS (recent):
+INSIDER TRANSACTIONS (recent, source: yfinance):
 - Insider Buys: {data.get('insider_buys_recent', 'N/A')}
 - Insider Sells: {data.get('insider_sells_recent', 'N/A')}
 - Insider Signal: {data.get('insider_transaction_signal', 'N/A')}
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Score institutional flow signal 0-10 (this has 15% weight — make it count).
@@ -171,6 +179,10 @@ INSTRUCTIONS:
             result = InstitutionalFlowOutput(
                 score_0_to_10=5.0, confidence_0_to_1=0.1,
                 summary_1_sentence="Institutional flow analysis unavailable",
+                data_quality_flags=[
+                    DataFlag(field="institutional_flow", severity="moderate",
+                             message="Tier 2 analysis used fallback defaults due to LLM failure")
+                ],
             )
 
         # Override with actual fetched data
@@ -212,16 +224,18 @@ def create_valuation_node(llm):
 
 Ticker: {ticker}
 
-VALUATION METRICS:
-- Trailing P/E: {data.get('trailing_pe', 'N/A')}
-- Forward P/E: {data.get('forward_pe', 'N/A')}
-- PEG Ratio: {data.get('peg_ratio', 'N/A')}
-- P/B: {data.get('price_to_book', 'N/A')}
-- EV/EBITDA: {data.get('ev_to_ebitda', 'N/A')}
-- P/S: {data.get('price_to_sales', 'N/A')}
-- 52W Range Position: {data.get('vs_52w_range_pct', 'N/A')}%
-- Revenue Growth: {data.get('revenue_growth', 'N/A')}
-- Earnings Growth: {data.get('earnings_growth', 'N/A')}
+VALUATION METRICS (source: yfinance):
+- Trailing P/E: {data.get('trailing_pe', 'N/A')} (source: yfinance)
+- Forward P/E: {data.get('forward_pe', 'N/A')} (source: yfinance)
+- PEG Ratio: {data.get('peg_ratio', 'N/A')} (source: yfinance)
+- P/B: {data.get('price_to_book', 'N/A')} (source: yfinance)
+- EV/EBITDA: {data.get('ev_to_ebitda', 'N/A')} (source: yfinance)
+- P/S: {data.get('price_to_sales', 'N/A')} (source: yfinance)
+- 52W Range Position: {data.get('vs_52w_range_pct', 'N/A')}% (source: yfinance)
+- Revenue Growth: {data.get('revenue_growth', 'N/A')} (source: yfinance)
+- Earnings Growth: {data.get('earnings_growth', 'N/A')} (source: yfinance)
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Score valuation attractiveness 0-10.
@@ -236,6 +250,10 @@ INSTRUCTIONS:
             result = ValuationOutput(
                 score_0_to_10=5.0, confidence_0_to_1=0.1,
                 summary_1_sentence="Valuation analysis unavailable",
+                data_quality_flags=[
+                    DataFlag(field="valuation", severity="moderate",
+                             message="Tier 2 analysis used fallback defaults due to LLM failure")
+                ],
             )
 
         result.trailing_pe = data.get("trailing_pe")
@@ -299,18 +317,22 @@ def create_entry_timing_node(llm):
         if ma50 and ma200:
             ma_rel = "above" if ma50 > ma200 else "below"
 
+        _timing_source = "Alpaca" if price is not None and ma50 is not None else "yfinance"
+
         prompt = f"""You are an Entry Timing Analyst in a structured equity ranking pipeline.
 
 Ticker: {ticker}
 
-TECHNICALS:
-- Price: ${price or 'N/A'}
-- 50-day MA: ${ma50 or 'N/A'}
-- 200-day MA: ${ma200 or 'N/A'}
+TECHNICALS (source: {_timing_source}):
+- Price: ${price or 'N/A'} (source: {_timing_source})
+- 50-day MA: ${ma50 or 'N/A'} (source: {_timing_source})
+- 200-day MA: ${ma200 or 'N/A'} (source: {_timing_source})
 - 50d vs 200d: {ma_rel}
-- 52W High: ${hi52 or 'N/A'}
-- 52W Low: ${lo52 or 'N/A'}
+- 52W High: ${hi52 or 'N/A'} (source: {_timing_source})
+- 52W Low: ${lo52 or 'N/A'} (source: {_timing_source})
 - Position in 52W Range: {range_pct or 'N/A'}%
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Score entry timing 0-10.
@@ -325,6 +347,10 @@ INSTRUCTIONS:
             result = EntryTimingOutput(
                 score_0_to_10=5.0, confidence_0_to_1=0.1,
                 summary_1_sentence="Entry timing analysis unavailable",
+                data_quality_flags=[
+                    DataFlag(field="entry_timing", severity="moderate",
+                             message="Tier 2 analysis used fallback defaults due to LLM failure")
+                ],
             )
 
         result.current_price = price
@@ -363,12 +389,14 @@ def create_earnings_revisions_node(llm):
 
 Ticker: {ticker}
 
-EARNINGS DATA:
-- Trailing EPS: {data.get('trailing_eps', 'N/A')}
-- Forward EPS: {data.get('forward_eps', 'N/A')}
-- Price Target Upside: {upside or 'N/A'}%
-- Price Targets: {json.dumps(targets)[:300] if targets else 'N/A'}
-- Recent Recommendations: {len(recs)} entries
+EARNINGS DATA (source: yfinance):
+- Trailing EPS: {data.get('trailing_eps', 'N/A')} (source: yfinance)
+- Forward EPS: {data.get('forward_eps', 'N/A')} (source: yfinance)
+- Price Target Upside: {upside or 'N/A'}% (source: yfinance)
+- Price Targets: {json.dumps(targets)[:300] if targets else 'N/A'} (source: yfinance)
+- Recent Recommendations: {len(recs)} entries (source: yfinance)
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Score earnings revision momentum 0-10.
@@ -385,6 +413,10 @@ INSTRUCTIONS:
             result = EarningsRevisionOutput(
                 score_0_to_10=5.0, confidence_0_to_1=0.1,
                 summary_1_sentence="Earnings revision analysis unavailable",
+                data_quality_flags=[
+                    DataFlag(field="earnings_revisions", severity="moderate",
+                             message="Tier 2 analysis used fallback defaults due to LLM failure")
+                ],
             )
 
         result.trailing_eps = data.get("trailing_eps")
@@ -417,10 +449,12 @@ def create_sector_rotation_node(llm):
 
 Ticker: {ticker} | Sector: {data.get('sector', 'Unknown')} | Sector ETF: {data.get('sector_etf', 'N/A')}
 
-SECTOR DATA:
-- Sector vs SPY 1M: {data.get('stock_sector_vs_spy_1m', 'N/A')}%
-- Sector vs SPY 3M: {data.get('stock_sector_vs_spy_3m', 'N/A')}%
-- Sector Rank: {data.get('stock_sector_rank', 'N/A')} / {data.get('total_sectors', 11)}
+SECTOR DATA (source: yfinance):
+- Sector vs SPY 1M: {data.get('stock_sector_vs_spy_1m', 'N/A')}% (source: yfinance)
+- Sector vs SPY 3M: {data.get('stock_sector_vs_spy_3m', 'N/A')}% (source: yfinance)
+- Sector Rank: {data.get('stock_sector_rank', 'N/A')} / {data.get('total_sectors', 11)} (source: yfinance)
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Score sector rotation favorability 0-10.
@@ -435,6 +469,10 @@ INSTRUCTIONS:
             result = SectorRotationOutput(
                 score_0_to_10=5.0, confidence_0_to_1=0.1,
                 summary_1_sentence="Sector rotation analysis unavailable",
+                data_quality_flags=[
+                    DataFlag(field="sector_rotation", severity="moderate",
+                             message="Tier 2 analysis used fallback defaults due to LLM failure")
+                ],
             )
 
         result.sector = data.get("sector", "Unknown")
@@ -472,10 +510,12 @@ def create_backlog_node(llm):
 
 Ticker: {ticker} | Sector: {sector} | Industry: {industry}
 
-AVAILABLE DATA:
-- Revenue Growth: {_pct(_safe(info, 'revenueGrowth'))}
-- Earnings Growth: {_pct(_safe(info, 'earningsGrowth'))}
-- Revenue: {_safe(info, 'totalRevenue', 'N/A')}
+AVAILABLE DATA (source: yfinance):
+- Revenue Growth: {_pct(_safe(info, 'revenueGrowth'))} (source: yfinance)
+- Earnings Growth: {_pct(_safe(info, 'earningsGrowth'))} (source: yfinance)
+- Revenue: {_safe(info, 'totalRevenue', 'N/A')} (source: yfinance)
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Assess if this company type typically has meaningful backlog data
@@ -489,8 +529,12 @@ INSTRUCTIONS:
         except Exception as e:
             logger.warning("Backlog LLM failed: %s", e)
             result = BacklogOrderMomentumOutput(
-                score_0_to_10=5.0, confidence_0_to_1=0.3,
+                score_0_to_10=5.0, confidence_0_to_1=0.1,
                 summary_1_sentence="Backlog analysis limited",
+                data_quality_flags=[
+                    DataFlag(field="backlog", severity="moderate",
+                             message="Tier 2 analysis used fallback defaults due to LLM failure")
+                ],
             )
 
         flags = [f.model_dump() for f in result.data_quality_flags]
@@ -526,10 +570,12 @@ def create_crowding_node(llm):
 Ticker: {ticker} | Company: {card.get('company_name', 'Unknown')}
 Market Cap Category: {card.get('market_cap_category', 'unknown')}
 
-DATA:
-- Short % of Float: {short_pct or 'N/A'}%
-- Short Ratio (days): {_safe(info, 'shortRatio', 'N/A')}
+DATA (source: yfinance):
+- Short % of Float: {short_pct or 'N/A'}% (source: yfinance)
+- Short Ratio (days): {_safe(info, 'shortRatio', 'N/A')} (source: yfinance)
 - Analyst Coverage: implied from market cap ({card.get('market_cap_category', 'unknown')})
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Score narrative crowding 0-10.
@@ -545,8 +591,12 @@ INSTRUCTIONS:
         except Exception as e:
             logger.warning("Crowding LLM failed: %s", e)
             result = NarrativeCrowdingOutput(
-                score_0_to_10=5.0, confidence_0_to_1=0.3,
+                score_0_to_10=5.0, confidence_0_to_1=0.1,
                 summary_1_sentence="Crowding analysis limited",
+                data_quality_flags=[
+                    DataFlag(field="crowding", severity="moderate",
+                             message="Tier 2 analysis used fallback defaults due to LLM failure")
+                ],
             )
 
         flags = [f.model_dump() for f in result.data_quality_flags]

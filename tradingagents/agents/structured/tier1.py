@@ -170,15 +170,17 @@ def create_macro_node(llm):
 
 Ticker: {ticker} | Sector: {sector}
 
-MACRO DATA:
-- VIX: {macro_data.get('vix_level', 'N/A')}
-- 10Y Yield: {macro_data.get('ten_year_yield', 'N/A')}%
-- Dollar 1M: {macro_data.get('dollar_1m_return', 'N/A')}%
-- Credit Spreads: {macro_data.get('credit_spread_direction', 'N/A')}
-- SPY 1M: {spy_perf.get('return_1m', 'N/A')}%
+MACRO DATA (source: yfinance):
+- VIX: {macro_data.get('vix_level', 'N/A')} (source: yfinance)
+- 10Y Yield: {macro_data.get('ten_year_yield', 'N/A')}% (source: yfinance)
+- Dollar 1M: {macro_data.get('dollar_1m_return', 'N/A')}% (source: yfinance)
+- Credit Spreads: {macro_data.get('credit_spread_direction', 'N/A')} (source: yfinance)
+- SPY 1M: {spy_perf.get('return_1m', 'N/A')}% (source: yfinance)
 
-SECTOR PERFORMANCE (1M):
+SECTOR PERFORMANCE (1M, source: yfinance):
 {chr(10).join(sector_lines[:12]) or 'N/A'}
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Classify risk_appetite: "risk-on" / "risk-off" / "transitional".
@@ -244,11 +246,13 @@ def create_liquidity_node(llm):
 
 Ticker: {ticker} | Sector: {card.get('sector', 'Unknown')}
 
-AVAILABLE DATA:
-- VIX: {macro_data.get('vix_level', 'N/A')}
-- 10Y Yield: {macro_data.get('ten_year_yield', 'N/A')}%
-- Credit Spreads: {macro_data.get('credit_spread_direction', 'N/A')}
-- Dollar Strength: {macro_data.get('dollar_strength', 'N/A')}
+AVAILABLE DATA (source: yfinance macro API):
+- VIX: {macro_data.get('vix_level', 'N/A')} (source: yfinance)
+- 10Y Yield: {macro_data.get('ten_year_yield', 'N/A')}% (source: yfinance)
+- Credit Spreads: {macro_data.get('credit_spread_direction', 'N/A')} (source: yfinance)
+- Dollar Strength: {macro_data.get('dollar_strength', 'N/A')} (source: yfinance)
+
+NOTE: If a metric shows 'N/A' or 'unknown', say 'data unavailable' rather than guessing.
 
 INSTRUCTIONS:
 1. Assess Fed stance (dovish / neutral / hawkish) based on yield environment.

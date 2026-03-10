@@ -23,6 +23,32 @@ from tradingagents.models import (
 logger = logging.getLogger(__name__)
 
 
+def _low_confidence_warnings(state: Dict[str, Any]) -> str:
+    """Check if any Tier 2 agents have confidence < 0.2 and return warnings."""
+    _TIER2_FIELDS = {
+        "business_quality": "Business Quality",
+        "institutional_flow": "Institutional Flow",
+        "valuation": "Valuation",
+        "entry_timing": "Entry Timing",
+        "earnings_revisions": "Earnings Revisions",
+        "sector_rotation": "Sector Rotation",
+        "backlog": "Backlog / Order Momentum",
+        "crowding": "Narrative Crowding",
+    }
+    warnings = []
+    for field, display_name in _TIER2_FIELDS.items():
+        agent_data = state.get(field) or {}
+        conf = agent_data.get("confidence_0_to_1")
+        if conf is not None and conf < 0.2:
+            warnings.append(
+                f"  WARNING: {display_name} has low confidence ({conf:.2f}) — "
+                f"its score may be unreliable (fallback defaults or poor data)"
+            )
+    if warnings:
+        return "\nDATA QUALITY WARNINGS:\n" + "\n".join(warnings) + "\n"
+    return ""
+
+
 def _summarize_tier2(state: Dict[str, Any]) -> str:
     """Build a compact summary of all Tier 1+2 findings for Tier 3 prompts."""
     card = state.get("company_card") or {}
@@ -37,6 +63,9 @@ def _summarize_tier2(state: Dict[str, Any]) -> str:
     bl = state.get("backlog") or {}
     cr = state.get("crowding") or {}
     arch = state.get("archetype") or {}
+
+    # Check for low-confidence Tier 2 agents
+    confidence_warnings = _low_confidence_warnings(state)
 
     lines = [
         f"Company: {card.get('company_name', '?')} ({card.get('ticker', '?')})",
@@ -67,6 +96,12 @@ def _summarize_tier2(state: Dict[str, Any]) -> str:
         f"  Short Trend: {inst.get('short_interest_trend', '?')} | Insider Signal: {inst.get('insider_transaction_signal', '?')}",
         f"  Timing: {et.get('timing_verdict', '?')}",
     ]
+
+    if confidence_warnings:
+        lines.append("")
+        lines.append(confidence_warnings)
+        lines.append("Factor these warnings into your analysis — low-confidence scores may not reflect reality.")
+
     return "\n".join(lines)
 
 

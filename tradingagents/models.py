@@ -11,7 +11,7 @@ import json
 import logging
 from typing import List, Literal, Optional, Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -449,21 +449,65 @@ def should_hard_veto(
 # LLM structured output helper
 # ---------------------------------------------------------------------------
 
-def invoke_structured(llm, model_cls, prompt: str):
-    """Call LLM with structured output, with JSON fallback."""
-    try:
+def invoke_structured(llm, model_cls, prompt: str, timeout: int = 60):
+    """Call LLM with structured output, with JSON fallback.
+
+    Each LLM call is wrapped in a per-call timeout (default 60s) to avoid
+    hanging on a single call while the global 60-minute analysis timeout
+    covers the entire pipeline.
+    """
+    import concurrent.futures
+
+    def _call_structured():
         structured = llm.with_structured_output(model_cls)
         return structured.invoke(prompt)
-    except Exception as e:
-        logger.warning("Structured output failed for %s: %s — using JSON fallback", model_cls.__name__, e)
+
+    def _call_json_fallback():
         schema_str = json.dumps(model_cls.model_json_schema(), indent=2)
         json_prompt = (
             f"{prompt}\n\nReturn ONLY valid JSON matching this schema:\n{schema_str}"
         )
-        response = llm.invoke(json_prompt)
-        content = response.content.strip()
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
+        return llm.invoke(json_prompt)
+
+    # Try structured output with per-call timeout
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(_call_structured)
+            return future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        logger.warning("Structured output timed out after %ds for %s", timeout, model_cls.__name__)
+        raise TimeoutError(f"LLM call timed out after {timeout}s for {model_cls.__name__}")
+    except Exception as e:
+        logger.warning("Structured output failed for %s: %s — using JSON fallback", model_cls.__name__, e)
+
+    # JSON fallback with per-call timeout
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(_call_json_fallback)
+            response = future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        logger.warning("JSON fallback timed out after %ds for %s", timeout, model_cls.__name__)
+        raise TimeoutError(f"LLM JSON fallback timed out after {timeout}s for {model_cls.__name__}")
+
+    content = response.content.strip()
+    if "```json" in content:
+        content = content.split("```json")[1].split("```")[0].strip()
+    elif "```" in content:
+        content = content.split("```")[1].split("```")[0].strip()
+    try:
         return model_cls.model_validate_json(content)
+    except ValidationError as ve:
+        logger.error(
+            "JSON fallback validation failed for %s: %s — raw text: %.500s",
+            model_cls.__name__, ve, content,
+        )
+        # Return minimal defaults so the pipeline keeps running
+        defaults = {}
+        if hasattr(model_cls, "model_fields"):
+            if "score_0_to_10" in model_cls.model_fields:
+                defaults["score_0_to_10"] = 5.0
+            if "confidence_0_to_1" in model_cls.model_fields:
+                defaults["confidence_0_to_1"] = 0.1
+            if "summary_1_sentence" in model_cls.model_fields:
+                defaults["summary_1_sentence"] = f"{model_cls.__name__} parsing failed — using fallback defaults"
+        return model_cls(**defaults)

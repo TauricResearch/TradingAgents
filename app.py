@@ -1,5 +1,6 @@
 """FastAPI SSE backend for the structured equity ranking engine."""
 
+import logging
 import os
 import re
 import time
@@ -10,6 +11,12 @@ import traceback as _tb
 from datetime import date
 
 from fastapi import FastAPI, HTTPException, Request, Depends
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logger = logging.getLogger(__name__)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -51,7 +58,19 @@ async def verify_api_key(request: Request):
 MAX_CONCURRENT = int(os.getenv("MAX_CONCURRENT_ANALYSES", "3"))
 _semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
+# --- Event buffer cap ---
+MAX_EVENTS_PER_ANALYSIS = 5000
+
 analyses: dict[str, dict] = {}
+
+
+def _append_event(state: dict, evt: dict):
+    """Append an event to the analysis state, enforcing the buffer cap."""
+    events = state["events"]
+    events.append(evt)
+    if len(events) > MAX_EVENTS_PER_ANALYSIS:
+        # Drop oldest events, keep the last MAX_EVENTS_PER_ANALYSIS
+        state["events"] = events[-MAX_EVENTS_PER_ANALYSIS:]
 
 
 class AnalyzeRequest(BaseModel):
@@ -74,12 +93,10 @@ def build_config():
         "fundamental_data": "yfinance",
         "news_data": "yfinance",
     }
-    print(
-        f"[CONFIG] provider={config['llm_provider']}, "
-        f"deep={config['deep_think_llm']}, "
-        f"quick={config['quick_think_llm']}, "
-        f"url={config['backend_url']}",
-        flush=True,
+    logger.info(
+        "config_built provider=%s deep=%s quick=%s url=%s",
+        config['llm_provider'], config['deep_think_llm'],
+        config['quick_think_llm'], config['backend_url'],
     )
     return config
 
@@ -129,13 +146,14 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
 
     try:
         graph = TradingAgentsGraph(debug=False, config=config)
-        print(
-            f"[ANALYSIS] LLM types: deep={type(graph.deep_thinking_llm).__name__}, "
-            f"quick={type(graph.quick_thinking_llm).__name__}",
-            flush=True,
+        logger.info(
+            "analysis_init_ok deep_llm=%s quick_llm=%s analysis_id=%s",
+            type(graph.deep_thinking_llm).__name__,
+            type(graph.quick_thinking_llm).__name__,
+            analysis_id,
         )
     except Exception as e:
-        print(f"[ANALYSIS] Init failed: {e}\n{_tb.format_exc()}", flush=True)
+        logger.error("analysis_init_failed analysis_id=%s error=%s\n%s", analysis_id, e, _tb.format_exc())
         await q.put({"type": "error", "message": f"Init failed: {e}"})
         await q.put(None)
         return
@@ -156,14 +174,14 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
             "status": "pending",
             "stats": _stats(start_time, emitted_fields),
         }
-        state["events"].append(evt)
+        _append_event(state, evt)
         await q.put(evt)
 
     try:
         async for chunk in graph.graph.astream(
             init_state,
             stream_mode="values",
-            config={"recursion_limit": 50},
+            config={"recursion_limit": 25},
         ):
             final_state = chunk
 
@@ -188,7 +206,7 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
                     "status": "completed",
                     "stats": st,
                 }
-                state["events"].append(evt)
+                _append_event(state, evt)
                 await q.put(evt)
 
                 # Emit report data for key fields
@@ -201,7 +219,7 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
                         "report": _format_report(field, value),
                         "stats": st,
                     }
-                    state["events"].append(evt)
+                    _append_event(state, evt)
                     await q.put(evt)
 
                 elif field == "debate":
@@ -216,7 +234,7 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
                         "winner": (value or {}).get("winner", ""),
                         "stats": st,
                     }
-                    state["events"].append(evt)
+                    _append_event(state, evt)
                     await q.put(evt)
 
                 elif field == "master_score":
@@ -228,16 +246,16 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
                         "position_role": chunk.get("position_role"),
                         "stats": st,
                     }
-                    state["events"].append(evt)
+                    _append_event(state, evt)
                     await q.put(evt)
 
             # Mark in-progress agents for upcoming stages
             await _update_in_progress(chunk, emitted_fields, prev_agent_statuses, state, q, start_time)
 
     except Exception as e:
-        print(f"[ANALYSIS] Stream error: {e}\n{_tb.format_exc()}", flush=True)
+        logger.error("analysis_stream_error analysis_id=%s error=%s\n%s", analysis_id, e, _tb.format_exc())
         evt = {"type": "error", "message": str(e)}
-        state["events"].append(evt)
+        _append_event(state, evt)
         await q.put(evt)
         state["done"] = True
         await q.put(None)
@@ -260,7 +278,7 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
                     "status": "completed",
                     "stats": st,
                 }
-                state["events"].append(evt)
+                _append_event(state, evt)
                 await q.put(evt)
 
         evt = {
@@ -274,7 +292,7 @@ async def _run_analysis_inner(analysis_id: str, ticker: str, trade_date: str):
             "final_decision": decision,
             "stats": st,
         }
-        state["events"].append(evt)
+        _append_event(state, evt)
         await q.put(evt)
 
     state["done"] = True
@@ -296,7 +314,7 @@ async def _update_in_progress(chunk, emitted, statuses, state, q, start_time):
                     "status": "in_progress",
                     "stats": _stats(start_time, emitted),
                 }
-                state["events"].append(evt)
+                _append_event(state, evt)
                 await q.put(evt)
 
     # If tier 1 done, mark tier 2 in_progress
@@ -317,7 +335,7 @@ async def _update_in_progress(chunk, emitted, statuses, state, q, start_time):
                     "status": "in_progress",
                     "stats": _stats(start_time, emitted),
                 }
-                state["events"].append(evt)
+                _append_event(state, evt)
                 await q.put(evt)
 
     # If scoring done, mark portfolio analysis in_progress
@@ -333,7 +351,7 @@ async def _update_in_progress(chunk, emitted, statuses, state, q, start_time):
                     "status": "in_progress",
                     "stats": _stats(start_time, emitted),
                 }
-                state["events"].append(evt)
+                _append_event(state, evt)
                 await q.put(evt)
 
 
@@ -367,9 +385,9 @@ async def run_analysis(analysis_id: str, ticker: str, trade_date: str):
                 timeout=3600,
             )
         except asyncio.TimeoutError:
-            print(f"[ANALYSIS] Timeout for {analysis_id}", flush=True)
+            logger.warning("analysis_timeout analysis_id=%s", analysis_id)
             evt = {"type": "error", "message": "Analysis timed out after 60 minutes"}
-            state["events"].append(evt)
+            _append_event(state, evt)
             await q.put(evt)
             state["done"] = True
             await q.put(None)
@@ -384,7 +402,7 @@ async def _cleanup_loop():
         for aid in expired:
             analyses.pop(aid, None)
         if expired:
-            print(f"[CLEANUP] Removed {len(expired)} expired analyses", flush=True)
+            logger.info("cleanup_expired count=%d", len(expired))
 
 
 @app.on_event("startup")
@@ -397,8 +415,12 @@ async def _start_cleanup():
 @app.post("/analyze", dependencies=[Depends(verify_api_key)])
 async def start_analysis(req: AnalyzeRequest):
     ticker = req.ticker.upper().strip()
-    if not ticker or not re.match(r'^[A-Z0-9.\-]{1,6}$', ticker):
-        raise HTTPException(400, "Invalid ticker")
+    if not ticker:
+        raise HTTPException(400, "Ticker must not be empty")
+    if len(ticker) > 10:
+        raise HTTPException(400, f"Ticker too long ({len(ticker)} chars, max 10)")
+    if not re.match(r'^[A-Z0-9.\-]{1,10}$', ticker):
+        raise HTTPException(400, "Invalid ticker — only letters, digits, dots, and hyphens allowed")
     trade_date = req.date or str(date.today())
     analysis_id = str(uuid.uuid4())
     analyses[analysis_id] = {
@@ -431,7 +453,7 @@ async def stream_analysis(analysis_id: str, last_event: int = 0):
             try:
                 event = await asyncio.wait_for(q.get(), timeout=15)
             except asyncio.TimeoutError:
-                yield {"event": "heartbeat", "data": ""}
+                yield {"event": "heartbeat", "data": json.dumps({"type": "heartbeat"})}
                 continue
             if event is None:
                 break
