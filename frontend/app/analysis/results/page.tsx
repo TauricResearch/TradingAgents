@@ -262,7 +262,7 @@ export default function AnalysisResultsPage() {
                   </CardHeader>
                   <CardContent>
                     {getNestedValue(analysisResult.reports, analyst.reportKey) ? (
-                      <div className="prose prose-sm max-w-none dark:prose-invert animate-fade-in">
+                      <div className="prose prose-sm xl:prose-base max-w-none dark:prose-invert animate-fade-in overflow-x-auto prose-table:border-collapse prose-table:w-full prose-td:border prose-td:border-gray-300 dark:prose-td:border-gray-600 prose-td:p-2 prose-th:border prose-th:border-gray-300 dark:prose-th:border-gray-600 prose-th:p-2 prose-th:bg-gray-100 dark:prose-th:bg-gray-800">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {getNestedValue(analysisResult.reports, analyst.reportKey)}
                         </ReactMarkdown>

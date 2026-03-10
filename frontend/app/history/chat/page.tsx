@@ -424,16 +424,15 @@ function HistoryChatContent() {
                   )}
                 </div>
 
-                {/* Bubble */}
                 <div
-                  className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-4 text-base leading-relaxed shadow-sm ${
+                  className={`max-w-[100%] md:max-w-[85%] rounded-2xl px-5 py-4 text-base leading-relaxed shadow-sm overflow-x-auto ${
                     msg.role === "user"
                       ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-tr-sm"
                       : "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-sm"
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_table]:text-sm">
+                    <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-table:border-collapse prose-table:w-full prose-td:border prose-td:border-gray-300 dark:prose-td:border-gray-600 prose-td:p-2 prose-th:border prose-th:border-gray-300 dark:prose-th:border-gray-600 prose-th:p-2 prose-th:bg-gray-100 dark:prose-th:bg-gray-800">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content}
                       </ReactMarkdown>
@@ -480,16 +479,7 @@ function HistoryChatContent() {
           <div className="flex flex-wrap items-center gap-2">
             <Select value={selectedModelId} onValueChange={setSelectedModelId}>
               <SelectTrigger className="w-fit min-w-[200px] h-9 text-sm bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 shadow-sm transition-colors">
-                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                  {(() => {
-                    const activeModel = AVAILABLE_MODELS.find(m => m.id === selectedModelId);
-                    if (activeModel?.logo) {
-                      return <Image src={activeModel.logo} alt={activeModel.provider} width={16} height={16} className="shrink-0" />;
-                    }
-                    return <Settings2 className="h-4 w-4 text-purple-500 shrink-0" />;
-                  })()}
-                  <SelectValue placeholder="選擇模型" />
-                </div>
+                <SelectValue placeholder="選擇模型" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 {AVAILABLE_MODELS.map((m) => (
