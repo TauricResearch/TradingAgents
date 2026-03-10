@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Image from "next/image";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/auth-context";
 import { getApiSettingsAsync } from "@/lib/storage";
@@ -40,20 +41,48 @@ interface ChatMessage {
 }
 
 const AVAILABLE_MODELS = [
-  { id: "auto", name: "🤖 自動選擇 (Auto)", provider: "auto" },
-  { id: "gpt-4o", name: "GPT-4o", provider: "openai" },
-  { id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "openai" },
-  { id: "o1-mini", name: "o1-mini", provider: "openai" },
-  { id: "o3-mini", name: "o3-mini", provider: "openai" },
-  { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", provider: "anthropic" },
-  { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", provider: "anthropic" },
-  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "google" },
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "google" },
-  { id: "grok-2-1212", name: "Grok 2", provider: "grok" },
-  { id: "deepseek-chat", name: "DeepSeek Chat", provider: "deepseek" },
-  { id: "deepseek-reasoner", name: "DeepSeek Reasoner", provider: "deepseek" },
-  { id: "qwen-max", name: "Qwen Max", provider: "qwen" },
-  { id: "custom", name: "⚙️ 其他 (自訂模型)", provider: "custom" },
+  // OpenAI
+  { id: "gpt-5.2-2025-12-11", name: "GPT-5.2", provider: "openai", logo: "/logos/openai.svg" },
+  { id: "gpt-5.1", name: "GPT-5.1", provider: "openai", logo: "/logos/openai.svg" },
+  { id: "gpt-5-mini", name: "GPT-5 Mini", provider: "openai", logo: "/logos/openai.svg" },
+  { id: "gpt-5-nano", name: "GPT-5 Nano", provider: "openai", logo: "/logos/openai.svg" },
+  { id: "gpt-4.1-mini", name: "GPT-4.1 Mini", provider: "openai", logo: "/logos/openai.svg" },
+  { id: "gpt-4.1-nano", name: "GPT-4.1 Nano", provider: "openai", logo: "/logos/openai.svg" },
+  { id: "o4-mini", name: "o4-mini", provider: "openai", logo: "/logos/openai.svg" },
+  
+  // Anthropic
+  { id: "claude-sonnet-4-5-20250929", name: "Claude Sonnet 4.5", provider: "anthropic", logo: "/logos/claude-color.svg" },
+  { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", provider: "anthropic", logo: "/logos/claude-color.svg" },
+  { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", provider: "anthropic", logo: "/logos/claude-color.svg" },
+  { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku", provider: "anthropic", logo: "/logos/claude-color.svg" },
+
+  // Google
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "google", logo: "/logos/gemini-color.svg" },
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "google", logo: "/logos/gemini-color.svg" },
+  { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", provider: "google", logo: "/logos/gemini-color.svg" },
+  { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "google", logo: "/logos/gemini-color.svg" },
+  { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite", provider: "google", logo: "/logos/gemini-color.svg" },
+
+  // Grok
+  { id: "grok-4-1-fast-reasoning", name: "Grok 4.1 Fast Reasoning", provider: "grok", logo: "/logos/grok.svg" },
+  { id: "grok-4-1-fast-non-reasoning", name: "Grok 4.1 Fast Non Reasoning", provider: "grok", logo: "/logos/grok.svg" },
+  { id: "grok-4-fast-reasoning", name: "Grok 4 Fast Reasoning", provider: "grok", logo: "/logos/grok.svg" },
+  { id: "grok-4-fast-non-reasoning", name: "Grok 4 Fast Non Reasoning", provider: "grok", logo: "/logos/grok.svg" },
+  { id: "grok-4-0709", name: "Grok 4", provider: "grok", logo: "/logos/grok.svg" },
+  { id: "grok-3", name: "Grok 3", provider: "grok", logo: "/logos/grok.svg" },
+  { id: "grok-3-mini", name: "Grok 3 Mini", provider: "grok", logo: "/logos/grok.svg" },
+
+  // DeepSeek
+  { id: "deepseek-reasoner", name: "DeepSeek Reasoner", provider: "deepseek", logo: "/logos/deepseek-color.svg" },
+  { id: "deepseek-chat", name: "DeepSeek Chat", provider: "deepseek", logo: "/logos/deepseek-color.svg" },
+
+  // Qwen
+  { id: "qwen3-max", name: "Qwen 3 Max", provider: "qwen", logo: "/logos/qwen-color.svg" },
+  { id: "qwen-plus", name: "Qwen Plus", provider: "qwen", logo: "/logos/qwen-color.svg" },
+  { id: "qwen-flash", name: "Qwen Flash", provider: "qwen", logo: "/logos/qwen-color.svg" },
+
+  // Custom
+  { id: "custom", name: "Other (自訂模型)", provider: "custom", logo: null },
 ];
 
 function HistoryChatContent() {
@@ -69,7 +98,8 @@ function HistoryChatContent() {
   const [report, setReport] = useState<SavedReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(true);
   
-  const [selectedModelId, setSelectedModelId] = useState<string>("auto");
+  // Default to GPT-5 Mini
+  const [selectedModelId, setSelectedModelId] = useState<string>("gpt-5-mini");
   const [customModel, setCustomModel] = useState<string>("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -173,8 +203,8 @@ function HistoryChatContent() {
 
       const activeModelId = selectedModelId === "custom" ? customModel.trim() : selectedModelId;
 
-      if (selectedModelId === "auto" || !activeModelId) {
-        // Auto logic: Pick first available
+      if (!activeModelId) {
+        // Auto logic wrapper (now acts as a fallback if custom is empty)
         for (const [providerName, providerData] of Object.entries(providers)) {
           if (providerData.key && providerData.key.trim() !== "") {
             apiKey = providerData.key;
@@ -449,16 +479,25 @@ function HistoryChatContent() {
           {/* Model Selector */}
           <div className="flex flex-wrap items-center gap-2">
             <Select value={selectedModelId} onValueChange={setSelectedModelId}>
-              <SelectTrigger className="w-fit min-w-[160px] h-8 text-xs bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 shadow-sm transition-colors">
+              <SelectTrigger className="w-fit min-w-[200px] h-9 text-sm bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 shadow-sm transition-colors">
                 <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                  <Settings2 className="h-3 w-3 text-purple-500" />
+                  {(() => {
+                    const activeModel = AVAILABLE_MODELS.find(m => m.id === selectedModelId);
+                    if (activeModel?.logo) {
+                      return <Image src={activeModel.logo} alt={activeModel.provider} width={16} height={16} className="shrink-0" />;
+                    }
+                    return <Settings2 className="h-4 w-4 text-purple-500 shrink-0" />;
+                  })()}
                   <SelectValue placeholder="選擇模型" />
                 </div>
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 {AVAILABLE_MODELS.map((m) => (
                   <SelectItem key={m.id} value={m.id} className="cursor-pointer text-xs sm:text-sm">
-                    {m.name}
+                    <div className="flex items-center gap-2">
+                      {m.logo && <Image src={m.logo} alt={m.provider} width={16} height={16} className="shrink-0" />}
+                      <span>{m.name}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
