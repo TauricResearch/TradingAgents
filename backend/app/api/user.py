@@ -166,7 +166,7 @@ async def get_reports(
             market_type=r.market_type,
             analysis_date=r.analysis_date,
             result=r.result,
-            created_at=r.created_at.isoformat()
+            created_at=r.created_at.isoformat() + "Z"
         )
         for r in reports
     ]
@@ -223,7 +223,7 @@ async def get_report(
         market_type=report.market_type,
         analysis_date=report.analysis_date,
         result=report.result,
-        created_at=report.created_at.isoformat()
+        created_at=report.created_at.isoformat() + "Z"
     )
 
 

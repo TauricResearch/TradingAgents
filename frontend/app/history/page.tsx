@@ -345,6 +345,21 @@ const detectReportLanguage = (reports: any): "en" | "zh-TW" => {
   return chineseRegex.test(traderPlan) ? "zh-TW" : "en";
 };
 
+/**
+ * Parse a date string from the backend as UTC.
+ * Backend stores created_at in UTC but may not always include timezone info.
+ * This ensures the date is correctly interpreted as UTC so the browser
+ * converts it to the user's local timezone for display.
+ */
+const parseUTCDate = (dateStr: string): Date => {
+  // If the string already has timezone info (Z, +, or - offset), parse directly
+  if (dateStr.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+    return new Date(dateStr);
+  }
+  // Otherwise, append 'Z' to treat as UTC
+  return new Date(dateStr + 'Z');
+};
+
 export default function HistoryPage() {
   const router = useRouter();
   const { setAnalysisResult, setTaskId, setMarketType } = useAnalysisContext();
@@ -474,7 +489,7 @@ export default function HistoryPage() {
             ticker: r.ticker,
             market_type: r.market_type as "us" | "twse" | "tpex",
             analysis_date: r.analysis_date,
-            saved_at: new Date(r.created_at),
+            saved_at: parseUTCDate(r.created_at),
             result: r.result,
             language: r.language, // Include language from cloud
           })) as (SavedReport & { cloudId?: string })[];
@@ -577,7 +592,7 @@ export default function HistoryPage() {
             ticker: r.ticker,
             market_type: r.market_type as "us" | "twse" | "tpex",
             analysis_date: r.analysis_date,
-            saved_at: new Date(r.created_at),
+            saved_at: parseUTCDate(r.created_at),
             result: r.result,
             language: r.language,
           })) as SavedReport[];
