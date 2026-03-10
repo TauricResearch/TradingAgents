@@ -46,37 +46,57 @@ Below are the baseline reports for this conversation:
 ========================================="""
 
 
-def _flatten_reports(reports: Dict[str, Any]) -> str:
+def _flatten_reports(reports: Dict[str, Any], language: str = "zh-TW") -> str:
     """Flatten all reports into a single text block for context."""
     sections = []
     
-    REPORT_LABELS = {
-        "market_report": "Market Analyst Report",
-        "sentiment_report": "Social Media Analyst Report",
-        "news_report": "News Analyst Report",
-        "fundamentals_report": "Fundamentals Analyst Report",
-        "trader_investment_plan": "Trader Investment Plan",
-    }
+    if language == "zh-TW":
+        REPORT_LABELS = {
+            "market_report": "市場分析師 (Market Analyst)",
+            "sentiment_report": "社群情緒分析師 (Social Media Analyst)",
+            "news_report": "新聞分析師 (News Analyst)",
+            "fundamentals_report": "基本面分析師 (Fundamentals Analyst)",
+            "trader_investment_plan": "交易員 (Trader)",
+        }
+        debate_keys = {
+            "investment_debate_state": {
+                "bull_history": "看漲研究員 (Bull Researcher)",
+                "bear_history": "看跌研究員 (Bear Researcher)",
+                "judge_decision": "研究經理 (Research Manager)",
+            },
+            "risk_debate_state": {
+                "risky_history": "激進分析師 (Aggressive Analyst)",
+                "safe_history": "保守分析師 (Conservative Analyst)",
+                "neutral_history": "中立分析師 (Neutral Analyst)",
+                "judge_decision": "風險經理 (Risk Manager)",
+            },
+        }
+    else:
+        REPORT_LABELS = {
+            "market_report": "Market Analyst",
+            "sentiment_report": "Social Media Analyst",
+            "news_report": "News Analyst",
+            "fundamentals_report": "Fundamentals Analyst",
+            "trader_investment_plan": "Trader",
+        }
+        debate_keys = {
+            "investment_debate_state": {
+                "bull_history": "Bull Researcher",
+                "bear_history": "Bear Researcher",
+                "judge_decision": "Research Manager",
+            },
+            "risk_debate_state": {
+                "risky_history": "Aggressive Analyst",
+                "safe_history": "Conservative Analyst",
+                "neutral_history": "Neutral Analyst",
+                "judge_decision": "Risk Manager",
+            },
+        }
     
     for key, label in REPORT_LABELS.items():
         content = reports.get(key)
         if content and isinstance(content, str):
             sections.append(f"## {label}\n{content}")
-    
-    # Handle nested debate states
-    debate_keys = {
-        "investment_debate_state": {
-            "bull_history": "Bull Researcher",
-            "bear_history": "Bear Researcher",
-            "judge_decision": "Research Manager Decision",
-        },
-        "risk_debate_state": {
-            "risky_history": "Aggressive Analyst",
-            "safe_history": "Conservative Analyst",
-            "neutral_history": "Neutral Analyst",
-            "judge_decision": "Risk Manager Decision",
-        },
-    }
     
     for state_key, sub_keys in debate_keys.items():
         state = reports.get(state_key)
@@ -117,11 +137,10 @@ async def chat_with_reports(
     Returns:
         Assistant's reply string
     """
-    reports_text = _flatten_reports(reports)
+    reports_text = _flatten_reports(reports, language=language)
     
-    # Truncate reports to avoid exceeding token limits
-    # ~4 chars per token, target max ~8000 tokens for context
-    MAX_REPORT_CHARS = 32000
+    # Increase truncation limit significantly to support 12 full analyst reports natively
+    MAX_REPORT_CHARS = 100000
     if len(reports_text) > MAX_REPORT_CHARS:
         reports_text = reports_text[:MAX_REPORT_CHARS] + "\n\n...(報告內容已截斷以符合模型限制)..."
         logger.info(f"Reports truncated from {len(reports_text)} to {MAX_REPORT_CHARS} chars")
