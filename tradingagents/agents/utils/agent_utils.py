@@ -19,6 +19,16 @@ from tradingagents.agents.utils.news_data_tools import (
     get_global_news
 )
 
+def get_language_instruction() -> str:
+    """Return a language instruction string based on the configured output_language.
+    Returns an empty string for English (default), or a Chinese instruction string."""
+    from tradingagents.dataflows.config import get_config
+    lang = get_config().get("output_language", "en")
+    if lang == "zh":
+        return "\n\nIMPORTANT: You must respond entirely in Simplified Chinese (简体中文). All analysis, reports, recommendations, and outputs must be written in Chinese."
+    return ""
+
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""
