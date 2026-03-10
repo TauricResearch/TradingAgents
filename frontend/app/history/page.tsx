@@ -846,7 +846,7 @@ export default function HistoryPage() {
           {/* Market Type Tabs */}
           <Tabs
             value={activeTab}
-            onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+            onValueChange={(v: string) => setActiveTab(v as typeof activeTab)}
             className="w-full animate-slide-up animate-delay-200"
           >
             <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 h-auto gap-2">
