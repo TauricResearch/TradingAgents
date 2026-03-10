@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -331,12 +332,15 @@
 
 /* Enhanced hover effects */
 .hover-lift {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .hover-lift:hover {
   transform: translateY(-8px);
-  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1),
+  box-shadow:
+    0 20px 25px -5px rgb(0 0 0 / 0.1),
     0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
@@ -376,7 +380,8 @@
 }
 
 .gradient-bg-radial {
-  background: radial-gradient(
+  background:
+    radial-gradient(
       circle at top right,
       rgba(102, 126, 234, 0.15),
       transparent 50%
@@ -389,7 +394,8 @@
 }
 
 .dark .gradient-bg-radial {
-  background: radial-gradient(
+  background:
+    radial-gradient(
       circle at top right,
       rgba(76, 81, 191, 0.2),
       transparent 50%
@@ -468,26 +474,30 @@
 .gradient-border {
   position: relative;
   border: 2px solid transparent;
-  background: linear-gradient(var(--background), var(--background)) padding-box,
+  background:
+    linear-gradient(var(--background), var(--background)) padding-box,
     linear-gradient(135deg, #667eea, #764ba2) border-box;
 }
 
 .dark .gradient-border {
-  background: linear-gradient(var(--background), var(--background)) padding-box,
+  background:
+    linear-gradient(var(--background), var(--background)) padding-box,
     linear-gradient(135deg, #4c51bf, #553c9a) border-box;
 }
 
 .gradient-border-animated {
   position: relative;
   border: 2px solid transparent;
-  background: linear-gradient(var(--background), var(--background)) padding-box,
+  background:
+    linear-gradient(var(--background), var(--background)) padding-box,
     linear-gradient(135deg, #667eea, #764ba2, #f093fb, #667eea) border-box;
   background-size: 300% 300%;
   animation: gradientBorder 4s ease infinite;
 }
 
 .dark .gradient-border-animated {
-  background: linear-gradient(var(--background), var(--background)) padding-box,
+  background:
+    linear-gradient(var(--background), var(--background)) padding-box,
     linear-gradient(135deg, #4c51bf, #553c9a, #c471ed, #4c51bf) border-box;
   background-size: 300% 300%;
   animation: gradientBorder 4s ease infinite;
@@ -670,7 +680,8 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(147, 51, 234, 0.1);
-  box-shadow: 0 2px 16px 0 rgba(147, 51, 234, 0.06),
+  box-shadow:
+    0 2px 16px 0 rgba(147, 51, 234, 0.06),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
 }
 
@@ -681,7 +692,8 @@
     rgba(40, 25, 50, 0.95) 100%
   );
   border: 1px solid rgba(147, 51, 234, 0.2);
-  box-shadow: 0 2px 16px 0 rgba(147, 51, 234, 0.15),
+  box-shadow:
+    0 2px 16px 0 rgba(147, 51, 234, 0.15),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -693,7 +705,8 @@
 .glass-hover:hover {
   background: rgba(255, 255, 255, 1);
   border-color: rgba(147, 51, 234, 0.15);
-  box-shadow: 0 4px 20px 0 rgba(147, 51, 234, 0.1),
+  box-shadow:
+    0 4px 20px 0 rgba(147, 51, 234, 0.1),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
   transform: translateY(-2px);
 }
@@ -701,6 +714,7 @@
 .dark .glass-hover:hover {
   background: rgba(30, 20, 40, 1);
   border-color: rgba(147, 51, 234, 0.3);
-  box-shadow: 0 4px 20px 0 rgba(147, 51, 234, 0.2),
+  box-shadow:
+    0 4px 20px 0 rgba(147, 51, 234, 0.2),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
 }
