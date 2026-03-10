@@ -15,6 +15,8 @@ from backend.app.models.schemas import (
     TaskCreatedResponse,
     TaskStatusResponse,
     DownloadRequest,
+    ChatRequest,
+    ChatResponse,
 )
 from backend.app.services.trading_service import TradingService
 from backend.app.services.task_manager import task_manager
@@ -375,4 +377,43 @@ async def download_reports(request: DownloadRequest):
             "Content-Disposition": f"attachment; filename={filename}"
         }
     )
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat_with_report(request: ChatRequest):
+    """
+    Chat with the analysis report using the user's LLM.
+    
+    Sends the analysis reports as context to the LLM along with
+    the user's question, and returns the assistant's answer.
+    
+    Args:
+        request: Chat request with message, reports context, and LLM config
+        
+    Returns:
+        ChatResponse: Assistant's reply
+    """
+    from backend.app.services.chat_service import chat_with_reports
+    
+    try:
+        reply = await chat_with_reports(
+            message=request.message,
+            reports=request.reports,
+            ticker=request.ticker,
+            analysis_date=request.analysis_date,
+            history=request.history,
+            model=request.model,
+            api_key=request.api_key,
+            base_url=request.base_url,
+            language=request.language or "zh-TW",
+        )
+        
+        return ChatResponse(reply=reply)
+        
+    except Exception as e:
+        logger.error(f"Chat failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Chat failed: {str(e)}"
+        )
 

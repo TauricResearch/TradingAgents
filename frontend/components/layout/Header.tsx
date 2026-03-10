@@ -12,10 +12,14 @@ import { LanguageSwitcher } from "@/components/settings/LanguageSwitcher";
 import { LoginButton } from "@/components/auth/login-button";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { usePathname } from "next/navigation";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { t } = useLanguage();
+  const pathname = usePathname();
+
+  if (pathname === "/history/chat") return null;
 
   return (
     <header className="border-b bg-gradient-to-r from-blue-500 to-pink-500 dark:from-blue-600 dark:to-purple-600 text-white pwa-safe-header">

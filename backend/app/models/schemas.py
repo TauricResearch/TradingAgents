@@ -183,3 +183,32 @@ class DownloadRequest(BaseModel):
     def uppercase_ticker(cls, v: str) -> str:
         return v.strip().upper()
 
+
+# Chat Schemas
+
+class ChatRequest(BaseModel):
+    """Request model for chatting about analysis reports"""
+    message: str = Field(..., description="User's question about the report", min_length=1, max_length=2000)
+    reports: Dict[str, Any] = Field(..., description="Full analysis reports dict")
+    ticker: str = Field(..., description="Stock ticker symbol")
+    analysis_date: str = Field(..., description="Analysis date")
+    history: Optional[List[Dict[str, str]]] = Field(
+        default=None,
+        description="Previous conversation messages [{role, content}]"
+    )
+    model: str = Field(..., description="LLM model name")
+    api_key: str = Field(..., description="User's LLM API key", min_length=1)
+    base_url: str = Field(
+        default="https://api.openai.com/v1",
+        description="LLM API base URL"
+    )
+    language: Optional[Literal["en", "zh-TW"]] = Field(
+        default="zh-TW",
+        description="Response language"
+    )
+
+
+class ChatResponse(BaseModel):
+    """Response model for chat"""
+    reply: str = Field(..., description="Assistant's answer")
+

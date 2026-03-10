@@ -554,4 +554,18 @@ export const zhTW = {
     tradingRiskTeam: "交易與風險團隊",
     members: "位",
   },
+
+  // Chat
+  chat: {
+    title: "報告問答",
+    placeholder: "詢問有關此分析報告的問題...",
+    send: "發送",
+    thinking: "思考中...",
+    error: "回覆失敗，請稍後再試",
+    emptyState: "對此分析報告提出任何問題",
+    emptyHint: "例如：「主要的風險因素有哪些？」",
+    noApiKey: "請先在設定中配置您的 API Key",
+    allReports: "全部報告",
+    clearChat: "清除對話",
+  },
 };

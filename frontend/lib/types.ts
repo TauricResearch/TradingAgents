@@ -127,3 +127,21 @@ export interface TaskStatusResponse {
   error?: string;
   completed_at?: string;
 }
+
+// Chat Types
+
+export interface ChatMessageRequest {
+  message: string;
+  reports: any;
+  ticker: string;
+  analysis_date: string;
+  history?: { role: string; content: string }[];
+  model: string;
+  api_key: string;
+  base_url: string;
+  language?: "en" | "zh-TW";
+}
+
+export interface ChatMessageResponse {
+  reply: string;
+}

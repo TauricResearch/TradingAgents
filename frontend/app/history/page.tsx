@@ -35,6 +35,7 @@ import {
   TrendingUp,
   FileText,
   Download,
+  MessageCircle,
 } from "lucide-react";
 import {
   getReportsByMarketType,
@@ -959,11 +960,11 @@ export default function HistoryPage() {
                               );
                             })()}
                           </CardContent>
-                          <CardFooter className="flex gap-2 flex-wrap">
+                          <CardFooter className="grid grid-cols-2 gap-2">
                             <Button
                               variant="default"
                               size="sm"
-                              className="flex-1 gap-1"
+                              className="w-full gap-1"
                               onClick={() => handleViewReport(report)}
                             >
                               <Eye className="h-4 w-4" />
@@ -972,7 +973,7 @@ export default function HistoryPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="gap-1"
+                              className="w-full gap-1"
                               onClick={() => handleDownloadPdf(report)}
                               disabled={downloadingId === report.id}
                             >
@@ -988,10 +989,21 @@ export default function HistoryPage() {
                                 </>
                               )}
                             </Button>
+                            
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="col-span-2 w-full gap-2 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-950/50"
+                              onClick={() => router.push(`/history/chat?ticker=${report.ticker}&date=${report.analysis_date}&market=${report.market_type}`)}
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                              報告問答 — {t.chat?.allReports || "全部報告"}
+                            </Button>
+                            
                             <Button
                               variant="destructive"
                               size="sm"
-                              className="gap-1"
+                              className="col-span-2 w-full gap-1"
                               onClick={() => handleDeleteClick(report)}
                             >
                               <Trash2 className="h-4 w-4" />

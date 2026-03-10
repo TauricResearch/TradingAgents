@@ -10,6 +10,8 @@ import type {
   Ticker,
   TaskCreatedResponse,
   TaskStatusResponse,
+  ChatMessageRequest,
+  ChatMessageResponse,
 } from "./types";
 
 const apiClient = axios.create({
@@ -79,5 +81,16 @@ export const api = {
       console.warn("Task cleanup failed (will auto-expire in 10 minutes):", error);
       return { success: false, message: "Cleanup failed silently" };
     }
+  },
+
+  /**
+   * Send a chat message about analysis reports
+   */
+  async sendChatMessage(request: ChatMessageRequest): Promise<ChatMessageResponse> {
+    const response = await apiClient.post<ChatMessageResponse>(
+      "/api/chat",
+      request
+    );
+    return response.data;
   },
 };

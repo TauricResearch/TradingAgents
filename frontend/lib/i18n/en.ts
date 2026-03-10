@@ -626,6 +626,20 @@ export const en = {
     tradingRiskTeam: "Trading & Risk Team",
     members: "members",
   },
+
+  // Chat
+  chat: {
+    title: "Ask About Report",
+    placeholder: "Ask about this analysis report...",
+    send: "Send",
+    thinking: "Thinking...",
+    error: "Failed to get response. Please try again.",
+    emptyState: "Ask any question about this analysis report",
+    emptyHint: "e.g. \"What are the main risk factors?\"",
+    noApiKey: "Please configure your API key in settings first.",
+    allReports: "All Reports",
+    clearChat: "Clear chat",
+  },
 };
 
 export type TranslationKeys = typeof en;

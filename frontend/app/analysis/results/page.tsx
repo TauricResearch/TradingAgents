@@ -143,8 +143,6 @@ export default function AnalysisResultsPage() {
     );
   }
 
-  const currentAnalyst = ANALYSTS.find(a => a.key === selectedAnalyst);
-  const currentReport = getNestedValue(analysisResult.reports, currentAnalyst?.reportKey || "");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50/30 via-pink-50/20 to-purple-50/30 dark:from-gray-950 dark:via-purple-950/40 dark:to-gray-950">
@@ -253,16 +251,20 @@ export default function AnalysisResultsPage() {
                 {/* 分析師報告 */}
                 <Card className="animate-scale-up hover-lift">
                   <CardHeader>
-                    <CardTitle>{analyst.label} {t.results.report}</CardTitle>
-                    <CardDescription>
-                      {analyst.description}
-                    </CardDescription>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <CardTitle>{analyst.label} {t.results.report}</CardTitle>
+                        <CardDescription>
+                          {analyst.description}
+                        </CardDescription>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    {currentReport ? (
+                    {getNestedValue(analysisResult.reports, analyst.reportKey) ? (
                       <div className="prose prose-sm max-w-none dark:prose-invert animate-fade-in">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {currentReport}
+                          {getNestedValue(analysisResult.reports, analyst.reportKey)}
                         </ReactMarkdown>
                       </div>
                     ) : (

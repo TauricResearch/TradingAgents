@@ -62,6 +62,7 @@ def main():
         host=args.host,
         port=args.port,
         reload=reload,
+        reload_excludes=["frontend/*", "node_modules/*", "*.pyc", ".git/*"],
         log_level="info",
     )
 
