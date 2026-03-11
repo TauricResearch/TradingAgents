@@ -130,22 +130,24 @@ function HistoryChatContent() {
         } else if (isAuthenticated && isCloudSyncEnabled()) {
           // Fallback to cloud
           const cloudReports = await getCloudReports();
-          const cloudMatch = cloudReports.find(
-            (r) =>
-              r.ticker === ticker &&
-              r.analysis_date === dateStr &&
-              r.market_type === market
-          );
-          if (cloudMatch) {
-            setReport({
-              id: parseInt(cloudMatch.id.replace(/-/g, "").slice(0, 8), 16),
-              ticker: cloudMatch.ticker,
-              market_type: cloudMatch.market_type as any,
-              analysis_date: cloudMatch.analysis_date,
-              saved_at: new Date(cloudMatch.created_at),
-              result: cloudMatch.result,
-              language: cloudMatch.language,
-            });
+          if (cloudReports) {
+            const cloudMatch = cloudReports.find(
+              (r) =>
+                r.ticker === ticker &&
+                r.analysis_date === dateStr &&
+                r.market_type === market
+            );
+            if (cloudMatch) {
+              setReport({
+                id: parseInt(cloudMatch.id.replace(/-/g, "").slice(0, 8), 16),
+                ticker: cloudMatch.ticker,
+                market_type: cloudMatch.market_type as any,
+                analysis_date: cloudMatch.analysis_date,
+                saved_at: new Date(cloudMatch.created_at),
+                result: cloudMatch.result,
+                language: cloudMatch.language,
+              });
+            }
           }
         }
       } catch (err) {
