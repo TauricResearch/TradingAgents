@@ -30,8 +30,9 @@ if DATABASE_URL:
         DATABASE_URL,
         echo=False,  # Set to True for SQL debugging
         pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=10,
+        pool_size=20,
+        max_overflow=20,
+        pool_recycle=3600,
     )
     
     AsyncSessionLocal = async_sessionmaker(
