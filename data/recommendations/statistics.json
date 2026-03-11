@@ -1,5 +1,5 @@
 {
-  "total_recommendations": 449,
+  "total_recommendations": 459,
   "by_strategy": {
     "momentum": {
       "count": 136,
@@ -32,7 +32,7 @@
       "win_rate_30d": 100.0
     },
     "insider_buying": {
-      "count": 97,
+      "count": 103,
       "wins_1d": 34,
       "losses_1d": 62,
       "wins_7d": 48,
@@ -47,7 +47,7 @@
       "win_rate_30d": 61.9
     },
     "options_flow": {
-      "count": 67,
+      "count": 69,
       "wins_1d": 21,
       "losses_1d": 46,
       "wins_7d": 29,
@@ -167,7 +167,7 @@
       "win_rate_30d": 0.0
     },
     "social_hype": {
-      "count": 12,
+      "count": 13,
       "wins_1d": 0,
       "losses_1d": 12,
       "wins_7d": 2,
@@ -182,7 +182,7 @@
       "win_rate_30d": 50.0
     },
     "social_dd": {
-      "count": 19,
+      "count": 20,
       "wins_1d": 8,
       "losses_1d": 11,
       "wins_7d": 9,
