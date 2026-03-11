@@ -588,6 +588,7 @@ export const en = {
     cancel: "Cancel",
     deleting: "Deleting...",
     confirmDeleteBtn: "Confirm Delete",
+    syncing: "Syncing...",
   },
 
   // Errors

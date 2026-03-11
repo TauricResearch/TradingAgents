@@ -40,9 +40,9 @@ import {
 import {
   getReportsByMarketType,
   deleteReport,
-  getReportCountByMarketType,
   deleteReports,
   getAllReports,
+  bulkSaveReports,
   type SavedReport,
 } from "@/lib/reports-db";
 import {
@@ -406,6 +406,9 @@ export default function HistoryPage() {
   );
   const [deleting, setDeleting] = useState(false);
 
+  // Sync state
+  const [syncing, setSyncing] = useState(false);
+
   // Auto-sync tracking ref
   const hasAutoSyncedRef = useRef(false);
   const cloudReportsPromiseRef = useRef<Promise<any[]> | null>(null);
@@ -430,76 +433,66 @@ export default function HistoryPage() {
     loadCounts();
   }, [isAuthenticated, locale]);
 
-  // Auto-sync local reports to cloud when page loads (if authenticated)
-  useEffect(() => {
-    const autoSync = async () => {
-      // Only sync once per session, and only if authenticated
-      if (
-        hasAutoSyncedRef.current ||
-        !isAuthenticated ||
-        !isCloudSyncEnabled()
-      ) {
-        return;
+  // Bidirectional sync: upload local to cloud AND download cloud to local
+  const performBidirectionalSync = async (isInitialSync = false) => {
+    if (!isAuthenticated || !isCloudSyncEnabled()) {
+      return;
+    }
+
+    // For initial sync, only run once per session
+    if (isInitialSync && hasAutoSyncedRef.current) {
+      return;
+    }
+
+    if (isInitialSync) {
+      hasAutoSyncedRef.current = true;
+    }
+
+    try {
+      // First auto-clean local duplicates that might exist from older flawed versions
+      try {
+        const allLocal = await getAllReports();
+        const seenSignatures = new Set<string>();
+        const idsToDelete: number[] = [];
+
+        for (const report of allLocal) {
+          const signature = getReportSignature(report as any);
+          if (seenSignatures.has(signature)) {
+            if (report.id) idsToDelete.push(report.id);
+          } else {
+            seenSignatures.add(signature);
+          }
+        }
+
+        if (idsToDelete.length > 0) {
+          console.log(`🧹 Found ${idsToDelete.length} duplicate local reports, cleaning...`);
+          await deleteReports(idsToDelete);
+        }
+      } catch (err) {
+        console.error("Failed to cleanup local duplicates:", err);
       }
 
-      hasAutoSyncedRef.current = true;
+      // Get all local reports (re-fetch after cleanup)
+      const [usLocal, twseLocal, tpexLocal] = await Promise.all([
+        getReportsByMarketType("us"),
+        getReportsByMarketType("twse"),
+        getReportsByMarketType("tpex"),
+      ]);
+      const allLocal = [...usLocal, ...twseLocal, ...tpexLocal];
 
-      try {
-        // First auto-clean local duplicates that might exist from older flawed versions
-        try {
-          const allLocal = await getAllReports();
-          const seenSignatures = new Set<string>();
-          const idsToDelete: number[] = [];
+      // Get cloud reports
+      const cloudReports = await fetchCloudReportsCached(true); // Force refresh
+      const cloudKeys = new Set(cloudReports.map((r) => getReportSignature(r)));
+      const localKeys = new Set(allLocal.map((r) => getReportSignature(r)));
 
-          for (const report of allLocal) {
-            const signature = getReportSignature(report as any);
-            if (seenSignatures.has(signature)) {
-              if (report.id) idsToDelete.push(report.id);
-            } else {
-              seenSignatures.add(signature);
-            }
-          }
+      // === UPLOAD: Local -> Cloud ===
+      const toUpload = allLocal.filter(
+        (r) => !cloudKeys.has(getReportSignature(r)),
+      );
 
-          if (idsToDelete.length > 0) {
-            console.log(`🧹 Found ${idsToDelete.length} duplicate local reports from flawed storage, cleaning them up...`);
-            await deleteReports(idsToDelete);
-          }
-        } catch (err) {
-          console.error("Failed to cleanup local duplicates:", err);
-        }
-
-        // Get all local reports (re-fetch after cleanup)
-        const [usLocal, twseLocal, tpexLocal] = await Promise.all([
-          getReportsByMarketType("us"),
-          getReportsByMarketType("twse"),
-          getReportsByMarketType("tpex"),
-        ]);
-        const allLocal = [...usLocal, ...twseLocal, ...tpexLocal];
-
-        if (allLocal.length === 0) return;
-
-        // Get cloud reports to check for duplicates
-        const cloudReports = await fetchCloudReportsCached();
-        const cloudKeys = new Set(
-          cloudReports.map((r) => getReportSignature(r)),
-        );
-
-        // Find local-only reports to upload
-        const toUpload = allLocal.filter(
-          (r) => !cloudKeys.has(getReportSignature(r)),
-        );
-
-        if (toUpload.length === 0) {
-          console.log("☁️ Auto-sync: All reports already in cloud");
-          return;
-        }
-
-        console.log(
-          `☁️ Auto-sync: Uploading ${toUpload.length} local reports to cloud...`,
-        );
-
-        // Upload each report silently
-        let success = 0;
+      if (toUpload.length > 0) {
+        console.log(`☁️ Sync: Uploading ${toUpload.length} local reports to cloud...`);
+        let uploadSuccess = 0;
         for (const report of toUpload) {
           try {
             const cloudId = await saveCloudReport({
@@ -507,31 +500,107 @@ export default function HistoryPage() {
               market_type: report.market_type,
               analysis_date: report.analysis_date,
               result: report.result,
+              language: report.language || detectReportLanguage(report.result?.reports),
             });
-            if (cloudId) success++;
+            if (cloudId) uploadSuccess++;
           } catch (e) {
             // Silently continue on error
           }
         }
-
-        if (success > 0) {
-          console.log(`☁️ Auto-sync: Successfully uploaded ${success} reports`);
-          // Reload to show updated data
-          await fetchCloudReportsCached(true);
-          await loadReports();
-          await loadCounts();
+        if (uploadSuccess > 0) {
+          console.log(`☁️ Sync: Uploaded ${uploadSuccess} reports to cloud`);
         }
-      } catch (error) {
-        console.error("☁️ Auto-sync failed:", error);
+      }
+
+      // === DOWNLOAD: Cloud -> Local ===
+      const toDownload = cloudReports.filter(
+        (r) => !localKeys.has(getReportSignature(r)),
+      );
+
+      if (toDownload.length > 0) {
+        console.log(`☁️ Sync: Downloading ${toDownload.length} cloud reports to local...`);
+        const reportsToSave = toDownload.map((r) => ({
+          ticker: r.ticker,
+          market_type: r.market_type as "us" | "twse" | "tpex",
+          analysis_date: r.analysis_date,
+          saved_at: parseUTCDate(r.created_at),
+          result: r.result,
+          language: (r.language || detectReportLanguage(r.result?.reports)) as "en" | "zh-TW" | undefined,
+        }));
+
+        const savedCount = await bulkSaveReports(reportsToSave);
+        if (savedCount > 0) {
+          console.log(`☁️ Sync: Downloaded ${savedCount} reports to local`);
+        }
+      }
+
+      // === DELETE SYNC: Remove local reports that were deleted from cloud ===
+      // Only delete reports that are old enough (> 2 minutes) to avoid deleting newly saved reports
+      const TWO_MINUTES_AGO = Date.now() - 2 * 60 * 1000;
+      const toDeleteLocal = allLocal.filter((localReport) => {
+        // Don't delete recently saved reports (might not be uploaded yet)
+        const savedTime = new Date(localReport.saved_at).getTime();
+        if (savedTime > TWO_MINUTES_AGO) {
+          return false;
+        }
+        // If local report is not in cloud, it was likely deleted on another device
+        return !cloudKeys.has(getReportSignature(localReport));
+      });
+
+      if (toDeleteLocal.length > 0) {
+        console.log(`☁️ Sync: Removing ${toDeleteLocal.length} locally cached reports that were deleted from cloud...`);
+        const idsToDelete = toDeleteLocal
+          .map((r) => r.id)
+          .filter((id): id is number => id !== undefined);
+        if (idsToDelete.length > 0) {
+          await deleteReports(idsToDelete);
+          console.log(`☁️ Sync: Removed ${idsToDelete.length} local reports`);
+        }
+      }
+
+      // Reload UI if any changes
+      if (toUpload.length > 0 || toDownload.length > 0 || toDeleteLocal.length > 0) {
+        await loadReports();
+        await loadCounts();
+      } else {
+        console.log("☁️ Sync: Already in sync");
+      }
+    } catch (error) {
+      console.error("☁️ Sync failed:", error);
+    }
+  };
+
+  // Initial sync when page loads (if authenticated)
+  useEffect(() => {
+    performBidirectionalSync(true);
+  }, [isAuthenticated]);
+
+  // Re-sync when page becomes visible (handles cross-device changes)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && isAuthenticated && isCloudSyncEnabled()) {
+        console.log("☁️ Page visible, checking for updates...");
+        performBidirectionalSync(false);
       }
     };
 
-    autoSync();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [isAuthenticated]);
 
   const loadReports = async () => {
     setLoading(true);
     try {
+      // Helper to filter reports by current UI language
+      const filterByLang = (reports: SavedReport[]) => {
+        return reports.filter((report) => {
+          const reportLang = report.language || detectReportLanguage(report.result?.reports);
+          return reportLang === locale;
+        });
+      };
+
       // Always load local IndexedDB reports first
       const localData = await getReportsByMarketType(activeTab);
 
@@ -574,18 +643,25 @@ export default function HistoryPage() {
               new Date(b.saved_at).getTime() - new Date(a.saved_at).getTime(),
           );
 
-          setReports(merged);
+          // Filter by current UI language before display
+          setReports(filterByLang(merged));
           setIsCloudData(true);
           return;
         }
       }
 
-      setReports(localData);
+      // Filter local data by language before display
+      setReports(filterByLang(localData));
       setIsCloudData(false);
     } catch (error) {
       console.error("Failed to load reports:", error);
       const data = await getReportsByMarketType(activeTab);
-      setReports(data as SavedReport[]);
+      // Filter by language on error fallback too
+      const filtered = data.filter((report) => {
+        const reportLang = report.language || detectReportLanguage(report.result?.reports);
+        return reportLang === locale;
+      });
+      setReports(filtered as SavedReport[]);
       setIsCloudData(false);
     } finally {
       setLoading(false);
@@ -594,9 +670,14 @@ export default function HistoryPage() {
 
   const loadCounts = async () => {
     try {
-      // Helper to filter reports by language
+      // Helper to filter reports by language (matches current UI locale)
       const filterByLanguage = (reports: SavedReport[]) => {
-        return reports;
+        return reports.filter((report) => {
+          // Get report language - use stored value or detect from content
+          const reportLang = report.language || detectReportLanguage(report.result?.reports);
+          // Match against current locale
+          return reportLang === locale;
+        });
       };
       
       if (isAuthenticated && isCloudSyncEnabled()) {
@@ -672,6 +753,20 @@ export default function HistoryPage() {
     }
   };
 
+  // Handle refresh button - performs full sync if authenticated
+  const handleRefresh = async () => {
+    if (isAuthenticated && isCloudSyncEnabled()) {
+      setSyncing(true);
+      try {
+        await performBidirectionalSync(false);
+      } finally {
+        setSyncing(false);
+      }
+    } else {
+      await loadReports();
+    }
+  };
+
   const handleViewReport = (report: SavedReport) => {
     // Set the context with the saved report data
     setAnalysisResult(report.result);
@@ -701,17 +796,26 @@ export default function HistoryPage() {
       }
 
       // 2. Always try to delete from local IndexedDB as well
-      // Find exact matching local report by signature
+      // Use strict matching: ticker + date + market_type + language
       try {
         const localReports = await getReportsByMarketType(
           reportToDelete.market_type,
         );
-        const targetSignature = getReportSignature(reportToDelete);
-        const matchingLocal = localReports.find(
-          (r) => getReportSignature(r) === targetSignature
-        );
+        // Get language of report to delete (use stored or detect)
+        const targetLang = reportToDelete.language || detectReportLanguage(reportToDelete.result?.reports);
+
+        // Find matching report with same ticker, date, market, AND language
+        const matchingLocal = localReports.find((r) => {
+          if (r.ticker !== reportToDelete.ticker) return false;
+          if (r.analysis_date !== reportToDelete.analysis_date) return false;
+          if (r.market_type !== reportToDelete.market_type) return false;
+          // Match language (detect if not stored)
+          const localLang = r.language || detectReportLanguage(r.result?.reports);
+          return localLang === targetLang;
+        });
+
         if (matchingLocal && matchingLocal.id) {
-          console.log("🗑️ Deleting from local IndexedDB:", matchingLocal.id);
+          console.log("🗑️ Deleting from local IndexedDB:", matchingLocal.id, "language:", targetLang);
           await deleteReport(matchingLocal.id);
         }
       } catch (localError) {
@@ -900,19 +1004,19 @@ export default function HistoryPage() {
             ).map((marketType) => (
               <TabsContent key={marketType} value={marketType} className="mt-6">
                 <div className="space-y-4">
-                  {/* Refresh button */}
+                  {/* Refresh/Sync button */}
                   <div className="flex justify-end">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={loadReports}
-                      disabled={loading}
+                      onClick={handleRefresh}
+                      disabled={loading || syncing}
                       className="gap-2"
                     >
                       <RefreshCw
-                        className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                        className={`h-4 w-4 ${loading || syncing ? "animate-spin" : ""}`}
                       />
-                      {t.history.refresh}
+                      {syncing ? t.history.syncing : t.history.refresh}
                     </Button>
                   </div>
 

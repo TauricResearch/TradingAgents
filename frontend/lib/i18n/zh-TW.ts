@@ -470,6 +470,7 @@ export const zhTW = {
     cancel: "取消",
     deleting: "刪除中...",
     confirmDeleteBtn: "確認刪除",
+    syncing: "同步中...",
   },
 
   // Errors

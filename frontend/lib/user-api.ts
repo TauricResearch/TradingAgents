@@ -73,13 +73,33 @@ export async function saveCloudSettings(settings: ApiSettings): Promise<boolean>
 }
 
 /**
- * Fetch all reports from cloud
+ * Options for fetching cloud reports
  */
-export async function getCloudReports(): Promise<CloudReport[]> {
+interface GetCloudReportsOptions {
+  market_type?: "us" | "twse" | "tpex";
+  language?: "en" | "zh-TW";
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Fetch reports from cloud with optional filtering and pagination
+ */
+export async function getCloudReports(options?: GetCloudReportsOptions): Promise<CloudReport[]> {
   if (!isCloudSyncEnabled()) return [];
 
   try {
-    const response = await fetch(`${API_BASE}/api/user/reports`, {
+    // Build query params
+    const params = new URLSearchParams();
+    if (options?.market_type) params.set("market_type", options.market_type);
+    if (options?.language) params.set("language", options.language);
+    if (options?.limit) params.set("limit", options.limit.toString());
+    if (options?.offset) params.set("offset", options.offset.toString());
+
+    const queryString = params.toString();
+    const url = `${API_BASE}/api/user/reports${queryString ? `?${queryString}` : ""}`;
+
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
 

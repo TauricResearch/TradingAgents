@@ -70,6 +70,12 @@ async def init_db():
             # Add indexes to optimize queries
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_id ON reports (user_id);"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_created_at ON reports (created_at);"))
+            # Add composite index for common query pattern (user_id + created_at DESC)
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_created ON reports (user_id, created_at DESC);"))
+            # Add index for language filtering
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_language ON reports (language);"))
+            # Add composite index for user + market_type + language queries
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_market_lang ON reports (user_id, market_type, language);"))
         except Exception as e:
             print(f"Skipping manual migration (might be SQLite or syntax not supported): {e}")
     

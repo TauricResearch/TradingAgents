@@ -151,16 +151,38 @@ async def update_settings(
 @router.get("/reports", response_model=List[ReportResponse])
 async def get_reports(
     user: User = Depends(get_current_user_required),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    market_type: Optional[str] = None,
+    language: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0
 ):
-    """Get all user's reports"""
-    result = await db.execute(
-        select(Report)
-        .where(Report.user_id == user.id)
-        .order_by(Report.created_at.desc())
-    )
+    """Get user's reports with optional filtering and pagination
+
+    Args:
+        market_type: Filter by market type (us, twse, tpex)
+        language: Filter by language (en, zh-TW)
+        limit: Maximum number of reports to return (default 100, max 500)
+        offset: Number of reports to skip for pagination
+    """
+    # Cap limit at 500 to prevent memory issues
+    limit = min(limit, 500)
+
+    # Build query with filters
+    query = select(Report).where(Report.user_id == user.id)
+
+    if market_type:
+        query = query.where(Report.market_type == market_type)
+
+    if language:
+        query = query.where(Report.language == language)
+
+    # Order by created_at DESC and apply pagination
+    query = query.order_by(Report.created_at.desc()).offset(offset).limit(limit)
+
+    result = await db.execute(query)
     reports = result.scalars().all()
-    
+
     return [
         ReportResponse(
             id=str(r.id),

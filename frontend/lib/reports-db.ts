@@ -137,6 +137,51 @@ export async function checkDuplicateReport(
 }
 
 /**
+ * Check if a report exists by ticker, date, market type, and language
+ * Used for bidirectional sync to prevent duplicates
+ */
+export async function findExistingReport(
+  ticker: string,
+  analysis_date: string,
+  market_type: "us" | "twse" | "tpex",
+  language?: "en" | "zh-TW",
+): Promise<SavedReport | undefined> {
+  return await db.reports
+    .where("ticker")
+    .equals(ticker)
+    .and(
+      (report) =>
+        report.analysis_date === analysis_date &&
+        report.market_type === market_type &&
+        report.language === language
+    )
+    .first();
+}
+
+/**
+ * Bulk save reports to the database (for syncing from cloud)
+ * Skips reports that already exist locally
+ */
+export async function bulkSaveReports(
+  reports: Omit<SavedReport, "id">[]
+): Promise<number> {
+  let savedCount = 0;
+  for (const report of reports) {
+    const existing = await findExistingReport(
+      report.ticker,
+      report.analysis_date,
+      report.market_type,
+      report.language
+    );
+    if (!existing) {
+      await db.reports.add(report as SavedReport);
+      savedCount++;
+    }
+  }
+  return savedCount;
+}
+
+/**
  * Clear all reports from the database (for logout)
  */
 export async function clearAllReports(): Promise<void> {
