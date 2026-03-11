@@ -401,13 +401,13 @@ export default function HistoryPage() {
 
   // Auto-sync tracking ref
   const hasAutoSyncedRef = useRef(false);
-  const cloudReportsPromiseRef = useRef<Promise<any[]> | null>(null);
+  const cloudReportsPromiseRef = useRef<Promise<any[] | null> | null>(null);
 
   const fetchCloudReportsCached = async (forceRefresh = false) => {
     if (forceRefresh || !cloudReportsPromiseRef.current) {
       cloudReportsPromiseRef.current = getCloudReports().catch(() => {
         cloudReportsPromiseRef.current = null;
-        return [];
+        return null;
       });
     }
     return cloudReportsPromiseRef.current;
@@ -483,6 +483,10 @@ export default function HistoryPage() {
 
       // Get cloud reports
       const cloudReports = await fetchCloudReportsCached(true); // Force refresh
+      if (!cloudReports) {
+        console.warn("☁️ Sync: Failed to fetch cloud reports. Aborting sync to prevent data loss.");
+        return; // Abort sync if fetching fails
+      }
       const cloudKeys = new Set(cloudReports.map((r) => getReportSignature(r)));
       const localKeys = new Set(allLocal.map((r) => getReportSignature(r)));
 
@@ -609,9 +613,10 @@ export default function HistoryPage() {
       if (isAuthenticated && isCloudSyncEnabled()) {
         const cloudReports = await fetchCloudReportsCached();
 
-        // Convert cloud reports to SavedReport format and filter by market type
-        const cloudFiltered = cloudReports
-          .filter((r) => r.market_type === activeTab)
+        if (cloudReports) {
+          // Convert cloud reports to SavedReport format and filter by market type
+          const cloudFiltered = cloudReports
+            .filter((r) => r.market_type === activeTab)
           .map((r) => ({
             id: parseInt(r.id.replace(/-/g, "").slice(0, 8), 16), // Convert UUID to number
             cloudId: r.id, // Keep cloud ID for deletion
@@ -649,6 +654,7 @@ export default function HistoryPage() {
           setIsCloudData(true);
           return;
         }
+        } // Added missing closing brace for if (cloudReports)
       }
 
       // Filter local data by language before display
@@ -684,7 +690,7 @@ export default function HistoryPage() {
       if (isAuthenticated && isCloudSyncEnabled()) {
         const cloudReports = await fetchCloudReportsCached();
         
-        if (cloudReports.length > 0) {
+        if (cloudReports && cloudReports.length > 0) {
           // Get local reports to check for duplicates
           const [usLocal, twseLocal, tpexLocal] = await Promise.all([
             getReportsByMarketType("us"),
@@ -794,24 +800,29 @@ export default function HistoryPage() {
       // 1. Delete from cloud: delete the specific report AND any other duplicates with the same key
       try {
         const allCloudReports = await fetchCloudReportsCached(true);
-        const matchingCloudIds = allCloudReports
-          .filter((r) => {
-            const lang = r.language || "zh-TW";
-            return (
-              r.ticker === reportToDelete.ticker &&
-              r.analysis_date === reportToDelete.analysis_date &&
-              r.market_type === reportToDelete.market_type &&
-              lang === (targetLang || "zh-TW")
-            );
-          })
-          .map((r) => r.id);
+        if (allCloudReports) {
+          const matchingCloudIds = allCloudReports
+            .filter((r) => {
+              const lang = r.language || "zh-TW";
+              return (
+                r.ticker === reportToDelete.ticker &&
+                r.analysis_date === reportToDelete.analysis_date &&
+                r.market_type === reportToDelete.market_type &&
+                lang === (targetLang || "zh-TW")
+              );
+            })
+            .map((r) => r.id);
 
-        if (matchingCloudIds.length > 0) {
-          console.log(`🗑️ Deleting ${matchingCloudIds.length} cloud report(s):`, matchingCloudIds);
-          await Promise.all(matchingCloudIds.map((id) => deleteCloudReport(id)));
+          if (matchingCloudIds.length > 0) {
+            console.log(`🗑️ Deleting ${matchingCloudIds.length} cloud report(s):`, matchingCloudIds);
+            await Promise.all(matchingCloudIds.map((id) => deleteCloudReport(id)));
+          } else if (cloudId) {
+            // Fallback: delete by cloudId if no match found by key
+            console.log("🗑️ Deleting from cloud by ID:", cloudId);
+            await deleteCloudReport(cloudId);
+          }
         } else if (cloudId) {
-          // Fallback: delete by cloudId if no match found by key
-          console.log("🗑️ Deleting from cloud by ID:", cloudId);
+          console.log("🗑️ Deleting from cloud by original ID because fetch failed:", cloudId);
           await deleteCloudReport(cloudId);
         }
       } catch (cloudErr) {

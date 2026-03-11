@@ -182,19 +182,33 @@ async def get_reports(
 
     result = await db.execute(query)
     reports = result.scalars().all()
-
-    return [
-        ReportResponse(
-            id=str(r.id),
-            ticker=r.ticker,
-            market_type=r.market_type,
-            analysis_date=r.analysis_date,
-            result=r.result,
-            language=r.language,
-            created_at=r.created_at.isoformat() + "Z"
+    
+    # Process reports to strip large payloads for the list view
+    optimized_reports = []
+    for r in reports:
+        # Create a copy of the result to avoid modifying SQLAlchemy objects directly
+        if r.result and isinstance(r.result, dict):
+            # Shallow copy the dictionary
+            optimized_result = dict(r.result)
+            # Remove the massive reports field if it exists
+            if "reports" in optimized_result:
+                optimized_result["reports"] = None
+        else:
+            optimized_result = r.result
+            
+        optimized_reports.append(
+            ReportResponse(
+                id=str(r.id),
+                ticker=r.ticker,
+                market_type=r.market_type,
+                analysis_date=r.analysis_date,
+                result=optimized_result,
+                language=r.language,
+                created_at=r.created_at.isoformat() + "Z"
+            )
         )
-        for r in reports
-    ]
+
+    return optimized_reports
 
 
 @router.post("/reports")

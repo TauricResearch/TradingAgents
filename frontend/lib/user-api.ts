@@ -85,7 +85,7 @@ interface GetCloudReportsOptions {
 /**
  * Fetch reports from cloud with optional filtering and pagination
  */
-export async function getCloudReports(options?: GetCloudReportsOptions): Promise<CloudReport[]> {
+export async function getCloudReports(options?: GetCloudReportsOptions): Promise<CloudReport[] | null> {
   if (!isCloudSyncEnabled()) return [];
 
   try {
@@ -111,7 +111,7 @@ export async function getCloudReports(options?: GetCloudReportsOptions): Promise
     return await response.json();
   } catch (error) {
     console.error("Failed to fetch cloud reports:", error);
-    return [];
+    return null; // Return null instead of [] to indicate fetch failure
   }
 }
 
