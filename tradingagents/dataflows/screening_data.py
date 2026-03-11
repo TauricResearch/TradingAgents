@@ -5,12 +5,23 @@ bypassing LangChain tool wrappers for performance.
 """
 
 import logging
+import re
+import time
 from datetime import datetime, timedelta
+from io import StringIO
 from typing import Optional
 
 import pandas as pd
+import requests
 
 logger = logging.getLogger(__name__)
+
+_NAVER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
+}
 
 
 def get_krx_universe(
@@ -34,7 +45,18 @@ def get_krx_universe(
         logger.warning(f"FDR KRX listing failed: {e}")
 
     if listing is None or listing.empty:
-        logger.info("Using fallback KRX universe (top stocks by market cap)")
+        logger.info("FDR failed, trying Naver Finance...")
+        try:
+            listing = _get_naver_krx_universe(
+                min_market_cap=min_market_cap,
+            )
+            if listing is not None and not listing.empty:
+                logger.info(f"Naver Finance universe: {len(listing)} stocks")
+                return listing.reset_index(drop=True)
+        except Exception as e:
+            logger.warning(f"Naver Finance failed: {e}")
+
+        logger.info("Using fallback KRX universe (hardcoded top stocks)")
         listing = _get_krx_fallback_universe()
         is_fallback = True
 
@@ -300,6 +322,94 @@ def _get_nasdaq100_tickers() -> list[str]:
         "AMAT", "VRTX", "ADP", "GILD", "SBUX", "MDLZ", "ADI", "LRCX",
         "PANW", "MU", "REGN", "SNPS", "KLAC", "CDNS", "PYPL", "MAR",
     ]
+
+
+def _get_naver_krx_universe(
+    min_market_cap: float = 500_000_000_000,
+    max_pages: int = 10,
+) -> pd.DataFrame:
+    """Get KRX stocks from Naver Finance market cap ranking.
+
+    Scrapes KOSPI (sosok=0) and KOSDAQ (sosok=1) pages.
+    Returns DataFrame with columns: Code, Name, Market, Sector, MarketCap, Volume.
+    """
+    from bs4 import BeautifulSoup
+
+    all_rows = []
+
+    for sosok, market_name in [(0, "KOSPI"), (1, "KOSDAQ")]:
+        for page in range(1, max_pages + 1):
+            url = f"https://finance.naver.com/sise/sise_market_sum.naver?sosok={sosok}&page={page}"
+            try:
+                resp = requests.get(url, headers=_NAVER_HEADERS, timeout=10)
+                resp.raise_for_status()
+            except Exception as e:
+                logger.warning(f"Naver Finance request failed (sosok={sosok}, page={page}): {e}")
+                break
+
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            # Parse table rows
+            table = soup.select_one("table.type_2")
+            if not table:
+                break
+
+            rows = table.select("tr")
+            found_any = False
+            for row in rows:
+                tds = row.select("td")
+                if len(tds) < 10:
+                    continue
+
+                # Extract ticker code from link
+                link = tds[1].select_one("a[href*='/item/main.naver?code=']")
+                if not link:
+                    continue
+
+                code_match = re.search(r"code=(\d+)", link["href"])
+                if not code_match:
+                    continue
+
+                code = code_match.group(1)
+                name = link.text.strip()
+
+                # Parse numeric values (remove commas)
+                def parse_num(td):
+                    text = td.text.strip().replace(",", "").replace("%", "")
+                    try:
+                        return float(text)
+                    except ValueError:
+                        return 0
+
+                market_cap = parse_num(tds[6]) * 1_0000_0000  # 억 → 원
+                volume = parse_num(tds[9])
+
+                all_rows.append({
+                    "Code": code,
+                    "Name": name,
+                    "Market": market_name,
+                    "Sector": "",
+                    "MarketCap": market_cap,
+                    "Volume": volume,
+                })
+                found_any = True
+
+            if not found_any:
+                break
+
+            time.sleep(0.3)  # Rate limiting
+
+    if not all_rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(all_rows)
+
+    # Filter by market cap
+    if min_market_cap > 0:
+        df = df[df["MarketCap"] >= min_market_cap]
+
+    logger.info(f"Naver Finance: {len(df)} stocks loaded")
+    return df.reset_index(drop=True)
 
 
 def _get_krx_fallback_universe() -> pd.DataFrame:
