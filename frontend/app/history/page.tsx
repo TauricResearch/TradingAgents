@@ -574,43 +574,18 @@ export default function HistoryPage() {
               new Date(b.saved_at).getTime() - new Date(a.saved_at).getTime(),
           );
 
-          // Filter by current language
-          const languageFiltered = merged.filter((report) => {
-            // Use stored language if available
-            if (report.language) {
-              return report.language === locale;
-            }
-            // Fallback: detect from content for old reports without language field
-            return detectReportLanguage(report.result?.reports) === locale;
-          });
-
-          setReports(languageFiltered);
+          setReports(merged);
           setIsCloudData(true);
           return;
         }
       }
 
-      // If no cloud data or not authenticated, use local only
-      // Filter by current language
-      const languageFiltered = localData.filter((report) => {
-        if (report.language) {
-          return report.language === locale;
-        }
-        return detectReportLanguage(report.result?.reports) === locale;
-      });
-      setReports(languageFiltered);
+      setReports(localData);
       setIsCloudData(false);
     } catch (error) {
       console.error("Failed to load reports:", error);
-      // Fall back to local on error
       const data = await getReportsByMarketType(activeTab);
-      const languageFiltered = data.filter((report) => {
-        if (report.language) {
-          return report.language === locale;
-        }
-        return detectReportLanguage(report.result?.reports) === locale;
-      });
-      setReports(languageFiltered);
+      setReports(data as SavedReport[]);
       setIsCloudData(false);
     } finally {
       setLoading(false);
@@ -621,12 +596,7 @@ export default function HistoryPage() {
     try {
       // Helper to filter reports by language
       const filterByLanguage = (reports: SavedReport[]) => {
-        return reports.filter(report => {
-          if (report.language) {
-            return report.language === locale;
-          }
-          return detectReportLanguage(report.result?.reports) === locale;
-        });
+        return reports;
       };
       
       if (isAuthenticated && isCloudSyncEnabled()) {

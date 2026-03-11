@@ -38,6 +38,7 @@ class ReportCreate(BaseModel):
     market_type: str  # us, twse, tpex
     analysis_date: str
     result: dict
+    language: Optional[str] = None
 
 
 class ReportResponse(BaseModel):
@@ -47,6 +48,7 @@ class ReportResponse(BaseModel):
     market_type: str
     analysis_date: str
     result: dict
+    language: Optional[str] = None
     created_at: str
 
 
@@ -166,6 +168,7 @@ async def get_reports(
             market_type=r.market_type,
             analysis_date=r.analysis_date,
             result=r.result,
+            language=r.language,
             created_at=r.created_at.isoformat() + "Z"
         )
         for r in reports
@@ -184,7 +187,8 @@ async def create_report(
         ticker=report_data.ticker,
         market_type=report_data.market_type,
         analysis_date=report_data.analysis_date,
-        result=report_data.result
+        result=report_data.result,
+        language=report_data.language
     )
     db.add(report)
     await db.commit()
@@ -223,6 +227,7 @@ async def get_report(
         market_type=report.market_type,
         analysis_date=report.analysis_date,
         result=report.result,
+        language=report.language,
         created_at=report.created_at.isoformat() + "Z"
     )
 

@@ -62,6 +62,16 @@ async def init_db():
     async with engine.begin() as conn:
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Manual migrations for existing databases
+        try:
+            # Add language column if it doesn't exist
+            await conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS language VARCHAR(10);"))
+            # Add indexes to optimize queries
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_id ON reports (user_id);"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_created_at ON reports (created_at);"))
+        except Exception as e:
+            print(f"Skipping manual migration (might be SQLite or syntax not supported): {e}")
     
     print("Database tables initialized successfully")
 
