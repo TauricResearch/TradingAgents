@@ -177,6 +177,26 @@ export async function deleteCloudReport(reportId: string): Promise<boolean> {
 }
 
 /**
+ * Remove duplicate reports from cloud (keeps newest per ticker/date/market/language)
+ */
+export async function cleanupDuplicateCloudReports(): Promise<{ deleted: number } | null> {
+  if (!isCloudSyncEnabled()) return null;
+
+  try {
+    const response = await fetch(`${API_BASE}/api/user/reports/cleanup-duplicates`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to cleanup duplicate cloud reports:", error);
+    return null;
+  }
+}
+
+/**
  * Get a single report by ID from cloud
  */
 export async function getCloudReportById(reportId: string): Promise<CloudReport | null> {

@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from datetime import datetime
 
 from backend.app.db import get_db, User, UserSettings, Report
@@ -203,19 +203,45 @@ async def create_report(
     user: User = Depends(get_current_user_required),
     db: AsyncSession = Depends(get_db)
 ):
-    """Save a new report"""
+    """Save a report (upsert: update if same ticker/date/market_type/language exists)"""
+    # Normalize language: treat None as "zh-TW" to avoid NULL matching issues
+    language = report_data.language or "zh-TW"
+
+    # Check for existing report with same key to prevent duplicates
+    existing_result = await db.execute(
+        select(Report)
+        .where(Report.user_id == user.id)
+        .where(Report.ticker == report_data.ticker)
+        .where(Report.analysis_date == report_data.analysis_date)
+        .where(Report.market_type == report_data.market_type)
+        .where(func.coalesce(Report.language, "zh-TW") == language)
+    )
+    existing = existing_result.scalar_one_or_none()
+
+    if existing:
+        # Update existing report instead of creating a duplicate
+        existing.result = report_data.result
+        existing.language = language
+        await db.commit()
+        return {
+            "success": True,
+            "report_id": str(existing.id),
+            "message": "Report updated successfully"
+        }
+
+    # No existing report found — create new
     report = Report(
         user_id=user.id,
         ticker=report_data.ticker,
         market_type=report_data.market_type,
         analysis_date=report_data.analysis_date,
         result=report_data.result,
-        language=report_data.language
+        language=language,
     )
     db.add(report)
     await db.commit()
     await db.refresh(report)
-    
+
     return {
         "success": True,
         "report_id": str(report.id),
@@ -252,6 +278,47 @@ async def get_report(
         language=report.language,
         created_at=report.created_at.isoformat() + "Z"
     )
+
+
+@router.delete("/reports/cleanup-duplicates")
+async def cleanup_duplicate_reports(
+    user: User = Depends(get_current_user_required),
+    db: AsyncSession = Depends(get_db)
+):
+    """Remove duplicate reports, keeping only the most recent one per (ticker, analysis_date, market_type, language)"""
+    # Fetch all user reports ordered newest first
+    result = await db.execute(
+        select(Report)
+        .where(Report.user_id == user.id)
+        .order_by(Report.created_at.desc())
+    )
+    all_reports = result.scalars().all()
+
+    seen: set = set()
+    ids_to_delete: list = []
+
+    for report in all_reports:
+        # Normalize language
+        lang = report.language or "zh-TW"
+        key = (report.ticker, report.analysis_date, report.market_type, lang)
+        if key in seen:
+            ids_to_delete.append(report.id)
+        else:
+            seen.add(key)
+
+    if ids_to_delete:
+        await db.execute(
+            delete(Report)
+            .where(Report.user_id == user.id)
+            .where(Report.id.in_(ids_to_delete))
+        )
+        await db.commit()
+
+    return {
+        "success": True,
+        "deleted": len(ids_to_delete),
+        "message": f"Cleaned up {len(ids_to_delete)} duplicate reports"
+    }
 
 
 @router.delete("/reports/{report_id}")

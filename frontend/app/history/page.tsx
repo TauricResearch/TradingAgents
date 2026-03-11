@@ -50,6 +50,7 @@ import {
   deleteCloudReport,
   saveCloudReport,
   isCloudSyncEnabled,
+  cleanupDuplicateCloudReports,
 } from "@/lib/user-api";
 // import { LoginPrompt } from "@/components/auth/login-button";
 import { PendingTaskRecovery } from "@/components/PendingTaskRecovery";
@@ -365,23 +366,12 @@ const parseUTCDate = (dateStr: string): Date => {
 
 /**
  * Helper to generate a unique signature for deduplication.
- * This ensures reports for the same ticker on the same day are not squashed together.
+ * Uses only stable key fields: ticker + date + market_type + language.
+ * Language is normalized to "zh-TW" when null/undefined to match backend behavior.
  */
 const getReportSignature = (report: any): string => {
-  const baseKey = `${report.ticker}_${report.analysis_date}_${report.market_type || 'us'}`;
-  
-  let contentHash = "";
-  if (report.result) {
-    if (report.result.reports?.trader_investment_plan) {
-      const plan = report.result.reports.trader_investment_plan;
-      contentHash = `${plan.length}_${plan.slice(-30).replace(/[\s\n\r]+/g, '')}`;
-    } else {
-      contentHash = JSON.stringify(report.result).length.toString();
-    }
-  }
-  
-  const langKey = report.language || "unknown_lang";
-  return `${baseKey}_${langKey}_${contentHash}`;
+  const lang = report.language || "zh-TW";
+  return `${report.ticker}_${report.analysis_date}_${report.market_type || 'us'}_${lang}`;
 };
 
 export default function HistoryPage() {
@@ -449,7 +439,18 @@ export default function HistoryPage() {
     }
 
     try {
-      // First auto-clean local duplicates that might exist from older flawed versions
+      // First cleanup backend duplicates (existing duplicates from old versions)
+      try {
+        const cleanupResult = await cleanupDuplicateCloudReports();
+        if (cleanupResult && cleanupResult.deleted > 0) {
+          console.log(`☁️ Cleaned up ${cleanupResult.deleted} duplicate reports from cloud DB`);
+          cloudReportsPromiseRef.current = null; // Force refresh after cleanup
+        }
+      } catch (err) {
+        console.warn("Cloud duplicate cleanup failed:", err);
+      }
+
+      // Then auto-clean local duplicates that might exist from older flawed versions
       try {
         const allLocal = await getAllReports();
         const seenSignatures = new Set<string>();
@@ -787,12 +788,38 @@ export default function HistoryPage() {
     setDeleting(true);
     try {
       const cloudId = (reportToDelete as any).cloudId;
+      const targetLang = reportToDelete.language || detectReportLanguage(reportToDelete.result?.reports);
 
       // IMPORTANT: Delete from BOTH cloud AND local to prevent re-sync issues
-      // 1. If cloud ID exists, delete from cloud
-      if (cloudId) {
-        console.log("🗑️ Deleting from cloud:", cloudId);
-        await deleteCloudReport(cloudId);
+      // 1. Delete from cloud: delete the specific report AND any other duplicates with the same key
+      try {
+        const allCloudReports = await fetchCloudReportsCached(true);
+        const matchingCloudIds = allCloudReports
+          .filter((r) => {
+            const lang = r.language || "zh-TW";
+            return (
+              r.ticker === reportToDelete.ticker &&
+              r.analysis_date === reportToDelete.analysis_date &&
+              r.market_type === reportToDelete.market_type &&
+              lang === (targetLang || "zh-TW")
+            );
+          })
+          .map((r) => r.id);
+
+        if (matchingCloudIds.length > 0) {
+          console.log(`🗑️ Deleting ${matchingCloudIds.length} cloud report(s):`, matchingCloudIds);
+          await Promise.all(matchingCloudIds.map((id) => deleteCloudReport(id)));
+        } else if (cloudId) {
+          // Fallback: delete by cloudId if no match found by key
+          console.log("🗑️ Deleting from cloud by ID:", cloudId);
+          await deleteCloudReport(cloudId);
+        }
+      } catch (cloudErr) {
+        console.warn("Could not delete cloud copy:", cloudErr);
+        // Fallback to original cloudId delete
+        if (cloudId) {
+          await deleteCloudReport(cloudId);
+        }
       }
 
       // 2. Always try to delete from local IndexedDB as well
