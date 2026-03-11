@@ -997,7 +997,7 @@ export default function HistoryPage() {
                               onClick={() => router.push(`/history/chat?ticker=${report.ticker}&date=${report.analysis_date}&market=${report.market_type}`)}
                             >
                               <MessageCircle className="h-4 w-4" />
-                              報告問答 — {t.chat?.allReports || "全部報告"}
+                              {t.chat?.title || "Report Chat"} — {t.chat?.allReports || "All Reports"}
                             </Button>
                             
                             <Button
