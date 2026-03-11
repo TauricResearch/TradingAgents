@@ -1,7 +1,9 @@
 import questionary
-from typing import List, Optional, Tuple, Dict
-
+from typing import List
+from rich.console import Console
 from cli.models import AnalystType
+
+console = Console()
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -146,13 +148,25 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
         ],
         "xai": [
-            ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
-            ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
-            ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
+            (
+                "Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx",
+                "grok-4-1-fast-non-reasoning",
+            ),
+            (
+                "Grok 4 Fast (Non-Reasoning) - Speed optimized",
+                "grok-4-fast-non-reasoning",
+            ),
+            (
+                "Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx",
+                "grok-4-1-fast-reasoning",
+            ),
             ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
         ],
         "openrouter": [
-            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            (
+                "NVIDIA Nemotron 3 Nano 30B (free)",
+                "nvidia/nemotron-3-nano-30b-a3b:free",
+            ),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
         ],
         "ollama": [
@@ -213,15 +227,27 @@ def select_deep_thinking_agent(provider) -> str:
             ("Gemini 2.5 Flash - Balanced, recommended", "gemini-2.5-flash"),
         ],
         "xai": [
-            ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
+            (
+                "Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx",
+                "grok-4-1-fast-reasoning",
+            ),
             ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
             ("Grok 4 - Flagship model", "grok-4-0709"),
-            ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
-            ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
+            (
+                "Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx",
+                "grok-4-1-fast-non-reasoning",
+            ),
+            (
+                "Grok 4 Fast (Non-Reasoning) - Speed optimized",
+                "grok-4-fast-non-reasoning",
+            ),
         ],
         "openrouter": [
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
-            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            (
+                "NVIDIA Nemotron 3 Nano 30B (free)",
+                "nvidia/nemotron-3-nano-30b-a3b:free",
+            ),
         ],
         "ollama": [
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
@@ -252,6 +278,7 @@ def select_deep_thinking_agent(provider) -> str:
 
     return choice
 
+
 def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
     # Define OpenAI api options with their corresponding endpoints
@@ -263,7 +290,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
-    
+
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
@@ -279,11 +306,11 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
         console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
         exit(1)
-    
+
     display_name, url = choice
     print(f"You selected: {display_name}\tURL: {url}")
 
@@ -300,11 +327,13 @@ def ask_openai_reasoning_effort() -> str:
     return questionary.select(
         "Select Reasoning Effort:",
         choices=choices,
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
     ).ask()
 
 
@@ -320,9 +349,11 @@ def ask_gemini_thinking_config() -> str | None:
             questionary.Choice("Enable Thinking (recommended)", "high"),
             questionary.Choice("Minimal/Disable Thinking", "minimal"),
         ],
-        style=questionary.Style([
-            ("selected", "fg:green noinherit"),
-            ("highlighted", "fg:green noinherit"),
-            ("pointer", "fg:green noinherit"),
-        ]),
+        style=questionary.Style(
+            [
+                ("selected", "fg:green noinherit"),
+                ("highlighted", "fg:green noinherit"),
+                ("pointer", "fg:green noinherit"),
+            ]
+        ),
     ).ask()
