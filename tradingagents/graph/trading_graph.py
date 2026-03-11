@@ -93,16 +93,30 @@ class TradingAgentsXGraph:
         deep_api_key = self.config.get("deep_think_api_key", os.getenv("OPENAI_API_KEY"))
         quick_api_key = self.config.get("quick_think_api_key", os.getenv("OPENAI_API_KEY"))
         
-        # Helper to initialize LLM based on URL/Provider
+        # Helper to initialize LLM based on model name/provider
         def _create_llm(model: str, base_url: str, api_key: str):
-            # Use ChatOpenAI for all providers including Anthropic's OpenAI-compatible endpoint
-            # Anthropic's /v1 endpoint is OpenAI-compatible, so we use ChatOpenAI
-            return ChatOpenAI(
-                model=model,
-                base_url=base_url,
-                openai_api_key=api_key,
-                max_tokens= 16384  # Prevent report truncation
-            )
+            # Anthropic models require ChatAnthropic (different auth header: x-api-key)
+            if model.startswith("claude-"):
+                return ChatAnthropic(
+                    model=model,
+                    anthropic_api_key=api_key,
+                    max_tokens=16384,
+                )
+            # Google Gemini models use ChatGoogleGenerativeAI
+            elif model.startswith("gemini-"):
+                return ChatGoogleGenerativeAI(
+                    model=model,
+                    google_api_key=api_key,
+                    max_output_tokens=16384,
+                )
+            # All other providers (OpenAI, Grok, DeepSeek, Qwen, custom) use OpenAI-compatible API
+            else:
+                return ChatOpenAI(
+                    model=model,
+                    base_url=base_url,
+                    openai_api_key=api_key,
+                    max_tokens=16384,
+                )
 
         # Initialize LLMs independently
         print(f"DEBUG: Initializing Deep Thinking LLM: Model={self.config['deep_think_llm']}, BaseURL={deep_base_url}, Key=**********")
