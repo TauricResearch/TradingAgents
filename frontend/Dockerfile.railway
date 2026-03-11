@@ -17,9 +17,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend .
 
-# Accept BACKEND_URL as build argument
-ARG BACKEND_URL
-ENV BACKEND_URL=${BACKEND_URL}
+# Accept NEXT_PUBLIC_API_URL as build argument
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 # Build Next.js app
 RUN bun run build

@@ -41,6 +41,8 @@ import {
   getReportsByMarketType,
   deleteReport,
   getReportCountByMarketType,
+  deleteReports,
+  getAllReports,
   type SavedReport,
 } from "@/lib/reports-db";
 import {
@@ -440,7 +442,30 @@ export default function HistoryPage() {
       hasAutoSyncedRef.current = true;
 
       try {
-        // Get all local reports
+        // First auto-clean local duplicates that might exist from older flawed versions
+        try {
+          const allLocal = await getAllReports();
+          const seenSignatures = new Set<string>();
+          const idsToDelete: number[] = [];
+
+          for (const report of allLocal) {
+            const signature = getReportSignature(report as any);
+            if (seenSignatures.has(signature)) {
+              if (report.id) idsToDelete.push(report.id);
+            } else {
+              seenSignatures.add(signature);
+            }
+          }
+
+          if (idsToDelete.length > 0) {
+            console.log(`🧹 Found ${idsToDelete.length} duplicate local reports from flawed storage, cleaning them up...`);
+            await deleteReports(idsToDelete);
+          }
+        } catch (err) {
+          console.error("Failed to cleanup local duplicates:", err);
+        }
+
+        // Get all local reports (re-fetch after cleanup)
         const [usLocal, twseLocal, tpexLocal] = await Promise.all([
           getReportsByMarketType("us"),
           getReportsByMarketType("twse"),
