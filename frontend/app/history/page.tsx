@@ -361,6 +361,27 @@ const parseUTCDate = (dateStr: string): Date => {
   return new Date(dateStr + 'Z');
 };
 
+/**
+ * Helper to generate a unique signature for deduplication.
+ * This ensures reports for the same ticker on the same day are not squashed together.
+ */
+const getReportSignature = (report: any): string => {
+  if (report.cloudId) return report.cloudId;
+  if (typeof report.id === 'string' && report.id.length > 20) return report.id; // Looks like a UUID
+  
+  const baseKey = `${report.ticker}_${report.analysis_date}_${report.market_type || 'us'}`;
+  
+  let contentHash = "";
+  if (report.result) {
+    if (report.result.reports?.trader_investment_plan) {
+      contentHash = report.result.reports.trader_investment_plan.substring(0, 30).replace(/[\s\n\r]+/g, '');
+    } else {
+      contentHash = JSON.stringify(report.result).length.toString();
+    }
+  }
+  return `${baseKey}_${contentHash}`;
+};
+
 export default function HistoryPage() {
   const router = useRouter();
   const { setAnalysisResult, setTaskId, setMarketType } = useAnalysisContext();
@@ -424,12 +445,12 @@ export default function HistoryPage() {
         // Get cloud reports to check for duplicates
         const cloudReports = await getCloudReports();
         const cloudKeys = new Set(
-          cloudReports.map((r) => `${r.ticker}_${r.analysis_date}`),
+          cloudReports.map((r) => getReportSignature(r)),
         );
 
         // Find local-only reports to upload
         const toUpload = allLocal.filter(
-          (r) => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`),
+          (r) => !cloudKeys.has(getReportSignature(r)),
         );
 
         if (toUpload.length === 0) {
@@ -497,14 +518,14 @@ export default function HistoryPage() {
 
         if (cloudFiltered.length > 0) {
           // Merge: prefer cloud data, but include local-only reports
-          // Create a Set of cloud report keys (ticker + date) for deduplication
+          // Create a Set of cloud report keys (ticker + date + content snippet) for deduplication
           const cloudKeys = new Set(
-            cloudFiltered.map((r) => `${r.ticker}_${r.analysis_date}`),
+            cloudFiltered.map((r) => getReportSignature(r)),
           );
 
           // Find local reports that don't exist in cloud
           const localOnly = localData.filter(
-            (r) => !cloudKeys.has(`${r.ticker}_${r.analysis_date}`),
+            (r) => !cloudKeys.has(getReportSignature(r)),
           );
 
           // Combine: cloud reports + local-only reports
@@ -584,7 +605,7 @@ export default function HistoryPage() {
           
           // Cloud report keys for deduplication
           const cloudKeys = new Set(
-            cloudReports.map(r => `${r.ticker}_${r.analysis_date}_${r.market_type}`)
+            cloudReports.map(r => getReportSignature(r))
           );
           
           // Convert cloud reports to SavedReport format for language filtering
@@ -603,13 +624,13 @@ export default function HistoryPage() {
           
           // Count local-only reports (not in cloud) and filter by language
           const usLocalOnly = filterByLanguage(usLocal.filter(
-            r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}_us`)
+            r => !cloudKeys.has(getReportSignature(r))
           )).length;
           const twseLocalOnly = filterByLanguage(twseLocal.filter(
-            r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}_twse`)
+            r => !cloudKeys.has(getReportSignature(r))
           )).length;
           const tpexLocalOnly = filterByLanguage(tpexLocal.filter(
-            r => !cloudKeys.has(`${r.ticker}_${r.analysis_date}_tpex`)
+            r => !cloudKeys.has(getReportSignature(r))
           )).length;
           
           // Cloud counts (already filtered by language)
@@ -673,15 +694,14 @@ export default function HistoryPage() {
       }
 
       // 2. Always try to delete from local IndexedDB as well
-      // Find matching local report by ticker + analysis_date
+      // Find exact matching local report by signature
       try {
         const localReports = await getReportsByMarketType(
           reportToDelete.market_type,
         );
+        const targetSignature = getReportSignature(reportToDelete);
         const matchingLocal = localReports.find(
-          (r) =>
-            r.ticker === reportToDelete.ticker &&
-            r.analysis_date === reportToDelete.analysis_date,
+          (r) => getReportSignature(r) === targetSignature
         );
         if (matchingLocal && matchingLocal.id) {
           console.log("🗑️ Deleting from local IndexedDB:", matchingLocal.id);
