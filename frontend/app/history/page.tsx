@@ -366,9 +366,6 @@ const parseUTCDate = (dateStr: string): Date => {
  * This ensures reports for the same ticker on the same day are not squashed together.
  */
 const getReportSignature = (report: any): string => {
-  if (report.cloudId) return report.cloudId;
-  if (typeof report.id === 'string' && report.id.length > 20) return report.id; // Looks like a UUID
-  
   const baseKey = `${report.ticker}_${report.analysis_date}_${report.market_type || 'us'}`;
   
   let contentHash = "";
@@ -406,6 +403,17 @@ export default function HistoryPage() {
 
   // Auto-sync tracking ref
   const hasAutoSyncedRef = useRef(false);
+  const cloudReportsPromiseRef = useRef<Promise<any[]> | null>(null);
+
+  const fetchCloudReportsCached = async (forceRefresh = false) => {
+    if (forceRefresh || !cloudReportsPromiseRef.current) {
+      cloudReportsPromiseRef.current = getCloudReports().catch(() => {
+        cloudReportsPromiseRef.current = null;
+        return [];
+      });
+    }
+    return cloudReportsPromiseRef.current;
+  };
 
   // Load reports when tab changes, auth state changes, or language changes
   useEffect(() => {
@@ -443,7 +451,7 @@ export default function HistoryPage() {
         if (allLocal.length === 0) return;
 
         // Get cloud reports to check for duplicates
-        const cloudReports = await getCloudReports();
+        const cloudReports = await fetchCloudReportsCached();
         const cloudKeys = new Set(
           cloudReports.map((r) => getReportSignature(r)),
         );
@@ -481,6 +489,7 @@ export default function HistoryPage() {
         if (success > 0) {
           console.log(`☁️ Auto-sync: Successfully uploaded ${success} reports`);
           // Reload to show updated data
+          await fetchCloudReportsCached(true);
           await loadReports();
           await loadCounts();
         }
@@ -500,7 +509,7 @@ export default function HistoryPage() {
 
       // If authenticated, also load from cloud and merge
       if (isAuthenticated && isCloudSyncEnabled()) {
-        const cloudReports = await getCloudReports();
+        const cloudReports = await fetchCloudReportsCached();
 
         // Convert cloud reports to SavedReport format and filter by market type
         const cloudFiltered = cloudReports
@@ -593,7 +602,7 @@ export default function HistoryPage() {
       };
       
       if (isAuthenticated && isCloudSyncEnabled()) {
-        const cloudReports = await getCloudReports();
+        const cloudReports = await fetchCloudReportsCached();
         
         if (cloudReports.length > 0) {
           // Get local reports to check for duplicates
@@ -712,6 +721,7 @@ export default function HistoryPage() {
       }
 
       // Refresh reports and counts
+      await fetchCloudReportsCached(true);
       await loadReports();
       await loadCounts();
       setDeleteDialogOpen(false);
