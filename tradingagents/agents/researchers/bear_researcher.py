@@ -1,6 +1,10 @@
 from langchain_core.messages import AIMessage
 import time
 import json
+from tradingagents.agents.utils.korean_prompt import (
+    KOREAN_INVESTOR_GUIDE,
+    KOREAN_DEBATE_GUIDE,
+)
 
 
 def create_bear_researcher(llm, memory):
@@ -22,14 +26,17 @@ def create_bear_researcher(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
+        prompt = f"""You are a Bear Analyst making the case AGAINST entering a NEW long position in this stock. There is currently NO existing position — the question is purely: "Should we buy this stock now as a fresh entry?" Your goal is to argue NO — that entering a new position now is too risky or ill-timed.
+
+Present a well-reasoned argument emphasizing why this is a bad entry point, highlighting risks, challenges, and negative indicators that make buying now inadvisable.
 
 Key points to focus on:
 
-- Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could hinder the stock's performance.
+- Poor Entry Timing: Argue why the current price, valuation, or market conditions make this a bad moment to initiate a new long position.
+- Risks and Challenges: Highlight factors like market saturation, financial instability, or macroeconomic threats that could cause losses after entry.
 - Competitive Weaknesses: Emphasize vulnerabilities such as weaker market positioning, declining innovation, or threats from competitors.
-- Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support your position.
-- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions.
+- Negative Indicators: Use evidence from financial data, market trends, or recent adverse news to support passing on this trade.
+- Bull Counterpoints: Critically analyze the bull argument with specific data and sound reasoning, exposing weaknesses or over-optimistic assumptions about entry timing.
 - Engagement: Present your argument in a conversational style, directly engaging with the bull analyst's points and debating effectively rather than simply listing facts.
 
 Resources available:
@@ -41,7 +48,9 @@ Company fundamentals report: {fundamentals_report}
 Conversation history of the debate: {history}
 Last bull argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
+Use this information to deliver a compelling argument for passing on this trade, refute the bull's claims, and engage in a dynamic debate. You must also address reflections and learn from lessons and mistakes you made in the past.
+{KOREAN_INVESTOR_GUIDE}
+{KOREAN_DEBATE_GUIDE}
 """
 
         response = llm.invoke(prompt)

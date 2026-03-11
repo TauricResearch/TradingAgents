@@ -31,6 +31,9 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    "finance-datareader==0.9.101",
+    "numpy>=2.2.6",
+    "ta>=0.11.0",
 ]
 
 [project.scripts]

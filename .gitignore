@@ -217,3 +217,10 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# OS
+.DS_Store
+
+# Project outputs
+reports/
+results/

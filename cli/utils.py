@@ -1,13 +1,12 @@
 import questionary
-from typing import List, Optional, Tuple, Dict
+from typing import List, Tuple
 
 from cli.models import AnalystType
 
 ANALYST_ORDER = [
-    ("Market Analyst", AnalystType.MARKET),
-    ("Social Media Analyst", AnalystType.SOCIAL),
-    ("News Analyst", AnalystType.NEWS),
-    ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
+    ("Market Analyst (기술적 분석)", AnalystType.MARKET),
+    ("News Analyst (뉴스 분석)", AnalystType.NEWS),
+    ("Fundamentals Analyst (기본적 분석)", AnalystType.FUNDAMENTALS),
 ]
 
 
@@ -25,7 +24,7 @@ def get_ticker() -> str:
     ).ask()
 
     if not ticker:
-        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+        print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
     return ticker.strip().upper()
@@ -58,7 +57,7 @@ def get_analysis_date() -> str:
     ).ask()
 
     if not date:
-        console.print("\n[red]No date provided. Exiting...[/red]")
+        print("\nNo date provided. Exiting...")
         exit(1)
 
     return date.strip()
@@ -84,48 +83,15 @@ def select_analysts() -> List[AnalystType]:
     ).ask()
 
     if not choices:
-        console.print("\n[red]No analysts selected. Exiting...[/red]")
+        print("\nNo analysts selected. Exiting...")
         exit(1)
 
     return choices
 
 
-def select_research_depth() -> int:
-    """Select research depth using an interactive selection."""
-
-    # Define research depth options with their corresponding values
-    DEPTH_OPTIONS = [
-        ("Shallow - Quick research, few debate and strategy discussion rounds", 1),
-        ("Medium - Middle ground, moderate debate rounds and strategy discussion", 3),
-        ("Deep - Comprehensive research, in depth debate and strategy discussion", 5),
-    ]
-
-    choice = questionary.select(
-        "Select Your [Research Depth]:",
-        choices=[
-            questionary.Choice(display, value=value) for display, value in DEPTH_OPTIONS
-        ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style(
-            [
-                ("selected", "fg:yellow noinherit"),
-                ("highlighted", "fg:yellow noinherit"),
-                ("pointer", "fg:yellow noinherit"),
-            ]
-        ),
-    ).ask()
-
-    if choice is None:
-        console.print("\n[red]No research depth selected. Exiting...[/red]")
-        exit(1)
-
-    return choice
-
-
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
-    # Define shallow thinking llm engine options with their corresponding model names
     SHALLOW_AGENT_OPTIONS = {
         "openai": [
             ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
@@ -179,9 +145,7 @@ def select_shallow_thinking_agent(provider) -> str:
     ).ask()
 
     if choice is None:
-        console.print(
-            "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
-        )
+        print("\nNo quick-thinking LLM engine selected. Exiting...")
         exit(1)
 
     return choice
@@ -190,7 +154,6 @@ def select_shallow_thinking_agent(provider) -> str:
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
-    # Define deep thinking llm engine options with their corresponding model names
     DEEP_AGENT_OPTIONS = {
         "openai": [
             ("GPT-5.2 - Latest flagship", "gpt-5.2"),
@@ -247,14 +210,14 @@ def select_deep_thinking_agent(provider) -> str:
     ).ask()
 
     if choice is None:
-        console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
+        print("\nNo deep-thinking LLM engine selected. Exiting...")
         exit(1)
 
     return choice
 
-def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+
+def select_llm_provider() -> Tuple[str, str]:
+    """Select the LLM provider using interactive selection."""
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
@@ -263,7 +226,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
-    
+
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
@@ -279,11 +242,11 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        print("\nNo LLM provider selected. Exiting...")
         exit(1)
-    
+
     display_name, url = choice
     print(f"You selected: {display_name}\tURL: {url}")
 
@@ -309,11 +272,7 @@ def ask_openai_reasoning_effort() -> str:
 
 
 def ask_gemini_thinking_config() -> str | None:
-    """Ask for Gemini thinking configuration.
-
-    Returns thinking_level: "high" or "minimal".
-    Client maps to appropriate API param based on model series.
-    """
+    """Ask for Gemini thinking configuration."""
     return questionary.select(
         "Select Thinking Mode:",
         choices=[

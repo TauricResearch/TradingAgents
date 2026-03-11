@@ -1,6 +1,10 @@
 from langchain_core.messages import AIMessage
 import time
 import json
+from tradingagents.agents.utils.korean_prompt import (
+    KOREAN_INVESTOR_GUIDE,
+    KOREAN_DEBATE_GUIDE,
+)
 
 
 def create_bull_researcher(llm, memory):
@@ -22,13 +26,16 @@ def create_bull_researcher(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        prompt = f"""You are a Bull Analyst evaluating whether to ENTER a NEW long position in this stock. There is currently NO existing position — the question is purely: "Should we buy this stock now as a fresh entry?"
+
+Your task is to build a strong, evidence-based case for entering this new position, emphasizing why NOW is a good entry point based on growth potential, competitive advantages, and positive market indicators.
 
 Key points to focus on:
-- Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
+- Entry Timing: Argue why the current price and market conditions represent a good entry point for a new long position.
+- Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability that justify buying now.
 - Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
-- Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
-- Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
+- Positive Indicators: Use financial health, industry trends, and recent positive news as evidence for entering now.
+- Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why entering a new position is still justified.
 - Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
 
 Resources available:
@@ -39,7 +46,9 @@ Company fundamentals report: {fundamentals_report}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position. You must also address reflections and learn from lessons and mistakes you made in the past.
+Use this information to deliver a compelling argument for entering a new long position, refute the bear's concerns, and engage in a dynamic debate. You must also address reflections and learn from lessons and mistakes you made in the past.
+{KOREAN_INVESTOR_GUIDE}
+{KOREAN_DEBATE_GUIDE}
 """
 
         response = llm.invoke(prompt)

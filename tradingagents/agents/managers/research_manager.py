@@ -1,5 +1,9 @@
 import time
 import json
+from tradingagents.agents.utils.korean_prompt import (
+    KOREAN_INVESTOR_GUIDE,
+    KOREAN_DEBATE_GUIDE,
+)
 
 
 def create_research_manager(llm, memory):
@@ -19,23 +23,33 @@ def create_research_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
+        prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision on whether to ENTER a NEW long position in this stock.
 
-Summarize the key points from both sides concisely, focusing on the most compelling evidence or reasoning. Your recommendation—Buy, Sell, or Hold—must be clear and actionable. Avoid defaulting to Hold simply because both sides have valid points; commit to a stance grounded in the debate's strongest arguments.
+Context: There is currently NO existing position in this stock. The only question is: "Should we BUY to open a new position now, or PASS and not enter?"
 
-Additionally, develop a detailed investment plan for the trader. This should include:
+Your decision options are:
+- **BUY**: Enter a new long position now — the bull case is compelling and the entry timing is right.
+- **PASS**: Do not enter — the risks or poor timing outweigh the opportunity; wait for a better setup.
 
-Your Recommendation: A decisive stance supported by the most convincing arguments.
-Rationale: An explanation of why these arguments lead to your conclusion.
-Strategic Actions: Concrete steps for implementing the recommendation.
-Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting. 
+Summarize the key points from both sides concisely, focusing on the most compelling evidence or reasoning about entry timing and risk/reward. Avoid defaulting to PASS simply because both sides have valid points; commit to a stance grounded in the debate's strongest arguments.
+
+Additionally, develop a detailed entry plan for the trader if recommending BUY. This should include:
+
+Your Recommendation: A decisive BUY or PASS stance supported by the most convincing arguments.
+Rationale: An explanation of why these arguments lead to your conclusion about entering now.
+Strategic Actions: If BUY — concrete entry parameters (price levels, position sizing approach, stop-loss levels). If PASS — what conditions would need to change before reconsidering entry.
+Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting.
 
 Here are your past reflections on mistakes:
 \"{past_memory_str}\"
 
 Here is the debate:
 Debate History:
-{history}"""
+{history}
+
+{KOREAN_INVESTOR_GUIDE}
+{KOREAN_DEBATE_GUIDE}
+"""
         response = llm.invoke(prompt)
 
         new_investment_debate_state = {
