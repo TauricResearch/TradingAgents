@@ -335,7 +335,7 @@ const detectReportLanguage = (reports: any): "en" | "zh-TW" => {
   }
 
   // Check for English decision keywords
-  const englishKeywords = ["buy", "sell", "hold", "Final Trading Proposal"];
+  const englishKeywords = ["buy", "sell", "hold", "final trading proposal"];
   const lowerPlan = traderPlan.toLowerCase();
   for (const keyword of englishKeywords) {
     if (lowerPlan.includes(keyword.toLowerCase())) {
@@ -373,12 +373,15 @@ const getReportSignature = (report: any): string => {
   let contentHash = "";
   if (report.result) {
     if (report.result.reports?.trader_investment_plan) {
-      contentHash = report.result.reports.trader_investment_plan.substring(0, 30).replace(/[\s\n\r]+/g, '');
+      const plan = report.result.reports.trader_investment_plan;
+      contentHash = `${plan.length}_${plan.slice(-30).replace(/[\s\n\r]+/g, '')}`;
     } else {
       contentHash = JSON.stringify(report.result).length.toString();
     }
   }
-  return `${baseKey}_${contentHash}`;
+  
+  const langKey = report.language || "unknown_lang";
+  return `${baseKey}_${langKey}_${contentHash}`;
 };
 
 export default function HistoryPage() {
@@ -791,9 +794,9 @@ export default function HistoryPage() {
         }
 
         // Chinese decision keywords: 買入, 賣出, 持有
-        const chineseKeywords = ["買入", "賣出", "持有"];
+        const chineseKeywords = ["買入", "賣出", "持有", "最終交易提案"];
         // English decision keywords: buy, sell, hold (case insensitive)
-        const englishKeywords = ["buy", "sell", "hold"];
+        const englishKeywords = ["buy", "sell", "hold", "final trading proposal"];
 
         const lowerPlan = traderPlan.toLowerCase();
 
