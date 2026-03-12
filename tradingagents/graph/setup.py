@@ -151,12 +151,12 @@ class GraphSetup:
         workflow.add_node("Risk Judge", risk_manager_node)
 
         # 定義邊
-        # 從第一個分析師開始
-        first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+        # 平行啟動所有分析師（而不是順序連接）
+        for analyst_type in selected_analysts:
+            workflow.add_edge(START, f"{analyst_type.capitalize()} Analyst")
 
-        # 依次連接分析師
-        for i, analyst_type in enumerate(selected_analysts):
+        # 連接所有分析師到其工具和清除節點
+        for analyst_type in selected_analysts:
             current_analyst = f"{analyst_type.capitalize()} Analyst"
             current_tools = f"tools_{analyst_type}"
             current_clear = f"Msg Clear {analyst_type.capitalize()}"
@@ -168,13 +168,8 @@ class GraphSetup:
                 [current_tools, current_clear],
             )
             workflow.add_edge(current_tools, current_analyst)
-
-            # 連接到下一個分析師，如果是最後一個分析師，則連接到看漲研究員
-            if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
-                workflow.add_edge(current_clear, next_analyst)
-            else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+            # 所有分析師完成後都直接連接到看漲研究員（平行匯聚）
+            workflow.add_edge(current_clear, "Bull Researcher")
 
         # 新增剩餘的邊
         workflow.add_conditional_edges(
