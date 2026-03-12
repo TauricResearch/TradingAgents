@@ -205,7 +205,16 @@ class TradingService:
                     "investment_debate_state": final_state.get("investment_debate_state"),
                     "risk_debate_state": final_state.get("risk_debate_state"),
                 }
-                
+
+                # Log report completeness for debugging
+                for key, value in reports.items():
+                    if isinstance(value, dict):
+                        sub_filled = [k for k, v in value.items() if v and k not in ("count", "latest_speaker")]
+                        logger.info(f"📊 Report '{key}': filled fields = {sub_filled}")
+                    else:
+                        status_icon = "✅" if value else "❌"
+                        logger.info(f"📊 Report '{key}': {status_icon} {'populated' if value else 'EMPTY'}")
+
                 # Load price data
                 from backend.app.services.price_service import PriceService
                 price_data = None
