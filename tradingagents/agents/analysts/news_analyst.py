@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_news, get_global_news
+from tradingagents.agents.utils.agent_utils import get_news, get_global_news, filter_messages_for_analyst
 from tradingagents.agents.utils.prompts import get_news_analyst_prompt, get_agent_role_instruction, get_context_message
 from tradingagents.dataflows.config import get_config
 
@@ -57,7 +57,8 @@ def create_news_analyst(llm, language: str = "zh-TW"):
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"])
+        tool_names = {t.name for t in tools}
+        result = chain.invoke(filter_messages_for_analyst(state["messages"], tool_names))
 
         # Report logic: only save report when LLM gives final response
         report = state.get("news_report", "")

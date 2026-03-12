@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement, get_insider_sentiment, get_insider_transactions
+from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement, get_insider_sentiment, get_insider_transactions, filter_messages_for_analyst
 from tradingagents.agents.utils.prompts import get_fundamentals_analyst_prompt, get_agent_role_instruction, get_context_message
 from tradingagents.dataflows.config import get_config
 
@@ -60,7 +60,8 @@ def create_fundamentals_analyst(llm, language: str = "zh-TW"):
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        tool_names = {t.name for t in tools}
+        result = chain.invoke(filter_messages_for_analyst(state["messages"], tool_names))
 
         # Report logic: only save report when LLM gives final response
         report = state.get("fundamentals_report", "")

@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators
+from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators, filter_messages_for_analyst
 from tradingagents.agents.utils.prompts import get_language_instruction, get_agent_role_instruction, get_context_message
 from tradingagents.dataflows.config import get_config
 
@@ -140,7 +140,8 @@ Please provide a professional, precise, and actionable technical analysis report
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        tool_names = {t.name for t in tools}
+        result = chain.invoke(filter_messages_for_analyst(state["messages"], tool_names))
 
         # Report logic: only save report when LLM gives final response
         report = state.get("market_report", "")
