@@ -1,7 +1,21 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators
+from tradingagents.agents.utils.agent_utils import (
+    get_stock_data,
+    get_indicators,
+    get_krx_stock_data,
+    get_krx_indicators,
+    get_exchange_rate,
+    get_korea_index,
+    get_investor_trading,
+)
+from tradingagents.agents.utils.korean_prompt import (
+    KOREAN_INVESTOR_GUIDE,
+    KOREAN_REPORT_FORMAT_GUIDE,
+    SWING_TRADING_CONTEXT,
+    SWING_PORTFOLIO_CONTEXT,
+)
 from tradingagents.dataflows.config import get_config
 
 
@@ -12,10 +26,22 @@ def create_market_analyst(llm):
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
-        tools = [
-            get_stock_data,
-            get_indicators,
-        ]
+        config = get_config()
+        market = config.get("market", "US") if config else "US"
+
+        if market == "KRX":
+            tools = [
+                get_krx_stock_data,
+                get_krx_indicators,
+                get_exchange_rate,
+                get_korea_index,
+                get_investor_trading,
+            ]
+        else:
+            tools = [
+                get_stock_data,
+                get_indicators,
+            ]
 
         system_message = (
             """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
@@ -44,7 +70,22 @@ Volume-Based Indicators:
 
 - Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            + KOREAN_INVESTOR_GUIDE
+            + KOREAN_REPORT_FORMAT_GUIDE
+            + SWING_TRADING_CONTEXT
+            + SWING_PORTFOLIO_CONTEXT
         )
+
+        # Inject swing context if available
+        screening_ctx = state.get("screening_context", "")
+        portfolio_ctx = state.get("portfolio_context", "")
+        position_status = state.get("position_status", "NONE")
+        if screening_ctx or portfolio_ctx:
+            system_message += f"\n\n[현재 분석 컨텍스트]\n포지션 상태: {position_status}\n"
+            if screening_ctx:
+                system_message += f"스크리닝 선정 이유: {screening_ctx}\n"
+            if portfolio_ctx:
+                system_message += f"\n{portfolio_ctx}\n"
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -54,8 +95,8 @@ Volume-Based Indicators:
                     " Use the provided tools to progress towards answering the question."
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
                     " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
+                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/PASS** or deliverable,"
+                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/PASS** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
                     "For your reference, the current date is {current_date}. The company we want to look at is {ticker}",
                 ),

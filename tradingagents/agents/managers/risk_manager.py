@@ -1,5 +1,10 @@
 import time
 import json
+from tradingagents.agents.utils.korean_prompt import (
+    KOREAN_INVESTOR_GUIDE,
+    KOREAN_DEBATE_GUIDE,
+    KOREAN_FINAL_DECISION_GUIDE,
+)
 
 
 def create_risk_manager(llm, memory):
@@ -22,16 +27,22 @@ def create_risk_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Aggressive, Neutral, and Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
+        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Aggressive, Neutral, and Conservative—and determine whether to ENTER a NEW long position in this stock.
+
+Context: There is currently NO existing position. The trader is evaluating a fresh entry. The only valid decisions are:
+- **BUY**: Enter a new long position now — the risk/reward is favorable for a new entry.
+- **PASS**: Do not enter — the risks are too high or the timing is wrong; skip this trade.
+
+SELL is NOT a valid option since there is no existing position.
 
 Guidelines for Decision-Making:
-1. **Summarize Key Arguments**: Extract the strongest points from each analyst, focusing on relevance to the context.
+1. **Summarize Key Arguments**: Extract the strongest points from each analyst about whether this is a good entry point, focusing on entry risk and reward.
 2. **Provide Rationale**: Support your recommendation with direct quotes and counterarguments from the debate.
-3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights.
-4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments and improve the decision you are making now to make sure you don't make a wrong BUY/SELL/HOLD call that loses money.
+3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights about entry risk.
+4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments and improve the decision you are making now to make sure you don't make a wrong BUY/PASS call.
 
 Deliverables:
-- A clear and actionable recommendation: Buy, Sell, or Hold.
+- A clear and actionable recommendation: Buy or Pass.
 - Detailed reasoning anchored in the debate and past reflections.
 
 ---
@@ -41,7 +52,11 @@ Deliverables:
 
 ---
 
-Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
+Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes.
+{KOREAN_INVESTOR_GUIDE}
+{KOREAN_DEBATE_GUIDE}
+{KOREAN_FINAL_DECISION_GUIDE}
+"""
 
         response = llm.invoke(prompt)
 
