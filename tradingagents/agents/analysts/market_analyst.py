@@ -26,10 +26,22 @@ def create_market_analyst(llm):
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
-        tools = [
-            get_stock_data,
-            get_indicators,
-        ]
+        config = get_config()
+        market = config.get("market", "US") if config else "US"
+
+        if market == "KRX":
+            tools = [
+                get_krx_stock_data,
+                get_krx_indicators,
+                get_exchange_rate,
+                get_korea_index,
+                get_investor_trading,
+            ]
+        else:
+            tools = [
+                get_stock_data,
+                get_indicators,
+            ]
 
         system_message = (
             """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:

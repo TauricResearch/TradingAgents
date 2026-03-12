@@ -189,14 +189,25 @@ def get_bulk_ohlcv(
 
     if market == "KRX":
         try:
-            import FinanceDataReader as fdr
+            from pykrx import stock as krx_stock
         except ImportError:
-            raise ImportError("FinanceDataReader required for KRX data")
+            raise ImportError("pykrx required for KRX data: pip install pykrx")
+
+        # pykrx uses YYYYMMDD format
+        start_fmt = start_date.replace("-", "")
+        end_fmt = end_date.replace("-", "")
 
         for ticker in tickers:
             try:
-                data = fdr.DataReader(ticker, start_date, end_date)
+                ticker_padded = ticker.zfill(6)
+                data = krx_stock.get_market_ohlcv(start_fmt, end_fmt, ticker_padded)
                 if data is not None and not data.empty:
+                    # Normalize column names to match expected format
+                    col_map = {
+                        "시가": "Open", "고가": "High", "저가": "Low",
+                        "종가": "Close", "거래량": "Volume",
+                    }
+                    data = data.rename(columns=col_map)
                     result[ticker] = data
             except Exception as e:
                 logger.warning(f"Failed to get OHLCV for {ticker}: {e}")
@@ -263,9 +274,12 @@ def compute_screening_indicators(df: pd.DataFrame) -> dict:
     # Volume analysis
     if volume is not None and len(volume) >= 20:
         indicators["volume_current"] = volume.iloc[-1]
-        indicators["volume_avg_20"] = volume.rolling(20).mean().iloc[-1]
-        vol_ratio = volume.iloc[-1] / volume.rolling(20).mean().iloc[-1]
-        indicators["volume_ratio"] = vol_ratio
+        vol_avg_20 = volume.rolling(20).mean().iloc[-1]
+        indicators["volume_avg_20"] = vol_avg_20
+        if vol_avg_20 and vol_avg_20 > 0:
+            indicators["volume_ratio"] = volume.iloc[-1] / vol_avg_20
+        else:
+            indicators["volume_ratio"] = 0.0
 
     # Bollinger Bands
     if len(close) >= 20:
@@ -370,7 +384,7 @@ def _get_naver_krx_universe(
                 if not code_match:
                     continue
 
-                code = code_match.group(1)
+                code = code_match.group(1).zfill(6)
                 name = link.text.strip()
 
                 # Parse numeric values (remove commas)
