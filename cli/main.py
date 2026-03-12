@@ -1112,5 +1112,104 @@ def run_swing_pipeline():
             console.print(f"\n[green]\u2713 Reports saved:[/green] {base_path.resolve()}")
 
 
+    # ─── Phase 4: Order Execution (선택적 주문 실행) ───
+    if buy_signals and config.get("broker_enabled"):
+        console.print()
+        console.print(Rule("Phase 4: Order Execution (주문 실행)", style="bold red"))
+
+        is_paper = config.get("kiwoom_is_paper", True)
+        dry_run = config.get("broker_dry_run", True)
+
+        mode_label = "모의투자" if is_paper else "실전투자"
+        run_label = "DRY RUN (검증만)" if dry_run else "실제 주문"
+        console.print(f"[dim]Mode: {mode_label} / {run_label}[/dim]\n")
+
+        order_table = Table(
+            title="Pending Orders",
+            show_header=True,
+            header_style="bold",
+            box=box.ROUNDED,
+        )
+        order_table.add_column("Ticker", justify="center", width=10)
+        order_table.add_column("Name", width=20)
+        order_table.add_column("Action", justify="center", width=8)
+        order_table.add_column("Entry Price", justify="right", width=12)
+        order_table.add_column("Stop Loss", justify="right", width=12)
+        order_table.add_column("Take Profit", justify="right", width=12)
+
+        for r in buy_signals:
+            sig = r["swing_signal"]
+            entry_str = f"{int(sig['entry_price']):,}" if sig.get("entry_price") else "-"
+            sl_str = f"{int(sig['stop_loss']):,}" if sig.get("stop_loss") else "-"
+            tp_str = f"{int(sig['take_profit']):,}" if sig.get("take_profit") else "-"
+            order_table.add_row(
+                r["ticker"], r["name"], "[green]BUY[/green]",
+                entry_str, sl_str, tp_str,
+            )
+
+        console.print(order_table)
+
+        execute = typer.prompt(
+            f"\n{len(buy_signals)}건 주문을 실행하시겠습니까? ({mode_label}/{run_label})",
+            default="N",
+        ).strip().upper()
+
+        if execute in ("Y", "YES"):
+            from tradingagents.broker.kiwoom_client import KiwoomClient
+            from tradingagents.broker.executor import BrokerExecutor
+            from tradingagents.portfolio import load_portfolio, save_portfolio
+
+            client = KiwoomClient(
+                app_key=config["kiwoom_app_key"],
+                app_secret=config["kiwoom_app_secret"],
+                account_no=config["kiwoom_account_no"],
+                is_paper=is_paper,
+            )
+            portfolio = load_portfolio(
+                portfolio_id=config.get("portfolio_id", "default"),
+                results_dir=config.get("results_dir", "./results"),
+                defaults={
+                    "total_capital": config.get("total_capital", 100_000_000),
+                    "max_positions": config.get("max_positions", 5),
+                    "max_position_pct": config.get("max_position_pct", 0.20),
+                },
+            )
+            executor = BrokerExecutor(client=client, portfolio=portfolio, dry_run=dry_run)
+
+            exec_results = []
+            for r in buy_signals:
+                with console.status(f"[bold cyan]Executing {r['ticker']}...[/bold cyan]"):
+                    result = executor.execute_signal(
+                        ticker=r["ticker"],
+                        swing_signal=r["swing_signal"],
+                        market=selections["market"],
+                    )
+                    if result:
+                        exec_results.append(result)
+                        status = result.get("status", "unknown")
+                        color = {"filled": "green", "dry_run": "yellow", "rejected": "red", "failed": "red"}.get(status, "dim")
+                        msg = f"  [{color}]{r['ticker']}: {status}[/{color}]"
+                        if result.get("quantity"):
+                            msg += f" (x{result['quantity']} @ {result.get('price', 0):,.0f})"
+                        if result.get("broker_msg"):
+                            msg += f" - {result['broker_msg']}"
+                        if result.get("reason"):
+                            msg += f" - {result['reason']}"
+                        console.print(msg)
+
+            save_path = save_portfolio(
+                portfolio,
+                results_dir=config.get("results_dir", "./results"),
+            )
+            console.print(f"\n[green]Portfolio saved:[/green] {save_path}")
+            console.print(f"\n{portfolio.summary()}")
+
+    elif buy_signals and not config.get("broker_enabled"):
+        console.print(
+            "\n[dim]Tip: 주문 실행을 원하시면 config에서 broker_enabled=True 설정 후 "
+            "KIWOOM_APP_KEY, KIWOOM_APP_SECRET, KIWOOM_ACCOUNT_NO 환경변수를 설정하세요.[/dim]"
+        )
+
+
 if __name__ == "__main__":
     app()

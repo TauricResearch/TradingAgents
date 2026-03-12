@@ -34,6 +34,13 @@ DEFAULT_CONFIG = {
     "screening_max_candidates": 5,
     "us_universe": "sp500",  # "sp500", "nasdaq100", or "custom"
     "custom_watchlist": [],  # custom ticker list for manual universe
+    # Broker settings (Kiwoom Securities REST API)
+    "broker_enabled": False,  # True to enable order execution
+    "broker_dry_run": True,   # True = validate only, False = real orders
+    "kiwoom_app_key": os.getenv("KIWOOM_APP_KEY", ""),
+    "kiwoom_app_secret": os.getenv("KIWOOM_APP_SECRET", ""),
+    "kiwoom_account_no": os.getenv("KIWOOM_ACCOUNT_NO", ""),
+    "kiwoom_is_paper": True,  # True = 모의투자, False = 실전투자
     # Data vendor configuration
     "data_vendors": {
         "core_stock_apis": "yfinance",
