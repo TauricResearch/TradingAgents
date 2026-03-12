@@ -61,24 +61,44 @@ async def init_db():
         return
     
     async with engine.begin() as conn:
-        # Create all tables
+        # Create all tables first
         await conn.run_sync(Base.metadata.create_all)
         
         # Manual migrations for existing databases
         try:
-            # Add language column if it doesn't exist
-            await conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS language VARCHAR(10);"))
-            # Add indexes to optimize queries
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_id ON reports (user_id);"))
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_created_at ON reports (created_at);"))
-            # Add composite index for common query pattern (user_id + created_at DESC)
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_created ON reports (user_id, created_at DESC);"))
-            # Add index for language filtering
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_language ON reports (language);"))
-            # Add composite index for user + market_type + language queries
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_market_lang ON reports (user_id, market_type, language);"))
-            # Covering index for counts query (GROUP BY market_type with language filter)
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_market_lang_count ON reports (user_id, market_type, COALESCE(language, 'zh-TW'));"))
+            # Check if reports table exists
+            result = await conn.execute(text("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'reports'
+                )
+            """))
+            table_exists = result.scalar()
+            
+            if table_exists:
+                # Add language column if it doesn't exist
+                await conn.execute(text("""
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS language VARCHAR(10);
+                """))
+                # Add indexes to optimize queries
+                await conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS ix_reports_user_id ON reports (user_id);
+                """))
+                await conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS ix_reports_created_at ON reports (created_at);
+                """))
+                # Add composite index for common query pattern (user_id + created_at DESC)
+                await conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS ix_reports_user_created ON reports (user_id, created_at DESC);
+                """))
+                # Add index for language filtering
+                await conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS ix_reports_language ON reports (language);
+                """))
+                # Add composite index for user + market_type + language queries
+                await conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS ix_reports_user_market_lang ON reports (user_id, market_type, language);
+                """))
         except Exception as e:
             print(f"Skipping manual migration (might be SQLite or syntax not supported): {e}")
     
