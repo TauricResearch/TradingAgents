@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { getBackendUrl } from "./lib/backend-url";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
@@ -56,13 +57,7 @@ const nextConfig: NextConfig = {
   },
   
   async rewrites() {
-    // In development: use localhost backend
-    // In production (Railway): use BACKEND_URL env var or fallback to Railway URL
-    const isDev = process.env.NODE_ENV === 'development';
-    // Default to http://backend:8000 in production (Docker) if not set
-    const backendUrl = process.env.BACKEND_URL || 
-      (isDev ? "http://localhost:8000" : "http://backend:8000");
-    
+    const backendUrl = getBackendUrl();
     console.log(`[Next.js] Rewriting API requests to: ${backendUrl}`);
     
     return [

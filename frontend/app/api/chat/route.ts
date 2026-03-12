@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
+import { getBackendUrl } from "@/lib/backend-url";
 
 export async function POST(req: Request) {
   try {
-    const isDev = process.env.NODE_ENV === "development";
-    const backendUrl =
-      process.env.BACKEND_URL ||
-      (isDev ? "http://localhost:8000" : "http://backend:8000");
+    const backendUrl = getBackendUrl();
 
     // Read the complete body from the request
     const bodyText = await req.text();

@@ -3,14 +3,11 @@
  * This proxies the token exchange to the backend
  */
 import { NextRequest, NextResponse } from "next/server";
-
-// Use backend internal URL if available (Railway), fallback to public URL
-const BACKEND_URL = process.env.BACKEND_URL || 
-  process.env.NEXT_PUBLIC_API_URL || 
-  "http://localhost:8000";
+import { getBackendUrl } from "@/lib/backend-url";
 
 export async function POST(request: NextRequest) {
   try {
+    const backendUrl = getBackendUrl();
     const body = await request.json();
     const { code, redirect_uri } = body;
 
@@ -22,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Forward to backend
-    const backendResponse = await fetch(`${BACKEND_URL}/api/auth/google/token`, {
+    const backendResponse = await fetch(`${backendUrl}/api/auth/google/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
