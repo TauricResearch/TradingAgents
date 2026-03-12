@@ -80,12 +80,12 @@ def validate_and_warn(content: str, agent_name: str) -> list:
             context = content[max(0, idx-15):min(len(content), idx+15)]
             warnings.append(f"Suspicious '煉' character found. Context: ...{context}...")
     
-    # Check word count
+    # Check word count (500-1000 range)
     word_count = count_chinese_words(content)
-    if word_count < 800:
-        warnings.append(f"Too short: {word_count} words (expected 800-1500)")
-    elif word_count > 1500:
-        warnings.append(f"Too long: {word_count} words (expected 800-1500)")
+    if word_count < 500:
+        warnings.append(f"⚠️  Report too short (below 500 words)")
+    elif word_count > 1000:
+        warnings.append(f"⚠️  Report too long (exceeds 1000 words)")
     
     # Check for truncation markers that shouldn't be there
     truncation_markers = ['...(已截斷)', '...(內容已截斷)', '...(為控制長度已精簡)']
@@ -119,37 +119,38 @@ def post_process_agent_output(content: str, agent_name: str, retry_callback=None
     # Step 2: Validate and warn
     warnings = validate_and_warn(content, agent_name)
     
-    # Step 3: Critical validation - retry if needed
+    # Step 3: Critical validation - retry if needed (500-1000 range)
     word_count = count_chinese_words(content)
-    if (word_count < 800 or word_count > 1500) and retry_callback:
-        print(f"\n🔄 {agent_name}: Word count {word_count} out of range, triggering retry...")
+    if (word_count < 500 or word_count > 1000) and retry_callback:
+        print(f"\n🔄 {agent_name}: Word count out of range, triggering retry...")
         # Callback should regenerate the content
         # This is optional and should be implemented in the calling code
     
     return content
 
 
-def ensure_min_length(content: str, min_words: int = 800, agent_name: str = "Agent") -> tuple:
+def ensure_min_length(content: str, min_words: int = 500, agent_name: str = "Agent") -> tuple:
     """
-    確保報告達到最小字數，如果不夠則返回False觸發重試
-    
+    確保報告達到字數要求範圍 (500-1000)，如果不符合則返回False觸發重試
+
     Args:
         content: The report content to check
-        min_words: Minimum required word count (default: 800)
+        min_words: Minimum required word count (default: 500)
         agent_name: Name of the agent for logging
-        
+
     Returns:
         tuple: (content, is_valid: bool)
     """
     word_count = count_chinese_words(content)
-    
+    max_words = 1000
+
     if word_count < min_words:
-        print(f"⚠️  [{agent_name}] 報告字數不足: {word_count}字 < {min_words}字最低要求")
+        print(f"⚠️  [{agent_name}] Report too short")
         return content, False
-    elif word_count > 1500:
-        print(f"⚠️  [{agent_name}] 報告字數過多: {word_count}字 > 1500字上限")
+    elif word_count > max_words:
+        print(f"⚠️  [{agent_name}] Report too long")
         return content, False
     else:
-        print(f"✅ [{agent_name}] 報告字數符合要求: {word_count}字")
+        print(f"✅ [{agent_name}] Report meets requirements")
         return content, True
 

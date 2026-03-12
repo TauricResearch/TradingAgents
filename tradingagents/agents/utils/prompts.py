@@ -92,13 +92,13 @@ You are a senior technical analyst responsible for providing precise market tech
 • Integrate data to provide professional insights
 
 【Report Structure】
-**Word Count**: 800-1500 words (excluding tables)
+**Word Count**: 500-1000 words (excluding tables)
 
 **Content Structure**:
-1. Market Overview (120-150 words): Trend direction and momentum
-2. Technical Analysis (400-600 words): Indicator interpretation and cross-validation
-3. Key Price Levels (80-120 words): Support/resistance and their significance
-4. Trading Strategy (150-200 words): Entry points, stop-loss, target prices
+1. Market Overview (60-80 words): Trend direction and momentum
+2. Technical Analysis (250-350 words): Indicator interpretation and cross-validation
+3. Key Price Levels (50-70 words): Support/resistance and their significance
+4. Trading Strategy (100-150 words): Entry points, stop-loss, target prices
 5. Data Summary Table (required)
 
 **Closing**:
@@ -123,13 +123,13 @@ Please provide a professional, precise, and actionable technical analysis report
 • 整合數據後提出專業見解
 
 【報告架構】
-**字數要求**：800-1500字（不含表格）
+**字數要求**：500-1000字（不含表格）
 
 **內容結構**：
-1. 市場概況（120-150字）：趨勢方向與動能強弱
-2. 技術分析（400-600字）：指標解讀與相互驗證
-3. 關鍵價位（80-120字）：支撐/壓力位及其技術意義
-4. 操作策略（150-200字）：進場點位、停損設定、目標價位
+1. 市場概況（60-80字）：趨勢方向與動能強弱
+2. 技術分析（250-350字）：指標解讀與相互驗證
+3. 關鍵價位（50-70字）：支撐/壓力位及其技術意義
+4. 操作策略（100-150字）：進場點位、停損設定、目標價位
 5. 數據摘要表格（必須）
 
 **結尾提示**：
@@ -165,10 +165,10 @@ You are a fundamentals analyst responsible for evaluating company financial heal
 • Integrate data for comprehensive evaluation
 
 【Report Structure】
-**Word Count**: 800-1500 words (excluding tables)
+**Word Count**: 500-1000 words (excluding tables)
 
 **Content Structure**:
-1. Company Overview (150+ words): Business characteristics and competitive position
+1. Company Overview (80-100 words): Business characteristics and competitive position
 2. Financial Analysis (400-450 words): Profitability, financial structure, cash flow
 3. Valuation Assessment (100+ words): Price valuation level and investment value
 4. Investment Recommendation (150+ words): Fundamental-based trading suggestions
@@ -196,13 +196,13 @@ Please provide a professional and comprehensive fundamental analysis report with
 • 整合數據進行綜合評估
 
 【報告架構】
-**字數要求**：800-1500字（不含表格）
+**字數要求**：500-1000字（不含表格）
 
 **內容結構**：
-1. 公司概述（150字以上）：業務特性與競爭地位
-2. 財務分析（400-450字）：獲利能力、財務結構、現金流分析
-3. 估值研判（100字以上）：股價評價水準與投資價值
-4. 投資建議（150字以上）：基於基本面的操作建議
+1. 公司概述（80-100字）：業務特性與競爭地位
+2. 財務分析（250-300字）：獲利能力、財務結構、現金流分析
+3. 估值研判（60-80字）：股價評價水準與投資價值
+4. 投資建議（100-120字）：基於基本面的操作建議
 5. 財務數據表格（必須）
 
 **結尾提示**：
@@ -237,10 +237,10 @@ You are a market sentiment analyst responsible for interpreting social media and
 • Analyze sentiment trends and discussion intensity
 
 【Report Structure】
-**Word Count**: 800-1500 words (excluding tables)
+**Word Count**: 500-1000 words (excluding tables)
 
 **Content Structure**:
-1. Sentiment Summary (150+ words): Market atmosphere and sentiment indicators
+1. Sentiment Summary (80-100 words): Market atmosphere and sentiment indicators
 2. Opinion Analysis (400-450 words): Main discussion topics and opinion distribution
 3. Key Insights (100+ words): Sentiment extremes or turning signals
 4. Investment Implications (150+ words): Sentiment-based trading strategy insights
@@ -267,10 +267,10 @@ Please provide a professional and insightful market sentiment analysis report wi
 • 分析輿情傾向與討論熱度
 
 【報告架構】
-**字數要求**：800-1500字（不含表格）
+**字數要求**：500-1000字（不含表格）
 
 **內容結構**：
-1. 情緒概要（150字以上）：市場氛圍與情緒指標
+1. 情緒概要（80-100字）：市場氛圍與情緒指標
 2. 輿情分析（400-450字）：主要討論議題與觀點分布
 3. 關鍵洞察（100字以上）：情緒極值或轉折訊號
 4. 投資含義（150字以上）：情緒面對操作策略的啟示
@@ -309,10 +309,10 @@ You are a financial news analyst responsible for interpreting major events' impa
 • Filter high-value information and provide deep interpretation
 
 【Report Structure】
-**Word Count**: 800-1500 words (excluding tables)
+**Word Count**: 500-1000 words (excluding tables)
 
 **Content Structure**:
-1. News Summary (120-150 words): Key event overview
+1. News Summary (60-80 words): Key event overview
 2. Impact Analysis (400-600 words): Multi-dimensional impact assessment on stock price
 3. Risk Alerts (80-120 words): Potential risks or overlooked factors
 4. Trading Suggestions (150-200 words): News-based investment strategy
@@ -340,10 +340,10 @@ Please provide a professional and insightful news analysis report with a Markdow
 • 篩選高價值資訊並進行深度解讀
 
 【報告架構】
-**字數要求**：800-1500字（不含表格）
+**字數要求**：500-1000字（不含表格）
 
 **內容結構**：
-1. 新聞摘要（120-150字）：重點事件概述
+1. 新聞摘要（60-80字）：重點事件概述
 2. 影響分析（400-600字）：事件對股價的多維度影響評估
 3. 風險提示（80-120字）：潛在風險或市場未注意的因素
 4. 操作建議（150-200字）：基於新聞面的投資策略

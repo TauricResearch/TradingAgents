@@ -40,7 +40,7 @@ class HybridTaskManager:
         self._lock = threading.RLock()
         self._cleanup_interval = 3600  # 1 hour
         self._task_expiry = 86400  # 24 hours for pending/running tasks
-        self._completed_task_expiry = 3600  # 1 hour for completed/failed tasks (auto cleanup)
+        self._completed_task_expiry = 14400  # 4 hours for completed/failed tasks (auto cleanup) — give users time to save reports
         
         # Check Redis availability on startup
         if is_redis_available():
