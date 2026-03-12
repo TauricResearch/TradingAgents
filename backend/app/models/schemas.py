@@ -67,6 +67,10 @@ class AnalysisRequest(BaseModel):
         default="zh-TW",
         description="Language for agent reports: 'en' for English, 'zh-TW' for Traditional Chinese"
     )
+    analysis_mode: Optional[Literal["fast", "deep"]] = Field(
+        default="deep",
+        description="Analysis mode: 'fast' (no debates, ~15-25 min) or 'deep' (with debates, ~1 hour)"
+    )
 
 class PriceData(BaseModel):
     """Stock price data model"""

@@ -7,6 +7,7 @@ export interface AnalysisRequest {
   analysis_date: string;
   analysts?: string[];
   research_depth?: number;
+  analysis_mode?: "fast" | "deep";  // Analysis mode: 'fast' (no debates) or 'deep' (with debates)
   market_type?: "us" | "twse" | "tpex";  // 市場類型：美股、上市、上櫃/興櫃
   quick_think_llm?: string;
   deep_think_llm?: string;
