@@ -171,10 +171,10 @@ async def root():
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    """Global exception handler - masks sensitive data in errors"""
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler - returns appropriate status codes and masks sensitive data"""
     error_msg = str(exc)
-    
+
     # Mask any API keys that might be in the error message
     import re
     patterns = ["sk-", "sk-ant-", "xai-", "AIza"]
@@ -184,14 +184,32 @@ async def global_exception_handler(request, exc):
             f'{pattern}**********',
             error_msg
         )
-    
-    logger.error(f"Unhandled exception: {error_msg}", exc_info=True)
+
+    # Determine appropriate status code based on exception type
+    error_type = type(exc).__name__
+    status_code = 500
+
+    if isinstance(exc, ValueError):
+        status_code = 400
+    elif isinstance(exc, (ConnectionError, ConnectionRefusedError, TimeoutError)):
+        status_code = 503
+    elif isinstance(exc, PermissionError):
+        status_code = 403
+    elif isinstance(exc, FileNotFoundError):
+        status_code = 404
+
+    logger.error(
+        f"Unhandled exception on {request.method} {request.url.path}: "
+        f"[{error_type}] {error_msg}",
+        exc_info=True
+    )
     return JSONResponse(
-        status_code=500,
+        status_code=status_code,
         content={
-            "error": "Internal server error",
+            "error": "Internal server error" if status_code == 500 else error_type,
             "detail": error_msg,
-            "type": type(exc).__name__,
+            "type": error_type,
+            "path": str(request.url.path),
         },
     )
 

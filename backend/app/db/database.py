@@ -77,6 +77,8 @@ async def init_db():
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_language ON reports (language);"))
             # Add composite index for user + market_type + language queries
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_market_lang ON reports (user_id, market_type, language);"))
+            # Covering index for counts query (GROUP BY market_type with language filter)
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reports_user_market_lang_count ON reports (user_id, market_type, COALESCE(language, 'zh-TW'));"))
         except Exception as e:
             print(f"Skipping manual migration (might be SQLite or syntax not supported): {e}")
     

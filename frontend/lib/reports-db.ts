@@ -5,6 +5,7 @@
 
 import Dexie, { type Table } from "dexie";
 import type { AnalysisResponse } from "./types";
+import { normalizeLanguage } from "./report-utils";
 
 // Saved report interface
 export interface SavedReport {
@@ -16,6 +17,8 @@ export interface SavedReport {
   task_id?: string; // Original task ID
   result: AnalysisResponse; // Full analysis result
   language?: "en" | "zh-TW"; // Language of the report (for filtering)
+  cloud_id?: string; // Corresponding cloud report ID (for sync tracking)
+  pending_sync?: boolean; // Whether report is waiting to be synced to cloud
 }
 
 // Database class extending Dexie
@@ -31,6 +34,11 @@ class ReportsDatabase extends Dexie {
     // Version 2: Added language field for filtering by UI language
     this.version(2).stores({
       reports: "++id, ticker, market_type, analysis_date, saved_at, language",
+    });
+    // Version 3: Added cloud_id and pending_sync for sync tracking
+    this.version(3).stores({
+      reports:
+        "++id, ticker, market_type, analysis_date, saved_at, language, cloud_id, pending_sync",
     });
   }
 }
@@ -123,22 +131,32 @@ export async function getReportCountByMarketType(): Promise<{
 }
 
 /**
- * Check if a report with the same ticker and analysis_date already exists
+ * Check if a report with the same signature already exists.
+ * Supports optional market_type and language for precise matching.
  */
 export async function checkDuplicateReport(
   ticker: string,
   analysis_date: string,
+  market_type?: "us" | "twse" | "tpex",
+  language?: "en" | "zh-TW",
 ): Promise<SavedReport | undefined> {
+  const normalizedLang = normalizeLanguage(language);
   return await db.reports
     .where("ticker")
     .equals(ticker)
-    .and((report) => report.analysis_date === analysis_date)
+    .and((report) => {
+      if (report.analysis_date !== analysis_date) return false;
+      if (market_type && report.market_type !== market_type) return false;
+      if (normalizeLanguage(report.language) !== normalizedLang) return false;
+      return true;
+    })
     .first();
 }
 
 /**
  * Check if a report exists by ticker, date, market type, and language
- * Used for bidirectional sync to prevent duplicates
+ * Used for bidirectional sync to prevent duplicates.
+ * Language is normalized so null/undefined matches "zh-TW".
  */
 export async function findExistingReport(
   ticker: string,
@@ -146,6 +164,7 @@ export async function findExistingReport(
   market_type: "us" | "twse" | "tpex",
   language?: "en" | "zh-TW",
 ): Promise<SavedReport | undefined> {
+  const normalizedLang = normalizeLanguage(language);
   return await db.reports
     .where("ticker")
     .equals(ticker)
@@ -153,7 +172,7 @@ export async function findExistingReport(
       (report) =>
         report.analysis_date === analysis_date &&
         report.market_type === market_type &&
-        report.language === language
+        normalizeLanguage(report.language) === normalizedLang
     )
     .first();
 }

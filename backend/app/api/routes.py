@@ -93,14 +93,21 @@ async def run_analysis(
     # Log with user info for tracking
     user_info = f"user={current_user['email']}" if current_user else "user=anonymous"
     logger.info(f"Creating analysis task for {request.ticker} on {request.analysis_date} ({user_info})")
-    
+
     # Create task in Redis with user info
-    task_id = task_manager.create_task({
-        "ticker": request.ticker,
-        "analysis_date": request.analysis_date,
-        "user_id": current_user["id"] if current_user else None,
-        "user_email": current_user["email"] if current_user else None,
-    })
+    try:
+        task_id = task_manager.create_task({
+            "ticker": request.ticker,
+            "analysis_date": request.analysis_date,
+            "user_id": current_user["id"] if current_user else None,
+            "user_email": current_user["email"] if current_user else None,
+        })
+    except Exception as e:
+        logger.error(f"Failed to create analysis task: {type(e).__name__}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail=f"Task creation failed ({type(e).__name__}). The task service may be temporarily unavailable. Please try again."
+        )
     
     # Start background analysis
     def run_background_analysis():
