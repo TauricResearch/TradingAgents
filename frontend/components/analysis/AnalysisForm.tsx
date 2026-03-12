@@ -52,7 +52,7 @@ const formSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "日期格式必須為 YYYY-MM-DD"),
   analysts: z.array(z.string()).min(1, "請至少選擇一位分析師"),
   research_depth: z.number().int().min(1).max(5),
-  analysis_mode: z.enum(["fast", "deep"]).default("deep"),
+  analysis_mode: z.enum(["fast", "deep"]),
   quick_think_llm: z.string().min(1, "請選擇快速思維模型"),
   deep_think_llm: z.string().min(1, "請選擇深層思維模型"),
   embedding_model: z.string().min(1, "請選擇嵌入式模型"),
