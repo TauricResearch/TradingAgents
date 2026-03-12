@@ -18,7 +18,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Set environment variable for build
-ENV NEXT_PUBLIC_API_URL=http://backend:8000
+# Leave NEXT_PUBLIC_API_URL empty at build time.
+# Docker Compose sets BACKEND_URL at runtime; Railway users set it in env vars.
+ENV NEXT_PUBLIC_API_URL=
 
 # Build Next.js app
 RUN bun run build

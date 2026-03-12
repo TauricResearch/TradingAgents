@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
-import { getBackendUrl } from "./lib/backend-url";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
   reactCompiler: true,
-  
+
   // Security headers
   async headers() {
     return [
@@ -56,17 +55,10 @@ const nextConfig: NextConfig = {
     ];
   },
   
-  async rewrites() {
-    const backendUrl = getBackendUrl();
-    console.log(`[Next.js] Rewriting API requests to: ${backendUrl}`);
-    
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ];
-  },
+  // NOTE: API proxying is handled by the catch-all route handler at
+  // app/api/[...path]/route.ts which resolves the backend URL per-request.
+  // This is required for Railway where the backend URL is only available
+  // at runtime, not at server startup when rewrites() is evaluated.
 };
 
 export default nextConfig;
