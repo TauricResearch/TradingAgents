@@ -141,6 +141,7 @@ async def run_analysis(
                 alpha_vantage_api_key=request.alpha_vantage_api_key or "",
                 finmind_api_key=request.finmind_api_key or "",
                 language=request.language or "zh-TW",  # Pass language for agent reports
+                analysis_mode=request.analysis_mode or "deep",  # Pass analysis mode (fast or deep)
             ))
             
             # Check for errors in result
