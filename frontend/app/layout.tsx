@@ -7,6 +7,7 @@ import { AnalysisProvider } from "@/context/AnalysisContext";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { AuthProvider } from "@/contexts/auth-context";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { SyncInitializer } from "@/components/providers/SyncInitializer";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -118,6 +119,7 @@ export default function RootLayout({
         <ThemeProvider>
           <LanguageProvider>
             <AuthProvider>
+              <SyncInitializer />
               <AnalysisProvider>
                 <div className="flex flex-col min-h-screen gradient-page-bg">
                   <Header />

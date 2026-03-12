@@ -63,6 +63,10 @@ export default function AnalysisPage() {
         });
         if (cloudId) {
           console.log("☁️ Auto-saved report to cloud");
+        } else {
+          // Cloud sync failed - mark for retry but don't fail the auto-save
+          // The report is already safely stored in local IndexedDB
+          console.warn("⚠️  Cloud sync failed, but report saved locally. Will retry later.");
         }
       }
       // Note: Redis cleanup is handled immediately when analysis completes
