@@ -54,6 +54,22 @@ export default function AnalysisResultsPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedToCloud, setSavedToCloud] = useState(false);
 
+  // Debug: log received analysis data structure
+  useEffect(() => {
+    if (analysisResult) {
+      console.log("[Results] analysisResult.reports keys:", Object.keys(analysisResult.reports || {}));
+      const ids = analysisResult.reports?.investment_debate_state;
+      const rds = analysisResult.reports?.risk_debate_state;
+      if (ids) console.log("[Results] investment_debate_state keys:", Object.keys(ids));
+      if (rds) console.log("[Results] risk_debate_state keys:", Object.keys(rds));
+      // Log which reports are populated
+      ANALYST_KEYS.forEach(a => {
+        const val = getNestedValue(analysisResult.reports, a.reportKey);
+        console.log(`[Results] ${a.key} (${a.reportKey}):`, val ? "populated" : "EMPTY/MISSING");
+      });
+    }
+  }, [analysisResult]);
+
   // Build analysts array with translations
   const ANALYSTS = useMemo(() => ANALYST_KEYS.map(analyst => ({
     key: analyst.key,

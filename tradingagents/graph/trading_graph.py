@@ -146,8 +146,11 @@ class TradingAgentsXGraph:
         # Extract language from config (default: zh-TW for backward compatibility)
         self.language = self.config.get("language", "zh-TW")
 
-        # 初始化組件
-        self.conditional_logic = ConditionalLogic()
+        # 初始化組件（從 config 傳入辯論回合數）
+        self.conditional_logic = ConditionalLogic(
+            max_debate_rounds=self.config.get("max_debate_rounds", 1),
+            max_risk_discuss_rounds=self.config.get("max_risk_discuss_rounds", 1),
+        )
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
             self.deep_thinking_llm,
@@ -161,7 +164,9 @@ class TradingAgentsXGraph:
             self.language,  # Pass language for agent reports
         )
 
-        self.propagator = Propagator()
+        self.propagator = Propagator(
+            max_recur_limit=self.config.get("max_recur_limit", 200),
+        )
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 

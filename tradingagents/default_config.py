@@ -16,7 +16,7 @@ DEFAULT_CONFIG = {
     # 辯論與討論設定
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
-    "max_recur_limit": 100,
+    "max_recur_limit": 200,
     # 資料供應商設定
     # 類別層級設定 (該類別所有工具的預設值)
     # 可用供應商:

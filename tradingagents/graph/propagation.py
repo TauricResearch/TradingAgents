@@ -18,7 +18,7 @@ class Propagator:
     這個類別負責建立圖執行的初始狀態，並提供圖呼叫所需的參數。
     """
 
-    def __init__(self, max_recur_limit=100):
+    def __init__(self, max_recur_limit=200):
         """
         使用設定參數進行初始化。
 
@@ -68,14 +68,26 @@ class Propagator:
             "company_name": actual_company_name,  # 真實公司全名
             "trade_date": str(trade_date),  # 交易日期
             "investment_debate_state": InvestDebateState(
-                {"history": "", "current_response": "", "count": 0}
+                {
+                    "bull_history": "",
+                    "bear_history": "",
+                    "history": "",
+                    "current_response": "",
+                    "judge_decision": "",
+                    "count": 0,
+                }
             ),  # 投資辯論的初始狀態
             "risk_debate_state": RiskDebateState(
                 {
+                    "risky_history": "",
+                    "safe_history": "",
+                    "neutral_history": "",
                     "history": "",
+                    "latest_speaker": "",
                     "current_risky_response": "",
                     "current_safe_response": "",
                     "current_neutral_response": "",
+                    "judge_decision": "",
                     "count": 0,
                 }
             ),  # 風險辯論的初始狀態
