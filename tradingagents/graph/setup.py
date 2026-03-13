@@ -17,6 +17,7 @@ class GraphSetup:
     def __init__(
         self,
         quick_thinking_llm: ChatOpenAI,
+        mid_thinking_llm: ChatOpenAI,
         deep_thinking_llm: ChatOpenAI,
         tool_nodes: Dict[str, ToolNode],
         bull_memory,
@@ -28,6 +29,7 @@ class GraphSetup:
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
+        self.mid_thinking_llm = mid_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.tool_nodes = tool_nodes
         self.bull_memory = bull_memory
@@ -87,15 +89,15 @@ class GraphSetup:
 
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(
-            self.quick_thinking_llm, self.bull_memory
+            self.mid_thinking_llm, self.bull_memory
         )
         bear_researcher_node = create_bear_researcher(
-            self.quick_thinking_llm, self.bear_memory
+            self.mid_thinking_llm, self.bear_memory
         )
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
         )
-        trader_node = create_trader(self.quick_thinking_llm, self.trader_memory)
+        trader_node = create_trader(self.mid_thinking_llm, self.trader_memory)
 
         # Create risk analysis nodes
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)

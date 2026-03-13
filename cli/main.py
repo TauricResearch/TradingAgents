@@ -459,10 +459,20 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
     layout["footer"].update(Panel(stats_table, border_style="grey50"))
 
 
+def _ask_provider_thinking_config(provider: str):
+    """Ask for provider-specific thinking config. Returns (thinking_level, reasoning_effort)."""
+    provider_lower = provider.lower()
+    if provider_lower == "google":
+        return ask_gemini_thinking_config(), None
+    elif provider_lower in ("openai", "xai"):
+        return None, ask_openai_reasoning_effort()
+    return None, None
+
+
 def get_user_selections():
     """Get all user selections before starting the analysis display."""
     # Display ASCII art welcome message
-    with open("./cli/static/welcome.txt", "r") as f:
+    with open("./cli/static/welcome.txt", "r", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
     # Create welcome box content
@@ -536,81 +546,63 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: OpenAI backend
+    # Step 5: Quick-thinking provider + model
     console.print(
         create_question_box(
-            "Step 5: OpenAI backend", "Select which service to talk to"
+            "Step 5: Quick-Thinking Setup",
+            "Provider and model for analysts & risk debaters (fast, high volume)"
         )
     )
-    selected_llm_provider, backend_url = select_llm_provider()
-    
-    # Step 6: Thinking agents
+    quick_provider, quick_backend_url = select_llm_provider()
+    selected_shallow_thinker = select_shallow_thinking_agent(quick_provider)
+    quick_thinking_level, quick_reasoning_effort = _ask_provider_thinking_config(quick_provider)
+
+    # Step 6: Mid-thinking provider + model
     console.print(
         create_question_box(
-            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
+            "Step 6: Mid-Thinking Setup",
+            "Provider and model for researchers & trader (reasoning, argument formation)"
         )
     )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+    mid_provider, mid_backend_url = select_llm_provider()
+    selected_mid_thinker = select_mid_thinking_agent(mid_provider)
+    mid_thinking_level, mid_reasoning_effort = _ask_provider_thinking_config(mid_provider)
 
-    # Step 7: Provider-specific thinking configuration
-    thinking_level = None
-    reasoning_effort = None
-
-    provider_lower = selected_llm_provider.lower()
-    if provider_lower == "google":
-        console.print(
-            create_question_box(
-                "Step 7: Thinking Mode",
-                "Configure Gemini thinking mode"
-            )
+    # Step 7: Deep-thinking provider + model
+    console.print(
+        create_question_box(
+            "Step 7: Deep-Thinking Setup",
+            "Provider and model for investment judge & risk manager (final decisions)"
         )
-        thinking_level = ask_gemini_thinking_config()
-    elif provider_lower == "openai":
-        console.print(
-            create_question_box(
-                "Step 7: Reasoning Effort",
-                "Configure OpenAI reasoning effort level"
-            )
-        )
-        reasoning_effort = ask_openai_reasoning_effort()
+    )
+    deep_provider, deep_backend_url = select_llm_provider()
+    selected_deep_thinker = select_deep_thinking_agent(deep_provider)
+    deep_thinking_level, deep_reasoning_effort = _ask_provider_thinking_config(deep_provider)
 
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
-        "llm_provider": selected_llm_provider.lower(),
-        "backend_url": backend_url,
+        # Quick
+        "quick_provider": quick_provider.lower(),
+        "quick_backend_url": quick_backend_url,
         "shallow_thinker": selected_shallow_thinker,
+        "quick_thinking_level": quick_thinking_level,
+        "quick_reasoning_effort": quick_reasoning_effort,
+        # Mid
+        "mid_provider": mid_provider.lower(),
+        "mid_backend_url": mid_backend_url,
+        "mid_thinker": selected_mid_thinker,
+        "mid_thinking_level": mid_thinking_level,
+        "mid_reasoning_effort": mid_reasoning_effort,
+        # Deep
+        "deep_provider": deep_provider.lower(),
+        "deep_backend_url": deep_backend_url,
         "deep_thinker": selected_deep_thinker,
-        "google_thinking_level": thinking_level,
-        "openai_reasoning_effort": reasoning_effort,
+        "deep_thinking_level": deep_thinking_level,
+        "deep_reasoning_effort": deep_reasoning_effort,
     }
-
-
-def get_ticker():
-    """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
-
-
-def get_analysis_date():
-    """Get the analysis date from user input."""
-    while True:
-        date_str = typer.prompt(
-            "", default=datetime.datetime.now().strftime("%Y-%m-%d")
-        )
-        try:
-            # Validate date format and ensure it's not in the future
-            analysis_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-            if analysis_date.date() > datetime.datetime.now().date():
-                console.print("[red]Error: Analysis date cannot be in the future[/red]")
-                continue
-            return date_str
-        except ValueError:
-            console.print(
-                "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
-            )
 
 
 def save_report_to_disk(final_state, ticker: str, save_path: Path):
@@ -904,13 +896,25 @@ def run_analysis():
     config = DEFAULT_CONFIG.copy()
     config["max_debate_rounds"] = selections["research_depth"]
     config["max_risk_discuss_rounds"] = selections["research_depth"]
+    # Per-role LLM configuration
     config["quick_think_llm"] = selections["shallow_thinker"]
+    config["quick_think_llm_provider"] = selections["quick_provider"]
+    config["quick_think_backend_url"] = selections["quick_backend_url"]
+    config["quick_think_google_thinking_level"] = selections.get("quick_thinking_level")
+    config["quick_think_openai_reasoning_effort"] = selections.get("quick_reasoning_effort")
+    config["mid_think_llm"] = selections["mid_thinker"]
+    config["mid_think_llm_provider"] = selections["mid_provider"]
+    config["mid_think_backend_url"] = selections["mid_backend_url"]
+    config["mid_think_google_thinking_level"] = selections.get("mid_thinking_level")
+    config["mid_think_openai_reasoning_effort"] = selections.get("mid_reasoning_effort")
     config["deep_think_llm"] = selections["deep_thinker"]
-    config["backend_url"] = selections["backend_url"]
-    config["llm_provider"] = selections["llm_provider"].lower()
-    # Provider-specific thinking configuration
-    config["google_thinking_level"] = selections.get("google_thinking_level")
-    config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
+    config["deep_think_llm_provider"] = selections["deep_provider"]
+    config["deep_think_backend_url"] = selections["deep_backend_url"]
+    config["deep_think_google_thinking_level"] = selections.get("deep_thinking_level")
+    config["deep_think_openai_reasoning_effort"] = selections.get("deep_reasoning_effort")
+    # Keep shared llm_provider/backend_url as a fallback (use quick as default)
+    config["llm_provider"] = selections["quick_provider"]
+    config["backend_url"] = selections["quick_backend_url"]
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -948,10 +952,10 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
-    
+
     def save_tool_call_decorator(obj, func_name):
         func = getattr(obj, func_name)
         @wraps(func)
@@ -959,7 +963,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
-            with open(log_file, "a") as f:
+            with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
 
@@ -972,7 +976,7 @@ def run_analysis():
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
-                    with open(report_dir / file_name, "w") as f:
+                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(content)
         return wrapper
 

@@ -71,27 +71,65 @@ class TradingAgentsGraph:
             exist_ok=True,
         )
 
-        # Initialize LLMs with provider-specific thinking configuration
-        llm_kwargs = self._get_provider_kwargs()
+        # Initialize LLMs with provider-specific thinking configuration.
+        # Per-role provider/backend_url keys take precedence over the shared ones.
+        deep_kwargs = self._get_provider_kwargs("deep_think")
+        mid_kwargs = self._get_provider_kwargs("mid_think")
+        quick_kwargs = self._get_provider_kwargs("quick_think")
 
         # Add callbacks to kwargs if provided (passed to LLM constructor)
         if self.callbacks:
-            llm_kwargs["callbacks"] = self.callbacks
+            deep_kwargs["callbacks"] = self.callbacks
+            mid_kwargs["callbacks"] = self.callbacks
+            quick_kwargs["callbacks"] = self.callbacks
+
+        deep_provider = (
+            self.config.get("deep_think_llm_provider") or self.config["llm_provider"]
+        )
+        deep_backend_url = (
+            self.config.get("deep_think_backend_url") or self.config.get("backend_url")
+        )
+        quick_provider = (
+            self.config.get("quick_think_llm_provider") or self.config["llm_provider"]
+        )
+        quick_backend_url = (
+            self.config.get("quick_think_backend_url") or self.config.get("backend_url")
+        )
+
+        # mid_think falls back to quick_think when not configured
+        mid_model = self.config.get("mid_think_llm") or self.config["quick_think_llm"]
+        mid_provider = (
+            self.config.get("mid_think_llm_provider")
+            or self.config.get("quick_think_llm_provider")
+            or self.config["llm_provider"]
+        )
+        mid_backend_url = (
+            self.config.get("mid_think_backend_url")
+            or self.config.get("quick_think_backend_url")
+            or self.config.get("backend_url")
+        )
 
         deep_client = create_llm_client(
-            provider=self.config["llm_provider"],
+            provider=deep_provider,
             model=self.config["deep_think_llm"],
-            base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            base_url=deep_backend_url,
+            **deep_kwargs,
+        )
+        mid_client = create_llm_client(
+            provider=mid_provider,
+            model=mid_model,
+            base_url=mid_backend_url,
+            **mid_kwargs,
         )
         quick_client = create_llm_client(
-            provider=self.config["llm_provider"],
+            provider=quick_provider,
             model=self.config["quick_think_llm"],
-            base_url=self.config.get("backend_url"),
-            **llm_kwargs,
+            base_url=quick_backend_url,
+            **quick_kwargs,
         )
 
         self.deep_thinking_llm = deep_client.get_llm()
+        self.mid_thinking_llm = mid_client.get_llm()
         self.quick_thinking_llm = quick_client.get_llm()
         
         # Initialize memories
@@ -108,6 +146,7 @@ class TradingAgentsGraph:
         self.conditional_logic = ConditionalLogic()
         self.graph_setup = GraphSetup(
             self.quick_thinking_llm,
+            self.mid_thinking_llm,
             self.deep_thinking_llm,
             self.tool_nodes,
             self.bull_memory,
@@ -130,18 +169,33 @@ class TradingAgentsGraph:
         # Set up the graph
         self.graph = self.graph_setup.setup_graph(selected_analysts)
 
-    def _get_provider_kwargs(self) -> Dict[str, Any]:
-        """Get provider-specific kwargs for LLM client creation."""
+    def _get_provider_kwargs(self, role: str = "") -> Dict[str, Any]:
+        """Get provider-specific kwargs for LLM client creation.
+
+        Args:
+            role: Either "deep_think" or "quick_think".  When provided the
+                  per-role config keys take precedence over the shared keys.
+        """
         kwargs = {}
-        provider = self.config.get("llm_provider", "").lower()
+        prefix = f"{role}_" if role else ""
+        provider = (
+            self.config.get(f"{prefix}llm_provider")
+            or self.config.get("llm_provider", "")
+        ).lower()
 
         if provider == "google":
-            thinking_level = self.config.get("google_thinking_level")
+            thinking_level = (
+                self.config.get(f"{prefix}google_thinking_level")
+                or self.config.get("google_thinking_level")
+            )
             if thinking_level:
                 kwargs["thinking_level"] = thinking_level
 
-        elif provider == "openai":
-            reasoning_effort = self.config.get("openai_reasoning_effort")
+        elif provider in ("openai", "xai", "openrouter", "ollama"):
+            reasoning_effort = (
+                self.config.get(f"{prefix}openai_reasoning_effort")
+                or self.config.get("openai_reasoning_effort")
+            )
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
 
