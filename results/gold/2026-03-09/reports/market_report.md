@@ -1,0 +1,1 @@
+"Gold" is not a valid stock ticker symbol. Please provide a valid stock ticker symbol for the company you would like me to analyze (e.g., GLD for a gold ETF, or NEM for Newmont Corporation).

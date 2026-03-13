@@ -1,0 +1,1 @@
+I need a valid ticker symbol for "gold" to retrieve relevant news and social media discussions. Could you please provide the ticker symbol for the company you'd like me to analyze?

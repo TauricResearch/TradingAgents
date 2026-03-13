@@ -2,6 +2,7 @@ import os
 import requests
 import pandas as pd
 import json
+import re
 from datetime import datetime
 from io import StringIO
 
@@ -14,12 +15,55 @@ def get_api_key() -> str:
         raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
     return api_key
 
+def validate_date_string(date_str: str, allow_future: bool = False) -> str:
+    """Validate date string format and value.
+    
+    Args:
+        date_str: Date string to validate
+        allow_future: Whether to allow future dates
+        
+    Returns:
+        Validated date string
+        
+    Raises:
+        ValueError: If date is invalid
+    """
+    # Only allow YYYY-MM-DD format
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+        raise ValueError(f"Date must be in YYYY-MM-DD format, got: {date_str}")
+    
+    # Validate it's a real date
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError as e:
+        raise ValueError(f"Invalid date: {date_str} - {e}")
+    
+    # Check if future date
+    if not allow_future and dt.date() > datetime.now().date():
+        raise ValueError(f"Date cannot be in the future: {date_str}")
+    
+    # Sanity check: not too far in the past (before 1900)
+    if dt.year < 1900:
+        raise ValueError(f"Date too far in the past: {date_str}")
+    
+    return date_str
+
 def format_datetime_for_api(date_input) -> str:
     """Convert various date formats to YYYYMMDDTHHMM format required by Alpha Vantage API."""
     if isinstance(date_input, str):
-        # If already in correct format, return as-is
+        # If already in correct format, validate and return
         if len(date_input) == 13 and 'T' in date_input:
+            # Extract date part and validate
+            date_part = date_input[:8]  # YYYYMMDD
+            try:
+                datetime.strptime(date_part, "%Y%m%d")
+            except ValueError:
+                raise ValueError(f"Invalid date in API format: {date_input}")
             return date_input
+        
+        # Validate standard date format
+        validate_date_string(date_input, allow_future=False)
+        
         # Try to parse common date formats
         try:
             dt = datetime.strptime(date_input, "%Y-%m-%d")

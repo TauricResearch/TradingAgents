@@ -229,6 +229,43 @@ class MessageBuffer:
 message_buffer = MessageBuffer()
 
 
+def sanitize_save_path(user_input: str, base_dir: Path) -> Path:
+    """Validate and sanitize user-provided save path to prevent path traversal attacks.
+    
+    Args:
+        user_input: User-provided path string
+        base_dir: Base directory that the path must be within
+        
+    Returns:
+        Validated Path object
+        
+    Raises:
+        ValueError: If path is invalid or outside allowed directory
+    """
+    # Expand user home directory if present
+    user_path = Path(user_input).expanduser()
+    
+    # Resolve to absolute path to handle .. and symlinks
+    try:
+        resolved_path = user_path.resolve()
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Invalid path provided: {e}")
+    
+    # Ensure base directory exists and is resolved
+    base_resolved = base_dir.resolve()
+    
+    # Check if resolved path is within allowed base directory
+    try:
+        resolved_path.relative_to(base_resolved)
+    except ValueError:
+        raise ValueError(
+            f"Security Error: Path must be within {base_resolved}\n"
+            f"Attempted path resolves to: {resolved_path}"
+        )
+    
+    return resolved_path
+
+
 def create_layout():
     layout = Layout()
     layout.split_column(
@@ -933,14 +970,37 @@ def run_analysis():
     # Track start time for elapsed display
     start_time = time.time()
 
-    # Create result directory
+    # Create result directory with secure permissions
     results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
-    results_dir.mkdir(parents=True, exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     report_dir = results_dir / "reports"
-    report_dir.mkdir(parents=True, exist_ok=True)
+    report_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     log_file = results_dir / "message_tool.log"
-    log_file.touch(exist_ok=True)
+    log_file.touch(exist_ok=True, mode=0o600)
 
+    def sanitize_log_content(content: str) -> str:
+        """Sanitize content to prevent sensitive data exposure in logs."""
+        import re
+        # Redact potential API keys (common patterns)
+        content = re.sub(r'sk-[A-Za-z0-9]{48}', '***REDACTED_OPENAI_KEY***', content)
+        content = re.sub(r'sk-ant-[A-Za-z0-9-]{95}', '***REDACTED_ANTHROPIC_KEY***', content)
+        content = re.sub(r'AIza[A-Za-z0-9_-]{35}', '***REDACTED_GOOGLE_KEY***', content)
+        content = re.sub(r'xai-[A-Za-z0-9]{48}', '***REDACTED_XAI_KEY***', content)
+        # Redact bearer tokens
+        content = re.sub(r'Bearer [A-Za-z0-9_-]+', 'Bearer ***REDACTED***', content)
+        return content
+    
+    def sanitize_tool_args(args: dict) -> str:
+        """Sanitize tool arguments to prevent sensitive data exposure."""
+        SENSITIVE_KEYS = {'api_key', 'apikey', 'password', 'token', 'secret', 'authorization', 'bearer'}
+        sanitized = {}
+        for k, v in args.items():
+            if any(sensitive in k.lower() for sensitive in SENSITIVE_KEYS):
+                sanitized[k] = "***REDACTED***"
+            else:
+                sanitized[k] = v
+        return ", ".join(f"{k}={v}" for k, v in sanitized.items())
+    
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
         @wraps(func)
@@ -948,6 +1008,7 @@ def run_analysis():
             func(*args, **kwargs)
             timestamp, message_type, content = obj.messages[-1]
             content = content.replace("\n", " ")  # Replace newlines with spaces
+            content = sanitize_log_content(content)  # Sanitize sensitive data
             with open(log_file, "a") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
         return wrapper
@@ -958,7 +1019,7 @@ def run_analysis():
         def wrapper(*args, **kwargs):
             func(*args, **kwargs)
             timestamp, tool_name, args = obj.tool_calls[-1]
-            args_str = ", ".join(f"{k}={v}" for k, v in args.items())
+            args_str = sanitize_tool_args(args)  # Sanitize sensitive arguments
             with open(log_file, "a") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
         return wrapper
@@ -1148,18 +1209,35 @@ def run_analysis():
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
     if save_choice in ("Y", "YES", ""):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_path = Path.cwd() / "reports" / f"{selections['ticker']}_{timestamp}"
-        save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
-        ).strip()
-        save_path = Path(save_path_str)
-        try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
-            console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
-            console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
-        except Exception as e:
-            console.print(f"[red]Error saving report: {e}[/red]")
+        base_reports_dir = Path.cwd() / "reports"
+        default_path = base_reports_dir / f"{selections['ticker']}_{timestamp}"
+        
+        while True:
+            save_path_str = typer.prompt(
+                "Save path (press Enter for default)",
+                default=str(default_path)
+            ).strip()
+            
+            try:
+                # Validate and sanitize the path
+                save_path = sanitize_save_path(save_path_str, base_reports_dir)
+                break
+            except ValueError as e:
+                console.print(f"[red]{e}[/red]")
+                console.print("[yellow]Please enter a valid path within the reports directory.[/yellow]")
+                retry = typer.prompt("Try again? (Y/n)", default="Y").strip().upper()
+                if retry not in ("Y", "YES", ""):
+                    console.print("[yellow]Report not saved.[/yellow]")
+                    save_path = None
+                    break
+        
+        if save_path:
+            try:
+                report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+                console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
+                console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
+            except Exception as e:
+                console.print(f"[red]Error saving report: {e}[/red]")
 
     # Prompt to display full report
     display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
