@@ -1,7 +1,23 @@
 import questionary
+import requests
 from typing import List, Optional, Tuple, Dict
+from rich.console import Console
 
 from cli.models import AnalystType
+
+console = Console()
+
+
+def _fetch_ollama_models(base_url: str = "http://localhost:11434") -> list[tuple[str, str]]:
+    """Fetch available models from a running Ollama instance."""
+    try:
+        resp = requests.get(f"{base_url}/api/tags", timeout=5)
+        resp.raise_for_status()
+        models = resp.json().get("models", [])
+        return [(m["name"], m["name"]) for m in models] if models else []
+    except Exception:
+        return []
+
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -125,48 +141,56 @@ def select_research_depth() -> int:
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
-    # Define shallow thinking llm engine options with their corresponding model names
-    SHALLOW_AGENT_OPTIONS = {
-        "openai": [
-            ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
-            ("GPT-5 Nano - Ultra-fast, high-throughput", "gpt-5-nano"),
-            ("GPT-5.2 - Latest flagship", "gpt-5.2"),
-            ("GPT-5.1 - Flexible reasoning", "gpt-5.1"),
-            ("GPT-4.1 - Smartest non-reasoning, 1M context", "gpt-4.1"),
-        ],
-        "anthropic": [
-            ("Claude Haiku 4.5 - Fast + extended thinking", "claude-haiku-4-5"),
-            ("Claude Sonnet 4.5 - Best for agents/coding", "claude-sonnet-4-5"),
-            ("Claude Sonnet 4 - High-performance", "claude-sonnet-4-20250514"),
-        ],
-        "google": [
-            ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
-            ("Gemini 2.5 Flash - Balanced, recommended", "gemini-2.5-flash"),
-            ("Gemini 3 Pro - Reasoning-first", "gemini-3-pro-preview"),
-            ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
-        ],
-        "xai": [
-            ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
-            ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
-            ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
-            ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
-        ],
-        "openrouter": [
-            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
-            ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
-        ],
-        "ollama": [
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
-        ],
-    }
+    _provider = provider.lower()
+
+    if _provider == "ollama":
+        ollama_models = _fetch_ollama_models()
+        if not ollama_models:
+            console.print("[yellow]Could not reach Ollama — is it running? Enter a model name manually.[/yellow]")
+            model = questionary.text("Model name (e.g. qwen3.5:9b):").ask()
+            if not model:
+                console.print("\n[red]No model entered. Exiting...[/red]")
+                exit(1)
+            return model.strip()
+        options = ollama_models
+    else:
+        SHALLOW_AGENT_OPTIONS = {
+            "openai": [
+                ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
+                ("GPT-5 Nano - Ultra-fast, high-throughput", "gpt-5-nano"),
+                ("GPT-5.2 - Latest flagship", "gpt-5.2"),
+                ("GPT-5.1 - Flexible reasoning", "gpt-5.1"),
+                ("GPT-4.1 - Smartest non-reasoning, 1M context", "gpt-4.1"),
+            ],
+            "anthropic": [
+                ("Claude Haiku 4.5 - Fast + extended thinking", "claude-haiku-4-5"),
+                ("Claude Sonnet 4.5 - Best for agents/coding", "claude-sonnet-4-5"),
+                ("Claude Sonnet 4 - High-performance", "claude-sonnet-4-20250514"),
+            ],
+            "google": [
+                ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
+                ("Gemini 2.5 Flash - Balanced, recommended", "gemini-2.5-flash"),
+                ("Gemini 3 Pro - Reasoning-first", "gemini-3-pro-preview"),
+                ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
+            ],
+            "xai": [
+                ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
+                ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
+                ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
+                ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
+            ],
+            "openrouter": [
+                ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+                ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
+            ],
+        }
+        options = SHALLOW_AGENT_OPTIONS[_provider]
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
+            for display, value in options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -187,54 +211,132 @@ def select_shallow_thinking_agent(provider) -> str:
     return choice
 
 
+def select_mid_thinking_agent(provider) -> str:
+    """Select mid thinking llm engine using an interactive selection."""
+
+    _provider = provider.lower()
+
+    if _provider == "ollama":
+        ollama_models = _fetch_ollama_models()
+        if not ollama_models:
+            console.print("[yellow]Could not reach Ollama — is it running? Enter a model name manually.[/yellow]")
+            model = questionary.text("Model name (e.g. qwen3.5:27b):").ask()
+            if not model:
+                console.print("\n[red]No model entered. Exiting...[/red]")
+                exit(1)
+            return model.strip()
+        options = ollama_models
+    else:
+        MID_AGENT_OPTIONS = {
+            "openai": [
+                ("GPT-5.1 - Flexible reasoning", "gpt-5.1"),
+                ("GPT-5 - Advanced reasoning", "gpt-5"),
+                ("GPT-4.1 - Smartest non-reasoning, 1M context", "gpt-4.1"),
+                ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
+            ],
+            "anthropic": [
+                ("Claude Sonnet 4.5 - Best for agents/coding", "claude-sonnet-4-5"),
+                ("Claude Sonnet 4 - High-performance", "claude-sonnet-4-20250514"),
+                ("Claude Haiku 4.5 - Fast + extended thinking", "claude-haiku-4-5"),
+            ],
+            "google": [
+                ("Gemini 2.5 Flash - Balanced, recommended", "gemini-2.5-flash"),
+                ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
+                ("Gemini 3 Pro - Reasoning-first", "gemini-3-pro-preview"),
+            ],
+            "xai": [
+                ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
+                ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
+                ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
+            ],
+            "openrouter": [
+                ("DeepSeek R1 - Strong open-source reasoning", "deepseek/deepseek-r1"),
+                ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
+                ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            ],
+        }
+        options = MID_AGENT_OPTIONS[_provider]
+
+    choice = questionary.select(
+        "Select Your [Mid-Thinking LLM Engine]:",
+        choices=[
+            questionary.Choice(display, value=value)
+            for display, value in options
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:magenta noinherit"),
+                ("highlighted", "fg:magenta noinherit"),
+                ("pointer", "fg:magenta noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No mid thinking llm engine selected. Exiting...[/red]")
+        exit(1)
+
+    return choice
+
+
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
-    # Define deep thinking llm engine options with their corresponding model names
-    DEEP_AGENT_OPTIONS = {
-        "openai": [
-            ("GPT-5.2 - Latest flagship", "gpt-5.2"),
-            ("GPT-5.1 - Flexible reasoning", "gpt-5.1"),
-            ("GPT-5 - Advanced reasoning", "gpt-5"),
-            ("GPT-4.1 - Smartest non-reasoning, 1M context", "gpt-4.1"),
-            ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
-            ("GPT-5 Nano - Ultra-fast, high-throughput", "gpt-5-nano"),
-        ],
-        "anthropic": [
-            ("Claude Sonnet 4.5 - Best for agents/coding", "claude-sonnet-4-5"),
-            ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
-            ("Claude Opus 4.1 - Most capable model", "claude-opus-4-1-20250805"),
-            ("Claude Haiku 4.5 - Fast + extended thinking", "claude-haiku-4-5"),
-            ("Claude Sonnet 4 - High-performance", "claude-sonnet-4-20250514"),
-        ],
-        "google": [
-            ("Gemini 3 Pro - Reasoning-first", "gemini-3-pro-preview"),
-            ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
-            ("Gemini 2.5 Flash - Balanced, recommended", "gemini-2.5-flash"),
-        ],
-        "xai": [
-            ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
-            ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
-            ("Grok 4 - Flagship model", "grok-4-0709"),
-            ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
-            ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
-        ],
-        "openrouter": [
-            ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
-            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
-        ],
-        "ollama": [
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
-        ],
-    }
+    _provider = provider.lower()
+
+    if _provider == "ollama":
+        ollama_models = _fetch_ollama_models()
+        if not ollama_models:
+            console.print("[yellow]Could not reach Ollama — is it running? Enter a model name manually.[/yellow]")
+            model = questionary.text("Model name (e.g. qwen3.5:27b):").ask()
+            if not model:
+                console.print("\n[red]No model entered. Exiting...[/red]")
+                exit(1)
+            return model.strip()
+        options = ollama_models
+    else:
+        DEEP_AGENT_OPTIONS = {
+            "openai": [
+                ("GPT-5.2 - Latest flagship", "gpt-5.2"),
+                ("GPT-5.1 - Flexible reasoning", "gpt-5.1"),
+                ("GPT-5 - Advanced reasoning", "gpt-5"),
+                ("GPT-4.1 - Smartest non-reasoning, 1M context", "gpt-4.1"),
+                ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
+                ("GPT-5 Nano - Ultra-fast, high-throughput", "gpt-5-nano"),
+            ],
+            "anthropic": [
+                ("Claude Sonnet 4.5 - Best for agents/coding", "claude-sonnet-4-5"),
+                ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
+                ("Claude Opus 4.1 - Most capable model", "claude-opus-4-1-20250805"),
+                ("Claude Haiku 4.5 - Fast + extended thinking", "claude-haiku-4-5"),
+                ("Claude Sonnet 4 - High-performance", "claude-sonnet-4-20250514"),
+            ],
+            "google": [
+                ("Gemini 3 Pro - Reasoning-first", "gemini-3-pro-preview"),
+                ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
+                ("Gemini 2.5 Flash - Balanced, recommended", "gemini-2.5-flash"),
+            ],
+            "xai": [
+                ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
+                ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
+                ("Grok 4 - Flagship model", "grok-4-0709"),
+                ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
+                ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
+            ],
+            "openrouter": [
+                ("DeepSeek R1 - Strong open-source reasoning", "deepseek/deepseek-r1"),
+                ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
+                ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            ],
+        }
+        options = DEEP_AGENT_OPTIONS[_provider]
 
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
+            for display, value in options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
