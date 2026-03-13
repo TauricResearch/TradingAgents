@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_news, filter_messages_for_analyst
+from tradingagents.agents.utils.agent_utils import get_news
 from tradingagents.agents.utils.prompts import get_social_analyst_prompt, get_agent_role_instruction, get_context_message
 from tradingagents.dataflows.config import get_config
 
@@ -57,8 +57,7 @@ def create_social_media_analyst(llm, language: str = "zh-TW"):
 
         chain = prompt | llm.bind_tools(tools)
 
-        tool_names = {t.name for t in tools}
-        result = chain.invoke(filter_messages_for_analyst(state["messages"], tool_names))
+        result = chain.invoke(state["messages"])
 
         # Report logic: only save report when LLM gives final response
         report = state.get("sentiment_report", "")

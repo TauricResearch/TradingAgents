@@ -52,6 +52,7 @@ const formSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "日期格式必須為 YYYY-MM-DD"),
   analysts: z.array(z.string()).min(1, "請至少選擇一位分析師"),
   research_depth: z.number().int().min(1).max(5),
+  analysis_mode: z.enum(["fast", "deep"]).optional().default("deep"),
   quick_think_llm: z.string().min(1, "請選擇快速思維模型"),
   deep_think_llm: z.string().min(1, "請選擇深層思維模型"),
   embedding_model: z.string().min(1, "請選擇嵌入式模型"),
@@ -111,6 +112,7 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
       analysis_date: format(new Date(), "yyyy-MM-dd"),
       analysts: ["market", "social", "news", "fundamentals"], // 預設全選
       research_depth: 3, // 預設中等層級
+      analysis_mode: "deep", // 預設深層分析
       market_type: "us", // 預設美股
       quick_think_llm: "gpt-5-mini",
       deep_think_llm: "gpt-5-mini",
@@ -467,6 +469,35 @@ export function AnalysisForm({ onSubmit, loading = false }: AnalysisFormProps) {
                         />
                       </FormControl>
                       <FormDescription>{t.form.selectDate}</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* 分析模式行 */}
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="analysis_mode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>分析模式</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="選擇分析模式" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="fast">快速分析 (~15-25 分鐘)</SelectItem>
+                          <SelectItem value="deep">深層分析 (~1 小時)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>快速模式跳過辯論，深層模式包含投資和風險辯論</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
