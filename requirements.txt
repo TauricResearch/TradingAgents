@@ -1,7 +1,7 @@
 typing-extensions
 langchain-core
 langchain-openai
-langchain-experimental
+langchain-codex-oauth
 pandas
 yfinance
 stockstats
