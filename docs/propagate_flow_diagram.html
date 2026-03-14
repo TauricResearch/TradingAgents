@@ -1,0 +1,261 @@
+
+<style>
+  .wrap { padding: 1rem 0 0.5rem; font-family: var(--font-sans); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+  .leg { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-text-secondary); }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .hint { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 8px; }
+</style>
+<div class="wrap">
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#185FA5"></div>Entry / Exit</div>
+    <div class="leg"><div class="leg-dot" style="background:#0F6E56"></div>Analyst team</div>
+    <div class="leg"><div class="leg-dot" style="background:#534AB7"></div>Research debate</div>
+    <div class="leg"><div class="leg-dot" style="background:#BA7517"></div>Risk debate</div>
+    <div class="leg"><div class="leg-dot" style="background:#993C1D"></div>Decision</div>
+    <div class="leg"><div class="leg-dot" style="background:#888780; border-radius:50%"></div>Tool node</div>
+  </div>
+  <p class="hint">Click any node to learn more</p>
+
+<svg width="100%" viewBox="0 0 680 1620">
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- ENTRY -->
+<g class="node c-blue" onclick="sendPrompt('What does propagate() do when it first gets called? What is create_initial_state()?')">
+  <rect x="220" y="20" width="240" height="44" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="42" text-anchor="middle" dominant-baseline="central">propagate(ticker, date)</text>
+</g>
+
+<!-- INIT STATE -->
+<g class="node c-gray" onclick="sendPrompt('What fields does create_initial_state() set up? What is in AgentState?')">
+  <rect x="220" y="88" width="240" height="44" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="104" text-anchor="middle" dominant-baseline="central">create_initial_state()</text>
+  <text class="ts" x="340" y="122" text-anchor="middle" dominant-baseline="central">messages, reports, debate states</text>
+</g>
+<line x1="340" y1="64" x2="340" y2="88" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+
+<!-- ANALYST TEAM LABEL -->
+<text class="ts" x="40" y="158" fill="#0F6E56" font-weight="500">① Analyst team  (runs in sequence)</text>
+<line x1="40" y1="164" x2="640" y2="164" stroke="#0F6E56" stroke-width="0.5" opacity="0.4"/>
+
+<line x1="340" y1="132" x2="340" y2="172" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+
+<!-- MARKET ANALYST -->
+<g class="node c-teal" onclick="sendPrompt('What does the Market Analyst do? What tools does it use and what does it output?')">
+  <rect x="200" y="172" width="280" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="190" text-anchor="middle" dominant-baseline="central">Market Analyst</text>
+  <text class="ts" x="340" y="210" text-anchor="middle" dominant-baseline="central">get_stock_data · get_indicators</text>
+</g>
+
+<!-- tool loop market -->
+<line x1="480" y1="198" x2="540" y2="198" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)"/>
+<g class="node c-gray" onclick="sendPrompt('What is a ToolNode in LangGraph? How does the market tool loop work?')">
+  <rect x="540" y="178" width="100" height="40" rx="20" stroke-width="0.5"/>
+  <text class="ts" x="590" y="198" text-anchor="middle" dominant-baseline="central">tools_market</text>
+</g>
+<path d="M590 218 Q590 244 480 236" fill="none" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+<text class="ts" x="556" y="238" text-anchor="middle">tool call?</text>
+
+<!-- Msg Clear Market -->
+<text class="ts" x="170" y="202" text-anchor="middle" fill="var(--color-text-tertiary)">done →</text>
+<line x1="200" y1="198" x2="112" y2="198" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<g class="node c-gray" onclick="sendPrompt('What does the Msg Clear node do between analysts?')">
+  <rect x="40" y="178" width="72" height="40" rx="8" stroke-width="0.5"/>
+  <text class="ts" x="76" y="198" text-anchor="middle" dominant-baseline="central">Msg Clear</text>
+</g>
+<line x1="76" y1="218" x2="76" y2="252" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<line x1="76" y1="252" x2="200" y2="252" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)"/>
+
+<!-- SOCIAL ANALYST -->
+<g class="node c-teal" onclick="sendPrompt('What does the Social Media Analyst do? What data does it pull?')">
+  <rect x="200" y="252" width="280" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="270" text-anchor="middle" dominant-baseline="central">Social Media Analyst</text>
+  <text class="ts" x="340" y="290" text-anchor="middle" dominant-baseline="central">get_news (Reddit/Twitter sentiment)</text>
+</g>
+<line x1="480" y1="278" x2="540" y2="278" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)"/>
+<g class="node c-gray" onclick="sendPrompt('How does the social tool node differ from the market tool node?')">
+  <rect x="540" y="258" width="100" height="40" rx="20" stroke-width="0.5"/>
+  <text class="ts" x="590" y="278" text-anchor="middle" dominant-baseline="central">tools_social</text>
+</g>
+<path d="M590 298 Q590 324 480 316" fill="none" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+<text class="ts" x="556" y="318" text-anchor="middle">tool call?</text>
+
+<text class="ts" x="170" y="282" text-anchor="middle" fill="var(--color-text-tertiary)">done →</text>
+<line x1="200" y1="278" x2="112" y2="278" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<g class="node c-gray">
+  <rect x="40" y="258" width="72" height="40" rx="8" stroke-width="0.5"/>
+  <text class="ts" x="76" y="278" text-anchor="middle" dominant-baseline="central">Msg Clear</text>
+</g>
+<line x1="76" y1="298" x2="76" y2="332" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<line x1="76" y1="332" x2="200" y2="332" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)"/>
+
+<!-- NEWS ANALYST -->
+<g class="node c-teal" onclick="sendPrompt('What does the News Analyst do? What is the difference between get_news and get_global_news?')">
+  <rect x="200" y="332" width="280" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="350" text-anchor="middle" dominant-baseline="central">News Analyst</text>
+  <text class="ts" x="340" y="370" text-anchor="middle" dominant-baseline="central">get_news · get_global_news · get_insider_transactions</text>
+</g>
+<line x1="480" y1="358" x2="540" y2="358" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)"/>
+<g class="node c-gray">
+  <rect x="540" y="338" width="100" height="40" rx="20" stroke-width="0.5"/>
+  <text class="ts" x="590" y="358" text-anchor="middle" dominant-baseline="central">tools_news</text>
+</g>
+<path d="M590 378 Q590 404 480 396" fill="none" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+<text class="ts" x="556" y="398" text-anchor="middle">tool call?</text>
+
+<text class="ts" x="170" y="362" text-anchor="middle" fill="var(--color-text-tertiary)">done →</text>
+<line x1="200" y1="358" x2="112" y2="358" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<g class="node c-gray">
+  <rect x="40" y="338" width="72" height="40" rx="8" stroke-width="0.5"/>
+  <text class="ts" x="76" y="358" text-anchor="middle" dominant-baseline="central">Msg Clear</text>
+</g>
+<line x1="76" y1="378" x2="76" y2="412" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<line x1="76" y1="412" x2="200" y2="412" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)"/>
+
+<!-- FUNDAMENTALS ANALYST -->
+<g class="node c-teal" onclick="sendPrompt('What does the Fundamentals Analyst do? What is in get_balance_sheet, get_cashflow, get_income_statement?')">
+  <rect x="200" y="412" width="280" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="430" text-anchor="middle" dominant-baseline="central">Fundamentals Analyst</text>
+  <text class="ts" x="340" y="450" text-anchor="middle" dominant-baseline="central">get_fundamentals · balance sheet · cashflow</text>
+</g>
+<line x1="480" y1="438" x2="540" y2="438" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)"/>
+<g class="node c-gray">
+  <rect x="540" y="418" width="100" height="40" rx="20" stroke-width="0.5"/>
+  <text class="ts" x="590" y="438" text-anchor="middle" dominant-baseline="central">tools_fundamentals</text>
+</g>
+<path d="M590 458 Q590 484 480 476" fill="none" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+<text class="ts" x="556" y="478" text-anchor="middle">tool call?</text>
+
+<text class="ts" x="170" y="442" text-anchor="middle" fill="var(--color-text-tertiary)">done →</text>
+<line x1="200" y1="438" x2="112" y2="438" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<g class="node c-gray">
+  <rect x="40" y="418" width="72" height="40" rx="8" stroke-width="0.5"/>
+  <text class="ts" x="76" y="438" text-anchor="middle" dominant-baseline="central">Msg Clear</text>
+</g>
+
+<!-- all 4 reports collected label -->
+<line x1="76" y1="458" x2="76" y2="500" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<line x1="76" y1="500" x2="200" y2="500" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<line x1="340" y1="464" x2="340" y2="500" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<line x1="76" y1="500" x2="340" y2="500" stroke="var(--color-text-tertiary)" stroke-width="0.5" marker-end="url(#arrow)"/>
+
+<!-- RESEARCH DEBATE LABEL -->
+<text class="ts" x="40" y="524" fill="#534AB7" font-weight="500">② Research debate  (Bull vs Bear, max_debate_rounds × 2 turns)</text>
+<line x1="40" y1="530" x2="640" y2="530" stroke="#534AB7" stroke-width="0.5" opacity="0.4"/>
+
+<line x1="340" y1="500" x2="340" y2="536" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+
+<!-- BULL RESEARCHER -->
+<g class="node c-purple" onclick="sendPrompt('What does the Bull Researcher do? What reports does it read? Does it use memory?')">
+  <rect x="110" y="536" width="200" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="210" y="554" text-anchor="middle" dominant-baseline="central">Bull Researcher</text>
+  <text class="ts" x="210" y="574" text-anchor="middle" dominant-baseline="central">reads all 4 reports + memory</text>
+</g>
+
+<!-- BEAR RESEARCHER -->
+<g class="node c-purple" onclick="sendPrompt('What does the Bear Researcher do? How does it counter the Bull argument?')">
+  <rect x="370" y="536" width="200" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="470" y="554" text-anchor="middle" dominant-baseline="central">Bear Researcher</text>
+  <text class="ts" x="470" y="574" text-anchor="middle" dominant-baseline="central">reads all 4 reports + memory</text>
+</g>
+
+<!-- debate arrows -->
+<path d="M310 552 Q340 546 370 552" fill="none" stroke="#534AB7" stroke-width="1" marker-end="url(#arrow)"/>
+<path d="M370 568 Q340 574 310 568" fill="none" stroke="#534AB7" stroke-width="1" marker-end="url(#arrow)"/>
+<text class="ts" x="340" y="548" text-anchor="middle" fill="#534AB7">argues →</text>
+<text class="ts" x="340" y="582" text-anchor="middle" fill="#534AB7">← counters</text>
+
+<!-- debate loop annotation -->
+<rect x="86" y="598" width="508" height="22" rx="4" fill="none" stroke="#534AB7" stroke-width="0.5" stroke-dasharray="4 3"/>
+<text class="ts" x="340" y="613" text-anchor="middle" fill="#534AB7">loop until investment_debate_state.count ≥ 2 × max_debate_rounds</text>
+
+<!-- RESEARCH MANAGER -->
+<line x1="340" y1="620" x2="340" y2="648" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+<g class="node c-purple" onclick="sendPrompt('What does the Research Manager do? What is its role after the Bull/Bear debate? Does it use a deep thinking LLM?')">
+  <rect x="190" y="648" width="300" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="666" text-anchor="middle" dominant-baseline="central">Research Manager</text>
+  <text class="ts" x="340" y="686" text-anchor="middle" dominant-baseline="central">synthesises debate → investment_plan  · deep LLM</text>
+</g>
+
+<!-- TRADER -->
+<line x1="340" y1="700" x2="340" y2="728" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+<g class="node c-coral" onclick="sendPrompt('What does the Trader agent do with the investment plan? What does trader_investment_plan contain?')">
+  <rect x="210" y="728" width="260" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="746" text-anchor="middle" dominant-baseline="central">Trader</text>
+  <text class="ts" x="340" y="766" text-anchor="middle" dominant-baseline="central">creates trader_investment_plan</text>
+</g>
+
+<!-- RISK DEBATE LABEL -->
+<line x1="340" y1="780" x2="340" y2="804" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+<text class="ts" x="40" y="820" fill="#BA7517" font-weight="500">③ Risk debate  (Aggressive / Conservative / Neutral, max_risk_discuss_rounds × 3 turns)</text>
+<line x1="40" y1="826" x2="640" y2="826" stroke="#BA7517" stroke-width="0.5" opacity="0.4"/>
+<line x1="340" y1="804" x2="340" y2="832" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+
+<!-- risk trio -->
+<g class="node c-amber" onclick="sendPrompt('What is the Aggressive Analyst in the risk debate? What stance does it take?')">
+  <rect x="40" y="832" width="172" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="126" y="850" text-anchor="middle" dominant-baseline="central">Aggressive Analyst</text>
+  <text class="ts" x="126" y="870" text-anchor="middle" dominant-baseline="central">maximise upside risk</text>
+</g>
+<g class="node c-amber" onclick="sendPrompt('What is the Conservative Analyst in the risk debate? How does it push back on aggressive positions?')">
+  <rect x="254" y="832" width="172" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="850" text-anchor="middle" dominant-baseline="central">Conservative Analyst</text>
+  <text class="ts" x="340" y="870" text-anchor="middle" dominant-baseline="central">protect downside risk</text>
+</g>
+<g class="node c-amber" onclick="sendPrompt('What is the Neutral Analyst in the risk debate? How does it balance the other two?')">
+  <rect x="468" y="832" width="172" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="554" y="850" text-anchor="middle" dominant-baseline="central">Neutral Analyst</text>
+  <text class="ts" x="554" y="870" text-anchor="middle" dominant-baseline="central">balanced risk view</text>
+</g>
+
+<!-- risk rotation arrows -->
+<path d="M212 858 Q233 842 254 858" fill="none" stroke="#BA7517" stroke-width="1" marker-end="url(#arrow)"/>
+<path d="M426 858 Q447 842 468 858" fill="none" stroke="#BA7517" stroke-width="1" marker-end="url(#arrow)"/>
+<path d="M554 884 Q554 908 340 908 Q126 908 126 884" fill="none" stroke="#BA7517" stroke-width="0.8" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+
+<!-- risk loop annotation -->
+<rect x="40" y="916" width="600" height="22" rx="4" fill="none" stroke="#BA7517" stroke-width="0.5" stroke-dasharray="4 3"/>
+<text class="ts" x="340" y="931" text-anchor="middle" fill="#BA7517">loop until risk_debate_state.count ≥ 3 × max_risk_discuss_rounds  ·  Agg → Con → Neu → Agg → …</text>
+
+<!-- RISK JUDGE / FUND MANAGER -->
+<line x1="340" y1="938" x2="340" y2="964" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+<text class="ts" x="40" y="980" fill="#993C1D" font-weight="500">④ Final decision</text>
+<line x1="40" y1="986" x2="640" y2="986" stroke="#993C1D" stroke-width="0.5" opacity="0.4"/>
+<line x1="340" y1="964" x2="340" y2="992" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+
+<g class="node c-coral" onclick="sendPrompt('What does the Risk Judge (Fund Manager) do? How does it approve or reject the trader plan? What is final_trade_decision?')">
+  <rect x="170" y="992" width="340" height="52" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="1010" text-anchor="middle" dominant-baseline="central">Risk Judge  (Fund Manager)</text>
+  <text class="ts" x="340" y="1030" text-anchor="middle" dominant-baseline="central">approves / rejects · writes final_trade_decision</text>
+</g>
+
+<!-- PROCESS SIGNAL -->
+<line x1="340" y1="1044" x2="340" y2="1072" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+<g class="node c-gray" onclick="sendPrompt('What does process_signal() do? How does it extract BUY, SELL, or HOLD from the final state?')">
+  <rect x="210" y="1072" width="260" height="44" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="1090" text-anchor="middle" dominant-baseline="central">process_signal()</text>
+  <text class="ts" x="340" y="1108" text-anchor="middle" dominant-baseline="central">extracts BUY / SELL / HOLD + rationale</text>
+</g>
+
+<!-- RETURN -->
+<line x1="340" y1="1116" x2="340" y2="1144" class="arr" marker-end="url(#arrow)" stroke="var(--color-text-tertiary)"/>
+<g class="node c-blue" onclick="sendPrompt('What does propagate() return? What is in final_state vs the signal tuple?')">
+  <rect x="190" y="1144" width="300" height="44" rx="8" stroke-width="0.5"/>
+  <text class="th" x="340" y="1162" text-anchor="middle" dominant-baseline="central">return (final_state, decision)</text>
+  <text class="ts" x="340" y="1180" text-anchor="middle" dominant-baseline="central">full state + BUY / SELL / HOLD signal</text>
+</g>
+
+<!-- log state side annotation -->
+<line x1="490" y1="1018" x2="560" y2="1018" stroke="var(--color-text-tertiary)" stroke-width="0.5"/>
+<g class="node c-gray" onclick="sendPrompt('What does _log_state() write? Where is the JSON log saved?')">
+  <rect x="560" y="998" width="100" height="40" rx="8" stroke-width="0.5"/>
+  <text class="ts" x="610" y="1018" text-anchor="middle" dominant-baseline="central">_log_state()</text>
+</g>
+<text class="ts" x="610" y="1050" text-anchor="middle" fill="var(--color-text-tertiary)">JSON log</text>
+
+</svg>
+</div>
