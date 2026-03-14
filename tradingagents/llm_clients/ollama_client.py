@@ -35,9 +35,9 @@ class OllamaClient(BaseLLMClient):
 
         ollama_model = os.getenv("OLLAMA_MODEL")
         if not ollama_model:
-            ollama_model = self.model or "gpt-oss:120b"
+            ollama_model = self.model or "llama4"
         if not ollama_model:
-            ollama_model = "gpt-oss:120b-cloud"
+            ollama_model = "llama4"
 
         ollama_api_key = os.getenv("OLLAMA_API_KEY")
 
