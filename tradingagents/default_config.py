@@ -46,4 +46,7 @@ DEFAULT_CONFIG = {
     "tool_vendors": {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
+    # Investment persona configuration
+    # Options: None, "warren_buffett", "ray_dalio", "peter_lynch"
+    "persona": None,
 }

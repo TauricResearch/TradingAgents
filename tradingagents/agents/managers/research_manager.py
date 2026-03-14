@@ -1,8 +1,10 @@
 import time
 import json
 
+from tradingagents.agents.personas import get_persona_prompt
 
-def create_research_manager(llm, memory):
+
+def create_research_manager(llm, memory, persona=None):
     def research_manager_node(state) -> dict:
         history = state["investment_debate_state"].get("history", "")
         market_research_report = state["market_report"]
@@ -35,7 +37,7 @@ Here are your past reflections on mistakes:
 
 Here is the debate:
 Debate History:
-{history}"""
+{history}{get_persona_prompt(persona, "research_manager")}"""
         response = llm.invoke(prompt)
 
         new_investment_debate_state = {

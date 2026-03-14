@@ -1,8 +1,10 @@
 import time
 import json
 
+from tradingagents.agents.personas import get_persona_prompt
 
-def create_risk_manager(llm, memory):
+
+def create_risk_manager(llm, memory, persona=None):
     def risk_manager_node(state) -> dict:
 
         company_name = state["company_of_interest"]
@@ -41,7 +43,7 @@ Deliverables:
 
 ---
 
-Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
+Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes.{get_persona_prompt(persona, "risk_manager")}"""
 
         response = llm.invoke(prompt)
 
