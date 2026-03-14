@@ -127,6 +127,12 @@ def select_shallow_thinking_agent(provider) -> str:
 
     # Define shallow thinking llm engine options with their corresponding model names
     SHALLOW_AGENT_OPTIONS = {
+        "codex_oauth": [
+            ("GPT-5.4", "gpt-5.4"),
+            ("GPT-5.2", "gpt-5.2"),
+            ("GPT-5.3-Codex", "gpt-5.3-codex"),
+            ("GPT-5.2-Codex", "gpt-5.2-codex"),
+        ],
         "openai": [
             ("GPT-5 Mini - Cost-optimized reasoning", "gpt-5-mini"),
             ("GPT-5 Nano - Ultra-fast, high-throughput", "gpt-5-nano"),
@@ -192,6 +198,12 @@ def select_deep_thinking_agent(provider) -> str:
 
     # Define deep thinking llm engine options with their corresponding model names
     DEEP_AGENT_OPTIONS = {
+        "codex_oauth": [
+            ("GPT-5.4", "gpt-5.4"),
+            ("GPT-5.2", "gpt-5.2"),
+            ("GPT-5.3-Codex", "gpt-5.3-codex"),
+            ("GPT-5.2-Codex", "gpt-5.2-codex"),
+        ],
         "openai": [
             ("GPT-5.2 - Latest flagship", "gpt-5.2"),
             ("GPT-5.1 - Flexible reasoning", "gpt-5.1"),
@@ -253,22 +265,22 @@ def select_deep_thinking_agent(provider) -> str:
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """Select LLM provider and backend URL using interactive selection."""
     BASE_URLS = [
-        ("OpenAI", "https://api.openai.com/v1"),
-        ("Google", "https://generativelanguage.googleapis.com/v1"),
-        ("Anthropic", "https://api.anthropic.com/"),
-        ("xAI", "https://api.x.ai/v1"),
-        ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),
+        ("Codex OAuth (ChatGPT Plus/Pro)", "codex_oauth", "https://chatgpt.com/backend-api"),
+        ("OpenAI", "openai", "https://api.openai.com/v1"),
+        ("Google", "google", "https://generativelanguage.googleapis.com/v1"),
+        ("Anthropic", "anthropic", "https://api.anthropic.com/"),
+        ("xAI", "xai", "https://api.x.ai/v1"),
+        ("Openrouter", "openrouter", "https://openrouter.ai/api/v1"),
+        ("Ollama", "ollama", "http://localhost:11434/v1"),
     ]
     
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
-            questionary.Choice(display, value=(display, value))
-            for display, value in BASE_URLS
+            questionary.Choice(display, value=(display, provider, value))
+            for display, provider, value in BASE_URLS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -281,13 +293,13 @@ def select_llm_provider() -> tuple[str, str]:
     ).ask()
     
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]No LLM backend selected. Exiting...[/red]")
         exit(1)
     
-    display_name, url = choice
+    display_name, provider_name, url = choice
     print(f"You selected: {display_name}\tURL: {url}")
 
-    return display_name, url
+    return provider_name, url
 
 
 def ask_openai_reasoning_effort() -> str:
