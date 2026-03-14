@@ -9,13 +9,13 @@ description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "langchain-core>=0.3.81",
+    "langchain-core>=1.0.0,<2.0.0",
     "backtrader>=1.9.78.123",
     "chainlit>=2.5.5",
-    "langchain-anthropic>=0.3.15",
-    "langchain-experimental>=0.3.4",
+    "langchain-anthropic>=1.0.0,<2.0.0",
     "langchain-google-genai>=2.1.5",
-    "langchain-openai>=0.3.23",
+    "langchain-openai>=1.0.0,<2.0.0",
+    "langchain-codex-oauth>=1.0,<1.1",
     "langgraph>=0.4.8",
     "pandas>=2.3.0",
     "parsel>=1.10.0",
@@ -38,3 +38,7 @@ tradingagents = "cli.main:app"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

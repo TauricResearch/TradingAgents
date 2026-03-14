@@ -23,8 +23,6 @@ from rich import box
 from rich.align import Align
 from rich.rule import Rule
 
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
@@ -37,6 +35,8 @@ app = typer.Typer(
     help="TradingAgents CLI: Multi-Agents LLM Financial Trading Framework",
     add_completion=True,  # Enable shell completion
 )
+auth_app = typer.Typer(help="Manage ChatGPT OAuth credentials for codex_oauth.")
+app.add_typer(auth_app, name="auth")
 
 
 # Create a deque to store recent messages with a maximum length
@@ -536,10 +536,10 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: OpenAI backend
+    # Step 5: LLM backend
     console.print(
         create_question_box(
-            "Step 5: OpenAI backend", "Select which service to talk to"
+            "Step 5: LLM backend", "Select which service to talk to"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
@@ -566,11 +566,11 @@ def get_user_selections():
             )
         )
         thinking_level = ask_gemini_thinking_config()
-    elif provider_lower == "openai":
+    elif provider_lower in ("openai", "codex_oauth"):
         console.print(
             create_question_box(
                 "Step 7: Reasoning Effort",
-                "Configure OpenAI reasoning effort level"
+                "Configure reasoning effort level"
             )
         )
         reasoning_effort = ask_openai_reasoning_effort()
@@ -897,6 +897,9 @@ def format_tool_args(args, max_length=80) -> str:
     return result
 
 def run_analysis():
+    from tradingagents.default_config import DEFAULT_CONFIG
+    from tradingagents.graph.trading_graph import TradingAgentsGraph
+
     # First get all user selections
     selections = get_user_selections()
 
@@ -1165,6 +1168,110 @@ def run_analysis():
     display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
     if display_choice in ("Y", "YES", ""):
         display_complete_report(final_state)
+
+
+def _format_ms(ms: int) -> str:
+    if not ms:
+        return "unknown"
+    return datetime.datetime.fromtimestamp(ms / 1000, tz=datetime.timezone.utc).isoformat()
+
+
+def _load_codex_oauth_modules():
+    try:
+        from codex_oauth.auth import (
+            decode_jwt_payload,
+            exchange_authorization_code,
+            extract_chatgpt_account_id,
+            login_manual,
+            login_via_browser,
+        )
+        from codex_oauth.exceptions import NotAuthenticatedError, OAuthFlowError
+        from codex_oauth.store import AuthStore, OAuthCredentials
+    except ModuleNotFoundError as exc:
+        console.print(
+            "[red]Missing dependency `langchain-codex-oauth`. "
+            "Install project dependencies first.[/red]"
+        )
+        raise typer.Exit(code=1) from exc
+
+    return {
+        "decode_jwt_payload": decode_jwt_payload,
+        "exchange_authorization_code": exchange_authorization_code,
+        "extract_chatgpt_account_id": extract_chatgpt_account_id,
+        "login_manual": login_manual,
+        "login_via_browser": login_via_browser,
+        "NotAuthenticatedError": NotAuthenticatedError,
+        "OAuthFlowError": OAuthFlowError,
+        "AuthStore": AuthStore,
+        "OAuthCredentials": OAuthCredentials,
+    }
+
+
+@auth_app.command("login")
+def auth_login(
+    manual: bool = typer.Option(False, "--manual", help="Paste redirect URL/code manually."),
+    timeout_s: int = typer.Option(180, "--timeout-s", min=30, help="Browser callback timeout in seconds."),
+):
+    """Login via ChatGPT OAuth and save local credentials."""
+    modules = _load_codex_oauth_modules()
+    try:
+        if manual:
+            code, verifier = modules["login_manual"]()
+        else:
+            result = modules["login_via_browser"](timeout_s=timeout_s)
+            if not result:
+                raise modules["OAuthFlowError"](
+                    "OAuth callback timed out. Retry with --manual or try again."
+                )
+            code, verifier = result
+
+        token = modules["exchange_authorization_code"](code=code, verifier=verifier)
+        payload = modules["decode_jwt_payload"](token.access)
+        if not payload:
+            raise modules["OAuthFlowError"]("Received invalid access token.")
+        account_id = modules["extract_chatgpt_account_id"](payload)
+        if not account_id:
+            raise modules["OAuthFlowError"](
+                "Failed to extract chatgpt_account_id from access token."
+            )
+
+        modules["AuthStore"]().save(
+            modules["OAuthCredentials"](
+                access=token.access,
+                refresh=token.refresh,
+                expires=token.expires_at_ms,
+                account_id=account_id,
+            )
+        )
+    except modules["OAuthFlowError"] as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=2)
+
+    console.print("[green]Login successful. OAuth credentials saved.[/green]")
+
+
+@auth_app.command("status")
+def auth_status():
+    """Show current OAuth credential status."""
+    modules = _load_codex_oauth_modules()
+    store = modules["AuthStore"]()
+    try:
+        creds = store.load()
+    except modules["NotAuthenticatedError"] as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1)
+
+    console.print("[green]Logged in: yes[/green]")
+    console.print(f"Account id: {creds.account_id}")
+    console.print(f"Expires (UTC): {_format_ms(creds.expires)}")
+
+
+@auth_app.command("logout")
+def auth_logout():
+    """Delete local OAuth credentials."""
+    modules = _load_codex_oauth_modules()
+    modules["AuthStore"]().delete()
+    console.print("[green]Logged out.[/green]")
 
 
 @app.command()

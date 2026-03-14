@@ -26,6 +26,13 @@ VALID_MODELS = {
         "gpt-4o",
         "gpt-4o-mini",
     ],
+    "codex_oauth": [
+        # Codex chat models via ChatGPT OAuth backend
+        "gpt-5.4",
+        "gpt-5.2",
+        "gpt-5.3-codex",
+        "gpt-5.2-codex",
+    ],
     "anthropic": [
         # Claude 4.5 series (2025)
         "claude-opus-4-5",
