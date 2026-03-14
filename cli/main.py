@@ -575,6 +575,24 @@ def get_user_selections():
         )
         reasoning_effort = ask_openai_reasoning_effort()
 
+    # Step 8: Investment persona
+    console.print(
+        create_question_box(
+            "Step 8: Investment Persona",
+            "Select an investment persona to guide decision-making style"
+        )
+    )
+    selected_persona = select_persona()
+
+    # Step 9: Broker execution (optional)
+    console.print(
+        create_question_box(
+            "Step 9: Trade Execution",
+            "Optionally execute trades through a broker after analysis"
+        )
+    )
+    broker_config = select_broker_mode()
+
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
@@ -586,6 +604,8 @@ def get_user_selections():
         "deep_thinker": selected_deep_thinker,
         "google_thinking_level": thinking_level,
         "openai_reasoning_effort": reasoning_effort,
+        "persona": selected_persona,
+        "broker": broker_config,
     }
 
 
@@ -911,6 +931,10 @@ def run_analysis():
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
+    config["persona"] = selections.get("persona")
+    broker_selections = selections.get("broker", {})
+    if broker_selections.get("enabled"):
+        config["broker"] = {**config.get("broker", {}), **broker_selections}
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()

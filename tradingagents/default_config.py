@@ -49,4 +49,23 @@ DEFAULT_CONFIG = {
     # Investment persona configuration
     # Options: None, "warren_buffett", "ray_dalio", "peter_lynch"
     "persona": None,
+    # Broker execution configuration
+    "broker": {
+        "enabled": False,  # Master switch for trade execution
+        "provider": "kis",  # Broker provider: "kis"
+        "mode": "paper",  # "paper" (모의투자) or "real" (실투자)
+        "kis_app_key": None,  # KIS APP_KEY (or env: KIS_APP_KEY)
+        "kis_app_secret": None,  # KIS APP_SECRET (or env: KIS_APP_SECRET)
+        "kis_account_no": None,  # Account number "XXXXXXXX-XX" (or env: KIS_ACCOUNT_NO)
+        "default_order_type": "market",  # "market" or "limit"
+        "default_quantity": None,  # Fixed quantity per trade (None = use percentage)
+        "default_position_pct": 0.05,  # 5% of portfolio per trade
+        "safety": {
+            "max_position_pct": 0.10,  # Max 10% of portfolio in one stock
+            "max_order_amount": 5_000_000,  # Max 5M KRW per order
+            "daily_loss_limit": -500_000,  # Stop trading if daily loss exceeds 500K KRW
+            "enforce_market_hours": True,  # Only trade during KRX hours (09:00-15:30)
+            "require_confirmation": True,  # Prompt before real trades
+        },
+    },
 }

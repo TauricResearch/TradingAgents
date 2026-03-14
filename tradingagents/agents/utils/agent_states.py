@@ -74,3 +74,7 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+
+    # Execution fields (optional, only populated when broker is configured)
+    portfolio_context: Annotated[str, "Current portfolio summary for agent context"]
+    execution_result: Annotated[str, "Result of trade execution"]

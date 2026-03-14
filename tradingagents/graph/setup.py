@@ -26,6 +26,7 @@ class GraphSetup:
         risk_manager_memory,
         conditional_logic: ConditionalLogic,
         persona: str = None,
+        execution_engine=None,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -38,6 +39,7 @@ class GraphSetup:
         self.risk_manager_memory = risk_manager_memory
         self.conditional_logic = conditional_logic
         self.persona = persona
+        self.execution_engine = execution_engine
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -200,7 +202,37 @@ class GraphSetup:
             },
         )
 
-        workflow.add_edge("Risk Judge", END)
+        # Execution node (optional, only when broker is configured)
+        if self.execution_engine:
+            workflow.add_node("Executor", self._create_executor_node())
+            workflow.add_edge("Risk Judge", "Executor")
+            workflow.add_edge("Executor", END)
+        else:
+            workflow.add_edge("Risk Judge", END)
 
         # Compile and return
         return workflow.compile()
+
+    def _create_executor_node(self):
+        """Create an executor node that places trades based on the final decision."""
+        from tradingagents.graph.signal_processing import SignalProcessor
+
+        signal_processor = SignalProcessor(self.quick_thinking_llm)
+        engine = self.execution_engine
+
+        def executor_node(state) -> dict:
+            decision = signal_processor.process_signal(
+                state["final_trade_decision"]
+            )
+            ticker = state["company_of_interest"]
+
+            result = engine.execute_decision(ticker, decision)
+            mode = "Paper" if engine.broker.is_paper_trading else "Real"
+
+            return {
+                "execution_result": (
+                    f"[{mode}] {decision} → {result.message}"
+                ),
+            }
+
+        return executor_node

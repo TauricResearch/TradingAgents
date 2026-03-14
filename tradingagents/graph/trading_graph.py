@@ -120,6 +120,16 @@ class TradingAgentsGraph:
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
 
+        # Execution layer (optional)
+        self.execution_engine = None
+        broker_config = self.config.get("broker", {})
+        if broker_config.get("enabled"):
+            from tradingagents.execution import create_broker, ExecutionEngine
+
+            broker = create_broker(self.config)
+            broker.connect()
+            self.execution_engine = ExecutionEngine(broker, self.config)
+
         # Initialize components
         self.conditional_logic = ConditionalLogic()
         self.graph_setup = GraphSetup(
@@ -133,6 +143,7 @@ class TradingAgentsGraph:
             self.risk_manager_memory,
             self.conditional_logic,
             persona=self.config.get("persona"),
+            execution_engine=self.execution_engine,
         )
 
         self.propagator = Propagator()
@@ -212,6 +223,13 @@ class TradingAgentsGraph:
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date
         )
+
+        # Inject portfolio context if broker is enabled
+        if self.execution_engine:
+            init_agent_state["portfolio_context"] = (
+                self.execution_engine.get_portfolio_context()
+            )
+
         args = self.propagator.get_graph_args()
 
         if self.debug:
@@ -268,6 +286,7 @@ class TradingAgentsGraph:
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
+            "execution_result": final_state.get("execution_result", ""),
         }
 
         # Save to file

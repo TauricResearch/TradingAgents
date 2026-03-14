@@ -290,6 +290,100 @@ def select_llm_provider() -> tuple[str, str]:
     return display_name, url
 
 
+def select_persona() -> Optional[str]:
+    """Select an investment persona using an interactive selection."""
+
+    PERSONA_OPTIONS = [
+        ("Default - No specific investment persona", None),
+        ("Warren Buffett - Value investing, long-term holding, margin of safety", "warren_buffett"),
+        ("Ray Dalio - Diversified ETF, rebalancing, macro-driven systematic decisions", "ray_dalio"),
+        ("Peter Lynch - Growth stocks, PEG ratio, invest in what you know", "peter_lynch"),
+    ]
+
+    choice = questionary.select(
+        "Select Your [Investment Persona]:",
+        choices=[
+            questionary.Choice(display, value=value)
+            for display, value in PERSONA_OPTIONS
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
+    ).ask()
+
+    return choice
+
+
+def select_broker_mode() -> dict:
+    """Interactive broker execution configuration."""
+    enable = questionary.confirm(
+        "Enable broker execution? (Execute trades after analysis)",
+        default=False,
+        style=questionary.Style(
+            [
+                ("highlighted", "fg:red noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if not enable:
+        return {"enabled": False}
+
+    mode = questionary.select(
+        "Select Trading Mode:",
+        choices=[
+            questionary.Choice(
+                "Paper Trading (모의투자) - Safe, no real money", value="paper"
+            ),
+            questionary.Choice(
+                "Real Trading (실투자) - Uses real money!", value="real"
+            ),
+        ],
+        style=questionary.Style(
+            [
+                ("selected", "fg:red noinherit"),
+                ("highlighted", "fg:red noinherit"),
+                ("pointer", "fg:red noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if mode == "real":
+        confirm = questionary.confirm(
+            "WARNING: Real trading will execute real orders with real money. Continue?",
+            default=False,
+        ).ask()
+        if not confirm:
+            mode = "paper"
+
+    position_pct = questionary.select(
+        "Position Sizing (% of portfolio per trade):",
+        choices=[
+            questionary.Choice("5% of portfolio per trade", value=0.05),
+            questionary.Choice("10% of portfolio per trade", value=0.10),
+            questionary.Choice("2% of portfolio per trade (conservative)", value=0.02),
+        ],
+        style=questionary.Style(
+            [
+                ("selected", "fg:red noinherit"),
+                ("highlighted", "fg:red noinherit"),
+                ("pointer", "fg:red noinherit"),
+            ]
+        ),
+    ).ask()
+
+    return {
+        "enabled": True,
+        "mode": mode,
+        "default_position_pct": position_pct,
+    }
+
+
 def ask_openai_reasoning_effort() -> str:
     """Ask for OpenAI reasoning effort level."""
     choices = [
