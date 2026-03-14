@@ -27,6 +27,13 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
+from tradingagents.agents.utils.scanner_tools import (
+    get_market_movers,
+    get_market_indices,
+    get_sector_performance,
+    get_industry_performance,
+    get_topic_news,
+)
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
 
@@ -1171,9 +1178,58 @@ def run_analysis():
         display_complete_report(final_state)
 
 
+def run_scan():
+    console.print(Panel("[bold green]Global Macro Scanner[/bold green]", border_style="green"))
+    default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    scan_date = typer.prompt("Scan date (YYYY-MM-DD)", default=default_date)
+    console.print(f"[cyan]Scanning market data for {scan_date}...[/cyan]")
+
+    # Prepare save directory
+    save_dir = Path("results/macro_scan") / scan_date
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    # Call scanner tools
+    console.print("[bold]1. Market Movers[/bold]")
+    movers = get_market_movers("day_gainers")
+    if not (movers.startswith("Error") or movers.startswith("No data")):
+        (save_dir / "market_movers.txt").write_text(movers)
+    console.print(movers[:500] + "..." if len(movers) > 500 else movers)
+    
+    console.print("[bold]2. Market Indices[/bold]")
+    indices = get_market_indices()
+    if not (indices.startswith("Error") or indices.startswith("No data")):
+        (save_dir / "market_indices.txt").write_text(indices)
+    console.print(indices[:500] + "..." if len(indices) > 500 else indices)
+    
+    console.print("[bold]3. Sector Performance[/bold]")
+    sectors = get_sector_performance()
+    if not (sectors.startswith("Error") or sectors.startswith("No data")):
+        (save_dir / "sector_performance.txt").write_text(sectors)
+    console.print(sectors[:500] + "..." if len(sectors) > 500 else sectors)
+    
+    console.print("[bold]4. Industry Performance (Technology)[/bold]")
+    industry = get_industry_performance("technology")
+    if not (industry.startswith("Error") or industry.startswith("No data")):
+        (save_dir / "industry_performance.txt").write_text(industry)
+    console.print(industry[:500] + "..." if len(industry) > 500 else industry)
+    
+    console.print("[bold]5. Topic News (Market)[/bold]")
+    news = get_topic_news("market")
+    if not (news.startswith("Error") or news.startswith("No data")):
+        (save_dir / "topic_news.txt").write_text(news)
+    console.print(news[:500] + "..." if len(news) > 500 else news)
+    
+    console.print(f"[green]Results saved to {save_dir}[/green]")
+
+
 @app.command()
 def analyze():
     run_analysis()
+
+
+@app.command()
+def scan():
+    run_scan()
 
 
 if __name__ == "__main__":
