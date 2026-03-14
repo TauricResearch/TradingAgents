@@ -116,9 +116,32 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-### Required APIs
+### Authentication / APIs
 
-TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
+TradingAgents supports multiple LLM providers.
+
+#### Option A (Default): ChatGPT OAuth for Codex models (no `OPENAI_API_KEY`)
+
+If you have a ChatGPT Plus/Pro account, login once:
+
+```bash
+tradingagents auth login
+# If local callback port 1455 is busy:
+tradingagents auth login --manual
+```
+
+Check status / logout:
+
+```bash
+tradingagents auth status
+tradingagents auth logout
+```
+
+`codex_oauth` currently uses a Codex model whitelist:
+- `gpt-5.2-codex`
+- `gpt-5.2`
+
+#### Option B: API keys for other providers
 
 ```bash
 export OPENAI_API_KEY=...          # OpenAI (GPT)
@@ -162,7 +185,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, OpenRouter, and Ollama.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: Codex OAuth (ChatGPT Plus/Pro), OpenAI, Google, Anthropic, xAI, OpenRouter, and Ollama.
 
 ### Python Usage
 
@@ -186,9 +209,9 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
-config["deep_think_llm"] = "gpt-5.2"     # Model for complex reasoning
-config["quick_think_llm"] = "gpt-5-mini" # Model for quick tasks
+config["llm_provider"] = "codex_oauth"   # codex_oauth, openai, google, anthropic, xai, openrouter, ollama
+config["deep_think_llm"] = "gpt-5.4"
+config["quick_think_llm"] = "gpt-5.2"
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
