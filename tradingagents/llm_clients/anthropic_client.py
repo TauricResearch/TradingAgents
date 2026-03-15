@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional
 
 from langchain_anthropic import ChatAnthropic
@@ -14,6 +15,14 @@ class AnthropicClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatAnthropic instance."""
+        import certifi
+        
+        # Fix SSL certificate path issue on Windows with conda
+        ssl_cert_file = os.environ.get("SSL_CERT_FILE", "")
+        if ssl_cert_file and not os.path.exists(ssl_cert_file):
+            os.environ.pop("SSL_CERT_FILE", None)
+            os.environ["SSL_CERT_FILE"] = certifi.where()
+        
         llm_kwargs = {"model": self.model}
 
         for key in ("timeout", "max_retries", "api_key", "max_tokens", "callbacks"):
