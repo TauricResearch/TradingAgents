@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 # Import from vendor-specific modules
@@ -191,7 +192,8 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
-            continue  # Only rate limits trigger fallback
+        except (AlphaVantageRateLimitError, ConnectionError, TimeoutError) as e:
+            logging.warning(f"Vendor '{vendor}' failed for '{method}': {e}, trying next...")
+            continue
 
     raise RuntimeError(f"No available vendor for '{method}'")

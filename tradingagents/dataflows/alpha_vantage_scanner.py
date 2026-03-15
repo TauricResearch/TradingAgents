@@ -25,7 +25,7 @@ def get_market_movers_alpha_vantage(
             return f"Invalid category '{category}'. Must be one of: day_gainers, day_losers, most_actives"
         
         if category == 'most_actives':
-            return "Error: Alpha Vantage does not support 'most_actives'. Use yfinance (default vendor) for this category."
+            return "Alpha Vantage does not support 'most_actives' category. Please use yfinance instead."
         
         # Make API request for TOP_GAINERS_LOSERS endpoint
         response = _make_api_request("TOP_GAINERS_LOSERS", {})
@@ -38,7 +38,7 @@ def get_market_movers_alpha_vantage(
             return f"Error from Alpha Vantage: {data['Error Message']}"
         
         if "Note" in data:
-            return f"Error: Alpha Vantage API limit reached: {data['Note']}"
+            return f"Alpha Vantage API limit reached: {data['Note']}"
         
         # Map category to Alpha Vantage response key
         if category == 'day_gainers':
@@ -46,7 +46,7 @@ def get_market_movers_alpha_vantage(
         elif category == 'day_losers':
             key = 'top_losers'
         else:
-            return f"Error: unsupported category '{category}'"
+            return f"Unsupported category: {category}"
         
         if key not in data:
             return f"No data found for {category}"
@@ -74,8 +74,8 @@ def get_market_movers_alpha_vantage(
             if isinstance(price, str):
                 try:
                     price = f"${float(price):.2f}"
-                except (ValueError, TypeError):
-                    pass
+                except ValueError:
+                    price = "N/A"
             if isinstance(change_pct, str):
                 change_pct = change_pct.rstrip('%')  # Remove % if present
             if isinstance(change_pct, (int, float)):
@@ -83,8 +83,8 @@ def get_market_movers_alpha_vantage(
             if isinstance(volume, (int, str)):
                 try:
                     volume = f"{int(volume):,}"
-                except (ValueError, TypeError):
-                    pass
+                except ValueError:
+                    volume = "N/A"
             
             result_str += f"| {symbol} | {price} | {change_pct} | {volume} |\n"
         
