@@ -31,7 +31,7 @@ def get_market_movers_yfinance(
         # Use yfinance screener module's screen function
         data = yf.screener.screen(screener_keys[category], count=25)
         
-        if not data or 'quotes' not in data:
+        if not data or not isinstance(data, dict) or 'quotes' not in data:
             return f"No data found for {category}"
         
         quotes = data['quotes']
@@ -97,29 +97,46 @@ def get_market_indices_yfinance() -> str:
         result_str += "| Index | Current Price | Change | Change % | 52W High | 52W Low |\n"
         result_str += "|-------|---------------|--------|----------|----------|----------|\n"
         
+        # Batch-download 1-day history for all symbols in a single request
+        symbols = list(indices.keys())
+        indices_history = yf.download(symbols, period="2d", auto_adjust=True, progress=False, threads=True)
+
         for symbol, name in indices.items():
             try:
                 ticker = yf.Ticker(symbol)
-                info = ticker.info
-                hist = ticker.history(period="1d")
-                
-                if hist.empty:
+                # fast_info is a lightweight cached property (no extra HTTP call)
+                fast = ticker.fast_info
+
+                # Extract history for this symbol from the batch download
+                try:
+                    if len(symbols) > 1:
+                        closes = indices_history["Close"][symbol].dropna()
+                    else:
+                        closes = indices_history["Close"].dropna()
+                except KeyError:
+                    closes = None
+
+                if closes is None or len(closes) == 0:
+                    result_str += f"| {name} | N/A | - | - | - | - |\n"
                     continue
-                
-                current_price = hist['Close'].iloc[-1]
-                prev_close = info.get('previousClose', current_price)
+
+                current_price = closes.iloc[-1]
+                prev_close = closes.iloc[-2] if len(closes) >= 2 else fast.previous_close
+                if prev_close is None or prev_close == 0:
+                    prev_close = current_price
+
                 change = current_price - prev_close
                 change_pct = (change / prev_close * 100) if prev_close else 0
-                
-                high_52w = info.get('fiftyTwoWeekHigh', 'N/A')
-                low_52w = info.get('fiftyTwoWeekLow', 'N/A')
-                
+
+                high_52w = fast.year_high
+                low_52w = fast.year_low
+
                 # Format numbers
                 current_str = f"{current_price:.2f}"
                 change_str = f"{change:+.2f}"
                 change_pct_str = f"{change_pct:+.2f}%"
-                high_str = f"{high_52w:.2f}" if isinstance(high_52w, (int, float)) else high_52w
-                low_str = f"{low_52w:.2f}" if isinstance(low_52w, (int, float)) else low_52w
+                high_str = f"{high_52w:.2f}" if isinstance(high_52w, (int, float)) else str(high_52w)
+                low_str = f"{low_52w:.2f}" if isinstance(low_52w, (int, float)) else str(low_52w)
                 
                 result_str += f"| {name} | {current_str} | {change_str} | {change_pct_str} | {high_str} | {low_str} |\n"
                 
@@ -140,7 +157,9 @@ def get_sector_performance_yfinance() -> str:
         Formatted string containing sector performance data
     """
     try:
-        # Get all GICS sectors
+        # All 11 standard GICS (Global Industry Classification Standard) sectors.
+        # These keys are fixed by yfinance's Sector API and cannot be fetched
+        # dynamically; the GICS taxonomy is maintained by MSCI/S&P and is stable.
         sector_keys = [
             "communication-services",
             "consumer-cyclical", 

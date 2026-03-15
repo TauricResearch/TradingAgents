@@ -1178,6 +1178,30 @@ def run_analysis():
         display_complete_report(final_state)
 
 
+def _is_scanner_error(result: str) -> bool:
+    """Return True when *result* indicates an error or missing data from a scanner tool."""
+    error_prefixes = (
+        "Error",
+        "No data",
+        "No quotes",
+        "No movers",
+        "No news",
+        "No industry",
+        "Invalid",
+        "Alpha Vantage",
+    )
+    return any(result.startswith(prefix) for prefix in error_prefixes)
+
+
+def _invoke_and_save(tool, args: dict, save_dir: Path, filename: str, label: str) -> str:
+    """Invoke a scanner tool, print a preview, and save the result if it is valid."""
+    result = tool.invoke(args)
+    if not _is_scanner_error(result):
+        (save_dir / filename).write_text(result)
+    console.print(result[:500] + "..." if len(result) > 500 else result)
+    return result
+
+
 def run_scan():
     console.print(Panel("[bold green]Global Macro Scanner[/bold green]", border_style="green"))
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -1190,35 +1214,20 @@ def run_scan():
 
     # Call scanner tools
     console.print("[bold]1. Market Movers[/bold]")
-    movers = get_market_movers.invoke({"category": "day_gainers"})
-    if not (movers.startswith("Error") or movers.startswith("No data")):
-        (save_dir / "market_movers.txt").write_text(movers)
-    console.print(movers[:500] + "..." if len(movers) > 500 else movers)
-    
+    _invoke_and_save(get_market_movers, {"category": "day_gainers"}, save_dir, "market_movers.txt", "Market Movers")
+
     console.print("[bold]2. Market Indices[/bold]")
-    indices = get_market_indices.invoke({})
-    if not (indices.startswith("Error") or indices.startswith("No data")):
-        (save_dir / "market_indices.txt").write_text(indices)
-    console.print(indices[:500] + "..." if len(indices) > 500 else indices)
-    
+    _invoke_and_save(get_market_indices, {}, save_dir, "market_indices.txt", "Market Indices")
+
     console.print("[bold]3. Sector Performance[/bold]")
-    sectors = get_sector_performance.invoke({})
-    if not (sectors.startswith("Error") or sectors.startswith("No data")):
-        (save_dir / "sector_performance.txt").write_text(sectors)
-    console.print(sectors[:500] + "..." if len(sectors) > 500 else sectors)
-    
+    _invoke_and_save(get_sector_performance, {}, save_dir, "sector_performance.txt", "Sector Performance")
+
     console.print("[bold]4. Industry Performance (Technology)[/bold]")
-    industry = get_industry_performance.invoke({"sector_key": "technology"})
-    if not (industry.startswith("Error") or industry.startswith("No data")):
-        (save_dir / "industry_performance.txt").write_text(industry)
-    console.print(industry[:500] + "..." if len(industry) > 500 else industry)
-    
+    _invoke_and_save(get_industry_performance, {"sector_key": "technology"}, save_dir, "industry_performance.txt", "Industry Performance")
+
     console.print("[bold]5. Topic News (Market)[/bold]")
-    news = get_topic_news.invoke({"topic": "market", "limit": 10})
-    if not (news.startswith("Error") or news.startswith("No data")):
-        (save_dir / "topic_news.txt").write_text(news)
-    console.print(news[:500] + "..." if len(news) > 500 else news)
-    
+    _invoke_and_save(get_topic_news, {"topic": "market", "limit": 10}, save_dir, "topic_news.txt", "Topic News")
+
     console.print(f"[green]Results saved to {save_dir}[/green]")
 
 

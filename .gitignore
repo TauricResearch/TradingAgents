@@ -217,3 +217,10 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Scan results and execution plans (generated artifacts)
+results/
+plans/
+
+# Backup files
+*.backup
