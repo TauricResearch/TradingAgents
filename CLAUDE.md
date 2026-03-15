@@ -6,12 +6,12 @@ Multi-agent LLM trading framework using LangGraph for financial analysis and dec
 
 ## Development Environment
 
-**Conda Environment**: `trasingagetns`
+**Conda Environment**: `tradingagents`
 
 Before starting any development work, activate the conda environment:
 
 ```bash
-conda activate trasingagetns
+conda activate tradingagents
 ```
 
 ## Architecture

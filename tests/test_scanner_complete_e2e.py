@@ -15,7 +15,7 @@ import pytest
 
 # Set up the Python path to include the project root
 import sys
-sys.path.insert(0, '/Users/Ahmet/Repo/TradingAgents')
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tradingagents.agents.utils.scanner_tools import (
     get_market_movers,
