@@ -308,6 +308,30 @@ def ask_openai_reasoning_effort() -> str:
     ).ask()
 
 
+def select_output_language() -> str:
+    """Select the output language for AI agents using an interactive selection."""
+    choice = questionary.select(
+        "Select Output Language:",
+        choices=[
+            questionary.Choice("English (Default)", value="en"),
+            questionary.Choice("Chinese / 中文", value="zh"),
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if choice is None:
+        return "en"
+
+    return choice
+
+
 def ask_gemini_thinking_config() -> str | None:
     """Ask for Gemini thinking configuration.
 
