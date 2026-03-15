@@ -11,6 +11,13 @@ from .y_finance import (
     get_insider_transactions as get_yfinance_insider_transactions,
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
+from .yfinance_scanner import (
+    get_market_movers_yfinance,
+    get_market_indices_yfinance,
+    get_sector_performance_yfinance,
+    get_industry_performance_yfinance,
+    get_topic_news_yfinance,
+)
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
     get_indicator as get_alpha_vantage_indicator,
@@ -22,6 +29,7 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_global_news as get_alpha_vantage_global_news,
 )
+from .alpha_vantage_scanner import get_market_movers_alpha_vantage
 from .alpha_vantage_common import AlphaVantageRateLimitError
 
 # Configuration and routing logic
@@ -56,6 +64,16 @@ TOOLS_CATEGORIES = {
             "get_news",
             "get_global_news",
             "get_insider_transactions",
+        ]
+    },
+    "scanner_data": {
+        "description": "Market-wide scanner data (movers, indices, sectors, industries)",
+        "tools": [
+            "get_market_movers",
+            "get_market_indices",
+            "get_sector_performance",
+            "get_industry_performance",
+            "get_topic_news",
         ]
     }
 }
@@ -107,6 +125,23 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
     },
+    # scanner_data
+    "get_market_movers": {
+        "yfinance": get_market_movers_yfinance,
+        "alpha_vantage": get_market_movers_alpha_vantage,
+    },
+    "get_market_indices": {
+        "yfinance": get_market_indices_yfinance,
+    },
+    "get_sector_performance": {
+        "yfinance": get_sector_performance_yfinance,
+    },
+    "get_industry_performance": {
+        "yfinance": get_industry_performance_yfinance,
+    },
+    "get_topic_news": {
+        "yfinance": get_topic_news_yfinance,
+    },
 }
 
 def get_category_for_method(method: str) -> str:
@@ -156,7 +191,8 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
-            continue  # Only rate limits trigger fallback
+        except Exception:
+            # Continue to next vendor on any exception
+            continue
 
     raise RuntimeError(f"No available vendor for '{method}'")

@@ -1190,31 +1190,31 @@ def run_scan():
 
     # Call scanner tools
     console.print("[bold]1. Market Movers[/bold]")
-    movers = get_market_movers.invoke({"category": "day_gainers"})
+    movers = get_market_movers("day_gainers")
     if not (movers.startswith("Error") or movers.startswith("No data")):
         (save_dir / "market_movers.txt").write_text(movers)
     console.print(movers[:500] + "..." if len(movers) > 500 else movers)
     
     console.print("[bold]2. Market Indices[/bold]")
-    indices = get_market_indices.invoke({})
+    indices = get_market_indices()
     if not (indices.startswith("Error") or indices.startswith("No data")):
         (save_dir / "market_indices.txt").write_text(indices)
     console.print(indices[:500] + "..." if len(indices) > 500 else indices)
     
     console.print("[bold]3. Sector Performance[/bold]")
-    sectors = get_sector_performance.invoke({})
+    sectors = get_sector_performance()
     if not (sectors.startswith("Error") or sectors.startswith("No data")):
         (save_dir / "sector_performance.txt").write_text(sectors)
     console.print(sectors[:500] + "..." if len(sectors) > 500 else sectors)
     
     console.print("[bold]4. Industry Performance (Technology)[/bold]")
-    industry = get_industry_performance.invoke({"sector_key": "technology"})
+    industry = get_industry_performance("technology")
     if not (industry.startswith("Error") or industry.startswith("No data")):
         (save_dir / "industry_performance.txt").write_text(industry)
     console.print(industry[:500] + "..." if len(industry) > 500 else industry)
     
     console.print("[bold]5. Topic News (Market)[/bold]")
-    news = get_topic_news.invoke({"topic": "market", "limit": 10})
+    news = get_topic_news("market")
     if not (news.startswith("Error") or news.startswith("No data")):
         (save_dir / "topic_news.txt").write_text(news)
     console.print(news[:500] + "..." if len(news) > 500 else news)

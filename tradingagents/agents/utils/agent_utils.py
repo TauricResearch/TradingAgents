@@ -18,6 +18,14 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.agents.utils.scanner_tools import (
+    get_market_movers,
+    get_market_indices,
+    get_sector_performance,
+    get_industry_performance,
+    get_topic_news
+)
+
 
 def create_msg_delete():
     def delete_messages(state):

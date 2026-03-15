@@ -41,6 +41,7 @@ DEFAULT_CONFIG = {
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "scanner_data": "yfinance",          # Options: yfinance (primary), alpha_vantage (fallback for movers only)
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
