@@ -156,8 +156,14 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
         ],
         "openrouter": [
-            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
+            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            ("Claude Sonnet 4 (paid)", "anthropic/claude-sonnet-4"),
+            ("GPT-4o (paid)", "openai/gpt-4o"),
+            ("Gemini 2.5 Pro (paid)", "google/gemini-2.5-pro-preview"),
+            ("DeepSeek V3 (paid)", "deepseek/deepseek-chat"),
+            ("Llama 3.3 70B (paid)", "meta-llama/llama-3.3-70b-instruct"),
+            ("Other (enter model name)", "__custom__"),
         ],
         "ollama": [
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
@@ -187,6 +193,16 @@ def select_shallow_thinking_agent(provider) -> str:
             "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
         )
         exit(1)
+
+    # Handle custom model input for openrouter
+    if choice == "__custom__":
+        choice = questionary.text(
+            "Enter the model name (e.g., openai/gpt-4o-mini):",
+            style=questionary.Style([("question", "fg:magenta noinherit")])
+        ).ask()
+        if not choice:
+            console.print("\n[red]No model name entered. Exiting...[/red]")
+            exit(1)
 
     return choice
 
@@ -223,8 +239,14 @@ def select_deep_thinking_agent(provider) -> str:
             ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
         ],
         "openrouter": [
+            ("Claude Opus 4 (paid)", "anthropic/claude-opus-4"),
+            ("Claude Sonnet 4 (paid)", "anthropic/claude-sonnet-4"),
+            ("GPT-4o (paid)", "openai/gpt-4o"),
+            ("Gemini 2.5 Pro (paid)", "google/gemini-2.5-pro-preview"),
+            ("DeepSeek R1 (paid)", "deepseek/deepseek-r1"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            ("Other (enter model name)", "__custom__"),
         ],
         "ollama": [
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
@@ -252,6 +274,16 @@ def select_deep_thinking_agent(provider) -> str:
     if choice is None:
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
         exit(1)
+
+    # Handle custom model input for openrouter
+    if choice == "__custom__":
+        choice = questionary.text(
+            "Enter the model name (e.g., anthropic/claude-opus-4):",
+            style=questionary.Style([("question", "fg:magenta noinherit")])
+        ).ask()
+        if not choice:
+            console.print("\n[red]No model name entered. Exiting...[/red]")
+            exit(1)
 
     return choice
 
