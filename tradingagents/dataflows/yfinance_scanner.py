@@ -18,28 +18,23 @@ def get_market_movers_yfinance(
         Formatted string containing top market movers
     """
     try:
-        # Map category to yfinance screener key
+        # Map category to yfinance screener predefined screener
         screener_keys = {
-            "day_gainers": "day_gainers",
-            "day_losers": "day_losers", 
-            "most_actives": "most_actives"
+            "day_gainers": "DAY_GAINERS",
+            "day_losers": "DAY_LOSERS", 
+            "most_actives": "MOST_ACTIVES"
         }
         
         if category not in screener_keys:
             return f"Invalid category '{category}'. Must be one of: {list(screener_keys.keys())}"
         
-        screener = yf.Screener()
-        data = screener.get_screeners([screener_keys[category]], count=25)
+        # Use yfinance screener module's screen function
+        data = yf.screener.screen(screener_keys[category], count=25)
         
-        if not data or screener_keys[category] not in data:
+        if not data or 'quotes' not in data:
             return f"No data found for {category}"
         
-        movers = data[screener_keys[category]]
-        
-        if not movers or 'quotes' not in movers:
-            return f"No movers found for {category}"
-        
-        quotes = movers['quotes']
+        quotes = data['quotes']
         
         if not quotes:
             return f"No quotes found for {category}"
@@ -172,7 +167,7 @@ def get_sector_performance_yfinance() -> str:
                 sector = yf.Sector(sector_key)
                 overview = sector.overview
                 
-                if overview is None or overview.empty:
+                if overview is None or not overview:
                     continue
                 
                 # Get performance metrics

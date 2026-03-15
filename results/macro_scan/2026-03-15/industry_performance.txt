@@ -1,0 +1,25 @@
+# Industry Performance: Technology
+# Data retrieved on: 2026-03-15 11:17:42
+
+| Company | Symbol | Industry | Market Cap | Change % |
+|---------|--------|----------|------------|----------|
+| NVIDIA Corporation | N/A | N/A | N/A | N/A |
+| Apple Inc. | N/A | N/A | N/A | N/A |
+| Microsoft Corporation | N/A | N/A | N/A | N/A |
+| Broadcom Inc. | N/A | N/A | N/A | N/A |
+| Micron Technology, Inc. | N/A | N/A | N/A | N/A |
+| Oracle Corporation | N/A | N/A | N/A | N/A |
+| Palantir Technologies Inc. | N/A | N/A | N/A | N/A |
+| Advanced Micro Devices, Inc. | N/A | N/A | N/A | N/A |
+| Cisco Systems, Inc. | N/A | N/A | N/A | N/A |
+| Applied Materials, Inc. | N/A | N/A | N/A | N/A |
+| Lam Research Corporation | N/A | N/A | N/A | N/A |
+| International Business Machine | N/A | N/A | N/A | N/A |
+| Intel Corporation | N/A | N/A | N/A | N/A |
+| KLA Corporation | N/A | N/A | N/A | N/A |
+| Salesforce, Inc. | N/A | N/A | N/A | N/A |
+| Texas Instruments Incorporated | N/A | N/A | N/A | N/A |
+| Arista Networks, Inc. | N/A | N/A | N/A | N/A |
+| Amphenol Corporation | N/A | N/A | N/A | N/A |
+| Shopify Inc. | N/A | N/A | N/A | N/A |
+| Uber Technologies, Inc. | N/A | N/A | N/A | N/A |
