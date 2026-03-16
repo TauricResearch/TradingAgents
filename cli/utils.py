@@ -14,6 +14,22 @@ ANALYST_ORDER = [
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
 ]
 
+# Shared model lists for providers with identical options in shallow/deep selections
+# Azure: deployment names are user-specific, so we provide common defaults
+AZURE_MODELS = [
+    ("GPT-4o (your deployment)", "gpt-4o"),
+    ("GPT-4o-mini (your deployment)", "gpt-4o-mini"),
+    ("GPT-4 Turbo (your deployment)", "gpt-4-turbo"),
+    ("Custom deployment name", "__custom__"),
+]
+
+# Ollama: same models for both shallow and deep (local inference)
+OLLAMA_MODELS = [
+    ("Qwen3:latest (8B, local)", "qwen3:latest"),
+    ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
+    ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
+]
+
 
 def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol."""
