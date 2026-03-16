@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════
+   THEME TOKENS
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --bg-void: #08090c;
+  --bg-surface: #0e1015;
+  --bg-elevated: #14161d;
+  --bg-panel: #1a1d27;
+  --bg-panel-hover: #1f2230;
+
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-medium: rgba(255, 255, 255, 0.08);
+  --border-accent: rgba(212, 175, 55, 0.2);
+
+  --text-primary: #e8e6e1;
+  --text-secondary: #8a8780;
+  --text-tertiary: #5a5853;
+
+  --amber: #d4af37;
+  --amber-dim: rgba(212, 175, 55, 0.15);
+  --amber-glow: rgba(212, 175, 55, 0.06);
+  --cyan: #4ecdc4;
+  --cyan-dim: rgba(78, 205, 196, 0.12);
+  --red: #e74c3c;
+  --red-dim: rgba(231, 76, 60, 0.12);
+  --green: #2ecc71;
+  --green-dim: rgba(46, 204, 113, 0.12);
+  --blue: #5b9bd5;
+  --blue-dim: rgba(91, 155, 213, 0.12);
+  --purple: #9b59b6;
+  --purple-dim: rgba(155, 89, 182, 0.12);
+}
+
+@theme inline {
+  --color-bg-void: var(--bg-void);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-panel: var(--bg-panel);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-medium: var(--border-medium);
+  --color-border-accent: var(--border-accent);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+
+  --color-amber: var(--amber);
+  --color-amber-dim: var(--amber-dim);
+  --color-amber-glow: var(--amber-glow);
+  --color-cyan: var(--cyan);
+  --color-cyan-dim: var(--cyan-dim);
+  --color-red: var(--red);
+  --color-red-dim: var(--red-dim);
+  --color-green: var(--green);
+  --color-green-dim: var(--green-dim);
+  --color-blue: var(--blue);
+  --color-blue-dim: var(--blue-dim);
+  --color-purple: var(--purple);
+  --color-purple-dim: var(--purple-dim);
+
+  --font-display: var(--font-syne);
+  --font-serif: var(--font-instrument-serif);
+  --font-mono: var(--font-dm-mono);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BASE STYLES
+   ═══════════════════════════════════════════════════════════ */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Atmosphere */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(212, 175, 55, 0.03), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(78, 205, 196, 0.02), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Scanlines */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.02) 2px,
+    rgba(0, 0, 0, 0.02) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes node-glow {
+  0%, 100% { box-shadow: 0 0 15px var(--amber-dim); }
+  50% { box-shadow: 0 0 30px rgba(212, 175, 55, 0.2); }
+}
+
+@keyframes data-pulse {
+  0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+  50% { opacity: 0.3; transform: translateY(-50%) scale(1.5); }
+}
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
