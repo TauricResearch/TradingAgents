@@ -907,7 +907,12 @@ def run_analysis():
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
-    config["llm_provider"] = selections["llm_provider"].lower()
+    # claude-max uses OpenAI-compatible format via local proxy
+    if selections["llm_provider"].lower() == "claude-max":
+        config["llm_provider"] = "openai"
+        import os; os.environ.setdefault("OPENAI_API_KEY", "not-needed")
+    else:
+        config["llm_provider"] = selections["llm_provider"].lower()
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")

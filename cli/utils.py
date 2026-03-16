@@ -160,6 +160,10 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
         ],
+        "claude-max": [
+            ("Claude Haiku 4 - Fast (Max subscription)", "claude-haiku-4"),
+            ("Claude Sonnet 4 - Balanced (Max subscription)", "claude-sonnet-4"),
+        ],
     }
 
     choice = questionary.select(
@@ -228,6 +232,11 @@ def select_deep_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
+        "claude-max": [
+            ("Claude Sonnet 4 - High-performance (Max subscription)", "claude-sonnet-4"),
+            ("Claude Haiku 4 - Fast (Max subscription)", "claude-haiku-4"),
+            ("Claude Opus 4 - Premium (Max subscription)", "claude-opus-4"),
+        ],
     }
 
     choice = questionary.select(
@@ -262,6 +271,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("xAI", "https://api.x.ai/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
+        ("Claude-Max", "http://localhost:3456/v1"),
     ]
     
     choice = questionary.select(
