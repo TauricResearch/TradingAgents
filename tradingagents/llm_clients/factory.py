@@ -4,6 +4,7 @@ from .base_client import BaseLLMClient
 from .openai_client import OpenAIClient
 from .anthropic_client import AnthropicClient
 from .google_client import GoogleClient
+from .azure_client import AzureClient
 
 
 def create_llm_client(
@@ -15,8 +16,8 @@ def create_llm_client(
     """Create an LLM client for the specified provider.
 
     Args:
-        provider: LLM provider (openai, anthropic, google, xai, ollama, openrouter)
-        model: Model name/identifier
+        provider: LLM provider (openai, anthropic, google, azure, xai, ollama, openrouter)
+        model: Model name/identifier (for Azure, use deployment name)
         base_url: Optional base URL for API endpoint
         **kwargs: Additional provider-specific arguments
             - http_client: Custom httpx.Client for SSL proxy or certificate customization
@@ -45,5 +46,8 @@ def create_llm_client(
 
     if provider_lower == "google":
         return GoogleClient(model, base_url, **kwargs)
+
+    if provider_lower == "azure":
+        return AzureClient(model, base_url, **kwargs)
 
     raise ValueError(f"Unsupported LLM provider: {provider}")
