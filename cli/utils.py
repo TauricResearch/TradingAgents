@@ -180,12 +180,8 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
         ],
-        "azure": [
-            ("GPT-4o (your deployment)", "gpt-4o"),
-            ("GPT-4o-mini (your deployment)", "gpt-4o-mini"),
-            ("GPT-4 Turbo (your deployment)", "gpt-4-turbo"),
-            ("Custom deployment name", "__custom__"),
-        ],
+        "azure": AZURE_MODELS,
+        "ollama": OLLAMA_MODELS,
     }
 
     choice = questionary.select(
@@ -253,12 +249,8 @@ def select_deep_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
-        "azure": [
-            ("GPT-4o (your deployment)", "gpt-4o"),
-            ("GPT-4o-mini (your deployment)", "gpt-4o-mini"),
-            ("GPT-4 Turbo (your deployment)", "gpt-4-turbo"),
-            ("Custom deployment name", "__custom__"),
-        ],
+        "azure": AZURE_MODELS,
+        "ollama": OLLAMA_MODELS,
     }
 
     choice = questionary.select(
