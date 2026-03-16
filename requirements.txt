@@ -19,3 +19,4 @@ typer
 questionary
 langchain_anthropic
 langchain-google-genai
+langchain-ollama

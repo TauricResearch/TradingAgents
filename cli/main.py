@@ -543,6 +543,69 @@ def get_user_selections():
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
+
+    ollama_models = None
+    if selected_llm_provider.lower() == "ollama":
+        import os
+        import logging
+        from cli.utils import fetch_ollama_models, _normalize_ollama_base_url
+
+        env_base_url = os.getenv("OLLAMA_BASE_URL")
+        resolved_base_url = _normalize_ollama_base_url(env_base_url or backend_url)
+        env_model = os.getenv("OLLAMA_MODEL")
+        env_api_key = os.getenv("OLLAMA_API_KEY")
+
+        # Enable Ollama client logs (URL/model) in CLI
+        ollama_logger = logging.getLogger("tradingagents.llm_clients.ollama_client")
+        if not ollama_logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter("[ollama] %(message)s"))
+            ollama_logger.addHandler(handler)
+        ollama_logger.setLevel(logging.INFO)
+        ollama_logger.propagate = False
+
+        tags_url = f"{resolved_base_url}/api/tags" if resolved_base_url else "N/A"
+        ollama_models = fetch_ollama_models(resolved_base_url, env_api_key)
+
+        info_lines = [
+            "[bold]Ollama Environment Variables[/bold]",
+            "Set `OLLAMA_BASE_URL` (default: https://ollama.com), "
+            "`OLLAMA_MODEL` (must exist in /api/tags), and "
+            "`OLLAMA_API_KEY` (if required).",
+            "If set, these override the CLI selection for both quick and deep models.",
+            "",
+            f"Resolved base URL: {resolved_base_url}",
+            f"Env model: {env_model or '(unset)'}",
+            f"Tags endpoint: {tags_url}",
+            f"Models fetched: {len(ollama_models) if ollama_models else 0}",
+        ]
+
+        console.print(
+            Panel(
+                "\n".join(info_lines),
+                border_style="yellow",
+                padding=(1, 2),
+            )
+        )
+
+        if ollama_models:
+            table = Table(title="Ollama Models", box=box.SIMPLE)
+            table.add_column("Model", style="cyan")
+            for model_name in ollama_models:
+                table.add_row(model_name)
+            console.print(table)
+            if env_model and env_model not in ollama_models:
+                console.print(
+                    Panel(
+                        f"[yellow]Warning:[/yellow] `OLLAMA_MODEL={env_model}` "
+                        "does not exist in /api/tags. "
+                        "The server may return an error. "
+                        "Set `OLLAMA_MODEL` to a name from the list "
+                        "or unset the variable to use the CLI selection.",
+                        border_style="yellow",
+                        padding=(1, 2),
+                    )
+                )
     
     # Step 6: Thinking agents
     console.print(
@@ -550,8 +613,36 @@ def get_user_selections():
             "Step 6: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+    selected_shallow_thinker = select_shallow_thinking_agent(
+        selected_llm_provider, ollama_models=ollama_models
+    )
+    selected_deep_thinker = select_deep_thinking_agent(
+        selected_llm_provider, ollama_models=ollama_models
+    )
+
+    if selected_llm_provider.lower() == "ollama":
+        import os
+        env_model = os.getenv("OLLAMA_MODEL")
+        if env_model:
+            console.print(
+                Panel(
+                    "[bold]Ollama Model Override[/bold]\n"
+                    f"`OLLAMA_MODEL` is set to `{env_model}` and overrides "
+                    f"CLI selections (quick={selected_shallow_thinker}, deep={selected_deep_thinker}).",
+                    border_style="yellow",
+                    padding=(1, 2),
+                )
+            )
+        else:
+            console.print(
+                Panel(
+                    "[bold]Ollama Models Selected[/bold]\n"
+                    f"Quick: {selected_shallow_thinker}\n"
+                    f"Deep: {selected_deep_thinker}",
+                    border_style="green",
+                    padding=(1, 2),
+                )
+            )
 
     # Step 7: Provider-specific thinking configuration
     thinking_level = None

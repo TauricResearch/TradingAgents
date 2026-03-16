@@ -130,7 +130,16 @@ export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
-For local models, configure Ollama with `llm_provider: "ollama"` in your config.
+For Ollama (cloud or self-hosted), you can set:
+
+```bash
+export OLLAMA_BASE_URL=https://ollama.com
+export OLLAMA_MODEL=gpt-oss:120b
+export OLLAMA_API_KEY=...
+```
+
+Then configure `llm_provider: "ollama"` in your config (OLLAMA_* env vars override CLI selection).  
+Make sure `OLLAMA_MODEL` exists in `curl $OLLAMA_BASE_URL/api/tags`.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
