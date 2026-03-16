@@ -164,6 +164,7 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
         ],
+        "vllm": [("Qwen/Qwen3.5-2B", "Qwen/Qwen3.5-2B")]
     }
 
     choice = questionary.select(
@@ -231,6 +232,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
+        "vllm": [("Qwen/Qwen3.5-2B", "Qwen/Qwen3.5-2B")]
     }
 
     choice = questionary.select(
@@ -265,6 +267,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("xAI", "https://api.x.ai/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
+        ("vLLM", "http://localhost:8000/v1")
     ]
     
     choice = questionary.select(
@@ -329,3 +332,21 @@ def ask_gemini_thinking_config() -> str | None:
             ("pointer", "fg:green noinherit"),
         ]),
     ).ask()
+
+
+def ask_vllm_config() -> tuple[str | None, str | None]:
+    """Ask for VLLM configuration. """
+    import os
+    default_base = os.environ.get("VLLM_API_BASE", "https://localhost:8000/v1")
+    api_base = questionary.text("Enter VLLM API URL:", default=default_base, style=questionary.Style(
+        [
+            ("text", "fg:green"),
+            ("highlighted", "noinherit"),
+        ])).ask()
+    default_api_key = os.environ.get("VLLM_API_KEY", "")
+    api_key = questionary.text("Enter VLLM API Key:", default=default_api_key, style=questionary.Style(
+        [
+            ("text", "fg:green"),
+            ("highlighted", "noinherit"),
+        ])).ask()
+    return api_base.strip() if api_base else None, api_key.strip() if api_key else None
