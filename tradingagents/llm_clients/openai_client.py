@@ -1,10 +1,28 @@
 import os
+import socket
 from typing import Any, Optional
 
 from langchain_openai import ChatOpenAI
 
 from .base_client import BaseLLMClient
 from .validators import validate_model
+
+
+class OllamaConnectionError(Exception):
+    """Raised when Ollama server is not running or not accessible."""
+    pass
+
+
+def _check_ollama_connection(host: str = "localhost", port: int = 11434, timeout: float = 2.0) -> bool:
+    """Check if Ollama server is running and accessible."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return result == 0
+    except (socket.error, OSError):
+        return False
 
 
 class UnifiedChatOpenAI(ChatOpenAI):
@@ -54,6 +72,14 @@ class OpenAIClient(BaseLLMClient):
             if api_key:
                 llm_kwargs["api_key"] = api_key
         elif self.provider == "ollama":
+            # Check if Ollama is running before creating client
+            if not _check_ollama_connection():
+                raise OllamaConnectionError(
+                    "Ollama server is not running. Please start it with:\n"
+                    "  • macOS/Linux: ollama serve\n"
+                    "  • Or install from: https://ollama.ai\n"
+                    "  • Default port: 11434"
+                )
             llm_kwargs["base_url"] = "http://localhost:11434/v1"
             llm_kwargs["api_key"] = "ollama"  # Ollama doesn't require auth
         elif self.base_url:
