@@ -7,22 +7,48 @@ For code snippets, schemas, and architecture patterns see [design_reference.md](
 
 > **Scope decision (v2):** This platform is built for personal use only — one user, one brokerage account, runs locally. No auth, no KYC, no payment rails, no RIA registration required. The dashboard IS the product.
 
+> **Last updated:** March 16, 2026
+
 ---
 
 ## What You Already Have
 
-| Agent                | Role                               | Status |
-| -------------------- | ---------------------------------- | ------ |
-| Fundamentals Analyst | Financials, earnings, insider data | ✅ Done |
-| Sentiment Analyst    | Reddit/Twitter mood scoring        | ✅ Done |
-| News Analyst         | Macro/event impact                 | ✅ Done |
-| Technical Analyst    | Indicators, patterns               | ✅ Done |
-| Bull/Bear Researcher | Debate-based conviction            | ✅ Done |
-| Trader Agent         | Decision synthesis                 | ✅ Done |
-| Risk Manager         | Exposure checks                    | ✅ Done |
-| Fund Manager         | Final approval                     | ✅ Done |
+| Component               | Role                                         | Status     |
+| ----------------------- | -------------------------------------------- | ---------- |
+| Fundamentals Analyst    | Financials, earnings, insider data           | ✅ Done     |
+| Sentiment Analyst       | Reddit/Twitter mood scoring                  | ✅ Done     |
+| News Analyst            | Macro/event impact                           | ✅ Done     |
+| Technical Analyst       | Indicators, patterns                         | ✅ Done     |
+| Bull/Bear Researcher    | Debate-based conviction                      | ✅ Done     |
+| Trader Agent            | Decision synthesis                           | ✅ Done     |
+| Risk Manager            | Exposure checks                              | ✅ Done     |
+| Fund Manager            | Final approval                               | ✅ Done     |
+| LangGraph orchestration | Multi-agent pipeline with state management   | ✅ Done     |
+| Multi-LLM support       | OpenAI, Google, Anthropic, XAI, OpenRouter   | ✅ Done     |
+| Data layer              | yfinance + Alpha Vantage with fallback/cache | ✅ Done     |
+| Rich CLI                | Interactive terminal UI with live output     | ✅ Done     |
+| Docs & flow diagram     | Architecture docs, propagation flow diagram  | ✅ Done     |
+| Memory system           | FinancialSituationMemory for learning        | ✅ Done     |
 
-**What's missing:** Execution layer, auto-buy logic, exit/monitoring loop, position tracking, conviction scoring, risk config UI, dashboard, and notifications.
+**What's missing:** Tests, execution layer, auto-buy logic, exit/monitoring loop, position tracking, conviction scoring, risk config UI, dashboard, and notifications.
+
+**What exists but needs hardening:** Data validation, logging (still uses print), dependency pinning.
+
+---
+
+## Your Immediate TODO (This Week — Mar 16–22)
+
+These are the remaining Phase 0 tasks you should tackle now:
+
+1. **Set up `pytest`** with a conftest and one smoke test per agent (~3h)
+2. **Create `dev` branch** — all new work goes there (~0.5h)
+3. **Replace `print()` with `logging`** across `tradingagents/` (~3h)
+4. **Pin all dependency versions** in `requirements.txt` (~1h)
+5. **Add type hints/docstrings** to core functions (~4h)
+6. **Create `docs/agent_contracts.md`** with each agent's I/O schema (~2h)
+7. **Update `docs/architecture.md`** with the flow diagram (~1h)
+
+**Total: ~14.5 hours this week** — then Phase 0 is complete and you move to data hardening.
 
 ---
 
@@ -41,22 +67,30 @@ These items are **not needed** when building for yourself:
 
 ---
 
-## Phase Overview
+## Phase Overview (Updated March 16, 2026)
 
-| Phase  | Focus                                    | Duration   | Milestone |
-| ------ | ---------------------------------------- | ---------- | --------- |
-| **0**  | Codebase audit and cleanup               | 1-2 weeks  | v0.1      |
-| **1**  | Data layer hardening + watchlist         | 1-2 weeks  | v0.1      |
-| **2**  | Paper trading execution layer            | 3-4 weeks  | v0.1      |
-| **3**  | Conviction scoring + signal control      | 2-3 weeks  | v0.2      |
-| **4**  | Position monitoring and auto-exit        | 3-4 weeks  | v0.2      |
-| **5**  | Portfolio-level risk controls            | 2-3 weeks  | v0.3      |
-| **6**  | Dashboard and observability *(main UI)*  | 2-3 weeks  | v0.3      |
-| **6B** | Risk config UI *(new)*                   | 1 week     | v0.3      |
-| **6C** | Telegram notifications *(new)*           | 1 week     | v0.3      |
-| **7**  | Live trading (gradual rollout)           | Ongoing    | v1.0      |
+| Phase  | Focus                                    | Target Dates              | Status         | Milestone |
+| ------ | ---------------------------------------- | ------------------------- | -------------- | --------- |
+| **0**  | Codebase audit and cleanup               | Mar 16 – Mar 30, 2026    | 🟡 In Progress | v0.1      |
+| **1**  | Data layer hardening + watchlist         | Mar 31 – Apr 13, 2026    | ⬜ Not Started  | v0.1      |
+| **2**  | Paper trading execution layer            | Apr 14 – May 11, 2026    | ⬜ Not Started  | v0.1      |
+| **3**  | Conviction scoring + signal control      | May 12 – Jun 1, 2026     | ⬜ Not Started  | v0.2      |
+| **4**  | Position monitoring and auto-exit        | Jun 2 – Jun 29, 2026     | ⬜ Not Started  | v0.2      |
+| **5**  | Portfolio-level risk controls            | Jun 30 – Jul 13, 2026    | ⬜ Not Started  | v0.3      |
+| **6**  | Dashboard and observability *(main UI)*  | Jul 14 – Aug 3, 2026     | ⬜ Not Started  | v0.3      |
+| **6B** | Risk config UI                           | Aug 4 – Aug 10, 2026     | ⬜ Not Started  | v0.3      |
+| **6C** | Telegram notifications                   | Aug 11 – Aug 17, 2026    | ⬜ Not Started  | v0.3      |
+| **7**  | Live trading (gradual rollout)           | Aug 18, 2026 → Ongoing   | ⬜ Not Started  | v1.0      |
 
-**Total realistic timeline: 6-8 months** at a sustainable pace.
+**Milestone targets:**
+- **v0.1** (Minimal end-to-end loop): **~May 11, 2026**
+- **v0.2** (Conviction + auto-exit): **~Jun 29, 2026**
+- **v0.3** (Dashboard + risk controls): **~Aug 17, 2026**
+- **v1.0** (Live trading): **~Sep 2026** (after 60+ days paper trading)
+
+**Total realistic timeline: ~5 months** of building (Mar–Aug 2026), then ongoing live trading rollout.
+
+**Assumptions:** You're working ~10-15 hours/week with Claude handling heavy implementation. If you can commit more hours, phases compress. If life gets busy, add buffer weeks between phases.
 
 ---
 
@@ -70,31 +104,33 @@ These items are **not needed** when building for yourself:
 
 **Goal:** Understand every file before adding anything. Establish a clean, documented, testable base.
 
-**Duration:** 1-2 weeks
+**Target:** Mar 16 – Mar 30, 2026 | **Status:** 🟡 In Progress
 
-### Week 1 — Read and Map
+### Week 1 — Read and Map (Mar 16–22)
 
-| #   | Task                                                                         | ~Hours | Files                                                                        |
-| --- | ---------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------- |
-| 0.1 | Read all files under `tradingagents/` top to bottom                          | 4h     | `tradingagents/**`                                                           |
-| 0.2 | Draw a flow diagram of how `TradingAgentsGraph.propagate()` calls each agent | 2h     | `tradingagents/graph/trading_graph.py`, `tradingagents/graph/propagation.py` |
-| 0.3 | Document what each agent returns (format, fields, meaning)                   | 3h     | `tradingagents/agents/**`                                                    |
-| 0.4 | Map all data API calls and endpoints used across dataflows                   | 2h     | `tradingagents/dataflows/**`                                                 |
-| 0.5 | Review all config options in `default_config.py`                             | 1h     | `tradingagents/default_config.py`                                            |
-| 0.6 | Run `main.py` and `test.py` end-to-end in your environment                   | 2h     | `main.py`, `test.py`                                                         |
-| 0.7 | Set up `.env` with all required API keys                                     | 1h     | `.env`, `.env.example`                                                       |
+| #   | Task                                                                         | ~Hours | Status | Files                                                                        |
+| --- | ---------------------------------------------------------------------------- | ------ | ------ | ---------------------------------------------------------------------------- |
+| 0.1 | Read all files under `tradingagents/` top to bottom                          | 4h     | ✅ Done | `tradingagents/**`                                                           |
+| 0.2 | Draw a flow diagram of how `TradingAgentsGraph.propagate()` calls each agent | 2h     | ✅ Done | `docs/propagate_flow_diagram.html`                                           |
+| 0.3 | Document what each agent returns (format, fields, meaning)                   | 3h     | ✅ Done | `docs/tradingAgents.md`                                                      |
+| 0.4 | Map all data API calls and endpoints used across dataflows                   | 2h     | ✅ Done | `docs/design_reference.md`                                                   |
+| 0.5 | Review all config options in `default_config.py`                             | 1h     | ✅ Done | `tradingagents/default_config.py`                                            |
+| 0.6 | Run `main.py` and `test.py` end-to-end in your environment                   | 2h     | ✅ Done | `main.py`, `test.py`                                                         |
+| 0.7 | Set up `.env` with all required API keys                                     | 1h     | ✅ Done | `.env`, `.env.example`                                                       |
 
-### Week 2 — Clean and Prepare
+### Week 2 — Clean and Prepare (Mar 23–30)
 
-| #    | Task                                                                             | ~Hours | Files                                       |
-| ---- | -------------------------------------------------------------------------------- | ------ | ------------------------------------------- |
-| 0.8  | Add type hints and docstrings to functions missing them                          | 4h     | `tradingagents/**`                          |
-| 0.9  | Create `docs/agent_contracts.md` documenting each agent's I/O schema             | 2h     | `docs/agent_contracts.md`                   |
-| 0.10 | Set up `pytest` with a conftest and one smoke test per agent                     | 3h     | `tests/conftest.py`, `tests/test_agents.py` |
-| 0.11 | Create `dev` branch — all new work goes there, only tested code merges to `main` | 0.5h   | git                                         |
-| 0.12 | Replace all `print()` with Python `logging` module calls                         | 3h     | `tradingagents/**`                          |
-| 0.13 | Pin all dependency versions in `requirements.txt`                                | 1h     | `requirements.txt`                          |
-| 0.14 | Update `docs/architecture.md` with your flow diagram from 0.2                    | 1h     | `docs/architecture.md`                      |
+| #    | Task                                                                             | ~Hours | Status         | Files                                       |
+| ---- | -------------------------------------------------------------------------------- | ------ | -------------- | ------------------------------------------- |
+| 0.8  | Add type hints and docstrings to functions missing them                          | 4h     | ⬜ Not Started  | `tradingagents/**`                          |
+| 0.9  | Create `docs/agent_contracts.md` documenting each agent's I/O schema             | 2h     | ⬜ Not Started  | `docs/agent_contracts.md`                   |
+| 0.10 | Set up `pytest` with a conftest and one smoke test per agent                     | 3h     | ⬜ Not Started  | `tests/conftest.py`, `tests/test_agents.py` |
+| 0.11 | Create `dev` branch — all new work goes there, only tested code merges to `main` | 0.5h   | ⬜ Not Started  | git                                         |
+| 0.12 | Replace all `print()` with Python `logging` module calls                         | 3h     | ⬜ Not Started  | `tradingagents/**`                          |
+| 0.13 | Pin all dependency versions in `requirements.txt`                                | 1h     | ⬜ Not Started  | `requirements.txt`                          |
+| 0.14 | Update `docs/architecture.md` with your flow diagram from 0.2                    | 1h     | ⬜ Not Started  | `docs/architecture.md`                      |
+
+**Remaining effort for Phase 0:** ~14.5 hours (about 1 week at ~2-3h/day)
 
 ### Decision Points (resolve before moving on)
 
@@ -115,7 +151,7 @@ These items are **not needed** when building for yourself:
 
 **Goal:** Make the data layer robust and production-grade. Reliable, clean OHLCV and fundamental data before any money touches the system.
 
-**Duration:** 1-2 weeks
+**Target:** Mar 31 – Apr 13, 2026 | **Status:** ⬜ Not Started
 
 **Prereqs:** Phase 0 complete
 
@@ -147,7 +183,7 @@ See [design_reference.md — Watchlist Design](design_reference.md#watchlist-des
 
 **Goal:** Connect the agent decision to an actual order. Paper trading only, no real money. This is the most critical phase.
 
-**Duration:** 3-4 weeks
+**Target:** Apr 14 – May 11, 2026 | **Status:** ⬜ Not Started
 
 **Prereqs:** Phase 1 complete
 
@@ -186,7 +222,7 @@ See [design_reference.md — Execution Layer Architecture](design_reference.md#e
 
 **Goal:** Not every agent decision should trigger a buy. Add conviction scoring so the platform only buys when multiple agents agree strongly.
 
-**Duration:** 2-3 weeks
+**Target:** May 12 – Jun 1, 2026 | **Status:** ⬜ Not Started
 
 **Prereqs:** Phase 2 complete
 
@@ -218,7 +254,7 @@ See [design_reference.md — Conviction Scoring Design](design_reference.md#conv
 
 **Goal:** Once a position is open, a monitoring loop checks it on a schedule and auto-exits based on predefined rules (profit target, trailing stop, stop loss, reversal, time-based).
 
-**Duration:** 3-4 weeks
+**Target:** Jun 2 – Jun 29, 2026 | **Status:** ⬜ Not Started
 
 **Prereqs:** Phase 3 complete
 
@@ -259,7 +295,7 @@ See [design_reference.md — Exit Conditions and Rules](design_reference.md#exit
 
 **Goal:** Protect the portfolio as a whole, not just individual positions. Enforce hard limits on exposure, concentration, and drawdown.
 
-**Duration:** 2-3 weeks
+**Target:** Jun 30 – Jul 13, 2026 | **Status:** ⬜ Not Started
 
 **Prereqs:** Phase 4 complete
 
@@ -293,7 +329,7 @@ See [design_reference.md — Portfolio Guard Design](design_reference.md#portfol
 
 **Goal:** The Streamlit dashboard is not just a dev tool — for this personal platform, it IS the product. This is how you interact with your running trading system every day.
 
-**Duration:** 2-3 weeks
+**Target:** Jul 14 – Aug 3, 2026 | **Status:** ⬜ Not Started
 
 **Prereqs:** Phase 5 complete
 
@@ -325,7 +361,7 @@ See [design_reference.md — Dashboard Specs](design_reference.md#dashboard-spec
 
 **Goal:** Replace manual edits to `default_config.py` with a dedicated settings page in the dashboard. You should be able to tune your risk parameters without touching code.
 
-**Duration:** 1 week
+**Target:** Aug 4 – Aug 10, 2026 | **Status:** ⬜ Not Started
 
 **Prereqs:** Phase 6 complete
 
@@ -359,7 +395,7 @@ See [design_reference.md — Dashboard Specs](design_reference.md#dashboard-spec
 
 **Goal:** Know what your engine is doing without staring at the dashboard. Telegram gives you mobile-first awareness of every meaningful event.
 
-**Duration:** 1 week
+**Target:** Aug 11 – Aug 17, 2026 | **Status:** ⬜ Not Started
 
 **Prereqs:** Phase 6 complete (Phase 6B optional but recommended first)
 
@@ -421,7 +457,7 @@ Best: MSFT +11.2% | Worst: META -4.1%
 
 **Goal:** Graduate from paper to live trading. Never rush this phase.
 
-**Duration:** Ongoing
+**Target:** Aug 18, 2026 → Ongoing | **Status:** ⬜ Not Started
 
 **Prereqs:** All previous phases complete + all graduation criteria met
 
@@ -562,3 +598,25 @@ TradeDog/
 ---
 
 *Finish each phase completely before starting the next. The order matters.*
+
+---
+
+## Total Work Remaining (Estimated Hours)
+
+| Phase  | Focus                        | Est. Hours | Target Completion |
+| ------ | ---------------------------- | ---------- | ----------------- |
+| **0**  | Audit & cleanup (remaining)  | ~14.5h     | Mar 30, 2026      |
+| **1**  | Data hardening + watchlist   | ~19h       | Apr 13, 2026      |
+| **2**  | Paper trading execution      | ~25h       | May 11, 2026      |
+| **3**  | Conviction scoring           | ~20h       | Jun 1, 2026       |
+| **4**  | Position monitoring          | ~21h       | Jun 29, 2026      |
+| **5**  | Portfolio risk controls      | ~20h       | Jul 13, 2026      |
+| **6**  | Streamlit dashboard          | ~20.5h     | Aug 3, 2026       |
+| **6B** | Risk config UI               | ~13h       | Aug 10, 2026      |
+| **6C** | Telegram notifications       | ~10h       | Aug 17, 2026      |
+| **7**  | Live trading rollout         | Ongoing    | Sep 2026+         |
+| **---**| **TOTAL BUILD**              | **~163h**  | **~5 months**     |
+
+At **10h/week** = ~16 weeks (~4 months). At **15h/week** = ~11 weeks (~3 months). At **8h/week** = ~20 weeks (~5 months).
+
+With Claude handling the heavy coding, realistically you guide the architecture and review — actual keyboard time is lower per task.
