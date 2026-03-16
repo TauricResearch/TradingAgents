@@ -217,3 +217,17 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Generated outputs / reports
+reports/
+results/
+output/
+outputs/
+artifacts/
+runs/
+logs/
+
+# JetBrains IDE
+.idea/
+
+
