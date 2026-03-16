@@ -5,8 +5,13 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
-def _extract_article_data(article: dict) -> dict:
-    """Extract article data from yfinance news format (handles nested 'content' structure)."""
+def _extract_article_data(article: dict, max_summary_chars: int = 500) -> dict:
+    """Extract article data from yfinance news format (handles nested 'content' structure).
+    
+    Args:
+        article: Raw article dict from yfinance
+        max_summary_chars: Maximum characters for summary (default 500). Set to 0 for full text.
+    """
     # Handle nested content structure
     if "content" in article:
         content = article["content"]
@@ -27,29 +32,37 @@ def _extract_article_data(article: dict) -> dict:
                 pub_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
             except (ValueError, AttributeError):
                 pass
-
-        return {
-            "title": title,
-            "summary": summary,
-            "publisher": publisher,
-            "link": link,
-            "pub_date": pub_date,
-        }
     else:
         # Fallback for flat structure
-        return {
-            "title": article.get("title", "No title"),
-            "summary": article.get("summary", ""),
-            "publisher": article.get("publisher", "Unknown"),
-            "link": article.get("link", ""),
-            "pub_date": None,
-        }
+        title = article.get("title", "No title")
+        summary = article.get("summary", "")
+        publisher = article.get("publisher", "Unknown")
+        link = article.get("link", "")
+        pub_date = None
+
+    # Truncate summary if limit is set (keep first paragraph or max_chars)
+    if max_summary_chars > 0 and summary and len(summary) > max_summary_chars:
+        # Try to cut at first paragraph break
+        first_para = summary.split('\n\n')[0]
+        if len(first_para) <= max_summary_chars:
+            summary = first_para
+        else:
+            summary = summary[:max_summary_chars].rsplit(' ', 1)[0] + "..."
+
+    return {
+        "title": title,
+        "summary": summary,
+        "publisher": publisher,
+        "link": link,
+        "pub_date": pub_date,
+    }
 
 
 def get_news_yfinance(
     ticker: str,
     start_date: str,
     end_date: str,
+    max_summary_chars: int = 500,
 ) -> str:
     """
     Retrieve news for a specific stock ticker using yfinance.
@@ -58,6 +71,8 @@ def get_news_yfinance(
         ticker: Stock ticker symbol (e.g., "AAPL")
         start_date: Start date in yyyy-mm-dd format
         end_date: End date in yyyy-mm-dd format
+        max_summary_chars: Maximum characters per article summary (default 500).
+                          Set to 0 for full text. Reduces token usage significantly.
 
     Returns:
         Formatted string containing news articles
@@ -77,7 +92,7 @@ def get_news_yfinance(
         filtered_count = 0
 
         for article in news:
-            data = _extract_article_data(article)
+            data = _extract_article_data(article, max_summary_chars=max_summary_chars)
 
             # Filter by date if publish time is available
             if data["pub_date"]:
@@ -106,6 +121,7 @@ def get_global_news_yfinance(
     curr_date: str,
     look_back_days: int = 7,
     limit: int = 10,
+    max_summary_chars: int = 500,
 ) -> str:
     """
     Retrieve global/macro economic news using yfinance Search.
@@ -114,6 +130,8 @@ def get_global_news_yfinance(
         curr_date: Current date in yyyy-mm-dd format
         look_back_days: Number of days to look back
         limit: Maximum number of articles to return
+        max_summary_chars: Maximum characters per article summary (default 500).
+                          Set to 0 for full text. Reduces token usage significantly.
 
     Returns:
         Formatted string containing global news articles
@@ -141,7 +159,7 @@ def get_global_news_yfinance(
                 for article in search.news:
                     # Handle both flat and nested structures
                     if "content" in article:
-                        data = _extract_article_data(article)
+                        data = _extract_article_data(article, max_summary_chars=max_summary_chars)
                         title = data["title"]
                     else:
                         title = article.get("title", "")
@@ -166,7 +184,7 @@ def get_global_news_yfinance(
         for article in all_news[:limit]:
             # Handle both flat and nested structures
             if "content" in article:
-                data = _extract_article_data(article)
+                data = _extract_article_data(article, max_summary_chars=max_summary_chars)
                 title = data["title"]
                 publisher = data["publisher"]
                 link = data["link"]
@@ -176,6 +194,8 @@ def get_global_news_yfinance(
                 publisher = article.get("publisher", "Unknown")
                 link = article.get("link", "")
                 summary = ""
+                if max_summary_chars > 0 and summary and len(summary) > max_summary_chars:
+                    summary = summary[:max_summary_chars].rsplit(' ', 1)[0] + "..."
 
             news_str += f"### {title} (source: {publisher})\n"
             if summary:
