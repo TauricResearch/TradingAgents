@@ -29,8 +29,8 @@ DEFAULT_CONFIG = {
     "quick_think_google_thinking_level": None,
     "quick_think_openai_reasoning_effort": None,
     # Debate and discussion settings
-    "max_debate_rounds": 1,
-    "max_risk_discuss_rounds": 1,
+    "max_debate_rounds": 2,
+    "max_risk_discuss_rounds": 2,
     "max_recur_limit": 100,
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
