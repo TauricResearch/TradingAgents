@@ -2,8 +2,8 @@
 
 ## Issues to Fix
 
-### 1. `validate_model()` is never called
-- Add validation call in `get_llm()` with warning (not error) for unknown models
+### 1. Resolved: `validate_model()` is now called in `get_llm()`
+- Added shared warning-based validation via `warn_if_unknown_model()` in each provider client
 
 ### 2. Inconsistent parameter handling
 | Client | API Key Param | Special Params |
