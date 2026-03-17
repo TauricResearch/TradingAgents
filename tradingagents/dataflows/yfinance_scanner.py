@@ -151,66 +151,97 @@ def get_market_indices_yfinance() -> str:
 
 def get_sector_performance_yfinance() -> str:
     """
-    Get sector-level performance overview using yfinance Sector data.
-    
+    Get sector-level performance overview using SPDR sector ETFs.
+
+    yfinance Sector.overview lacks performance data, so we use
+    sector ETFs (XLK, XLV, etc.) with yf.download() to compute
+    1-day, 1-week, 1-month, and YTD returns.
+
     Returns:
         Formatted string containing sector performance data
     """
+    # Map GICS sectors to SPDR ETF tickers
+    sector_etfs = {
+        "Technology": "XLK",
+        "Healthcare": "XLV",
+        "Financials": "XLF",
+        "Energy": "XLE",
+        "Consumer Discretionary": "XLY",
+        "Consumer Staples": "XLP",
+        "Industrials": "XLI",
+        "Materials": "XLB",
+        "Real Estate": "XLRE",
+        "Utilities": "XLU",
+        "Communication Services": "XLC",
+    }
+
     try:
-        # All 11 standard GICS (Global Industry Classification Standard) sectors.
-        # These keys are fixed by yfinance's Sector API and cannot be fetched
-        # dynamically; the GICS taxonomy is maintained by MSCI/S&P and is stable.
-        sector_keys = [
-            "communication-services",
-            "consumer-cyclical", 
-            "consumer-defensive",
-            "energy",
-            "financial-services",
-            "healthcare",
-            "industrials",
-            "basic-materials",
-            "real-estate",
-            "technology",
-            "utilities"
-        ]
-        
+        symbols = list(sector_etfs.values())
+        # Download ~6 months of data to cover YTD, 1-month, 1-week
+        hist = yf.download(symbols, period="6mo", auto_adjust=True, progress=False, threads=True)
+
         header = f"# Sector Performance Overview\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         result_str = header
         result_str += "| Sector | 1-Day % | 1-Week % | 1-Month % | YTD % |\n"
         result_str += "|--------|---------|----------|-----------|-------|\n"
-        
-        for sector_key in sector_keys:
+
+        for sector_name, etf in sector_etfs.items():
             try:
-                sector = yf.Sector(sector_key)
-                overview = sector.overview
-                
-                if overview is None or not overview:
+                # Extract close prices for this ETF
+                if len(symbols) > 1:
+                    closes = hist["Close"][etf].dropna()
+                else:
+                    closes = hist["Close"].dropna()
+
+                if closes.empty or len(closes) < 2:
+                    result_str += f"| {sector_name} | N/A | N/A | N/A | N/A |\n"
                     continue
-                
-                # Get performance metrics
-                sector_name = sector_key.replace("-", " ").title()
-                day_return = overview.get('oneDay', {}).get('percentChange', 'N/A')
-                week_return = overview.get('oneWeek', {}).get('percentChange', 'N/A')
-                month_return = overview.get('oneMonth', {}).get('percentChange', 'N/A')
-                ytd_return = overview.get('ytd', {}).get('percentChange', 'N/A')
-                
-                # Format percentages
-                day_str = f"{day_return:.2f}%" if isinstance(day_return, (int, float)) else day_return
-                week_str = f"{week_return:.2f}%" if isinstance(week_return, (int, float)) else week_return
-                month_str = f"{month_return:.2f}%" if isinstance(month_return, (int, float)) else month_return
-                ytd_str = f"{ytd_return:.2f}%" if isinstance(ytd_return, (int, float)) else ytd_return
-                
+
+                current = closes.iloc[-1]
+                prev = closes.iloc[-2]
+
+                # 1-day
+                day_pct = (current - prev) / prev * 100 if prev else 0
+
+                # 1-week (~5 trading days)
+                week_pct = _safe_pct(closes, 5)
+                # 1-month (~21 trading days)
+                month_pct = _safe_pct(closes, 21)
+                # YTD: first close of current year vs now
+                current_year = closes.index[-1].year
+                year_closes = closes[closes.index.year == current_year]
+                if len(year_closes) > 0 and year_closes.iloc[0] != 0:
+                    ytd_pct = (current - year_closes.iloc[0]) / year_closes.iloc[0] * 100
+                else:
+                    ytd_pct = None
+
+                day_str = f"{day_pct:+.2f}%"
+                week_str = f"{week_pct:+.2f}%" if week_pct is not None else "N/A"
+                month_str = f"{month_pct:+.2f}%" if month_pct is not None else "N/A"
+                ytd_str = f"{ytd_pct:+.2f}%" if ytd_pct is not None else "N/A"
+
                 result_str += f"| {sector_name} | {day_str} | {week_str} | {month_str} | {ytd_str} |\n"
-                
+
             except Exception as e:
-                result_str += f"| {sector_key.replace('-', ' ').title()} | Error: {str(e)[:20]} | - | - | - |\n"
-        
+                result_str += f"| {sector_name} | Error: {str(e)[:30]} | - | - | - |\n"
+
         return result_str
-        
+
     except Exception as e:
         return f"Error fetching sector performance: {str(e)}"
+
+
+def _safe_pct(closes, days_back: int) -> float | None:
+    """Compute percentage change from days_back trading days ago."""
+    if len(closes) < days_back + 1:
+        return None
+    base = closes.iloc[-(days_back + 1)]
+    current = closes.iloc[-1]
+    if base == 0:
+        return None
+    return (current - base) / base * 100
 
 
 def get_industry_performance_yfinance(
@@ -239,27 +270,20 @@ def get_industry_performance_yfinance(
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         result_str = header
-        result_str += "| Company | Symbol | Industry | Market Cap | Change % |\n"
-        result_str += "|---------|--------|----------|------------|----------|\n"
+        result_str += "| Company | Symbol | Rating | Market Weight |\n"
+        result_str += "|---------|--------|--------|---------------|\n"
         
-        # Get top companies in the sector
-        for idx, row in top_companies.head(20).iterrows():
-            symbol = row.get('symbol', 'N/A')
+        # top_companies has ticker as the DataFrame index (index.name == 'symbol')
+        # Columns: name, rating, market weight
+        for symbol, row in top_companies.head(20).iterrows():
             name = row.get('name', 'N/A')
-            industry = row.get('industry', 'N/A')
-            market_cap = row.get('marketCap', 'N/A')
-            change_pct = row.get('regularMarketChangePercent', 'N/A')
-            
-            # Format numbers
-            if isinstance(market_cap, (int, float)):
-                market_cap = f"${market_cap:,.0f}"
-            if isinstance(change_pct, (int, float)):
-                change_pct = f"{change_pct:.2f}%"
-            
-            name_short = name[:30] if isinstance(name, str) else name
-            industry_short = industry[:25] if isinstance(industry, str) else industry
-            
-            result_str += f"| {name_short} | {symbol} | {industry_short} | {market_cap} | {change_pct} |\n"
+            rating = row.get('rating', 'N/A')
+            market_weight = row.get('market weight', None)
+
+            name_short = name[:30] if isinstance(name, str) else str(name)
+            weight_str = f"{market_weight:.2%}" if isinstance(market_weight, (int, float)) else "N/A"
+
+            result_str += f"| {name_short} | {symbol} | {rating} | {weight_str} |\n"
         
         return result_str
         

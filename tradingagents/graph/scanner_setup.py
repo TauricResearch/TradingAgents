@@ -1,65 +1,53 @@
-# tradingagents/graph/scanner_setup.py
-from typing import Dict, Any
+"""Setup for the scanner workflow graph."""
+
 from langgraph.graph import StateGraph, START, END
-from langgraph.prebuilt import ToolNode
 
-from tradingagents.agents.utils.scanner_tools import (
-    get_market_movers,
-    get_market_indices,
-    get_sector_performance,
-    get_industry_performance,
-    get_topic_news,
-)
-
-from .conditional_logic import ConditionalLogic
-
-
-def pass_through_node(state):
-    """Pass-through node that returns state unchanged."""
-    return state
+from tradingagents.agents.utils.scanner_states import ScannerState
 
 
 class ScannerGraphSetup:
-    """Handles the setup and configuration of the scanner graph."""
+    """Sets up the 3-phase scanner graph with LLM agent nodes.
 
-    def __init__(self, conditional_logic: ConditionalLogic):
-        self.conditional_logic = conditional_logic
+    Phase 1: geopolitical_scanner, market_movers_scanner, sector_scanner (parallel fan-out)
+    Phase 2: industry_deep_dive (fan-in from all three Phase 1 nodes)
+    Phase 3: macro_synthesis -> END
+    """
+
+    def __init__(self, agents: dict) -> None:
+        """
+        Args:
+            agents: Dict mapping node names to agent node functions:
+                - geopolitical_scanner
+                - market_movers_scanner
+                - sector_scanner
+                - industry_deep_dive
+                - macro_synthesis
+        """
+        self.agents = agents
 
     def setup_graph(self):
-        """Set up and compile the scanner workflow graph."""
-        workflow = StateGraph(dict)
+        """Build and compile the scanner workflow graph.
 
-        # Add tool nodes
-        tool_nodes = {
-            "get_market_movers": ToolNode([get_market_movers]),
-            "get_market_indices": ToolNode([get_market_indices]),
-            "get_sector_performance": ToolNode([get_sector_performance]),
-            "get_industry_performance": ToolNode([get_industry_performance]),
-            "get_topic_news": ToolNode([get_topic_news]),
-        }
+        Returns:
+            A compiled LangGraph graph ready to invoke.
+        """
+        workflow = StateGraph(ScannerState)
 
-        for name, node in tool_nodes.items():
-            workflow.add_node(name, node)
+        for name, node_fn in self.agents.items():
+            workflow.add_node(name, node_fn)
 
-        # Add conditional logic node
-        workflow.add_node("conditional_logic", self.conditional_logic)
-        
-        # Add pass-through nodes for industry deep dive and macro synthesis
-        workflow.add_node("industry_deep_dive", pass_through_node)
-        workflow.add_node("macro_synthesis", pass_through_node)
-        
-        # Fan-out from START to 3 scanners
-        workflow.add_edge(START, "get_market_movers")
-        workflow.add_edge(START, "get_sector_performance")
-        workflow.add_edge(START, "get_topic_news")
+        # Phase 1: parallel fan-out from START
+        workflow.add_edge(START, "geopolitical_scanner")
+        workflow.add_edge(START, "market_movers_scanner")
+        workflow.add_edge(START, "sector_scanner")
 
-        # Fan-in to industry deep dive
-        workflow.add_edge("get_market_movers", "industry_deep_dive")
-        workflow.add_edge("get_sector_performance", "industry_deep_dive")
-        workflow.add_edge("get_topic_news", "industry_deep_dive")
+        # Fan-in: all three Phase 1 nodes must complete before Phase 2
+        workflow.add_edge("geopolitical_scanner", "industry_deep_dive")
+        workflow.add_edge("market_movers_scanner", "industry_deep_dive")
+        workflow.add_edge("sector_scanner", "industry_deep_dive")
 
-        # Then to synthesis
+        # Phase 2 -> Phase 3 -> END
         workflow.add_edge("industry_deep_dive", "macro_synthesis")
         workflow.add_edge("macro_synthesis", END)
-        
+
         return workflow.compile()

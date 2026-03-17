@@ -6,8 +6,10 @@ from functools import wraps
 from rich.console import Console
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Load environment variables from .env file.
+# Checks CWD first, then falls back to project root (relative to this script).
 load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
@@ -27,13 +29,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
-from tradingagents.agents.utils.scanner_tools import (
-    get_market_movers,
-    get_market_indices,
-    get_sector_performance,
-    get_industry_performance,
-    get_topic_news,
-)
+from tradingagents.graph.scanner_graph import ScannerGraph
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
 
@@ -1178,67 +1174,159 @@ def run_analysis():
         display_complete_report(final_state)
 
 
-def _is_scanner_error(result: str) -> bool:
-    """Return True when *result* indicates an error or missing data from a scanner tool."""
-    error_prefixes = (
-        "Error",
-        "No data",
-        "No quotes",
-        "No movers",
-        "No news",
-        "No industry",
-        "Invalid",
-        "Alpha Vantage",
-    )
-    return any(result.startswith(prefix) for prefix in error_prefixes)
-
-
-def _invoke_and_save(tool, args: dict, save_dir: Path, filename: str, label: str) -> str:
-    """Invoke a scanner tool, print a preview, and save the result if it is valid."""
-    result = tool.invoke(args)
-    if not _is_scanner_error(result):
-        (save_dir / filename).write_text(result)
-    console.print(result[:500] + "..." if len(result) > 500 else result)
-    return result
-
-
-def run_scan():
+def run_scan(date: Optional[str] = None):
+    """Run the 3-phase LLM scanner pipeline via ScannerGraph."""
     console.print(Panel("[bold green]Global Macro Scanner[/bold green]", border_style="green"))
-    default_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    scan_date = typer.prompt("Scan date (YYYY-MM-DD)", default=default_date)
-    console.print(f"[cyan]Scanning market data for {scan_date}...[/cyan]")
+    if date:
+        scan_date = date
+    else:
+        default_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        scan_date = typer.prompt("Scan date (YYYY-MM-DD)", default=default_date)
 
     # Prepare save directory
     save_dir = Path("results/macro_scan") / scan_date
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    # Call scanner tools
-    console.print("[bold]1. Market Movers[/bold]")
-    _invoke_and_save(get_market_movers, {"category": "day_gainers"}, save_dir, "market_movers.txt", "Market Movers")
+    console.print(f"[cyan]Running 3-phase macro scanner for {scan_date}...[/cyan]")
+    console.print("[dim]Phase 1: Geopolitical + Market Movers + Sector scans (parallel)[/dim]")
+    console.print("[dim]Phase 2: Industry Deep Dive[/dim]")
+    console.print("[dim]Phase 3: Macro Synthesis → stocks to investigate[/dim]\n")
 
-    console.print("[bold]2. Market Indices[/bold]")
-    _invoke_and_save(get_market_indices, {}, save_dir, "market_indices.txt", "Market Indices")
+    try:
+        scanner = ScannerGraph(config=DEFAULT_CONFIG.copy())
+        with Live(Spinner("dots", text="Scanning..."), console=console, transient=True):
+            result = scanner.scan(scan_date)
+    except Exception as e:
+        console.print(f"[red]Scanner failed: {e}[/red]")
+        raise typer.Exit(1)
 
-    console.print("[bold]3. Sector Performance[/bold]")
-    _invoke_and_save(get_sector_performance, {}, save_dir, "sector_performance.txt", "Sector Performance")
+    # Save reports
+    import json as _json
 
-    console.print("[bold]4. Industry Performance (Technology)[/bold]")
-    _invoke_and_save(get_industry_performance, {"sector_key": "technology"}, save_dir, "industry_performance.txt", "Industry Performance")
+    for key in ["geopolitical_report", "market_movers_report", "sector_performance_report",
+                "industry_deep_dive_report", "macro_scan_summary"]:
+        content = result.get(key, "")
+        if content:
+            (save_dir / f"{key}.md").write_text(content)
 
-    console.print("[bold]5. Topic News (Market)[/bold]")
-    _invoke_and_save(get_topic_news, {"topic": "market", "limit": 10}, save_dir, "topic_news.txt", "Topic News")
+    # Display the final watchlist
+    summary = result.get("macro_scan_summary", "")
+    if summary:
+        console.print(Panel("[bold]Macro Scan Summary[/bold]", border_style="green"))
+        console.print(Markdown(summary[:3000]))
 
-    console.print(f"[green]Results saved to {save_dir}[/green]")
+        # Try to parse and show watchlist table
+        try:
+            summary_data = _json.loads(summary)
+            stocks = summary_data.get("stocks_to_investigate", [])
+            if stocks:
+                table = Table(title="Stocks to Investigate", box=box.ROUNDED)
+                table.add_column("Ticker", style="cyan bold")
+                table.add_column("Name")
+                table.add_column("Sector")
+                table.add_column("Conviction", style="green")
+                table.add_column("Thesis")
+                for s in stocks:
+                    table.add_row(
+                        s.get("ticker", ""),
+                        s.get("name", ""),
+                        s.get("sector", ""),
+                        s.get("conviction", "").upper(),
+                        s.get("thesis_angle", ""),
+                    )
+                console.print(table)
+        except (_json.JSONDecodeError, KeyError):
+            pass  # Summary wasn't valid JSON — already printed as markdown
+
+    console.print(f"\n[green]Results saved to {save_dir}[/green]")
+
+
+def run_pipeline():
+    """Full pipeline: scan -> filter -> per-ticker deep dive."""
+    import asyncio
+    import json as _json
+    from tradingagents.pipeline.macro_bridge import (
+        parse_macro_output,
+        filter_candidates,
+        run_all_tickers,
+        save_results,
+    )
+
+    console.print(Panel("[bold green]Macro → TradingAgents Pipeline[/bold green]", border_style="green"))
+
+    macro_output = typer.prompt("Path to macro scan JSON")
+    macro_path = Path(macro_output)
+    if not macro_path.exists():
+        console.print(f"[red]File not found: {macro_path}[/red]")
+        raise typer.Exit(1)
+
+    min_conviction = typer.prompt("Minimum conviction (high/medium/low)", default="medium")
+    tickers_input = typer.prompt("Specific tickers (comma-separated, or blank for all)", default="")
+    ticker_filter = [t.strip() for t in tickers_input.split(",") if t.strip()] or None
+    analysis_date = typer.prompt("Analysis date", default=datetime.datetime.now().strftime("%Y-%m-%d"))
+    dry_run = typer.confirm("Dry run (no API calls)?", default=False)
+
+    # Parse macro output
+    macro_context, all_candidates = parse_macro_output(macro_path)
+    candidates = filter_candidates(all_candidates, min_conviction, ticker_filter)
+
+    console.print(f"\n[cyan]Candidates: {len(candidates)} of {len(all_candidates)} stocks passed filter[/cyan]")
+
+    table = Table(title="Selected Stocks", box=box.ROUNDED)
+    table.add_column("Ticker", style="cyan bold")
+    table.add_column("Conviction")
+    table.add_column("Sector")
+    table.add_column("Name")
+    for c in candidates:
+        table.add_row(c.ticker, c.conviction.upper(), c.sector, c.name)
+    console.print(table)
+
+    if dry_run:
+        console.print("\n[yellow]Dry run — skipping TradingAgents analysis[/yellow]")
+        return
+
+    if not candidates:
+        console.print("[yellow]No candidates passed the filter.[/yellow]")
+        return
+
+    config = DEFAULT_CONFIG.copy()
+    output_dir = Path("results/macro_pipeline")
+
+    console.print(f"\n[cyan]Running TradingAgents for {len(candidates)} tickers...[/cyan]")
+    with Live(Spinner("dots", text="Analyzing..."), console=console, transient=True):
+        results = asyncio.run(
+            run_all_tickers(candidates, macro_context, config, analysis_date)
+        )
+
+    save_results(results, macro_context, output_dir)
+
+    successes = [r for r in results if not r.error]
+    failures = [r for r in results if r.error]
+    console.print(f"\n[green]Done: {len(successes)} succeeded, {len(failures)} failed[/green]")
+    console.print(f"Reports saved to: {output_dir.resolve()}")
+    if failures:
+        for r in failures:
+            console.print(f"  [red]{r.ticker}: {r.error}[/red]")
 
 
 @app.command()
 def analyze():
+    """Run per-ticker multi-agent analysis."""
     run_analysis()
 
 
 @app.command()
-def scan():
-    run_scan()
+def scan(
+    date: Optional[str] = typer.Option(None, "--date", "-d", help="Scan date in YYYY-MM-DD format (default: today)"),
+):
+    """Run 3-phase macro scanner (geopolitical → sector → synthesis)."""
+    run_scan(date=date)
+
+
+@app.command()
+def pipeline():
+    """Full pipeline: macro scan JSON → filter → per-ticker deep dive."""
+    run_pipeline()
 
 
 if __name__ == "__main__":

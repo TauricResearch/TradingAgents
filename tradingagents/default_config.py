@@ -8,18 +8,16 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.2",
-    "mid_think_llm": None,              # falls back to quick_think_llm when None
-    "quick_think_llm": "gpt-5-mini",
-    "backend_url": "https://api.openai.com/v1",
+    "mid_think_llm": "qwen3.5:27b",              # falls back to quick_think_llm when None
+    "quick_think_llm": "qwen3.5:27b",
     # Per-role provider overrides (fall back to llm_provider / backend_url when None)
-    "deep_think_llm_provider": None,    # e.g. "google", "anthropic", "openai"
-    "deep_think_backend_url": None,     # override backend URL for deep-think model
-    "mid_think_llm_provider": None,     # e.g. "ollama"
-    "mid_think_backend_url": None,      # override backend URL for mid-think model
-    "quick_think_llm_provider": None,   # e.g. "openai", "ollama"
-    "quick_think_backend_url": None,    # override backend URL for quick-think model
+    "deep_think_llm_provider": "openrouter",
+    "deep_think_llm": "deepseek/deepseek-r1-0528",
+    "deep_think_backend_url": None,     # uses OpenRouter's default URL
+    "mid_think_llm_provider": "ollama",     # falls back to ollama
+    "mid_think_backend_url": "http://192.168.50.76:11434",      # falls back to backend_url (ollama host)
+    "quick_think_llm_provider": "ollama",   # falls back to ollama
+    "quick_think_backend_url": "http://192.168.50.76:11434",    # falls back to backend_url (ollama host)
     # Provider-specific thinking configuration (applies to all roles unless overridden)
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
@@ -41,7 +39,7 @@ DEFAULT_CONFIG = {
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
-        "scanner_data": "yfinance",          # Options: yfinance (primary), alpha_vantage (fallback for movers only)
+        "scanner_data": "alpha_vantage",      # Options: alpha_vantage (primary), yfinance (fallback)
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
