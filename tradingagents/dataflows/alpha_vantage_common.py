@@ -2,6 +2,8 @@ import os
 import requests
 import pandas as pd
 import json
+import threading
+import time as _time
 from datetime import datetime
 from io import StringIO
 
@@ -73,8 +75,6 @@ class ThirdPartyParseError(AlphaVantageError):
 
 # ─── Rate-limited request helper ─────────────────────────────────────────────
 
-import threading
-import time as _time
 
 _rate_lock = threading.Lock()
 _call_timestamps: list[float] = []
@@ -83,14 +83,30 @@ _RATE_LIMIT = 75  # calls per minute (Alpha Vantage premium)
 
 def _rate_limited_request(function_name: str, params: dict, timeout: int = 30) -> dict | str:
     """Make an API request with rate limiting (75 calls/min for premium key)."""
+    sleep_time = 0.0
     with _rate_lock:
         now = _time.time()
         # Remove timestamps older than 60 seconds
         _call_timestamps[:] = [t for t in _call_timestamps if now - t < 60]
         if len(_call_timestamps) >= _RATE_LIMIT:
             sleep_time = 60 - (now - _call_timestamps[0]) + 0.1
-            _time.sleep(sleep_time)
+
+    # Sleep outside the lock to avoid blocking other threads
+    if sleep_time > 0:
+        _time.sleep(sleep_time)
+
+    # Re-check and register under lock to avoid races where multiple
+    # threads calculate similar sleep times and then all fire at once.
+    with _rate_lock:
+        now = _time.time()
+        _call_timestamps[:] = [t for t in _call_timestamps if now - t < 60]
+        if len(_call_timestamps) >= _RATE_LIMIT:
+            # Another thread filled the window while we slept — wait again
+            extra_sleep = 60 - (now - _call_timestamps[0]) + 0.1
+            _time.sleep(extra_sleep)
         _call_timestamps.append(_time.time())
+
+
     return _make_api_request(function_name, params, timeout=timeout)
 
 
@@ -131,6 +147,8 @@ def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> di
         )
     except requests.exceptions.ConnectionError as exc:
         raise ThirdPartyError(f"Connection error: function={function_name}, error={exc}")
+    except requests.exceptions.RequestException as exc:
+        raise ThirdPartyError(f"Request failed: function={function_name}, error={exc}")
 
     # HTTP-level errors
     if response.status_code == 401:
@@ -146,7 +164,13 @@ def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> di
             f"Server error: status={response.status_code}, function={function_name}, "
             f"body={response.text[:200]}"
         )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        raise ThirdPartyError(
+            f"HTTP error: status={response.status_code}, function={function_name}, "
+            f"body={response.text[:200]}"
+        ) from exc
 
     response_text = response.text
 

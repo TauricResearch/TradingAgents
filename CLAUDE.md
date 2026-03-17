@@ -102,16 +102,13 @@ OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
 - `PROGRESS.md` — Feature progress, what works, TODOs
 - `MISTAKES.md` — Past bugs and lessons learned (9 documented mistakes)
 
-## Current LLM Configuration (Hybrid)
+## LLM Configuration
 
-```
-quick_think: qwen3.5:27b via Ollama (http://192.168.50.76:11434)
-mid_think:   qwen3.5:27b via Ollama (http://192.168.50.76:11434)
-deep_think:  deepseek/deepseek-r1-0528 via OpenRouter
-```
-
-Config: `tradingagents/default_config.py` (per-tier `_llm_provider` keys)
-Keys: `.env` file (`OPENROUTER_API_KEY`, `ALPHA_VANTAGE_API_KEY`)
+Per-tier provider overrides in `tradingagents/default_config.py`:
+- Each tier (`quick_think`, `mid_think`, `deep_think`) can have its own `_llm_provider` and `_backend_url`
+- Falls back to top-level `llm_provider` and `backend_url` when per-tier values are None
+- All config values overridable via `TRADINGAGENTS_<KEY>` env vars
+- Keys for LLM providers: `.env` file (e.g., `OPENROUTER_API_KEY`, `ALPHA_VANTAGE_API_KEY`)
 
 ## Running the Scanner
 
