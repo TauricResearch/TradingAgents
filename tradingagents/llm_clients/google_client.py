@@ -38,6 +38,10 @@ class GoogleClient(BaseLLMClient):
         """Return configured ChatGoogleGenerativeAI instance."""
         llm_kwargs = {"model": self.model}
 
+        # Apply base_url if configured (for v1beta endpoint support)
+        if self.base_url:
+            llm_kwargs["api_endpoint"] = self.base_url
+
         for key in ("timeout", "max_retries", "google_api_key", "callbacks"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
