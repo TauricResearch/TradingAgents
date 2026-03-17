@@ -92,6 +92,35 @@ Documenting bugs and wrong assumptions to avoid repeating them.
 
 ---
 
+## Mistake 10: Python 3.11 f-string backslash restriction
+
+**What happened**: `ttm_analysis.py` used a backslash inside an f-string expression:
+```python
+f"| Debt / Equity | {f\"{ttm['debt_to_equity']:.2f}x\" if ...} |"
+```
+Python 3.11 raises `SyntaxError: f-string expression part cannot include a backslash`.
+
+**Fix**: Pre-compute the string outside the f-string or use string concatenation:
+```python
+f"| Debt / Equity | {(str(round(ttm['debt_to_equity'], 2)) + 'x') if ... else 'N/A'} |"
+```
+
+**Lesson**: Python 3.11 does not allow backslashes inside f-string `{}` expressions. Extract to a variable or use string concatenation instead. (Python 3.12+ relaxes this restriction.)
+
+---
+
+## Mistake 11: Mock test data precision — threshold boundary failures
+
+**What happened**: `test_risk_on_regime` failed because mock risk-on data scored only 2 (needed ≥3). Two signals were inadvertently near-threshold:
+1. Flat VIX series → VIX trend signal = 0 (SMA5 == SMA20)
+2. `_trending_series(80, 85, 250)` HYG → 21-day change was 0.499%, just under 0.5% threshold → credit spread = 0
+
+**Fix**: Made mock data obviously far from thresholds: `_trending_series(30, 12, n)` for VIX (clearly falling), `_trending_series(75, 90, n)` for HYG (clearly improving).
+
+**Lesson**: When writing signal/threshold tests, make mock data unmistakably one-sided. Near-threshold values cause brittle tests. The mock should test the regime, not the exact threshold boundary.
+
+---
+
 ## Mistake 9: Removed top-level `llm_provider` but code still references it
 
 **What happened**: Removed `llm_provider` from `default_config.py` (since we have per-tier providers). But `scanner_graph.py` line 78 does `self.config.get(f"{tier}_llm_provider") or self.config["llm_provider"]` — would crash if per-tier provider is ever None.

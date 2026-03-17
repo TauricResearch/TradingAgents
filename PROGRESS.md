@@ -52,6 +52,48 @@ The 3-phase scanner pipeline runs successfully from `python -m cli.main scan --d
 
 ---
 
+## Milestone: Medium-Term Positioning Upgrade ✅ COMPLETE (PR pending)
+
+Branch: `claude/implement-medium-term-upgrade-VDdph`
+
+### What Was Added
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Debate rounds 1→2 | ✅ | `default_config.py`; also fixed ConditionalLogic wiring bug |
+| ConditionalLogic config wiring | ✅ | `trading_graph.py` was ignoring config, always using defaults |
+| 8-quarter TTM analysis | ✅ | `tradingagents/dataflows/ttm_analysis.py` + `get_ttm_analysis` tool |
+| Sector/peer comparison | ✅ | `tradingagents/dataflows/peer_comparison.py` + `get_peer_comparison`, `get_sector_relative` tools |
+| Macro regime classifier | ✅ | `tradingagents/dataflows/macro_regime.py` + `get_macro_regime` tool |
+| `macro_regime_report` AgentState field | ✅ | `agent_states.py`; fed into research + risk managers |
+| New unit tests (88) | ✅ | 5 new test files; 104 passed, 0 failed |
+
+### New Files
+
+- `tradingagents/dataflows/ttm_analysis.py` — parse vendor CSVs, compute TTM, QoQ/YoY trends
+- `tradingagents/dataflows/peer_comparison.py` — sector peer lookup, 1W/1M/3M/6M/YTD ranking vs ETF
+- `tradingagents/dataflows/macro_regime.py` — 6-signal macro regime classifier (yfinance only)
+- `tests/test_ttm_analysis.py` (18 tests)
+- `tests/test_peer_comparison.py` (11 tests)
+- `tests/test_macro_regime.py` (16 tests)
+- `tests/test_debate_rounds.py` (17 tests)
+- `tests/test_config_wiring.py` (12 tests)
+
+### Modified Files
+
+- `tradingagents/default_config.py` — debate rounds 1→2
+- `tradingagents/graph/trading_graph.py` — bug fix + new tools in ToolNodes
+- `tradingagents/agents/utils/fundamental_data_tools.py` — 4 new `@tool` functions
+- `tradingagents/agents/utils/agent_utils.py` — export 4 new tools
+- `tradingagents/agents/utils/agent_states.py` — `macro_regime_report` field
+- `tradingagents/agents/analysts/fundamentals_analyst.py` — 3 new tools, 8-quarter prompt
+- `tradingagents/agents/analysts/market_analyst.py` — macro regime tool, returns macro_regime_report
+- `tradingagents/agents/managers/research_manager.py` — macro regime context
+- `tradingagents/agents/managers/risk_manager.py` — macro regime context
+- `tradingagents/dataflows/interface.py` — register `get_ttm_analysis`
+
+---
+
 ## TODOs / Future Work
 
 ### High Priority

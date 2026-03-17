@@ -102,6 +102,49 @@ Download 6 months of history via `yf.download()` and compute 1-day, 1-week, 1-mo
 
 ---
 
+## Decision 008: Medium-Term Upgrade — Macro Regime via yfinance Only
+
+**Date**: 2026-03-17
+**Status**: Implemented ✅
+
+**Context**: Macro regime classification needs VIX, credit spreads, yield curve, market breadth, sector rotation — all free signals.
+
+**Decision**: Use yfinance exclusively for all macro regime signals (no Alpha Vantage endpoint for this data). 6 signals from `^VIX`, `^GSPC`, `HYG`, `LQD`, `TLT`, `SHY`, and sector ETFs. No vendor routing needed.
+
+**Scoring**: Each signal ±1. Total ≥3 = risk-on, ≤-3 = risk-off, else transition. Confidence based on absolute score: |score| ≥4 → high, ≥2 → medium, else low.
+
+**File**: `tradingagents/dataflows/macro_regime.py`
+
+---
+
+## Decision 009: TTM Tool Prefers Alpha Vantage (More History)
+
+**Date**: 2026-03-17
+**Status**: Implemented ✅
+
+**Context**: yfinance returns only 4-5 quarterly periods. Alpha Vantage `INCOME_STATEMENT` endpoint returns up to 20 quarters. For 8-quarter trend analysis, AV is significantly better.
+
+**Decision**: `get_ttm_analysis` tool uses `route_to_vendor` with AV as primary, yfinance as fallback. TTM module handles <8 quarters gracefully (computes with what's available, reports `quarters_available`).
+
+**File**: `tradingagents/dataflows/ttm_analysis.py`
+
+---
+
+## Decision 010: Peer Comparison via Hardcoded Sector Tickers
+
+**Date**: 2026-03-17
+**Status**: Implemented ✅
+
+**Context**: No Alpha Vantage endpoint for peer comparison. yfinance `top_companies` was unreliable (Mistake 3). Need deterministic peer lists.
+
+**Decision**: Hardcode `_SECTOR_TICKERS` mapping (20 tickers per sector) and `_SECTOR_ETFS` in `peer_comparison.py`. Peer data via `yf.download()` — reliable and fast. Sector ETF used as benchmark for alpha calculation.
+
+**Trade-off**: Peers don't auto-update if sector composition changes. Acceptable for current use case.
+
+**File**: `tradingagents/dataflows/peer_comparison.py`
+
+---
+
 ## Decision 007: .env Loading Strategy
 
 **Date**: 2026-03-17
