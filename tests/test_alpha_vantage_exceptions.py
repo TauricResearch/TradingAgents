@@ -57,14 +57,13 @@ class TestMakeApiRequestErrors:
 
     def test_timeout_raises_timeout_error(self):
         """A timeout should raise ThirdPartyTimeoutError."""
-        with patch.dict(os.environ, {"ALPHA_VANTAGE_API_KEY": "demo"}):
-            with pytest.raises(ThirdPartyTimeoutError):
-                # Use an impossibly short timeout
-                _make_api_request(
-                    "TIME_SERIES_DAILY",
-                    {"symbol": "IBM"},
-                    timeout=0.001,
-                )
+        with pytest.raises(ThirdPartyTimeoutError):
+            # Use an impossibly short timeout
+            _make_api_request(
+                "TIME_SERIES_DAILY",
+                {"symbol": "IBM"},
+                timeout=0.001,
+            )
 
     def test_valid_request_succeeds(self, av_api_key):
         """A valid request with a real key should return data."""

@@ -83,33 +83,29 @@ class TestAlphaVantageFailoverRaise:
 
     def test_sector_perf_raises_on_total_failure(self):
         """When every GLOBAL_QUOTE call fails, the function should raise."""
-        with patch.dict(os.environ, {"ALPHA_VANTAGE_API_KEY": "demo"}):
-            with pytest.raises(AlphaVantageError, match="All .* sector queries failed"):
-                get_sector_performance_alpha_vantage()
+        with pytest.raises(AlphaVantageError, match="All .* sector queries failed"):
+            get_sector_performance_alpha_vantage()
 
     def test_industry_perf_raises_on_total_failure(self):
         """When every ticker quote fails, the function should raise."""
-        with patch.dict(os.environ, {"ALPHA_VANTAGE_API_KEY": "demo"}):
-            with pytest.raises(AlphaVantageError, match="All .* ticker queries failed"):
-                get_industry_performance_alpha_vantage("technology")
+        with pytest.raises(AlphaVantageError, match="All .* ticker queries failed"):
+            get_industry_performance_alpha_vantage("technology")
 
 
 class TestRouteToVendorFallback:
     """Verify route_to_vendor falls back from AV to yfinance."""
 
     def test_sector_perf_falls_back_to_yfinance(self):
-        with patch.dict(os.environ, {"ALPHA_VANTAGE_API_KEY": "demo"}):
-            from tradingagents.dataflows.interface import route_to_vendor
-            result = route_to_vendor("get_sector_performance")
-            # Should get yfinance data (no "Alpha Vantage" in header)
-            assert "Sector Performance Overview" in result
-            # Should have actual percentage data, not all errors
-            assert "Error:" not in result or result.count("Error:") < 3
+        from tradingagents.dataflows.interface import route_to_vendor
+        result = route_to_vendor("get_sector_performance")
+        # Should get yfinance data (no "Alpha Vantage" in header)
+        assert "Sector Performance Overview" in result
+        # Should have actual percentage data, not all errors
+        assert "Error:" not in result or result.count("Error:") < 3
 
     def test_industry_perf_falls_back_to_yfinance(self):
-        with patch.dict(os.environ, {"ALPHA_VANTAGE_API_KEY": "demo"}):
-            from tradingagents.dataflows.interface import route_to_vendor
-            result = route_to_vendor("get_industry_performance", "technology")
-            assert "Industry Performance" in result
-            # Should contain real ticker symbols
-            assert "N/A" not in result or result.count("N/A") < 5
+        from tradingagents.dataflows.interface import route_to_vendor
+        result = route_to_vendor("get_industry_performance", "technology")
+        assert "Industry Performance" in result
+        # Should contain real ticker symbols
+        assert "N/A" not in result or result.count("N/A") < 5

@@ -100,8 +100,7 @@ class TestRouteToVendor:
         with patch("tradingagents.dataflows.interface.get_config", return_value=patched_config):
             with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                        return_value=_mock_av_response(_OHLCV_CSV_AV)):
-                with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-                    result = route_to_vendor("get_stock_data", "AAPL", "2024-01-04", "2024-01-05")
+                result = route_to_vendor("get_stock_data", "AAPL", "2024-01-04", "2024-01-05")
 
         assert isinstance(result, str)
 
@@ -124,13 +123,12 @@ class TestRouteToVendor:
             # AV returns a rate-limit response
             with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                        return_value=_mock_av_response(_RATE_LIMIT_JSON)):
-                with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-                    # yfinance is the fallback
-                    with patch("tradingagents.dataflows.y_finance.yf.Ticker",
-                               return_value=mock_ticker):
-                        result = route_to_vendor(
-                            "get_stock_data", "AAPL", "2024-01-04", "2024-01-05"
-                        )
+                # yfinance is the fallback
+                with patch("tradingagents.dataflows.y_finance.yf.Ticker",
+                           return_value=mock_ticker):
+                    result = route_to_vendor(
+                        "get_stock_data", "AAPL", "2024-01-04", "2024-01-05"
+                    )
 
         assert isinstance(result, str)
         assert "AAPL" in result
@@ -150,13 +148,12 @@ class TestRouteToVendor:
         with patch("tradingagents.dataflows.interface.get_config", return_value=patched_config):
             with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                        return_value=_mock_av_response(_RATE_LIMIT_JSON)):
-                with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-                    with patch(
-                        "tradingagents.dataflows.y_finance.yf.Ticker",
-                        side_effect=ConnectionError("network unavailable"),
-                    ):
-                        with pytest.raises(RuntimeError, match="No available vendor"):
-                            route_to_vendor("get_stock_data", "AAPL", "2024-01-04", "2024-01-05")
+                with patch(
+                    "tradingagents.dataflows.y_finance.yf.Ticker",
+                    side_effect=ConnectionError("network unavailable"),
+                ):
+                    with pytest.raises(RuntimeError, match="No available vendor"):
+                        route_to_vendor("get_stock_data", "AAPL", "2024-01-04", "2024-01-05")
 
     def test_unknown_method_raises_value_error(self):
         from tradingagents.dataflows.interface import route_to_vendor
@@ -195,8 +192,7 @@ class TestFullPipeline:
 
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_av_response(_OHLCV_CSV_AV)):
-            with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-                result = get_stock("AAPL", "2024-01-04", "2024-01-05")
+            result = get_stock("AAPL", "2024-01-04", "2024-01-05")
 
         assert isinstance(result, str)
         # pandas may reformat "185.00" → "185.0"; check for the numeric value
@@ -230,8 +226,7 @@ class TestFullPipeline:
 
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_av_response(_OVERVIEW_JSON)):
-            with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-                result = get_fundamentals("AAPL")
+            result = get_fundamentals("AAPL")
 
         assert "Apple Inc" in result
         assert "TECHNOLOGY" in result
@@ -262,8 +257,7 @@ class TestFullPipeline:
 
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_av_response(_NEWS_JSON)):
-            with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-                result = get_news("AAPL", "2024-01-01", "2024-01-05")
+            result = get_news("AAPL", "2024-01-01", "2024-01-05")
 
         assert "Apple Hits Record High" in result
 
@@ -288,8 +282,7 @@ class TestFullPipeline:
         # --- Step 2: Alpha Vantage fundamentals ---
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_av_response(_OVERVIEW_JSON)):
-            with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-                fundamentals = get_fundamentals("AAPL")
+            fundamentals = get_fundamentals("AAPL")
 
         # --- Assertions ---
         assert isinstance(price_data, str)
@@ -330,9 +323,8 @@ class TestFullPipeline:
         # Alpha Vantage rate-limits
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_av_response(_RATE_LIMIT_JSON)):
-            with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-                with pytest.raises(AlphaVantageRateLimitError):
-                    get_fundamentals("AAPL")
+            with pytest.raises(AlphaVantageRateLimitError):
+                get_fundamentals("AAPL")
 
 
 # ---------------------------------------------------------------------------

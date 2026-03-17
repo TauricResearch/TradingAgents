@@ -403,3 +403,165 @@ class TestGetInsiderTransactions:
             result = get_insider_transactions("AAPL")
 
         assert "Error" in result
+
+
+# ---------------------------------------------------------------------------
+# get_stock_stats_indicators_window
+# ---------------------------------------------------------------------------
+
+class TestGetStockStatsIndicatorsWindow:
+    """Tests for get_stock_stats_indicators_window (technical indicators)."""
+
+    def _bulk_rsi_data(self):
+        """Return a realistic dict of date→rsi_value as _get_stock_stats_bulk would."""
+        return {
+            "2024-01-08": "62.34",
+            "2024-01-07": "N/A",       # weekend
+            "2024-01-06": "N/A",       # weekend
+            "2024-01-05": "59.12",
+            "2024-01-04": "55.67",
+            "2024-01-03": "50.00",
+        }
+
+    def test_returns_formatted_indicator_string(self):
+        """Success path: returns a multi-line string with dates and RSI values."""
+        from tradingagents.dataflows.y_finance import get_stock_stats_indicators_window
+
+        with patch(
+            "tradingagents.dataflows.y_finance._get_stock_stats_bulk",
+            return_value=self._bulk_rsi_data(),
+        ):
+            result = get_stock_stats_indicators_window("AAPL", "rsi", "2024-01-08", 5)
+
+        assert "rsi" in result
+        assert "2024-01-08" in result
+        assert "62.34" in result
+
+    def test_includes_indicator_description(self):
+        """The returned string includes the indicator description / usage notes."""
+        from tradingagents.dataflows.y_finance import get_stock_stats_indicators_window
+
+        with patch(
+            "tradingagents.dataflows.y_finance._get_stock_stats_bulk",
+            return_value=self._bulk_rsi_data(),
+        ):
+            result = get_stock_stats_indicators_window("AAPL", "rsi", "2024-01-08", 5)
+
+        # Every supported indicator has a description string
+        assert "RSI" in result or "momentum" in result.lower()
+
+    def test_unsupported_indicator_raises_value_error(self):
+        """Requesting an unsupported indicator raises ValueError before any network call."""
+        from tradingagents.dataflows.y_finance import get_stock_stats_indicators_window
+
+        with pytest.raises(ValueError, match="not supported"):
+            get_stock_stats_indicators_window("AAPL", "unknown_indicator", "2024-01-08", 5)
+
+    def test_bulk_exception_triggers_fallback(self):
+        """If _get_stock_stats_bulk raises, the function falls back gracefully."""
+        from tradingagents.dataflows.y_finance import get_stock_stats_indicators_window
+
+        with patch(
+            "tradingagents.dataflows.y_finance._get_stock_stats_bulk",
+            side_effect=Exception("stockstats unavailable"),
+        ):
+            with patch(
+                "tradingagents.dataflows.y_finance.get_stockstats_indicator",
+                return_value="45.00",
+            ):
+                result = get_stock_stats_indicators_window("AAPL", "rsi", "2024-01-08", 3)
+
+        assert isinstance(result, str)
+        assert "rsi" in result
+
+
+# ---------------------------------------------------------------------------
+# get_global_news_yfinance
+# ---------------------------------------------------------------------------
+
+class TestGetGlobalNewsYfinance:
+    """Tests for get_global_news_yfinance."""
+
+    def _mock_search_with_article(self):
+        """Return a mock yf.Search object with one flat-structured news article."""
+        mock_search = MagicMock()
+        mock_search.news = [
+            {
+                "title": "Fed Holds Rates Steady",
+                "publisher": "Reuters",
+                "link": "https://example.com/fed",
+                "summary": "The Federal Reserve decided to hold interest rates.",
+            }
+        ]
+        return mock_search
+
+    def test_returns_string_with_articles(self):
+        """When yfinance Search returns articles, a formatted string is returned."""
+        from tradingagents.dataflows.yfinance_news import get_global_news_yfinance
+
+        with patch(
+            "tradingagents.dataflows.yfinance_news.yf.Search",
+            return_value=self._mock_search_with_article(),
+        ):
+            result = get_global_news_yfinance("2024-01-15", look_back_days=7)
+
+        assert isinstance(result, str)
+        assert "Fed Holds Rates Steady" in result
+
+    def test_no_news_returns_fallback_message(self):
+        """When no articles are found, a 'no news found' message is returned."""
+        from tradingagents.dataflows.yfinance_news import get_global_news_yfinance
+
+        mock_search = MagicMock()
+        mock_search.news = []
+
+        with patch(
+            "tradingagents.dataflows.yfinance_news.yf.Search",
+            return_value=mock_search,
+        ):
+            result = get_global_news_yfinance("2024-01-15")
+
+        assert "No global news found" in result
+
+    def test_handles_nested_content_structure(self):
+        """Articles with nested 'content' key are parsed correctly."""
+        from tradingagents.dataflows.yfinance_news import get_global_news_yfinance
+
+        mock_search = MagicMock()
+        mock_search.news = [
+            {
+                "content": {
+                    "title": "Inflation Report Beats Expectations",
+                    "summary": "CPI data came in below forecasts.",
+                    "provider": {"displayName": "Bloomberg"},
+                    "canonicalUrl": {"url": "https://bloomberg.com/story"},
+                    "pubDate": "2024-01-15T10:00:00Z",
+                }
+            }
+        ]
+
+        with patch(
+            "tradingagents.dataflows.yfinance_news.yf.Search",
+            return_value=mock_search,
+        ):
+            result = get_global_news_yfinance("2024-01-15", look_back_days=3)
+
+        assert "Inflation Report Beats Expectations" in result
+
+    def test_deduplicates_articles_across_queries(self):
+        """Duplicate titles from multiple search queries appear only once."""
+        from tradingagents.dataflows.yfinance_news import get_global_news_yfinance
+
+        same_article = {"title": "Market Rally Continues", "publisher": "AP", "link": ""}
+
+        mock_search = MagicMock()
+        mock_search.news = [same_article]
+
+        with patch(
+            "tradingagents.dataflows.yfinance_news.yf.Search",
+            return_value=mock_search,
+        ):
+            result = get_global_news_yfinance("2024-01-15", look_back_days=7, limit=5)
+
+        # Title should appear exactly once despite multiple search queries
+        assert result.count("Market Rally Continues") == 1
