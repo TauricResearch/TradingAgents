@@ -60,9 +60,15 @@ class MomentumIndicator:
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
         # Handle division by zero and NaN values
         loss = loss.replace(0, np.nan)
+
+        # When both gain and loss are zero (no price change), return neutral RSI of 50
+        # Otherwise compute RS and RSI
         rs = gain / loss
-        # When loss is 0 (no downtrends), RSI = 100
         rsi = 100 - (100 / (1 + rs))
+
+        # Fill NaN values:
+        # - When loss was NaN (no downtrends), RSI should be 100
+        # - When gain and loss were both 0 (no price change), RSI should be 50
         return rsi.fillna(100 if loss.isna().any() else 50)
 
 
