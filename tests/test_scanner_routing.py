@@ -50,6 +50,7 @@ class TestScannerRouting:
         assert "News" in result
 
 
+@pytest.mark.integration
 class TestFallbackRouting:
 
     def setup_method(self):

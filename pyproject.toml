@@ -39,3 +39,8 @@ tradingagents = "cli.main:app"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]

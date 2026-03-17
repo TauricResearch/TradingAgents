@@ -1,7 +1,16 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_fundamentals, get_balance_sheet, get_cashflow, get_income_statement, get_insider_transactions
+from tradingagents.agents.utils.agent_utils import (
+    get_fundamentals,
+    get_balance_sheet,
+    get_cashflow,
+    get_income_statement,
+    get_insider_transactions,
+    get_ttm_analysis,
+    get_peer_comparison,
+    get_sector_relative,
+)
 from tradingagents.dataflows.config import get_config
 
 
@@ -12,16 +21,26 @@ def create_fundamentals_analyst(llm):
         company_name = state["company_of_interest"]
 
         tools = [
+            get_ttm_analysis,
             get_fundamentals,
             get_balance_sheet,
             get_cashflow,
             get_income_statement,
+            get_peer_comparison,
+            get_sector_relative,
         ]
 
         system_message = (
-            "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
-            + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements.",
+            "You are a researcher tasked with performing deep fundamental analysis of a company over the last 8 quarters (2 years) to support medium-term investment decisions."
+            " Follow this sequence:"
+            " 1. Call `get_ttm_analysis` first — this provides a Trailing Twelve Months (TTM) trend report covering revenue growth (QoQ and YoY), margin trajectories (gross, operating, net), return on equity trend, debt/equity trend, and free cash flow over 8 quarters."
+            " 2. Call `get_fundamentals` for the latest snapshot of key ratios (PE, PEG, price-to-book, beta, 52-week range)."
+            " 3. Call `get_peer_comparison` to see how the company ranks against sector peers over 1-week, 1-month, 3-month, and 6-month periods."
+            " 4. Call `get_sector_relative` to compute the company's alpha vs its sector ETF benchmark."
+            " 5. Optionally call `get_balance_sheet`, `get_cashflow`, or `get_income_statement` for additional detail."
+            " Write a comprehensive report covering: multi-quarter revenue and margin trends, TTM metrics, relative valuation vs peers, sector outperformance or underperformance, and a clear medium-term fundamental thesis."
+            " Do not simply state trends are mixed — provide detailed, fine-grained analysis that identifies inflection points, acceleration or deceleration in growth, and specific risks and opportunities."
+            " Make sure to append a Markdown summary table at the end of the report organising key metrics for easy reference.",
         )
 
         prompt = ChatPromptTemplate.from_messages(

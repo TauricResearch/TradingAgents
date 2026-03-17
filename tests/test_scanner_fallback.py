@@ -54,6 +54,7 @@ class TestYfinanceSectorPerformance:
             assert "Error:" not in day_pct, f"Error in 1-day for {cols[0]}: {day_pct}"
 
 
+@pytest.mark.integration
 class TestYfinanceIndustryPerformance:
     """Verify yfinance industry performance uses index for ticker symbols."""
 
@@ -92,6 +93,7 @@ class TestAlphaVantageFailoverRaise:
             get_industry_performance_alpha_vantage("technology")
 
 
+@pytest.mark.integration
 class TestRouteToVendorFallback:
     """Verify route_to_vendor falls back from AV to yfinance."""
 

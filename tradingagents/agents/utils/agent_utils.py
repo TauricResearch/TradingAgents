@@ -11,7 +11,11 @@ from tradingagents.agents.utils.fundamental_data_tools import (
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
-    get_income_statement
+    get_income_statement,
+    get_ttm_analysis,
+    get_peer_comparison,
+    get_sector_relative,
+    get_macro_regime,
 )
 from tradingagents.agents.utils.news_data_tools import (
     get_news,

@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators
+from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicators, get_macro_regime
 from tradingagents.dataflows.config import get_config
 
 
@@ -13,12 +13,15 @@ def create_market_analyst(llm):
         company_name = state["company_of_interest"]
 
         tools = [
+            get_macro_regime,
             get_stock_data,
             get_indicators,
         ]
 
         system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+            """You are a trading assistant tasked with analyzing financial markets. Start by calling `get_macro_regime` to classify the current macro environment as risk-on, risk-off, or transition. Use this macro context to frame all subsequent technical analysis — for example, in risk-off environments weight bearish signals more heavily, and in risk-on environments favour momentum and breakout signals.
+
+Then, select the **most relevant indicators** for the given market condition from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
@@ -73,13 +76,18 @@ Volume-Based Indicators:
         result = chain.invoke(state["messages"])
 
         report = ""
+        macro_regime_report = ""
 
         if len(result.tool_calls) == 0:
             report = result.content
+            # Extract macro regime section if present
+            if "Macro Regime Classification" in report or "RISK-ON" in report.upper() or "RISK-OFF" in report.upper() or "TRANSITION" in report.upper():
+                macro_regime_report = report
 
         return {
             "messages": [result],
             "market_report": report,
+            "macro_regime_report": macro_regime_report,
         }
 
     return market_analyst_node
