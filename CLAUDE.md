@@ -75,6 +75,7 @@ OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
 - LLM tiers configuration
 - Vendor routing
 - Debate rounds settings
+- All values overridable via `TRADINGAGENTS_<KEY>` env vars (see `.env.example`)
 
 ## Patterns to Follow
 
@@ -86,15 +87,17 @@ OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
 - Graph setup (scanner): `tradingagents/graph/scanner_setup.py`
 - Inline tool loop: `tradingagents/agents/utils/tool_runner.py`
 
-## Critical Patterns (from past mistakes)
+## Critical Patterns (see `docs/agent/decisions/008-lessons-learned.md` for full details)
 
 - **Tool execution**: Trading graph uses `ToolNode` in graph. Scanner agents use `run_tool_loop()` inline. If `bind_tools()` is used, there MUST be a tool execution path.
 - **yfinance DataFrames**: `top_companies` has ticker as INDEX, not column. Always check `.index` and `.columns`.
 - **yfinance Sector/Industry**: `Sector.overview` has NO performance data. Use ETF proxies for performance.
-- **Vendor fallback**: Functions inside `route_to_vendor` must RAISE on failure, not embed errors in return values. Catch `AlphaVantageError` (base class), not just `RateLimitError`.
+- **Vendor fallback**: Functions inside `route_to_vendor` must RAISE on failure, not embed errors in return values. Catch `(AlphaVantageError, ConnectionError, TimeoutError)`, not just `RateLimitError`.
 - **LangGraph parallel writes**: Any state field written by parallel nodes MUST have a reducer (`Annotated[str, reducer_fn]`).
 - **Ollama remote host**: Never hardcode `localhost:11434`. Use configured `base_url`.
-- **.env loading**: Check actual env var values when debugging auth. Worktree and main repo may have different `.env` files.
+- **.env loading**: `load_dotenv()` runs at module level in `default_config.py` — import-order-independent. Check actual env var values when debugging auth.
+- **Rate limiter locks**: Never hold a lock during `sleep()` or IO. Release, sleep, re-acquire.
+- **Config fallback keys**: `llm_provider` and `backend_url` must always exist at top level — `scanner_graph.py` and `trading_graph.py` use them as fallbacks.
 
 ## Project Tracking (Memory System)
 
@@ -106,16 +109,33 @@ Do NOT write to `DECISIONS.md`, `MISTAKES.md`, or `PROGRESS.md`. Use the memory 
 
 A `PreToolUse` hook enforces this — writes to those files are automatically blocked.
 
-## Current LLM Configuration (Hybrid)
+- `docs/agent/CURRENT_STATE.md` — Live state tracker (milestone, progress, blockers). Read at session start.
+- `docs/agent/decisions/` — Architecture decision records (ADR-style, numbered `001-...`)
+- `docs/agent/plans/` — Implementation plans with checkbox progress tracking
+- `docs/agent/logs/` — Agent run logs
+- `docs/agent/templates/` — Commit, PR, and decision templates
 
-```
-quick_think: qwen3.5:27b via Ollama (http://192.168.50.76:11434)
-mid_think:   qwen3.5:27b via Ollama (http://192.168.50.76:11434)
-deep_think:  deepseek/deepseek-r1-0528 via OpenRouter
+Before starting work, always read `docs/agent/CURRENT_STATE.md`. Before committing, update it.
+
+## LLM Configuration
+
+Per-tier provider overrides in `tradingagents/default_config.py`:
+- Each tier (`quick_think`, `mid_think`, `deep_think`) can have its own `_llm_provider` and `_backend_url`
+- Falls back to top-level `llm_provider` and `backend_url` when per-tier values are None
+- All config values overridable via `TRADINGAGENTS_<KEY>` env vars
+- Keys for LLM providers: `.env` file (e.g., `OPENROUTER_API_KEY`, `ALPHA_VANTAGE_API_KEY`)
+
+### Env Var Override Convention
+
+```env
+# Pattern: TRADINGAGENTS_<UPPERCASE_KEY>=value
+TRADINGAGENTS_LLM_PROVIDER=openrouter
+TRADINGAGENTS_DEEP_THINK_LLM=deepseek/deepseek-r1-0528
+TRADINGAGENTS_MAX_DEBATE_ROUNDS=3
+TRADINGAGENTS_VENDOR_SCANNER_DATA=alpha_vantage
 ```
 
-Config: `tradingagents/default_config.py` (per-tier `_llm_provider` keys)
-Keys: `.env` file (`OPENROUTER_API_KEY`, `ALPHA_VANTAGE_API_KEY`)
+Empty or unset vars preserve the hardcoded default. `None`-default fields (like `mid_think_llm`) stay `None` when unset, preserving fallback semantics.
 
 ## Running the Scanner
 

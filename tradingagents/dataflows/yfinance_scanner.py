@@ -249,6 +249,10 @@ def get_industry_performance_yfinance(
 ) -> str:
     """
     Get industry-level drill-down within a sector.
+
+    Returns top companies with metadata (rating, market weight) **plus**
+    recent price performance (1-day, 1-week, 1-month returns) obtained
+    via a single batched ``yf.download()`` call for the top 10 tickers.
     
     Args:
         sector_key: Sector identifier (e.g., 'technology', 'healthcare')
@@ -265,17 +269,44 @@ def get_industry_performance_yfinance(
         
         if top_companies is None or top_companies.empty:
             return f"No industry data found for sector '{sector_key}'"
-        
+
+        # --- Batch-download price history for the top 10 tickers ----------
+        tickers = list(top_companies.head(10).index)
+        price_returns: dict[str, dict[str, float | None]] = {}
+        try:
+            hist = yf.download(
+                tickers, period="1mo", auto_adjust=True, progress=False, threads=True,
+            )
+            for tkr in tickers:
+                try:
+                    if len(tickers) > 1:
+                        closes = hist["Close"][tkr].dropna()
+                    else:
+                        closes = hist["Close"].dropna()
+                    if closes.empty or len(closes) < 2:
+                        continue
+                    price_returns[tkr] = {
+                        "1d": _safe_pct(closes, 1),
+                        "1w": _safe_pct(closes, 5),
+                        "1m": _safe_pct(closes, len(closes) - 1),
+                    }
+                except Exception:
+                    continue
+        except Exception:
+            pass  # Fall through — table will show N/A for returns
+        # ------------------------------------------------------------------
+
         header = f"# Industry Performance: {sector_key.replace('-', ' ').title()}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         result_str = header
-        result_str += "| Company | Symbol | Rating | Market Weight |\n"
-        result_str += "|---------|--------|--------|---------------|\n"
+        result_str += "| Company | Symbol | Rating | Market Weight | 1-Day % | 1-Week % | 1-Month % |\n"
+        result_str += "|---------|--------|--------|---------------|---------|----------|-----------|\n"
         
         # top_companies has ticker as the DataFrame index (index.name == 'symbol')
         # Columns: name, rating, market weight
-        for symbol, row in top_companies.head(20).iterrows():
+        # Display only the tickers we downloaded prices for to avoid N/A gaps
+        for symbol, row in top_companies.head(10).iterrows():
             name = row.get('name', 'N/A')
             rating = row.get('rating', 'N/A')
             market_weight = row.get('market weight', None)
@@ -283,7 +314,15 @@ def get_industry_performance_yfinance(
             name_short = name[:30] if isinstance(name, str) else str(name)
             weight_str = f"{market_weight:.2%}" if isinstance(market_weight, (int, float)) else "N/A"
 
-            result_str += f"| {name_short} | {symbol} | {rating} | {weight_str} |\n"
+            ret = price_returns.get(symbol, {})
+            day_str = f"{ret['1d']:+.2f}%" if ret.get('1d') is not None else "N/A"
+            week_str = f"{ret['1w']:+.2f}%" if ret.get('1w') is not None else "N/A"
+            month_str = f"{ret['1m']:+.2f}%" if ret.get('1m') is not None else "N/A"
+
+            result_str += (
+                f"| {name_short} | {symbol} | {rating} | {weight_str}"
+                f" | {day_str} | {week_str} | {month_str} |\n"
+            )
         
         return result_str
         
