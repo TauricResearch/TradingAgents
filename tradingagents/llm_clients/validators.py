@@ -4,6 +4,8 @@ Only validates model names - does NOT enforce limits.
 Let LLM providers use their own defaults for unspecified params.
 """
 
+import warnings
+
 VALID_MODELS = {
     "openai": [
         # GPT-5 series
@@ -50,6 +52,15 @@ VALID_MODELS = {
     ],
 }
 
+PROVIDER_DISPLAY_NAMES = {
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "google": "Google",
+    "xai": "xAI",
+    "ollama": "Ollama",
+    "openrouter": "OpenRouter",
+}
+
 
 def validate_model(provider: str, model: str) -> bool:
     """Check if model name is valid for the given provider.
@@ -65,3 +76,19 @@ def validate_model(provider: str, model: str) -> bool:
         return True
 
     return model in VALID_MODELS[provider_lower]
+
+
+def warn_if_unknown_model(provider: str, model: str) -> bool:
+    """Warn for unknown models while allowing execution to continue."""
+    is_valid = validate_model(provider, model)
+    if not is_valid:
+        provider_name = PROVIDER_DISPLAY_NAMES.get(provider.lower(), provider)
+        warnings.warn(
+            (
+                f"Unknown {provider_name} model '{model}'. "
+                "Continuing without blocking because providers may add models before this list is updated."
+            ),
+            UserWarning,
+            stacklevel=2,
+        )
+    return is_valid

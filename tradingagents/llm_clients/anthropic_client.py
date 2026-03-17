@@ -3,7 +3,7 @@ from typing import Any, Optional
 from langchain_anthropic import ChatAnthropic
 
 from .base_client import BaseLLMClient
-from .validators import validate_model
+from .validators import validate_model, warn_if_unknown_model
 
 
 class AnthropicClient(BaseLLMClient):
@@ -14,6 +14,7 @@ class AnthropicClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatAnthropic instance."""
+        warn_if_unknown_model("anthropic", self.model)
         llm_kwargs = {"model": self.model}
 
         for key in ("timeout", "max_retries", "api_key", "max_tokens", "callbacks", "http_client", "http_async_client"):
