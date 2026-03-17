@@ -1,0 +1,6 @@
+<type>(<scope>): <short summary>
+
+<Detailed explanation of what changed and why>
+
+Agent-Ref: [Path to docs/agent/plans/ or docs/agent/decisions/ file]
+State-Updated: [Yes/No]
