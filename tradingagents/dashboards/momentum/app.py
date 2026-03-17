@@ -11,11 +11,12 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import sys
 import os
+import yfinance as yf
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add parent directory to path for proper module imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from __init__ import MomentumScanner, MomentumIndicator, MAGNIFICENT_SEVEN, get_top_momentum_stocks
+from tradingagents.dashboards.momentum import MomentumScanner, MomentumIndicator, MAGNIFICENT_SEVEN, get_top_momentum_stocks
 
 
 # Page config
@@ -151,7 +152,6 @@ def main():
     if selected_symbol:
         with st.spinner(f"Loading {selected_symbol} chart..."):
             # Fetch data for chart
-            import yfinance as yf
             ticker = yf.Ticker(selected_symbol)
             hist = ticker.history(period="3mo", interval=timeframe)
             

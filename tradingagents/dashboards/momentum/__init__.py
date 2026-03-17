@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Magnificent Seven stocks
 MAGNIFICENT_SEVEN = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA"]
@@ -57,8 +58,12 @@ class MomentumIndicator:
         delta = data.diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        # Handle division by zero and NaN values
+        loss = loss.replace(0, np.nan)
         rs = gain / loss
-        return 100 - (100 / (1 + rs))
+        # When loss is 0 (no downtrends), RSI = 100
+        rsi = 100 - (100 / (1 + rs))
+        return rsi.fillna(100 if loss.isna().any() else 50)
 
 
 class MomentumScanner:
@@ -156,11 +161,13 @@ class MomentumScanner:
             return "HOLD"
     
     def scan_all(self) -> List[Dict]:
-        """Scan all symbols and return results"""
+        """Scan all symbols and return results (parallelized)"""
         results = []
-        for symbol in self.symbols:
-            result = self.analyze_symbol(symbol)
-            results.append(result)
+        with ThreadPoolExecutor(max_workers=min(len(self.symbols), 8)) as executor:
+            future_to_symbol = {executor.submit(self.analyze_symbol, symbol): symbol 
+                              for symbol in self.symbols}
+            for future in as_completed(future_to_symbol):
+                results.append(future.result())
         return results
 
 
