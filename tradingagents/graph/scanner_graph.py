@@ -139,9 +139,10 @@ class ScannerGraph:
         }
 
         if self.debug:
-            trace = []
+            # stream() yields partial state updates; use invoke() for the
+            # full accumulated state and print chunks for debugging only.
             for chunk in self.graph.stream(initial_state):
-                trace.append(chunk)
-            return trace[-1] if trace else initial_state
+                print(f"[scanner debug] chunk keys: {list(chunk.keys())}")
+            # Fall through to invoke() for the correct accumulated result
 
         return self.graph.invoke(initial_state)

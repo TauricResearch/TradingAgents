@@ -238,10 +238,10 @@ async def run_all_tickers(
         List of TickerResult in completion order.
     """
     semaphore = asyncio.Semaphore(max_concurrent)
-    loop = asyncio.get_event_loop()
 
     async def _run_one(candidate: StockCandidate) -> TickerResult:
         async with semaphore:
+            loop = asyncio.get_running_loop()
             # TradingAgentsGraph is synchronous — run it in a thread pool
             return await loop.run_in_executor(
                 None,

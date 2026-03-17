@@ -15,10 +15,11 @@ The 3-phase scanner pipeline runs successfully from `python -m cli.main scan --d
 | Phase 3: Macro Synthesis | ✅ | OpenRouter/DeepSeek R1, pure LLM synthesis (no tools) |
 | Parallel fan-out (Phase 1) | ✅ | LangGraph with `_last_value` reducers |
 | Tool execution loop | ✅ | `run_tool_loop()` in `tool_runner.py` |
-| Data vendor fallback | ✅ | AV → yfinance fallback on `AlphaVantageError` |
+| Data vendor fallback | ✅ | AV → yfinance fallback on `AlphaVantageError`, `ConnectionError`, `TimeoutError` |
 | CLI `--date` flag | ✅ | `python -m cli.main scan --date YYYY-MM-DD` |
-| .env loading | ✅ | Keys loaded from project root `.env` |
-| Tests (23 total) | ✅ | 14 original + 9 scanner fallback tests |
+| .env loading | ✅ | `load_dotenv()` at module level in `default_config.py` — import-order-independent |
+| Env var config overrides | ✅ | All `DEFAULT_CONFIG` keys overridable via `TRADINGAGENTS_<KEY>` env vars |
+| Tests (38 total) | ✅ | 14 original + 9 scanner fallback + 15 env override tests |
 
 ### Output Quality (Sample Run 2026-03-17)
 
@@ -41,14 +42,40 @@ The 3-phase scanner pipeline runs successfully from `python -m cli.main scan --d
 - `tradingagents/graph/scanner_setup.py` — LangGraph workflow setup
 - `tradingagents/dataflows/yfinance_scanner.py` — yfinance data for scanner
 - `tradingagents/dataflows/alpha_vantage_scanner.py` — Alpha Vantage data for scanner
+- `tradingagents/pipeline/macro_bridge.py` — scan → filter → per-ticker analysis bridge
 - `tests/test_scanner_fallback.py` — 9 fallback tests
+- `tests/test_env_override.py` — 15 env override tests
 
 **Modified files:**
-- `tradingagents/default_config.py` — per-tier LLM provider config (hybrid setup)
+- `tradingagents/default_config.py` — env var overrides via `_env()`/`_env_int()` helpers, `load_dotenv()` at module level, restored top-level `llm_provider` and `backend_url` keys
 - `tradingagents/llm_clients/openai_client.py` — Ollama remote host support
-- `tradingagents/dataflows/interface.py` — broadened fallback catch to `AlphaVantageError`
-- `cli/main.py` — `scan` command with `--date` flag, `.env` loading fix
-- `.env` — real API keys
+- `tradingagents/dataflows/interface.py` — broadened fallback catch to `(AlphaVantageError, ConnectionError, TimeoutError)`
+- `tradingagents/dataflows/alpha_vantage_common.py` — thread-safe rate limiter (sleep outside lock), broader `RequestException` catch, wrapped `raise_for_status`
+- `tradingagents/graph/scanner_graph.py` — debug mode fix (stream for debug, invoke for result)
+- `tradingagents/pipeline/macro_bridge.py` — `get_running_loop()` over deprecated `get_event_loop()`
+- `cli/main.py` — `scan` command with `--date` flag, `try/except` in `run_pipeline`, `.env` loading fix
+- `main.py` — `load_dotenv()` before tradingagents imports
+- `pyproject.toml` — `python-dotenv>=1.0.0` dependency declared
+- `.env.example` — documented all `TRADINGAGENTS_*` overrides and `ALPHA_VANTAGE_API_KEY`
+
+---
+
+## Milestone: Env Var Config Overrides ✅ COMPLETE (PR #9)
+
+All `DEFAULT_CONFIG` values are now overridable via `TRADINGAGENTS_<KEY>` environment variables without code changes. This resolves the latent bug from Mistake #9 (missing top-level `llm_provider`).
+
+### What Changed
+
+| Component | Detail |
+|-----------|--------|
+| `default_config.py` | `load_dotenv()` at module level + `_env()`/`_env_int()` helpers |
+| Top-level fallback keys | Restored `llm_provider` and `backend_url` (defaults: `"openai"`, `"https://api.openai.com/v1"`) |
+| Per-tier overrides | All `None` by default — fall back to top-level when not set via env |
+| Integer config keys | `max_debate_rounds`, `max_risk_discuss_rounds`, `max_recur_limit` use `_env_int()` |
+| Data vendor keys | `data_vendors.*` overridable via `TRADINGAGENTS_VENDOR_<CATEGORY>` |
+| `.env.example` | Complete reference of all overridable settings |
+| `python-dotenv` | Added to `pyproject.toml` as explicit dependency |
+| Tests | 15 new tests in `tests/test_env_override.py` |
 
 ---
 
@@ -78,4 +105,4 @@ The 3-phase scanner pipeline runs successfully from `python -m cli.main scan --d
 
 - [ ] **Streaming output**: Scanner currently runs with `Live(Spinner(...))` — no intermediate output. Could stream phase completions to the console.
 
-- [ ] **Remove top-level `llm_provider` references**: `scanner_graph.py` lines 69, 78 still fall back to `self.config["llm_provider"]` which doesn't exist in current config. Works because per-tier providers are always set, but will crash if they're ever `None`.
+- [x] ~~**Remove top-level `llm_provider` references**~~: Resolved in PR #9 — `llm_provider` and `backend_url` restored as top-level keys with `"openai"` / `"https://api.openai.com/v1"` defaults. Per-tier providers fall back to these when `None`.

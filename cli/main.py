@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import json
 import typer
 from pathlib import Path
 from functools import wraps
@@ -1201,8 +1202,6 @@ def run_scan(date: Optional[str] = None):
         raise typer.Exit(1)
 
     # Save reports
-    import json as _json
-
     for key in ["geopolitical_report", "market_movers_report", "sector_performance_report",
                 "industry_deep_dive_report", "macro_scan_summary"]:
         content = result.get(key, "")
@@ -1217,7 +1216,7 @@ def run_scan(date: Optional[str] = None):
 
         # Try to parse and show watchlist table
         try:
-            summary_data = _json.loads(summary)
+            summary_data = json.loads(summary)
             stocks = summary_data.get("stocks_to_investigate", [])
             if stocks:
                 table = Table(title="Stocks to Investigate", box=box.ROUNDED)
@@ -1235,8 +1234,9 @@ def run_scan(date: Optional[str] = None):
                         s.get("thesis_angle", ""),
                     )
                 console.print(table)
-        except (_json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError):
             pass  # Summary wasn't valid JSON — already printed as markdown
+
 
     console.print(f"\n[green]Results saved to {save_dir}[/green]")
 
@@ -1244,7 +1244,6 @@ def run_scan(date: Optional[str] = None):
 def run_pipeline():
     """Full pipeline: scan -> filter -> per-ticker deep dive."""
     import asyncio
-    import json as _json
     from tradingagents.pipeline.macro_bridge import (
         parse_macro_output,
         filter_candidates,
@@ -1293,10 +1292,14 @@ def run_pipeline():
     output_dir = Path("results/macro_pipeline")
 
     console.print(f"\n[cyan]Running TradingAgents for {len(candidates)} tickers...[/cyan]")
-    with Live(Spinner("dots", text="Analyzing..."), console=console, transient=True):
-        results = asyncio.run(
-            run_all_tickers(candidates, macro_context, config, analysis_date)
-        )
+    try:
+        with Live(Spinner("dots", text="Analyzing..."), console=console, transient=True):
+            results = asyncio.run(
+                run_all_tickers(candidates, macro_context, config, analysis_date)
+            )
+    except Exception as e:
+        console.print(f"[red]Pipeline failed: {e}[/red]")
+        raise typer.Exit(1)
 
     save_results(results, macro_context, output_dir)
 

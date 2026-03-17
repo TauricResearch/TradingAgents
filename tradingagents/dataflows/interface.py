@@ -201,7 +201,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageError:
-            continue  # Any AV error triggers fallback to next vendor
+        except (AlphaVantageError, ConnectionError, TimeoutError):
+            continue  # Any AV error or connection/timeout triggers fallback to next vendor
 
     raise RuntimeError(f"No available vendor for '{method}'")

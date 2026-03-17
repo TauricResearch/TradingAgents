@@ -96,6 +96,27 @@ Documenting bugs and wrong assumptions to avoid repeating them.
 
 **What happened**: Removed `llm_provider` from `default_config.py` (since we have per-tier providers). But `scanner_graph.py` line 78 does `self.config.get(f"{tier}_llm_provider") or self.config["llm_provider"]` — would crash if per-tier provider is ever None.
 
-**Status**: Works currently because per-tier providers are always set. But it's a latent bug.
+**Status**: ✅ RESOLVED in PR #9. Top-level `llm_provider` (default: `"openai"`) and `backend_url` (default: `"https://api.openai.com/v1"`) restored as env-overridable config keys. Per-tier providers safely fall back to these when `None`.
 
-**TODO**: Add a safe fallback or remove the dead code path.
+**Lesson**: Always preserve fallback keys that downstream code depends on. When refactoring config, grep for all references before removing keys.
+
+---
+
+## Mistake 10: Rate limiter held lock during sleep
+
+**What happened**: The Alpha Vantage rate limiter's re-check path in `_rate_limited_request()` called `_time.sleep(extra_sleep)` while holding `_rate_lock`. This blocked all other threads from making API requests during the sleep period, effectively serializing all AV calls even though the pipeline runs parallel scanner agents.
+
+**Root cause**: Initial implementation only had one lock section. When the re-check-after-sleep pattern was added to prevent race conditions, the sleep was left inside the `with _rate_lock:` block.
+
+**Fix**: Restructured the re-check as a `while True` loop that releases the lock before sleeping:
+```python
+while True:
+    with _rate_lock:
+        if len(_call_timestamps) < _RATE_LIMIT:
+            _call_timestamps.append(_time.time())
+            break
+        extra_sleep = 60 - (now - _call_timestamps[0]) + 0.1
+    _time.sleep(extra_sleep)  # ← outside lock
+```
+
+**Lesson**: Never hold a lock during a sleep/IO operation. Always release the lock, perform the blocking operation, then re-acquire.

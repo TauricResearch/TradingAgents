@@ -12,7 +12,9 @@ from typing import Any, List
 from langchain_core.messages import AIMessage, ToolMessage
 
 
-MAX_TOOL_ROUNDS = 5  # safety limit to avoid infinite loops
+# Most LLM tool-calling patterns resolve within 2-3 rounds;
+# 5 provides headroom for complex scenarios while preventing runaway loops.
+MAX_TOOL_ROUNDS = 5
 
 
 def run_tool_loop(
