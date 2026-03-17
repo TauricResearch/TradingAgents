@@ -1,4 +1,3 @@
-import logging
 from typing import Annotated
 
 # Import from vendor-specific modules
@@ -30,8 +29,14 @@ from .alpha_vantage import (
     get_news as get_alpha_vantage_news,
     get_global_news as get_alpha_vantage_global_news,
 )
-from .alpha_vantage_scanner import get_market_movers_alpha_vantage
-from .alpha_vantage_common import AlphaVantageRateLimitError
+from .alpha_vantage_scanner import (
+    get_market_movers_alpha_vantage,
+    get_market_indices_alpha_vantage,
+    get_sector_performance_alpha_vantage,
+    get_industry_performance_alpha_vantage,
+    get_topic_news_alpha_vantage,
+)
+from .alpha_vantage_common import AlphaVantageError, AlphaVantageRateLimitError, RateLimitError
 
 # Configuration and routing logic
 from .config import get_config
@@ -132,15 +137,19 @@ VENDOR_METHODS = {
         "alpha_vantage": get_market_movers_alpha_vantage,
     },
     "get_market_indices": {
+        "alpha_vantage": get_market_indices_alpha_vantage,
         "yfinance": get_market_indices_yfinance,
     },
     "get_sector_performance": {
+        "alpha_vantage": get_sector_performance_alpha_vantage,
         "yfinance": get_sector_performance_yfinance,
     },
     "get_industry_performance": {
+        "alpha_vantage": get_industry_performance_alpha_vantage,
         "yfinance": get_industry_performance_yfinance,
     },
     "get_topic_news": {
+        "alpha_vantage": get_topic_news_alpha_vantage,
         "yfinance": get_topic_news_yfinance,
     },
 }
@@ -192,8 +201,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except (AlphaVantageRateLimitError, ConnectionError, TimeoutError) as e:
-            logging.warning(f"Vendor '{vendor}' failed for '{method}': {e}, trying next...")
-            continue
+        except AlphaVantageError:
+            continue  # Any AV error triggers fallback to next vendor
 
     raise RuntimeError(f"No available vendor for '{method}'")

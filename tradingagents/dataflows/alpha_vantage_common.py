@@ -35,47 +35,144 @@ def format_datetime_for_api(date_input) -> str:
     else:
         raise ValueError(f"Date must be string or datetime object, got {type(date_input)}")
 
-class AlphaVantageRateLimitError(Exception):
-    """Exception raised when Alpha Vantage API rate limit is exceeded."""
+# ─── Exception hierarchy ─────────────────────────────────────────────────────
+
+class AlphaVantageError(Exception):
+    """Base exception for all Alpha Vantage API errors."""
     pass
 
-def _make_api_request(function_name: str, params: dict) -> dict | str:
-    """Helper function to make API requests and handle responses.
-    
+
+class APIKeyInvalidError(AlphaVantageError):
+    """Raised when the API key is invalid or missing (401-equivalent)."""
+    pass
+
+
+class RateLimitError(AlphaVantageError):
+    """Raised when the API rate limit is exceeded (429-equivalent)."""
+    pass
+
+
+# Keep old name as alias so existing imports don't break
+AlphaVantageRateLimitError = RateLimitError
+
+
+class ThirdPartyError(AlphaVantageError):
+    """Raised on server-side errors (5xx status codes)."""
+    pass
+
+
+class ThirdPartyTimeoutError(AlphaVantageError):
+    """Raised when the request times out."""
+    pass
+
+
+class ThirdPartyParseError(AlphaVantageError):
+    """Raised when the response cannot be parsed (malformed JSON/CSV)."""
+    pass
+
+
+# ─── Rate-limited request helper ─────────────────────────────────────────────
+
+import threading
+import time as _time
+
+_rate_lock = threading.Lock()
+_call_timestamps: list[float] = []
+_RATE_LIMIT = 75  # calls per minute (Alpha Vantage premium)
+
+
+def _rate_limited_request(function_name: str, params: dict, timeout: int = 30) -> dict | str:
+    """Make an API request with rate limiting (75 calls/min for premium key)."""
+    with _rate_lock:
+        now = _time.time()
+        # Remove timestamps older than 60 seconds
+        _call_timestamps[:] = [t for t in _call_timestamps if now - t < 60]
+        if len(_call_timestamps) >= _RATE_LIMIT:
+            sleep_time = 60 - (now - _call_timestamps[0]) + 0.1
+            _time.sleep(sleep_time)
+        _call_timestamps.append(_time.time())
+    return _make_api_request(function_name, params, timeout=timeout)
+
+
+# ─── Core API request ────────────────────────────────────────────────────────
+
+def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> dict | str:
+    """Make an Alpha Vantage API request with proper error handling.
+
+    Returns the response text (JSON string or CSV).
+
     Raises:
-        AlphaVantageRateLimitError: When API rate limit is exceeded
+        APIKeyInvalidError: Invalid or missing API key.
+        RateLimitError: Rate limit exceeded.
+        ThirdPartyError: Server-side error (5xx).
+        ThirdPartyTimeoutError: Request timed out.
+        ThirdPartyParseError: Response could not be parsed.
     """
-    # Create a copy of params to avoid modifying the original
     api_params = params.copy()
     api_params.update({
         "function": function_name,
         "apikey": get_api_key(),
         "source": "trading_agents",
     })
-    
-    # Handle entitlement parameter if present in params or global variable
+
+    # Handle entitlement parameter
     current_entitlement = globals().get('_current_entitlement')
     entitlement = api_params.get("entitlement") or current_entitlement
-    
     if entitlement:
         api_params["entitlement"] = entitlement
-    elif "entitlement" in api_params:
-        # Remove entitlement if it's None or empty
+    else:
         api_params.pop("entitlement", None)
-    
-    response = requests.get(API_BASE_URL, params=api_params)
+
+    try:
+        response = requests.get(API_BASE_URL, params=api_params, timeout=timeout)
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError(
+            f"Request timed out: function={function_name}, params={params}"
+        )
+    except requests.exceptions.ConnectionError as exc:
+        raise ThirdPartyError(f"Connection error: function={function_name}, error={exc}")
+
+    # HTTP-level errors
+    if response.status_code == 401:
+        raise APIKeyInvalidError(
+            f"Invalid API key: status={response.status_code}, body={response.text[:200]}"
+        )
+    if response.status_code == 429:
+        raise RateLimitError(
+            f"Rate limit exceeded: status={response.status_code}, body={response.text[:200]}"
+        )
+    if response.status_code >= 500:
+        raise ThirdPartyError(
+            f"Server error: status={response.status_code}, function={function_name}, "
+            f"body={response.text[:200]}"
+        )
     response.raise_for_status()
 
     response_text = response.text
-    
-    # Check if response is JSON (error responses are typically JSON)
+
+    # Check for AV-specific error patterns in JSON body
     try:
         response_json = json.loads(response_text)
-        # Check for rate limit error
+
+        if "Error Message" in response_json:
+            msg = response_json["Error Message"]
+            if "invalid" in msg.lower() and "apikey" in msg.lower():
+                raise APIKeyInvalidError(f"Alpha Vantage: {msg}")
+            raise AlphaVantageError(f"Alpha Vantage API error: {msg}")
+
         if "Information" in response_json:
-            info_message = response_json["Information"]
-            if "rate limit" in info_message.lower() or "api key" in info_message.lower():
-                raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {info_message}")
+            info = response_json["Information"]
+            info_lower = info.lower()
+            if "rate limit" in info_lower or "call frequency" in info_lower:
+                raise RateLimitError(f"Alpha Vantage rate limit: {info}")
+            if "invalid" in info_lower and "api" in info_lower:
+                raise APIKeyInvalidError(f"Alpha Vantage: {info}")
+
+        if "Note" in response_json:
+            note = response_json["Note"]
+            if "api call frequency" in note.lower() or "rate limit" in note.lower():
+                raise RateLimitError(f"Alpha Vantage rate limit: {note}")
+
     except json.JSONDecodeError:
         # Response is not JSON (likely CSV data), which is normal
         pass
