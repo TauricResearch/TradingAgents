@@ -52,11 +52,15 @@ def get_industry_performance(
 ) -> str:
     """
     Get industry-level drill-down within a specific sector.
-    Shows top companies and industries in the sector.
+    Shows top companies with rating, market weight, and recent price performance
+    (1-day, 1-week, 1-month returns).
     Uses the configured scanner_data vendor.
     
     Args:
-        sector_key (str): Sector identifier (e.g., 'technology', 'healthcare', 'energy')
+        sector_key (str): Sector identifier. Must be one of:
+            'technology', 'healthcare', 'financial-services', 'energy',
+            'consumer-cyclical', 'consumer-defensive', 'industrials',
+            'basic-materials', 'real-estate', 'utilities', 'communication-services'
         
     Returns:
         str: Formatted table of top companies/industries in the sector with performance data
