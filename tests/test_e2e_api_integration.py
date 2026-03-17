@@ -50,6 +50,7 @@ _RATE_LIMIT_JSON = json.dumps({
 
 def _mock_av_response(text: str):
     resp = MagicMock()
+    resp.status_code = 200
     resp.text = text
     resp.raise_for_status = MagicMock()
     return resp

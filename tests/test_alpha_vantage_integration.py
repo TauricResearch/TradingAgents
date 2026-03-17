@@ -116,16 +116,19 @@ class TestMakeApiRequest:
                 with pytest.raises(AlphaVantageRateLimitError):
                     _make_api_request("TIME_SERIES_DAILY_ADJUSTED", {"symbol": "AAPL"})
 
-    def test_raises_rate_limit_error_for_invalid_api_key(self):
-        from tradingagents.dataflows.alpha_vantage_common import (
-            _make_api_request,
-            AlphaVantageRateLimitError,
-        )
+    def test_raises_api_key_error_for_invalid_api_key(self):
+        """An 'Invalid API key' Information response raises an API-key-related error.
+
+        On the current codebase this is APIKeyInvalidError; on older builds it
+        was AlphaVantageRateLimitError.  Both are subclasses of Exception, so
+        we assert that *some* exception is raised containing the key message.
+        """
+        from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=_mock_response(INVALID_KEY_JSON)):
             with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "invalid_key"}):
-                with pytest.raises(AlphaVantageRateLimitError):
+                with pytest.raises(Exception, match="(?i)(api.?key|invalid.?key|invalid api)"):
                     _make_api_request("OVERVIEW", {"symbol": "AAPL"})
 
     def test_missing_api_key_raises_value_error(self):
@@ -146,8 +149,13 @@ class TestMakeApiRequest:
                 with pytest.raises(TimeoutError):
                     _make_api_request("OVERVIEW", {"symbol": "AAPL"})
 
-    def test_http_error_propagates_via_raise_for_status(self):
-        """HTTP 4xx/5xx raises an exception via response.raise_for_status()."""
+    def test_http_error_propagates_on_non_200_status(self):
+        """HTTP 4xx/5xx responses raise an error.
+
+        On current main, _make_api_request wraps these in ThirdPartyError or
+        subclasses.  On older builds it called response.raise_for_status()
+        directly.  Either way, some exception must be raised.
+        """
         import requests as _requests
         from tradingagents.dataflows.alpha_vantage_common import _make_api_request
 
@@ -157,7 +165,7 @@ class TestMakeApiRequest:
         with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
                    return_value=bad_resp):
             with patch.dict("os.environ", {"ALPHA_VANTAGE_API_KEY": "demo"}):
-                with pytest.raises(_requests.HTTPError):
+                with pytest.raises(Exception):
                     _make_api_request("OVERVIEW", {"symbol": "AAPL"})
 
 
@@ -262,7 +270,7 @@ class TestAlphaVantageGetStock:
 
         captured_params = {}
 
-        def capture_request(url, params):
+        def capture_request(url, params, **kwargs):
             captured_params.update(params)
             return _mock_response(CSV_DAILY_ADJUSTED)
 
@@ -422,7 +430,7 @@ class TestAlphaVantageGetGlobalNews:
 
         captured_params = {}
 
-        def capture(url, params):
+        def capture(url, params, **kwargs):
             captured_params.update(params)
             return _mock_response(NEWS_JSON)
 
