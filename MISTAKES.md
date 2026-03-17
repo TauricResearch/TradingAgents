@@ -121,6 +121,20 @@ f"| Debt / Equity | {(str(round(ttm['debt_to_equity'], 2)) + 'x') if ... else 'N
 
 ---
 
+## Mistake 12: Remote naming — "origin" is the fork, not the upstream
+
+**What happened**: Confusion about which remote is the "fork" vs "origin". The user said "you pushed to origin, not the fork" — but there is only one remote configured, and it points to `aguzererler/TradingAgents` which IS the fork.
+
+**Setup**:
+```
+origin → http://127.0.0.1:46699/git/aguzererler/TradingAgents  ← this IS the fork
+```
+There is no separate `upstream` remote for the original/parent repo.
+
+**Lesson**: In this project, `origin` = the user's fork (`aguzererler/TradingAgents`). Always push development branches to `origin`. If an `upstream` remote is ever added, never push feature branches to it — only fetch from it.
+
+---
+
 ## Mistake 9: Removed top-level `llm_provider` but code still references it
 
 **What happened**: Removed `llm_provider` from `default_config.py` (since we have per-tier providers). But `scanner_graph.py` line 78 does `self.config.get(f"{tier}_llm_provider") or self.config["llm_provider"]` — would crash if per-tier provider is ever None.

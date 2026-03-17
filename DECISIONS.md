@@ -102,7 +102,22 @@ Download 6 months of history via `yf.download()` and compute 1-day, 1-week, 1-mo
 
 ---
 
-## Decision 008: Medium-Term Upgrade — Macro Regime via yfinance Only
+## Decision 008: Git Remote Strategy — origin = fork
+
+**Date**: 2026-03-17
+**Status**: Documented ✅
+
+**Setup**: There is only one configured remote:
+```
+origin → http://127.0.0.1:46699/git/aguzererler/TradingAgents  (the user's fork)
+```
+No `upstream` remote for the parent repo.
+
+**Rule**: Always push feature branches to `origin`. Never push directly to `main`. PRs are created from `claude/*` branches on the fork via the Gitea web UI (no `gh` CLI available).
+
+---
+
+## Decision 009: Medium-Term Upgrade — Macro Regime via yfinance Only
 
 **Date**: 2026-03-17
 **Status**: Implemented ✅
