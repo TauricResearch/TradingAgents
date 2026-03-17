@@ -86,7 +86,7 @@ OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
 - Graph setup (scanner): `tradingagents/graph/scanner_setup.py`
 - Inline tool loop: `tradingagents/agents/utils/tool_runner.py`
 
-## Critical Patterns (from past mistakes — see MISTAKES.md)
+## Critical Patterns (from past mistakes)
 
 - **Tool execution**: Trading graph uses `ToolNode` in graph. Scanner agents use `run_tool_loop()` inline. If `bind_tools()` is used, there MUST be a tool execution path.
 - **yfinance DataFrames**: `top_companies` has ticker as INDEX, not column. Always check `.index` and `.columns`.
@@ -96,11 +96,15 @@ OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
 - **Ollama remote host**: Never hardcode `localhost:11434`. Use configured `base_url`.
 - **.env loading**: Check actual env var values when debugging auth. Worktree and main repo may have different `.env` files.
 
-## Project Tracking Files
+## Project Tracking (Memory System)
 
-- `DECISIONS.md` — Architecture decision records (vendor strategy, LLM setup, tool execution)
-- `PROGRESS.md` — Feature progress, what works, TODOs
-- `MISTAKES.md` — Past bugs and lessons learned (9 documented mistakes)
+Do NOT write to `DECISIONS.md`, `MISTAKES.md`, or `PROGRESS.md`. Use the memory system instead:
+
+- **Decisions**: Use `/remember` to record architecture decisions (vendor strategy, LLM setup, tool execution)
+- **Progress**: Use `/remember` to record feature progress, what works, TODOs
+- **Mistakes**: Use `/remember` to record bugs and lessons learned
+
+A `PreToolUse` hook enforces this — writes to those files are automatically blocked.
 
 ## Current LLM Configuration (Hybrid)
 
