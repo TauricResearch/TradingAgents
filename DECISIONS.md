@@ -105,10 +105,75 @@ Download 6 months of history via `yf.download()` and compute 1-day, 1-week, 1-mo
 ## Decision 007: .env Loading Strategy
 
 **Date**: 2026-03-17
-**Status**: Implemented ✅
+**Status**: Superseded by Decision 008 ⚠️
 
 **Context**: `load_dotenv()` loads from CWD. When running from a git worktree, the worktree `.env` may have placeholder values while the main repo `.env` has real keys.
 
 **Decision**: `cli/main.py` calls `load_dotenv()` (CWD) then `load_dotenv(Path(__file__).parent.parent / ".env")` as fallback. The worktree `.env` was also updated with real API keys.
 
 **Note for future**: If `.env` issues recur, check which `.env` file is being picked up. The worktree and main repo each have their own `.env`.
+
+**Update**: Decision 008 moves `load_dotenv()` into `default_config.py` itself, making it import-order-independent. The CLI-level `load_dotenv()` in `main.py` is now defense-in-depth only.
+
+---
+
+## Decision 008: Environment Variable Config Overrides
+
+**Date**: 2026-03-17
+**Status**: Implemented ✅
+
+**Context**: `DEFAULT_CONFIG` hardcoded all values (LLM providers, models, vendor routing, debate rounds). Users had to edit `default_config.py` to change any setting. The `load_dotenv()` call in `cli/main.py` ran *after* `DEFAULT_CONFIG` was already evaluated at import time, so env vars like `TRADINGAGENTS_LLM_PROVIDER` had no effect. This also created a latent bug (Mistake #9): `llm_provider` and `backend_url` were removed from the config but `scanner_graph.py` still referenced them as fallbacks.
+
+**Decision**:
+1. **Module-level `.env` loading**: `default_config.py` calls `load_dotenv()` at the top of the module, before `DEFAULT_CONFIG` is evaluated. Loads from CWD first, then falls back to project root (`Path(__file__).resolve().parent.parent / ".env"`).
+2. **`_env()` / `_env_int()` helpers**: Read `TRADINGAGENTS_<KEY>` from environment. Return the hardcoded default when the env var is unset or empty (preserving `None` semantics for per-tier fallbacks).
+3. **Restored top-level keys**: `llm_provider` (default: `"openai"`) and `backend_url` (default: `"https://api.openai.com/v1"`) restored as env-overridable keys. Resolves Mistake #9.
+4. **All config keys overridable**: LLM models, providers, backend URLs, debate rounds, data vendor categories — all follow the `TRADINGAGENTS_<KEY>` pattern.
+5. **Explicit dependency**: Added `python-dotenv>=1.0.0` to `pyproject.toml` (was used but undeclared).
+
+**Naming convention**: `TRADINGAGENTS_` prefix + uppercase config key. Examples:
+```
+TRADINGAGENTS_LLM_PROVIDER=openrouter
+TRADINGAGENTS_DEEP_THINK_LLM=deepseek/deepseek-r1-0528
+TRADINGAGENTS_MAX_DEBATE_ROUNDS=3
+TRADINGAGENTS_VENDOR_SCANNER_DATA=alpha_vantage
+```
+
+**Files changed**:
+- `tradingagents/default_config.py` — core implementation
+- `main.py` — moved `load_dotenv()` before imports (defense-in-depth)
+- `pyproject.toml` — added `python-dotenv>=1.0.0`
+- `.env.example` — documented all overrides
+- `tests/test_env_override.py` — 15 tests
+
+**Alternative considered**: YAML/TOML config file. Rejected — env vars are simpler, work with Docker/CI, and don't require a new config file format.
+
+---
+
+## Decision 009: Thread-Safe Rate Limiter for Alpha Vantage
+
+**Date**: 2026-03-17
+**Status**: Implemented ✅
+
+**Context**: The Alpha Vantage rate limiter in `alpha_vantage_common.py` initially slept *inside* the lock when re-checking the rate window. This blocked all other threads from making API requests during the sleep period, effectively serializing all AV calls.
+
+**Decision**: Two-phase rate limiting:
+1. **First check**: Acquire lock, check timestamps, release lock, sleep if needed.
+2. **Re-check loop**: Acquire lock, re-check timestamps. If still over limit, release lock *before* sleeping, then retry. Only append timestamp and break when under the limit.
+
+This ensures the lock is never held during `sleep()` calls.
+
+**File**: `tradingagents/dataflows/alpha_vantage_common.py`
+
+---
+
+## Decision 010: Broader Vendor Fallback Exception Handling
+
+**Date**: 2026-03-17
+**Status**: Implemented ✅
+
+**Context**: `route_to_vendor()` only caught `AlphaVantageError` for fallback. But network issues (`ConnectionError`, `TimeoutError`) from the `requests` library wouldn't trigger fallback — they'd crash the pipeline instead.
+
+**Decision**: Broadened the catch in `route_to_vendor()` to `(AlphaVantageError, ConnectionError, TimeoutError)`. Similarly, `_make_api_request()` now catches `requests.exceptions.RequestException` as a general fallback and wraps `raise_for_status()` in a try/except to convert HTTP errors to `ThirdPartyError`.
+
+**Files**: `tradingagents/dataflows/interface.py`, `tradingagents/dataflows/alpha_vantage_common.py`
