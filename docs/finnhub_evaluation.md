@@ -26,6 +26,22 @@ Finnhub is **not a drop-in replacement** for Alpha Vantage. It fills two genuine
 | Base URL | `https://finnhub.io/api/v1/` |
 | Auth | `?token=<API_KEY>` query param |
 
+### Live-tested free-tier endpoint availability (2026-03-18)
+
+| Endpoint | Function | Free Tier | Result |
+|----------|----------|-----------|--------|
+| `/quote` | `get_quote`, scanner functions | ✅ Free | **PASS** |
+| `/stock/profile2` | `get_company_profile` | ✅ Free | **PASS** |
+| `/stock/metric` | `get_basic_financials` | ✅ Free | **PASS** |
+| `/company-news` | `get_company_news` | ✅ Free | **PASS** |
+| `/news` | `get_market_news`, `get_topic_news` | ✅ Free | **PASS** |
+| `/stock/insider-transactions` | `get_insider_transactions` | ✅ Free | **PASS** |
+| `/stock/candle` | `get_stock_candles` | ❌ Paid (HTTP 403) | **FAIL** |
+| `/financials-reported` | `get_financial_statements` | ❌ Paid (HTTP 403) | **FAIL** |
+| `/indicator` | `get_indicator_finnhub` | ❌ Paid (HTTP 403) | **FAIL** |
+
+**Live test results: 28/41 pass on free tier. 13 skipped (paid tier endpoints).**
+
 ---
 
 ## 2. Coverage Matrix vs Alpha Vantage

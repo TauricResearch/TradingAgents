@@ -4,8 +4,26 @@ These tests make REAL HTTP requests to the Finnhub API and therefore require
 a valid ``FINNHUB_API_KEY`` environment variable.  When the key is absent the
 entire module is skipped automatically.
 
+## Free-tier vs paid-tier endpoints (confirmed by live testing 2026-03-18)
+
+FREE TIER (60 calls/min):
+    /quote                      ✅ get_quote, market movers/indices/sectors
+    /stock/profile2             ✅ get_company_profile
+    /stock/metric               ✅ get_basic_financials
+    /company-news               ✅ get_company_news
+    /news                       ✅ get_market_news, get_topic_news
+    /stock/insider-transactions ✅ get_insider_transactions
+
+PAID TIER (returns HTTP 403):
+    /stock/candle               ❌ get_stock_candles
+    /financials-reported        ❌ get_financial_statements (XBRL as-filed)
+    /indicator                  ❌ get_indicator_finnhub (SMA, EMA, MACD, RSI, BBANDS, ATR)
+
 Run only the live tests:
     FINNHUB_API_KEY=<your_key> pytest tests/test_finnhub_live_integration.py -v -m integration
+
+Run only free-tier tests:
+    FINNHUB_API_KEY=<your_key> pytest tests/test_finnhub_live_integration.py -v -m "integration and not paid_tier"
 
 Skip them in CI (default behaviour when the env var is not set):
     pytest tests/ -v  # live tests auto-skip
@@ -28,6 +46,9 @@ _skip_if_no_key = pytest.mark.skipif(
     not _FINNHUB_API_KEY,
     reason="FINNHUB_API_KEY env var not set — skipping live Finnhub tests",
 )
+
+# Mark tests that require a paid Finnhub subscription (confirmed HTTP 403 on free tier)
+_paid_tier = pytest.mark.paid_tier
 
 # Stable, well-covered symbol used across all tests
 _SYMBOL = "AAPL"
@@ -72,8 +93,10 @@ class TestLiveMakeApiRequest:
 
 
 @_skip_if_no_key
+@_paid_tier
+@pytest.mark.skip(reason="Requires paid Finnhub tier — /stock/candle returns HTTP 403 on free tier")
 class TestLiveGetStockCandles:
-    """Live smoke tests for OHLCV candle retrieval."""
+    """Live smoke tests for OHLCV candle retrieval (PAID TIER ONLY)."""
 
     def test_returns_csv_string(self):
         from tradingagents.dataflows.finnhub_stock import get_stock_candles
@@ -163,8 +186,10 @@ class TestLiveGetCompanyProfile:
 
 
 @_skip_if_no_key
+@_paid_tier
+@pytest.mark.skip(reason="Requires paid Finnhub tier — /financials-reported returns HTTP 403 on free tier")
 class TestLiveGetFinancialStatements:
-    """Live smoke tests for financial statement retrieval."""
+    """Live smoke tests for XBRL as-filed financial statements (PAID TIER ONLY)."""
 
     def test_income_statement_returns_non_empty_string(self):
         from tradingagents.dataflows.finnhub_fundamentals import get_financial_statements
@@ -371,8 +396,10 @@ class TestLiveGetTopicNews:
 
 
 @_skip_if_no_key
+@_paid_tier
+@pytest.mark.skip(reason="Requires paid Finnhub tier — /indicator returns HTTP 403 on free tier")
 class TestLiveGetIndicatorFinnhub:
-    """Live smoke tests for technical indicator retrieval."""
+    """Live smoke tests for technical indicators (PAID TIER ONLY)."""
 
     def test_rsi_returns_string(self):
         from tradingagents.dataflows.finnhub_indicators import get_indicator_finnhub
