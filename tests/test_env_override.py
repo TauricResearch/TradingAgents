@@ -38,12 +38,18 @@ class TestEnvOverridesDefaults:
             assert cfg["quick_think_llm"] == "gpt-4o-mini"
 
     def test_mid_think_llm_none_by_default(self):
-        """mid_think_llm defaults to None (falls back to quick_think_llm)."""
-        with patch.dict(os.environ, {}, clear=False):
-            # Remove the env var if it happens to be set
-            os.environ.pop("TRADINGAGENTS_MID_THINK_LLM", None)
-            cfg = self._reload_config()
-            assert cfg["mid_think_llm"] is None
+        """mid_think_llm defaults to None (falls back to quick_think_llm).
+
+        Root cause of previous failure: importlib.reload() re-runs load_dotenv(),
+        which reads TRADINGAGENTS_MID_THINK_LLM from the user's .env file even
+        after we pop it from os.environ.  Fix: clear all TRADINGAGENTS_* vars AND
+        patch load_dotenv so it can't re-inject them from the .env file.
+        """
+        env_clean = {k: v for k, v in os.environ.items() if not k.startswith("TRADINGAGENTS_")}
+        with patch.dict(os.environ, env_clean, clear=True):
+            with patch("dotenv.load_dotenv"):
+                cfg = self._reload_config()
+                assert cfg["mid_think_llm"] is None
 
     def test_mid_think_llm_override(self):
         with patch.dict(os.environ, {"TRADINGAGENTS_MID_THINK_LLM": "gpt-4o"}):
@@ -94,15 +100,21 @@ class TestEnvOverridesDefaults:
             assert cfg["data_vendors"]["scanner_data"] == "alpha_vantage"
 
     def test_defaults_unchanged_when_no_env_set(self):
-        """Without any TRADINGAGENTS_* vars, defaults are the original hardcoded values."""
-        # Clear all TRADINGAGENTS_ vars
+        """Without any TRADINGAGENTS_* vars, defaults are the original hardcoded values.
+
+        Root cause of previous failure: importlib.reload() re-runs load_dotenv(),
+        which reads TRADINGAGENTS_DEEP_THINK_LLM etc. from the user's .env file
+        even though we strip them from os.environ with clear=True.  Fix: also
+        patch load_dotenv to prevent the .env file from being re-read.
+        """
         env_clean = {k: v for k, v in os.environ.items() if not k.startswith("TRADINGAGENTS_")}
         with patch.dict(os.environ, env_clean, clear=True):
-            cfg = self._reload_config()
-            assert cfg["llm_provider"] == "openai"
-            assert cfg["deep_think_llm"] == "gpt-5.2"
-            assert cfg["mid_think_llm"] is None
-            assert cfg["quick_think_llm"] == "gpt-5-mini"
-            assert cfg["backend_url"] == "https://api.openai.com/v1"
-            assert cfg["max_debate_rounds"] == 1
-            assert cfg["data_vendors"]["scanner_data"] == "yfinance"
+            with patch("dotenv.load_dotenv"):
+                cfg = self._reload_config()
+                assert cfg["llm_provider"] == "openai"
+                assert cfg["deep_think_llm"] == "gpt-5.2"
+                assert cfg["mid_think_llm"] is None
+                assert cfg["quick_think_llm"] == "gpt-5-mini"
+                assert cfg["backend_url"] == "https://api.openai.com/v1"
+                assert cfg["max_debate_rounds"] == 1
+                assert cfg["data_vendors"]["scanner_data"] == "yfinance"

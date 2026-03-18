@@ -80,17 +80,31 @@ class TestYfinanceIndustryPerformance:
 
 
 class TestAlphaVantageFailoverRaise:
-    """Verify AV scanner functions raise when all data fails (enabling fallback)."""
+    """Verify AV scanner functions raise when all data fails (enabling fallback).
+
+    Root cause of previous failure: tests made real AV API calls that
+    intermittently succeeded, so AlphaVantageError was never raised.
+    Fix: mock _fetch_global_quote to always raise, simulating total failure
+    without requiring an API key or network access.
+    """
 
     def test_sector_perf_raises_on_total_failure(self):
         """When every GLOBAL_QUOTE call fails, the function should raise."""
-        with pytest.raises(AlphaVantageError, match="All .* sector queries failed"):
-            get_sector_performance_alpha_vantage()
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_scanner._fetch_global_quote",
+            side_effect=AlphaVantageError("Rate limit exceeded — mocked for test isolation"),
+        ):
+            with pytest.raises(AlphaVantageError, match="All .* sector queries failed"):
+                get_sector_performance_alpha_vantage()
 
     def test_industry_perf_raises_on_total_failure(self):
         """When every ticker quote fails, the function should raise."""
-        with pytest.raises(AlphaVantageError, match="All .* ticker queries failed"):
-            get_industry_performance_alpha_vantage("technology")
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_scanner._fetch_global_quote",
+            side_effect=AlphaVantageError("Rate limit exceeded — mocked for test isolation"),
+        ):
+            with pytest.raises(AlphaVantageError, match="All .* ticker queries failed"):
+                get_industry_performance_alpha_vantage("technology")
 
 
 @pytest.mark.integration
