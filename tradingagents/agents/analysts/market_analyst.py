@@ -5,6 +5,20 @@ from tradingagents.agents.utils.agent_utils import get_stock_data, get_indicator
 from tradingagents.dataflows.config import get_config
 
 
+def _get_market_context(ticker: str) -> str:
+    """Get market-specific context for the ticker, if it belongs to a registered market."""
+    try:
+        from tradingagents.dataflows.market_registry import registry
+        market_code = registry.detect_market(ticker)
+        if market_code:
+            provider = registry.get_provider(market_code)
+            if provider:
+                return "\n\n" + provider.get_market_context()
+    except Exception:
+        pass
+    return ""
+
+
 def create_market_analyst(llm):
 
     def market_analyst_node(state):
@@ -16,6 +30,8 @@ def create_market_analyst(llm):
             get_stock_data,
             get_indicators,
         ]
+
+        market_context = _get_market_context(ticker)
 
         system_message = (
             """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
@@ -44,6 +60,7 @@ Volume-Based Indicators:
 
 - Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            + market_context
         )
 
         prompt = ChatPromptTemplate.from_messages(

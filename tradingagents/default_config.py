@@ -19,6 +19,15 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # Market configuration
+    "market": "auto",  # "auto" (detect from ticker), "US", "VN", or future market codes
+    "market_config": {
+        "VN": {
+            "vnstock_source": "VCI",  # Options: "VCI", "TCBS", "SSI"
+            "news_sources": ["cafef", "vnexpress"],
+        },
+        # Future markets: "TH": {...}, "JP": {...}
+    },
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {

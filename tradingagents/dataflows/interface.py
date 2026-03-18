@@ -24,6 +24,12 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 
+# Market provider registry
+from .market_registry import registry as market_registry, MARKET_METHOD_MAP
+
+# Auto-discover and register market providers
+from . import markets  # noqa: F401
+
 # Configuration and routing logic
 from .config import get_config
 
@@ -109,6 +115,30 @@ VENDOR_METHODS = {
     },
 }
 
+
+def _extract_ticker(method: str, args: tuple, kwargs: dict) -> str:
+    """Extract the ticker/symbol from method arguments.
+
+    Most data methods take ticker/symbol as the first positional argument.
+    get_global_news is the exception — it has no ticker argument.
+    """
+    # Methods that don't have a ticker argument
+    no_ticker_methods = {"get_global_news"}
+    if method in no_ticker_methods:
+        return None
+
+    # First positional arg is the ticker/symbol for all other methods
+    if args:
+        return args[0]
+
+    # Check common keyword names
+    for key in ("symbol", "ticker"):
+        if key in kwargs:
+            return kwargs[key]
+
+    return None
+
+
 def get_category_for_method(method: str) -> str:
     """Get the category that contains the specified method."""
     for category, info in TOOLS_CATEGORIES.items():
@@ -132,7 +162,30 @@ def get_vendor(category: str, method: str = None) -> str:
     return config.get("data_vendors", {}).get(category, "default")
 
 def route_to_vendor(method: str, *args, **kwargs):
-    """Route method calls to appropriate vendor implementation with fallback support."""
+    """Route method calls to appropriate vendor implementation with fallback support.
+
+    First checks if the ticker belongs to a registered non-US market (VN, TH, etc.).
+    If so, delegates directly to that market's provider. Otherwise, uses the
+    existing vendor routing (yfinance/alpha_vantage).
+    """
+    # --- Market provider check ---
+    ticker = _extract_ticker(method, args, kwargs)
+    market_code = None
+
+    if ticker:
+        market_code = market_registry.detect_market(ticker)
+    elif method == "get_global_news":
+        # For global news with no ticker, check config for explicit market
+        config = get_config()
+        market_setting = config.get("market", "auto")
+        if market_setting not in ("auto", "US"):
+            market_code = market_setting
+
+    # If a market provider handles this method, delegate to it
+    if market_code and method in MARKET_METHOD_MAP:
+        return market_registry.call_market_method(market_code, method, *args, **kwargs)
+
+    # --- Default vendor routing (US / yfinance / alpha_vantage) ---
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
