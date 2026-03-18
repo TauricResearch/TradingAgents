@@ -107,6 +107,16 @@ VENDOR_LIST = [
     "finnhub",
 ]
 
+# Methods where cross-vendor fallback is safe (data contracts are fungible).
+# All other methods fail-fast on primary vendor failure — see ADR 011.
+FALLBACK_ALLOWED = {
+    "get_stock_data",           # OHLCV is fungible across vendors
+    "get_market_indices",       # SPY/DIA/QQQ quotes are fungible
+    "get_sector_performance",   # ETF-based proxy, same approach
+    "get_market_movers",        # Approximation acceptable for screening
+    "get_industry_performance", # ETF-based proxy
+}
+
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
     # core_stock_apis
@@ -206,7 +216,11 @@ def get_vendor(category: str, method: str = None) -> str:
     return config.get("data_vendors", {}).get(category, "default")
 
 def route_to_vendor(method: str, *args, **kwargs):
-    """Route method calls to appropriate vendor implementation with fallback support."""
+    """Route method calls to appropriate vendor implementation with fallback support.
+
+    Only methods in FALLBACK_ALLOWED get cross-vendor fallback.
+    All others fail-fast on primary vendor failure (see ADR 011).
+    """
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
@@ -214,23 +228,32 @@ def route_to_vendor(method: str, *args, **kwargs):
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
 
-    # Build fallback chain: primary vendors first, then remaining available vendors
-    all_available_vendors = list(VENDOR_METHODS[method].keys())
-    fallback_vendors = primary_vendors.copy()
-    for vendor in all_available_vendors:
-        if vendor not in fallback_vendors:
-            fallback_vendors.append(vendor)
+    if method in FALLBACK_ALLOWED:
+        # Build fallback chain: primary vendors first, then remaining available vendors
+        all_available_vendors = list(VENDOR_METHODS[method].keys())
+        vendors_to_try = primary_vendors.copy()
+        for vendor in all_available_vendors:
+            if vendor not in vendors_to_try:
+                vendors_to_try.append(vendor)
+    else:
+        # Fail-fast: only try configured primary vendor(s)
+        vendors_to_try = primary_vendors
 
-    for vendor in fallback_vendors:
+    last_error = None
+    tried = []
+    for vendor in vendors_to_try:
         if vendor not in VENDOR_METHODS[method]:
             continue
+        tried.append(vendor)
 
         vendor_impl = VENDOR_METHODS[method][vendor]
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
         try:
             return impl_func(*args, **kwargs)
-        except (AlphaVantageError, FinnhubError, ConnectionError, TimeoutError):
-            continue  # Any vendor error or connection/timeout triggers fallback to next vendor
+        except (AlphaVantageError, FinnhubError, ConnectionError, TimeoutError) as exc:
+            last_error = exc
+            continue
 
-    raise RuntimeError(f"No available vendor for '{method}'")
+    error_msg = f"All vendors failed for '{method}' (tried: {', '.join(tried)})"
+    raise RuntimeError(error_msg) from last_error

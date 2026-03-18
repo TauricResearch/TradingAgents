@@ -152,7 +152,7 @@ class TestRouteToVendor:
                     "tradingagents.dataflows.y_finance.yf.Ticker",
                     side_effect=ConnectionError("network unavailable"),
                 ):
-                    with pytest.raises(RuntimeError, match="No available vendor"):
+                    with pytest.raises(RuntimeError, match="All vendors failed for"):
                         route_to_vendor("get_stock_data", "AAPL", "2024-01-04", "2024-01-05")
 
     def test_unknown_method_raises_value_error(self):

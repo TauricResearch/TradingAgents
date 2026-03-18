@@ -1,6 +1,7 @@
 ---
 type: decision
-status: active
+status: superseded
+superseded_by: 011-opt-in-vendor-fallback
 date: 2026-03-17
 agent_author: "claude"
 tags: [data, alpha-vantage, yfinance, fallback]

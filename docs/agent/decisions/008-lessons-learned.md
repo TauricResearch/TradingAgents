@@ -31,7 +31,8 @@ None — these are universal rules for this project.
 
 ### Vendor Fallback
 - Functions inside `route_to_vendor` must RAISE on failure, not embed errors in return values.
-- Catch `(AlphaVantageError, ConnectionError, TimeoutError)`, not just specific subtypes.
+- Catch `(AlphaVantageError, FinnhubError, ConnectionError, TimeoutError)`, not just specific subtypes.
+- Fallback is opt-in: only methods in `FALLBACK_ALLOWED` get cross-vendor fallback. All others fail-fast (ADR 011).
 
 ### LangGraph
 - Any state field written by parallel nodes MUST have a reducer (`Annotated[str, reducer_fn]`).

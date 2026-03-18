@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from tradingagents.agents.utils.json_utils import extract_json
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -80,8 +81,8 @@ def parse_macro_output(path: Path) -> tuple[MacroContext, list[StockCandidate]]:
     Returns:
         Tuple of (MacroContext, list of StockCandidate).
     """
-    with path.open() as f:
-        data = json.load(f)
+    raw_text = path.read_text()
+    data = extract_json(raw_text)
 
     ctx_raw = data.get("macro_context", {})
     macro_context = MacroContext(

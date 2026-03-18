@@ -1,6 +1,7 @@
 from typing import Optional
 import datetime
 import json
+from tradingagents.agents.utils.json_utils import extract_json
 import typer
 from pathlib import Path
 from functools import wraps
@@ -1216,7 +1217,7 @@ def run_scan(date: Optional[str] = None):
 
         # Try to parse and show watchlist table
         try:
-            summary_data = json.loads(summary)
+            summary_data = extract_json(summary)
             stocks = summary_data.get("stocks_to_investigate", [])
             if stocks:
                 table = Table(title="Stocks to Investigate", box=box.ROUNDED)
@@ -1234,7 +1235,7 @@ def run_scan(date: Optional[str] = None):
                         s.get("thesis_angle", ""),
                     )
                 console.print(table)
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError, ValueError):
             pass  # Summary wasn't valid JSON — already printed as markdown
 
 

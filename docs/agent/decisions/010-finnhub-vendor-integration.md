@@ -39,3 +39,4 @@ economic calendar) and two equivalent-quality replacements (insider transactions
 - `route_to_vendor` fallback catch must include `FinnhubError` alongside `AlphaVantageError`
 - Calendar functions return graceful empty-state strings (not raise) when API returns empty list — this is normal behaviour, not an error
 - Never add Finnhub paid-tier endpoints (`/stock/candle`, `/financials-reported`, `/indicator`) to free-tier routing
+- `get_insider_transactions` is excluded from `FALLBACK_ALLOWED` — Finnhub MSPR aggregate data has no equivalent in other vendors (ADR 011)

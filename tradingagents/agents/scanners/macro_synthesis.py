@@ -1,3 +1,10 @@
+import json
+import logging
+
+from tradingagents.agents.utils.json_utils import extract_json
+
+logger = logging.getLogger(__name__)
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 
@@ -41,6 +48,8 @@ def create_macro_synthesis(llm):
             '"thesis_angle": "...", "conviction": "high|medium|low", "key_catalysts": [...], "risks": [...] }],\n'
             '  "risk_factors": ["..."]\n'
             "}"
+            "\n\nIMPORTANT: Output ONLY valid JSON. Start your response with '{' and end with '}'. "
+            "Do NOT use markdown code fences. Do NOT include any explanation or preamble before or after the JSON."
             f"\n\n{all_reports_context}"
         )
 
@@ -64,6 +73,17 @@ def create_macro_synthesis(llm):
         result = chain.invoke(state["messages"])
 
         report = result.content
+
+        # Sanitize LLM output: strip markdown fences / <think> blocks before storing
+        try:
+            parsed = extract_json(report)
+            report = json.dumps(parsed)
+        except (ValueError, json.JSONDecodeError):
+            logger.warning(
+                "macro_synthesis: could not extract JSON from LLM output; "
+                "storing raw content (first 200 chars): %s",
+                report[:200],
+            )
 
         return {
             "messages": [result],
