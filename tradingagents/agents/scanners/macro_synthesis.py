@@ -1,11 +1,11 @@
 import json
 import logging
 
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
 from tradingagents.agents.utils.json_utils import extract_json
 
 logger = logging.getLogger(__name__)
-
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 
 def create_macro_synthesis(llm):

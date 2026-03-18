@@ -30,9 +30,16 @@ def extract_json(text: str) -> dict[str, Any]:
     if not text or not text.strip():
         raise ValueError("Empty input — no JSON to extract")
 
+    def _ensure_dict(obj: object) -> dict[str, Any]:
+        if not isinstance(obj, dict):
+            raise ValueError(
+                f"Expected a JSON object (dict), got {type(obj).__name__}"
+            )
+        return obj
+
     # 1. Direct parse
     try:
-        return json.loads(text)
+        return _ensure_dict(json.loads(text))
     except json.JSONDecodeError:
         pass
 
@@ -41,7 +48,7 @@ def extract_json(text: str) -> dict[str, Any]:
 
     # Try again after stripping think blocks
     try:
-        return json.loads(cleaned)
+        return _ensure_dict(json.loads(cleaned))
     except json.JSONDecodeError:
         pass
 
@@ -50,8 +57,9 @@ def extract_json(text: str) -> dict[str, Any]:
     fences = re.findall(fence_pattern, cleaned, re.DOTALL)
     for block in fences:
         try:
-            return json.loads(block.strip())
-        except json.JSONDecodeError:
+            return _ensure_dict(json.loads(block.strip()))
+        except (json.JSONDecodeError, ValueError):
+            # JSONDecodeError = bad JSON; ValueError = parsed but not a dict
             continue
 
     # 4. Find first '{' to last '}'
@@ -59,8 +67,9 @@ def extract_json(text: str) -> dict[str, Any]:
     last_brace = cleaned.rfind("}")
     if first_brace != -1 and last_brace > first_brace:
         try:
-            return json.loads(cleaned[first_brace : last_brace + 1])
-        except json.JSONDecodeError:
+            return _ensure_dict(json.loads(cleaned[first_brace : last_brace + 1]))
+        except (json.JSONDecodeError, ValueError):
+            # JSONDecodeError = bad JSON; ValueError = parsed but not a dict
             pass
 
     raise ValueError(

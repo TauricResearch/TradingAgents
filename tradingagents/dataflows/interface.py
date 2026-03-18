@@ -257,3 +257,4 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     error_msg = f"All vendors failed for '{method}' (tried: {', '.join(tried)})"
     raise RuntimeError(error_msg) from last_error
+

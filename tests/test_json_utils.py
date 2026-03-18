@@ -119,13 +119,12 @@ def test_no_json_at_all():
         extract_json("Just some text with no JSON structure at all")
 
 
-def test_array_input_returns_list():
-    """extract_json succeeds on JSON arrays — json.loads parses them as lists.
+def test_array_input_raises_value_error():
+    """extract_json rejects JSON arrays — only dicts are accepted.
 
-    The function's return-type annotation says dict, but the implementation does
-    not enforce this at runtime.  A JSON array is valid JSON, so step 1
-    (direct json.loads) succeeds and returns a list.  Callers that need a dict
-    must validate the returned type themselves.
+    All callers (macro_synthesis, macro_bridge, CLI) call .get() on the result,
+    so returning a list would cause AttributeError downstream.  The function
+    enforces dict-only return at runtime.
     """
-    result = extract_json('[1, 2, 3]')
-    assert result == [1, 2, 3]
+    with pytest.raises(ValueError, match="Expected a JSON object"):
+        extract_json('[1, 2, 3]')
