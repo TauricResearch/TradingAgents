@@ -221,7 +221,6 @@ __marimo__/
 # Scan results and execution plans (generated artifacts)
 results/
 plans/
-!docs/agent/plans/
 
 # Backup files
 *.backup
