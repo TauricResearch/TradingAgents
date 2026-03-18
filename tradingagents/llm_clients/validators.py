@@ -48,6 +48,14 @@ VALID_MODELS = {
         "grok-4-fast-reasoning",
         "grok-4-fast-non-reasoning",
     ],
+    "minimax": [
+        # MiniMax M2.7 series (latest flagship, OpenAI-compatible)
+        "MiniMax-M2.7",
+        "MiniMax-M2.7-highspeed",
+        # MiniMax M2.5 series (204K context, OpenAI-compatible)
+        "MiniMax-M2.5",
+        "MiniMax-M2.5-highspeed",
+    ],
 }
 
 
