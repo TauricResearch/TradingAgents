@@ -5,7 +5,6 @@ using the Finnhub REST API.  Output formats mirror the Alpha Vantage
 equivalents where possible for consistent agent-facing data.
 """
 
-import json
 from typing import Literal
 
 from .finnhub_common import (

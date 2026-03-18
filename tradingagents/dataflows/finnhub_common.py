@@ -5,7 +5,6 @@ the Finnhub free tier), and the core HTTP request helper used by all other
 finnhub_* modules.
 """
 
-import json
 import os
 import threading
 import time as _time
@@ -76,7 +75,7 @@ _call_timestamps: list[float] = []
 _RATE_LIMIT = 60  # calls per minute
 
 
-def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dict:
+def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dict | list:
     """Make a rate-limited Finnhub API request.
 
     Enforces the 60-calls-per-minute limit for the free tier using a sliding
@@ -89,7 +88,7 @@ def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dic
         timeout: HTTP request timeout in seconds.
 
     Returns:
-        Parsed JSON response as a dict.
+        Parsed JSON response as a dict or list.
 
     Raises:
         FinnhubError subclass on any API or network error.
@@ -126,12 +125,15 @@ def _rate_limited_request(endpoint: str, params: dict, timeout: int = 30) -> dic
 # ---------------------------------------------------------------------------
 
 
-def _make_api_request(endpoint: str, params: dict, timeout: int = 30) -> dict:
+def _make_api_request(endpoint: str, params: dict, timeout: int = 30) -> dict | list:
     """Make a Finnhub API request with proper error handling.
 
     Calls ``https://finnhub.io/api/v1/{endpoint}`` and returns the parsed JSON
     body.  The ``token`` parameter is injected automatically from the
     ``FINNHUB_API_KEY`` environment variable.
+
+    Most endpoints return a JSON object (dict), but some (e.g. ``/company-news``,
+    ``/news``) return a JSON array (list).
 
     Args:
         endpoint: Finnhub endpoint path without leading slash (e.g. "quote").
@@ -139,7 +141,7 @@ def _make_api_request(endpoint: str, params: dict, timeout: int = 30) -> dict:
         timeout: HTTP request timeout in seconds.
 
     Returns:
-        Parsed JSON response as a dict.
+        Parsed JSON response as a dict or list.
 
     Raises:
         APIKeyInvalidError: Invalid or missing API key (HTTP 401 or env missing).

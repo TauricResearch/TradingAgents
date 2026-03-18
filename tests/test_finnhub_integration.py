@@ -911,7 +911,7 @@ def _make_quote_side_effect(symbols_quotes: dict) -> callable:
     return side_effect
 
 
-class TestGetMarketMoversFinnnhub:
+class TestGetMarketMoversFinnhub:
     """get_market_movers_finnhub returns a sorted markdown table."""
 
     _RATE_PATCH = "tradingagents.dataflows.finnhub_scanner._rate_limited_request"
@@ -985,7 +985,7 @@ class TestGetMarketMoversFinnnhub:
 # ---------------------------------------------------------------------------
 
 
-class TestGetMarketIndicesFinnnhub:
+class TestGetMarketIndicesFinnhub:
     """get_market_indices_finnhub builds a table of index levels."""
 
     _RATE_PATCH = "tradingagents.dataflows.finnhub_scanner._rate_limited_request"
@@ -1040,7 +1040,7 @@ class TestGetMarketIndicesFinnnhub:
 # ---------------------------------------------------------------------------
 
 
-class TestGetSectorPerformanceFinnnhub:
+class TestGetSectorPerformanceFinnhub:
     """get_sector_performance_finnhub returns sector ETF data."""
 
     _RATE_PATCH = "tradingagents.dataflows.finnhub_scanner._rate_limited_request"
@@ -1080,7 +1080,7 @@ class TestGetSectorPerformanceFinnnhub:
 # ---------------------------------------------------------------------------
 
 
-class TestGetTopicNewsFinnnhub:
+class TestGetTopicNewsFinnhub:
     """get_topic_news_finnhub maps topic strings to Finnhub categories."""
 
     _RATE_PATCH = "tradingagents.dataflows.finnhub_scanner._rate_limited_request"

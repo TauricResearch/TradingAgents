@@ -18,10 +18,6 @@ from typing import Annotated
 
 from .finnhub_common import (
     FinnhubError,
-    RateLimitError,
-    ThirdPartyError,
-    ThirdPartyParseError,
-    ThirdPartyTimeoutError,
     _make_api_request,
     _now_str,
     _rate_limited_request,
@@ -30,6 +26,20 @@ from .finnhub_common import (
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
+
+# Maximum length for error messages embedded in table cells / log lines
+_MAX_ERROR_LEN = 60
+
+
+def _safe_fmt(value, fmt: str = "${:.2f}", fallback: str = "N/A") -> str:
+    """Safely format a numeric value, returning *fallback* on None or bad types."""
+    if value is None:
+        return fallback
+    try:
+        return fmt.format(float(value))
+    except (ValueError, TypeError):
+        return str(value)
+
 
 # Representative S&P 500 large-caps used as the movers basket.
 # Sorted roughly by market-cap weight — first 50 cover the bulk of the index.
@@ -170,9 +180,8 @@ def get_market_movers_finnhub(
             if quote["current_price"] == 0 and quote["prev_close"] == 0:
                 continue
             rows.append(quote)
-        except (FinnhubError, RateLimitError, ThirdPartyError,
-                ThirdPartyTimeoutError, ThirdPartyParseError) as exc:
-            errors.append(f"{symbol}: {exc!s:.60}")
+        except FinnhubError as exc:
+            errors.append(f"{symbol}: {str(exc)[:_MAX_ERROR_LEN]}")
 
     if not rows:
         raise FinnhubError(
@@ -250,9 +259,8 @@ def get_market_indices_finnhub() -> str:
             result += f"| {display_name} | {price_str} | {change_str} | {change_pct_str} |\n"
             success_count += 1
 
-        except (FinnhubError, RateLimitError, ThirdPartyError,
-                ThirdPartyTimeoutError, ThirdPartyParseError) as exc:
-            result += f"| {display_name} | Error | - | {exc!s:.40} |\n"
+        except FinnhubError as exc:
+            result += f"| {display_name} | Error | - | {str(exc)[:_MAX_ERROR_LEN]} |\n"
 
     if success_count == 0:
         raise FinnhubError("All market index fetches failed.")
@@ -291,10 +299,9 @@ def get_sector_performance_finnhub() -> str:
             result += f"| {sector_name} | {etf} | {price_str} | {change_pct_str} |\n"
             success_count += 1
 
-        except (FinnhubError, RateLimitError, ThirdPartyError,
-                ThirdPartyTimeoutError, ThirdPartyParseError) as exc:
+        except FinnhubError as exc:
             last_error = exc
-            result += f"| {sector_name} | {etf} | Error | {exc!s:.30} |\n"
+            result += f"| {sector_name} | {etf} | Error | {str(exc)[:_MAX_ERROR_LEN]} |\n"
 
     # If ALL sectors failed, raise so route_to_vendor can fall back
     if success_count == 0 and last_error is not None:
@@ -405,12 +412,13 @@ def get_earnings_calendar_finnhub(from_date: str, to_date: str) -> str:
         symbol = item.get("symbol", "N/A")
         company = item.get("company", "N/A")[:30]
         date = item.get("date", "N/A")
-        eps_est = item.get("epsEstimate", None)
-        eps_prior = item.get("epsPrior", None)
-        rev_est = item.get("revenueEstimate", None)
-        eps_est_s = f"${eps_est:.2f}" if eps_est is not None else "N/A"
-        eps_prior_s = f"${eps_prior:.2f}" if eps_prior is not None else "N/A"
-        rev_est_s = f"${float(rev_est)/1e9:.2f}B" if rev_est is not None else "N/A"
+        eps_est_s = _safe_fmt(item.get("epsEstimate"))
+        eps_prior_s = _safe_fmt(item.get("epsPrior"))
+        rev_raw = item.get("revenueEstimate")
+        rev_est_s = _safe_fmt(
+            float(rev_raw) / 1e9 if rev_raw is not None else None,
+            fmt="${:.2f}B",
+        )
         lines.append(f"| {symbol} | {company} | {date} | {eps_est_s} | {eps_prior_s} | {rev_est_s} |")
     return "\n".join(lines)
 
