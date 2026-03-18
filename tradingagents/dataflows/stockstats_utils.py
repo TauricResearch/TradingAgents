@@ -6,6 +6,19 @@ import os
 from .config import get_config
 
 
+def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
+    """Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill price gaps."""
+    data["Date"] = pd.to_datetime(data["Date"], errors="coerce")
+    data = data.dropna(subset=["Date"])
+
+    price_cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in data.columns]
+    data[price_cols] = data[price_cols].apply(pd.to_numeric, errors="coerce")
+    data = data.dropna(subset=["Close"])
+    data[price_cols] = data[price_cols].ffill().bfill()
+
+    return data
+
+
 class StockstatsUtils:
     @staticmethod
     def get_stock_stats(
@@ -36,8 +49,7 @@ class StockstatsUtils:
         )
 
         if os.path.exists(data_file):
-            data = pd.read_csv(data_file)
-            data["Date"] = pd.to_datetime(data["Date"])
+            data = pd.read_csv(data_file, on_bad_lines="skip")
         else:
             data = yf.download(
                 symbol,
@@ -50,6 +62,7 @@ class StockstatsUtils:
             data = data.reset_index()
             data.to_csv(data_file, index=False)
 
+        data = _clean_dataframe(data)
         df = wrap(data)
         df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
         curr_date_str = curr_date_dt.strftime("%Y-%m-%d")

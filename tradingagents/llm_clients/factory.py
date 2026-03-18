@@ -19,6 +19,12 @@ def create_llm_client(
         model: Model name/identifier
         base_url: Optional base URL for API endpoint
         **kwargs: Additional provider-specific arguments
+            - http_client: Custom httpx.Client for SSL proxy or certificate customization
+            - http_async_client: Custom httpx.AsyncClient for async operations
+            - timeout: Request timeout in seconds
+            - max_retries: Maximum retry attempts
+            - api_key: API key for the provider
+            - callbacks: LangChain callbacks
 
     Returns:
         Configured BaseLLMClient instance
