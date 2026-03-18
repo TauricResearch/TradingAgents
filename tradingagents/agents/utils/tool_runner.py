@@ -18,7 +18,9 @@ MAX_TOOL_ROUNDS = 5
 
 # If the LLM's first response has no tool calls AND is shorter than this,
 # a nudge message is appended to encourage tool usage.
-MIN_REPORT_LENGTH = 500
+# Set high enough to catch models that dump planning text (~500-1000 chars)
+# without actually calling tools.
+MIN_REPORT_LENGTH = 2000
 
 
 def run_tool_loop(
@@ -51,6 +53,7 @@ def run_tool_loop(
     tool_map = {t.name: t for t in tools}
     current_messages = list(messages)
     first_round = True
+    result = None
 
     for _ in range(max_rounds):
         result: AIMessage = chain.invoke(current_messages)
@@ -94,4 +97,6 @@ def run_tool_loop(
 
     # If we exhausted max_rounds, return the last AIMessage
     # (it may have tool_calls but we treat the content as the report)
+    if result is None:
+        raise RuntimeError("Tool loop did not produce any LLM response")
     return result
