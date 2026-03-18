@@ -78,9 +78,11 @@ DEFAULT_CONFIG = {
         "fundamental_data": _env("VENDOR_FUNDAMENTAL_DATA", "yfinance"),
         "news_data": _env("VENDOR_NEWS_DATA", "yfinance"),
         "scanner_data": _env("VENDOR_SCANNER_DATA", "yfinance"),
+        "calendar_data": _env("VENDOR_CALENDAR_DATA", "finnhub"),
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
-        # Example: "get_stock_data": "alpha_vantage",  # Override category default
+        # Finnhub free tier provides same data + MSPR aggregate bonus signal
+        "get_insider_transactions": "finnhub",
     },
 }

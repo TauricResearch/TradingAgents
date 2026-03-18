@@ -368,3 +368,95 @@ def get_topic_news_finnhub(
         result += "\n"
 
     return result
+
+
+def get_earnings_calendar_finnhub(from_date: str, to_date: str) -> str:
+    """Fetch upcoming earnings releases via Finnhub /calendar/earnings.
+
+    Returns a formatted markdown table of companies reporting earnings between
+    from_date and to_date, including EPS estimates and prior-year actuals.
+    Unique capability not available in Alpha Vantage at any tier.
+
+    Args:
+        from_date: Start date in YYYY-MM-DD format.
+        to_date: End date in YYYY-MM-DD format.
+
+    Returns:
+        Markdown-formatted table with Symbol, Date, EPS Estimate, EPS Prior.
+
+    Raises:
+        FinnhubError: On API-level errors or empty response.
+    """
+    data = _rate_limited_request("calendar/earnings", {"from": from_date, "to": to_date})
+    earnings_list = data.get("earningsCalendar", [])
+    header = (
+        f"# Earnings Calendar: {from_date} to {to_date} — Finnhub\n"
+        f"# Data retrieved on: {_now_str()}\n\n"
+    )
+    if not earnings_list:
+        return header + "_No earnings events found in this date range._\n"
+
+    lines = [
+        header,
+        "| Symbol | Company | Date | EPS Estimate | EPS Prior | Revenue Estimate |",
+        "|--------|---------|------|--------------|-----------|-----------------|",
+    ]
+    for item in sorted(earnings_list, key=lambda x: x.get("date", "")):
+        symbol = item.get("symbol", "N/A")
+        company = item.get("company", "N/A")[:30]
+        date = item.get("date", "N/A")
+        eps_est = item.get("epsEstimate", None)
+        eps_prior = item.get("epsPrior", None)
+        rev_est = item.get("revenueEstimate", None)
+        eps_est_s = f"${eps_est:.2f}" if eps_est is not None else "N/A"
+        eps_prior_s = f"${eps_prior:.2f}" if eps_prior is not None else "N/A"
+        rev_est_s = f"${float(rev_est)/1e9:.2f}B" if rev_est is not None else "N/A"
+        lines.append(f"| {symbol} | {company} | {date} | {eps_est_s} | {eps_prior_s} | {rev_est_s} |")
+    return "\n".join(lines)
+
+
+def get_economic_calendar_finnhub(from_date: str, to_date: str) -> str:
+    """Fetch macro economic events via Finnhub /calendar/economic.
+
+    Returns FOMC meetings, CPI releases, NFP (Non-Farm Payroll), PPI,
+    GDP announcements, and other market-moving macro events. Unique
+    capability not available in Alpha Vantage at any tier.
+
+    Args:
+        from_date: Start date in YYYY-MM-DD format.
+        to_date: End date in YYYY-MM-DD format.
+
+    Returns:
+        Markdown-formatted table with Date, Event, Country, Impact, Estimate, Prior.
+
+    Raises:
+        FinnhubError: On API-level errors or empty response.
+    """
+    data = _rate_limited_request("calendar/economic", {"from": from_date, "to": to_date})
+    events = data.get("economicCalendar", [])
+    header = (
+        f"# Economic Calendar: {from_date} to {to_date} — Finnhub\n"
+        f"# Data retrieved on: {_now_str()}\n\n"
+    )
+    if not events:
+        return header + "_No economic events found in this date range._\n"
+
+    lines = [
+        header,
+        "| Date | Time | Event | Country | Impact | Estimate | Prior |",
+        "|------|------|-------|---------|--------|----------|-------|",
+    ]
+    for ev in sorted(events, key=lambda x: (x.get("time", ""), x.get("event", ""))):
+        date = ev.get("time", "N/A")[:10] if ev.get("time") else "N/A"
+        time_str = (
+            ev.get("time", "N/A")[11:16]
+            if ev.get("time") and len(ev.get("time", "")) > 10
+            else "N/A"
+        )
+        event = ev.get("event", "N/A")[:40]
+        country = ev.get("country", "N/A")
+        impact = ev.get("impact", "N/A")
+        estimate = str(ev.get("estimate", "N/A"))
+        prior = str(ev.get("prev", "N/A"))
+        lines.append(f"| {date} | {time_str} | {event} | {country} | {impact} | {estimate} | {prior} |")
+    return "\n".join(lines)

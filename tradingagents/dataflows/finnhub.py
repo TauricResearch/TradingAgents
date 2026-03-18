@@ -36,6 +36,8 @@ from .finnhub_scanner import (
     get_market_indices_finnhub,
     get_sector_performance_finnhub,
     get_topic_news_finnhub,
+    get_earnings_calendar_finnhub,
+    get_economic_calendar_finnhub,
 )
 
 # Technical indicators
@@ -68,6 +70,8 @@ __all__ = [
     "get_market_indices_finnhub",
     "get_sector_performance_finnhub",
     "get_topic_news_finnhub",
+    "get_earnings_calendar_finnhub",
+    "get_economic_calendar_finnhub",
     # Indicators
     "get_indicator_finnhub",
     # Exceptions

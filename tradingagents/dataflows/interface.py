@@ -37,6 +37,15 @@ from .alpha_vantage_scanner import (
     get_topic_news_alpha_vantage,
 )
 from .alpha_vantage_common import AlphaVantageError, AlphaVantageRateLimitError, RateLimitError
+from .finnhub_common import FinnhubError
+from .finnhub_news import get_insider_transactions as get_finnhub_insider_transactions
+from .finnhub_scanner import (
+    get_market_indices_finnhub,
+    get_sector_performance_finnhub,
+    get_topic_news_finnhub,
+    get_earnings_calendar_finnhub,
+    get_economic_calendar_finnhub,
+)
 
 # Configuration and routing logic
 from .config import get_config
@@ -82,12 +91,20 @@ TOOLS_CATEGORIES = {
             "get_industry_performance",
             "get_topic_news",
         ]
-    }
+    },
+    "calendar_data": {
+        "description": "Earnings and economic event calendars",
+        "tools": [
+            "get_earnings_calendar",
+            "get_economic_calendar",
+        ]
+    },
 }
 
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "finnhub",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -129,6 +146,7 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_global_news,
     },
     "get_insider_transactions": {
+        "finnhub": get_finnhub_insider_transactions,
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
     },
@@ -138,10 +156,12 @@ VENDOR_METHODS = {
         "alpha_vantage": get_market_movers_alpha_vantage,
     },
     "get_market_indices": {
+        "finnhub": get_market_indices_finnhub,
         "alpha_vantage": get_market_indices_alpha_vantage,
         "yfinance": get_market_indices_yfinance,
     },
     "get_sector_performance": {
+        "finnhub": get_sector_performance_finnhub,
         "alpha_vantage": get_sector_performance_alpha_vantage,
         "yfinance": get_sector_performance_yfinance,
     },
@@ -150,8 +170,16 @@ VENDOR_METHODS = {
         "yfinance": get_industry_performance_yfinance,
     },
     "get_topic_news": {
+        "finnhub": get_topic_news_finnhub,
         "alpha_vantage": get_topic_news_alpha_vantage,
         "yfinance": get_topic_news_yfinance,
+    },
+    # calendar_data — Finnhub only (unique capabilities)
+    "get_earnings_calendar": {
+        "finnhub": get_earnings_calendar_finnhub,
+    },
+    "get_economic_calendar": {
+        "finnhub": get_economic_calendar_finnhub,
     },
 }
 
@@ -202,7 +230,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except (AlphaVantageError, ConnectionError, TimeoutError):
-            continue  # Any AV error or connection/timeout triggers fallback to next vendor
+        except (AlphaVantageError, FinnhubError, ConnectionError, TimeoutError):
+            continue  # Any vendor error or connection/timeout triggers fallback to next vendor
 
     raise RuntimeError(f"No available vendor for '{method}'")

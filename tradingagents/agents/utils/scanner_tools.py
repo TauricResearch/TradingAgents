@@ -76,12 +76,38 @@ def get_topic_news(
     """
     Search news by arbitrary topic for market-wide analysis.
     Uses the configured scanner_data vendor.
-    
+
     Args:
         topic (str): Search query/topic for news
         limit (int): Maximum number of articles to return (default 10)
-        
+
     Returns:
         str: Formatted list of news articles for the topic with title, summary, source, and link
     """
     return route_to_vendor("get_topic_news", topic, limit)
+
+
+@tool
+def get_earnings_calendar(
+    from_date: Annotated[str, "Start date in YYYY-MM-DD format"],
+    to_date: Annotated[str, "End date in YYYY-MM-DD format"],
+) -> str:
+    """
+    Retrieve upcoming earnings release calendar.
+    Shows companies reporting earnings, EPS estimates, and prior-year actuals.
+    Unique Finnhub capability not available in Alpha Vantage.
+    """
+    return route_to_vendor("get_earnings_calendar", from_date, to_date)
+
+
+@tool
+def get_economic_calendar(
+    from_date: Annotated[str, "Start date in YYYY-MM-DD format"],
+    to_date: Annotated[str, "End date in YYYY-MM-DD format"],
+) -> str:
+    """
+    Retrieve macro economic event calendar (FOMC, CPI, NFP, GDP, PPI).
+    Shows market-moving macro events with estimates and prior readings.
+    Unique Finnhub capability not available in Alpha Vantage.
+    """
+    return route_to_vendor("get_economic_calendar", from_date, to_date)
