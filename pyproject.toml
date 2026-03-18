@@ -43,3 +43,9 @@ include = ["tradingagents*", "cli*"]
 dev = [
     "pytest>=9.0.2",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as live integration tests requiring real API keys",
+    "paid_tier: marks tests that require a paid Finnhub subscription (free tier returns HTTP 403)",
+]

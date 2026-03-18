@@ -10,6 +10,8 @@ Scanner pipeline is feature-complete and quality-improved. Focus shifts to Macro
 - Thread-safe rate limiter for Alpha Vantage implemented
 - Vendor fallback (AV -> yfinance) broadened to catch `AlphaVantageError`, `ConnectionError`, `TimeoutError`
 - **PR #13 merged**: Industry Deep Dive quality fixed — enriched industry data (price returns), explicit sector routing via `_extract_top_sectors()`, tool-call nudge in `run_tool_loop`
+- Finnhub integrated as third vendor: insider transactions (primary), earnings calendar (new), economic calendar (new)
+- ADR 010 written documenting Finnhub vendor decision and paid-tier constraints
 
 # Active Blockers
 
