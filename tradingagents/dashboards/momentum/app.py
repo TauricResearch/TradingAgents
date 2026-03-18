@@ -4,19 +4,22 @@ Momentum Dashboard - Streamlit Web UI
 Run: streamlit run app.py
 """
 
-import streamlit as st
+# Standard library imports
+import os
+import sys
+from datetime import datetime, timedelta
+
+# Third-party imports
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
-import sys
-import os
+import streamlit as st
 import yfinance as yf
+from plotly.subplots import make_subplots
 
-# Add parent directory to path for proper module imports
+# Local imports (add path first for module resolution)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from tradingagents.dashboards.momentum import MomentumScanner, MomentumIndicator, MAGNIFICENT_SEVEN, get_top_momentum_stocks
+from tradingagents.dashboards.momentum import (MAGNIFICENT_SEVEN, MomentumIndicator,
+                                               MomentumScanner, get_top_momentum_stocks)
 
 
 # Page config

@@ -58,18 +58,32 @@ class MomentumIndicator:
         delta = data.diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-        # Handle division by zero and NaN values
-        loss = loss.replace(0, np.nan)
-
-        # When both gain and loss are zero (no price change), return neutral RSI of 50
-        # Otherwise compute RS and RSI
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-
-        # Fill NaN values:
-        # - When loss was NaN (no downtrends), RSI should be 100
-        # - When gain and loss were both 0 (no price change), RSI should be 50
-        return rsi.fillna(100 if loss.isna().any() else 50)
+        
+        # Initialize RSI series
+        rsi = pd.Series(index=data.index, dtype=float)
+        
+        for i in range(len(data)):
+            g = gain.iloc[i]
+            l = loss.iloc[i]
+            
+            # Handle special cases
+            if pd.isna(g) or pd.isna(l):
+                rsi.iloc[i] = np.nan
+            elif l == 0 and g == 0:
+                # No price movement - neutral RSI
+                rsi.iloc[i] = 50.0
+            elif l == 0:
+                # Only gains - maximum strength
+                rsi.iloc[i] = 100.0
+            elif g == 0:
+                # Only losses - minimum strength
+                rsi.iloc[i] = 0.0
+            else:
+                # Normal RSI calculation
+                rs = g / l
+                rsi.iloc[i] = 100 - (100 / (1 + rs))
+        
+        return rsi
 
 
 class MomentumScanner:
