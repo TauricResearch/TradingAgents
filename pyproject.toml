@@ -43,10 +43,18 @@ include = ["tradingagents*", "cli*"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-recording>=0.13.2",
+    "vcrpy>=6.0.2",
+    "pytest-socket>=0.7.0",
 ]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = [
-    "integration: marks tests as live integration tests requiring real API keys",
+    "integration: tests that replay VCR cassettes of data API calls",
+    "e2e: tests that hit real LLM APIs (manual trigger only)",
+    "vcr: tests that use VCR cassette recording",
+    "slow: tests that take a long time to run",
     "paid_tier: marks tests that require a paid Finnhub subscription (free tier returns HTTP 403)",
 ]
+addopts = "--ignore=tests/integration --ignore=tests/e2e --disable-socket --allow-unix-socket -x -q"
