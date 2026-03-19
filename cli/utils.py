@@ -14,6 +14,22 @@ ANALYST_ORDER = [
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
 ]
 
+# Shared model lists for providers with identical options in shallow/deep selections
+# Azure: deployment names are user-specific, so we provide common defaults
+AZURE_MODELS = [
+    ("GPT-4o (your deployment)", "gpt-4o"),
+    ("GPT-4o-mini (your deployment)", "gpt-4o-mini"),
+    ("GPT-4 Turbo (your deployment)", "gpt-4-turbo"),
+    ("Custom deployment name", "__custom__"),
+]
+
+# Ollama: same models for both shallow and deep (local inference)
+OLLAMA_MODELS = [
+    ("Qwen3:latest (8B, local)", "qwen3:latest"),
+    ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
+    ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
+]
+
 
 def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol."""
@@ -159,11 +175,8 @@ def select_shallow_thinking_agent(provider) -> str:
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
         ],
-        "ollama": [
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
-        ],
+        "ollama": OLLAMA_MODELS,
+        "azure": AZURE_MODELS,
     }
 
     choice = questionary.select(
@@ -226,11 +239,8 @@ def select_deep_thinking_agent(provider) -> str:
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
         ],
-        "ollama": [
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
-        ],
+        "ollama": OLLAMA_MODELS,
+        "azure": AZURE_MODELS,
     }
 
     choice = questionary.select(
@@ -265,6 +275,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("xAI", "https://api.x.ai/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
+        ("Azure OpenAI", "azure"),
     ]
     
     choice = questionary.select(
