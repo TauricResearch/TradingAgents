@@ -38,6 +38,7 @@ class BrokerExecutor:
         ticker: str,
         swing_signal: dict,
         market: str = "KRX",
+        allow_add_to_existing: bool = False,
     ) -> Optional[dict]:
         """Execute a swing trading signal.
 
@@ -46,6 +47,7 @@ class BrokerExecutor:
             swing_signal: Dict from signal_processing with action, entry_price,
                          stop_loss, take_profit, position_size_pct, etc.
             market: 'KRX' or 'US'
+            allow_add_to_existing: If True, BUY can add to existing position (DCA).
 
         Returns:
             Execution result dict or None if skipped.
@@ -53,34 +55,58 @@ class BrokerExecutor:
         action = swing_signal.get("action", "PASS").upper()
 
         if action == "BUY":
-            return self._execute_buy(ticker, swing_signal, market)
+            return self._execute_buy(
+                ticker,
+                swing_signal,
+                market,
+                allow_add_to_existing=allow_add_to_existing,
+            )
         elif action == "SELL":
             return self._execute_sell(ticker, swing_signal, market)
         else:
             logger.info(f"PASS for {ticker}: {swing_signal.get('rationale', '')}")
             return None
 
-    def _execute_buy(self, ticker: str, signal: dict, market: str) -> dict:
+    def _execute_buy(
+        self,
+        ticker: str,
+        signal: dict,
+        market: str,
+        allow_add_to_existing: bool = False,
+    ) -> dict:
         """Execute a BUY order."""
-        # Validate portfolio capacity
-        if not self.portfolio.can_add_position():
+        has_existing = self.portfolio.has_position(ticker)
+
+        # Validate portfolio capacity for NEW positions only.
+        if not has_existing and not self.portfolio.can_add_position():
             logger.warning(f"Cannot buy {ticker}: max positions reached ({self.portfolio.max_positions})")
             return {"status": "rejected", "reason": "max_positions_reached", "ticker": ticker}
 
-        if self.portfolio.has_position(ticker):
+        if has_existing and not allow_add_to_existing:
             logger.warning(f"Cannot buy {ticker}: already holding position")
             return {"status": "rejected", "reason": "already_holding", "ticker": ticker}
 
         # Calculate position size
         position_size_pct = signal.get("position_size_pct") or 0.10
         position_size_pct = min(position_size_pct, self.portfolio.max_position_pct)
-        max_capital = self.portfolio.total_capital * position_size_pct
+        target_capital = self.portfolio.total_capital * position_size_pct
         available = self.portfolio.available_capital
 
-        capital_to_use = min(max_capital, available)
+        existing_capital = (
+            self.portfolio.positions[ticker].cost_basis if has_existing else 0.0
+        )
+        ticker_cap = self.portfolio.total_capital * self.portfolio.max_position_pct
+        remaining_ticker_cap = max(0.0, ticker_cap - existing_capital)
+
+        capital_to_use = min(target_capital, available, remaining_ticker_cap)
         if capital_to_use <= 0:
-            logger.warning(f"Cannot buy {ticker}: insufficient capital")
-            return {"status": "rejected", "reason": "insufficient_capital", "ticker": ticker}
+            reason = (
+                "max_ticker_allocation_reached"
+                if remaining_ticker_cap <= 0
+                else "insufficient_capital"
+            )
+            logger.warning(f"Cannot buy {ticker}: {reason}")
+            return {"status": "rejected", "reason": reason, "ticker": ticker}
 
         # Get current price from broker
         current_price = self.client.get_current_price_value(ticker)
@@ -114,6 +140,7 @@ class BrokerExecutor:
             "status": "pending",
             "ticker": ticker,
             "action": "BUY",
+            "is_add_on": has_existing,
             "quantity": quantity,
             "price": entry_price,
             "total_cost": quantity * entry_price,

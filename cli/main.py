@@ -40,6 +40,15 @@ app = typer.Typer(
 )
 
 
+def _normalize_ticker_list(values) -> list[str]:
+    """Normalize ticker list from config/user input."""
+    if not values:
+        return []
+    if isinstance(values, str):
+        values = [v.strip() for v in values.split(",")]
+    return [str(v).strip().upper() for v in values if str(v).strip()]
+
+
 class MessageBuffer:
     """Tracks agent status and reports during swing trading analysis."""
 
@@ -824,6 +833,12 @@ def swing():
     run_swing_pipeline()
 
 
+@app.command()
+def core():
+    """Core long-term strategy: separated buy-and-hold track for large caps."""
+    run_core_strategy()
+
+
 def _get_swing_config():
     """Get config selections for swing pipeline (no ticker needed)."""
     try:
@@ -903,6 +918,195 @@ def _get_swing_config():
     }
 
 
+def run_core_strategy():
+    """Run separated long-term core strategy (independent from swing pipeline)."""
+    config = DEFAULT_CONFIG.copy()
+    core_tickers = _normalize_ticker_list(config.get("core_long_term_tickers", []))
+    if not core_tickers:
+        console.print(
+            "[yellow]core_long_term_tickers가 비어 있습니다. "
+            "default_config.py에서 코어 종목을 설정하세요.[/yellow]"
+        )
+        return
+
+    from tradingagents.portfolio import load_portfolio, save_portfolio
+
+    core_portfolio = load_portfolio(
+        portfolio_id=config.get("core_portfolio_id", "core_long_term"),
+        results_dir=config.get("results_dir", "./results"),
+        defaults={
+            "total_capital": config.get("total_capital", 100_000_000),
+            "max_positions": max(len(core_tickers), 1),
+            "max_position_pct": config.get("core_max_position_pct", 0.40),
+        },
+    )
+
+    budget_per_ticker = float(config.get("core_budget_per_ticker", 1_000_000))
+    total_capital = float(core_portfolio.total_capital or 0)
+    cap_pct = float(config.get("core_max_position_pct", 0.40))
+    base_target_pct = min(
+        budget_per_ticker / total_capital if total_capital > 0 else 0.0,
+        cap_pct,
+    )
+
+    plans = []
+    for ticker in core_tickers:
+        pos = core_portfolio.positions.get(ticker)
+        invested = pos.cost_basis if pos else 0.0
+        invested_pct = (invested / total_capital) if total_capital > 0 else 0.0
+        remaining_pct = max(0.0, cap_pct - invested_pct)
+        run_target_pct = min(base_target_pct, remaining_pct)
+
+        if run_target_pct <= 0:
+            status = "SKIP (cap reached)"
+            action_type = "SKIP"
+        else:
+            status = "DCA BUY" if pos else "INIT BUY"
+            action_type = "BUY"
+
+        plans.append(
+            {
+                "ticker": ticker,
+                "status": status,
+                "action_type": action_type,
+                "invested_pct": invested_pct,
+                "run_target_pct": run_target_pct,
+            }
+        )
+
+    actionable_plans = [p for p in plans if p["action_type"] == "BUY"]
+
+    console.print()
+    console.print(Rule("Core Long-Term Strategy (장기 코어 분리 전략)", style="bold cyan"))
+    console.print(
+        f"[dim]Core Portfolio ID: {core_portfolio.portfolio_id} | "
+        f"Swing Portfolio ID: {config.get('swing_portfolio_id', 'swing_default')}[/dim]"
+    )
+    console.print(f"[dim]Core Tickers: {', '.join(core_tickers)}[/dim]")
+    console.print(f"[dim]Budget/Ticker: {budget_per_ticker:,.0f}[/dim]")
+    console.print(f"[dim]Base Target Size: {base_target_pct * 100:.2f}%[/dim]\n")
+
+    table = Table(
+        title="Core Allocation Plan",
+        show_header=True,
+        header_style="bold",
+        box=box.ROUNDED,
+    )
+    table.add_column("Ticker", justify="center", width=10)
+    table.add_column("Status", justify="center", width=14)
+    table.add_column("Current %", justify="right", width=10)
+    table.add_column("Budget", justify="right", width=14)
+    table.add_column("This Run %", justify="right", width=10)
+
+    for plan in plans:
+        ticker = plan["ticker"]
+        status = plan["status"]
+        color = "dim" if plan["action_type"] == "SKIP" else "green"
+        table.add_row(
+            ticker,
+            f"[{color}]{status}[/{color}]",
+            f"{plan['invested_pct'] * 100:.2f}%",
+            f"{budget_per_ticker:,.0f}",
+            f"{plan['run_target_pct'] * 100:.2f}%",
+        )
+
+    console.print(table)
+
+    if not actionable_plans:
+        console.print(
+            "\n[dim]모든 코어 종목이 목표 비중에 도달했습니다. 이번 회차 추가매수 없음.[/dim]"
+        )
+        return
+
+    if base_target_pct <= 0:
+        console.print(
+            "[red]target position size가 0입니다. total_capital/core_budget_per_ticker를 확인하세요.[/red]"
+        )
+        return
+
+    if not config.get("broker_enabled"):
+        console.print(
+            "\n[dim]현재는 계획만 출력했습니다. 실제 주문은 "
+            "broker_enabled=True 설정 후 core 명령을 다시 실행하세요.[/dim]"
+        )
+        return
+
+    is_paper = config.get("kiwoom_is_paper", True)
+    dry_run = config.get("broker_dry_run", True)
+    mode_label = "모의투자" if is_paper else "실전투자"
+    run_label = "DRY RUN (검증만)" if dry_run else "실제 주문"
+
+    execute = typer.prompt(
+        f"\n코어 전략 {len(actionable_plans)}건 매수를 실행하시겠습니까? ({mode_label}/{run_label})",
+        default="N",
+    ).strip().upper()
+    if execute not in ("Y", "YES"):
+        return
+
+    from tradingagents.broker.kiwoom_client import KiwoomClient
+    from tradingagents.broker.executor import BrokerExecutor
+
+    client = KiwoomClient(
+        app_key=config["kiwoom_app_key"],
+        app_secret=config["kiwoom_app_secret"],
+        account_no=config["kiwoom_account_no"],
+        is_paper=is_paper,
+    )
+    executor = BrokerExecutor(client=client, portfolio=core_portfolio, dry_run=dry_run)
+
+    sl_pct = float(config.get("core_stop_loss_pct", 0.30))
+    tp_pct = float(config.get("core_take_profit_pct", 1.00))
+    max_hold_days = int(config.get("core_max_hold_days", 3650))
+
+    for plan in actionable_plans:
+        ticker = plan["ticker"]
+        run_target_pct = plan["run_target_pct"]
+
+        with console.status(f"[bold cyan]Executing core BUY {ticker}...[/bold cyan]"):
+            current_price = client.get_current_price_value(ticker)
+            if not current_price or current_price <= 0:
+                console.print(f"[red]{ticker}: 현재가 조회 실패로 스킵[/red]")
+                continue
+
+            signal = {
+                "action": "BUY",
+                "entry_price": float(current_price),
+                "stop_loss": float(current_price) * (1 - sl_pct),
+                "take_profit": float(current_price) * (1 + tp_pct),
+                "position_size_pct": run_target_pct,
+                "max_hold_days": max_hold_days,
+                "rationale": "코어 장기 보유 분리 전략",
+            }
+            result = executor.execute_signal(
+                ticker=ticker,
+                swing_signal=signal,
+                market=config.get("market", "KRX"),
+                allow_add_to_existing=True,
+            )
+            if not result:
+                console.print(f"[dim]{ticker}: no-op[/dim]")
+                continue
+
+            status = result.get("status", "unknown")
+            color = {"filled": "green", "dry_run": "yellow", "rejected": "red", "failed": "red"}.get(status, "dim")
+            buy_mode = "추가매수" if result.get("is_add_on") else "신규매수"
+            msg = f"[{color}]{ticker}: {status} ({buy_mode})[/{color}]"
+            if result.get("quantity"):
+                msg += f" (x{result['quantity']} @ {result.get('price', 0):,.0f})"
+            if result.get("reason"):
+                msg += f" - {result['reason']}"
+            if result.get("broker_msg"):
+                msg += f" - {result['broker_msg']}"
+            console.print(msg)
+
+    save_path = save_portfolio(
+        core_portfolio,
+        results_dir=config.get("results_dir", "./results"),
+    )
+    console.print(f"\n[green]Core portfolio saved:[/green] {save_path}")
+    console.print(f"\n{core_portfolio.summary()}")
+
+
 def _display_swing_signal(ticker: str, name: str, swing_signal: dict):
     """Display a single swing signal result."""
     action = swing_signal.get("action", "PASS")
@@ -942,6 +1146,7 @@ def run_swing_pipeline():
     config["llm_provider"] = selections["llm_provider"]
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
+    config["portfolio_id"] = config.get("swing_portfolio_id", "swing_default")
 
     selected_set = {a.value for a in selections["analysts"]}
     selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
@@ -956,13 +1161,37 @@ def run_swing_pipeline():
 
     trade_date = selections["analysis_date"]
 
+    from tradingagents.portfolio import load_portfolio, save_portfolio
+
+    swing_portfolio = load_portfolio(
+        portfolio_id=config.get("portfolio_id", "swing_default"),
+        results_dir=config.get("results_dir", "./results"),
+        defaults={
+            "total_capital": config.get("total_capital", 100_000_000),
+            "max_positions": config.get("max_positions", 5),
+            "max_position_pct": config.get("max_position_pct", 0.20),
+        },
+    )
+    swing_positions = list(swing_portfolio.positions.keys())
+    core_tickers = _normalize_ticker_list(config.get("core_long_term_tickers", []))
+    excluded_tickers = sorted(set(swing_positions + core_tickers))
+    portfolio_context = swing_portfolio.summary()
+
     # ─── Phase 1: Screening ───
     console.print()
     console.print(Rule("Phase 1: Stock Screening (종목 발굴)", style="bold cyan"))
     console.print(f"[dim]Market: {selections['market']} / Date: {trade_date}[/dim]\n")
+    if core_tickers:
+        console.print(
+            f"[dim]코어 장기보유 종목 제외: {', '.join(core_tickers)}[/dim]"
+        )
 
     with console.status("[bold cyan]Scanning market universe...[/bold cyan]"):
-        screening_result = graph.screen(trade_date=trade_date)
+        screening_result = graph.screen(
+            trade_date=trade_date,
+            existing_positions=excluded_tickers,
+            portfolio_context=portfolio_context,
+        )
 
     # Display screening report
     console.print(Panel(
@@ -1017,6 +1246,7 @@ def run_swing_pipeline():
                     company_name=ticker,
                     trade_date=trade_date,
                     screening_context=screening_context,
+                    portfolio_context=portfolio_context,
                 )
 
             _display_swing_signal(ticker, name, swing_signal)
@@ -1157,7 +1387,6 @@ def run_swing_pipeline():
         if execute in ("Y", "YES"):
             from tradingagents.broker.kiwoom_client import KiwoomClient
             from tradingagents.broker.executor import BrokerExecutor
-            from tradingagents.portfolio import load_portfolio, save_portfolio
 
             client = KiwoomClient(
                 app_key=config["kiwoom_app_key"],
@@ -1165,16 +1394,11 @@ def run_swing_pipeline():
                 account_no=config["kiwoom_account_no"],
                 is_paper=is_paper,
             )
-            portfolio = load_portfolio(
-                portfolio_id=config.get("portfolio_id", "default"),
-                results_dir=config.get("results_dir", "./results"),
-                defaults={
-                    "total_capital": config.get("total_capital", 100_000_000),
-                    "max_positions": config.get("max_positions", 5),
-                    "max_position_pct": config.get("max_position_pct", 0.20),
-                },
+            executor = BrokerExecutor(
+                client=client,
+                portfolio=swing_portfolio,
+                dry_run=dry_run,
             )
-            executor = BrokerExecutor(client=client, portfolio=portfolio, dry_run=dry_run)
 
             exec_results = []
             for r in buy_signals:
@@ -1198,11 +1422,11 @@ def run_swing_pipeline():
                         console.print(msg)
 
             save_path = save_portfolio(
-                portfolio,
+                swing_portfolio,
                 results_dir=config.get("results_dir", "./results"),
             )
             console.print(f"\n[green]Portfolio saved:[/green] {save_path}")
-            console.print(f"\n{portfolio.summary()}")
+            console.print(f"\n{swing_portfolio.summary()}")
 
     elif buy_signals and not config.get("broker_enabled"):
         console.print(

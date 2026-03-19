@@ -135,20 +135,48 @@ class PortfolioState:
         return ticker in self.positions
 
     def add_position(self, order: Order) -> None:
-        """Add a new position from a BUY order."""
-        self.positions[order.ticker] = Position(
-            ticker=order.ticker,
-            market=order.market,
-            entry_date=datetime.now().strftime("%Y-%m-%d"),
-            entry_price=order.price,
-            quantity=order.quantity,
-            stop_loss=order.stop_loss,
-            take_profit=order.take_profit,
-            max_hold_days=order.max_hold_days,
-            current_price=order.price,
-            screening_reason=order.rationale,
-        )
-        self.available_capital -= order.price * order.quantity
+        """Add a BUY order into portfolio, supporting DCA averaging for existing positions."""
+        added_cost = order.price * order.quantity
+
+        if order.ticker in self.positions:
+            # DCA: update weighted-average entry/levels for existing position.
+            pos = self.positions[order.ticker]
+            old_qty = pos.quantity
+            new_qty = old_qty + order.quantity
+
+            if new_qty > 0:
+                pos.entry_price = (
+                    (pos.entry_price * old_qty) + (order.price * order.quantity)
+                ) / new_qty
+                pos.stop_loss = (
+                    (pos.stop_loss * old_qty) + (order.stop_loss * order.quantity)
+                ) / new_qty
+                pos.take_profit = (
+                    (pos.take_profit * old_qty) + (order.take_profit * order.quantity)
+                ) / new_qty
+                pos.quantity = new_qty
+                pos.max_hold_days = max(pos.max_hold_days, order.max_hold_days)
+                pos.current_price = order.price
+                if order.rationale:
+                    if pos.screening_reason:
+                        pos.screening_reason = f"{pos.screening_reason} | {order.rationale}"
+                    else:
+                        pos.screening_reason = order.rationale
+        else:
+            self.positions[order.ticker] = Position(
+                ticker=order.ticker,
+                market=order.market,
+                entry_date=datetime.now().strftime("%Y-%m-%d"),
+                entry_price=order.price,
+                quantity=order.quantity,
+                stop_loss=order.stop_loss,
+                take_profit=order.take_profit,
+                max_hold_days=order.max_hold_days,
+                current_price=order.price,
+                screening_reason=order.rationale,
+            )
+
+        self.available_capital -= added_cost
         self.orders_history.append(order)
         self.updated_at = datetime.now().isoformat()
 
@@ -189,7 +217,8 @@ class PortfolioState:
             lines.append("\n--- 보유 종목 ---")
             for ticker, pos in self.positions.items():
                 lines.append(
-                    f"  {ticker}: 진입가 {pos.entry_price:,.0f} / "
+                    f"  {ticker}: 수량 {pos.quantity:,} / "
+                    f"평단 {pos.entry_price:,.0f} / "
                     f"현재가 {pos.current_price:,.0f} / "
                     f"수익률 {pos.unrealized_pnl_pct:+.1f}% / "
                     f"보유일 {pos.days_held}일 / "

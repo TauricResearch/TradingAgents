@@ -23,11 +23,20 @@ DEFAULT_CONFIG = {
     "swing_hold_days_max": 20,
     # Portfolio settings
     "portfolio_id": "default",
+    "swing_portfolio_id": "swing_default",
+    "core_portfolio_id": "core_long_term",
     "total_capital": 100_000_000,  # 1억원 (KRX) or $100,000 (US)
     "max_positions": 5,
     "max_position_pct": 0.20,  # 20% of total capital per position
     "default_stop_loss_pct": 0.05,  # 5%
     "default_take_profit_pct": 0.15,  # 15%
+    # Core long-term strategy settings (separated from swing)
+    "core_long_term_tickers": ["005930"],  # e.g., Samsung Electronics
+    "core_budget_per_ticker": 1_000_000,  # 1백만원 per run
+    "core_max_position_pct": 0.40,  # 40% cap per core ticker
+    "core_stop_loss_pct": 0.30,  # wide stop for long-term holding
+    "core_take_profit_pct": 1.00,  # optional broad target
+    "core_max_hold_days": 3650,  # ~10 years
     # Screening settings
     "screening_min_market_cap": 500_000_000_000,  # 5000억원
     "screening_min_volume": 100_000,

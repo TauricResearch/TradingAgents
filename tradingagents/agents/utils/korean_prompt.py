@@ -1,7 +1,4 @@
-"""Shared Korean localization prompt fragments for all trading agents.
-
-Includes swing trading context prompts for multi-agent swing strategy system.
-"""
+"""Shared Korean localization prompt fragments for all trading agents."""
 
 KOREAN_INVESTOR_GUIDE = """
 [한국형 운영 가이드]
