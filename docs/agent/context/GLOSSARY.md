@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-18 -->
+<!-- Last verified: 2026-03-19 -->
 
 # Glossary
 
@@ -76,6 +76,25 @@
 | StatsCallbackHandler | Token and timing statistics handler for display | `cli/stats_handler.py` |
 | FIXED_AGENTS | Dict grouping non-analyst agents by team: Research Team, Trading Team, Risk Management, Portfolio Management | `cli/main.py` |
 | ANALYST_MAPPING | Dict: `"market"` → `"Market Analyst"`, `"social"` → `"Social Analyst"`, etc. | `cli/main.py` |
+
+## Observability
+
+| Term | Definition | Source |
+|------|-----------|--------|
+| RunLogger | Accumulates structured events (llm, tool, vendor, report) for a single CLI run. Thread-safe. | `observability.py` |
+| _LLMCallbackHandler | LangChain `BaseCallbackHandler` that feeds LLM call events (model, tokens, latency) into a `RunLogger` | `observability.py` |
+| _Event | @dataclass: `kind`, `ts`, `data` — one JSON-line per event | `observability.py` |
+| set_run_logger / get_run_logger | Thread-local context for passing `RunLogger` to vendor/tool layers | `observability.py` |
+
+## Report Paths
+
+| Term | Definition | Source |
+|------|-----------|--------|
+| REPORTS_ROOT | `Path("reports")` — root for all generated artifacts | `report_paths.py` |
+| get_daily_dir | Returns `reports/daily/{date}/` | `report_paths.py` |
+| get_market_dir | Returns `reports/daily/{date}/market/` — scan results | `report_paths.py` |
+| get_ticker_dir | Returns `reports/daily/{date}/{TICKER}/` — per-ticker analysis | `report_paths.py` |
+| get_eval_dir | Returns `reports/daily/{date}/{TICKER}/eval/` — eval logs | `report_paths.py` |
 
 ## Constants
 

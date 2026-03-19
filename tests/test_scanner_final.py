@@ -100,7 +100,7 @@ def test_scanner_integration_with_cli_scan():
     # 3. CLI scan command calls get_sector_performance.invoke()
     # 4. CLI scan command calls get_industry_performance.invoke()
     # 5. CLI scan command calls get_topic_news.invoke()
-    # 6. Results are written to files in results/macro_scan/{date}/
+    # 6. Results are written to files in reports/daily/{date}/market/
     
     # Since we've verified the individual tools work above, and we've seen
     # the CLI scan command work manually, we can be confident the integration works.

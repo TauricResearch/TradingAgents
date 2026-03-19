@@ -193,7 +193,11 @@ def run_ticker_analysis(
     try:
         from tradingagents.graph.trading_graph import TradingAgentsGraph
 
-        ta = TradingAgentsGraph(debug=False, config=config)
+        from tradingagents.observability import get_run_logger
+
+        rl = get_run_logger()
+        cbs = [rl.callback] if rl else None
+        ta = TradingAgentsGraph(debug=False, config=config, callbacks=cbs)
         final_state, decision = ta.propagate(candidate.ticker, analysis_date)
 
         result.market_report = final_state.get("market_report", "")

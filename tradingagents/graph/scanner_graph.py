@@ -1,6 +1,6 @@
 """Scanner graph — orchestrates the 3-phase macro scanner pipeline."""
 
-from typing import Any
+from typing import Any, List, Optional
 
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
@@ -22,15 +22,22 @@ class ScannerGraph:
     Phase 3: macro_synthesis -> END
     """
 
-    def __init__(self, config: dict[str, Any] | None = None, debug: bool = False) -> None:
+    def __init__(
+        self,
+        config: dict[str, Any] | None = None,
+        debug: bool = False,
+        callbacks: Optional[List] = None,
+    ) -> None:
         """Initialize the scanner graph.
 
         Args:
             config: Configuration dictionary. Falls back to DEFAULT_CONFIG when None.
             debug: Whether to stream and print intermediate states.
+            callbacks: Optional LangChain callback handlers (e.g. RunLogger.callback).
         """
         self.config = config or DEFAULT_CONFIG.copy()
         self.debug = debug
+        self.callbacks = callbacks or []
 
         quick_llm = self._create_llm("quick_think")
         mid_llm = self._create_llm("mid_think")
@@ -77,6 +84,9 @@ class ScannerGraph:
             model = self.config[f"{tier}_llm"]
             provider = self.config.get(f"{tier}_llm_provider") or self.config["llm_provider"]
             backend_url = self.config.get(f"{tier}_backend_url") or self.config.get("backend_url")
+
+        if self.callbacks:
+            kwargs["callbacks"] = self.callbacks
 
         client = create_llm_client(
             provider=provider,

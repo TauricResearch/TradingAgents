@@ -127,7 +127,7 @@ class TestToolLoopNudge:
 
     def test_long_response_no_nudge(self):
         """A long first response (no tool calls) should be returned as-is."""
-        long_text = "A" * 600
+        long_text = "A" * 2100  # must exceed MIN_REPORT_LENGTH (2000)
         response = AIMessage(content=long_text, tool_calls=[])
         chain = self._make_chain([response])
         tool = self._make_tool()
@@ -139,7 +139,7 @@ class TestToolLoopNudge:
     def test_short_response_triggers_nudge(self):
         """A short first response triggers a nudge, then the LLM is re-invoked."""
         short_resp = AIMessage(content="Brief.", tool_calls=[])
-        long_resp = AIMessage(content="A" * 600, tool_calls=[])
+        long_resp = AIMessage(content="A" * 2100, tool_calls=[])
         chain = self._make_chain([short_resp, long_resp])
         tool = self._make_tool()
 

@@ -38,7 +38,7 @@ def _env_int(key: str, default=None):
 
 DEFAULT_CONFIG = {
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
-    "results_dir": _env("RESULTS_DIR", "./results"),
+    "results_dir": _env("RESULTS_DIR", "./reports"),
     "data_cache_dir": os.path.join(
         os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
         "dataflows/data_cache",

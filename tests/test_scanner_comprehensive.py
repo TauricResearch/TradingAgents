@@ -79,47 +79,29 @@ class TestScannerEndToEnd:
     def test_scan_command_creates_output_files(self):
         """Test that the scan command creates all expected output files."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Set up the test directory structure
-            macro_scan_dir = Path(temp_dir) / "results" / "macro_scan"
-            test_date_dir = macro_scan_dir / "2026-03-15"
+            test_date_dir = Path(temp_dir) / "market"
             test_date_dir.mkdir(parents=True)
-            
-            # Mock the current working directory to use our temp directory
-            with patch('cli.main.Path') as mock_path_class:
-                # Mock Path.cwd() to return our temp directory
-                mock_path_class.cwd.return_value = Path(temp_dir)
-                
-                # Mock Path constructor for results/macro_scan/{date}
-                def mock_path_constructor(*args):
-                    path_obj = Path(*args)
-                    # If this is the results/macro_scan/{date} path, return our test directory
-                    if len(args) >= 3 and args[0] == "results" and args[1] == "macro_scan" and args[2] == "2026-03-15":
-                        return test_date_dir
-                    return path_obj
-                
-                mock_path_class.side_effect = mock_path_constructor
-                
+
+            # Mock get_market_dir to redirect output into the temp directory
+            with patch('cli.main.get_market_dir', return_value=test_date_dir):
                 # Mock the write_text method to capture what gets written
                 written_files = {}
                 def mock_write_text(self, content, encoding=None):
-                    # Store what was written to each file
                     written_files[str(self)] = content
-                
+
                 with patch('pathlib.Path.write_text', mock_write_text):
-                    # Mock typer.prompt to return our test date
                     with patch('typer.prompt', return_value='2026-03-15'):
                         try:
                             run_scan()
                         except SystemExit:
-                            # typer might raise SystemExit, that's ok
                             pass
-            
+
             # Verify that run_scan() uses the correct output file naming convention.
             #
             # run_scan() writes via: (save_dir / f"{key}.md").write_text(content)
-            # where save_dir = Path("results/macro_scan") / scan_date  (relative).
+            # where save_dir = get_market_dir(scan_date).
             # pathlib.Path.write_text is mocked, so written_files keys are the
-            # str() of those relative Path objects — NOT absolute paths.
+            # str() of those Path objects.
             #
             # LLM output is non-deterministic: a phase may produce an empty string,
             # causing run_scan()'s `if content:` guard to skip writing that file.
@@ -133,6 +115,7 @@ class TestScannerEndToEnd:
                 "sector_performance_report.md",
                 "industry_deep_dive_report.md",
                 "macro_scan_summary.md",
+                "run_log.jsonl",
             }
 
             assert len(written_files) >= 1, (

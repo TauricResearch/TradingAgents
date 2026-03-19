@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-18 -->
+<!-- Last verified: 2026-03-19 -->
 
 # Conventions
 
@@ -64,7 +64,7 @@
 - Typer for command definitions, Rich for live UI. (`cli/main.py`)
 - `MessageBuffer` — deque-based singleton tracking agent statuses, reports, tool calls. Fixed agents grouped by team (`FIXED_AGENTS`), analysts selectable. (`cli/main.py`)
 - `StatsCallbackHandler` — token and timing statistics for display. (`cli/stats_handler.py`)
-- Scan results saved as `{key}.md` files to `results/macro_scan/{scan_date}/`. (`cli/main.py`)
+- All reports go under `reports/daily/{date}/` — use helpers from `report_paths.py`: `get_market_dir(date)` for scan results, `get_ticker_dir(date, ticker)` for per-ticker analysis, `get_eval_dir(date, ticker)` for eval logs. Never hardcode report paths. (`report_paths.py`)
 
 ## Pipeline Patterns
 
@@ -80,6 +80,14 @@
 - Mocking vendor methods: patch `VENDOR_METHODS` dict entries directly (it stores function refs), not module attributes. (`interface.py`)
 - Env isolation: always mock env vars before `importlib.reload()` — `load_dotenv()` leaks real `.env` values otherwise.
 - `callable()` returns False on LangChain `@tool` objects — use `hasattr(x, "invoke")` instead.
+
+## Observability
+
+- Create one `RunLogger` per CLI command (analyze/scan/pipeline). Attach `logger.callback` to LLM constructors. (`observability.py`)
+- Call `set_run_logger(logger)` at run start so vendor/tool layers can access it via `get_run_logger()`. (`observability.py`)
+- Vendor calls: `log_vendor_call(method, vendor, success, duration_ms)` — called inside `route_to_vendor`. (`observability.py`, `interface.py`)
+- Tool calls: `log_tool_call(tool_name, args_summary, success, duration_ms)` — called inside `run_tool_loop`. (`observability.py`, `tool_runner.py`)
+- Write the run log at the end of each command: `logger.write_log(report_dir / "run_log.jsonl")`. (`observability.py`)
 
 ## Error Handling
 

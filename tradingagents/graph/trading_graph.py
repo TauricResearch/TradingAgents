@@ -320,11 +320,13 @@ class TradingAgentsGraph:
         }
 
         # Save to file
-        directory = Path(f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/")
+        from tradingagents.report_paths import get_eval_dir
+
+        directory = get_eval_dir(str(trade_date), self.ticker)
         directory.mkdir(parents=True, exist_ok=True)
 
         with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
+            directory / f"full_states_log_{trade_date}.json",
             "w",
             encoding="utf-8",
         ) as f:

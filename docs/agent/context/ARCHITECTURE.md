@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-18 -->
+<!-- Last verified: 2026-03-19 -->
 
 # Architecture
 
@@ -80,6 +80,39 @@ Scanner JSON output → `MacroBridge.load()` → parse into `MacroContext` + `li
 
 Source: `tradingagents/pipeline/macro_bridge.py`
 
+## Unified Report Paths
+
+All generated artifacts live under `reports/daily/{YYYY-MM-DD}/`:
+
+```
+reports/
+└── daily/{YYYY-MM-DD}/
+    ├── market/                    # scan results (geopolitical_report.md, etc.)
+    ├── {TICKER}/                  # per-ticker analysis / pipeline
+    │   ├── 1_analysts/
+    │   ├── complete_report.md
+    │   └── eval/full_states_log.json
+    └── summary.md                 # pipeline combined summary
+```
+
+Helper functions: `get_daily_dir()`, `get_market_dir()`, `get_ticker_dir()`, `get_eval_dir()`.
+
+Source: `tradingagents/report_paths.py`
+
+## Observability
+
+`RunLogger` accumulates structured events (JSON-lines) for a single run. Four event kinds: `llm` (model, agent, tokens in/out, latency), `tool` (tool name, args, success, latency), `vendor` (method, vendor, success, latency), `report` (path). Thread-safe via `_lock`.
+
+Integration points:
+- **LLM calls**: `_LLMCallbackHandler` (LangChain `BaseCallbackHandler`) — attach as callback to LLM constructors or graph invocations. Extracts model name from `invocation_params` / `serialized`, token counts from `usage_metadata`.
+- **Vendor calls**: `log_vendor_call()` — called from `route_to_vendor`.
+- **Tool calls**: `log_tool_call()` — called from `run_tool_loop()`.
+- **Thread-local context**: `set_run_logger()` / `get_run_logger()` for passing logger to vendor/tool layers without changing signatures.
+
+`RunLogger.summary()` returns aggregated stats (total tokens, model breakdown, vendor success/fail counts). `RunLogger.write_log(path)` writes all events + summary to a JSON-lines file.
+
+Source: `tradingagents/observability.py`
+
 ## CLI Architecture
 
 3 Typer commands: `analyze` (interactive per-ticker), `scan` (macro scanner), `pipeline` (scan → filter → deep dive). Rich-based live UI with `MessageBuffer` (deque-backed state manager tracking agent status, reports, tool calls, defined in `cli/main.py`) and `StatsCallbackHandler` (token/timing stats, defined in `cli/stats_handler.py`). 7-step interactive questionnaire in `analyze` for provider/model selection.
@@ -102,4 +135,6 @@ Source: `cli/main.py`, `cli/stats_handler.py`
 | `tradingagents/pipeline/macro_bridge.py` | `MacroBridge`, data classes, pipeline orchestration |
 | `tradingagents/agents/utils/json_utils.py` | `extract_json()` — handles DeepSeek R1 markdown wrapping |
 | `cli/main.py` | CLI commands, `MessageBuffer`, Rich UI, interactive setup |
+| `tradingagents/report_paths.py` | Unified report path helpers (`get_market_dir`, `get_ticker_dir`, etc.) |
+| `tradingagents/observability.py` | `RunLogger`, `_LLMCallbackHandler`, structured event logging |
 | `tradingagents/dataflows/config.py` | `set_config()`, `get_config()`, `initialize_config()` |

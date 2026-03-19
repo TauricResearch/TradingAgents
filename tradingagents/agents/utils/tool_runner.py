@@ -7,6 +7,7 @@ phase — so they need an inline tool-execution loop.
 
 from __future__ import annotations
 
+import time
 from typing import Any, List
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -79,17 +80,27 @@ def run_tool_loop(
         first_round = False
 
         # Execute each requested tool call and append ToolMessages
+        from tradingagents.observability import get_run_logger
+
+        rl = get_run_logger()
         for tc in result.tool_calls:
             tool_name = tc["name"]
             tool_args = tc["args"]
             tool_fn = tool_map.get(tool_name)
             if tool_fn is None:
                 tool_output = f"Error: unknown tool '{tool_name}'"
+                if rl:
+                    rl.log_tool_call(tool_name, str(tool_args)[:120], False, 0, error="unknown tool")
             else:
+                t0 = time.time()
                 try:
                     tool_output = tool_fn.invoke(tool_args)
+                    if rl:
+                        rl.log_tool_call(tool_name, str(tool_args)[:120], True, (time.time() - t0) * 1000)
                 except Exception as e:
                     tool_output = f"Error calling {tool_name}: {e}"
+                    if rl:
+                        rl.log_tool_call(tool_name, str(tool_args)[:120], False, (time.time() - t0) * 1000, error=str(e)[:200])
 
             current_messages.append(
                 ToolMessage(content=str(tool_output), tool_call_id=tc["id"])

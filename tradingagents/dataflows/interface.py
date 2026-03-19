@@ -1,3 +1,4 @@
+import time
 from typing import Annotated
 
 # Import from vendor-specific modules
@@ -239,6 +240,11 @@ def route_to_vendor(method: str, *args, **kwargs):
         # Fail-fast: only try configured primary vendor(s)
         vendors_to_try = primary_vendors
 
+    from tradingagents.observability import get_run_logger
+
+    rl = get_run_logger()
+    args_summary = ", ".join(str(a)[:80] for a in args) if args else ""
+
     last_error = None
     tried = []
     for vendor in vendors_to_try:
@@ -249,9 +255,15 @@ def route_to_vendor(method: str, *args, **kwargs):
         vendor_impl = VENDOR_METHODS[method][vendor]
         impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
 
+        t0 = time.time()
         try:
-            return impl_func(*args, **kwargs)
+            result = impl_func(*args, **kwargs)
+            if rl:
+                rl.log_vendor_call(method, vendor, True, (time.time() - t0) * 1000, args_summary=args_summary)
+            return result
         except (AlphaVantageError, FinnhubError, ConnectionError, TimeoutError) as exc:
+            if rl:
+                rl.log_vendor_call(method, vendor, False, (time.time() - t0) * 1000, error=str(exc)[:200], args_summary=args_summary)
             last_error = exc
             continue
 

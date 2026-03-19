@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-18 -->
+<!-- Last verified: 2026-03-19 -->
 
 # Components
 
@@ -8,6 +8,8 @@
 tradingagents/
 ├── __init__.py
 ├── default_config.py              # All config keys, defaults, env var overrides
+├── report_paths.py                # Unified report path helpers (reports/daily/{date}/)
+├── observability.py               # RunLogger, _LLMCallbackHandler, structured event logging
 ├── agents/
 │   ├── __init__.py
 │   ├── analysts/
