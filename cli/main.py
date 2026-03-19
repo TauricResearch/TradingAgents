@@ -591,11 +591,11 @@ def get_user_selections():
                 "Select LLMs for each stage",
             )
         )
-        analyst_llm = select_llm_bundle("Analyst Team")
-        research_llm = select_llm_bundle("Research Team")
-        trader_llm = select_llm_bundle("Trader")
-        risk_llm = select_llm_bundle("Risk Team")
-        pm_llm = select_llm_bundle("Portfolio Manager")
+        analyst_llm = select_llm_bundle("Analyst Team", depth_hint="quick")
+        research_llm = select_llm_bundle("Research Team", depth_hint="deep")
+        trader_llm = select_llm_bundle("Trader", depth_hint="deep")
+        risk_llm = select_llm_bundle("Risk Team", depth_hint="deep")
+        pm_llm = select_llm_bundle("Portfolio Manager", depth_hint="deep")
 
         for role in ["market", "social", "news", "fundamentals"]:
             llm_routing["roles"][role] = analyst_llm
