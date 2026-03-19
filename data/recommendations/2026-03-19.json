@@ -1,0 +1,81 @@
+{
+  "date": "2026-03-19",
+  "llm_provider": "google",
+  "recommendations": [
+    {
+      "ticker": "AI",
+      "rank": 1,
+      "company_name": "C3.ai, Inc.",
+      "description": "C3.ai, Inc. operates as an enterprise artificial intelligence application software company.",
+      "strategy_match": "news_catalyst",
+      "pipeline": "news_catalyst",
+      "final_score": 85,
+      "confidence": 8,
+      "risk_level": "high",
+      "reason": "C3.ai presents a textbook short squeeze setup fueled by a powerful news catalyst regarding $1T in projected AI infrastructure demand. With short interest at a staggering 33.2%, the stock is highly susceptible to forced covering. Unusually aggressive bullish options flow confirms smart money positioning, evidenced by a microscopic put/call ratio of 0.018 and massive volume on the $9.50 and $10.50 strikes. Furthermore, the On-Balance Volume (OBV) indicator shows a bullish divergence, signaling institutional accumulation despite recent price weakness. The primary risk is the underlying strong downtrend; if the broader market sells off, the squeeze may fail to materialize and break key support at $7.72.",
+      "entry_price": 8.586000442504883,
+      "discovery_date": "2026-03-19",
+      "status": "open"
+    },
+    {
+      "ticker": "AEE",
+      "rank": 2,
+      "company_name": "Ameren Corporation",
+      "description": "Ameren Corporation operates as a public utility holding company in the United States.",
+      "strategy_match": "options_flow",
+      "pipeline": "options_flow",
+      "final_score": 75,
+      "confidence": 8,
+      "risk_level": "low",
+      "reason": "Ameren stands out with a robust technical setup, trading in a strong uptrend above its 50-day moving average of $106.32. The catalyst is an exceptionally bullish options flow with a put/call ratio of 0.007, indicating virtually zero downside hedging by institutions. Specifically, the $105 call witnessed volume 1,500 times its open interest, signaling high-conviction positioning for a near-term breakout. This aligns perfectly with utility sector defensive rotation. The main risk is the recent insider selling by the CEO, which could cap upside momentum if institutional buying subsides.",
+      "entry_price": 110.56999969482422,
+      "discovery_date": "2026-03-19",
+      "status": "open"
+    },
+    {
+      "ticker": "PM",
+      "rank": 3,
+      "company_name": "Philip Morris International Inc.",
+      "description": "Philip Morris International Inc. operates as a tobacco company.",
+      "strategy_match": "social_hype",
+      "pipeline": "social_hype",
+      "final_score": 70,
+      "confidence": 7,
+      "risk_level": "moderate",
+      "reason": "Philip Morris is experiencing unprecedented institutional call accumulation, highlighted by a put/call ratio of just 0.006. Options sweeps targeted multiple strikes including the $120 and $155 calls with volume exceeding open interest by hundreds of times, suggesting a major underlying catalyst or defensive rotation is imminent. While the stock has recently pulled back, the On-Balance Volume (OBV) reveals a bullish divergence, confirming that buyers are quietly accumulating shares on the dip. The primary risk is the stock currently trading below its 50-day SMA of $176.09, requiring a swift reversal to validate the options activity.",
+      "entry_price": 163.5800018310547,
+      "discovery_date": "2026-03-19",
+      "status": "open"
+    },
+    {
+      "ticker": "AMGN",
+      "rank": 4,
+      "company_name": "Amgen Inc.",
+      "description": "Amgen Inc. discovers, develops, manufactures, and delivers human therapeutics worldwide.",
+      "strategy_match": "options_flow",
+      "pipeline": "options_flow",
+      "final_score": 65,
+      "confidence": 7,
+      "risk_level": "moderate",
+      "reason": "Amgen is flashing a compelling mean-reversion signal as it trades completely outside its lower Bollinger Band at a -14% position. The timing is validated by massive institutional options flow, boasting a put/call ratio of 0.048 with the $280 and $290 calls seeing volume over 3,900 times open interest. This structural options bet suggests a floor is being established following recent dividend declarations and 2026 EPS guidance. The reward potential is a quick snap-back to the 20-period VWAP at $374.69. The thesis would be invalidated if the stock breaks structural support, compounded by recent bearish insider selling totaling over $20 million.",
+      "entry_price": 353.3550109863281,
+      "discovery_date": "2026-03-19",
+      "status": "open"
+    },
+    {
+      "ticker": "ALB",
+      "rank": 5,
+      "company_name": "Albemarle Corporation",
+      "description": "Albemarle Corporation provides energy storage solutions worldwide.",
+      "strategy_match": "options_flow",
+      "pipeline": "options_flow",
+      "final_score": 60,
+      "confidence": 6,
+      "risk_level": "speculative",
+      "reason": "Albemarle offers a high-risk, high-reward setup driven by extreme options market activity and a heavily shorted float with 12.7% short interest. A highly unusual options flow with a put/call ratio of 0.069 includes massive volume on the $65 and $95 calls, indicating a potential volatility event or short squeeze. News of idling Kemerton Train 1 to preserve liquidity may act as a fundamental bottoming catalyst. However, this trade remains speculative given the strong underlying downtrend and a recent $2 million insider sale by the CEO.",
+      "entry_price": 159.52000427246094,
+      "discovery_date": "2026-03-19",
+      "status": "open"
+    }
+  ]
+}
