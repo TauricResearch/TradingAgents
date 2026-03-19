@@ -42,3 +42,8 @@ def get_ticker_dir(date: str, ticker: str) -> Path:
 def get_eval_dir(date: str, ticker: str) -> Path:
     """``reports/daily/{date}/{TICKER}/eval/``"""
     return get_ticker_dir(date, ticker) / "eval"
+
+
+def get_digest_path(date: str) -> Path:
+    """``reports/daily/{date}/daily_digest.md``"""
+    return get_daily_dir(date) / "daily_digest.md"

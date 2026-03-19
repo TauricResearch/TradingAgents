@@ -87,6 +87,7 @@ All generated artifacts live under `reports/daily/{YYYY-MM-DD}/`:
 ```
 reports/
 └── daily/{YYYY-MM-DD}/
+    ├── daily_digest.md            # consolidated daily report (all runs appended)
     ├── market/                    # scan results (geopolitical_report.md, etc.)
     ├── {TICKER}/                  # per-ticker analysis / pipeline
     │   ├── 1_analysts/
@@ -95,9 +96,19 @@ reports/
     └── summary.md                 # pipeline combined summary
 ```
 
-Helper functions: `get_daily_dir()`, `get_market_dir()`, `get_ticker_dir()`, `get_eval_dir()`.
+Helper functions: `get_daily_dir()`, `get_market_dir()`, `get_ticker_dir()`, `get_eval_dir()`, `get_digest_path()`.
 
 Source: `tradingagents/report_paths.py`
+
+## Daily Digest & NotebookLM Sync
+
+After every `analyze` or `scan` run, the CLI:
+1. Calls `append_to_digest(date, entry_type, label, content)` → appends a timestamped section to `reports/daily/{date}/daily_digest.md` (creates the file on first run)
+2. Calls `sync_to_notebooklm(digest_path)` → deletes the previous `daily_digest.md` source from the configured NotebookLM notebook, then uploads the updated file via the `nlm` CLI tool
+
+`NOTEBOOK_ID` env var controls the target notebook. If unset, the sync step is silently skipped (opt-in).
+
+Source: `tradingagents/daily_digest.py`, `tradingagents/notebook_sync.py`
 
 ## Observability
 

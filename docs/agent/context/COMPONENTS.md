@@ -9,6 +9,8 @@ tradingagents/
 ├── __init__.py
 ├── default_config.py              # All config keys, defaults, env var overrides
 ├── report_paths.py                # Unified report path helpers (reports/daily/{date}/)
+├── daily_digest.py                # append_to_digest() — consolidates runs into daily_digest.md
+├── notebook_sync.py               # sync_to_notebooklm() — uploads digest to NotebookLM via nlm CLI
 ├── observability.py               # RunLogger, _LLMCallbackHandler, structured event logging
 ├── agents/
 │   ├── __init__.py

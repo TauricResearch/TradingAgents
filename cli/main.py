@@ -29,6 +29,8 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.report_paths import get_daily_dir, get_market_dir, get_ticker_dir
+from tradingagents.daily_digest import append_to_digest
+from tradingagents.notebook_sync import sync_to_notebooklm
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
@@ -1173,6 +1175,14 @@ def run_analysis():
         except Exception as e:
             console.print(f"[red]Error saving report: {e}[/red]")
 
+    # Append to daily digest and sync to NotebookLM
+    digest_content = message_buffer.final_report or ""
+    if digest_content:
+        digest_path = append_to_digest(
+            selections["analysis_date"], "analyze", selections["ticker"], digest_content
+        )
+        sync_to_notebooklm(digest_path)
+
     # Write observability log
     log_dir = get_ticker_dir(selections["analysis_date"], selections["ticker"])
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -1268,6 +1278,12 @@ def run_scan(date: Optional[str] = None):
         f"Vendor calls: {scan_summary['vendor_success']}ok/{scan_summary['vendor_fail']}fail[/dim]"
     )
     set_run_logger(None)
+
+    # Append to daily digest and sync to NotebookLM
+    macro_content = result.get("macro_scan_summary", "")
+    if macro_content:
+        digest_path = append_to_digest(scan_date, "scan", "Market Scan", macro_content)
+        sync_to_notebooklm(digest_path)
 
     console.print(f"\n[green]Results saved to {save_dir}[/green]")
 
