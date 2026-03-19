@@ -128,6 +128,7 @@ export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export ADANOS_API_KEY=...          # Optional, for live social sentiment snapshots in the social analyst
 ```
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.

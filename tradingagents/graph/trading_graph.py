@@ -29,6 +29,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_cashflow,
     get_income_statement,
     get_news,
+    get_social_sentiment,
+    has_social_sentiment_support,
     get_insider_transactions,
     get_global_news
 )
@@ -152,6 +154,10 @@ class TradingAgentsGraph:
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
+        social_tools = [get_news]
+        if has_social_sentiment_support():
+            social_tools.insert(0, get_social_sentiment)
+
         return {
             "market": ToolNode(
                 [
@@ -161,12 +167,7 @@ class TradingAgentsGraph:
                     get_indicators,
                 ]
             ),
-            "social": ToolNode(
-                [
-                    # News tools for social media analysis
-                    get_news,
-                ]
-            ),
+            "social": ToolNode(social_tools),
             "news": ToolNode(
                 [
                     # News and insider information
