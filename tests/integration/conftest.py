@@ -8,7 +8,7 @@ import pytest
 def vcr_config():
     return {
         "cassette_library_dir": "tests/cassettes",
-        "record_mode": "none",
+        # record_mode is controlled by --record-mode CLI flag (default: none)
         "match_on": ["method", "scheme", "host", "port", "path"],
         "filter_headers": [
             "Authorization",
