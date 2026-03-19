@@ -54,7 +54,13 @@ class OpenAIClient(BaseLLMClient):
             if api_key:
                 llm_kwargs["api_key"] = api_key
         elif self.provider == "ollama":
-            llm_kwargs["base_url"] = "http://localhost:11434/v1"
+            # Support custom Ollama URL via base_url or OLLAMA_HOST env var
+            ollama_url = self.base_url or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+            # Normalize URL: ensure it ends with /v1 for OpenAI-compatible API
+            ollama_url = ollama_url.rstrip("/")
+            if not ollama_url.endswith("/v1"):
+                ollama_url = f"{ollama_url}/v1"
+            llm_kwargs["base_url"] = ollama_url
             llm_kwargs["api_key"] = "ollama"  # Ollama doesn't require auth
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
