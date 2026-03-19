@@ -102,12 +102,13 @@ Source: `tradingagents/report_paths.py`
 
 ## Daily Digest & NotebookLM Sync
 
-After every `analyze` or `scan` run, the CLI:
+After every `analyze`, `scan`, or `pipeline` run, the CLI:
 1. Calls `append_to_digest(date, entry_type, label, content)` → appends a timestamped section to `reports/daily/{date}/daily_digest.md` (creates the file on first run)
-2. Calls `sync_to_notebooklm(digest_path)` → deletes the previous `daily_digest.md` source from the configured NotebookLM notebook, then uploads the updated file via the `nlm` CLI tool
+2. Calls `sync_to_notebooklm(digest_path, date)` → finds the existing source titled `Daily Trading Digest ({date})` inside the configured NotebookLM notebook, deletes it if it exists, and then uploads the updated file content via `nlm source add --text --wait`.
 
-`NOTEBOOK_ID` env var controls the target notebook. If unset, the sync step is silently skipped (opt-in).
+This ensures there is a single, up-to-date source per day in the user's NotebookLM workspace. `scan` consolidates all 5 macro reports into this digest.
 
+`NOTEBOOKLM_ID` env var controls the target notebook. If unset, the sync step is silently skipped (opt-in).
 Source: `tradingagents/daily_digest.py`, `tradingagents/notebook_sync.py`
 
 ## Observability

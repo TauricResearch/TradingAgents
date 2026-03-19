@@ -17,38 +17,28 @@ from rich.console import Console
 
 console = Console()
 
-_NOTE_TITLE = "Daily Trading Digest"
-
-# Common install locations outside of PATH (e.g. pip install --user)
-_FALLBACK_PATHS = [
-    Path.home() / ".local" / "bin" / "nlm",
-    Path("/usr/local/bin/nlm"),
-]
-
 
 def _find_nlm() -> str | None:
-    """Return the path to the nlm binary, or None if not found."""
-    found = shutil.which("nlm")
-    if found:
-        return found
-    for p in _FALLBACK_PATHS:
-        if p.exists():
-            return str(p)
+    """Resolve the path to the nlm CLI."""
+    if nlm_path := shutil.which("nlm"):
+        return nlm_path
     return None
 
 
-def sync_to_notebooklm(digest_path: Path, notebook_id: str | None = None) -> None:
-    """Upload *digest_path* content to Google NotebookLM as a note.
+def sync_to_notebooklm(digest_path: Path, date: str, notebook_id: str | None = None) -> None:
+    """Upload *digest_path* content to Google NotebookLM as a source.
 
-    If a note titled ``Daily Trading Digest`` already exists it is updated
-    in-place; otherwise a new note is created.
+    If a source with the title for the given day already exists, it is deleted
+    and re-uploaded to ensure the latest content is indexed.
 
     Parameters
     ----------
     digest_path:
         Path to the digest markdown file to upload.
+    date:
+        The date string (e.g., "YYYY-MM-DD") used for the source title.
     notebook_id:
-        NotebookLM notebook ID.  Falls back to the ``NOTEBOOK_ID``
+        NotebookLM notebook ID. Falls back to the ``NOTEBOOKLM_ID``
         environment variable when *None*.
     """
     if notebook_id is None:
@@ -62,63 +52,60 @@ def sync_to_notebooklm(digest_path: Path, notebook_id: str | None = None) -> Non
         return
 
     content = digest_path.read_text()
+    title = f"Daily Trading Digest ({date})"
 
-    # Check for an existing note with the same title
-    existing_note_id = _find_note(nlm, notebook_id)
+    # Find and delete existing source with the same title
+    existing_source_id = _find_source(nlm, notebook_id, title)
+    if existing_source_id:
+        _delete_source(nlm, notebook_id, existing_source_id)
 
-    if existing_note_id:
-        _update_note(nlm, notebook_id, existing_note_id, content)
-    else:
-        _create_note(nlm, notebook_id, content)
+    # Add as a new source
+    _add_source(nlm, notebook_id, content, title)
 
 
-def _find_note(nlm: str, notebook_id: str) -> str | None:
-    """Return the note ID for the daily digest note, or None if not found."""
+def _find_source(nlm: str, notebook_id: str, title: str) -> str | None:
+    """Return the source ID for the daily digest, or None if not found."""
     try:
         result = subprocess.run(
-            [nlm, "note", "list", notebook_id, "--json"],
+            [nlm, "source", "list", notebook_id, "--json"],
             capture_output=True,
             text=True,
         )
         if result.returncode != 0:
             return None
-        data = json.loads(result.stdout)
-        notes = data.get("notes", data) if isinstance(data, dict) else data
-        for note in notes:
-            if isinstance(note, dict) and note.get("title") == _NOTE_TITLE:
-                return note.get("id") or note.get("noteId")
+        sources = json.loads(result.stdout)
+        for source in sources:
+            if isinstance(source, dict) and source.get("title") == title:
+                return source.get("id")
     except (ValueError, KeyError, OSError):
         pass
     return None
 
 
-def _create_note(nlm: str, notebook_id: str, content: str) -> None:
-    """Create a new note in the notebook."""
+def _delete_source(nlm: str, notebook_id: str, source_id: str) -> None:
+    """Delete an existing source."""
+    try:
+        subprocess.run(
+            [nlm, "source", "delete", notebook_id, source_id, "-y"],
+            capture_output=True,
+            text=True,
+            check=False,  # Ignore non-zero exit since nlm sometimes fails even on success
+        )
+    except OSError:
+        pass
+
+
+def _add_source(nlm: str, notebook_id: str, content: str, title: str) -> None:
+    """Add content as a new source."""
     try:
         result = subprocess.run(
-            [nlm, "note", "create", notebook_id, "--title", _NOTE_TITLE, "--content", content],
+            [nlm, "source", "add", notebook_id, "--title", title, "--text", content, "--wait"],
             capture_output=True,
             text=True,
         )
         if result.returncode == 0:
-            console.print(f"[green]✓ Created NotebookLM note: {_NOTE_TITLE}[/green]")
+            console.print(f"[green]✓ Synced NotebookLM source: {title}[/green]")
         else:
-            console.print(f"[yellow]Warning: nlm note create failed: {result.stderr.strip()}[/yellow]")
+            console.print(f"[yellow]Warning: nlm source add failed: {result.stderr.strip()}[/yellow]")
     except OSError as exc:
-        console.print(f"[yellow]Warning: could not create NotebookLM note: {exc}[/yellow]")
-
-
-def _update_note(nlm: str, notebook_id: str, note_id: str, content: str) -> None:
-    """Update an existing note's content."""
-    try:
-        result = subprocess.run(
-            [nlm, "note", "update", notebook_id, note_id, "--content", content],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0:
-            console.print(f"[green]✓ Updated NotebookLM note: {_NOTE_TITLE}[/green]")
-        else:
-            console.print(f"[yellow]Warning: nlm note update failed: {result.stderr.strip()}[/yellow]")
-    except OSError as exc:
-        console.print(f"[yellow]Warning: could not update NotebookLM note: {exc}[/yellow]")
+        console.print(f"[yellow]Warning: could not add NotebookLM source: {exc}[/yellow]")

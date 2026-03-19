@@ -1181,7 +1181,7 @@ def run_analysis():
         digest_path = append_to_digest(
             selections["analysis_date"], "analyze", selections["ticker"], digest_content
         )
-        sync_to_notebooklm(digest_path)
+        sync_to_notebooklm(digest_path, selections["analysis_date"])
 
     # Write observability log
     log_dir = get_ticker_dir(selections["analysis_date"], selections["ticker"])
@@ -1280,10 +1280,23 @@ def run_scan(date: Optional[str] = None):
     set_run_logger(None)
 
     # Append to daily digest and sync to NotebookLM
-    macro_content = result.get("macro_scan_summary", "")
+    scan_parts = []
+    if result.get("geopolitical_report"):
+        scan_parts.append(f"### Geopolitical & Macro\n{result['geopolitical_report']}")
+    if result.get("market_movers_report"):
+        scan_parts.append(f"### Market Movers\n{result['market_movers_report']}")
+    if result.get("sector_performance_report"):
+        scan_parts.append(f"### Sector Performance\n{result['sector_performance_report']}")
+    if result.get("industry_deep_dive_report"):
+        scan_parts.append(f"### Industry Deep Dive\n{result['industry_deep_dive_report']}")
+    if result.get("macro_scan_summary"):
+        scan_parts.append(f"### Macro Scan Summary\n{result['macro_scan_summary']}")
+        
+    macro_content = "\n\n".join(scan_parts)
+    
     if macro_content:
         digest_path = append_to_digest(scan_date, "scan", "Market Scan", macro_content)
-        sync_to_notebooklm(digest_path)
+        sync_to_notebooklm(digest_path, scan_date)
 
     console.print(f"\n[green]Results saved to {save_dir}[/green]")
 
@@ -1364,6 +1377,12 @@ def run_pipeline():
         f"Vendor calls: {pipe_summary['vendor_success']}ok/{pipe_summary['vendor_fail']}fail[/dim]"
     )
     set_run_logger(None)
+
+    # Append to daily digest and sync to NotebookLM
+    from tradingagents.pipeline.macro_bridge import render_combined_summary
+    pipeline_summary = render_combined_summary(results, macro_context)
+    digest_path = append_to_digest(analysis_date, "pipeline", "Pipeline Summary", pipeline_summary)
+    sync_to_notebooklm(digest_path, analysis_date)
 
     successes = [r for r in results if not r.error]
     failures = [r for r in results if r.error]

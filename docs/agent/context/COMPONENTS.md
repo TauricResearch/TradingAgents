@@ -178,6 +178,8 @@ cli/
 | `test_json_utils.py` | Unit | `extract_json()` — markdown, think blocks, edge cases | — |
 | `test_macro_bridge.py` | Unit | Pipeline: parse, filter, render, save | — |
 | `test_macro_regime.py` | Mixed | Macro signals, regime classification, report format | `integration` on live test |
+| `test_nlm_live.py` | Integration | Live NLM CLI tests for NotebookLM sync | — |
+| `test_notebook_sync.py` | Unit | `notebook_sync.py` logic, `nlm` subprocess mocking | — |
 | `test_peer_comparison.py` | Mixed | Peer comparison functions | `integration` on live test |
 | `test_scanner_comprehensive.py` | Integration | All 5 scanner tools + CLI output naming | — |
 | `test_scanner_fallback.py` | Mixed | yfinance perf, AV failure mode, fallback routing | `integration` on some |
