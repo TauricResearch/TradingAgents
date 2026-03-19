@@ -67,8 +67,8 @@ DEFAULT_CONFIG = {
     "quick_think_google_thinking_level": _env("QUICK_THINK_GOOGLE_THINKING_LEVEL"),
     "quick_think_openai_reasoning_effort": _env("QUICK_THINK_OPENAI_REASONING_EFFORT"),
     # Debate and discussion settings
-    "max_debate_rounds": _env_int("MAX_DEBATE_ROUNDS", 1),
-    "max_risk_discuss_rounds": _env_int("MAX_RISK_DISCUSS_ROUNDS", 1),
+    "max_debate_rounds": _env_int("MAX_DEBATE_ROUNDS", 2),
+    "max_risk_discuss_rounds": _env_int("MAX_RISK_DISCUSS_ROUNDS", 2),
     "max_recur_limit": _env_int("MAX_RECUR_LIMIT", 100),
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)

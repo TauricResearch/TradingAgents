@@ -87,7 +87,7 @@ class TestEnvOverridesDefaults:
         """Non-numeric string falls back to hardcoded default."""
         with patch.dict(os.environ, {"TRADINGAGENTS_MAX_DEBATE_ROUNDS": "abc"}):
             cfg = self._reload_config()
-            assert cfg["max_debate_rounds"] == 1
+            assert cfg["max_debate_rounds"] == 2
 
     def test_results_dir_override(self):
         with patch.dict(os.environ, {"TRADINGAGENTS_RESULTS_DIR": "/tmp/my_results"}):
@@ -116,5 +116,5 @@ class TestEnvOverridesDefaults:
                 assert cfg["mid_think_llm"] is None
                 assert cfg["quick_think_llm"] == "gpt-5-mini"
                 assert cfg["backend_url"] == "https://api.openai.com/v1"
-                assert cfg["max_debate_rounds"] == 1
+                assert cfg["max_debate_rounds"] == 2
                 assert cfg["data_vendors"]["scanner_data"] == "yfinance"

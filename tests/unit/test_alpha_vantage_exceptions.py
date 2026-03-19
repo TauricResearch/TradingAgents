@@ -1,6 +1,6 @@
-"""Integration tests for Alpha Vantage exception hierarchy."""
+"""Unit tests for Alpha Vantage exception hierarchy and error-handling logic."""
 
-import os
+import requests as _requests
 import pytest
 from unittest.mock import patch
 
@@ -39,37 +39,23 @@ class TestExceptionHierarchy:
             raise ThirdPartyError("server error")
 
 
-@pytest.mark.integration
-class TestMakeApiRequestErrors:
-    """Test _make_api_request error handling with real HTTP calls."""
-
-    def test_invalid_api_key(self):
-        """An invalid API key should raise APIKeyInvalidError or AlphaVantageError."""
-        with patch.dict(os.environ, {"ALPHA_VANTAGE_API_KEY": "INVALID_KEY_12345"}):
-            # AV may return 200 with error in body, or may return a valid demo response
-            # Either way it should not silently succeed with bad data
-            try:
-                result = _make_api_request("TIME_SERIES_DAILY", {"symbol": "IBM"})
-                # If it returns something, it should be valid data (demo key behavior)
-                assert result is not None
-            except AlphaVantageError:
-                pass  # Expected — any AV error is acceptable here
+class TestMakeApiRequestErrorHandling:
+    """Unit tests for _make_api_request error-handling — all HTTP calls are mocked."""
 
     def test_timeout_raises_timeout_error(self):
-        """A timeout should raise ThirdPartyTimeoutError."""
-        with pytest.raises(ThirdPartyTimeoutError):
-            # Use an impossibly short timeout
-            _make_api_request(
-                "TIME_SERIES_DAILY",
-                {"symbol": "IBM"},
-                timeout=0.001,
-            )
+        """When requests.get raises Timeout, _make_api_request should raise ThirdPartyTimeoutError."""
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            side_effect=_requests.exceptions.Timeout("simulated timeout"),
+        ):
+            with pytest.raises(ThirdPartyTimeoutError):
+                _make_api_request("TIME_SERIES_DAILY", {"symbol": "IBM"})
 
-    def test_valid_request_succeeds(self, av_api_key):
-        """A valid request with a real key should return data."""
-        result = _make_api_request(
-            "GLOBAL_QUOTE",
-            {"symbol": "IBM"},
-        )
-        assert result is not None
-        assert len(result) > 0
+    def test_connection_error_raises_third_party_error(self):
+        """When requests.get raises ConnectionError, _make_api_request raises ThirdPartyError."""
+        with patch(
+            "tradingagents.dataflows.alpha_vantage_common.requests.get",
+            side_effect=_requests.exceptions.ConnectionError("simulated connection error"),
+        ):
+            with pytest.raises(ThirdPartyError):
+                _make_api_request("TIME_SERIES_DAILY", {"symbol": "IBM"})

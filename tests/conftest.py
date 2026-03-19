@@ -25,7 +25,8 @@ def av_api_key():
     """Return the Alpha Vantage API key ('demo' by default).
 
     Skips the test automatically when the Alpha Vantage API endpoint is not
-    reachable (e.g. sandboxed CI without outbound network access).
+    reachable (e.g. sandboxed CI without outbound network access) or when
+    the socket is blocked by pytest-socket.
     """
     import socket
 
@@ -34,7 +35,7 @@ def av_api_key():
         socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(
             ("www.alphavantage.co", 443)
         )
-    except (socket.error, OSError):
+    except (socket.error, OSError, RuntimeError):
         pytest.skip("Alpha Vantage API not reachable — skipping live API test")
 
     return os.environ.get("ALPHA_VANTAGE_API_KEY", _DEMO_KEY)
