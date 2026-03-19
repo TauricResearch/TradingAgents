@@ -126,12 +126,8 @@ def select_research_depth() -> int:
     return choice
 
 
-def select_shallow_thinking_agent(provider) -> str:
-    """Select shallow thinking llm engine using an interactive selection."""
-
-    # Define shallow thinking llm engine options with their corresponding model names
-    # Ordering: medium → light → heavy (balanced first for quick tasks)
-    # Within same tier, newer models first
+def select_shallow_thinking_agent(provider: str) -> str:
+    """Select quick-thinking LLM engine using an interactive selection."""
     SHALLOW_AGENT_OPTIONS = {
         "openai": [
             ("GPT-5 Mini - Balanced speed, cost, and capability", "gpt-5-mini"),
@@ -166,11 +162,15 @@ def select_shallow_thinking_agent(provider) -> str:
         ],
     }
 
+    provider = provider.lower()
+    if provider not in SHALLOW_AGENT_OPTIONS:
+        raise ValueError(f"Unsupported quick-thinking provider: {provider}")
+
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
+            for display, value in SHALLOW_AGENT_OPTIONS[provider]
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -183,20 +183,14 @@ def select_shallow_thinking_agent(provider) -> str:
     ).ask()
 
     if choice is None:
-        console.print(
-            "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
-        )
+        console.print("\n[red]No quick-thinking LLM engine selected. Exiting...[/red]")
         exit(1)
 
     return choice
 
 
-def select_deep_thinking_agent(provider) -> str:
-    """Select deep thinking llm engine using an interactive selection."""
-
-    # Define deep thinking llm engine options with their corresponding model names
-    # Ordering: heavy → medium → light (most capable first for deep tasks)
-    # Within same tier, newer models first
+def select_deep_thinking_agent(provider: str) -> str:
+    """Select deep-thinking LLM engine using an interactive selection."""
     DEEP_AGENT_OPTIONS = {
         "openai": [
             ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
@@ -233,11 +227,15 @@ def select_deep_thinking_agent(provider) -> str:
         ],
     }
 
+    provider = provider.lower()
+    if provider not in DEEP_AGENT_OPTIONS:
+        raise ValueError(f"Unsupported deep-thinking provider: {provider}")
+
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
+            for display, value in DEEP_AGENT_OPTIONS[provider]
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -250,27 +248,26 @@ def select_deep_thinking_agent(provider) -> str:
     ).ask()
 
     if choice is None:
-        console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
+        console.print("\n[red]No deep-thinking LLM engine selected. Exiting...[/red]")
         exit(1)
 
     return choice
 
-def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+def select_provider(label: str) -> tuple[str, str]:
+    """Select an LLM provider and base URL."""
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
-        ("Anthropic", "https://api.anthropic.com/"),
+        ("Anthropic", "https://api.anthropic.com"),
         ("xAI", "https://api.x.ai/v1"),
-        ("Openrouter", "https://openrouter.ai/api/v1"),
+        ("OpenRouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
-    
+
     choice = questionary.select(
-        "Select your LLM Provider:",
+        f"Select your {label} Provider:",
         choices=[
-            questionary.Choice(display, value=(display, value))
+            questionary.Choice(display, value=(display.lower(), value))
             for display, value in BASE_URLS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
@@ -282,15 +279,14 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
-    if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
-        exit(1)
-    
-    display_name, url = choice
-    print(f"You selected: {display_name}\tURL: {url}")
 
-    return display_name, url
+    if choice is None:
+        console.print(f"\n[red]No {label.lower()} provider selected. Exiting...[/red]")
+        exit(1)
+
+    provider, url = choice
+    console.print(f"You selected {label}: [green]{provider}[/green]  URL: {url}")
+    return provider, url
 
 
 def ask_openai_reasoning_effort() -> str:
@@ -329,3 +325,34 @@ def ask_gemini_thinking_config() -> str | None:
             ("pointer", "fg:green noinherit"),
         ]),
     ).ask()
+
+def select_routing_mode() -> str:
+    choice = questionary.select(
+        "How would you like to configure LLMs?",
+        choices=[
+            questionary.Choice("Use one LLM for all agents", "single"),
+            questionary.Choice("Customize by stage", "stage"),
+        ],
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No routing mode selected. Exiting...[/red]")
+        exit(1)
+
+    return choice
+
+def select_llm_bundle(label: str, depth_hint: str | None = None) -> dict:
+    provider, base_url = select_provider(label)
+
+    if depth_hint == "quick":
+        model = select_shallow_thinking_agent(provider)
+    elif depth_hint == "deep":
+        model = select_deep_thinking_agent(provider)
+    else:
+        model = select_deep_thinking_agent(provider)
+
+    return {
+        "provider": provider,
+        "model": model,
+        "base_url": base_url,
+    }

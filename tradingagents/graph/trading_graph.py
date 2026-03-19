@@ -71,28 +71,51 @@ class TradingAgentsGraph:
             exist_ok=True,
         )
 
-        # Initialize LLMs with provider-specific thinking configuration
-        llm_kwargs = self._get_provider_kwargs()
+        # Initialize LLMs from llm_routing.
+        llm_routing = self.config.get("llm_routing", {})
+        default_llm_cfg = llm_routing.get("default")
+        role_overrides = llm_routing.get("roles", {})
 
-        # Add callbacks to kwargs if provided (passed to LLM constructor)
-        if self.callbacks:
-            llm_kwargs["callbacks"] = self.callbacks
+        if default_llm_cfg is None:
+            raise ValueError("config['llm_routing']['default'] must be set")
 
-        deep_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["deep_think_llm"],
-            base_url=self.config.get("backend_url"),
-            **llm_kwargs,
-        )
-        quick_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["quick_think_llm"],
-            base_url=self.config.get("backend_url"),
-            **llm_kwargs,
-        )
+        all_roles = [
+            "market",
+            "social",
+            "news",
+            "fundamentals",
+            "bull_researcher",
+            "bear_researcher",
+            "research_manager",
+            "trader",
+            "aggressive_analyst",
+            "neutral_analyst",
+            "conservative_analyst",
+            "portfolio_manager",
+        ]
 
-        self.deep_thinking_llm = deep_client.get_llm()
-        self.quick_thinking_llm = quick_client.get_llm()
+        self.role_llms = {}
+
+        for role in all_roles:
+            llm_cfg = role_overrides.get(role) or default_llm_cfg
+
+            provider = llm_cfg["provider"]
+            model = llm_cfg["model"]
+            base_url = llm_cfg.get("base_url")
+
+            llm_kwargs = self._get_provider_kwargs(provider)
+
+            if self.callbacks:
+                llm_kwargs["callbacks"] = self.callbacks
+
+            client = create_llm_client(
+                provider=provider,
+                model=model,
+                base_url=base_url,
+                **llm_kwargs,
+            )
+
+            self.role_llms[role] = client.get_llm()
         
         # Initialize memories
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
@@ -110,8 +133,7 @@ class TradingAgentsGraph:
             max_risk_discuss_rounds=self.config["max_risk_discuss_rounds"],
         )
         self.graph_setup = GraphSetup(
-            self.quick_thinking_llm,
-            self.deep_thinking_llm,
+            self.role_llms,
             self.tool_nodes,
             self.bull_memory,
             self.bear_memory,
@@ -122,8 +144,8 @@ class TradingAgentsGraph:
         )
 
         self.propagator = Propagator()
-        self.reflector = Reflector(self.quick_thinking_llm)
-        self.signal_processor = SignalProcessor(self.quick_thinking_llm)
+        self.reflector = Reflector(self.role_llms["trader"])
+        self.signal_processor = SignalProcessor(self.role_llms["portfolio_manager"])
 
         # State tracking
         self.curr_state = None
@@ -132,11 +154,10 @@ class TradingAgentsGraph:
 
         # Set up the graph
         self.graph = self.graph_setup.setup_graph(selected_analysts)
-
-    def _get_provider_kwargs(self) -> Dict[str, Any]:
+    def _get_provider_kwargs(self, provider: str) -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
         kwargs = {}
-        provider = self.config.get("llm_provider", "").lower()
+        provider = (provider or "").lower()
 
         if provider == "google":
             thinking_level = self.config.get("google_thinking_level")
@@ -149,6 +170,7 @@ class TradingAgentsGraph:
                 kwargs["reasoning_effort"] = reasoning_effort
 
         return kwargs
+
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
