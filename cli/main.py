@@ -5,6 +5,7 @@ from pathlib import Path
 from functools import wraps
 from rich.console import Console
 from dotenv import load_dotenv
+import copy
 
 # Load environment variables from .env file
 load_dotenv()
@@ -465,16 +466,12 @@ def get_user_selections():
     with open("./cli/static/welcome.txt", "r", encoding="utf-8") as f:
         welcome_ascii = f.read()
 
-    # Create welcome box content
     welcome_content = f"{welcome_ascii}\n"
     welcome_content += "[bold green]TradingAgents: Multi-Agents LLM Financial Trading Framework - CLI[/bold green]\n\n"
     welcome_content += "[bold]Workflow Steps:[/bold]\n"
     welcome_content += "I. Analyst Team → II. Research Team → III. Trader → IV. Risk Management → V. Portfolio Management\n\n"
-    welcome_content += (
-        "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
-    )
+    welcome_content += "[dim]Built by [Tauric Research](https://github.com/TauricResearch)[/dim]"
 
-    # Create and center the welcome box
     welcome_box = Panel(
         welcome_content,
         border_style="green",
@@ -484,13 +481,11 @@ def get_user_selections():
     )
     console.print(Align.center(welcome_box))
     console.print()
-    console.print()  # Add vertical space before announcements
+    console.print()
 
-    # Fetch and display announcements (silent on failure)
     announcements = fetch_announcements()
     display_announcements(console, announcements)
 
-    # Create a boxed questionnaire for each step
     def create_question_box(title, prompt, default=None):
         box_content = f"[bold]{title}[/bold]\n"
         box_content += f"[dim]{prompt}[/dim]"
@@ -498,7 +493,7 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # Step 1: Ticker symbol
+    # Step 1: Ticker
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol", "Enter the ticker symbol to analyze", "SPY"
@@ -517,10 +512,11 @@ def get_user_selections():
     )
     analysis_date = get_analysis_date()
 
-    # Step 3: Select analysts
+    # Step 3: Analysts
     console.print(
         create_question_box(
-            "Step 3: Analysts Team", "Select your LLM analyst agents for the analysis"
+            "Step 3: Analysts Team",
+            "Select your LLM analyst agents for the analysis",
         )
     )
     selected_analysts = select_analysts()
@@ -536,54 +532,117 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: OpenAI backend
+    # Step 5: Routing mode
     console.print(
         create_question_box(
-            "Step 5: OpenAI backend", "Select which service to talk to"
+            "Step 5: LLM Routing",
+            "Choose whether to use one LLM for all agents or customize by stage",
         )
     )
-    selected_llm_provider, backend_url = select_llm_provider()
-    
-    # Step 6: Thinking agents
-    console.print(
-        create_question_box(
-            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
-        )
-    )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+    routing_mode = select_routing_mode()
 
-    # Step 7: Provider-specific thinking configuration
+    llm_routing = {"default": None, "roles": {}}
+
+    # Provider-specific thinking configuration
     thinking_level = None
     reasoning_effort = None
 
-    provider_lower = selected_llm_provider.lower()
-    if provider_lower == "google":
+    if routing_mode == "single":
         console.print(
             create_question_box(
-                "Step 7: Thinking Mode",
-                "Configure Gemini thinking mode"
+                "Step 6: Default LLM",
+                "Select one provider/model for all agents",
             )
         )
-        thinking_level = ask_gemini_thinking_config()
-    elif provider_lower == "openai":
+        default_llm = select_llm_bundle("All Agents")
+        llm_routing["default"] = default_llm
+
+        provider = default_llm["provider"]
+        if provider == "google":
+            console.print(
+                create_question_box(
+                    "Step 7: Thinking Mode",
+                    "Configure Google/Gemini thinking mode",
+                )
+            )
+            thinking_level = ask_gemini_thinking_config()
+        elif provider == "openai":
+            console.print(
+                create_question_box(
+                    "Step 7: Reasoning Effort",
+                    "Configure OpenAI reasoning effort level",
+                )
+            )
+            reasoning_effort = ask_openai_reasoning_effort()
+
+    elif routing_mode == "stage":
         console.print(
             create_question_box(
-                "Step 7: Reasoning Effort",
-                "Configure OpenAI reasoning effort level"
+                "Step 6: Default LLM",
+                "Select the default provider/model used unless a stage overrides it",
             )
         )
-        reasoning_effort = ask_openai_reasoning_effort()
+        default_llm = select_llm_bundle("Default LLM")
+        llm_routing["default"] = default_llm
+
+        console.print(
+            create_question_box(
+                "Step 7: Stage Overrides",
+                "Select LLMs for each stage",
+            )
+        )
+        analyst_llm = select_llm_bundle("Analyst Team")
+        research_llm = select_llm_bundle("Research Team")
+        trader_llm = select_llm_bundle("Trader")
+        risk_llm = select_llm_bundle("Risk Team")
+        pm_llm = select_llm_bundle("Portfolio Manager")
+
+        for role in ["market", "social", "news", "fundamentals"]:
+            llm_routing["roles"][role] = analyst_llm
+
+        for role in ["bull_researcher", "bear_researcher", "research_manager"]:
+            llm_routing["roles"][role] = research_llm
+
+        llm_routing["roles"]["trader"] = trader_llm
+
+        for role in ["aggressive_analyst", "neutral_analyst", "conservative_analyst"]:
+            llm_routing["roles"][role] = risk_llm
+
+        llm_routing["roles"]["portfolio_manager"] = pm_llm
+
+        providers_used = {
+            cfg["provider"]
+            for cfg in [default_llm, analyst_llm, research_llm, trader_llm, risk_llm, pm_llm]
+            if cfg
+        }
+
+        if "google" in providers_used:
+            console.print(
+                create_question_box(
+                    "Step 8: Thinking Mode",
+                    "Configure Google/Gemini thinking mode",
+                )
+            )
+            thinking_level = ask_gemini_thinking_config()
+
+        if "openai" in providers_used:
+            console.print(
+                create_question_box(
+                    "Step 8: Reasoning Effort",
+                    "Configure OpenAI reasoning effort level",
+                )
+            )
+            reasoning_effort = ask_openai_reasoning_effort()
+
+    else:
+        raise ValueError(f"Unsupported routing mode: {routing_mode}")
 
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
-        "llm_provider": selected_llm_provider.lower(),
-        "backend_url": backend_url,
-        "shallow_thinker": selected_shallow_thinker,
-        "deep_thinker": selected_deep_thinker,
+        "llm_routing": llm_routing,
         "google_thinking_level": thinking_level,
         "openai_reasoning_effort": reasoning_effort,
     }
@@ -612,33 +671,62 @@ def get_analysis_date():
                 "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
             )
 
+def get_role_llm_label(llm_routing: dict, role: str) -> str:
+    """Return a human-readable provider/model label for a role."""
+    default_cfg = llm_routing.get("default", {})
+    role_cfg = llm_routing.get("roles", {}).get(role) or default_cfg
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
-    """Save complete analysis report to disk with organized subfolders."""
+    provider = role_cfg.get("provider", "unknown")
+    model = role_cfg.get("model", "unknown")
+    return f"{provider} / {model}"
+
+
+def with_llm_header(content: str, llm_label: str) -> str:
+    """Prefix saved markdown content with LLM metadata."""
+    return f"> LLM: {llm_label}\n\n{content}"
+
+def save_report_to_disk(final_state, ticker: str, save_path: Path, llm_routing: dict):
+    """Save complete analysis report to disk with organized subfolders and LLM metadata."""
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
 
     # 1. Analysts
     analysts_dir = save_path / "1_analysts"
     analyst_parts = []
+
     if final_state.get("market_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "market.md").write_text(final_state["market_report"])
-        analyst_parts.append(("Market Analyst", final_state["market_report"]))
+        llm_label = get_role_llm_label(llm_routing, "market")
+        content = with_llm_header(final_state["market_report"], llm_label)
+        (analysts_dir / "market.md").write_text(content, encoding="utf-8")
+        analyst_parts.append(("Market Analyst", llm_label, final_state["market_report"]))
+
     if final_state.get("sentiment_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"])
-        analyst_parts.append(("Social Analyst", final_state["sentiment_report"]))
+        llm_label = get_role_llm_label(llm_routing, "social")
+        content = with_llm_header(final_state["sentiment_report"], llm_label)
+        (analysts_dir / "sentiment.md").write_text(content, encoding="utf-8")
+        analyst_parts.append(("Social Analyst", llm_label, final_state["sentiment_report"]))
+
     if final_state.get("news_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "news.md").write_text(final_state["news_report"])
-        analyst_parts.append(("News Analyst", final_state["news_report"]))
+        llm_label = get_role_llm_label(llm_routing, "news")
+        content = with_llm_header(final_state["news_report"], llm_label)
+        (analysts_dir / "news.md").write_text(content, encoding="utf-8")
+        analyst_parts.append(("News Analyst", llm_label, final_state["news_report"]))
+
     if final_state.get("fundamentals_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"])
-        analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+        llm_label = get_role_llm_label(llm_routing, "fundamentals")
+        content = with_llm_header(final_state["fundamentals_report"], llm_label)
+        (analysts_dir / "fundamentals.md").write_text(content, encoding="utf-8")
+        analyst_parts.append(("Fundamentals Analyst", llm_label, final_state["fundamentals_report"]))
+
     if analyst_parts:
-        content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
+        content = "\n\n".join(
+            f"### {name}\n*LLM: {llm_label}*\n\n{text}"
+            for name, llm_label, text in analyst_parts
+        )
         sections.append(f"## I. Analyst Team Reports\n\n{content}")
 
     # 2. Research
@@ -646,122 +734,168 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         research_dir = save_path / "2_research"
         debate = final_state["investment_debate_state"]
         research_parts = []
+
         if debate.get("bull_history"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "bull.md").write_text(debate["bull_history"])
-            research_parts.append(("Bull Researcher", debate["bull_history"]))
+            llm_label = get_role_llm_label(llm_routing, "bull_researcher")
+            content = with_llm_header(debate["bull_history"], llm_label)
+            (research_dir / "bull.md").write_text(content, encoding="utf-8")
+            research_parts.append(("Bull Researcher", llm_label, debate["bull_history"]))
+
         if debate.get("bear_history"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "bear.md").write_text(debate["bear_history"])
-            research_parts.append(("Bear Researcher", debate["bear_history"]))
+            llm_label = get_role_llm_label(llm_routing, "bear_researcher")
+            content = with_llm_header(debate["bear_history"], llm_label)
+            (research_dir / "bear.md").write_text(content, encoding="utf-8")
+            research_parts.append(("Bear Researcher", llm_label, debate["bear_history"]))
+
         if debate.get("judge_decision"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "manager.md").write_text(debate["judge_decision"])
-            research_parts.append(("Research Manager", debate["judge_decision"]))
+            llm_label = get_role_llm_label(llm_routing, "research_manager")
+            content = with_llm_header(debate["judge_decision"], llm_label)
+            (research_dir / "manager.md").write_text(content, encoding="utf-8")
+            research_parts.append(("Research Manager", llm_label, debate["judge_decision"]))
+
         if research_parts:
-            content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
+            content = "\n\n".join(
+                f"### {name}\n*LLM: {llm_label}*\n\n{text}"
+                for name, llm_label, text in research_parts
+            )
             sections.append(f"## II. Research Team Decision\n\n{content}")
 
     # 3. Trading
     if final_state.get("trader_investment_plan"):
         trading_dir = save_path / "3_trading"
         trading_dir.mkdir(exist_ok=True)
-        (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"])
-        sections.append(f"## III. Trading Team Plan\n\n### Trader\n{final_state['trader_investment_plan']}")
+        llm_label = get_role_llm_label(llm_routing, "trader")
+        content = with_llm_header(final_state["trader_investment_plan"], llm_label)
+        (trading_dir / "trader.md").write_text(content, encoding="utf-8")
+        sections.append(
+            f"## III. Trading Team Plan\n\n### Trader\n*LLM: {llm_label}*\n\n{final_state['trader_investment_plan']}"
+        )
 
     # 4. Risk Management
     if final_state.get("risk_debate_state"):
         risk_dir = save_path / "4_risk"
         risk = final_state["risk_debate_state"]
         risk_parts = []
+
         if risk.get("aggressive_history"):
             risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "aggressive.md").write_text(risk["aggressive_history"])
-            risk_parts.append(("Aggressive Analyst", risk["aggressive_history"]))
+            llm_label = get_role_llm_label(llm_routing, "aggressive_analyst")
+            content = with_llm_header(risk["aggressive_history"], llm_label)
+            (risk_dir / "aggressive.md").write_text(content, encoding="utf-8")
+            risk_parts.append(("Aggressive Analyst", llm_label, risk["aggressive_history"]))
+
         if risk.get("conservative_history"):
             risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "conservative.md").write_text(risk["conservative_history"])
-            risk_parts.append(("Conservative Analyst", risk["conservative_history"]))
+            llm_label = get_role_llm_label(llm_routing, "conservative_analyst")
+            content = with_llm_header(risk["conservative_history"], llm_label)
+            (risk_dir / "conservative.md").write_text(content, encoding="utf-8")
+            risk_parts.append(("Conservative Analyst", llm_label, risk["conservative_history"]))
+
         if risk.get("neutral_history"):
             risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "neutral.md").write_text(risk["neutral_history"])
-            risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
+            llm_label = get_role_llm_label(llm_routing, "neutral_analyst")
+            content = with_llm_header(risk["neutral_history"], llm_label)
+            (risk_dir / "neutral.md").write_text(content, encoding="utf-8")
+            risk_parts.append(("Neutral Analyst", llm_label, risk["neutral_history"]))
+
         if risk_parts:
-            content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
+            content = "\n\n".join(
+                f"### {name}\n*LLM: {llm_label}*\n\n{text}"
+                for name, llm_label, text in risk_parts
+            )
             sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
 
         # 5. Portfolio Manager
         if risk.get("judge_decision"):
             portfolio_dir = save_path / "5_portfolio"
             portfolio_dir.mkdir(exist_ok=True)
-            (portfolio_dir / "decision.md").write_text(risk["judge_decision"])
-            sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
+            llm_label = get_role_llm_label(llm_routing, "portfolio_manager")
+            content = with_llm_header(risk["judge_decision"], llm_label)
+            (portfolio_dir / "decision.md").write_text(content, encoding="utf-8")
+            sections.append(
+                f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n*LLM: {llm_label}*\n\n{risk['judge_decision']}"
+            )
 
-    # Write consolidated report
-    header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections))
+    header = (
+        f"# Trading Analysis Report: {ticker}\n\n"
+        f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    )
+    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
     return save_path / "complete_report.md"
 
 
-def display_complete_report(final_state):
-    """Display the complete analysis report sequentially (avoids truncation)."""
+def display_complete_report(final_state, llm_routing: dict):
+    """Display the complete analysis report sequentially with LLM metadata."""
     console.print()
     console.print(Rule("Complete Analysis Report", style="bold green"))
 
     # I. Analyst Team Reports
     analysts = []
     if final_state.get("market_report"):
-        analysts.append(("Market Analyst", final_state["market_report"]))
+        analysts.append(("Market Analyst", get_role_llm_label(llm_routing, "market"), final_state["market_report"]))
     if final_state.get("sentiment_report"):
-        analysts.append(("Social Analyst", final_state["sentiment_report"]))
+        analysts.append(("Social Analyst", get_role_llm_label(llm_routing, "social"), final_state["sentiment_report"]))
     if final_state.get("news_report"):
-        analysts.append(("News Analyst", final_state["news_report"]))
+        analysts.append(("News Analyst", get_role_llm_label(llm_routing, "news"), final_state["news_report"]))
     if final_state.get("fundamentals_report"):
-        analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+        analysts.append(("Fundamentals Analyst", get_role_llm_label(llm_routing, "fundamentals"), final_state["fundamentals_report"]))
+
     if analysts:
         console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
-        for title, content in analysts:
-            console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
+        for title, llm_label, content in analysts:
+            body = f"*LLM: {llm_label}*\n\n{content}"
+            console.print(Panel(Markdown(body), title=title, border_style="blue", padding=(1, 2)))
 
     # II. Research Team Reports
     if final_state.get("investment_debate_state"):
         debate = final_state["investment_debate_state"]
         research = []
         if debate.get("bull_history"):
-            research.append(("Bull Researcher", debate["bull_history"]))
+            research.append(("Bull Researcher", get_role_llm_label(llm_routing, "bull_researcher"), debate["bull_history"]))
         if debate.get("bear_history"):
-            research.append(("Bear Researcher", debate["bear_history"]))
+            research.append(("Bear Researcher", get_role_llm_label(llm_routing, "bear_researcher"), debate["bear_history"]))
         if debate.get("judge_decision"):
-            research.append(("Research Manager", debate["judge_decision"]))
+            research.append(("Research Manager", get_role_llm_label(llm_routing, "research_manager"), debate["judge_decision"]))
+
         if research:
             console.print(Panel("[bold]II. Research Team Decision[/bold]", border_style="magenta"))
-            for title, content in research:
-                console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
+            for title, llm_label, content in research:
+                body = f"*LLM: {llm_label}*\n\n{content}"
+                console.print(Panel(Markdown(body), title=title, border_style="blue", padding=(1, 2)))
 
     # III. Trading Team
     if final_state.get("trader_investment_plan"):
+        llm_label = get_role_llm_label(llm_routing, "trader")
         console.print(Panel("[bold]III. Trading Team Plan[/bold]", border_style="yellow"))
-        console.print(Panel(Markdown(final_state["trader_investment_plan"]), title="Trader", border_style="blue", padding=(1, 2)))
+        body = f"*LLM: {llm_label}*\n\n{final_state['trader_investment_plan']}"
+        console.print(Panel(Markdown(body), title="Trader", border_style="blue", padding=(1, 2)))
 
     # IV. Risk Management Team
     if final_state.get("risk_debate_state"):
         risk = final_state["risk_debate_state"]
         risk_reports = []
         if risk.get("aggressive_history"):
-            risk_reports.append(("Aggressive Analyst", risk["aggressive_history"]))
+            risk_reports.append(("Aggressive Analyst", get_role_llm_label(llm_routing, "aggressive_analyst"), risk["aggressive_history"]))
         if risk.get("conservative_history"):
-            risk_reports.append(("Conservative Analyst", risk["conservative_history"]))
+            risk_reports.append(("Conservative Analyst", get_role_llm_label(llm_routing, "conservative_analyst"), risk["conservative_history"]))
         if risk.get("neutral_history"):
-            risk_reports.append(("Neutral Analyst", risk["neutral_history"]))
+            risk_reports.append(("Neutral Analyst", get_role_llm_label(llm_routing, "neutral_analyst"), risk["neutral_history"]))
+
         if risk_reports:
             console.print(Panel("[bold]IV. Risk Management Team Decision[/bold]", border_style="red"))
-            for title, content in risk_reports:
-                console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
+            for title, llm_label, content in risk_reports:
+                body = f"*LLM: {llm_label}*\n\n{content}"
+                console.print(Panel(Markdown(body), title=title, border_style="blue", padding=(1, 2)))
 
         # V. Portfolio Manager Decision
         if risk.get("judge_decision"):
+            llm_label = get_role_llm_label(llm_routing, "portfolio_manager")
             console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
-            console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
+            body = f"*LLM: {llm_label}*\n\n{risk['judge_decision']}"
+            console.print(Panel(Markdown(body), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
 
 
 def update_research_team_status(status):
@@ -901,14 +1035,10 @@ def run_analysis():
     selections = get_user_selections()
 
     # Create config with selected research depth
-    config = DEFAULT_CONFIG.copy()
+    config = copy.deepcopy(DEFAULT_CONFIG)
     config["max_debate_rounds"] = selections["research_depth"]
     config["max_risk_discuss_rounds"] = selections["research_depth"]
-    config["quick_think_llm"] = selections["shallow_thinker"]
-    config["deep_think_llm"] = selections["deep_thinker"]
-    config["backend_url"] = selections["backend_url"]
-    config["llm_provider"] = selections["llm_provider"].lower()
-    # Provider-specific thinking configuration
+    config["llm_routing"] = selections["llm_routing"]
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
 
@@ -1155,7 +1285,12 @@ def run_analysis():
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(
+                final_state,
+                selections["ticker"],
+                save_path,
+                config["llm_routing"],
+            )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
@@ -1164,7 +1299,7 @@ def run_analysis():
     # Prompt to display full report
     display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
     if display_choice in ("Y", "YES", ""):
-        display_complete_report(final_state)
+        display_complete_report(final_state, config["llm_routing"])
 
 
 @app.command()
