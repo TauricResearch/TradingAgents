@@ -34,6 +34,9 @@ used by every agent.
    - [4.17 Macro Synthesis](#417-macro-synthesis)
 5. [Tool → Data-Source Mapping](#5-tool--data-source-mapping)
 6. [Memory System](#6-memory-system)
+7. [Tool Data Formats & Sizes](#7-tool-data-formats--sizes)
+8. [Context Window Budget](#8-context-window-budget)
+9. [End-to-End Token Estimates](#9-end-to-end-token-estimates)
 
 ---
 
@@ -320,6 +323,16 @@ Each subsection follows the same structure:
  └─────────────────────────────────────────────────────┘
 ```
 
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions + indicator list | ~2.1 KB | ~525 |
+| `get_macro_regime` result | Markdown | Tables (regime + 6 signals) | ~0.8 KB | ~200 |
+| `get_stock_data` result (30 days) | CSV | Header + OHLCV rows | ~5 KB | ~1,250 |
+| `get_indicators` × 8 calls | Markdown | Daily values + description | ~7.2 KB | ~1,800 |
+| **Total prompt** | | | **~15–20 KB** | **~3,750–5,000** |
+
 ---
 
 ### 4.2 Fundamentals Analyst
@@ -378,6 +391,21 @@ Each subsection follows the same structure:
  Output: fundamentals_report
 ```
 
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Sequence instructions + metric list | ~1.4 KB | ~350 |
+| `get_ttm_analysis` result | Markdown | Tables (TTM summary + 8-quarter history) | ~1.6 KB | ~400 |
+| `get_fundamentals` result | Markdown | Key ratios table (~15 metrics) | ~1.5 KB | ~375 |
+| `get_peer_comparison` result | Markdown | Ranked table (~10 peers × 6 horizons) | ~1.2 KB | ~300 |
+| `get_sector_relative` result | Markdown | Alpha table (5–6 time periods) | ~0.8 KB | ~200 |
+| `get_balance_sheet` (optional) | CSV | Quarterly rows (up to 8) | ~2.5 KB | ~625 |
+| `get_cashflow` (optional) | CSV | Quarterly rows (up to 8) | ~2.5 KB | ~625 |
+| `get_income_statement` (optional) | CSV | Quarterly rows (up to 8) | ~2.5 KB | ~625 |
+| **Total prompt (core)** | | | **~6.5 KB** | **~1,625** |
+| **Total prompt (with optionals)** | | | **~14 KB** | **~3,500** |
+
 ---
 
 ### 4.3 News Analyst
@@ -422,6 +450,16 @@ Each subsection follows the same structure:
  Output: news_report
 ```
 
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions | ~0.75 KB | ~187 |
+| `get_news` result | Markdown | Article list (≤ 20 articles) | ~7 KB | ~1,750 |
+| `get_global_news` result | Markdown | Article list (5 articles) | ~1.75 KB | ~437 |
+| `get_insider_transactions` result | Markdown | Transaction table (10–50 rows) | ~1.5 KB | ~375 |
+| **Total prompt** | | | **~11 KB** | **~2,750** |
+
 ---
 
 ### 4.4 Social Media Analyst
@@ -453,6 +491,14 @@ Each subsection follows the same structure:
                           ▼
  Output: sentiment_report
 ```
+
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions | ~0.85 KB | ~212 |
+| `get_news` result | Markdown | Article list (≤ 20 articles) | ~7 KB | ~1,750 |
+| **Total prompt** | | | **~8 KB** | **~2,000** |
 
 ---
 
@@ -513,6 +559,19 @@ Each subsection follows the same structure:
  └─────────────────────────────────────────────────────┘
 ```
 
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size (Rd 1) | Avg Size (Rd 2) | Avg Tokens (Rd 2) |
+|-----------|-----------|--------|-----------------|-----------------|-------------------|
+| Prompt template | Text | f-string with instructions | ~1.2 KB | ~1.2 KB | ~300 |
+| 4 analyst reports | Text | Concatenated Markdown | ~13 KB | ~13 KB | ~3,250 |
+| Debate history | Text | Accumulated transcript | ~0 KB | ~6 KB | ~1,500 |
+| Last Bear argument | Text | Debate response | ~0 KB | ~2 KB | ~500 |
+| Memory (2 matches) | Text | Past situations + advice | ~4 KB | ~4 KB | ~1,000 |
+| **Total prompt** | | | **~18 KB** | **~26 KB** | **~6,550** |
+
+> Prompt grows ~8 KB per debate round as history accumulates.
+
 ---
 
 ### 4.6 Bear Researcher
@@ -552,6 +611,10 @@ Each subsection follows the same structure:
   • investment_debate_state.current_response (latest)
   • investment_debate_state.count (incremented)
 ```
+
+**Prompt Size Budget:** Same structure as Bull Researcher (see 4.5).
+Round 1 ≈ 18 KB (~4,500 tokens), Round 2 ≈ 26 KB (~6,550 tokens).
+Grows ~8 KB per round.
 
 ---
 
@@ -605,6 +668,20 @@ Each subsection follows the same structure:
  └─────────────────────────────────────────────────────┘
 ```
 
+**Prompt Size Budget (after 2 debate rounds):**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions | ~1.2 KB | ~300 |
+| 4 analyst reports | Text | Concatenated Markdown | ~13 KB | ~3,250 |
+| Full debate transcript | Text | Bull + Bear history (2 rounds) | ~20 KB | ~5,000 |
+| Macro regime report | Markdown | Regime + signals table | ~0.8 KB | ~200 |
+| Memory (2 matches) | Text | Past decisions + outcomes | ~4 KB | ~1,000 |
+| **Total prompt** | | | **~39 KB** | **~9,750** |
+
+> This is the **largest single-prompt agent** in the trading pipeline.
+> With 3 debate rounds, prompt can reach ~50 KB (~12,500 tokens).
+
 ---
 
 ### 4.8 Trader
@@ -644,6 +721,16 @@ Each subsection follows the same structure:
   • sender = "Trader"
 ```
 
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System message | Text | Instructions + memory | ~0.6 KB | ~150 |
+| Investment plan | Text | Research Manager output | ~3 KB | ~750 |
+| 4 analyst reports | Text | Concatenated Markdown | ~13 KB | ~3,250 |
+| Memory (2 matches) | Text | Past decisions + outcomes | ~4 KB | ~1,000 |
+| **Total prompt** | | | **~21 KB** | **~5,150** |
+
 ---
 
 ### 4.9 Aggressive Debator
@@ -681,6 +768,17 @@ Each subsection follows the same structure:
   • risk_debate_state.count (incremented)
 ```
 
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size (Rd 1) | Avg Size (Rd 2) | Avg Tokens (Rd 2) |
+|-----------|-----------|--------|-----------------|-----------------|-------------------|
+| Prompt template | Text | f-string with instructions | ~1.2 KB | ~1.2 KB | ~300 |
+| 4 analyst reports | Text | Concatenated Markdown | ~13 KB | ~13 KB | ~3,250 |
+| Trader investment plan | Text | Decision + reasoning | ~3 KB | ~3 KB | ~750 |
+| Risk debate history | Text | Accumulated transcript | ~0 KB | ~10 KB | ~2,500 |
+| Conservative/Neutral args | Text | Debate responses | ~0 KB | ~4 KB | ~1,000 |
+| **Total prompt** | | | **~17 KB** | **~31 KB** | **~7,800** |
+
 ---
 
 ### 4.10 Conservative Debator
@@ -705,7 +803,7 @@ Each subsection follows the same structure:
  LLM Prompt (quick_think):
  "Protect assets, minimize volatility. Critically
   examine high-risk elements. Counter aggressive and
-  neutral points. Emphasise downsides. Debate to
+  neutral points. Emphasize downsides. Debate to
   demonstrate strength of low-risk strategy."
                           │
                           ▼
@@ -714,6 +812,9 @@ Each subsection follows the same structure:
   • risk_debate_state.current_conservative_response
   • risk_debate_state.count (incremented)
 ```
+
+**Prompt Size Budget:** Same structure as Aggressive Debator (see 4.9).
+Round 1 ≈ 17 KB (~4,250 tokens), Round 2 ≈ 31 KB (~7,800 tokens).
 
 ---
 
@@ -748,6 +849,9 @@ Each subsection follows the same structure:
   • risk_debate_state.current_neutral_response
   • risk_debate_state.count (incremented)
 ```
+
+**Prompt Size Budget:** Same structure as Aggressive Debator (see 4.9).
+Round 1 ≈ 17 KB (~4,250 tokens), Round 2 ≈ 31 KB (~7,800 tokens).
 
 ---
 
@@ -793,6 +897,21 @@ Each subsection follows the same structure:
   • risk_debate_state.judge_decision
   • final_trade_decision (the system's final answer)
 ```
+
+**Prompt Size Budget (after 2 risk-debate rounds):**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions | ~1.3 KB | ~325 |
+| 4 analyst reports | Text | Concatenated Markdown | ~13 KB | ~3,250 |
+| Trader investment plan | Text | Decision + reasoning | ~3 KB | ~750 |
+| Full risk debate transcript | Text | Aggressive + Conservative + Neutral (2 rds) | ~30 KB | ~7,500 |
+| Macro regime report | Markdown | Regime + signals table | ~0.8 KB | ~200 |
+| Memory (2 matches) | Text | Past risk decisions + outcomes | ~4 KB | ~1,000 |
+| **Total prompt** | | | **~52 KB** | **~13,025** |
+
+> **Largest prompt in the entire framework.** With 3 risk-debate rounds,
+> this can reach ~70 KB (~17,500 tokens).
 
 ---
 
@@ -841,6 +960,14 @@ Each subsection follows the same structure:
  Output: geopolitical_report
 ```
 
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions | ~0.6 KB | ~150 |
+| `get_topic_news` × 3–4 calls | Markdown | Article lists (10 articles each) | ~8 KB | ~2,000 |
+| **Total prompt** | | | **~9 KB** | **~2,150** |
+
 ---
 
 ### 4.14 Market Movers Scanner
@@ -888,6 +1015,15 @@ Each subsection follows the same structure:
  Output: market_movers_report
 ```
 
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions | ~0.6 KB | ~150 |
+| `get_market_movers` × 3 calls | Markdown | Tables (15 stocks each) | ~4.5 KB | ~1,125 |
+| `get_market_indices` result | Markdown | Table (5 indices) | ~1 KB | ~250 |
+| **Total prompt** | | | **~6 KB** | **~1,525** |
+
 ---
 
 ### 4.15 Sector Scanner
@@ -923,6 +1059,16 @@ Each subsection follows the same structure:
                           ▼
  Output: sector_performance_report
 ```
+
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions | ~0.5 KB | ~125 |
+| `get_sector_performance` result | Markdown | Table (11 sectors × 4 horizons) | ~0.9 KB | ~220 |
+| **Total prompt** | | | **~1.4 KB** | **~345** |
+
+> Smallest prompt of any scanner agent.
 
 ---
 
@@ -988,6 +1134,16 @@ Each subsection follows the same structure:
  Output: industry_deep_dive_report
 ```
 
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions + sector list | ~1 KB | ~250 |
+| Phase 1 context (3 reports) | Text | Concatenated Markdown | ~6 KB | ~1,500 |
+| `get_industry_performance` × 3 | Markdown | Tables (10–15 companies each) | ~7.5 KB | ~1,875 |
+| `get_topic_news` × 2 | Markdown | Article lists (10 articles each) | ~5 KB | ~1,250 |
+| **Total prompt** | | | **~20 KB** | **~4,875** |
+
 ---
 
 ### 4.17 Macro Synthesis
@@ -1033,6 +1189,19 @@ Each subsection follows the same structure:
                           ▼
  Output: macro_scan_summary (JSON string)
 ```
+
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions + JSON schema | ~1.3 KB | ~325 |
+| Geopolitical report (Phase 1) | Text | Markdown report | ~3 KB | ~750 |
+| Market movers report (Phase 1) | Text | Markdown report | ~3 KB | ~750 |
+| Sector performance report (Phase 1) | Text | Markdown report | ~2 KB | ~500 |
+| Industry deep dive report (Phase 2) | Text | Markdown report | ~8 KB | ~2,000 |
+| **Total prompt** | | | **~17 KB** | **~4,325** |
+
+**Output:** Valid JSON (~3–5 KB, ~750–1,250 tokens).
 
 ---
 
@@ -1118,3 +1287,220 @@ to retrieve relevant past trading situations.
   → Appends to document store
   → Rebuilds BM25 index for future retrieval
 ```
+
+---
+
+## 7. Tool Data Formats & Sizes
+
+All tools return **strings** to the LLM. The table below shows the format,
+typical size, and any truncation limits for each tool.
+
+> **Token estimate rule of thumb:** 1 token ≈ 4 characters for English text.
+
+### Trading Tools
+
+| Tool | Return Format | Typical Size | Tokens | Items | Truncation / Limits |
+|------|---------------|-------------|--------|-------|---------------------|
+| `get_stock_data` | CSV (header + OHLCV rows) | 5–20 KB | 1,250–5,000 | 30–250 rows | None; all requested days returned |
+| `get_indicators` | Markdown (daily values + description) | ~0.9 KB per indicator | ~225 | 30 daily values | 30-day lookback (configurable) |
+| `get_macro_regime` | Markdown (regime table + 6 signal rows) | ~0.8 KB | ~200 | 1 regime + 6 signals | Fixed signal set |
+| `get_fundamentals` | Markdown (key ratios table) | ~1.5 KB | ~375 | ~15 metrics | None |
+| `get_ttm_analysis` | Markdown (TTM summary + 8-quarter table) | ~1.6 KB | ~400 | 15 metrics + 8 quarters | Last 8 quarters |
+| `get_balance_sheet` | CSV (quarterly columns) | ~2.5 KB | ~625 | Up to 8 quarters | Last 8 quarters |
+| `get_income_statement` | CSV (quarterly columns) | ~2.5 KB | ~625 | Up to 8 quarters | Last 8 quarters |
+| `get_cashflow` | CSV (quarterly columns) | ~2.5 KB | ~625 | Up to 8 quarters | Last 8 quarters |
+| `get_peer_comparison` | Markdown (ranked table) | ~1.2 KB | ~300 | ~10 peers | Top 10 sector peers |
+| `get_sector_relative` | Markdown (alpha table) | ~0.8 KB | ~200 | 5–6 time periods | Fixed periods |
+| `get_news` | Markdown (article list) | ~7 KB | ~1,750 | ≤ 20 articles | First 20 from API, filtered by date |
+| `get_global_news` | Markdown (article list) | ~1.75 KB | ~437 | 5 articles (default) | Configurable limit; deduplicated |
+| `get_insider_transactions` | Markdown (transaction table) | ~1.5 KB | ~375 | 10–50 transactions | API-dependent |
+
+### Scanner Tools
+
+| Tool | Return Format | Typical Size | Tokens | Items | Truncation / Limits |
+|------|---------------|-------------|--------|-------|---------------------|
+| `get_market_movers` | Markdown (table) | ~1.5 KB per category | ~375 | 15 stocks | Hard limit: top 15 |
+| `get_market_indices` | Markdown (table) | ~1 KB | ~250 | 5 indices | Fixed set (SPY, DJI, NASDAQ, VIX, RUT) |
+| `get_sector_performance` | Markdown (table) | ~0.9 KB | ~220 | 11 sectors × 4 horizons | Fixed 11 GICS sectors |
+| `get_industry_performance` | Markdown (table) | ~2.5 KB | ~625 | 10–15 companies | Top companies by market weight |
+| `get_topic_news` | Markdown (article list) | ~2.5 KB | ~625 | 10 articles (default) | Configurable limit |
+| `get_earnings_calendar` | Markdown (table) | ~3 KB | ~750 | 20–50+ events | All events in date range |
+| `get_economic_calendar` | Markdown (table) | ~2.5 KB | ~625 | 5–15 events | All events in date range |
+
+### Non-Tool Data Injected into Prompts
+
+| Data | Format | Avg Size | Tokens | Notes |
+|------|--------|----------|--------|-------|
+| Memory match (× 2) | Text (situation + recommendation) | ~2 KB each | ~500 each | BM25 retrieval; injected as "Past Reflections" |
+| Debate history (per round) | Text (accumulated transcript) | ~3–4 KB per turn | ~750–1,000 | Grows linearly with debate rounds |
+| Analyst report (each) | Text (Markdown) | ~3 KB | ~750 | Output from analyst agents |
+| Macro regime report | Markdown (tables) | ~0.8 KB | ~200 | Shared across multiple agents |
+
+---
+
+## 8. Context Window Budget
+
+This section compares each agent's **estimated prompt size** against
+the context windows of popular models to identify potential overflow risks.
+
+### Model Context Windows (Reference)
+
+| Model | Context Window | Input Limit (approx) | Notes |
+|-------|---------------|---------------------|-------|
+| gpt-4o-mini | 128K tokens | ~100K usable | Default quick-think candidate |
+| gpt-4o | 128K tokens | ~100K usable | Alternative quick/mid |
+| gpt-5-mini | 128K tokens | ~100K usable | Default `quick_think_llm` |
+| gpt-5.2 | 128K tokens | ~100K usable | Default `deep_think_llm` |
+| claude-3.5-sonnet | 200K tokens | ~180K usable | Anthropic option |
+| claude-4-sonnet | 200K tokens | ~180K usable | Anthropic option |
+| gemini-2.5-pro | 1M tokens | ~900K usable | Google option |
+| deepseek-r1 | 128K tokens | ~100K usable | OpenRouter / Ollama option |
+| llama-3.1-70b | 128K tokens | ~100K usable | Ollama local option |
+| mistral-large | 128K tokens | ~100K usable | OpenRouter option |
+
+### Per-Agent Prompt Size vs Context Budget
+
+| # | Agent | Tier | Avg Prompt | Peak Prompt† | % of 128K | Risk |
+|---|-------|------|-----------|-------------|-----------|------|
+| 1 | Market Analyst | Quick | ~5,000 tok | ~6,000 tok | 4–5% | ✅ Safe |
+| 2 | Fundamentals Analyst | Quick | ~1,600 tok | ~3,500 tok | 1–3% | ✅ Safe |
+| 3 | News Analyst | Quick | ~2,750 tok | ~3,200 tok | 2–3% | ✅ Safe |
+| 4 | Social Media Analyst | Quick | ~2,000 tok | ~2,500 tok | 1–2% | ✅ Safe |
+| 5 | Bull Researcher (Rd 2) | Mid | ~6,550 tok | ~10,000 tok | 5–8% | ✅ Safe |
+| 6 | Bear Researcher (Rd 2) | Mid | ~6,550 tok | ~10,000 tok | 5–8% | ✅ Safe |
+| 7 | **Research Manager** | **Deep** | **~9,750 tok** | **~15,000 tok** | **8–12%** | ✅ Safe |
+| 8 | Trader | Mid | ~5,150 tok | ~6,500 tok | 4–5% | ✅ Safe |
+| 9 | Aggressive Debator (Rd 2) | Quick | ~7,800 tok | ~14,000 tok | 6–11% | ✅ Safe |
+| 10 | Conservative Debator (Rd 2) | Quick | ~7,800 tok | ~14,000 tok | 6–11% | ✅ Safe |
+| 11 | Neutral Debator (Rd 2) | Quick | ~7,800 tok | ~14,000 tok | 6–11% | ✅ Safe |
+| 12 | **Risk Manager** | **Deep** | **~13,000 tok** | **~17,500 tok** | **10–14%** | ✅ Safe |
+| 13 | Geopolitical Scanner | Quick | ~2,150 tok | ~3,000 tok | 2% | ✅ Safe |
+| 14 | Market Movers Scanner | Quick | ~1,525 tok | ~2,000 tok | 1–2% | ✅ Safe |
+| 15 | Sector Scanner | Quick | ~345 tok | ~500 tok | <1% | ✅ Safe |
+| 16 | Industry Deep Dive | Mid | ~4,875 tok | ~7,000 tok | 4–5% | ✅ Safe |
+| 17 | Macro Synthesis | Deep | ~4,325 tok | ~6,500 tok | 3–5% | ✅ Safe |
+
+> **†Peak Prompt** = estimate with `max_debate_rounds=3` or maximum optional
+> tool calls. All agents are well within the 128K context window.
+
+### When to Watch Context Limits
+
+Even though individual agents fit comfortably, be aware of these scenarios:
+
+| Scenario | Estimated Total | Risk |
+|----------|----------------|------|
+| Default config (2 debate rounds) | Max single prompt ≈ 17.5K tokens | ✅ No risk |
+| `max_debate_rounds=5` | Risk Manager prompt ≈ 30K tokens | ✅ Low risk |
+| `max_debate_rounds=10` | Risk Manager prompt ≈ 55K tokens | ⚠️ Monitor |
+| Small context model (8K window) | Risk Manager default already 13K | ❌ **Will overflow** |
+| Ollama local (small model, 4K ctx) | Most debate agents exceed 4K | ❌ **Will overflow** |
+
+> **Recommendation:** For local Ollama models with small context windows
+> (e.g., 4K–8K), set `max_debate_rounds=1` and `max_risk_discuss_rounds=1`.
+
+---
+
+## 9. End-to-End Token Estimates
+
+### Trading Pipeline (Single Company Analysis)
+
+```
+Phase                          Calls   Avg Tokens (per call)   Subtotal
+─────────────────────────────────────────────────────────────────────────
+1. ANALYST PHASE (parallel)
+   Market Analyst              1       ~5,000                  ~5,000
+   Fundamentals Analyst        1       ~1,600–3,500            ~2,500
+   News Analyst                1       ~2,750                  ~2,750
+   Social Media Analyst        1       ~2,000                  ~2,000
+                                                     Phase 1: ~12,250
+
+2. INVESTMENT DEBATE (2 rounds)
+   Bull Researcher             2       ~4,500 → ~6,550         ~11,050
+   Bear Researcher             2       ~4,500 → ~6,550         ~11,050
+                                                     Phase 2: ~22,100
+
+3. RESEARCH MANAGER
+   Research Manager            1       ~9,750                  ~9,750
+                                                     Phase 3: ~9,750
+
+4. TRADER
+   Trader                      1       ~5,150                  ~5,150
+                                                     Phase 4: ~5,150
+
+5. RISK DEBATE (2 rounds × 3 agents)
+   Aggressive Debator          2       ~4,250 → ~7,800         ~12,050
+   Conservative Debator        2       ~4,250 → ~7,800         ~12,050
+   Neutral Debator             2       ~4,250 → ~7,800         ~12,050
+                                                     Phase 5: ~36,150
+
+6. RISK MANAGER
+   Risk Manager                1       ~13,000                 ~13,000
+                                                     Phase 6: ~13,000
+
+═══════════════════════════════════════════════════════════════════════════
+TOTAL INPUT TOKENS (single company):                          ~98,400
+═══════════════════════════════════════════════════════════════════════════
+```
+
+> Each agent also produces **output tokens** (~500–3,000 per call).
+> Total output across all agents ≈ 15,000–25,000 tokens.
+> **Grand total (input + output) ≈ 115,000–125,000 tokens per company.**
+
+### Scanner Pipeline (Market-Wide Scan)
+
+```
+Phase                          Calls   Avg Tokens (per call)   Subtotal
+─────────────────────────────────────────────────────────────────────────
+1. PHASE 1 SCANNERS (parallel)
+   Geopolitical Scanner        1       ~2,150                  ~2,150
+   Market Movers Scanner       1       ~1,525                  ~1,525
+   Sector Scanner              1       ~345                    ~345
+                                                     Phase 1: ~4,020
+
+2. PHASE 2
+   Industry Deep Dive          1       ~4,875                  ~4,875
+                                                     Phase 2: ~4,875
+
+3. PHASE 3
+   Macro Synthesis             1       ~4,325                  ~4,325
+                                                     Phase 3: ~4,325
+
+═══════════════════════════════════════════════════════════════════════════
+TOTAL INPUT TOKENS (market scan):                             ~13,220
+═══════════════════════════════════════════════════════════════════════════
+```
+
+> Scanner output tokens ≈ 5,000–8,000 additional.
+> **Grand total (input + output) ≈ 18,000–21,000 tokens per scan.**
+
+### Full Pipeline (Scan → Per-Ticker Deep Dives)
+
+When running the `pipeline` command (scan + per-ticker analysis for top picks):
+
+```
+Scanner pipeline:                          ~13,220 input tokens
++ N company analyses (N = 8–10 picks):     ~98,400 × N input tokens
+───────────────────────────────────────────────────────────────────
+Example (10 companies):                    ~997,220 input tokens
+                                           ≈ 1.0M total tokens (input + output)
+```
+
+### Key Observations
+
+1. **No automatic truncation**: The framework concatenates all tool output
+   and debate history into prompts without truncation. Context usage grows
+   linearly with debate rounds.
+
+2. **Debate history is the main driver**: In a 2-round debate, history adds
+   ~8 KB per round per debater. The Risk Manager sees all three debaters'
+   accumulated history.
+
+3. **All prompts fit 128K models**: Even the largest prompt (Risk Manager
+   at peak) uses only ~14% of a 128K context window.
+
+4. **Small-context models are at risk**: Models with ≤ 8K context windows
+   cannot accommodate debate agents beyond round 1. Use
+   `max_debate_rounds=1` for such models.
+
+5. **Cost optimization**: The scanner pipeline uses ~13K tokens total —
+   roughly 7× cheaper than a single company analysis.
