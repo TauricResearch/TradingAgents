@@ -613,7 +613,7 @@ def get_user_selections():
         providers_used = {
             cfg["provider"]
             for cfg in [default_llm, analyst_llm, research_llm, trader_llm, risk_llm, pm_llm]
-            if cfg
+            if cfg is not None and "provider" in cfg
         }
 
         if "google" in providers_used:
