@@ -108,6 +108,10 @@ def value_at_risk(
     if not returns:
         return None
     sorted_returns = sorted(returns)
+    # Require at least 20 observations for a statistically meaningful VaR estimate.
+    # With fewer points the percentile calculation is unreliable.
+    if len(sorted_returns) < 20:
+        return None
     idx = max(0, int(math.floor(percentile * len(sorted_returns))) - 1)
     return sorted_returns[idx]
 

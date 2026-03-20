@@ -1,6 +1,6 @@
 # Current Milestone
 
-Portfolio Manager Phase 1 (data foundation) complete and merged. All 4 Supabase tables live, 51 tests passing (including integration tests against live DB).
+Portfolio Manager Phases 2-5 complete. All 93 tests passing (4 integration skipped).
 
 # Recent Progress
 
@@ -12,10 +12,20 @@ Portfolio Manager Phase 1 (data foundation) complete and merged. All 4 Supabase 
   - Business logic: avg cost basis, cash accounting, trade recording, snapshots
 - **PR #22 merged**: Unified report paths, structured observability logging, memory system update
 - **feat/daily-digest-notebooklm** (shipped): Daily digest consolidation + NotebookLM source sync
+- **Portfolio Manager Phases 2-5** (current branch):
+  - `tradingagents/portfolio/risk_evaluator.py` — pure-Python risk metrics (log returns, Sharpe, Sortino, VaR, max drawdown, beta, sector concentration, constraint checking)
+  - `tradingagents/portfolio/candidate_prioritizer.py` — conviction × thesis × diversification × held_penalty scoring
+  - `tradingagents/portfolio/trade_executor.py` — executes BUY/SELL (SELLs first), constraint pre-flight, EOD snapshot
+  - `tradingagents/agents/portfolio/holding_reviewer.py` — LLM holding review agent (run_tool_loop pattern)
+  - `tradingagents/agents/portfolio/pm_decision_agent.py` — pure-reasoning PM decision agent (no tools)
+  - `tradingagents/portfolio/portfolio_states.py` — PortfolioManagerState (MessagesState + reducers)
+  - `tradingagents/graph/portfolio_setup.py` — PortfolioGraphSetup (sequential 6-node workflow)
+  - `tradingagents/graph/portfolio_graph.py` — PortfolioGraph (mirrors ScannerGraph pattern)
+  - 48 new tests (28 risk_evaluator + 10 candidate_prioritizer + 10 trade_executor)
 
 # In Progress
 
-- Portfolio Manager Phase 2: Holding Reviewer Agent (next)
+- Portfolio Manager Phase 6: CLI integration / end-to-end wiring (next)
 - Refinement of macro scan synthesis prompts (ongoing)
 
 # Active Blockers

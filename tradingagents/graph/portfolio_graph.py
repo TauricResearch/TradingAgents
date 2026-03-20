@@ -168,7 +168,10 @@ class PortfolioGraph:
         }
 
         if self.debug:
+            final_state = {}
             for chunk in self.graph.stream(initial_state):
                 print(f"[portfolio debug] chunk keys: {list(chunk.keys())}")
+                final_state.update(chunk)
+            return final_state
 
         return self.graph.invoke(initial_state)

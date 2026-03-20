@@ -77,7 +77,7 @@ class TradeExecutor:
         sells = decisions.get("sells") or []
         buys = decisions.get("buys") or []
 
-        # --- SELLs first ---
+        # --- SELLs first (frees cash before BUYs; no constraint pre-flight for sells) ---
         for sell in sells:
             ticker = (sell.get("ticker") or "").upper()
             shares = float(sell.get("shares") or 0)

@@ -72,21 +72,22 @@ def score_candidate(
     conviction_weight = _CONVICTION_WEIGHTS.get(conviction, 1.0)
     thesis_score = _THESIS_SCORES.get(thesis, 1.0)
 
-    # Diversification factor based on sector exposure
+    # Diversification factor based on sector exposure.
+    # Tiered: 0.0× (sector full), 0.5× (70–100% of limit), 1.0× (under 70%), 2.0× (new sector).
     max_sector_pct: float = config.get("max_sector_pct", 0.35)
     concentration = sector_concentration(holdings, portfolio_total_value)
     current_sector_pct = concentration.get(sector, 0.0)
 
     if current_sector_pct >= max_sector_pct:
-        diversification_factor = 0.0
+        diversification_factor = 0.0  # sector at or above limit — skip
     elif current_sector_pct >= 0.70 * max_sector_pct:
-        diversification_factor = 0.5
+        diversification_factor = 0.5  # near limit — reduced bonus
     elif current_sector_pct > 0.0:
-        diversification_factor = 1.0
+        diversification_factor = 1.0  # existing sector with room
     else:
-        diversification_factor = 2.0
+        diversification_factor = 2.0  # new sector — diversification bonus
 
-    # Held penalty
+    # Held penalty: already-owned tickers score half (exposure already taken).
     held_tickers = {h.ticker for h in holdings}
     held_penalty = 0.5 if ticker in held_tickers else 1.0
 
