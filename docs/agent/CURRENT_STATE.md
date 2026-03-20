@@ -1,20 +1,21 @@
 # Current Milestone
 
-Daily digest consolidation and Google NotebookLM sync shipped (PR open: `feat/daily-digest-notebooklm`). All analyses now append to a single `daily_digest.md` per day and auto-upload to NotebookLM via `nlm` CLI. Next: PR review and merge.
+Portfolio Manager Phase 1 (data foundation) complete and merged. All 4 Supabase tables live, 51 tests passing (including integration tests against live DB).
 
 # Recent Progress
 
+- **PR #32 merged**: Portfolio Manager data foundation — models, SQL schema, module scaffolding
+  - `tradingagents/portfolio/` — full module: models, config, exceptions, supabase_client (psycopg2), report_store, repository
+  - `migrations/001_initial_schema.sql` — 4 tables (portfolios, holdings, trades, snapshots) with constraints, indexes, triggers
+  - `tests/portfolio/` — 51 tests: 20 model, 15 report_store, 12 repository unit, 4 integration
+  - Uses `psycopg2` direct PostgreSQL via Supabase pooler (`aws-1-eu-west-1.pooler.supabase.com:6543`)
+  - Business logic: avg cost basis, cash accounting, trade recording, snapshots
 - **PR #22 merged**: Unified report paths, structured observability logging, memory system update
 - **feat/daily-digest-notebooklm** (shipped): Daily digest consolidation + NotebookLM source sync
-  - `tradingagents/daily_digest.py` — `append_to_digest()` appends timestamped entries to `reports/daily/{date}/daily_digest.md`
-  - `tradingagents/notebook_sync.py` — `sync_to_notebooklm()` deletes existing "Daily Trading Digest" source then uploads new content via `nlm source add --text --wait`.
-  - `tradingagents/report_paths.py` — added `get_digest_path(date)`
-  - `cli/main.py` — `analyze` and `scan` commands both call digest + sync after each run
-  - `.env.example` — fixed consistency, removed duplicates, aligned with `NOTEBOOKLM_ID`
-- **Verification**: 220+ offline tests passing + 5 new unit tests for `notebook_sync.py` + live integration test passed.
 
 # In Progress
 
+- Portfolio Manager Phase 2: Holding Reviewer Agent (next)
 - Refinement of macro scan synthesis prompts (ongoing)
 
 # Active Blockers
