@@ -72,6 +72,32 @@ investment portfolio end-to-end. It performs the following actions in sequence:
 The `report_path` column in the `portfolios` table points to the daily portfolio
 subdirectory on disk: `reports/daily/{date}/portfolio/`.
 
+### Data Access Layer: raw `supabase-py` (no ORM)
+
+The Python code talks to Supabase through the raw `supabase-py` client — **no
+ORM** (Prisma, SQLAlchemy, etc.) is used.
+
+**Why not Prisma?**
+- `prisma-client-py` requires a Node.js runtime for code generation — an
+  extra non-Python dependency in a Python-only project.
+- Prisma's `prisma migrate` conflicts with Supabase's own SQL migration tooling
+  (we use `.sql` files in `tradingagents/portfolio/migrations/`).
+- 4 tables with straightforward CRUD don't benefit from a code-generated ORM.
+
+**Why not SQLAlchemy?**
+- Supabase is accessed via PostgREST (HTTP API), not a direct TCP database
+  connection. SQLAlchemy is designed for direct connections and would bypass
+  Supabase's Row Level Security.
+- Extra dependency overhead for a non-DB-heavy feature.
+
+**`supabase-py` is sufficient because:**
+- Its builder-pattern API (`client.table("holdings").select("*").eq(...)`)
+  covers all needed queries cleanly.
+- Our own dataclasses handle type-safety via `to_dict()` / `from_dict()`.
+- Plain SQL migration files are readable, versionable, and Supabase-native.
+
+> Full rationale: `docs/agent/decisions/012-portfolio-no-orm.md`
+
 ---
 
 ## 5-Phase Workflow

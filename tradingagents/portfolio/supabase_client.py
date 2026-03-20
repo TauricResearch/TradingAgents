@@ -1,9 +1,15 @@
 """Supabase database client for the Portfolio Manager.
 
-Thin wrapper around ``supabase-py`` that:
+Thin wrapper around ``supabase-py`` (no ORM) that:
 - Provides a singleton connection (one client per process)
 - Translates Supabase / HTTP errors into domain exceptions
-- Converts raw DB rows into typed model instances
+- Converts raw DB rows into typed model instances via ``Model.from_dict()``
+
+**No ORM is used here by design** — see
+``docs/agent/decisions/012-portfolio-no-orm.md`` for the full rationale.
+In short: ``supabase-py``'s builder-pattern API is sufficient for 4 tables;
+Prisma and SQLAlchemy add build-step / runtime complexity that isn't warranted
+for this non-DB-heavy feature.
 
 Usage::
 
