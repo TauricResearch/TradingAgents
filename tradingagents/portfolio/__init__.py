@@ -8,6 +8,7 @@ Import the primary interface classes from this package:
         Holding,
         Trade,
         PortfolioSnapshot,
+        compute_risk_metrics,
         PortfolioError,
         PortfolioNotFoundError,
         InsufficientCashError,
@@ -34,6 +35,7 @@ from tradingagents.portfolio.models import (
     Trade,
 )
 from tradingagents.portfolio.repository import PortfolioRepository
+from tradingagents.portfolio.risk_metrics import compute_risk_metrics
 
 __all__ = [
     # Models
@@ -43,6 +45,8 @@ __all__ = [
     "PortfolioSnapshot",
     # Repository (primary interface)
     "PortfolioRepository",
+    # Risk metrics computation
+    "compute_risk_metrics",
     # Exceptions
     "PortfolioError",
     "PortfolioNotFoundError",
