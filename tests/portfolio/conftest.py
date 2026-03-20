@@ -17,11 +17,19 @@ Supabase integration tests use ``pytest.mark.skipif`` to auto-skip when
 from __future__ import annotations
 
 import os
-import uuid
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+
+from tradingagents.portfolio.models import (
+    Holding,
+    Portfolio,
+    PortfolioSnapshot,
+    Trade,
+)
+from tradingagents.portfolio.report_store import ReportStore
+from tradingagents.portfolio.supabase_client import SupabaseClient
 
 # ---------------------------------------------------------------------------
 # Skip marker for Supabase integration tests
@@ -51,31 +59,72 @@ def sample_holding_id() -> str:
 
 
 @pytest.fixture
-def sample_portfolio(sample_portfolio_id: str):
+def sample_portfolio(sample_portfolio_id: str) -> Portfolio:
     """Return an unsaved Portfolio instance for testing."""
-    # TODO: implement — construct a Portfolio dataclass with test values
-    raise NotImplementedError
+    return Portfolio(
+        portfolio_id=sample_portfolio_id,
+        name="Test Portfolio",
+        cash=50_000.0,
+        initial_cash=100_000.0,
+        currency="USD",
+        created_at="2026-03-20T00:00:00Z",
+        updated_at="2026-03-20T00:00:00Z",
+        report_path="reports/daily/2026-03-20/portfolio",
+        metadata={"strategy": "test"},
+    )
 
 
 @pytest.fixture
-def sample_holding(sample_portfolio_id: str, sample_holding_id: str):
+def sample_holding(sample_portfolio_id: str, sample_holding_id: str) -> Holding:
     """Return an unsaved Holding instance for testing."""
-    # TODO: implement — construct a Holding dataclass with test values
-    raise NotImplementedError
+    return Holding(
+        holding_id=sample_holding_id,
+        portfolio_id=sample_portfolio_id,
+        ticker="AAPL",
+        shares=100.0,
+        avg_cost=150.0,
+        sector="Technology",
+        industry="Consumer Electronics",
+        created_at="2026-03-20T00:00:00Z",
+        updated_at="2026-03-20T00:00:00Z",
+    )
 
 
 @pytest.fixture
-def sample_trade(sample_portfolio_id: str):
+def sample_trade(sample_portfolio_id: str) -> Trade:
     """Return an unsaved Trade instance for testing."""
-    # TODO: implement — construct a Trade dataclass with test values
-    raise NotImplementedError
+    return Trade(
+        trade_id="33333333-3333-3333-3333-333333333333",
+        portfolio_id=sample_portfolio_id,
+        ticker="AAPL",
+        action="BUY",
+        shares=100.0,
+        price=150.0,
+        total_value=15_000.0,
+        trade_date="2026-03-20T10:00:00Z",
+        rationale="Strong momentum signal",
+        signal_source="scanner",
+        metadata={"confidence": 0.85},
+    )
 
 
 @pytest.fixture
-def sample_snapshot(sample_portfolio_id: str):
+def sample_snapshot(sample_portfolio_id: str) -> PortfolioSnapshot:
     """Return an unsaved PortfolioSnapshot instance for testing."""
-    # TODO: implement — construct a PortfolioSnapshot dataclass with test values
-    raise NotImplementedError
+    return PortfolioSnapshot(
+        snapshot_id="44444444-4444-4444-4444-444444444444",
+        portfolio_id=sample_portfolio_id,
+        snapshot_date="2026-03-20",
+        total_value=115_000.0,
+        cash=50_000.0,
+        equity_value=65_000.0,
+        num_positions=2,
+        holdings_snapshot=[
+            {"ticker": "AAPL", "shares": 100.0, "avg_cost": 150.0},
+            {"ticker": "MSFT", "shares": 50.0, "avg_cost": 300.0},
+        ],
+        metadata={"note": "end of day snapshot"},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -92,10 +141,9 @@ def tmp_reports(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def report_store(tmp_reports: Path):
+def report_store(tmp_reports: Path) -> ReportStore:
     """ReportStore instance backed by a temporary directory."""
-    # TODO: implement — return ReportStore(base_dir=tmp_reports)
-    raise NotImplementedError
+    return ReportStore(base_dir=tmp_reports)
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +152,6 @@ def report_store(tmp_reports: Path):
 
 
 @pytest.fixture
-def mock_supabase_client():
+def mock_supabase_client() -> MagicMock:
     """MagicMock of SupabaseClient for unit tests that don't hit the DB."""
-    # TODO: implement — return MagicMock(spec=SupabaseClient)
-    raise NotImplementedError
+    return MagicMock(spec=SupabaseClient)

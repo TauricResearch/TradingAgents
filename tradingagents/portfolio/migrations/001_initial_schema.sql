@@ -65,16 +65,14 @@ CREATE TABLE IF NOT EXISTS trades (
     trade_id      UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     portfolio_id  UUID          NOT NULL REFERENCES portfolios(portfolio_id) ON DELETE CASCADE,
     ticker        TEXT          NOT NULL,
-    action        TEXT          NOT NULL,
+    action        TEXT          NOT NULL CHECK (action IN ('BUY', 'SELL')),
     shares        NUMERIC(18,6) NOT NULL CHECK (shares > 0),
     price         NUMERIC(18,4) NOT NULL CHECK (price > 0),
     total_value   NUMERIC(18,4) NOT NULL CHECK (total_value > 0),
     trade_date    TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     rationale     TEXT,                               -- PM agent rationale for this trade
     signal_source TEXT,                               -- 'scanner' | 'holding_review' | 'pm_agent'
-    metadata      JSONB         NOT NULL DEFAULT '{}',
-
-    CONSTRAINT trades_action_values CHECK (action IN ('BUY', 'SELL'))
+    metadata      JSONB         NOT NULL DEFAULT '{}'
 );
 
 COMMENT ON TABLE trades IS

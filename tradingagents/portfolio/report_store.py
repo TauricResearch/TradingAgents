@@ -28,8 +28,11 @@ Usage::
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
+
+from tradingagents.portfolio.exceptions import ReportStoreError
 
 
 class ReportStore:
@@ -48,8 +51,7 @@ class ReportStore:
                       Override via the ``PORTFOLIO_DATA_DIR`` env var or
                       ``get_portfolio_config()["data_dir"]``.
         """
-        # TODO: implement — store Path(base_dir), resolve as needed
-        raise NotImplementedError
+        self._base_dir = Path(base_dir)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -60,8 +62,7 @@ class ReportStore:
 
         Path: ``{base_dir}/daily/{date}/portfolio/``
         """
-        # TODO: implement
-        raise NotImplementedError
+        return self._base_dir / "daily" / date / "portfolio"
 
     def _write_json(self, path: Path, data: dict[str, Any]) -> Path:
         """Write a dict to a JSON file, creating parent directories as needed.
@@ -76,8 +77,12 @@ class ReportStore:
         Raises:
             ReportStoreError: On filesystem write failure.
         """
-        # TODO: implement
-        raise NotImplementedError
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            return path
+        except OSError as exc:
+            raise ReportStoreError(f"Failed to write {path}: {exc}") from exc
 
     def _read_json(self, path: Path) -> dict[str, Any] | None:
         """Read a JSON file, returning None if the file does not exist.
@@ -85,8 +90,12 @@ class ReportStore:
         Raises:
             ReportStoreError: On JSON parse error (file exists but is corrupt).
         """
-        # TODO: implement
-        raise NotImplementedError
+        if not path.exists():
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ReportStoreError(f"Corrupt JSON at {path}: {exc}") from exc
 
     # ------------------------------------------------------------------
     # Macro Scan
@@ -104,13 +113,13 @@ class ReportStore:
         Returns:
             Path of the written file.
         """
-        # TODO: implement
-        raise NotImplementedError
+        path = self._base_dir / "daily" / date / "market" / "macro_scan_summary.json"
+        return self._write_json(path, data)
 
     def load_scan(self, date: str) -> dict[str, Any] | None:
         """Load macro scan summary. Returns None if the file does not exist."""
-        # TODO: implement
-        raise NotImplementedError
+        path = self._base_dir / "daily" / date / "market" / "macro_scan_summary.json"
+        return self._read_json(path)
 
     # ------------------------------------------------------------------
     # Per-Ticker Analysis
@@ -126,13 +135,13 @@ class ReportStore:
             ticker: Ticker symbol (stored as uppercase).
             data: Analysis output dict.
         """
-        # TODO: implement
-        raise NotImplementedError
+        path = self._base_dir / "daily" / date / ticker.upper() / "complete_report.json"
+        return self._write_json(path, data)
 
     def load_analysis(self, date: str, ticker: str) -> dict[str, Any] | None:
         """Load per-ticker analysis JSON. Returns None if the file does not exist."""
-        # TODO: implement
-        raise NotImplementedError
+        path = self._base_dir / "daily" / date / ticker.upper() / "complete_report.json"
+        return self._read_json(path)
 
     # ------------------------------------------------------------------
     # Holding Reviews
@@ -153,13 +162,13 @@ class ReportStore:
             ticker: Ticker symbol (stored as uppercase).
             data: HoldingReviewerAgent output dict.
         """
-        # TODO: implement
-        raise NotImplementedError
+        path = self._portfolio_dir(date) / f"{ticker.upper()}_holding_review.json"
+        return self._write_json(path, data)
 
     def load_holding_review(self, date: str, ticker: str) -> dict[str, Any] | None:
         """Load holding review output. Returns None if the file does not exist."""
-        # TODO: implement
-        raise NotImplementedError
+        path = self._portfolio_dir(date) / f"{ticker.upper()}_holding_review.json"
+        return self._read_json(path)
 
     # ------------------------------------------------------------------
     # Risk Metrics
@@ -180,8 +189,8 @@ class ReportStore:
             portfolio_id: UUID of the target portfolio.
             data: Risk metrics dict (Sharpe, Sortino, VaR, etc.).
         """
-        # TODO: implement
-        raise NotImplementedError
+        path = self._portfolio_dir(date) / f"{portfolio_id}_risk_metrics.json"
+        return self._write_json(path, data)
 
     def load_risk_metrics(
         self,
@@ -189,8 +198,8 @@ class ReportStore:
         portfolio_id: str,
     ) -> dict[str, Any] | None:
         """Load risk metrics. Returns None if the file does not exist."""
-        # TODO: implement
-        raise NotImplementedError
+        path = self._portfolio_dir(date) / f"{portfolio_id}_risk_metrics.json"
+        return self._read_json(path)
 
     # ------------------------------------------------------------------
     # PM Decisions
@@ -218,8 +227,15 @@ class ReportStore:
         Returns:
             Path of the written JSON file.
         """
-        # TODO: implement
-        raise NotImplementedError
+        json_path = self._portfolio_dir(date) / f"{portfolio_id}_pm_decision.json"
+        self._write_json(json_path, data)
+        if markdown is not None:
+            md_path = self._portfolio_dir(date) / f"{portfolio_id}_pm_decision.md"
+            try:
+                md_path.write_text(markdown, encoding="utf-8")
+            except OSError as exc:
+                raise ReportStoreError(f"Failed to write {md_path}: {exc}") from exc
+        return json_path
 
     def load_pm_decision(
         self,
@@ -227,8 +243,8 @@ class ReportStore:
         portfolio_id: str,
     ) -> dict[str, Any] | None:
         """Load PM decision JSON. Returns None if the file does not exist."""
-        # TODO: implement
-        raise NotImplementedError
+        path = self._portfolio_dir(date) / f"{portfolio_id}_pm_decision.json"
+        return self._read_json(path)
 
     def list_pm_decisions(self, portfolio_id: str) -> list[Path]:
         """Return all saved PM decision JSON paths for portfolio_id, newest first.
@@ -241,5 +257,5 @@ class ReportStore:
         Returns:
             Sorted list of Path objects, newest date first.
         """
-        # TODO: implement
-        raise NotImplementedError
+        pattern = f"daily/*/portfolio/{portfolio_id}_pm_decision.json"
+        return sorted(self._base_dir.glob(pattern), reverse=True)
