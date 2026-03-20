@@ -89,14 +89,13 @@ All are optional and default to the values shown:
 
 | Env Var | Default | Description |
 |---------|---------|-------------|
-| `SUPABASE_URL` | `""` | Supabase project URL |
-| `SUPABASE_KEY` | `""` | Supabase anon/service key |
-| `PORTFOLIO_DATA_DIR` | `"reports"` | Root dir for filesystem reports |
-| `PM_MAX_POSITIONS` | `15` | Max number of open positions |
-| `PM_MAX_POSITION_PCT` | `0.15` | Max single-position weight |
-| `PM_MAX_SECTOR_PCT` | `0.35` | Max sector weight |
-| `PM_MIN_CASH_PCT` | `0.05` | Minimum cash reserve |
-| `PM_DEFAULT_BUDGET` | `100000.0` | Default starting cash (USD) |
+| `SUPABASE_CONNECTION_STRING` | `""` | PostgreSQL pooler connection URI |
+| `TRADINGAGENTS_PORTFOLIO_DATA_DIR` | `"reports"` | Root dir for filesystem reports |
+| `TRADINGAGENTS_PM_MAX_POSITIONS` | `15` | Max number of open positions |
+| `TRADINGAGENTS_PM_MAX_POSITION_PCT` | `0.15` | Max single-position weight |
+| `TRADINGAGENTS_PM_MAX_SECTOR_PCT` | `0.35` | Max sector weight |
+| `TRADINGAGENTS_PM_MIN_CASH_PCT` | `0.05` | Minimum cash reserve |
+| `TRADINGAGENTS_PM_DEFAULT_BUDGET` | `100000.0` | Default starting cash (USD) |
 
 ### Acceptance Criteria
 
@@ -172,7 +171,7 @@ Methods that query a single row raise `PortfolioNotFoundError` when no row is fo
 
 - Singleton — only one Supabase connection per process
 - All public methods fully type-annotated
-- Supabase integration tests auto-skip when `SUPABASE_URL` is unset
+- Supabase integration tests auto-skip when `SUPABASE_CONNECTION_STRING` is unset
 
 ---
 
@@ -328,7 +327,7 @@ require PG functions — deferred to Phase 3+).
 ### Coverage Target
 
 90 %+ for `models.py` and `report_store.py`.
-Integration tests (`test_repository.py`) auto-skip when Supabase is unavailable.
+Integration tests (`test_repository.py`) auto-skip when `SUPABASE_CONNECTION_STRING` is unset.
 
 ---
 

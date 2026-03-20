@@ -72,28 +72,26 @@ investment portfolio end-to-end. It performs the following actions in sequence:
 The `report_path` column in the `portfolios` table points to the daily portfolio
 subdirectory on disk: `reports/daily/{date}/portfolio/`.
 
-### Data Access Layer: raw `supabase-py` (no ORM)
+### Data Access Layer: raw `psycopg2` (no ORM)
 
-The Python code talks to Supabase through the raw `supabase-py` client — **no
-ORM** (Prisma, SQLAlchemy, etc.) is used.
+The Python code talks to Supabase PostgreSQL directly via `psycopg2` using the
+**pooler connection string** (`SUPABASE_CONNECTION_STRING`). No ORM (Prisma,
+SQLAlchemy) and no `supabase-py` REST client is used.
 
-**Why not Prisma?**
-- `prisma-client-py` requires a Node.js runtime for code generation — an
-  extra non-Python dependency in a Python-only project.
-- Prisma's `prisma migrate` conflicts with Supabase's own SQL migration tooling
-  (we use `.sql` files in `tradingagents/portfolio/migrations/`).
-- 4 tables with straightforward CRUD don't benefit from a code-generated ORM.
+**Why `psycopg2` over `supabase-py`?**
+- Direct SQL gives full control — transactions, upserts, `RETURNING *`, CTEs.
+- No dependency on Supabase's PostgREST schema cache or API key types.
+- `psycopg2-binary` is a single pip install with zero non-Python dependencies.
+- 4 tables with straightforward CRUD don't benefit from an ORM or REST wrapper.
 
-**Why not SQLAlchemy?**
-- Supabase is accessed via PostgREST (HTTP API), not a direct TCP database
-  connection. SQLAlchemy is designed for direct connections and would bypass
-  Supabase's Row Level Security.
-- Extra dependency overhead for a non-DB-heavy feature.
+**Connection:**
+- Uses `SUPABASE_CONNECTION_STRING` env var (pooler URI format).
+- Passwords with special characters are auto-URL-encoded by `SupabaseClient._fix_dsn()`.
+- Typical pooler URI: `postgresql://postgres.<ref>:<password>@aws-1-<region>.pooler.supabase.com:6543/postgres`
 
-**`supabase-py` is sufficient because:**
-- Its builder-pattern API (`client.table("holdings").select("*").eq(...)`)
-  covers all needed queries cleanly.
-- Our own dataclasses handle type-safety via `to_dict()` / `from_dict()`.
+**Why not Prisma / SQLAlchemy?**
+- Prisma requires Node.js runtime — extra non-Python dependency.
+- SQLAlchemy adds dependency overhead for 4 simple tables.
 - Plain SQL migration files are readable, versionable, and Supabase-native.
 
 > Full rationale: `docs/agent/decisions/012-portfolio-no-orm.md`

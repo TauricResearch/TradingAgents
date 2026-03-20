@@ -1,38 +1,28 @@
-"""Unified data-access façade for the Portfolio Manager.
+"""Unified data-access facade for the Portfolio Manager.
 
 ``PortfolioRepository`` combines ``SupabaseClient`` (transactional data) and
 ``ReportStore`` (filesystem documents) into a single, business-logic-aware
 interface.
-
-Callers should **only** interact with ``PortfolioRepository`` — do not use
-``SupabaseClient`` or ``ReportStore`` directly from outside this package.
 
 Usage::
 
     from tradingagents.portfolio import PortfolioRepository
 
     repo = PortfolioRepository()
-
-    # Create a portfolio
     portfolio = repo.create_portfolio("Main Portfolio", initial_cash=100_000.0)
-
-    # Buy shares
     holding = repo.add_holding(portfolio.portfolio_id, "AAPL", shares=50, price=195.50)
-
-    # Sell shares
-    repo.remove_holding(portfolio.portfolio_id, "AAPL", shares=25, price=200.00)
-
-    # Snapshot
-    snapshot = repo.take_snapshot(portfolio.portfolio_id, prices={"AAPL": 200.00})
 
 See ``docs/portfolio/04_repository_api.md`` for full API documentation.
 """
 
 from __future__ import annotations
 
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from tradingagents.portfolio.config import get_portfolio_config
 from tradingagents.portfolio.exceptions import (
     HoldingNotFoundError,
     InsufficientCashError,
@@ -49,7 +39,7 @@ from tradingagents.portfolio.supabase_client import SupabaseClient
 
 
 class PortfolioRepository:
-    """Unified façade over SupabaseClient and ReportStore.
+    """Unified facade over SupabaseClient and ReportStore.
 
     Implements business logic for:
     - Average cost basis updates on repeated buys
@@ -64,16 +54,9 @@ class PortfolioRepository:
         store: ReportStore | None = None,
         config: dict[str, Any] | None = None,
     ) -> None:
-        """Initialise the repository.
-
-        Args:
-            client: SupabaseClient instance. Uses ``SupabaseClient.get_instance()``
-                    when None.
-            store: ReportStore instance. Creates a default instance when None.
-            config: Portfolio config dict. Uses ``get_portfolio_config()`` when None.
-        """
-        # TODO: implement — resolve defaults, store as self._client, self._store, self._cfg
-        raise NotImplementedError
+        self._cfg = config or get_portfolio_config()
+        self._client = client or SupabaseClient.get_instance()
+        self._store = store or ReportStore(base_dir=self._cfg["data_dir"])
 
     # ------------------------------------------------------------------
     # Portfolio lifecycle
@@ -85,54 +68,42 @@ class PortfolioRepository:
         initial_cash: float,
         currency: str = "USD",
     ) -> Portfolio:
-        """Create a new portfolio with the given starting capital.
-
-        Generates a UUID for ``portfolio_id``. Sets ``cash = initial_cash``.
-
-        Args:
-            name: Human-readable portfolio name.
-            initial_cash: Starting capital in USD (or configured currency).
-            currency: ISO 4217 currency code.
-
-        Returns:
-            Persisted Portfolio instance.
-
-        Raises:
-            DuplicatePortfolioError: If the name is already in use.
-            ValueError: If ``initial_cash <= 0``.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        """Create a new portfolio with the given starting capital."""
+        if initial_cash <= 0:
+            raise ValueError(f"initial_cash must be > 0, got {initial_cash}")
+        portfolio = Portfolio(
+            portfolio_id=str(uuid.uuid4()),
+            name=name,
+            cash=initial_cash,
+            initial_cash=initial_cash,
+            currency=currency,
+        )
+        return self._client.create_portfolio(portfolio)
 
     def get_portfolio(self, portfolio_id: str) -> Portfolio:
-        """Fetch a portfolio by ID.
-
-        Args:
-            portfolio_id: UUID of the target portfolio.
-
-        Raises:
-            PortfolioNotFoundError: If not found.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        """Fetch a portfolio by ID."""
+        return self._client.get_portfolio(portfolio_id)
 
     def get_portfolio_with_holdings(
         self,
         portfolio_id: str,
         prices: dict[str, float] | None = None,
     ) -> tuple[Portfolio, list[Holding]]:
-        """Fetch portfolio + all holdings, optionally enriched with current prices.
-
-        Args:
-            portfolio_id: UUID of the target portfolio.
-            prices: Optional ``{ticker: current_price}`` dict. When provided,
-                    holdings are enriched and ``Portfolio.enrich()`` is called.
-
-        Returns:
-            ``(Portfolio, list[Holding])`` — enriched when prices are supplied.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        """Fetch portfolio + all holdings, optionally enriched with current prices."""
+        portfolio = self._client.get_portfolio(portfolio_id)
+        holdings = self._client.list_holdings(portfolio_id)
+        if prices:
+            # First pass: compute equity for total_value
+            equity = sum(
+                prices.get(h.ticker, 0.0) * h.shares for h in holdings
+            )
+            total_value = portfolio.cash + equity
+            # Second pass: enrich each holding with weight
+            for h in holdings:
+                if h.ticker in prices:
+                    h.enrich(prices[h.ticker], total_value)
+            portfolio.enrich(holdings)
+        return portfolio, holdings
 
     # ------------------------------------------------------------------
     # Holdings management
@@ -147,37 +118,65 @@ class PortfolioRepository:
         sector: str | None = None,
         industry: str | None = None,
     ) -> Holding:
-        """Buy shares and update portfolio cash and holdings.
+        """Buy shares and update portfolio cash and holdings."""
+        if shares <= 0:
+            raise ValueError(f"shares must be > 0, got {shares}")
+        if price <= 0:
+            raise ValueError(f"price must be > 0, got {price}")
 
-        Business logic:
-        - Raises ``InsufficientCashError`` if ``portfolio.cash < shares * price``
-        - If holding already exists: updates ``avg_cost`` using weighted average
-        - ``portfolio.cash -= shares * price``
-        - Records a BUY trade automatically
+        cost = shares * price
+        portfolio = self._client.get_portfolio(portfolio_id)
 
-        Avg cost formula::
+        if portfolio.cash < cost:
+            raise InsufficientCashError(
+                f"Need ${cost:.2f} but only ${portfolio.cash:.2f} available"
+            )
 
-            new_avg_cost = (old_shares * old_avg_cost + new_shares * price)
-                           / (old_shares + new_shares)
+        # Check for existing holding to update avg cost
+        existing = self._client.get_holding(portfolio_id, ticker)
+        if existing:
+            new_total_shares = existing.shares + shares
+            new_avg_cost = (
+                (existing.shares * existing.avg_cost + shares * price) / new_total_shares
+            )
+            existing.shares = new_total_shares
+            existing.avg_cost = new_avg_cost
+            if sector:
+                existing.sector = sector
+            if industry:
+                existing.industry = industry
+            holding = self._client.upsert_holding(existing)
+        else:
+            holding = Holding(
+                holding_id=str(uuid.uuid4()),
+                portfolio_id=portfolio_id,
+                ticker=ticker.upper(),
+                shares=shares,
+                avg_cost=price,
+                sector=sector,
+                industry=industry,
+            )
+            holding = self._client.upsert_holding(holding)
 
-        Args:
-            portfolio_id: UUID of the target portfolio.
-            ticker: Ticker symbol.
-            shares: Number of shares to buy (must be > 0).
-            price: Execution price per share.
-            sector: Optional GICS sector name.
-            industry: Optional GICS industry name.
+        # Deduct cash
+        portfolio.cash -= cost
+        self._client.update_portfolio(portfolio)
 
-        Returns:
-            Updated or created Holding.
+        # Record trade
+        trade = Trade(
+            trade_id=str(uuid.uuid4()),
+            portfolio_id=portfolio_id,
+            ticker=ticker.upper(),
+            action="BUY",
+            shares=shares,
+            price=price,
+            total_value=cost,
+            trade_date=datetime.now(timezone.utc).isoformat(),
+            signal_source="pm_agent",
+        )
+        self._client.record_trade(trade)
 
-        Raises:
-            InsufficientCashError: If cash would go negative.
-            PortfolioNotFoundError: If portfolio_id does not exist.
-            ValueError: If shares <= 0 or price <= 0.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        return holding
 
     def remove_holding(
         self,
@@ -186,33 +185,53 @@ class PortfolioRepository:
         shares: float,
         price: float,
     ) -> Holding | None:
-        """Sell shares and update portfolio cash and holdings.
+        """Sell shares and update portfolio cash and holdings."""
+        if shares <= 0:
+            raise ValueError(f"shares must be > 0, got {shares}")
+        if price <= 0:
+            raise ValueError(f"price must be > 0, got {price}")
 
-        Business logic:
-        - Raises ``HoldingNotFoundError`` if no holding exists for ticker
-        - Raises ``InsufficientSharesError`` if ``holding.shares < shares``
-        - If ``shares == holding.shares``: deletes the holding row, returns None
-        - Otherwise: decrements ``holding.shares`` (avg_cost unchanged on sell)
-        - ``portfolio.cash += shares * price``
-        - Records a SELL trade automatically
+        existing = self._client.get_holding(portfolio_id, ticker)
+        if not existing:
+            raise HoldingNotFoundError(
+                f"No holding for {ticker} in portfolio {portfolio_id}"
+            )
 
-        Args:
-            portfolio_id: UUID of the target portfolio.
-            ticker: Ticker symbol.
-            shares: Number of shares to sell (must be > 0).
-            price: Execution price per share.
+        if existing.shares < shares:
+            raise InsufficientSharesError(
+                f"Hold {existing.shares} shares of {ticker}, cannot sell {shares}"
+            )
 
-        Returns:
-            Updated Holding, or None if the position was fully closed.
+        proceeds = shares * price
+        portfolio = self._client.get_portfolio(portfolio_id)
 
-        Raises:
-            HoldingNotFoundError: If no holding exists for this ticker.
-            InsufficientSharesError: If holding.shares < shares.
-            PortfolioNotFoundError: If portfolio_id does not exist.
-            ValueError: If shares <= 0 or price <= 0.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        if existing.shares == shares:
+            # Full sell — delete holding
+            self._client.delete_holding(portfolio_id, ticker)
+            result = None
+        else:
+            existing.shares -= shares
+            result = self._client.upsert_holding(existing)
+
+        # Credit cash
+        portfolio.cash += proceeds
+        self._client.update_portfolio(portfolio)
+
+        # Record trade
+        trade = Trade(
+            trade_id=str(uuid.uuid4()),
+            portfolio_id=portfolio_id,
+            ticker=ticker.upper(),
+            action="SELL",
+            shares=shares,
+            price=price,
+            total_value=proceeds,
+            trade_date=datetime.now(timezone.utc).isoformat(),
+            signal_source="pm_agent",
+        )
+        self._client.record_trade(trade)
+
+        return result
 
     # ------------------------------------------------------------------
     # Snapshots
@@ -223,20 +242,19 @@ class PortfolioRepository:
         portfolio_id: str,
         prices: dict[str, float],
     ) -> PortfolioSnapshot:
-        """Take an immutable snapshot of the current portfolio state.
-
-        Fetches all holdings, enriches them with ``prices``, computes
-        ``total_value``, then persists via ``SupabaseClient.save_snapshot()``.
-
-        Args:
-            portfolio_id: UUID of the target portfolio.
-            prices: ``{ticker: current_price}`` for all held tickers.
-
-        Returns:
-            Persisted PortfolioSnapshot.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        """Take an immutable snapshot of the current portfolio state."""
+        portfolio, holdings = self.get_portfolio_with_holdings(portfolio_id, prices)
+        snapshot = PortfolioSnapshot(
+            snapshot_id=str(uuid.uuid4()),
+            portfolio_id=portfolio_id,
+            snapshot_date=datetime.now(timezone.utc).isoformat(),
+            total_value=portfolio.total_value or portfolio.cash,
+            cash=portfolio.cash,
+            equity_value=portfolio.equity_value or 0.0,
+            num_positions=len(holdings),
+            holdings_snapshot=[h.to_dict() for h in holdings],
+        )
+        return self._client.save_snapshot(snapshot)
 
     # ------------------------------------------------------------------
     # Report convenience methods
@@ -249,37 +267,21 @@ class PortfolioRepository:
         decision: dict[str, Any],
         markdown: str | None = None,
     ) -> Path:
-        """Save a PM agent decision and update portfolio.report_path.
-
-        Delegates to ``ReportStore.save_pm_decision()`` then updates the
-        ``portfolio.report_path`` column in Supabase to point to the daily
-        portfolio directory.
-
-        Args:
-            portfolio_id: UUID of the target portfolio.
-            date: ISO date string, e.g. ``"2026-03-20"``.
-            decision: PM decision dict.
-            markdown: Optional human-readable markdown version.
-
-        Returns:
-            Path of the written JSON file.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        """Save a PM agent decision and update portfolio.report_path."""
+        path = self._store.save_pm_decision(date, portfolio_id, decision, markdown)
+        # Update portfolio report_path
+        portfolio = self._client.get_portfolio(portfolio_id)
+        portfolio.report_path = str(self._store._portfolio_dir(date))
+        self._client.update_portfolio(portfolio)
+        return path
 
     def load_pm_decision(
         self,
         portfolio_id: str,
         date: str,
     ) -> dict[str, Any] | None:
-        """Load a PM decision JSON. Returns None if not found.
-
-        Args:
-            portfolio_id: UUID of the target portfolio.
-            date: ISO date string.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        """Load a PM decision JSON. Returns None if not found."""
+        return self._store.load_pm_decision(date, portfolio_id)
 
     def save_risk_metrics(
         self,
@@ -287,29 +289,13 @@ class PortfolioRepository:
         date: str,
         metrics: dict[str, Any],
     ) -> Path:
-        """Save risk computation results. Delegates to ReportStore.
-
-        Args:
-            portfolio_id: UUID of the target portfolio.
-            date: ISO date string.
-            metrics: Risk metrics dict (Sharpe, Sortino, VaR, beta, etc.).
-
-        Returns:
-            Path of the written file.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        """Save risk computation results."""
+        return self._store.save_risk_metrics(date, portfolio_id, metrics)
 
     def load_risk_metrics(
         self,
         portfolio_id: str,
         date: str,
     ) -> dict[str, Any] | None:
-        """Load risk metrics. Returns None if not found.
-
-        Args:
-            portfolio_id: UUID of the target portfolio.
-            date: ISO date string.
-        """
-        # TODO: implement
-        raise NotImplementedError
+        """Load risk metrics. Returns None if not found."""
+        return self._store.load_risk_metrics(date, portfolio_id)

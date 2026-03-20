@@ -106,7 +106,7 @@ class Portfolio:
             h.current_value for h in holdings if h.current_value is not None
         )
         self.total_value = self.cash + self.equity_value
-        self.cash_pct = self.cash / self.total_value if self.total_value != 0.0 else 0.0
+        self.cash_pct = self.cash / self.total_value if self.total_value != 0.0 else 1.0
         return self
 
 

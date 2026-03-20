@@ -2,16 +2,16 @@
 
 Fixtures provided:
 
-- ``tmp_reports`` — temporary directory used as ReportStore base_dir
-- ``sample_portfolio`` — a Portfolio instance for testing (not persisted)
-- ``sample_holding`` — a Holding instance for testing (not persisted)
-- ``sample_trade`` — a Trade instance for testing (not persisted)
-- ``sample_snapshot`` — a PortfolioSnapshot instance for testing
-- ``report_store`` — a ReportStore instance backed by tmp_reports
-- ``mock_supabase_client`` — MagicMock of SupabaseClient for unit tests
+- ``tmp_reports`` -- temporary directory used as ReportStore base_dir
+- ``sample_portfolio`` -- a Portfolio instance for testing (not persisted)
+- ``sample_holding`` -- a Holding instance for testing (not persisted)
+- ``sample_trade`` -- a Trade instance for testing (not persisted)
+- ``sample_snapshot`` -- a PortfolioSnapshot instance for testing
+- ``report_store`` -- a ReportStore instance backed by tmp_reports
+- ``mock_supabase_client`` -- MagicMock of SupabaseClient for unit tests
 
 Supabase integration tests use ``pytest.mark.skipif`` to auto-skip when
-``SUPABASE_URL`` is not set in the environment.
+``SUPABASE_CONNECTION_STRING`` is not set in the environment.
 """
 
 from __future__ import annotations
@@ -36,8 +36,8 @@ from tradingagents.portfolio.supabase_client import SupabaseClient
 # ---------------------------------------------------------------------------
 
 requires_supabase = pytest.mark.skipif(
-    not os.getenv("SUPABASE_URL"),
-    reason="SUPABASE_URL not set — skipping Supabase integration tests",
+    not os.getenv("SUPABASE_CONNECTION_STRING"),
+    reason="SUPABASE_CONNECTION_STRING not set -- skipping integration tests",
 )
 
 
