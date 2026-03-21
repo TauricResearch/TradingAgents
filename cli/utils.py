@@ -1,6 +1,7 @@
 from typing import Callable, List, Optional, Tuple, Dict
 
 import questionary
+import typer
 
 from rich.console import Console
 
@@ -95,14 +96,14 @@ def resolve_model_choice(
     """Resolve built-in and custom model selections into a concrete model id."""
     if choice is None:
         console.print(f"\n[red]No {model_role.lower()} llm engine selected. Exiting...[/red]")
-        exit(1)
+        raise typer.Exit(1)
 
     if provider.lower() == "openrouter" and choice == CUSTOM_OPENROUTER_MODEL:
         prompt_fn = prompt_fn or prompt_custom_openrouter_model
         custom_model = prompt_fn(model_role)
         if not custom_model or not custom_model.strip():
             console.print("\n[red]No OpenRouter model ID provided. Exiting...[/red]")
-            exit(1)
+            raise typer.Exit(1)
         return custom_model.strip()
 
     return choice
