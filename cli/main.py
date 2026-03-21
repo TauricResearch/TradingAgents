@@ -304,8 +304,9 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
 
     # Filter teams to only include agents that are in agent_status
     teams = {}
+    active_agent_status_keys = set(message_buffer.agent_status.keys())
     for team, agents in all_teams.items():
-        active_agents = [a for a in agents if a in message_buffer.agent_status]
+        active_agents = [a for a in agents if a in active_agent_status_keys]
         if active_agents:
             teams[team] = active_agents
 
