@@ -1,3 +1,5 @@
+import time
+import random
 from typing import Any, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -7,11 +9,7 @@ from .validators import validate_model
 
 
 class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
-    """ChatGoogleGenerativeAI with normalized content output.
-
-    Gemini 3 models return content as list: [{'type': 'text', 'text': '...'}]
-    This normalizes to string for consistent downstream handling.
-    """
+    """ChatGoogleGenerativeAI with normalized content output and auto-retry on SSL/connection errors."""
 
     def _normalize_content(self, response):
         content = response.content
@@ -25,7 +23,24 @@ class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
         return response
 
     def invoke(self, input, config=None, **kwargs):
-        return self._normalize_content(super().invoke(input, config, **kwargs))
+        max_retries = 5
+        for attempt in range(1, max_retries + 1):
+            try:
+                return self._normalize_content(super().invoke(input, config, **kwargs))
+            except Exception as e:
+                err = str(e)
+                # 判断是否为可重试的网络错误
+                retryable = any(kw in err for kw in [
+                    "SSL", "EOF", "RemoteProtocolError", "ConnectError",
+                    "Server disconnected", "ConnectionError", "timeout",
+                    "503", "502", "500",
+                ])
+                if retryable and attempt < max_retries:
+                    wait = 2 ** attempt + random.uniform(0, 2)
+                    print(f"\n⚠️  Gemini 连接失败（第 {attempt}/{max_retries} 次），{wait:.1f}s 后重试... [{type(e).__name__}]")
+                    time.sleep(wait)
+                else:
+                    raise
 
 
 class GoogleClient(BaseLLMClient):
@@ -42,20 +57,14 @@ class GoogleClient(BaseLLMClient):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
-        # Map thinking_level to appropriate API param based on model
-        # Gemini 3 Pro: low, high
-        # Gemini 3 Flash: minimal, low, medium, high
-        # Gemini 2.5: thinking_budget (0=disable, -1=dynamic)
         thinking_level = self.kwargs.get("thinking_level")
         if thinking_level:
             model_lower = self.model.lower()
             if "gemini-3" in model_lower:
-                # Gemini 3 Pro doesn't support "minimal", use "low" instead
                 if "pro" in model_lower and thinking_level == "minimal":
                     thinking_level = "low"
                 llm_kwargs["thinking_level"] = thinking_level
             else:
-                # Gemini 2.5: map to thinking_budget
                 llm_kwargs["thinking_budget"] = -1 if thinking_level == "high" else 0
 
         return NormalizedChatGoogleGenerativeAI(**llm_kwargs)
