@@ -32,6 +32,9 @@ Here is the current conversation history: {history} Here are the last arguments 
 
 Engage actively by addressing any specific concerns raised, refuting the weaknesses in their logic, and asserting the benefits of risk-taking to outpace market norms. Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal. Output conversationally as if you are speaking without any special formatting."""
 
+        prompt += "
+
+**重要：请完全用简体中文输出你的分析和辩论内容。**"
         response = llm.invoke(prompt)
 
         argument = f"Aggressive Analyst: {response.content}"

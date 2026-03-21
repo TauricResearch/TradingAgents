@@ -35,7 +35,9 @@ Here are your past reflections on mistakes:
 
 Here is the debate:
 Debate History:
-{history}"""
+{history}
+
+**重要：请完全用简体中文输出你的分析和决策。**"""
         response = llm.invoke(prompt)
 
         new_investment_debate_state = {

@@ -43,6 +43,9 @@ Deliverables:
 
 Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
 
+        prompt += "
+
+**重要：请完全用简体中文输出你的分析和辩论内容。**"
         response = llm.invoke(prompt)
 
         new_risk_debate_state = {
