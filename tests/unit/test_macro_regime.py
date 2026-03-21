@@ -86,6 +86,12 @@ class TestSignalVixTrend:
         score, desc = self.fn(vix)
         assert score == 0
 
+    def test_short_history_is_neutral(self):
+        vix = _make_series([20.0] * 20)
+        score, desc = self.fn(vix)
+        assert score == 0
+        assert "insufficient history" in desc
+
     def test_none_series_is_neutral(self):
         score, desc = self.fn(None)
         assert score == 0

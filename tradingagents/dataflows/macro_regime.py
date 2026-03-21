@@ -92,8 +92,8 @@ def _signal_vix_level(vix_price: Optional[float]) -> tuple[int, str]:
 
 def _signal_vix_trend(vix_series: Optional[pd.Series]) -> tuple[int, str]:
     """VIX 5-day SMA vs 20-day SMA: rising VIX = risk-off."""
-    if vix_series is None:
-        return 0, "VIX trend: unavailable (neutral)"
+    if vix_series is None or len(vix_series) < 21:
+        return 0, "VIX trend: insufficient history (neutral)"
     sma5 = _sma(vix_series, 5)
     sma20 = _sma(vix_series, 20)
     if sma5 is None or sma20 is None:
