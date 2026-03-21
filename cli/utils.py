@@ -8,31 +8,66 @@ from cli.models import AnalystType
 console = Console()
 
 ANALYST_ORDER = [
-    ("Market Analyst", AnalystType.MARKET),
+    ("Odds Analyst", AnalystType.ODDS),
     ("Social Media Analyst", AnalystType.SOCIAL),
     ("News Analyst", AnalystType.NEWS),
-    ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
+    ("Event Analyst", AnalystType.EVENT),
 ]
 
 
-def get_ticker() -> str:
-    """Prompt the user to enter a ticker symbol."""
-    ticker = questionary.text(
-        "Enter the ticker symbol to analyze:",
-        validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
-        style=questionary.Style(
-            [
-                ("text", "fg:green"),
-                ("highlighted", "noinherit"),
-            ]
-        ),
+def get_event_input() -> dict:
+    """Get event selection from user - manual or scan mode."""
+    mode = questionary.select(
+        "Select input mode:",
+        choices=[
+            questionary.Choice("Manual - Enter event URL or ID", value="manual"),
+            questionary.Choice("Scan - Search active markets", value="scan"),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:green noinherit"),
+            ("highlighted", "noinherit"),
+            ("pointer", "noinherit"),
+        ]),
     ).ask()
 
-    if not ticker:
-        console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
+    if mode is None:
+        console.print("\n[red]No mode selected. Exiting...[/red]")
         exit(1)
 
-    return ticker.strip().upper()
+    if mode == "manual":
+        event_input = questionary.text(
+            "Enter Polymarket event ID or URL:",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter an event ID or URL.",
+            style=questionary.Style([
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]),
+        ).ask()
+        if not event_input:
+            console.print("\n[red]No event provided. Exiting...[/red]")
+            exit(1)
+        # Parse URL if needed
+        event_id = event_input.strip()
+        if "polymarket.com" in event_id:
+            # Extract slug from URL like polymarket.com/event/slug-here
+            parts = event_id.rstrip("/").split("/")
+            event_id = parts[-1] if parts else event_id
+        return {"event_id": event_id, "mode": "manual"}
+    else:
+        # Scan mode - show filter options then search
+        console.print("[dim]Searching active markets...[/dim]")
+        from tradingagents.agents.utils.polymarket_tools import search_markets
+        results = search_markets.invoke({"min_volume": 10000, "limit": 10})
+        console.print(results)
+
+        event_id = questionary.text(
+            "Enter event ID from the results above:",
+            style=questionary.Style([("text", "fg:green"), ("highlighted", "noinherit")]),
+        ).ask()
+        if not event_id:
+            console.print("\n[red]No event selected. Exiting...[/red]")
+            exit(1)
+        return {"event_id": event_id.strip(), "mode": "scan"}
 
 
 def get_analysis_date() -> str:
