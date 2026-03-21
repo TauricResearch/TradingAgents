@@ -7,11 +7,8 @@ consistent data regardless of the active vendor.
 
 from datetime import datetime
 
-import pandas as pd
-
 from .finnhub_common import (
     FinnhubError,
-    ThirdPartyParseError,
     _make_api_request,
     _now_str,
     _to_unix_timestamp,
