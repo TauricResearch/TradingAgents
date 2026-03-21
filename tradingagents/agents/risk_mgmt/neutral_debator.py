@@ -32,9 +32,7 @@ Here is the current conversation history: {history} Here is the last response fr
 
 Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting."""
 
-        prompt += "
-
-**重要：请完全用简体中文输出你的分析和辩论内容。**"
+        prompt += "\n\n**重要：请完全用简体中文输出你的分析和辩论内容。**"
         response = llm.invoke(prompt)
 
         argument = f"Neutral Analyst: {response.content}"

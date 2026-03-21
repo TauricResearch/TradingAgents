@@ -33,9 +33,7 @@ Here is the current conversation history: {history} Here is the last response fr
 
 Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting."""
 
-        prompt += "
-
-**重要：请完全用简体中文输出你的分析和辩论内容。**"
+        prompt += "\n\n**重要：请完全用简体中文输出你的分析和辩论内容。**"
         response = llm.invoke(prompt)
 
         argument = f"Conservative Analyst: {response.content}"
