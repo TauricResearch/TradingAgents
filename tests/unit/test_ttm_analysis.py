@@ -163,6 +163,17 @@ class TestComputeTTMMetrics:
         assert qoq is not None
         assert abs(qoq - 5.0) < 0.5
 
+    def test_revenue_yoy_is_four_quarters_back(self):
+        """YoY growth must compare latest quarter to the quarter 4 periods earlier."""
+        result = self.compute(
+            _make_income_csv(8), _make_balance_csv(8), _make_cashflow_csv(8)
+        )
+        yoy = result["trends"]["revenue_yoy_pct"]
+        assert yoy is not None
+        # With 5% QoQ compounding, YoY = 1.05^4 - 1 ≈ 21.55%
+        expected_yoy = ((1.05 ** 4) - 1) * 100
+        assert abs(yoy - expected_yoy) < 0.5
+
     def test_margin_trend_expanding(self):
         """Expanding margin should be detected."""
         # Create data where net margin expands over time

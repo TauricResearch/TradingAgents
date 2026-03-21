@@ -305,7 +305,7 @@ def compute_ttm_metrics(
     if n >= 2:
         latest_rev = quarterly[-1]["revenue"]
         prev_rev = quarterly[-2]["revenue"]
-        yoy_rev = quarterly[-4]["revenue"] if n >= 5 else None
+        yoy_rev = quarterly[-5]["revenue"] if n >= 5 else None
 
         result["trends"] = {
             "revenue_qoq_pct": _pct_change(latest_rev, prev_rev),
