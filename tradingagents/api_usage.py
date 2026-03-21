@@ -106,6 +106,12 @@ def _resolve_vendor(config: dict, method: str) -> str:
     try:
         category = get_category_for_method(method)
     except ValueError:
+        # Method not in any category — may be a new/unknown method.
+        # Return "unknown" so estimation can continue gracefully.
+        import logging
+        logging.getLogger(__name__).debug(
+            "Method %r not found in TOOLS_CATEGORIES — skipping vendor resolution", method
+        )
         return "unknown"
     return config.get("data_vendors", {}).get(category, "yfinance")
 
