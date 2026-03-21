@@ -8,8 +8,11 @@ from functools import wraps
 from rich.console import Console
 from dotenv import load_dotenv
 
-# Load environment variables from .env file.
-# Checks CWD first, then falls back to project root (relative to this script).
+# Load API keys (OPENAI_API_KEY, GOOGLE_API_KEY, etc.) from the .env file
+# before any network call is made.  tradingagents.default_config also calls
+# load_dotenv() at import time (for TRADINGAGENTS_* config vars), so these
+# two calls are a defence-in-depth safety net for the CLI entry point.
+# Order: CWD .env first, then the project-root .env as a fallback.
 load_dotenv()
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 from rich.panel import Panel
