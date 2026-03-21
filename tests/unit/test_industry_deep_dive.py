@@ -100,6 +100,41 @@ class TestExtractTopSectors:
             assert name in _DISPLAY_TO_KEY, f"Missing mapping for '{name}'"
             assert _DISPLAY_TO_KEY[name] in VALID_SECTOR_KEYS
 
+    def test_extracts_from_bullet_points(self):
+        report = """
+        Here are the top sectors:
+        - Technology: The technology sector has been performing well.
+        - Healthcare: Innovations in biotech are driving growth.
+        - Energy - showing strong recovery.
+        - Utilities
+        """
+        result = _extract_top_sectors(report, top_n=3)
+        assert result == ["technology", "healthcare", "energy"]
+
+    def test_extracts_from_numbered_lists(self):
+        report = """
+        Top performers this month:
+        1. Financial Services: Interest rates are up.
+        2. Consumer Staples - steady growth.
+        3. Real Estate: Rebounding.
+        """
+        result = _extract_top_sectors(report, top_n=2)
+        assert result == ["financial-services", "consumer-defensive"]
+
+    def test_extracts_from_plain_text(self):
+        report = "We recommend looking into technology, energy, and materials this quarter."
+        result = _extract_top_sectors(report, top_n=3)
+        assert result == ["technology", "energy", "basic-materials"]
+
+    def test_extracts_with_mixed_capitalization_and_whitespace(self):
+        report = """
+        *  ComMunication SeRvices : strong user growth.
+        * inDuStrials: Infrastructure spending is up.
+        *   basiC MaTerials - high demand.
+        """
+        result = _extract_top_sectors(report, top_n=3)
+        assert result == ["communication-services", "industrials", "basic-materials"]
+
 
 # ---------------------------------------------------------------------------
 # run_tool_loop nudge tests
