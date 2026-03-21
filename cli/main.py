@@ -575,6 +575,15 @@ def get_user_selections():
         )
         reasoning_effort = ask_openai_reasoning_effort()
 
+    # Step 8: User context (optional)
+    console.print(
+        create_question_box(
+            "Step 8: 自定义分析视角（可选）",
+            "输入你认为当前影响市场的核心因素，Agent 会优先考虑此视角\n  例：中东地缘冲突升级是当前美股主要风险，请重点分析\n  直接回车跳过",
+        )
+    )
+    user_context = typer.prompt("", default="").strip()
+
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
@@ -586,6 +595,7 @@ def get_user_selections():
         "deep_thinker": selected_deep_thinker,
         "google_thinking_level": thinking_level,
         "openai_reasoning_effort": reasoning_effort,
+        "user_context": user_context,
     }
 
 
@@ -1011,7 +1021,7 @@ def run_analysis():
 
         # Initialize state and get graph args with callbacks
         init_agent_state = graph.propagator.create_initial_state(
-            selections["ticker"], selections["analysis_date"]
+            selections["ticker"], selections["analysis_date"], selections.get("user_context", "")
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)
