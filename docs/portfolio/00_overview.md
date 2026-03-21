@@ -384,7 +384,7 @@ assume default models (`quick_think` = gpt-5-mini, `deep_think` = gpt-5.2,
 |------|----------|-------|-----------|-------------------|-------------------|
 | load_portfolio | — | — | 0 | 0 | 0 |
 | compute_risk | — | — | 0 | 0 | 0 |
-| review_holdings | mid_think | get_stock_data, get_news | 2 × N holdings | ~3,000–6,000 | ~1,500–3,000 |
+| review_holdings | mid_think | get_stock_data, get_news | 1 call reviews all holdings (up to 5 tool rounds) | ~3,000–6,000 | ~1,500–3,000 |
 | prioritize_candidates | — | — | 0 | 0 | 0 |
 | pm_decision | deep_think | — | 1 | ~6,000–12,000 | ~2,000–4,000 |
 | execute_trades | — | — | 0 | 0 | 0 |
@@ -400,7 +400,7 @@ assume default models (`quick_think` = gpt-5-mini, `deep_think` = gpt-5.2,
 | Workflow | quick_think | deep_think |
 |----------|-------------|------------|
 | Scanner | ~5K–11K in / ~3K–7K out | ~8K–15K in / ~3K–5K out |
-| Trading (per ticker, ~3 tickers) | ~105K–165K in / ~36K–60K out | ~36K–72K in / ~12K–24K out |
+| Trading (× 3 tickers — aggregate) | ~105K–165K in / ~36K–60K out | ~36K–72K in / ~12K–24K out |
 | Portfolio | — | ~6K–12K in / ~2K–4K out |
 | **Totals** | **~110K–176K in / ~39K–67K out** | **~50K–99K in / ~17K–33K out** |
 
