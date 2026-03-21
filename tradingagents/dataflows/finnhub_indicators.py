@@ -5,7 +5,7 @@ via the Finnhub /indicator endpoint.  Output format mirrors the Alpha Vantage
 indicator output so downstream agents see consistent data regardless of vendor.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Literal
 
 from .finnhub_common import (
