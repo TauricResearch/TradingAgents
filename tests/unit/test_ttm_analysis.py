@@ -60,15 +60,21 @@ class TestFindCol:
         from tradingagents.dataflows.ttm_analysis import _find_col
         self.find_col = _find_col
 
-    def test_find_col_success(self):
-        df = pd.DataFrame({"Total Revenue": [100], "Gross Profit": [40]})
-        candidates = ["Revenue", "Total Revenue", "totalRevenue"]
-        assert self.find_col(df, candidates) == "Total Revenue"
+    def test_find_col_match(self):
+        """Should return the matching column name."""
+        df = pd.DataFrame({"Revenue": [1, 2, 3], "Cost": [4, 5, 6]})
+        assert self.find_col(df, ["Revenue", "Total Revenue"]) == "Revenue"
 
-    def test_find_col_not_found(self):
-        df = pd.DataFrame({"Unrelated": [100], "Another": [40]})
-        candidates = ["Revenue", "Total Revenue", "totalRevenue"]
-        assert self.find_col(df, candidates) is None
+    def test_find_col_no_match(self):
+        """Should return None if no candidate matches."""
+        df = pd.DataFrame({"Cost": [4, 5, 6], "Profit": [7, 8, 9]})
+        assert self.find_col(df, ["Revenue", "Total Revenue"]) is None
+
+    def test_find_col_empty_df(self):
+        """Should return None for empty DataFrame."""
+        df = pd.DataFrame()
+        assert self.find_col(df, ["Revenue", "Total Revenue"]) is None
+
 
 # ---------------------------------------------------------------------------
 # Unit tests for compute_ttm_metrics
