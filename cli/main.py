@@ -890,6 +890,34 @@ def classify_message_type(message) -> tuple[str, str | None]:
     return ("System", content)
 
 
+def parse_tool_call(tool_call) -> tuple[str, dict | str]:
+    """Parse a tool call into a name and arguments dictionary.
+    Handles dicts, objects with name/args attributes, and string representations.
+    """
+    import ast
+
+    if isinstance(tool_call, dict):
+        tool_name = tool_call.get("name", "Unknown Tool")
+        args = tool_call.get("args", tool_call.get("arguments", {}))
+        return tool_name, args
+
+    if isinstance(tool_call, str):
+        try:
+            tool_call_dict = ast.literal_eval(tool_call)
+            if not isinstance(tool_call_dict, dict):
+                tool_call_dict = {}
+        except (ValueError, SyntaxError):
+            tool_call_dict = {}
+
+        tool_name = tool_call_dict.get("name", "Unknown Tool")
+        args = tool_call_dict.get("args", tool_call_dict.get("arguments", {}))
+        return tool_name, args
+
+    # Fallback for objects with name and args attributes
+    tool_name = getattr(tool_call, "name", "Unknown Tool")
+    args = getattr(tool_call, "args", getattr(tool_call, "arguments", {}))
+    return tool_name, args
+
 def format_tool_args(args, max_length=80) -> str:
     """Format tool arguments for terminal display."""
     result = str(args)
@@ -1051,12 +1079,8 @@ def run_analysis():
                     # Handle tool calls
                     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
                         for tool_call in last_message.tool_calls:
-                            if isinstance(tool_call, dict):
-                                message_buffer.add_tool_call(
-                                    tool_call["name"], tool_call["args"]
-                                )
-                            else:
-                                message_buffer.add_tool_call(tool_call.name, tool_call.args)
+                            tool_name, tool_args = parse_tool_call(tool_call)
+                            message_buffer.add_tool_call(tool_name, tool_args)
 
             # Update analyst statuses based on report state (runs on every chunk)
             update_analyst_statuses(message_buffer, chunk)
