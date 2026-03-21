@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from tradingagents.agents.utils.json_utils import extract_json
 from dataclasses import dataclass
 from datetime import datetime
@@ -242,24 +243,24 @@ async def run_all_tickers(
     Returns:
         List of TickerResult in completion order.
     """
-    semaphore = asyncio.Semaphore(max_concurrent)
-
-    async def _run_one(candidate: StockCandidate) -> TickerResult:
-        async with semaphore:
-            loop = asyncio.get_running_loop()
-            # TradingAgentsGraph is synchronous — run it in a thread pool
-            return await loop.run_in_executor(
-                None,
+    loop = asyncio.get_running_loop()
+    executor = ThreadPoolExecutor(max_workers=max_concurrent)
+    try:
+        tasks = [
+            loop.run_in_executor(
+                executor,
                 run_ticker_analysis,
-                candidate,
+                c,
                 macro_context,
                 config,
                 analysis_date,
             )
-
-    tasks = [_run_one(c) for c in candidates]
-    results = await asyncio.gather(*tasks)
-    return list(results)
+            for c in candidates
+        ]
+        results = await asyncio.gather(*tasks)
+        return list(results)
+    finally:
+        executor.shutdown(wait=False)
 
 
 # ─── Reporting ────────────────────────────────────────────────────────────────
