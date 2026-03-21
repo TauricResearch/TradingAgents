@@ -1,6 +1,5 @@
-# TradingAgents/graph/propagation.py
-
 from typing import Dict, Any, List, Optional
+
 from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
@@ -9,57 +8,54 @@ from tradingagents.agents.utils.agent_states import (
 
 
 class Propagator:
-    """Handles state initialization and propagation through the graph."""
+    """Handles state initialization and graph argument configuration."""
 
     def __init__(self, max_recur_limit=100):
-        """Initialize with configuration parameters."""
         self.max_recur_limit = max_recur_limit
 
-    def create_initial_state(
-        self, company_name: str, trade_date: str
-    ) -> Dict[str, Any]:
-        """Create the initial state for the agent graph."""
+    def create_initial_state(self, event_id, event_question, trade_date):
+        """Create the initial agent state for a Polymarket event analysis."""
         return {
-            "messages": [("human", company_name)],
-            "company_of_interest": company_name,
+            "messages": [("human", event_question)],
+            "event_id": event_id,
+            "event_question": event_question,
             "trade_date": str(trade_date),
-            "investment_debate_state": InvestDebateState(
-                {
-                    "bull_history": "",
-                    "bear_history": "",
-                    "history": "",
-                    "current_response": "",
-                    "judge_decision": "",
-                    "count": 0,
-                }
-            ),
-            "risk_debate_state": RiskDebateState(
-                {
-                    "aggressive_history": "",
-                    "conservative_history": "",
-                    "neutral_history": "",
-                    "history": "",
-                    "latest_speaker": "",
-                    "current_aggressive_response": "",
-                    "current_conservative_response": "",
-                    "current_neutral_response": "",
-                    "judge_decision": "",
-                    "count": 0,
-                }
-            ),
-            "market_report": "",
-            "fundamentals_report": "",
+            "sender": "",
+            "odds_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "event_report": "",
+            "investment_debate_state": {
+                "yes_history": "",
+                "no_history": "",
+                "timing_history": "",
+                "history": "",
+                "current_yes_response": "",
+                "current_no_response": "",
+                "current_timing_response": "",
+                "latest_speaker": "",
+                "judge_decision": "",
+                "count": 0,
+            },
+            "investment_plan": "",
+            "trader_plan": "",
+            "risk_debate_state": {
+                "aggressive_history": "",
+                "conservative_history": "",
+                "neutral_history": "",
+                "history": "",
+                "latest_speaker": "",
+                "current_aggressive_response": "",
+                "current_conservative_response": "",
+                "current_neutral_response": "",
+                "judge_decision": "",
+                "count": 0,
+            },
+            "final_decision": "",
         }
 
-    def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:
-        """Get arguments for the graph invocation.
-
-        Args:
-            callbacks: Optional list of callback handlers for tool execution tracking.
-                       Note: LLM callbacks are handled separately via LLM constructor.
-        """
+    def get_graph_args(self, callbacks=None):
+        """Get the arguments for graph invocation."""
         config = {"recursion_limit": self.max_recur_limit}
         if callbacks:
             config["callbacks"] = callbacks
