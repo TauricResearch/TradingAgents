@@ -17,7 +17,7 @@ DEFAULT_CONFIG = {
     "llm_provider": os.environ.get("LLM_PROVIDER", "openai"),
     "deep_think_llm": os.environ.get("DEEP_THINK_LLM", "gpt-5.2"),
     "quick_think_llm": os.environ.get("QUICK_THINK_LLM", "gpt-5-mini"),
-    "backend_url": os.environ.get("BACKEND_URL", os.environ.get("LLAMACPP_BASE_URL", "https://api.openai.com/v1")),
+    "backend_url": os.environ.get("BACKEND_URL", "https://api.openai.com/v1"),
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
