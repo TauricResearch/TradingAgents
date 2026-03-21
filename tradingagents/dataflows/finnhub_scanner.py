@@ -18,7 +18,6 @@ from typing import Annotated
 
 from .finnhub_common import (
     FinnhubError,
-    _make_api_request,
     _now_str,
     _rate_limited_request,
 )
