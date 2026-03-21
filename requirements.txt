@@ -19,3 +19,8 @@ typer
 questionary
 langchain_anthropic
 langchain-google-genai
+py-clob-client
+tavily-python
+tweepy
+praw
+pydantic
