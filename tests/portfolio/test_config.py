@@ -102,3 +102,15 @@ def test_validate_config_sum_constraints_invalid():
     }
     with pytest.raises(ValueError, match=r"must be <= 1.0"):
         validate_config(cfg)
+
+def test_validate_config_sum_constraints_edge_case():
+    """min_cash_pct + max_position_pct can be exactly 1.0."""
+    cfg = {
+        "max_positions": 10,
+        "max_position_pct": 0.5,
+        "max_sector_pct": 0.3,
+        "min_cash_pct": 0.5,
+        "default_budget": 100000.0
+    }
+    # Should not raise any exception
+    validate_config(cfg)
