@@ -476,6 +476,107 @@ class TestGetStockStatsIndicatorsWindow:
 
 
 # ---------------------------------------------------------------------------
+# _extract_article_data
+# ---------------------------------------------------------------------------
+
+class TestExtractArticleData:
+    """Tests for _extract_article_data in yfinance_news."""
+
+    def test_extract_nested_content_success(self):
+        from tradingagents.dataflows.yfinance_news import _extract_article_data
+        from datetime import datetime, timezone
+
+        article = {
+            "content": {
+                "title": "A Great Day for Stocks",
+                "summary": "Stocks are up today.",
+                "provider": {"displayName": "FinNews"},
+                "canonicalUrl": {"url": "https://example.com/stocks"},
+                "pubDate": "2024-01-15T10:00:00Z",
+            }
+        }
+
+        result = _extract_article_data(article)
+
+        assert result["title"] == "A Great Day for Stocks"
+        assert result["summary"] == "Stocks are up today."
+        assert result["publisher"] == "FinNews"
+        assert result["link"] == "https://example.com/stocks"
+        assert result["pub_date"] == datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+
+    def test_extract_nested_content_clickthrough_url(self):
+        from tradingagents.dataflows.yfinance_news import _extract_article_data
+
+        article = {
+            "content": {
+                "clickThroughUrl": {"url": "https://example.com/click"},
+            }
+        }
+
+        result = _extract_article_data(article)
+
+        assert result["link"] == "https://example.com/click"
+
+    def test_extract_nested_content_invalid_pubdate(self):
+        from tradingagents.dataflows.yfinance_news import _extract_article_data
+
+        article = {
+            "content": {
+                "pubDate": "invalid-date",
+            }
+        }
+
+        result = _extract_article_data(article)
+
+        assert result["pub_date"] is None
+
+    def test_extract_nested_content_missing_pubdate(self):
+        from tradingagents.dataflows.yfinance_news import _extract_article_data
+
+        article = {
+            "content": {}
+        }
+
+        result = _extract_article_data(article)
+
+        assert result["pub_date"] is None
+        assert result["title"] == "No title"
+        assert result["publisher"] == "Unknown"
+        assert result["link"] == ""
+
+    def test_extract_flat_structure(self):
+        from tradingagents.dataflows.yfinance_news import _extract_article_data
+
+        article = {
+            "title": "Flat Title",
+            "summary": "Flat Summary",
+            "publisher": "FlatPub",
+            "link": "https://example.com/flat",
+        }
+
+        result = _extract_article_data(article)
+
+        assert result["title"] == "Flat Title"
+        assert result["summary"] == "Flat Summary"
+        assert result["publisher"] == "FlatPub"
+        assert result["link"] == "https://example.com/flat"
+        assert result["pub_date"] is None
+
+    def test_extract_flat_structure_missing_fields(self):
+        from tradingagents.dataflows.yfinance_news import _extract_article_data
+
+        article = {}
+
+        result = _extract_article_data(article)
+
+        assert result["title"] == "No title"
+        assert result["summary"] == ""
+        assert result["publisher"] == "Unknown"
+        assert result["link"] == ""
+        assert result["pub_date"] is None
+
+
+# ---------------------------------------------------------------------------
 # get_global_news_yfinance
 # ---------------------------------------------------------------------------
 
