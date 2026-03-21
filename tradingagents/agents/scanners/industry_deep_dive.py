@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import get_industry_performance, get_topic_news
 from tradingagents.agents.utils.tool_runner import run_tool_loop
@@ -46,6 +47,8 @@ def _extract_top_sectors(sector_report: str, top_n: int = 3) -> list[str]:
         | Technology | +0.45% | +1.20% | +5.67% | +12.3% |
 
     We parse the 1-month column (index 3) and sort by absolute value.
+    If the report is not a table, it attempts to parse list formats
+    (bullet points, numbered lists, or plain text).
 
     Returns a list of valid sector keys (e.g. ``["technology", "energy"]``).
     Falls back to a sensible default if parsing fails.
@@ -73,12 +76,48 @@ def _extract_top_sectors(sector_report: str, top_n: int = 3) -> list[str]:
         if key:
             rows.append((key, month_val))
 
-    if not rows:
-        return VALID_SECTOR_KEYS[:top_n]
+    if rows:
+        # Sort by absolute 1-month move (biggest mover first)
+        rows.sort(key=lambda r: abs(r[1]), reverse=True)
+        return [r[0] for r in rows[:top_n]]
 
-    # Sort by absolute 1-month move (biggest mover first)
-    rows.sort(key=lambda r: abs(r[1]), reverse=True)
-    return [r[0] for r in rows[:top_n]]
+    # Fallback to parsing text formats: bullet points, numbered lists, plain text
+    sectors = []
+    lines = sector_report.split("\n")
+    for line in lines:
+        line_clean = line.strip()
+        # Regex to match list formats: e.g., "- Technology:", "1. Energy -", "* Healthcare:"
+        match = re.match(r'^(?:-|\*|\d+\.)?\s*([a-zA-Z\s]+?)\s*[:\-]', line_clean)
+        if match:
+            sector_name = match.group(1).strip().lower()
+            key = _DISPLAY_TO_KEY.get(sector_name)
+            if key and key not in sectors:
+                sectors.append(key)
+                if len(sectors) == top_n:
+                    return sectors
+
+    # Final fallback for plain text search
+    if not sectors:
+        report_lower = sector_report.lower()
+
+        found_sectors = []
+        for disp_name, key in _DISPLAY_TO_KEY.items():
+            idx = report_lower.find(disp_name)
+            if idx != -1:
+                found_sectors.append((idx, key))
+
+        # Sort by appearance order
+        found_sectors.sort(key=lambda x: x[0])
+        for _, key in found_sectors:
+            if key not in sectors:
+                sectors.append(key)
+                if len(sectors) == top_n:
+                    return sectors
+
+    if sectors:
+        return sectors[:top_n]
+
+    return VALID_SECTOR_KEYS[:top_n]
 
 
 def create_industry_deep_dive(llm):
