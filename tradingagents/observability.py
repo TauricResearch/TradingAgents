@@ -153,6 +153,15 @@ class RunLogger:
             else:
                 vendor_counts[v]["fail"] += 1
 
+        # Group vendor calls by vendor → method for detailed breakdown
+        vendor_methods: dict[str, dict[str, int]] = {}
+        for e in vendor_events:
+            v = e.data["vendor"]
+            m = e.data.get("method", "unknown")
+            if v not in vendor_methods:
+                vendor_methods[v] = {}
+            vendor_methods[v][m] = vendor_methods[v].get(m, 0) + 1
+
         return {
             "elapsed_s": round(time.time() - self._start, 1),
             "llm_calls": len(llm_events),
@@ -167,6 +176,7 @@ class RunLogger:
             "vendor_success": vendor_ok,
             "vendor_fail": vendor_fail,
             "vendors_used": vendor_counts,
+            "vendor_methods": vendor_methods,
         }
 
     def write_log(self, path: Path) -> None:
