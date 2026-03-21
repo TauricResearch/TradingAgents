@@ -15,14 +15,12 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live
-from rich.columns import Columns
 from rich.markdown import Markdown
 from rich.layout import Layout
 from rich.text import Text
 from rich.table import Table
 from collections import deque
 import time
-from rich.tree import Tree
 from rich import box
 from rich.align import Align
 from rich.rule import Rule
@@ -32,7 +30,6 @@ from tradingagents.report_paths import get_daily_dir, get_market_dir, get_ticker
 from tradingagents.daily_digest import append_to_digest
 from tradingagents.notebook_sync import sync_to_notebooklm
 from tradingagents.default_config import DEFAULT_CONFIG
-from cli.models import AnalystType
 from cli.utils import *
 from tradingagents.graph.scanner_graph import ScannerGraph
 from cli.announcements import fetch_announcements, display_announcements
@@ -55,7 +52,11 @@ class MessageBuffer:
     FIXED_AGENTS = {
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
-        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
+        "Risk Management": [
+            "Aggressive Analyst",
+            "Neutral Analyst",
+            "Conservative Analyst",
+        ],
         "Portfolio Management": ["Portfolio Manager"],
     }
 
@@ -136,15 +137,10 @@ class MessageBuffer:
         This prevents interim updates (like debate rounds) from counting as completed.
         """
         count = 0
-        for section in self.report_sections:
-            if section not in self.REPORT_SECTIONS:
-                continue
-            _, finalizing_agent = self.REPORT_SECTIONS[section]
-            # Report is complete if it has content AND its finalizing agent is done
-            has_content = self.report_sections.get(section) is not None
-            agent_done = self.agent_status.get(finalizing_agent) == "completed"
-            if has_content and agent_done:
-                count += 1
+        for section, (_, finalizing_agent) in self.REPORT_SECTIONS.items():
+            if self.report_sections.get(section) is not None:
+                if self.agent_status.get(finalizing_agent) == "completed":
+                    count += 1
         return count
 
     def add_message(self, message_type, content):
@@ -175,7 +171,7 @@ class MessageBuffer:
             if content is not None:
                 latest_section = section
                 latest_content = content
-               
+
         if latest_section and latest_content:
             # Format the current section for display
             section_titles = {
@@ -198,7 +194,12 @@ class MessageBuffer:
         report_parts = []
 
         # Analyst Team Reports - use .get() to handle missing sections
-        analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
+        analyst_sections = [
+            "market_report",
+            "sentiment_report",
+            "news_report",
+            "fundamentals_report",
+        ]
         if any(self.report_sections.get(section) for section in analyst_sections):
             report_parts.append("## Analyst Team Reports")
             if self.report_sections.get("market_report"):
@@ -258,7 +259,7 @@ def create_layout():
 def format_tokens(n):
     """Format token count for display."""
     if n >= 1000:
-        return f"{n/1000:.1f}k"
+        return f"{n / 1000:.1f}k"
     return str(n)
 
 
@@ -299,7 +300,11 @@ def update_display(layout, spinner_text=None, stats_handler=None, start_time=Non
         ],
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
-        "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
+        "Risk Management": [
+            "Aggressive Analyst",
+            "Neutral Analyst",
+            "Conservative Analyst",
+        ],
         "Portfolio Management": ["Portfolio Manager"],
     }
 
@@ -561,34 +566,40 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 5: Quick-Thinking Setup",
-            "Provider and model for analysts & risk debaters (fast, high volume)"
+            "Provider and model for analysts & risk debaters (fast, high volume)",
         )
     )
     quick_provider, quick_backend_url = select_llm_provider()
     selected_shallow_thinker = select_shallow_thinking_agent(quick_provider)
-    quick_thinking_level, quick_reasoning_effort = _ask_provider_thinking_config(quick_provider)
+    quick_thinking_level, quick_reasoning_effort = _ask_provider_thinking_config(
+        quick_provider
+    )
 
     # Step 6: Mid-thinking provider + model
     console.print(
         create_question_box(
             "Step 6: Mid-Thinking Setup",
-            "Provider and model for researchers & trader (reasoning, argument formation)"
+            "Provider and model for researchers & trader (reasoning, argument formation)",
         )
     )
     mid_provider, mid_backend_url = select_llm_provider()
     selected_mid_thinker = select_mid_thinking_agent(mid_provider)
-    mid_thinking_level, mid_reasoning_effort = _ask_provider_thinking_config(mid_provider)
+    mid_thinking_level, mid_reasoning_effort = _ask_provider_thinking_config(
+        mid_provider
+    )
 
     # Step 7: Deep-thinking provider + model
     console.print(
         create_question_box(
             "Step 7: Deep-Thinking Setup",
-            "Provider and model for investment judge & risk manager (final decisions)"
+            "Provider and model for investment judge & risk manager (final decisions)",
         )
     )
     deep_provider, deep_backend_url = select_llm_provider()
     selected_deep_thinker = select_deep_thinking_agent(deep_provider)
-    deep_thinking_level, deep_reasoning_effort = _ask_provider_thinking_config(deep_provider)
+    deep_thinking_level, deep_reasoning_effort = _ask_provider_thinking_config(
+        deep_provider
+    )
 
     return {
         "ticker": selected_ticker,
@@ -638,8 +649,12 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         analyst_parts.append(("News Analyst", final_state["news_report"]))
     if final_state.get("fundamentals_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"])
-        analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+        (analysts_dir / "fundamentals.md").write_text(
+            final_state["fundamentals_report"]
+        )
+        analyst_parts.append(
+            ("Fundamentals Analyst", final_state["fundamentals_report"])
+        )
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
         sections.append(f"## I. Analyst Team Reports\n\n{content}")
@@ -662,7 +677,9 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
             (research_dir / "manager.md").write_text(debate["judge_decision"])
             research_parts.append(("Research Manager", debate["judge_decision"]))
         if research_parts:
-            content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
+            content = "\n\n".join(
+                f"### {name}\n{text}" for name, text in research_parts
+            )
             sections.append(f"## II. Research Team Decision\n\n{content}")
 
     # 3. Trading
@@ -670,7 +687,9 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         trading_dir = save_path / "3_trading"
         trading_dir.mkdir(exist_ok=True)
         (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"])
-        sections.append(f"## III. Trading Team Plan\n\n### Trader\n{final_state['trader_investment_plan']}")
+        sections.append(
+            f"## III. Trading Team Plan\n\n### Trader\n{final_state['trader_investment_plan']}"
+        )
 
     # 4. Risk Management
     if final_state.get("risk_debate_state"):
@@ -698,7 +717,9 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
             portfolio_dir = save_path / "5_portfolio"
             portfolio_dir.mkdir(exist_ok=True)
             (portfolio_dir / "decision.md").write_text(risk["judge_decision"])
-            sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
+            sections.append(
+                f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}"
+            )
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
@@ -722,9 +743,15 @@ def display_complete_report(final_state):
     if final_state.get("fundamentals_report"):
         analysts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
     if analysts:
-        console.print(Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan"))
+        console.print(
+            Panel("[bold]I. Analyst Team Reports[/bold]", border_style="cyan")
+        )
         for title, content in analysts:
-            console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
+            console.print(
+                Panel(
+                    Markdown(content), title=title, border_style="blue", padding=(1, 2)
+                )
+            )
 
     # II. Research Team Reports
     if final_state.get("investment_debate_state"):
@@ -737,14 +764,32 @@ def display_complete_report(final_state):
         if debate.get("judge_decision"):
             research.append(("Research Manager", debate["judge_decision"]))
         if research:
-            console.print(Panel("[bold]II. Research Team Decision[/bold]", border_style="magenta"))
+            console.print(
+                Panel("[bold]II. Research Team Decision[/bold]", border_style="magenta")
+            )
             for title, content in research:
-                console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
+                console.print(
+                    Panel(
+                        Markdown(content),
+                        title=title,
+                        border_style="blue",
+                        padding=(1, 2),
+                    )
+                )
 
     # III. Trading Team
     if final_state.get("trader_investment_plan"):
-        console.print(Panel("[bold]III. Trading Team Plan[/bold]", border_style="yellow"))
-        console.print(Panel(Markdown(final_state["trader_investment_plan"]), title="Trader", border_style="blue", padding=(1, 2)))
+        console.print(
+            Panel("[bold]III. Trading Team Plan[/bold]", border_style="yellow")
+        )
+        console.print(
+            Panel(
+                Markdown(final_state["trader_investment_plan"]),
+                title="Trader",
+                border_style="blue",
+                padding=(1, 2),
+            )
+        )
 
     # IV. Risk Management Team
     if final_state.get("risk_debate_state"):
@@ -757,14 +802,36 @@ def display_complete_report(final_state):
         if risk.get("neutral_history"):
             risk_reports.append(("Neutral Analyst", risk["neutral_history"]))
         if risk_reports:
-            console.print(Panel("[bold]IV. Risk Management Team Decision[/bold]", border_style="red"))
+            console.print(
+                Panel(
+                    "[bold]IV. Risk Management Team Decision[/bold]", border_style="red"
+                )
+            )
             for title, content in risk_reports:
-                console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
+                console.print(
+                    Panel(
+                        Markdown(content),
+                        title=title,
+                        border_style="blue",
+                        padding=(1, 2),
+                    )
+                )
 
         # V. Portfolio Manager Decision
         if risk.get("judge_decision"):
-            console.print(Panel("[bold]V. Portfolio Manager Decision[/bold]", border_style="green"))
-            console.print(Panel(Markdown(risk["judge_decision"]), title="Portfolio Manager", border_style="blue", padding=(1, 2)))
+            console.print(
+                Panel(
+                    "[bold]V. Portfolio Manager Decision[/bold]", border_style="green"
+                )
+            )
+            console.print(
+                Panel(
+                    Markdown(risk["judge_decision"]),
+                    title="Portfolio Manager",
+                    border_style="blue",
+                    padding=(1, 2),
+                )
+            )
 
 
 def update_research_team_status(status):
@@ -824,6 +891,7 @@ def update_analyst_statuses(message_buffer, chunk):
         if message_buffer.agent_status.get("Bull Researcher") == "pending":
             message_buffer.update_agent_status("Bull Researcher", "in_progress")
 
+
 def extract_content_string(content):
     """Extract string content from various message formats.
     Returns None if no meaningful text content is found.
@@ -832,7 +900,7 @@ def extract_content_string(content):
 
     def is_empty(val):
         """Check if value is empty using Python's truthiness."""
-        if val is None or val == '':
+        if val is None or val == "":
             return True
         if isinstance(val, str):
             s = val.strip()
@@ -851,16 +919,17 @@ def extract_content_string(content):
         return content.strip()
 
     if isinstance(content, dict):
-        text = content.get('text', '')
+        text = content.get("text", "")
         return text.strip() if not is_empty(text) else None
 
     if isinstance(content, list):
         text_parts = [
-            item.get('text', '').strip() if isinstance(item, dict) and item.get('type') == 'text'
-            else (item.strip() if isinstance(item, str) else '')
+            item.get("text", "").strip()
+            if isinstance(item, dict) and item.get("type") == "text"
+            else (item.strip() if isinstance(item, str) else "")
             for item in content
         ]
-        result = ' '.join(t for t in text_parts if t and not is_empty(t))
+        result = " ".join(t for t in text_parts if t and not is_empty(t))
         return result if result else None
 
     return str(content).strip() if not is_empty(content) else None
@@ -875,7 +944,7 @@ def classify_message_type(message) -> tuple[str, str | None]:
     """
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-    content = extract_content_string(getattr(message, 'content', None))
+    content = extract_content_string(getattr(message, "content", None))
 
     if isinstance(message, HumanMessage):
         if content and content.strip() == "Continue":
@@ -920,12 +989,14 @@ def parse_tool_call(tool_call) -> tuple[str, dict | str]:
     args = getattr(tool_call, "args", getattr(tool_call, "arguments", {}))
     return tool_name, args
 
+
 def format_tool_args(args, max_length=80) -> str:
     """Format tool arguments for terminal display."""
     result = str(args)
     if len(result) > max_length:
-        return result[:max_length - 3] + "..."
+        return result[: max_length - 3] + "..."
     return result
+
 
 def run_analysis():
     # First get all user selections
@@ -940,7 +1011,9 @@ def run_analysis():
     config["quick_think_llm_provider"] = selections["quick_provider"]
     config["quick_think_backend_url"] = selections["quick_backend_url"]
     config["quick_think_google_thinking_level"] = selections.get("quick_thinking_level")
-    config["quick_think_openai_reasoning_effort"] = selections.get("quick_reasoning_effort")
+    config["quick_think_openai_reasoning_effort"] = selections.get(
+        "quick_reasoning_effort"
+    )
     config["mid_think_llm"] = selections["mid_thinker"]
     config["mid_think_llm_provider"] = selections["mid_provider"]
     config["mid_think_backend_url"] = selections["mid_backend_url"]
@@ -950,7 +1023,9 @@ def run_analysis():
     config["deep_think_llm_provider"] = selections["deep_provider"]
     config["deep_think_backend_url"] = selections["deep_backend_url"]
     config["deep_think_google_thinking_level"] = selections.get("deep_thinking_level")
-    config["deep_think_openai_reasoning_effort"] = selections.get("deep_reasoning_effort")
+    config["deep_think_openai_reasoning_effort"] = selections.get(
+        "deep_reasoning_effort"
+    )
     # Keep shared llm_provider/backend_url as a fallback (use quick as default)
     config["llm_provider"] = selections["quick_provider"]
     config["backend_url"] = selections["quick_backend_url"]
@@ -988,6 +1063,7 @@ def run_analysis():
 
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             func(*args, **kwargs)
@@ -995,10 +1071,12 @@ def run_analysis():
             content = content.replace("\n", " ")  # Replace newlines with spaces
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [{message_type}] {content}\n")
+
         return wrapper
 
     def save_tool_call_decorator(obj, func_name):
         func = getattr(obj, func_name)
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             func(*args, **kwargs)
@@ -1006,24 +1084,34 @@ def run_analysis():
             args_str = ", ".join(f"{k}={v}" for k, v in args.items())
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"{timestamp} [Tool Call] {tool_name}({args_str})\n")
+
         return wrapper
 
     def save_report_section_decorator(obj, func_name):
         func = getattr(obj, func_name)
+
         @wraps(func)
         def wrapper(section_name, content):
             func(section_name, content)
-            if section_name in obj.report_sections and obj.report_sections[section_name] is not None:
+            if (
+                section_name in obj.report_sections
+                and obj.report_sections[section_name] is not None
+            ):
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
                     with open(report_dir / file_name, "w", encoding="utf-8") as f:
                         f.write(content)
+
         return wrapper
 
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")
-    message_buffer.add_tool_call = save_tool_call_decorator(message_buffer, "add_tool_call")
-    message_buffer.update_report_section = save_report_section_decorator(message_buffer, "update_report_section")
+    message_buffer.add_tool_call = save_tool_call_decorator(
+        message_buffer, "add_tool_call"
+    )
+    message_buffer.update_report_section = save_report_section_decorator(
+        message_buffer, "update_report_section"
+    )
 
     # Now start the display layout
     layout = create_layout()
@@ -1052,7 +1140,9 @@ def run_analysis():
         spinner_text = (
             f"Analyzing {selections['ticker']} on {selections['analysis_date']}..."
         )
-        update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
+        update_display(
+            layout, spinner_text, stats_handler=stats_handler, start_time=start_time
+        )
 
         # Initialize state and get graph args with callbacks
         init_agent_state = graph.propagator.create_initial_state(
@@ -1119,7 +1209,9 @@ def run_analysis():
                 )
                 if message_buffer.agent_status.get("Trader") != "completed":
                     message_buffer.update_agent_status("Trader", "completed")
-                    message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
+                    message_buffer.update_agent_status(
+                        "Aggressive Analyst", "in_progress"
+                    )
 
             # Risk Management Team - Handle Risk Debate State
             if chunk.get("risk_debate_state"):
@@ -1130,33 +1222,65 @@ def run_analysis():
                 judge = risk_state.get("judge_decision", "").strip()
 
                 if agg_hist:
-                    if message_buffer.agent_status.get("Aggressive Analyst") != "completed":
-                        message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
+                    if (
+                        message_buffer.agent_status.get("Aggressive Analyst")
+                        != "completed"
+                    ):
+                        message_buffer.update_agent_status(
+                            "Aggressive Analyst", "in_progress"
+                        )
                     message_buffer.update_report_section(
-                        "final_trade_decision", f"### Aggressive Analyst Analysis\n{agg_hist}"
+                        "final_trade_decision",
+                        f"### Aggressive Analyst Analysis\n{agg_hist}",
                     )
                 if con_hist:
-                    if message_buffer.agent_status.get("Conservative Analyst") != "completed":
-                        message_buffer.update_agent_status("Conservative Analyst", "in_progress")
+                    if (
+                        message_buffer.agent_status.get("Conservative Analyst")
+                        != "completed"
+                    ):
+                        message_buffer.update_agent_status(
+                            "Conservative Analyst", "in_progress"
+                        )
                     message_buffer.update_report_section(
-                        "final_trade_decision", f"### Conservative Analyst Analysis\n{con_hist}"
+                        "final_trade_decision",
+                        f"### Conservative Analyst Analysis\n{con_hist}",
                     )
                 if neu_hist:
-                    if message_buffer.agent_status.get("Neutral Analyst") != "completed":
-                        message_buffer.update_agent_status("Neutral Analyst", "in_progress")
+                    if (
+                        message_buffer.agent_status.get("Neutral Analyst")
+                        != "completed"
+                    ):
+                        message_buffer.update_agent_status(
+                            "Neutral Analyst", "in_progress"
+                        )
                     message_buffer.update_report_section(
-                        "final_trade_decision", f"### Neutral Analyst Analysis\n{neu_hist}"
+                        "final_trade_decision",
+                        f"### Neutral Analyst Analysis\n{neu_hist}",
                     )
                 if judge:
-                    if message_buffer.agent_status.get("Portfolio Manager") != "completed":
-                        message_buffer.update_agent_status("Portfolio Manager", "in_progress")
-                        message_buffer.update_report_section(
-                            "final_trade_decision", f"### Portfolio Manager Decision\n{judge}"
+                    if (
+                        message_buffer.agent_status.get("Portfolio Manager")
+                        != "completed"
+                    ):
+                        message_buffer.update_agent_status(
+                            "Portfolio Manager", "in_progress"
                         )
-                        message_buffer.update_agent_status("Aggressive Analyst", "completed")
-                        message_buffer.update_agent_status("Conservative Analyst", "completed")
-                        message_buffer.update_agent_status("Neutral Analyst", "completed")
-                        message_buffer.update_agent_status("Portfolio Manager", "completed")
+                        message_buffer.update_report_section(
+                            "final_trade_decision",
+                            f"### Portfolio Manager Decision\n{judge}",
+                        )
+                        message_buffer.update_agent_status(
+                            "Aggressive Analyst", "completed"
+                        )
+                        message_buffer.update_agent_status(
+                            "Conservative Analyst", "completed"
+                        )
+                        message_buffer.update_agent_status(
+                            "Neutral Analyst", "completed"
+                        )
+                        message_buffer.update_agent_status(
+                            "Portfolio Manager", "completed"
+                        )
 
             # Update the display
             update_display(layout, stats_handler=stats_handler, start_time=start_time)
@@ -1190,12 +1314,13 @@ def run_analysis():
     if save_choice in ("Y", "YES", ""):
         default_path = get_ticker_dir(selections["analysis_date"], selections["ticker"])
         save_path_str = typer.prompt(
-            "Save path (press Enter for default)",
-            default=str(default_path)
+            "Save path (press Enter for default)", default=str(default_path)
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(
+                final_state, selections["ticker"], save_path
+            )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:
@@ -1228,14 +1353,18 @@ def run_analysis():
     set_run_logger(None)
 
     # Prompt to display full report
-    display_choice = typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
+    display_choice = (
+        typer.prompt("\nDisplay full report on screen?", default="Y").strip().upper()
+    )
     if display_choice in ("Y", "YES", ""):
         display_complete_report(final_state)
 
 
 def run_scan(date: Optional[str] = None):
     """Run the 3-phase LLM scanner pipeline via ScannerGraph."""
-    console.print(Panel("[bold green]Global Macro Scanner[/bold green]", border_style="green"))
+    console.print(
+        Panel("[bold green]Global Macro Scanner[/bold green]", border_style="green")
+    )
     if date:
         scan_date = date
     else:
@@ -1247,7 +1376,9 @@ def run_scan(date: Optional[str] = None):
     save_dir.mkdir(parents=True, exist_ok=True)
 
     console.print(f"[cyan]Running 3-phase macro scanner for {scan_date}...[/cyan]")
-    console.print("[dim]Phase 1: Geopolitical + Market Movers + Sector scans (parallel)[/dim]")
+    console.print(
+        "[dim]Phase 1: Geopolitical + Market Movers + Sector scans (parallel)[/dim]"
+    )
     console.print("[dim]Phase 2: Industry Deep Dive[/dim]")
     console.print("[dim]Phase 3: Macro Synthesis → stocks to investigate[/dim]\n")
 
@@ -1255,7 +1386,9 @@ def run_scan(date: Optional[str] = None):
     set_run_logger(run_logger)
 
     try:
-        scanner = ScannerGraph(config=DEFAULT_CONFIG.copy(), callbacks=[run_logger.callback])
+        scanner = ScannerGraph(
+            config=DEFAULT_CONFIG.copy(), callbacks=[run_logger.callback]
+        )
         with Live(Spinner("dots", text="Scanning..."), console=console, transient=True):
             result = scanner.scan(scan_date)
     except Exception as e:
@@ -1263,8 +1396,13 @@ def run_scan(date: Optional[str] = None):
         raise typer.Exit(1)
 
     # Save reports
-    for key in ["geopolitical_report", "market_movers_report", "sector_performance_report",
-                "industry_deep_dive_report", "macro_scan_summary"]:
+    for key in [
+        "geopolitical_report",
+        "market_movers_report",
+        "sector_performance_report",
+        "industry_deep_dive_report",
+        "macro_scan_summary",
+    ]:
         content = result.get(key, "")
         if content:
             (save_dir / f"{key}.md").write_text(content)
@@ -1298,7 +1436,6 @@ def run_scan(date: Optional[str] = None):
         except (json.JSONDecodeError, KeyError, ValueError):
             pass  # Summary wasn't valid JSON — already printed as markdown
 
-
     # Write observability log
     run_logger.write_log(save_dir / "run_log.jsonl")
     scan_summary = run_logger.summary()
@@ -1322,14 +1459,18 @@ def run_scan(date: Optional[str] = None):
     if result.get("market_movers_report"):
         scan_parts.append(f"### Market Movers\n{result['market_movers_report']}")
     if result.get("sector_performance_report"):
-        scan_parts.append(f"### Sector Performance\n{result['sector_performance_report']}")
+        scan_parts.append(
+            f"### Sector Performance\n{result['sector_performance_report']}"
+        )
     if result.get("industry_deep_dive_report"):
-        scan_parts.append(f"### Industry Deep Dive\n{result['industry_deep_dive_report']}")
+        scan_parts.append(
+            f"### Industry Deep Dive\n{result['industry_deep_dive_report']}"
+        )
     if result.get("macro_scan_summary"):
         scan_parts.append(f"### Macro Scan Summary\n{result['macro_scan_summary']}")
-        
+
     macro_content = "\n\n".join(scan_parts)
-    
+
     if macro_content:
         digest_path = append_to_digest(scan_date, "scan", "Market Scan", macro_content)
         sync_to_notebooklm(digest_path, scan_date)
@@ -1353,34 +1494,47 @@ def run_pipeline(
         save_results,
     )
 
-    console.print(Panel("[bold green]Macro → TradingAgents Pipeline[/bold green]", border_style="green"))
+    console.print(
+        Panel(
+            "[bold green]Macro → TradingAgents Pipeline[/bold green]",
+            border_style="green",
+        )
+    )
 
     if macro_path_str is None:
         macro_output = typer.prompt("Path to macro scan JSON")
     else:
         macro_output = macro_path_str
-        
+
     macro_path = Path(macro_output)
     if not macro_path.exists():
         console.print(f"[red]File not found: {macro_path}[/red]")
         raise typer.Exit(1)
 
     if min_conviction_opt is None:
-        min_conviction = typer.prompt("Minimum conviction (high/medium/low)", default="medium")
+        min_conviction = typer.prompt(
+            "Minimum conviction (high/medium/low)", default="medium"
+        )
     else:
         min_conviction = min_conviction_opt
-        
+
     if ticker_filter_list is None:
-        tickers_input = typer.prompt("Specific tickers (comma-separated, or blank for all)", default="")
-        ticker_filter = [t.strip() for t in tickers_input.split(",") if t.strip()] or None
+        tickers_input = typer.prompt(
+            "Specific tickers (comma-separated, or blank for all)", default=""
+        )
+        ticker_filter = [
+            t.strip() for t in tickers_input.split(",") if t.strip()
+        ] or None
     else:
         ticker_filter = ticker_filter_list
-        
+
     if analysis_date_opt is None:
-        analysis_date = typer.prompt("Analysis date", default=datetime.datetime.now().strftime("%Y-%m-%d"))
+        analysis_date = typer.prompt(
+            "Analysis date", default=datetime.datetime.now().strftime("%Y-%m-%d")
+        )
     else:
         analysis_date = analysis_date_opt
-        
+
     if dry_run_opt is None:
         dry_run = typer.confirm("Dry run (no API calls)?", default=False)
     else:
@@ -1390,7 +1544,9 @@ def run_pipeline(
     macro_context, all_candidates = parse_macro_output(macro_path)
     candidates = filter_candidates(all_candidates, min_conviction, ticker_filter)
 
-    console.print(f"\n[cyan]Candidates: {len(candidates)} of {len(all_candidates)} stocks passed filter[/cyan]")
+    console.print(
+        f"\n[cyan]Candidates: {len(candidates)} of {len(all_candidates)} stocks passed filter[/cyan]"
+    )
 
     table = Table(title="Selected Stocks", box=box.ROUNDED)
     table.add_column("Ticker", style="cyan bold")
@@ -1415,9 +1571,13 @@ def run_pipeline(
     run_logger = RunLogger()
     set_run_logger(run_logger)
 
-    console.print(f"\n[cyan]Running TradingAgents for {len(candidates)} tickers...[/cyan]")
+    console.print(
+        f"\n[cyan]Running TradingAgents for {len(candidates)} tickers...[/cyan]"
+    )
     try:
-        with Live(Spinner("dots", text="Analyzing..."), console=console, transient=True):
+        with Live(
+            Spinner("dots", text="Analyzing..."), console=console, transient=True
+        ):
             results = asyncio.run(
                 run_all_tickers(candidates, macro_context, config, analysis_date)
             )
@@ -1446,13 +1606,18 @@ def run_pipeline(
 
     # Append to daily digest and sync to NotebookLM
     from tradingagents.pipeline.macro_bridge import render_combined_summary
+
     pipeline_summary = render_combined_summary(results, macro_context)
-    digest_path = append_to_digest(analysis_date, "pipeline", "Pipeline Summary", pipeline_summary)
+    digest_path = append_to_digest(
+        analysis_date, "pipeline", "Pipeline Summary", pipeline_summary
+    )
     sync_to_notebooklm(digest_path, analysis_date)
 
     successes = [r for r in results if not r.error]
     failures = [r for r in results if r.error]
-    console.print(f"\n[green]Done: {len(successes)} succeeded, {len(failures)} failed[/green]")
+    console.print(
+        f"\n[green]Done: {len(successes)} succeeded, {len(failures)} failed[/green]"
+    )
     console.print(f"Reports saved to: {output_dir.resolve()}")
     if failures:
         for r in failures:
@@ -1467,7 +1632,9 @@ def analyze():
 
 @app.command()
 def scan(
-    date: Optional[str] = typer.Option(None, "--date", "-d", help="Scan date in YYYY-MM-DD format (default: today)"),
+    date: Optional[str] = typer.Option(
+        None, "--date", "-d", help="Scan date in YYYY-MM-DD format (default: today)"
+    ),
 ):
     """Run 3-phase macro scanner (geopolitical → sector → synthesis)."""
     run_scan(date=date)
@@ -1486,7 +1653,11 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
     from tradingagents.graph.portfolio_graph import PortfolioGraph
     from tradingagents.portfolio.repository import PortfolioRepository
 
-    console.print(Panel("[bold green]Portfolio Manager Execution[/bold green]", border_style="green"))
+    console.print(
+        Panel(
+            "[bold green]Portfolio Manager Execution[/bold green]", border_style="green"
+        )
+    )
 
     if not macro_path.exists():
         console.print(f"[red]Scan summary not found: {macro_path}[/red]")
@@ -1500,38 +1671,46 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
             raise typer.Exit(1)
 
     repo = PortfolioRepository()
-    
+
     # Check if portfolio exists
     portfolio = repo.get_portfolio(portfolio_id)
     if not portfolio:
-        console.print(f"[yellow]Portfolio '{portfolio_id}' not found. Please ensure it is created in the database.[/yellow]")
+        console.print(
+            f"[yellow]Portfolio '{portfolio_id}' not found. Please ensure it is created in the database.[/yellow]"
+        )
         raise typer.Exit(1)
 
     holdings = repo.get_holdings(portfolio_id)
-    
+
     candidates = scan_summary.get("stocks_to_investigate", [])
     holding_tickers = [h.ticker for h in holdings]
-    
+
     all_tickers = set(candidates + holding_tickers)
-    
+
     console.print(f"[cyan]Fetching prices for {len(all_tickers)} tickers...[/cyan]")
     prices = {}
     for ticker in all_tickers:
         try:
             prices[ticker] = float(yf.Ticker(ticker).fast_info["lastPrice"])
         except Exception as e:
-            console.print(f"[yellow]Warning: Could not fetch price for {ticker}: {e}[/yellow]")
+            console.print(
+                f"[yellow]Warning: Could not fetch price for {ticker}: {e}[/yellow]"
+            )
             prices[ticker] = 0.0
 
     console.print(f"[cyan]Running PortfolioGraph for '{portfolio_id}'...[/cyan]")
     try:
-        with Live(Spinner("dots", text="Managing portfolio..."), console=console, transient=True):
+        with Live(
+            Spinner("dots", text="Managing portfolio..."),
+            console=console,
+            transient=True,
+        ):
             graph = PortfolioGraph(debug=False, repo=repo)
             result = graph.run(
                 portfolio_id=portfolio_id,
                 date=date,
                 prices=prices,
-                scan_summary=scan_summary
+                scan_summary=scan_summary,
             )
     except Exception as e:
         console.print(f"[red]Portfolio execution failed: {e}[/red]")
@@ -1539,17 +1718,27 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
 
     console.print("[green]Portfolio execution completed successfully![/green]")
     if "pm_decision" in result:
-        console.print(Panel(Markdown(str(result["pm_decision"])), title="PM Decision", border_style="blue"))
+        console.print(
+            Panel(
+                Markdown(str(result["pm_decision"])),
+                title="PM Decision",
+                border_style="blue",
+            )
+        )
 
 
 @app.command()
 def portfolio():
     """Run the Portfolio Manager Phase 6 workflow."""
-    console.print(Panel("[bold green]Portfolio Manager CLI[/bold green]", border_style="green"))
+    console.print(
+        Panel("[bold green]Portfolio Manager CLI[/bold green]", border_style="green")
+    )
 
     portfolio_id = typer.prompt("Portfolio ID", default="main_portfolio")
-    date = typer.prompt("Analysis date", default=datetime.datetime.now().strftime("%Y-%m-%d"))
-    
+    date = typer.prompt(
+        "Analysis date", default=datetime.datetime.now().strftime("%Y-%m-%d")
+    )
+
     macro_output = typer.prompt("Path to macro scan JSON")
     macro_path = Path(macro_output)
 
@@ -1558,23 +1747,32 @@ def portfolio():
 
 @app.command(name="check-portfolio")
 def check_portfolio(
-    portfolio_id: str = typer.Option("main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"),
-    date: Optional[str] = typer.Option(None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"),
+    portfolio_id: str = typer.Option(
+        "main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"
+    ),
+    date: Optional[str] = typer.Option(
+        None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"
+    ),
 ):
     """Run Portfolio Manager to review current holdings only (no new candidates)."""
     import json
     import tempfile
-    
-    console.print(Panel("[bold green]Portfolio Manager: Holdings Review[/bold green]", border_style="green"))
+
+    console.print(
+        Panel(
+            "[bold green]Portfolio Manager: Holdings Review[/bold green]",
+            border_style="green",
+        )
+    )
     if date is None:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
-        
+
     # Create a dummy scan_summary with no candidates
     dummy_scan = {"stocks_to_investigate": []}
     with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".json") as f:
         json.dump(dummy_scan, f)
         dummy_path = Path(f.name)
-        
+
     try:
         run_portfolio(portfolio_id, date, dummy_path)
     finally:
@@ -1583,17 +1781,23 @@ def check_portfolio(
 
 @app.command()
 def auto(
-    portfolio_id: str = typer.Option("main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"),
-    date: Optional[str] = typer.Option(None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"),
+    portfolio_id: str = typer.Option(
+        "main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"
+    ),
+    date: Optional[str] = typer.Option(
+        None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"
+    ),
 ):
     """Run end-to-end: scan -> pipeline -> portfolio manager."""
-    console.print(Panel("[bold green]TradingAgents Auto Mode[/bold green]", border_style="green"))
+    console.print(
+        Panel("[bold green]TradingAgents Auto Mode[/bold green]", border_style="green")
+    )
     if date is None:
         date = datetime.datetime.now().strftime("%Y-%m-%d")
-        
+
     console.print("\n[bold magenta]--- Step 1: Market Scan ---[/bold magenta]")
     run_scan(date=date)
-    
+
     console.print("\n[bold magenta]--- Step 2: Per-Ticker Pipeline ---[/bold magenta]")
     macro_path = get_daily_dir(date) / "summary" / "scan_summary.json"
     run_pipeline(
@@ -1601,9 +1805,9 @@ def auto(
         min_conviction_opt="medium",
         ticker_filter_list=None,
         analysis_date_opt=date,
-        dry_run_opt=False
+        dry_run_opt=False,
     )
-    
+
     console.print("\n[bold magenta]--- Step 3: Portfolio Manager ---[/bold magenta]")
     run_portfolio(portfolio_id, date, macro_path)
 
