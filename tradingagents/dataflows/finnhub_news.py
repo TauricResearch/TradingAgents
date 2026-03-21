@@ -5,15 +5,20 @@ transaction data using the Finnhub REST API.  Output formats mirror the
 Alpha Vantage news equivalents for consistent agent-facing data.
 """
 
+import logging
 from datetime import datetime
 from typing import Literal
 
 from .finnhub_common import (
+
     FinnhubError,
+    ThirdPartyTimeoutError,
     _make_api_request,
     _now_str,
     _to_unix_timestamp,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Type aliases
@@ -49,6 +54,21 @@ def _format_unix_ts(ts: int | None) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _fetch_company_news_data(symbol: str, params: dict) -> list[dict]:
+    """Helper to fetch company news and handle errors by returning an empty list."""
+    try:
+        response = _make_api_request("company-news", params)
+    except ThirdPartyTimeoutError:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching company news for {symbol}: {e}")
+        return []
+
+    if not isinstance(response, list):
+        return []
+
+    return response
+
 def get_company_news(symbol: str, start_date: str, end_date: str) -> str:
     """Fetch company-specific news via Finnhub /company-news.
 
@@ -73,7 +93,7 @@ def get_company_news(symbol: str, start_date: str, end_date: str) -> str:
         "to": end_date,
     }
 
-    articles: list[dict] = _make_api_request("company-news", params)
+    articles: list[dict] = _fetch_company_news_data(symbol, params)
 
     header = (
         f"# Company News: {symbol} ({start_date} to {end_date}) — Finnhub\n"
