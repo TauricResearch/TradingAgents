@@ -1,67 +1,64 @@
-# TradingAgents/graph/conditional_logic.py
-
-from tradingagents.agents.utils.agent_states import AgentState
+"""Conditional routing logic for the trading agents graph."""
 
 
 class ConditionalLogic:
-    """Handles conditional logic for determining graph flow."""
+    """Handles conditional routing decisions in the graph."""
 
     def __init__(self, max_debate_rounds=1, max_risk_discuss_rounds=1):
-        """Initialize with configuration parameters."""
         self.max_debate_rounds = max_debate_rounds
         self.max_risk_discuss_rounds = max_risk_discuss_rounds
 
-    def should_continue_market(self, state: AgentState):
-        """Determine if market analysis should continue."""
+    def should_continue_odds(self, state):
         messages = state["messages"]
         last_message = messages[-1]
         if last_message.tool_calls:
-            return "tools_market"
-        return "Msg Clear Market"
+            return "tools_odds"
+        return "Msg Clear Odds"
 
-    def should_continue_social(self, state: AgentState):
-        """Determine if social media analysis should continue."""
+    def should_continue_social(self, state):
         messages = state["messages"]
         last_message = messages[-1]
         if last_message.tool_calls:
             return "tools_social"
         return "Msg Clear Social"
 
-    def should_continue_news(self, state: AgentState):
-        """Determine if news analysis should continue."""
+    def should_continue_news(self, state):
         messages = state["messages"]
         last_message = messages[-1]
         if last_message.tool_calls:
             return "tools_news"
         return "Msg Clear News"
 
-    def should_continue_fundamentals(self, state: AgentState):
-        """Determine if fundamentals analysis should continue."""
+    def should_continue_event(self, state):
         messages = state["messages"]
         last_message = messages[-1]
         if last_message.tool_calls:
-            return "tools_fundamentals"
-        return "Msg Clear Fundamentals"
+            return "tools_event"
+        return "Msg Clear Event"
 
-    def should_continue_debate(self, state: AgentState) -> str:
-        """Determine if debate should continue."""
-
-        if (
-            state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
-        ):  # 3 rounds of back-and-forth between 2 agents
+    def should_continue_debate(self, state):
+        """Route 3-way YES/NO/Timing debate. Mirrors risk debate pattern."""
+        count = state["investment_debate_state"]["count"]
+        if count >= 3 * self.max_debate_rounds:
             return "Research Manager"
-        if state["investment_debate_state"]["current_response"].startswith("Bull"):
-            return "Bear Researcher"
-        return "Bull Researcher"
+        latest = state["investment_debate_state"].get("latest_speaker", "")
+        if latest.startswith("YES"):
+            return "NO Advocate"
+        elif latest.startswith("NO"):
+            return "Timing Advocate"
+        else:
+            # Initial entry or after Timing -> start with YES
+            return "YES Advocate"
 
-    def should_continue_risk_analysis(self, state: AgentState) -> str:
-        """Determine if risk analysis should continue."""
-        if (
-            state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
-        ):  # 3 rounds of back-and-forth between 3 agents
+    def should_continue_risk_analysis(self, state):
+        """Route 3-way risk debate. Unchanged from original."""
+        count = state["risk_debate_state"]["count"]
+        if count >= 3 * self.max_risk_discuss_rounds:
             return "Risk Judge"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Aggressive"):
+        latest = state["risk_debate_state"].get("latest_speaker", "")
+        if latest.startswith("Aggressive"):
             return "Conservative Analyst"
-        if state["risk_debate_state"]["latest_speaker"].startswith("Conservative"):
+        elif latest.startswith("Conservative"):
             return "Neutral Analyst"
-        return "Aggressive Analyst"
+        else:
+            return "Aggressive Analyst"
