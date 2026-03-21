@@ -1413,5 +1413,82 @@ def pipeline():
     run_pipeline()
 
 
+def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
+    """Run the Portfolio Manager end-to-end workflow."""
+    import json
+    import yfinance as yf
+    from tradingagents.graph.portfolio_graph import PortfolioGraph
+    from tradingagents.portfolio.repository import PortfolioRepository
+
+    console.print(Panel("[bold green]Portfolio Manager Execution[/bold green]", border_style="green"))
+
+    if not macro_path.exists():
+        console.print(f"[red]Scan summary not found: {macro_path}[/red]")
+        raise typer.Exit(1)
+
+    with open(macro_path, "r") as f:
+        try:
+            scan_summary = json.load(f)
+        except json.JSONDecodeError:
+            console.print(f"[red]Failed to parse JSON at {macro_path}[/red]")
+            raise typer.Exit(1)
+
+    repo = PortfolioRepository()
+    
+    # Check if portfolio exists
+    portfolio = repo.get_portfolio(portfolio_id)
+    if not portfolio:
+        console.print(f"[yellow]Portfolio '{portfolio_id}' not found. Please ensure it is created in the database.[/yellow]")
+        raise typer.Exit(1)
+
+    holdings = repo.get_holdings(portfolio_id)
+    
+    candidates = scan_summary.get("stocks_to_investigate", [])
+    holding_tickers = [h.ticker for h in holdings]
+    
+    all_tickers = set(candidates + holding_tickers)
+    
+    console.print(f"[cyan]Fetching prices for {len(all_tickers)} tickers...[/cyan]")
+    prices = {}
+    for ticker in all_tickers:
+        try:
+            prices[ticker] = float(yf.Ticker(ticker).fast_info["lastPrice"])
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not fetch price for {ticker}: {e}[/yellow]")
+            prices[ticker] = 0.0
+
+    console.print(f"[cyan]Running PortfolioGraph for '{portfolio_id}'...[/cyan]")
+    try:
+        with Live(Spinner("dots", text="Managing portfolio..."), console=console, transient=True):
+            graph = PortfolioGraph(debug=False, repo=repo)
+            result = graph.run(
+                portfolio_id=portfolio_id,
+                date=date,
+                prices=prices,
+                scan_summary=scan_summary
+            )
+    except Exception as e:
+        console.print(f"[red]Portfolio execution failed: {e}[/red]")
+        raise typer.Exit(1)
+
+    console.print("[green]Portfolio execution completed successfully![/green]")
+    if "pm_decision" in result:
+        console.print(Panel(Markdown(str(result["pm_decision"])), title="PM Decision", border_style="blue"))
+
+
+@app.command()
+def portfolio():
+    """Run the Portfolio Manager Phase 6 workflow."""
+    console.print(Panel("[bold green]Portfolio Manager CLI[/bold green]", border_style="green"))
+
+    portfolio_id = typer.prompt("Portfolio ID", default="main_portfolio")
+    date = typer.prompt("Analysis date", default=datetime.datetime.now().strftime("%Y-%m-%d"))
+    
+    macro_output = typer.prompt("Path to macro scan JSON")
+    macro_path = Path(macro_output)
+
+    run_portfolio(portfolio_id, date, macro_path)
+
+
 if __name__ == "__main__":
     app()
