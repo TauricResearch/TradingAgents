@@ -24,26 +24,26 @@ class TestAgentStateFields:
 
 class TestNewToolsExported:
     def test_get_ttm_analysis_exported(self):
-        from tradingagents.agents.utils.agent_utils import get_ttm_analysis
+        from tradingagents.agents.utils.fundamental_data_tools import get_ttm_analysis
         # @tool returns a LangChain StructuredTool — callable() is False on it.
         # hasattr(..., "invoke") is the correct check for LangChain tools.
         assert hasattr(get_ttm_analysis, "invoke")
 
     def test_get_peer_comparison_exported(self):
-        from tradingagents.agents.utils.agent_utils import get_peer_comparison
+        from tradingagents.agents.utils.fundamental_data_tools import get_peer_comparison
         assert hasattr(get_peer_comparison, "invoke")
 
     def test_get_sector_relative_exported(self):
-        from tradingagents.agents.utils.agent_utils import get_sector_relative
+        from tradingagents.agents.utils.fundamental_data_tools import get_sector_relative
         assert hasattr(get_sector_relative, "invoke")
 
     def test_get_macro_regime_exported(self):
-        from tradingagents.agents.utils.agent_utils import get_macro_regime
+        from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
         assert hasattr(get_macro_regime, "invoke")
 
     def test_tools_are_langchain_tools(self):
         """All new tools should be LangChain @tool decorated (have .name attribute)."""
-        from tradingagents.agents.utils.agent_utils import (
+        from tradingagents.agents.utils.fundamental_data_tools import (
             get_ttm_analysis, get_peer_comparison, get_sector_relative, get_macro_regime
         )
         for tool in [get_ttm_analysis, get_peer_comparison, get_sector_relative, get_macro_regime]:
