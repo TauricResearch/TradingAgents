@@ -1,11 +1,5 @@
-import time
-import json
-
-
 def create_risk_manager(llm, memory):
     def risk_manager_node(state) -> dict:
-
-        company_name = state["company_of_interest"]
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
