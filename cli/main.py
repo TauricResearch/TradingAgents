@@ -1579,17 +1579,62 @@ def run_pipeline(
 
     console.print(
         f"\n[cyan]Running TradingAgents for {len(candidates)} tickers...[/cyan]"
+        f"  [dim](up to 2 concurrent)[/dim]\n"
     )
-    try:
-        with Live(
-            Spinner("dots", text="Analyzing..."), console=console, transient=True
-        ):
+    for c in candidates:
+        console.print(
+            f"  [dim]▷ Queued:[/dim] [bold cyan]{c.ticker}[/bold cyan]"
+            f"  [dim]{c.sector} · {c.conviction.upper()} conviction[/dim]"
+        )
+    console.print()
+    import time as _time
+    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+
+    pipeline_start = _time.monotonic()
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[cyan]{task.completed}/{task.total}[/cyan]"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=False,
+    ) as progress:
+        overall = progress.add_task("[bold]Pipeline progress[/bold]", total=len(candidates))
+
+        def on_done(result, done_count, total_count):
+            ticker_elapsed = _time.monotonic() - pipeline_start
+            if result.error:
+                console.print(
+                    f"  [red]✗ {result.ticker}[/red]"
+                    f"  [dim]failed ({ticker_elapsed:.0f}s elapsed) — {result.error[:80]}[/dim]"
+                )
+            else:
+                decision_preview = str(result.final_trade_decision)[:70].replace("\n", " ")
+                console.print(
+                    f"  [green]✓ {result.ticker}[/green]"
+                    f"  [dim]({done_count}/{total_count}, {ticker_elapsed:.0f}s elapsed)[/dim]"
+                    f"  → {decision_preview}"
+                )
+            progress.advance(overall)
+
+        try:
             results = asyncio.run(
-                run_all_tickers(candidates, macro_context, config, analysis_date)
+                run_all_tickers(
+                    candidates, macro_context, config, analysis_date,
+                    on_ticker_done=on_done,
+                )
             )
-    except Exception as e:
-        console.print(f"[red]Pipeline failed: {e}[/red]")
-        raise typer.Exit(1)
+        except Exception as e:
+            console.print(f"[red]Pipeline failed: {e}[/red]")
+            raise typer.Exit(1)
+
+    elapsed_total = _time.monotonic() - pipeline_start
+    console.print(
+        f"\n[bold green]All {len(candidates)} ticker(s) finished in {elapsed_total:.0f}s[/bold green]\n"
+    )
+
 
     save_results(results, macro_context, output_dir)
 
