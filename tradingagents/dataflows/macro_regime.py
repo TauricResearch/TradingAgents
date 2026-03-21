@@ -71,8 +71,7 @@ def _pct_change_n(series: pd.Series, n: int) -> Optional[float]:
 def _fmt_pct(val: Optional[float]) -> str:
     if val is None:
         return "N/A"
-    sign = "+" if val >= 0 else ""
-    return f"{sign}{val:.2f}%"
+    return f"{val:+.1f}%"
 
 
 # ---------------------------------------------------------------------------
