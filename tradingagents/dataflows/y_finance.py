@@ -1,9 +1,14 @@
+import logging
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, _clean_dataframe
+from .stockstats_utils import StockstatsUtils, YFinanceError, _clean_dataframe, _load_or_fetch_ohlcv
+
+logger = logging.getLogger(__name__)
+
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -191,70 +196,32 @@ def _get_stock_stats_bulk(
 ) -> dict:
     """
     Optimized bulk calculation of stock stats indicators.
-    Fetches data once and calculates indicator for all available dates.
+    Fetches data once (via shared _load_or_fetch_ohlcv cache) and calculates
+    the indicator for all available dates.
     Returns dict mapping date strings to indicator values.
+
+    Raises:
+        YFinanceError: if data cannot be loaded or indicator calculation fails.
     """
-    from .config import get_config
-    import pandas as pd
     from stockstats import wrap
-    import os
-    
-    config = get_config()
-    online = config["data_vendors"]["technical_indicators"] != "local"
-    
-    if not online:
-        # Local data path
-        try:
-            data = pd.read_csv(
-                os.path.join(
-                    config.get("data_cache_dir", "data"),
-                    f"{symbol}-YFin-data-2015-01-01-2025-03-25.csv",
-                ),
-                on_bad_lines="skip",
-            )
-        except FileNotFoundError:
-            raise Exception("Stockstats fail: Yahoo Finance data not fetched yet!")
-    else:
-        # Online data fetching with caching
-        today_date = pd.Timestamp.today()
-        curr_date_dt = pd.to_datetime(curr_date)
 
-        end_date = today_date
-        start_date = today_date - pd.DateOffset(years=15)
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-
-        os.makedirs(config["data_cache_dir"], exist_ok=True)
-
-        data_file = os.path.join(
-            config["data_cache_dir"],
-            f"{symbol}-YFin-data-{start_date_str}-{end_date_str}.csv",
-        )
-
-        if os.path.exists(data_file):
-            data = pd.read_csv(data_file, on_bad_lines="skip")
-        else:
-            data = yf.download(
-                symbol,
-                start=start_date_str,
-                end=end_date_str,
-                multi_level_index=False,
-                progress=False,
-                auto_adjust=True,
-            )
-            data = data.reset_index()
-            data.to_csv(data_file, index=False)
-
+    # Single authority: _load_or_fetch_ohlcv handles both online and local modes,
+    # dynamic cache filename, and corpus validation — no duplicated download logic here.
+    data = _load_or_fetch_ohlcv(symbol)
     data = _clean_dataframe(data)
     df = wrap(data)
-    df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-    
+    # After wrap(), the date column becomes the datetime index (named 'date').
+    # Access via df.index, not df["Date"] which stockstats would try to parse as an indicator.
+
     # Calculate the indicator for all rows at once
     df[indicator]  # This triggers stockstats to calculate the indicator
-    
+
     # Create a dictionary mapping date strings to indicator values
-    # Optimized: replaced iterrows() with vectorized operations for performance
-    return df.set_index("Date")[indicator].fillna("N/A").astype(str).to_dict()
+    # Optimized: vectorized operations for performance using correct DatetimeIndex
+    series = df[indicator].copy()
+    series.index = series.index.strftime("%Y-%m-%d")
+    return series.fillna("N/A").astype(str).to_dict()
+
 
 
 def get_stockstats_indicator(
@@ -264,23 +231,13 @@ def get_stockstats_indicator(
         str, "The current trading date you are trading on, YYYY-mm-dd"
     ],
 ) -> str:
-
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     curr_date = curr_date_dt.strftime("%Y-%m-%d")
 
-    try:
-        indicator_value = StockstatsUtils.get_stock_stats(
-            symbol,
-            indicator,
-            curr_date,
-        )
-    except Exception as e:
-        print(
-            f"Error getting stockstats indicator data for indicator {indicator} on {curr_date}: {e}"
-        )
-        return ""
-
+    # Raises YFinanceError on failure — caller (route_to_vendor) catches typed exceptions.
+    indicator_value = StockstatsUtils.get_stock_stats(symbol, indicator, curr_date)
     return str(indicator_value)
+
 
 
 def get_fundamentals(
