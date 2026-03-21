@@ -12,8 +12,7 @@ from tradingagents.dataflows.config import get_config
 def create_news_analyst(llm):
     def news_analyst_node(state):
         current_date = state["trade_date"]
-        ticker = state["company_of_interest"]
-        instrument_context = build_instrument_context(ticker)
+        instrument_context = build_instrument_context(state["company_of_interest"])
 
         tools = [
             get_news,

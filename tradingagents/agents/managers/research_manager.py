@@ -6,8 +6,7 @@ from tradingagents.agents.utils.agent_utils import build_instrument_context
 
 def create_research_manager(llm, memory):
     def research_manager_node(state) -> dict:
-        ticker = state["company_of_interest"]
-        instrument_context = build_instrument_context(ticker)
+        instrument_context = build_instrument_context(state["company_of_interest"])
         history = state["investment_debate_state"].get("history", "")
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
