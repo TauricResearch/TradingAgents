@@ -222,6 +222,35 @@ class SupabaseClient:
                 f"Holding not found: {ticker} in portfolio {portfolio_id}"
             )
 
+
+    def batch_upsert_holdings(self, holdings: list[Holding]) -> None:
+        if not holdings:
+            return
+        query = '''
+            INSERT INTO holdings
+            (holding_id, portfolio_id, ticker, shares, avg_cost, sector, industry)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT ON CONSTRAINT holdings_portfolio_ticker_unique
+            DO UPDATE SET shares = EXCLUDED.shares,
+                          avg_cost = EXCLUDED.avg_cost,
+                          sector = EXCLUDED.sector,
+                          industry = EXCLUDED.industry
+        '''
+        params = [
+            (h.holding_id or str(uuid.uuid4()), h.portfolio_id, h.ticker.upper(), h.shares, h.avg_cost, h.sector, h.industry)
+            for h in holdings
+        ]
+        with self._cursor() as cur:
+            psycopg2.extras.execute_batch(cur, query, params)
+
+    def batch_delete_holdings(self, portfolio_id: str, tickers: list[str]) -> None:
+        if not tickers:
+            return
+        query = "DELETE FROM holdings WHERE portfolio_id = %s AND ticker = %s"
+        params = [(portfolio_id, ticker.upper()) for ticker in tickers]
+        with self._cursor() as cur:
+            psycopg2.extras.execute_batch(cur, query, params)
+
     # ------------------------------------------------------------------
     # Trades
     # ------------------------------------------------------------------
@@ -265,6 +294,25 @@ class SupabaseClient:
             cur.execute(query, params)
             rows = cur.fetchall()
         return [self._row_to_trade(r) for r in rows]
+
+
+    def batch_record_trades(self, trades: list[Trade]) -> None:
+        if not trades:
+            return
+        query = '''
+            INSERT INTO trades
+            (trade_id, portfolio_id, ticker, action, shares, price,
+             total_value, rationale, signal_source, metadata)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        '''
+        params = [
+            (t.trade_id or str(uuid.uuid4()), t.portfolio_id, t.ticker, t.action,
+             t.shares, t.price, t.total_value, t.rationale, t.signal_source,
+             json.dumps(t.metadata))
+            for t in trades
+        ]
+        with self._cursor() as cur:
+            psycopg2.extras.execute_batch(cur, query, params)
 
     # ------------------------------------------------------------------
     # Snapshots

@@ -233,6 +233,118 @@ class PortfolioRepository:
 
         return result
 
+
+    def batch_remove_holdings(
+        self,
+        portfolio_id: str,
+        sells: list[dict[str, Any]],
+        trade_date: str,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Sell shares in batch and update portfolio cash and holdings.
+
+        Args:
+            portfolio_id: Portfolio ID.
+            sells: List of dicts with keys 'ticker', 'shares', 'price', 'rationale'.
+            trade_date: The date to record the trades.
+
+        Returns:
+            Tuple of (executed_trades, failed_trades).
+        """
+        executed_trades = []
+        failed_trades = []
+
+        if not sells:
+            return executed_trades, failed_trades
+
+        # Pre-fetch portfolio and holdings once
+        portfolio = self._client.get_portfolio(portfolio_id)
+        current_holdings = {h.ticker.upper(): h for h in self._client.list_holdings(portfolio_id)}
+
+        holdings_to_upsert = {}
+        tickers_to_delete = set()
+        trades_to_record = []
+        total_proceeds = 0.0
+
+        for sell in sells:
+            ticker = sell["ticker"]
+            shares = sell["shares"]
+            price = sell["price"]
+            rationale = sell.get("rationale")
+
+            existing = current_holdings.get(ticker.upper())
+            if not existing:
+                failed_trades.append({
+                    "action": "SELL",
+                    "ticker": ticker,
+                    "reason": f"No holding for {ticker} in portfolio {portfolio_id}",
+                })
+                continue
+
+            if existing.shares < shares:
+                failed_trades.append({
+                    "action": "SELL",
+                    "ticker": ticker,
+                    "reason": f"Hold {existing.shares} shares of {ticker}, cannot sell {shares}",
+                })
+                continue
+
+            proceeds = shares * price
+            total_proceeds += proceeds
+
+            if existing.shares == shares:
+                tickers_to_delete.add(ticker.upper())
+                # If we previously marked it to upsert, remove it
+                if ticker.upper() in holdings_to_upsert:
+                    del holdings_to_upsert[ticker.upper()]
+                # Remove from local tracking
+                del current_holdings[ticker.upper()]
+            else:
+                existing.shares -= shares
+                holdings_to_upsert[ticker.upper()] = existing
+
+            trade = Trade(
+                trade_id=str(uuid.uuid4()),
+                portfolio_id=portfolio_id,
+                ticker=ticker.upper(),
+                action="SELL",
+                shares=shares,
+                price=price,
+                total_value=proceeds,
+                trade_date=trade_date,
+                rationale=rationale,
+                signal_source="pm_agent",
+            )
+            trades_to_record.append(trade)
+
+            executed_trades.append({
+                "action": "SELL",
+                "ticker": ticker,
+                "shares": shares,
+                "price": price,
+                "rationale": rationale,
+                "trade_date": trade_date,
+            })
+
+        if not executed_trades:
+            return executed_trades, failed_trades
+
+        try:
+            # Apply database writes in batch
+            if tickers_to_delete:
+                self._client.batch_delete_holdings(portfolio_id, list(tickers_to_delete))
+            if holdings_to_upsert:
+                self._client.batch_upsert_holdings(list(holdings_to_upsert.values()))
+
+            portfolio.cash += total_proceeds
+            self._client.update_portfolio(portfolio)
+
+            if trades_to_record:
+                self._client.batch_record_trades(trades_to_record)
+        except Exception as exc:
+            raise PortfolioError(f"Batch write failed: {exc}") from exc
+
+        return executed_trades, failed_trades
+
     # ------------------------------------------------------------------
     # Snapshots
     # ------------------------------------------------------------------
