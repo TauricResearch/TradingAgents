@@ -13,7 +13,6 @@ from typing import Any
 
 from tradingagents.portfolio.exceptions import (
     InsufficientCashError,
-    InsufficientSharesError,
     PortfolioError,
 )
 from tradingagents.portfolio.risk_evaluator import check_constraints
@@ -78,6 +77,7 @@ class TradeExecutor:
         buys = decisions.get("buys") or []
 
         # --- SELLs first (frees cash before BUYs; no constraint pre-flight for sells) ---
+        sells_to_process = []
         for sell in sells:
             ticker = (sell.get("ticker") or "").upper()
             shares = float(sell.get("shares") or 0)
@@ -102,24 +102,34 @@ class TradeExecutor:
                 logger.warning("execute_decisions: no price for %s — skipping SELL", ticker)
                 continue
 
+            sells_to_process.append({
+                "ticker": ticker,
+                "shares": shares,
+                "price": price,
+                "rationale": rationale,
+            })
+
+        if sells_to_process:
             try:
-                self.repo.remove_holding(portfolio_id, ticker, shares, price)
-                executed_trades.append({
-                    "action": "SELL",
-                    "ticker": ticker,
-                    "shares": shares,
-                    "price": price,
-                    "rationale": rationale,
-                    "trade_date": trade_date,
-                })
-                logger.info("SELL %s x %.2f @ %.2f", ticker, shares, price)
-            except (InsufficientSharesError, PortfolioError) as exc:
-                failed_trades.append({
-                    "action": "SELL",
-                    "ticker": ticker,
-                    "reason": str(exc),
-                })
-                logger.warning("SELL failed for %s: %s", ticker, exc)
+                executed, failed = self.repo.batch_remove_holdings(portfolio_id, sells_to_process, trade_date)
+                executed_trades.extend(executed)
+                for f in failed:
+                    failed_trades.append({
+                        "action": "SELL",
+                        "ticker": f.get("ticker", "UNKNOWN"),
+                        "reason": f.get("reason", "Batch execution failed"),
+                    })
+                    logger.warning("SELL failed for %s: %s", f.get("ticker"), f.get("reason"))
+                for e in executed:
+                    logger.info("SELL %s x %.2f @ %.2f", e["ticker"], e["shares"], e["price"])
+            except PortfolioError as exc:
+                logger.error("Batch sell execution failed: %s", exc)
+                for s in sells_to_process:
+                    failed_trades.append({
+                        "action": "SELL",
+                        "ticker": s["ticker"],
+                        "reason": str(exc),
+                    })
 
         # --- BUYs second ---
         for buy in buys:

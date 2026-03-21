@@ -89,8 +89,13 @@ PRICES = {"AAPL": 150.0, "MSFT": 300.0}
 
 
 def test_execute_sell_success():
-    """Successful SELL calls remove_holding and is in executed_trades."""
+    """Successful SELL calls batch_remove_holdings and is in executed_trades."""
     repo = _make_repo()
+    # Mock batch_remove_holdings to return a tuple of (executed, failed)
+    repo.batch_remove_holdings.return_value = (
+        [{"action": "SELL", "ticker": "AAPL", "shares": 5.0, "price": 150.0, "rationale": "Stop loss"}],
+        []
+    )
     executor = TradeExecutor(repo=repo, config=_DEFAULT_CONFIG)
 
     decisions = {
@@ -99,7 +104,11 @@ def test_execute_sell_success():
     }
     result = executor.execute_decisions("p1", decisions, PRICES)
 
-    repo.remove_holding.assert_called_once_with("p1", "AAPL", 5.0, 150.0)
+    repo.batch_remove_holdings.assert_called_once()
+    args, kwargs = repo.batch_remove_holdings.call_args
+    assert args[0] == "p1"
+    assert args[1] == [{"ticker": "AAPL", "shares": 5.0, "price": 150.0, "rationale": "Stop loss"}]
+
     assert len(result["executed_trades"]) == 1
     assert result["executed_trades"][0]["action"] == "SELL"
     assert result["executed_trades"][0]["ticker"] == "AAPL"
@@ -123,9 +132,12 @@ def test_execute_sell_missing_price():
 
 
 def test_execute_sell_insufficient_shares():
-    """SELL that raises InsufficientSharesError → failed_trade."""
+    """SELL that fails due to logic in batch_remove_holdings → failed_trade."""
     repo = _make_repo()
-    repo.remove_holding.side_effect = InsufficientSharesError("Not enough shares")
+    repo.batch_remove_holdings.return_value = (
+        [],
+        [{"action": "SELL", "ticker": "AAPL", "reason": "Hold 10.0 shares of AAPL, cannot sell 999.0"}]
+    )
     executor = TradeExecutor(repo=repo, config=_DEFAULT_CONFIG)
 
     decisions = {
@@ -135,7 +147,7 @@ def test_execute_sell_insufficient_shares():
     result = executor.execute_decisions("p1", decisions, PRICES)
 
     assert len(result["failed_trades"]) == 1
-    assert "Not enough shares" in result["failed_trades"][0]["reason"]
+    assert "cannot sell 999.0" in result["failed_trades"][0]["reason"]
 
 
 # ---------------------------------------------------------------------------
@@ -207,6 +219,10 @@ def test_execute_decisions_sells_before_buys():
     """SELLs are always executed before BUYs."""
     portfolio = _make_portfolio(cash=50_000.0, total_value=60_000.0)
     repo = _make_repo(portfolio=portfolio)
+    repo.batch_remove_holdings.return_value = (
+        [{"action": "SELL", "ticker": "AAPL", "shares": 5.0, "price": 150.0, "rationale": "Exit"}],
+        []
+    )
     executor = TradeExecutor(repo=repo, config=_DEFAULT_CONFIG)
 
     decisions = {
@@ -215,9 +231,9 @@ def test_execute_decisions_sells_before_buys():
     }
     executor.execute_decisions("p1", decisions, PRICES)
 
-    # Verify call order: remove_holding before add_holding
-    call_order = [c[0] for c in repo.method_calls if c[0] in ("remove_holding", "add_holding")]
-    assert call_order.index("remove_holding") < call_order.index("add_holding")
+    # Verify call order: batch_remove_holdings before add_holding
+    call_order = [c[0] for c in repo.method_calls if c[0] in ("batch_remove_holdings", "add_holding")]
+    assert call_order.index("batch_remove_holdings") < call_order.index("add_holding")
 
 
 def test_execute_decisions_takes_snapshot():
