@@ -1,5 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from tradingagents.agents.utils.agent_utils import get_topic_news
+from tradingagents.agents.utils.scanner_tools import get_topic_news
 from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 

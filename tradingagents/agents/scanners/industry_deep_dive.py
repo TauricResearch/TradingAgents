@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from tradingagents.agents.utils.agent_utils import get_industry_performance, get_topic_news
+from tradingagents.agents.utils.scanner_tools import get_industry_performance, get_topic_news
 from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 # All valid sector keys accepted by yfinance Sector() and get_industry_performance.

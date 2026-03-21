@@ -1,16 +1,16 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import (
+from tradingagents.agents.utils.fundamental_data_tools import (
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
     get_income_statement,
-    get_insider_transactions,
     get_ttm_analysis,
     get_peer_comparison,
     get_sector_relative,
 )
+from tradingagents.agents.utils.news_data_tools import get_insider_transactions
 from tradingagents.dataflows.config import get_config
 
 

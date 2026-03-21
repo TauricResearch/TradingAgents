@@ -20,21 +20,23 @@ from tradingagents.agents.utils.agent_states import (
 )
 from tradingagents.dataflows.config import set_config
 
-# Import the new abstract tool methods from agent_utils
-from tradingagents.agents.utils.agent_utils import (
-    get_stock_data,
-    get_indicators,
+# Import the new abstract tool methods
+from tradingagents.agents.utils.core_stock_tools import get_stock_data
+from tradingagents.agents.utils.technical_indicators_tools import get_indicators
+from tradingagents.agents.utils.fundamental_data_tools import (
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
     get_income_statement,
-    get_news,
-    get_insider_transactions,
-    get_global_news,
     get_ttm_analysis,
     get_peer_comparison,
     get_sector_relative,
     get_macro_regime,
+)
+from tradingagents.agents.utils.news_data_tools import (
+    get_news,
+    get_insider_transactions,
+    get_global_news,
 )
 
 from .conditional_logic import ConditionalLogic
