@@ -2,7 +2,6 @@
 
 import pytest
 import pandas as pd
-from io import StringIO
 
 
 # ---------------------------------------------------------------------------
@@ -51,6 +50,25 @@ def _make_cashflow_csv(n_quarters: int = 8) -> str:
     df = pd.DataFrame(data, index=pd.to_datetime(dates))
     return df.to_csv()
 
+
+# ---------------------------------------------------------------------------
+# Unit tests for _find_col
+# ---------------------------------------------------------------------------
+
+class TestFindCol:
+    def setup_method(self):
+        from tradingagents.dataflows.ttm_analysis import _find_col
+        self.find_col = _find_col
+
+    def test_find_col_success(self):
+        df = pd.DataFrame({"Total Revenue": [100], "Gross Profit": [40]})
+        candidates = ["Revenue", "Total Revenue", "totalRevenue"]
+        assert self.find_col(df, candidates) == "Total Revenue"
+
+    def test_find_col_not_found(self):
+        df = pd.DataFrame({"Unrelated": [100], "Another": [40]})
+        candidates = ["Revenue", "Total Revenue", "totalRevenue"]
+        assert self.find_col(df, candidates) is None
 
 # ---------------------------------------------------------------------------
 # Unit tests for compute_ttm_metrics
