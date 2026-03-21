@@ -3,6 +3,10 @@
 Integrates with the existing ``tradingagents/default_config.py`` pattern,
 reading all portfolio settings from ``TRADINGAGENTS_<KEY>`` env vars.
 
+All env-var reading is delegated to the shared helpers in
+``tradingagents.default_config`` — that module is the single entry point
+for .env loading and the ``_env*`` helper functions.
+
 Usage::
 
     from tradingagents.portfolio.config import get_portfolio_config, validate_config
@@ -16,40 +20,11 @@ from __future__ import annotations
 
 import os
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
-def _env(key: str, default=None):
-    """Read ``TRADINGAGENTS_<KEY>`` from the environment.
-
-    Matches the convention in ``tradingagents/default_config.py``.
-    """
-    val = os.getenv(f"TRADINGAGENTS_{key.upper()}")
-    if not val:
-        return default
-    return val
-
-
-def _env_float(key: str, default=None):
-    val = _env(key)
-    if val is None:
-        return default
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return default
-
-
-def _env_int(key: str, default=None):
-    val = _env(key)
-    if val is None:
-        return default
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return default
+# Importing default_config triggers its module-level load_dotenv() calls,
+# which loads the .env file (CWD first, then project root) before we read
+# any TRADINGAGENTS_* variables below.  This is the single source of truth
+# for .env loading — no separate load_dotenv() call needed here.
+from tradingagents.default_config import _env, _env_float, _env_int
 
 
 PORTFOLIO_CONFIG: dict = {

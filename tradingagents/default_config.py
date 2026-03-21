@@ -18,6 +18,9 @@ def _env(key: str, default=None):
     ``TRADINGAGENTS_MID_THINK_LLM=`` in a ``.env`` file is treated the
     same as not setting it at all (preserving the ``None`` semantics for
     "fall back to the parent setting").
+
+    This is the single source of truth for config env-var reading.
+    Import and reuse this helper instead of duplicating it elsewhere.
     """
     val = os.getenv(f"TRADINGAGENTS_{key.upper()}")
     if not val:  # None or ""
@@ -32,6 +35,17 @@ def _env_int(key: str, default=None):
         return default
     try:
         return int(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def _env_float(key: str, default=None):
+    """Like :func:`_env` but coerces the value to ``float``."""
+    val = _env(key)
+    if val is None:
+        return default
+    try:
+        return float(val)
     except (ValueError, TypeError):
         return default
 
