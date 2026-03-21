@@ -1,5 +1,4 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
 import json
 from tradingagents.agents.utils.agent_utils import get_news, get_global_news
 from tradingagents.dataflows.config import get_config
