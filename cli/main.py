@@ -1301,7 +1301,13 @@ def run_scan(date: Optional[str] = None):
     console.print(f"\n[green]Results saved to {save_dir}[/green]")
 
 
-def run_pipeline():
+def run_pipeline(
+    macro_path_str: Optional[str] = None,
+    min_conviction_opt: Optional[str] = None,
+    ticker_filter_list: Optional[list[str]] = None,
+    analysis_date_opt: Optional[str] = None,
+    dry_run_opt: Optional[bool] = None,
+):
     """Full pipeline: scan -> filter -> per-ticker deep dive."""
     import asyncio
     from tradingagents.pipeline.macro_bridge import (
@@ -1313,17 +1319,36 @@ def run_pipeline():
 
     console.print(Panel("[bold green]Macro → TradingAgents Pipeline[/bold green]", border_style="green"))
 
-    macro_output = typer.prompt("Path to macro scan JSON")
+    if macro_path_str is None:
+        macro_output = typer.prompt("Path to macro scan JSON")
+    else:
+        macro_output = macro_path_str
+        
     macro_path = Path(macro_output)
     if not macro_path.exists():
         console.print(f"[red]File not found: {macro_path}[/red]")
         raise typer.Exit(1)
 
-    min_conviction = typer.prompt("Minimum conviction (high/medium/low)", default="medium")
-    tickers_input = typer.prompt("Specific tickers (comma-separated, or blank for all)", default="")
-    ticker_filter = [t.strip() for t in tickers_input.split(",") if t.strip()] or None
-    analysis_date = typer.prompt("Analysis date", default=datetime.datetime.now().strftime("%Y-%m-%d"))
-    dry_run = typer.confirm("Dry run (no API calls)?", default=False)
+    if min_conviction_opt is None:
+        min_conviction = typer.prompt("Minimum conviction (high/medium/low)", default="medium")
+    else:
+        min_conviction = min_conviction_opt
+        
+    if ticker_filter_list is None:
+        tickers_input = typer.prompt("Specific tickers (comma-separated, or blank for all)", default="")
+        ticker_filter = [t.strip() for t in tickers_input.split(",") if t.strip()] or None
+    else:
+        ticker_filter = ticker_filter_list
+        
+    if analysis_date_opt is None:
+        analysis_date = typer.prompt("Analysis date", default=datetime.datetime.now().strftime("%Y-%m-%d"))
+    else:
+        analysis_date = analysis_date_opt
+        
+    if dry_run_opt is None:
+        dry_run = typer.confirm("Dry run (no API calls)?", default=False)
+    else:
+        dry_run = dry_run_opt
 
     # Parse macro output
     macro_context, all_candidates = parse_macro_output(macro_path)
@@ -1487,6 +1512,58 @@ def portfolio():
     macro_output = typer.prompt("Path to macro scan JSON")
     macro_path = Path(macro_output)
 
+    run_portfolio(portfolio_id, date, macro_path)
+
+
+@app.command(name="check-portfolio")
+def check_portfolio(
+    portfolio_id: str = typer.Option("main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"),
+    date: Optional[str] = typer.Option(None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"),
+):
+    """Run Portfolio Manager to review current holdings only (no new candidates)."""
+    import json
+    import tempfile
+    
+    console.print(Panel("[bold green]Portfolio Manager: Holdings Review[/bold green]", border_style="green"))
+    if date is None:
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+        
+    # Create a dummy scan_summary with no candidates
+    dummy_scan = {"stocks_to_investigate": []}
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".json") as f:
+        json.dump(dummy_scan, f)
+        dummy_path = Path(f.name)
+        
+    try:
+        run_portfolio(portfolio_id, date, dummy_path)
+    finally:
+        dummy_path.unlink(missing_ok=True)
+
+
+@app.command()
+def auto(
+    portfolio_id: str = typer.Option("main_portfolio", "--portfolio-id", "-p", help="Portfolio ID"),
+    date: Optional[str] = typer.Option(None, "--date", "-d", help="Analysis date in YYYY-MM-DD format (default: today)"),
+):
+    """Run end-to-end: scan -> pipeline -> portfolio manager."""
+    console.print(Panel("[bold green]TradingAgents Auto Mode[/bold green]", border_style="green"))
+    if date is None:
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
+        
+    console.print("\n[bold magenta]--- Step 1: Market Scan ---[/bold magenta]")
+    run_scan(date=date)
+    
+    console.print("\n[bold magenta]--- Step 2: Per-Ticker Pipeline ---[/bold magenta]")
+    macro_path = get_daily_dir(date) / "summary" / "scan_summary.json"
+    run_pipeline(
+        macro_path_str=str(macro_path),
+        min_conviction_opt="medium",
+        ticker_filter_list=None,
+        analysis_date_opt=date,
+        dry_run_opt=False
+    )
+    
+    console.print("\n[bold magenta]--- Step 3: Portfolio Manager ---[/bold magenta]")
     run_portfolio(portfolio_id, date, macro_path)
 
 
