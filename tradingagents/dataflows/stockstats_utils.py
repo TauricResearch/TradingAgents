@@ -7,9 +7,25 @@ from .config import get_config
 
 
 def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
-    """Ensure DataFrame has lowercase columns for stockstats."""
+    """Normalize a stock DataFrame for stockstats: parse dates, drop invalid rows, fill price gaps.
+    Ensure DataFrame has lowercase columns for stockstats."""
     df = data.copy()
     df.columns = [str(c).lower() for c in df.columns]
+
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna(subset=["date"])
+
+    price_cols = [c for c in ["open", "high", "low", "close", "volume"] if c in df.columns]
+    if price_cols:
+        df[price_cols] = df[price_cols].apply(pd.to_numeric, errors="coerce")
+
+    if "close" in df.columns:
+        df = df.dropna(subset=["close"])
+
+    if price_cols:
+        df[price_cols] = df[price_cols].ffill().bfill()
+
     return df
 
 
