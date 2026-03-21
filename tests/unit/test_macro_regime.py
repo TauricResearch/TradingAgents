@@ -24,6 +24,28 @@ def _trending_series(start: float, end: float, n: int = 100) -> pd.Series:
 
 
 # ---------------------------------------------------------------------------
+# Helpers tests
+# ---------------------------------------------------------------------------
+
+class TestFmtPct:
+    def setup_method(self):
+        from tradingagents.dataflows.macro_regime import _fmt_pct
+        self.fn = _fmt_pct
+
+    @pytest.mark.parametrize(
+        ("val", "expected"),
+        [
+            (None, "N/A"),
+            (1.234, "+1.2%"),
+            (-1.234, "-1.2%"),
+            (0.0, "+0.0%"),
+        ],
+    )
+    def test_fmt_pct(self, val, expected):
+        assert self.fn(val) == expected
+
+
+# ---------------------------------------------------------------------------
 # Individual signal tests
 # ---------------------------------------------------------------------------
 
