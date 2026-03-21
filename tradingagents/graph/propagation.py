@@ -16,11 +16,16 @@ class Propagator:
         self.max_recur_limit = max_recur_limit
 
     def create_initial_state(
-        self, company_name: str, trade_date: str
+        self, company_name: str, trade_date: str, user_context: str = ""
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
+        # 支持注入用户自定义分析视角
+        if user_context:
+            human_msg = f"{company_name}\n\n[用户补充视角]\n{user_context}"
+        else:
+            human_msg = company_name
         return {
-            "messages": [("human", company_name)],
+            "messages": [("human", human_msg)],
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
             "investment_debate_state": InvestDebateState(
