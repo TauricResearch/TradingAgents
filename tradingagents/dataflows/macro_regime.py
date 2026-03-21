@@ -203,28 +203,14 @@ def _signal_sector_rotation(
 
 
 # ---------------------------------------------------------------------------
-# Main classifier
+# Main classifier helpers
 # ---------------------------------------------------------------------------
 
-def classify_macro_regime(curr_date: str = None) -> dict:
-    """
-    Classify current macro regime using 6 market signals.
-
-    Args:
-        curr_date: Optional reference date (informational only; always uses latest data)
-
-    Returns:
-        dict with keys:
-            regime (str): "risk-on" | "transition" | "risk-off"
-            score (int): Sum of signal scores (-6 to +6)
-            confidence (str): "high" | "medium" | "low"
-            signals (list[dict]): Per-signal breakdowns
-            summary (str): Human-readable summary
-    """
-    signals = []
-    total_score = 0
-
-    # --- Download all required data ---
+def _fetch_macro_data() -> tuple[
+    Optional[pd.Series], Optional[pd.Series], Optional[pd.Series], Optional[pd.Series],
+    Optional[pd.Series], Optional[pd.Series], dict[str, pd.Series], dict[str, pd.Series],
+    Optional[float]
+]:
     vix_data = _download(["^VIX"], period="3mo")
     market_data = _download(["^GSPC"], period="14mo")  # 14mo for 200-SMA
     hyg_lqd_data = _download(["HYG", "LQD"], period="3mo")
@@ -251,7 +237,19 @@ def classify_macro_regime(curr_date: str = None) -> dict:
 
     vix_price = _latest(vix_series)
 
-    # --- Evaluate each signal ---
+    return (
+        vix_series, spx_series, hyg_series, lqd_series, tlt_series, shy_series,
+        defensive_closes, cyclical_closes, vix_price
+    )
+
+
+def _evaluate_signals(
+    vix_price: Optional[float], vix_series: Optional[pd.Series],
+    hyg_series: Optional[pd.Series], lqd_series: Optional[pd.Series],
+    tlt_series: Optional[pd.Series], shy_series: Optional[pd.Series],
+    spx_series: Optional[pd.Series], defensive_closes: dict[str, pd.Series],
+    cyclical_closes: dict[str, pd.Series]
+) -> tuple[int, list[dict]]:
     evaluators = [
         _signal_vix_level(vix_price),
         _signal_vix_trend(vix_series),
@@ -266,11 +264,16 @@ def classify_macro_regime(curr_date: str = None) -> dict:
         "yield_curve", "market_breadth", "sector_rotation",
     ]
 
+    signals = []
+    total_score = 0
     for name, (score, description) in zip(signal_names, evaluators):
         signals.append({"name": name, "score": score, "description": description})
         total_score += score
 
-    # --- Classify regime ---
+    return total_score, signals
+
+
+def _determine_regime_and_confidence(total_score: int) -> tuple[str, str]:
     if total_score >= REGIME_RISK_ON_THRESHOLD:
         regime = "risk-on"
     elif total_score <= REGIME_RISK_OFF_THRESHOLD:
@@ -287,6 +290,12 @@ def classify_macro_regime(curr_date: str = None) -> dict:
     else:
         confidence = "low"
 
+    return regime, confidence
+
+
+def _generate_summary(
+    regime: str, total_score: int, confidence: str, signals: list[dict], vix_price: Optional[float]
+) -> str:
     risk_on_count = sum(1 for s in signals if s["score"] > 0)
     risk_off_count = sum(1 for s in signals if s["score"] < 0)
     neutral_count = sum(1 for s in signals if s["score"] == 0)
@@ -300,6 +309,44 @@ def classify_macro_regime(curr_date: str = None) -> dict:
         f"(score {total_score:+d}/6, confidence: {confidence}). "
         f"{risk_on_count} risk-on signals, {risk_off_count} risk-off signals, {neutral_count} neutral."
     )
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Main classifier
+# ---------------------------------------------------------------------------
+
+def classify_macro_regime(curr_date: str = None) -> dict:
+    """
+    Classify current macro regime using 6 market signals.
+
+    Args:
+        curr_date: Optional reference date (informational only; always uses latest data)
+
+    Returns:
+        dict with keys:
+            regime (str): "risk-on" | "transition" | "risk-off"
+            score (int): Sum of signal scores (-6 to +6)
+            confidence (str): "high" | "medium" | "low"
+            signals (list[dict]): Per-signal breakdowns
+            summary (str): Human-readable summary
+    """
+    # --- Download all required data ---
+    (
+        vix_series, spx_series, hyg_series, lqd_series, tlt_series, shy_series,
+        defensive_closes, cyclical_closes, vix_price
+    ) = _fetch_macro_data()
+
+    # --- Evaluate each signal ---
+    total_score, signals = _evaluate_signals(
+        vix_price, vix_series, hyg_series, lqd_series, tlt_series, shy_series,
+        spx_series, defensive_closes, cyclical_closes
+    )
+
+    # --- Classify regime ---
+    regime, confidence = _determine_regime_and_confidence(total_score)
+
+    summary = _generate_summary(regime, total_score, confidence, signals, vix_price)
 
     return {
         "regime": regime,
@@ -329,8 +376,8 @@ def format_macro_report(regime_data: dict) -> str:
         "",
         f"## Regime: {regime_display}",
         "",
-        f"| Attribute | Value |",
-        f"|-----------|-------|",
+        "| Attribute | Value |",
+        "|-----------|-------|",
         f"| Regime | **{regime_display}** |",
         f"| Composite Score | {score:+d} / 6 |",
         f"| Confidence | {confidence.title()} |",
