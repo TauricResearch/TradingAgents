@@ -275,8 +275,17 @@ class PortfolioSnapshot:
     cash: float
     equity_value: float
     num_positions: int
-    holdings_snapshot: list[dict[str, Any]] = field(default_factory=list)
+    holdings_snapshot: list[dict[str, Any]] | str = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __getattribute__(self, name: str) -> Any:
+        if name == "holdings_snapshot":
+            val = object.__getattribute__(self, "holdings_snapshot")
+            if isinstance(val, str):
+                val = json.loads(val)
+                object.__setattr__(self, "holdings_snapshot", val)
+            return val
+        return object.__getattribute__(self, name)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise all fields. ``holdings_snapshot`` is already a list[dict]."""
@@ -296,11 +305,8 @@ class PortfolioSnapshot:
     def from_dict(cls, data: dict[str, Any]) -> "PortfolioSnapshot":
         """Deserialise from DB row or JSON dict.
 
-        ``holdings_snapshot`` is parsed from a JSON string when needed.
+        ``holdings_snapshot`` is parsed lazily on first access.
         """
-        holdings_snapshot = data.get("holdings_snapshot", [])
-        if isinstance(holdings_snapshot, str):
-            holdings_snapshot = json.loads(holdings_snapshot)
         return cls(
             snapshot_id=data["snapshot_id"],
             portfolio_id=data["portfolio_id"],
@@ -309,6 +315,6 @@ class PortfolioSnapshot:
             cash=float(data["cash"]),
             equity_value=float(data["equity_value"]),
             num_positions=int(data["num_positions"]),
-            holdings_snapshot=holdings_snapshot,
+            holdings_snapshot=data.get("holdings_snapshot", []),
             metadata=data.get("metadata") or {},
         )
