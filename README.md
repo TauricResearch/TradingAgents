@@ -159,6 +159,62 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `analyze` | Interactive per-ticker multi-agent analysis (select analysts, LLM, date) |
+| `scan` | Run the 3-phase macro scanner (geopolitical → sector → synthesis) |
+| `pipeline` | Full pipeline: macro scan JSON → filter by conviction → per-ticker deep dive |
+| `portfolio` | Run the Portfolio Manager workflow (requires portfolio ID + scan JSON) |
+| `check-portfolio` | Review current holdings only — no new candidates |
+| `auto` | End-to-end: scan → pipeline → portfolio manager (one command) |
+
+**Examples:**
+
+```bash
+# Per-ticker analysis (interactive prompts for ticker, date, LLM, analysts)
+python -m cli.main analyze
+
+# Run macro scanner for a specific date
+python -m cli.main scan --date 2026-03-21
+
+# Run the full pipeline (scan → filter → per-ticker analysis)
+python -m cli.main pipeline
+
+# Run portfolio manager with a specific portfolio and scan results
+python -m cli.main portfolio
+
+# Review current holdings without new candidates
+python -m cli.main check-portfolio --portfolio-id main_portfolio --date 2026-03-21
+
+# Full autonomous mode: scan → pipeline → portfolio
+python -m cli.main auto --portfolio-id main_portfolio --date 2026-03-21
+```
+
+### Running Tests
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run all unit tests (integration and e2e excluded by default)
+python -m pytest tests/ -v
+
+# Run only portfolio tests
+python -m pytest tests/portfolio/ -v
+
+# Run a specific test file
+python -m pytest tests/portfolio/test_models.py -v
+
+# Run tests with coverage (requires pytest-cov)
+python -m pytest tests/ --cov=tradingagents --cov-report=term-missing
+```
+
+> **Note:** Integration tests that require network access or database connections
+> auto-skip when the relevant environment variables (`SUPABASE_CONNECTION_STRING`,
+> `FINNHUB_API_KEY`, etc.) are not set.
+
 ## TradingAgents Package
 
 ### Implementation Details

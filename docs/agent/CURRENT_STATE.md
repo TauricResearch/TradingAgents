@@ -1,6 +1,6 @@
 # Current Milestone
 
-Portfolio Manager Phases 2-5 complete. All 93 tests passing (4 integration skipped).
+Portfolio Manager feature fully implemented (Phases 1–10). All 588 tests passing (14 skipped).
 
 # Recent Progress
 
@@ -12,7 +12,7 @@ Portfolio Manager Phases 2-5 complete. All 93 tests passing (4 integration skipp
   - Business logic: avg cost basis, cash accounting, trade recording, snapshots
 - **PR #22 merged**: Unified report paths, structured observability logging, memory system update
 - **feat/daily-digest-notebooklm** (shipped): Daily digest consolidation + NotebookLM source sync
-- **Portfolio Manager Phases 2-5** (current branch):
+- **Portfolio Manager Phases 2-5** (implemented):
   - `tradingagents/portfolio/risk_evaluator.py` — pure-Python risk metrics (log returns, Sharpe, Sortino, VaR, max drawdown, beta, sector concentration, constraint checking)
   - `tradingagents/portfolio/candidate_prioritizer.py` — conviction × thesis × diversification × held_penalty scoring
   - `tradingagents/portfolio/trade_executor.py` — executes BUY/SELL (SELLs first), constraint pre-flight, EOD snapshot
@@ -22,11 +22,13 @@ Portfolio Manager Phases 2-5 complete. All 93 tests passing (4 integration skipp
   - `tradingagents/graph/portfolio_setup.py` — PortfolioGraphSetup (sequential 6-node workflow)
   - `tradingagents/graph/portfolio_graph.py` — PortfolioGraph (mirrors ScannerGraph pattern)
   - 48 new tests (28 risk_evaluator + 10 candidate_prioritizer + 10 trade_executor)
+- **Portfolio CLI integration**: `portfolio`, `check-portfolio`, `auto` commands in `cli/main.py`
+- **Documentation updated**: Flow diagram in `docs/portfolio/00_overview.md` aligned with actual 6-node sequential implementation; token estimation per model added; CLI & test commands added to README.md
 
 # In Progress
 
-- Portfolio Manager Phase 6: CLI integration / end-to-end wiring (next)
 - Refinement of macro scan synthesis prompts (ongoing)
+- End-to-end integration testing with live LLM + Supabase
 
 # Active Blockers
 
