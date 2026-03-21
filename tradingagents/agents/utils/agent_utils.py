@@ -1,38 +1,23 @@
 from langchain_core.messages import HumanMessage, RemoveMessage
+from tradingagents.agents.utils.agent_states import AgentState
 
-# Import tools from separate utility files
-from tradingagents.agents.utils.core_stock_tools import (
-    get_stock_data
+from tradingagents.agents.utils.polymarket_tools import (
+    get_market_data,
+    get_price_history,
+    get_event_news,
+    get_global_news,
+    get_whale_activity,
+    get_event_details,
+    get_orderbook,
+    get_market_stats,
+    get_leaderboard_signals,
+    get_social_sentiment,
+    search_markets,
 )
-from tradingagents.agents.utils.technical_indicators_tools import (
-    get_indicators
-)
-from tradingagents.agents.utils.fundamental_data_tools import (
-    get_fundamentals,
-    get_balance_sheet,
-    get_cashflow,
-    get_income_statement
-)
-from tradingagents.agents.utils.news_data_tools import (
-    get_news,
-    get_insider_transactions,
-    get_global_news
-)
+
 
 def create_msg_delete():
-    def delete_messages(state):
-        """Clear messages and add placeholder for Anthropic compatibility"""
-        messages = state["messages"]
-
-        # Remove all messages
-        removal_operations = [RemoveMessage(id=m.id) for m in messages]
-
-        # Add a minimal placeholder message
-        placeholder = HumanMessage(content="Continue")
-
-        return {"messages": removal_operations + [placeholder]}
-
-    return delete_messages
-
-
-        
+    """Create a message deletion node."""
+    def msg_delete(state: AgentState):
+        return {"messages": [RemoveMessage(id=m.id) for m in state["messages"]]}
+    return msg_delete
