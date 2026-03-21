@@ -35,6 +35,7 @@ See ``docs/portfolio/00_overview.md`` — Phase 3 for the full specification.
 
 from __future__ import annotations
 
+import heapq
 import math
 from typing import Any
 
@@ -111,16 +112,40 @@ def _percentile(values: list[float], pct: float) -> float:
     """
     if not values:
         raise ValueError("Cannot compute percentile of empty list")
-    sorted_vals = sorted(values)
-    n = len(sorted_vals)
+
+    n = len(values)
     # Linear interpolation index
     index = (pct / 100.0) * (n - 1)
     lower = int(index)
     upper = lower + 1
     frac = index - lower
-    if upper >= n:
-        return sorted_vals[-1]
-    return sorted_vals[lower] * (1.0 - frac) + sorted_vals[upper] * frac
+
+    k_lower = lower + 1
+    k_upper = n - lower
+
+    # Small lists or k is too large to use nsmallest/nlargest efficiently -> sort
+    if min(k_lower, k_upper) > 50 and min(k_lower, k_upper) > n * 0.05:
+        sorted_vals = sorted(values)
+        if upper >= n:
+            return sorted_vals[-1]
+        return sorted_vals[lower] * (1.0 - frac) + sorted_vals[upper] * frac
+
+    if k_lower <= k_upper:
+        # Use nsmallest
+        k = k_lower + 1
+        k_smallest = heapq.nsmallest(k, values)
+        if upper >= n:
+            return k_smallest[-1]
+        return k_smallest[-2] * (1.0 - frac) + k_smallest[-1] * frac
+    else:
+        # Use nlargest
+        k = k_upper
+        if k == 0:
+            return max(values)
+        k_largest = heapq.nlargest(k, values)
+        if upper >= n:
+            return k_largest[-1]
+        return k_largest[-1] * (1.0 - frac) + k_largest[-2] * frac
 
 
 # ---------------------------------------------------------------------------
