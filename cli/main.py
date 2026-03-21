@@ -38,6 +38,7 @@ from tradingagents.graph.scanner_graph import ScannerGraph
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
 from tradingagents.observability import RunLogger, set_run_logger
+from tradingagents.api_usage import format_vendor_breakdown, format_av_assessment
 
 console = Console()
 
@@ -1212,12 +1213,17 @@ def run_analysis():
     log_dir.mkdir(parents=True, exist_ok=True)
     run_logger.write_log(log_dir / "run_log.jsonl")
     summary = run_logger.summary()
+    vendor_breakdown = format_vendor_breakdown(summary)
+    av_assessment = format_av_assessment(summary)
     console.print(
         f"[dim]LLM calls: {summary['llm_calls']} | "
         f"Tokens: {summary['tokens_in']}→{summary['tokens_out']} | "
         f"Tools: {summary['tool_calls']} | "
         f"Vendor calls: {summary['vendor_success']}ok/{summary['vendor_fail']}fail[/dim]"
     )
+    if vendor_breakdown:
+        console.print(f"[dim]  Vendors: {vendor_breakdown}[/dim]")
+    console.print(f"[dim]  {av_assessment}[/dim]")
     set_run_logger(None)
 
     # Prompt to display full report
@@ -1295,12 +1301,17 @@ def run_scan(date: Optional[str] = None):
     # Write observability log
     run_logger.write_log(save_dir / "run_log.jsonl")
     scan_summary = run_logger.summary()
+    vendor_breakdown = format_vendor_breakdown(scan_summary)
+    av_assessment = format_av_assessment(scan_summary)
     console.print(
         f"[dim]LLM calls: {scan_summary['llm_calls']} | "
         f"Tokens: {scan_summary['tokens_in']}→{scan_summary['tokens_out']} | "
         f"Tools: {scan_summary['tool_calls']} | "
         f"Vendor calls: {scan_summary['vendor_success']}ok/{scan_summary['vendor_fail']}fail[/dim]"
     )
+    if vendor_breakdown:
+        console.print(f"[dim]  Vendors: {vendor_breakdown}[/dim]")
+    console.print(f"[dim]  {av_assessment}[/dim]")
     set_run_logger(None)
 
     # Append to daily digest and sync to NotebookLM
@@ -1419,12 +1430,17 @@ def run_pipeline(
     output_dir.mkdir(parents=True, exist_ok=True)
     run_logger.write_log(output_dir / "run_log.jsonl")
     pipe_summary = run_logger.summary()
+    vendor_breakdown = format_vendor_breakdown(pipe_summary)
+    av_assessment = format_av_assessment(pipe_summary)
     console.print(
         f"[dim]LLM calls: {pipe_summary['llm_calls']} | "
         f"Tokens: {pipe_summary['tokens_in']}→{pipe_summary['tokens_out']} | "
         f"Tools: {pipe_summary['tool_calls']} | "
         f"Vendor calls: {pipe_summary['vendor_success']}ok/{pipe_summary['vendor_fail']}fail[/dim]"
     )
+    if vendor_breakdown:
+        console.print(f"[dim]  Vendors: {vendor_breakdown}[/dim]")
+    console.print(f"[dim]  {av_assessment}[/dim]")
     set_run_logger(None)
 
     # Append to daily digest and sync to NotebookLM
@@ -1589,6 +1605,66 @@ def auto(
     
     console.print("\n[bold magenta]--- Step 3: Portfolio Manager ---[/bold magenta]")
     run_portfolio(portfolio_id, date, macro_path)
+
+
+@app.command(name="estimate-api")
+def estimate_api(
+    command: str = typer.Argument("all", help="Command to estimate: analyze, scan, pipeline, or all"),
+    num_tickers: int = typer.Option(5, "--tickers", "-t", help="Expected tickers for pipeline estimate"),
+    num_indicators: int = typer.Option(6, "--indicators", "-i", help="Expected indicator calls per ticker"),
+):
+    """Estimate API usage per vendor (helps decide if AV premium is needed)."""
+    from tradingagents.api_usage import (
+        estimate_analyze,
+        estimate_scan,
+        estimate_pipeline,
+        format_estimate,
+        AV_FREE_DAILY_LIMIT,
+        AV_PREMIUM_PER_MINUTE,
+    )
+
+    console.print(Panel("[bold green]API Usage Estimation[/bold green]", border_style="green"))
+    console.print(
+        f"[dim]Alpha Vantage tiers: FREE = {AV_FREE_DAILY_LIMIT} calls/day | "
+        f"Premium ($30/mo) = {AV_PREMIUM_PER_MINUTE} calls/min, unlimited daily[/dim]\n"
+    )
+
+    estimates = []
+    if command in ("analyze", "all"):
+        estimates.append(estimate_analyze(num_indicators=num_indicators))
+    if command in ("scan", "all"):
+        estimates.append(estimate_scan())
+    if command in ("pipeline", "all"):
+        estimates.append(estimate_pipeline(num_tickers=num_tickers, num_indicators=num_indicators))
+
+    if not estimates:
+        console.print(f"[red]Unknown command: {command}. Use: analyze, scan, pipeline, or all[/red]")
+        raise typer.Exit(1)
+
+    for est in estimates:
+        console.print(Panel(format_estimate(est), title=est.command, border_style="cyan"))
+
+    # Overall AV assessment
+    console.print("\n[bold]Alpha Vantage Subscription Recommendation:[/bold]")
+    max_av = max(e.vendor_calls.alpha_vantage for e in estimates)
+    if max_av == 0:
+        console.print(
+            "  [green]✓ Current config uses yfinance (free) for all data.[/green]\n"
+            "  [green]  Alpha Vantage subscription is NOT needed.[/green]\n"
+            "  [dim]  To switch to AV, set TRADINGAGENTS_VENDOR_* env vars to 'alpha_vantage'.[/dim]"
+        )
+    else:
+        total_daily = sum(e.vendor_calls.alpha_vantage for e in estimates)
+        if total_daily <= AV_FREE_DAILY_LIMIT:
+            console.print(
+                f"  [green]✓ Total AV calls ({total_daily}) fit the FREE tier ({AV_FREE_DAILY_LIMIT}/day).[/green]\n"
+                f"  [green]  No premium subscription needed for a single daily run.[/green]"
+            )
+        else:
+            console.print(
+                f"  [yellow]⚠ Total AV calls ({total_daily}) exceed the FREE tier ({AV_FREE_DAILY_LIMIT}/day).[/yellow]\n"
+                f"  [yellow]  Premium subscription recommended ($30/month).[/yellow]"
+            )
 
 
 if __name__ == "__main__":
