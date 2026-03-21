@@ -12,7 +12,7 @@ Portfolio Manager Phases 2-5 complete. All 93 tests passing (4 integration skipp
   - Business logic: avg cost basis, cash accounting, trade recording, snapshots
 - **PR #22 merged**: Unified report paths, structured observability logging, memory system update
 - **feat/daily-digest-notebooklm** (shipped): Daily digest consolidation + NotebookLM source sync
-- **Portfolio Manager Phases 2-5** (current branch):
+- **Portfolio Manager Phases 2-6** (current branch):
   - `tradingagents/portfolio/risk_evaluator.py` — pure-Python risk metrics (log returns, Sharpe, Sortino, VaR, max drawdown, beta, sector concentration, constraint checking)
   - `tradingagents/portfolio/candidate_prioritizer.py` — conviction × thesis × diversification × held_penalty scoring
   - `tradingagents/portfolio/trade_executor.py` — executes BUY/SELL (SELLs first), constraint pre-flight, EOD snapshot
@@ -22,10 +22,10 @@ Portfolio Manager Phases 2-5 complete. All 93 tests passing (4 integration skipp
   - `tradingagents/graph/portfolio_setup.py` — PortfolioGraphSetup (sequential 6-node workflow)
   - `tradingagents/graph/portfolio_graph.py` — PortfolioGraph (mirrors ScannerGraph pattern)
   - 48 new tests (28 risk_evaluator + 10 candidate_prioritizer + 10 trade_executor)
+  - `cli/main.py` CLI integration end-to-end wiring via `portfolio`, `check-portfolio`, and `auto` commands
 
 # In Progress
 
-- Portfolio Manager Phase 6: CLI integration / end-to-end wiring (next)
 - Refinement of macro scan synthesis prompts (ongoing)
 
 # Active Blockers
