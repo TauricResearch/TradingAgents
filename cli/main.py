@@ -1433,6 +1433,10 @@ def run_scan(date: Optional[str] = None):
                         s.get("thesis_angle", ""),
                     )
                 console.print(table)
+            # Save as scan_summary.json for downstream auto/pipeline commands
+            (save_dir / "scan_summary.json").write_text(
+                json.dumps(summary_data, indent=2)
+            )
         except (json.JSONDecodeError, KeyError, ValueError):
             pass  # Summary wasn't valid JSON — already printed as markdown
 
@@ -1799,7 +1803,7 @@ def auto(
     run_scan(date=date)
 
     console.print("\n[bold magenta]--- Step 2: Per-Ticker Pipeline ---[/bold magenta]")
-    macro_path = get_daily_dir(date) / "summary" / "scan_summary.json"
+    macro_path = get_market_dir(date) / "scan_summary.json"
     run_pipeline(
         macro_path_str=str(macro_path),
         min_conviction_opt="medium",
