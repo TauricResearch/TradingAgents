@@ -6,6 +6,10 @@ import json
 import re
 from typing import Any
 
+# Pre-compiled regex patterns for better performance
+THINK_PATTERN = re.compile(r"<think>.*?</think>", re.DOTALL)
+FENCE_PATTERN = re.compile(r"```(?:json)?\s*\n?(.*?)\n?\s*```", re.DOTALL)
+
 
 def extract_json(text: str) -> dict[str, Any]:
     """Extract a JSON object from LLM output that may contain markdown fences,
@@ -44,7 +48,7 @@ def extract_json(text: str) -> dict[str, Any]:
         pass
 
     # 2. Strip <think>...</think> blocks (DeepSeek R1)
-    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    cleaned = THINK_PATTERN.sub("", text).strip()
 
     # Try again after stripping think blocks
     try:
@@ -53,8 +57,7 @@ def extract_json(text: str) -> dict[str, Any]:
         pass
 
     # 3. Extract from markdown code fences
-    fence_pattern = r"```(?:json)?\s*\n?(.*?)\n?\s*```"
-    fences = re.findall(fence_pattern, cleaned, re.DOTALL)
+    fences = FENCE_PATTERN.findall(cleaned)
     for block in fences:
         try:
             return _ensure_dict(json.loads(block.strip()))
