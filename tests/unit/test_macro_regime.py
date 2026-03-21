@@ -86,6 +86,12 @@ class TestSignalVixTrend:
         score, desc = self.fn(vix)
         assert score == 0
 
+    def test_short_history_is_neutral(self):
+        vix = _make_series([20.0] * 20)
+        score, desc = self.fn(vix)
+        assert score == 0
+        assert "insufficient history" in desc
+
     def test_none_series_is_neutral(self):
         score, desc = self.fn(None)
         assert score == 0
@@ -109,6 +115,42 @@ class TestSignalCreditSpread:
         lqd = _flat_series(100, 30)
         score, desc = self.fn(hyg, lqd)
         assert score == -1
+
+    def test_short_history_is_neutral(self):
+        hyg = _trending_series(80, 85, 21)
+        lqd = _flat_series(100, 21)
+        score, desc = self.fn(hyg, lqd)
+        assert score == 0
+        assert "insufficient history" in desc
+
+    def test_none_data_is_neutral(self):
+        score, _ = self.fn(None, None)
+        assert score == 0
+
+
+class TestSignalYieldCurve:
+    def setup_method(self):
+        from tradingagents.dataflows.macro_regime import _signal_yield_curve
+        self.fn = _signal_yield_curve
+
+    def test_flight_to_safety_is_risk_off(self):
+        tlt = _trending_series(100, 110, 30)
+        shy = _flat_series(100, 30)
+        score, desc = self.fn(tlt, shy)
+        assert score == -1
+
+    def test_risk_appetite_is_risk_on(self):
+        tlt = _trending_series(110, 100, 30)
+        shy = _flat_series(100, 30)
+        score, desc = self.fn(tlt, shy)
+        assert score == 1
+
+    def test_short_history_is_neutral(self):
+        tlt = _trending_series(100, 110, 21)
+        shy = _flat_series(100, 21)
+        score, desc = self.fn(tlt, shy)
+        assert score == 0
+        assert "insufficient history" in desc
 
     def test_none_data_is_neutral(self):
         score, _ = self.fn(None, None)
@@ -139,6 +181,45 @@ class TestSignalMarketBreadth:
         spx = _make_series([5000.0] * 100)
         score, _ = self.fn(spx)
         assert score == 0  # < 200 points for SMA200
+
+    def test_short_history_is_neutral(self):
+        spx = _make_series([5000.0] * 199)
+        score, desc = self.fn(spx)
+        assert score == 0
+        assert "insufficient history" in desc
+
+    def test_none_data_is_neutral(self):
+        score, _ = self.fn(None)
+        assert score == 0
+
+
+class TestSignalSectorRotation:
+    def setup_method(self):
+        from tradingagents.dataflows.macro_regime import _signal_sector_rotation
+        self.fn = _signal_sector_rotation
+
+    def test_defensives_leading_is_risk_off(self):
+        defensives = {"XLU": _trending_series(100, 110, 30)}
+        cyclicals = {"XLY": _flat_series(100, 30)}
+        score, desc = self.fn(defensives, cyclicals)
+        assert score == -1
+
+    def test_cyclicals_leading_is_risk_on(self):
+        defensives = {"XLU": _flat_series(100, 30)}
+        cyclicals = {"XLY": _trending_series(100, 110, 30)}
+        score, desc = self.fn(defensives, cyclicals)
+        assert score == 1
+
+    def test_short_history_is_neutral(self):
+        defensives = {"XLU": _trending_series(100, 110, 21)}
+        cyclicals = {"XLY": _flat_series(100, 21)}
+        score, desc = self.fn(defensives, cyclicals)
+        assert score == 0
+        assert "unavailable" in desc
+
+    def test_empty_dicts_is_neutral(self):
+        score, desc = self.fn({}, {})
+        assert score == 0
 
 
 # ---------------------------------------------------------------------------
