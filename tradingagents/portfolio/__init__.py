@@ -8,6 +8,7 @@ Import the primary interface classes from this package:
         Holding,
         Trade,
         PortfolioSnapshot,
+        compute_risk_metrics,
         PortfolioError,
         PortfolioNotFoundError,
         InsufficientCashError,

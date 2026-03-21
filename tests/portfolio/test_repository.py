@@ -21,7 +21,13 @@ from tradingagents.portfolio.exceptions import (
 )
 from tradingagents.portfolio.models import Holding, Portfolio, Trade
 from tradingagents.portfolio.repository import PortfolioRepository
-from tests.portfolio.conftest import requires_supabase
+
+# Define skip marker inline — avoids problematic absolute import from conftest
+import os
+requires_supabase = pytest.mark.skipif(
+    not os.getenv("SUPABASE_CONNECTION_STRING"),
+    reason="SUPABASE_CONNECTION_STRING not set -- skipping integration tests",
+)
 
 
 # ---------------------------------------------------------------------------
