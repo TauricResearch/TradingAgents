@@ -756,6 +756,32 @@ class TestGetBasicFinancials:
 
 
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# 10.5 finnhub_news — _fetch_company_news_data helper
+# ---------------------------------------------------------------------------
+
+class TestFetchCompanyNewsData:
+    """_fetch_company_news_data handles errors by returning an empty list."""
+
+    _PATCH_TARGET = "tradingagents.dataflows.finnhub_news._make_api_request"
+
+    def test_fetch_company_news_data_api_error_returns_empty_list(self):
+        from tradingagents.dataflows.finnhub_news import _fetch_company_news_data
+
+        with patch(self._PATCH_TARGET, side_effect=Exception("API failure")):
+            result = _fetch_company_news_data("AAPL", {"symbol": "AAPL"})
+
+        assert result == []
+
+    def test_fetch_company_news_data_invalid_response_type_returns_empty_list(self):
+        from tradingagents.dataflows.finnhub_news import _fetch_company_news_data
+
+        with patch(self._PATCH_TARGET, return_value={"error": "Not a list"}):
+            result = _fetch_company_news_data("AAPL", {"symbol": "AAPL"})
+
+        assert result == []
+
 # 10. finnhub_news — get_company_news
 # ---------------------------------------------------------------------------
 
@@ -891,6 +917,30 @@ class TestGetInsiderTransactions:
             result = get_insider_transactions("AAPL")
 
         assert "AAPL" in result
+
+    def test_invalid_transaction_values_fall_back_to_raw_strings(self):
+        """Testing the error path at line 220 where float conversion fails."""
+        from tradingagents.dataflows.finnhub_news import get_insider_transactions
+
+        invalid_txn = {
+            "data": [
+                {
+                    "name": "Test Exec",
+                    "transactionCode": "P",
+                    "share": "invalid_share",
+                    "price": "invalid_price",
+                    "value": "invalid_value",
+                    "transactionDate": "2024-01-10",
+                    "filingDate": "2024-01-12",
+                }
+            ]
+        }
+        with patch(self._PATCH_TARGET, return_value=_json_response(invalid_txn)):
+            result = get_insider_transactions("AAPL")
+
+        assert "invalid_share" in result
+        assert "invalid_price" in result
+        assert "invalid_value" in result
 
 
 # ---------------------------------------------------------------------------
