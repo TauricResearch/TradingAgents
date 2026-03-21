@@ -1,5 +1,4 @@
 import time
-from typing import Annotated
 
 # Import from vendor-specific modules
 from .y_finance import (
