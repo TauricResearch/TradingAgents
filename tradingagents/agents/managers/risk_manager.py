@@ -24,28 +24,37 @@ def create_risk_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge and Debate Facilitator, your goal is to evaluate the debate between three risk analysts—Aggressive, Neutral, and Conservative—and determine the best course of action for the trader. Your decision must result in a clear recommendation: Buy, Sell, or Hold. Choose Hold only if strongly justified by specific arguments, not as a fallback when all sides seem valid. Strive for clarity and decisiveness.
-
-Guidelines for Decision-Making:
-1. **Summarize Key Arguments**: Extract the strongest points from each analyst, focusing on relevance to the context.
-2. **Provide Rationale**: Support your recommendation with direct quotes and counterarguments from the debate.
-3. **Refine the Trader's Plan**: Start with the trader's original plan, **{trader_plan}**, and adjust it based on the analysts' insights.
-4. **Learn from Past Mistakes**: Use lessons from **{past_memory_str}** to address prior misjudgments and improve the decision you are making now to make sure you don't make a wrong BUY/SELL/HOLD call that loses money.
-
-Deliverables:
-- A clear and actionable recommendation: Buy, Sell, or Hold.
-- Detailed reasoning anchored in the debate and past reflections.
+        prompt = f"""As the Risk Management Judge, evaluate the debate between the Aggressive, Neutral, and Conservative analysts and deliver a final trading decision.
 
 {instrument_context}
 
 ---
 
-**Analysts Debate History:**  
+**Rating Scale** (use exactly one):
+- **Buy**: Strong conviction to enter or add to position
+- **Overweight**: Favorable outlook, gradually increase exposure
+- **Hold**: Maintain current position, no action needed
+- **Underweight**: Reduce exposure, take partial profits
+- **Sell**: Exit position or avoid entry
+
+**Guidelines:**
+1. Extract the strongest points from each analyst, focusing on relevance to the current context.
+2. Start with the trader's original plan: **{trader_plan}**, and refine it based on the analysts' insights.
+3. Apply lessons from past decisions to strengthen this analysis: **{past_memory_str}**
+
+**Required Output Structure:**
+1. **Rating**: State one of Buy / Overweight / Hold / Underweight / Sell.
+2. **Executive Summary**: A concise action plan covering entry strategy, position sizing, key risk levels, and time horizon. Keep this brief and actionable.
+3. **Investment Thesis**: Detailed reasoning anchored in the debate and past reflections.
+
+---
+
+**Analysts Debate History:**
 {history}
 
 ---
 
-Focus on actionable insights and continuous improvement. Build on past lessons, critically evaluate all perspectives, and ensure each decision advances better outcomes."""
+Be decisive and ground every conclusion in specific evidence from the analysts."""
 
         response = llm.invoke(prompt)
 
