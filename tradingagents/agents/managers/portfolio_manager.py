@@ -1,11 +1,8 @@
-import time
-import json
-
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 
 
-def create_risk_manager(llm, memory):
-    def risk_manager_node(state) -> dict:
+def create_portfolio_manager(llm, memory):
+    def portfolio_manager_node(state) -> dict:
 
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -24,7 +21,7 @@ def create_risk_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Risk Management Judge, evaluate the debate between the Aggressive, Neutral, and Conservative analysts and deliver a final trading decision.
+        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
 {instrument_context}
 
@@ -37,19 +34,18 @@ def create_risk_manager(llm, memory):
 - **Underweight**: Reduce exposure, take partial profits
 - **Sell**: Exit position or avoid entry
 
-**Guidelines:**
-1. Extract the strongest points from each analyst, focusing on relevance to the current context.
-2. Start with the trader's original plan: **{trader_plan}**, and refine it based on the analysts' insights.
-3. Apply lessons from past decisions to strengthen this analysis: **{past_memory_str}**
+**Context:**
+- Trader's proposed plan: **{trader_plan}**
+- Lessons from past decisions: **{past_memory_str}**
 
 **Required Output Structure:**
 1. **Rating**: State one of Buy / Overweight / Hold / Underweight / Sell.
-2. **Executive Summary**: A concise action plan covering entry strategy, position sizing, key risk levels, and time horizon. Keep this brief and actionable.
-3. **Investment Thesis**: Detailed reasoning anchored in the debate and past reflections.
+2. **Executive Summary**: A concise action plan covering entry strategy, position sizing, key risk levels, and time horizon.
+3. **Investment Thesis**: Detailed reasoning anchored in the analysts' debate and past reflections.
 
 ---
 
-**Analysts Debate History:**
+**Risk Analysts Debate History:**
 {history}
 
 ---
@@ -76,4 +72,4 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
             "final_trade_decision": response.content,
         }
 
-    return risk_manager_node
+    return portfolio_manager_node

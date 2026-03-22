@@ -800,9 +800,11 @@ ANALYST_REPORT_MAP = {
 
 
 def update_analyst_statuses(message_buffer, chunk):
-    """Update all analyst statuses based on current report state.
+    """Update analyst statuses based on accumulated report state.
 
     Logic:
+    - Store new report content from the current chunk if present
+    - Check accumulated report_sections (not just current chunk) for status
     - Analysts with reports = completed
     - First analyst without report = in_progress
     - Remaining analysts without reports = pending
@@ -817,11 +819,16 @@ def update_analyst_statuses(message_buffer, chunk):
 
         agent_name = ANALYST_AGENT_NAMES[analyst_key]
         report_key = ANALYST_REPORT_MAP[analyst_key]
-        has_report = bool(chunk.get(report_key))
+
+        # Capture new report content from current chunk
+        if chunk.get(report_key):
+            message_buffer.update_report_section(report_key, chunk[report_key])
+
+        # Determine status from accumulated sections, not just current chunk
+        has_report = bool(message_buffer.report_sections.get(report_key))
 
         if has_report:
             message_buffer.update_agent_status(agent_name, "completed")
-            message_buffer.update_report_section(report_key, chunk[report_key])
         elif not found_active:
             message_buffer.update_agent_status(agent_name, "in_progress")
             found_active = True
