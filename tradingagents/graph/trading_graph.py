@@ -158,10 +158,20 @@ class TradingAgentsGraph:
         elif provider == "openai":
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
-                # reasoning_effort is only supported by o-series models
-                # (o1, o3, o3-mini, o4-mini, etc.), not by gpt-* models
-                if model_name.startswith("o"):
-                    kwargs["reasoning_effort"] = reasoning_effort
+                # reasoning_effort + function tools is not supported on the
+                # /v1/chat/completions endpoint for some models (e.g. gpt-5.x).
+                # LangChain's ChatOpenAI only uses chat/completions, so we
+                # skip reasoning_effort for agents that use tools to avoid
+                # 400 errors. This is a known LangChain limitation.
+                # See: https://github.com/TauricResearch/TradingAgents/issues/403
+                import logging
+                logging.getLogger(__name__).info(
+                    "Skipping reasoning_effort='%s' for model '%s' because "
+                    "TradingAgents agents use function tools, which are "
+                    "incompatible with reasoning_effort on the chat/completions "
+                    "endpoint. See issue #403.",
+                    reasoning_effort, model_name,
+                )
 
         return kwargs
 
