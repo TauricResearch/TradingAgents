@@ -42,3 +42,6 @@ Synthetic consensus between **Economist** (Efficiency/Risk) and **UI Designer** 
 - **Backend:** FastAPI, LangChain, Supabase (Postgres).
 - **Frontend:** React, Chakra UI, React Flow, Axios.
 - **Protocol:** REST for triggers, WebSockets for live streaming.
+- **Network:** 
+  - Backend: `127.0.0.1:8088` (to avoid macOS system conflicts)
+  - Frontend: `localhost:5173`
