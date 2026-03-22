@@ -1,3 +1,4 @@
+import logging
 import os
 import requests
 import pandas as pd
@@ -6,6 +7,9 @@ import threading
 import time as _time
 from datetime import datetime
 from io import StringIO
+
+logger = logging.getLogger(__name__)
+
 
 API_BASE_URL = "https://www.alphavantage.co/query"
 
@@ -228,8 +232,15 @@ def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> 
         # Parse CSV data
         df = pd.read_csv(StringIO(csv_data))
 
-        # Assume the first column is the date column (timestamp)
-        date_col = df.columns[0]
+        # Find the date column by name rather than positional assumption.
+        # Alpha Vantage returns 'time' or 'timestamp' as the date column header.
+        _date_candidates = [c for c in df.columns if c.lower() in ("time", "timestamp", "date")]
+        if not _date_candidates:
+            raise ValueError(
+                f"Date column not found in Alpha Vantage CSV. "
+                f"Expected 'time' or 'timestamp', got columns: {list(df.columns)}"
+            )
+        date_col = _date_candidates[0]
         df[date_col] = pd.to_datetime(df[date_col])
 
         # Filter by date range
@@ -241,7 +252,11 @@ def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> 
         # Convert back to CSV string
         return filtered_df.to_csv(index=False)
 
+    except ValueError:
+        # ValueError = a programming/data-contract error (e.g. missing date column).
+        # Re-raise so callers see it immediately rather than getting silently wrong data.
+        raise
     except Exception as e:
-        # If filtering fails, return original data with a warning
-        print(f"Warning: Failed to filter CSV data by date range: {e}")
+        # Transient errors (I/O, malformed CSV): log and return original data as-is.
+        logger.warning("Failed to filter CSV data by date range: %s", e)
         return csv_data

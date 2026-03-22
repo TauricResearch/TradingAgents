@@ -40,6 +40,7 @@ from .alpha_vantage_scanner import (
 )
 from .alpha_vantage_common import AlphaVantageError, AlphaVantageRateLimitError, RateLimitError
 from .finnhub_common import FinnhubError
+from .stockstats_utils import YFinanceError
 from .finnhub_news import get_insider_transactions as get_finnhub_insider_transactions
 from .finnhub_scanner import (
     get_market_indices_finnhub,
@@ -262,7 +263,7 @@ def route_to_vendor(method: str, *args, **kwargs):
             if rl:
                 rl.log_vendor_call(method, vendor, True, (time.time() - t0) * 1000, args_summary=args_summary)
             return result
-        except (AlphaVantageError, FinnhubError, ConnectionError, TimeoutError) as exc:
+        except (AlphaVantageError, FinnhubError, YFinanceError, ConnectionError, TimeoutError) as exc:
             if rl:
                 rl.log_vendor_call(method, vendor, False, (time.time() - t0) * 1000, error=str(exc)[:200], args_summary=args_summary)
             last_error = exc
