@@ -972,8 +972,9 @@ def run_analysis():
                 content = obj.report_sections[section_name]
                 if content:
                     file_name = f"{section_name}.md"
+                    text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
                     with open(report_dir / file_name, "w", encoding="utf-8") as f:
-                        f.write(content)
+                        f.write(text)
         return wrapper
 
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")
