@@ -1,0 +1,27 @@
+{
+  "name": "toggle-selection",
+  "version": "1.0.6",
+  "description": "Toggle current selected content in browser",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sudodoki/toggle-selection"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "selection",
+    "toggle",
+    "browser",
+    "deselect"
+  ],
+  "author": "sudodoki <smd.deluzion@gmail.com> (sudodoki.name)",
+  "license": "MIT",
+  "contributors": [
+    {
+      "name": "Aleksej Shvajka",
+      "url": "https://github.com/shvaikalesh"
+    }
+  ]
+}

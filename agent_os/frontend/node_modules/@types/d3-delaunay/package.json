@@ -1,0 +1,30 @@
+{
+    "name": "@types/d3-delaunay",
+    "version": "6.0.4",
+    "description": "TypeScript definitions for d3-delaunay",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-delaunay",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Bradley Odell",
+            "githubUsername": "BTOdell",
+            "url": "https://github.com/BTOdell"
+        },
+        {
+            "name": "Nathan Bierema",
+            "githubUsername": "Methuselah96",
+            "url": "https://github.com/Methuselah96"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/d3-delaunay"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "3e9eae0049dbbb71f5268e23d09f4145f04bb5283a48d839914edcdd05b42211",
+    "typeScriptVersion": "4.5"
+}

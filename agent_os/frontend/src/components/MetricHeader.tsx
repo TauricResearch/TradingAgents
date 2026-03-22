@@ -26,7 +26,7 @@ export const MetricHeader: React.FC<MetricHeaderProps> = ({ portfolioId }) => {
     const fetchSummary = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`http://localhost:8000/api/portfolios/${portfolioId}/summary`);
+        const res = await axios.get(`http://127.0.0.1:8088/api/portfolios/${portfolioId}/summary`);
         setData(res.data);
       } catch (err) {
         console.error("Failed to fetch summary:", err);

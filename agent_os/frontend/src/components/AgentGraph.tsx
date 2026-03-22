@@ -10,7 +10,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Box, Text, Flex, Icon, Tooltip, Badge } from '@chakra-ui/react';
-import { Cpu, Tool, Database, TrendingUp, Clock } from 'lucide-react';
+import { Cpu, Settings, Database, TrendingUp, Clock } from 'lucide-react';
 import { AgentEvent } from '../hooks/useAgentStream';
 
 // --- Custom Agent Node Component ---
@@ -20,7 +20,7 @@ const AgentNode = ({ data }: NodeProps) => {
       case 'ANALYST': return Cpu;
       case 'RESEARCHER': return Database;
       case 'TRADER': return TrendingUp;
-      default: return Tool;
+      default: return Settings;
     }
   };
 

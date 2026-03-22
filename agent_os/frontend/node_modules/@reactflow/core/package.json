@@ -1,0 +1,85 @@
+{
+  "name": "@reactflow/core",
+  "version": "11.11.4",
+  "description": "Core components and util functions of React Flow.",
+  "keywords": [
+    "react",
+    "node-based UI",
+    "graph",
+    "diagram",
+    "workflow",
+    "react-flow"
+  ],
+  "files": [
+    "dist"
+  ],
+  "source": "src/index.ts",
+  "main": "dist/umd/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.mjs",
+      "require": "./dist/umd/index.js"
+    },
+    "./dist/base.css": "./dist/base.css",
+    "./dist/style.css": "./dist/style.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xyflow/xyflow.git",
+    "directory": "packages/core"
+  },
+  "dependencies": {
+    "@types/d3": "^7.4.0",
+    "@types/d3-drag": "^3.0.1",
+    "@types/d3-selection": "^3.0.3",
+    "@types/d3-zoom": "^3.0.1",
+    "classcat": "^5.0.3",
+    "d3-drag": "^3.0.0",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
+    "zustand": "^4.4.1"
+  },
+  "peerDependencies": {
+    "react": ">=17",
+    "react-dom": ">=17"
+  },
+  "devDependencies": {
+    "@types/node": "^18.7.16",
+    "@types/react": ">=17",
+    "@types/react-dom": ">=17",
+    "react": "^18.2.0",
+    "typescript": "^4.9.4",
+    "@reactflow/rollup-config": "0.0.0",
+    "@reactflow/tsconfig": "0.0.0",
+    "@reactflow/eslint-config": "0.0.0"
+  },
+  "rollup": {
+    "globals": {
+      "classcat": "cc",
+      "d3-selection": "d3Selection",
+      "d3-zoom": "d3Zoom",
+      "d3-drag": "d3Drag",
+      "zustand": "zustand",
+      "zustand/shallow": "zustandShallow"
+    },
+    "name": "ReactFlowCore"
+  },
+  "scripts": {
+    "dev": "concurrently \"rollup --config node:@reactflow/rollup-config --watch\" pnpm:css-watch",
+    "build": "rollup --config node:@reactflow/rollup-config --environment NODE_ENV:production && npm run css",
+    "css": "postcss src/styles/{base,style}.css --config ./../../tooling/postcss-config/postcss.config.js --dir dist",
+    "css-watch": "pnpm css --watch",
+    "lint": "eslint --ext .js,.jsx,.ts,.tsx src",
+    "typecheck": "tsc --noEmit"
+  }
+}

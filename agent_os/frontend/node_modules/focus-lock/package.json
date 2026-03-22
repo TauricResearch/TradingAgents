@@ -1,0 +1,80 @@
+{
+  "name": "focus-lock",
+  "version": "1.3.6",
+  "description": "DOM trap for a focus",
+  "main": "dist/es5/index.js",
+  "jsnext:main": "dist/es2015/index.js",
+  "module": "dist/es2015/index.js",
+  "sideEffects": false,
+  "scripts": {
+    "dev": "lib-builder dev",
+    "test": "jest",
+    "test:ci": "jest --runInBand --coverage",
+    "build": "lib-builder build && yarn size:report",
+    "release": "yarn build && yarn test",
+    "size": "yarn size-limit",
+    "size:report": "yarn --silent size-limit --json > .size.json",
+    "lint": "lib-builder lint",
+    "format": "lib-builder format",
+    "update": "lib-builder update",
+    "docz:dev": "docz dev",
+    "docz:build": "docz build",
+    "prepublish": "yarn build && yarn changelog",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
+    "changelog:rewrite": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theKashey/focus-lock.git"
+  },
+  "keywords": [
+    "focus",
+    "trap",
+    "vanilla"
+  ],
+  "files": [
+    "dist",
+    "constants"
+  ],
+  "author": "theKashey <thekashey@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/theKashey/focus-lock/issues"
+  },
+  "homepage": "https://github.com/theKashey/focus-lock#readme",
+  "devDependencies": {
+    "@size-limit/preset-small-lib": "^11.0.2",
+    "@theuiteam/lib-builder": "^0.1.4",
+    "size-limit": "^11.0.2"
+  },
+  "types": "dist/es5/index.d.ts",
+  "engines": {
+    "node": ">=10"
+  },
+  "dependencies": {
+    "tslib": "^2.0.3"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix",
+      "git add"
+    ],
+    "*.{js,css,json,md}": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "prettier": {
+    "printWidth": 120,
+    "trailingComma": "es5",
+    "tabWidth": 2,
+    "semi": true,
+    "singleQuote": true
+  }
+}

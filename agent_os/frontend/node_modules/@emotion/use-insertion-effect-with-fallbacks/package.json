@@ -1,0 +1,64 @@
+{
+  "name": "@emotion/use-insertion-effect-with-fallbacks",
+  "version": "1.2.0",
+  "description": "A wrapper package that uses `useInsertionEffect` or a fallback for it",
+  "main": "dist/emotion-use-insertion-effect-with-fallbacks.cjs.js",
+  "module": "dist/emotion-use-insertion-effect-with-fallbacks.esm.js",
+  "types": "dist/emotion-use-insertion-effect-with-fallbacks.cjs.d.ts",
+  "license": "MIT",
+  "repository": "https://github.com/emotion-js/emotion/tree/main/packages/use-insertion-effect-with-fallbacks",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "peerDependencies": {
+    "react": ">=16.8.0"
+  },
+  "devDependencies": {
+    "react": "16.14.0"
+  },
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/emotion-use-insertion-effect-with-fallbacks.cjs.mjs",
+        "default": "./dist/emotion-use-insertion-effect-with-fallbacks.cjs.js"
+      },
+      "edge-light": {
+        "module": "./dist/emotion-use-insertion-effect-with-fallbacks.edge-light.esm.js",
+        "import": "./dist/emotion-use-insertion-effect-with-fallbacks.edge-light.cjs.mjs",
+        "default": "./dist/emotion-use-insertion-effect-with-fallbacks.edge-light.cjs.js"
+      },
+      "worker": {
+        "module": "./dist/emotion-use-insertion-effect-with-fallbacks.edge-light.esm.js",
+        "import": "./dist/emotion-use-insertion-effect-with-fallbacks.edge-light.cjs.mjs",
+        "default": "./dist/emotion-use-insertion-effect-with-fallbacks.edge-light.cjs.js"
+      },
+      "workerd": {
+        "module": "./dist/emotion-use-insertion-effect-with-fallbacks.edge-light.esm.js",
+        "import": "./dist/emotion-use-insertion-effect-with-fallbacks.edge-light.cjs.mjs",
+        "default": "./dist/emotion-use-insertion-effect-with-fallbacks.edge-light.cjs.js"
+      },
+      "browser": {
+        "module": "./dist/emotion-use-insertion-effect-with-fallbacks.browser.esm.js",
+        "import": "./dist/emotion-use-insertion-effect-with-fallbacks.browser.cjs.mjs",
+        "default": "./dist/emotion-use-insertion-effect-with-fallbacks.browser.cjs.js"
+      },
+      "module": "./dist/emotion-use-insertion-effect-with-fallbacks.esm.js",
+      "import": "./dist/emotion-use-insertion-effect-with-fallbacks.cjs.mjs",
+      "default": "./dist/emotion-use-insertion-effect-with-fallbacks.cjs.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#is-browser": {
+      "edge-light": "./src/conditions/false.ts",
+      "workerd": "./src/conditions/false.ts",
+      "worker": "./src/conditions/false.ts",
+      "browser": "./src/conditions/true.ts",
+      "default": "./src/conditions/is-browser.ts"
+    }
+  }
+}

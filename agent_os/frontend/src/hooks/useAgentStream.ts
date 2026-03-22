@@ -7,6 +7,15 @@ export interface AgentEvent {
   tier: 'quick' | 'mid' | 'deep';
   type: 'thought' | 'tool' | 'result' | 'system';
   message: string;
+  node_id?: string;
+  parent_node_id?: string;
+  metrics?: {
+    model: string;
+    tokens_in?: number;
+    tokens_out?: number;
+    latency_ms?: number;
+    raw_json_response?: string;
+  };
   details?: {
     model_used: string;
     latency_ms: number;
@@ -28,7 +37,7 @@ export const useAgentStream = (runId: string | null) => {
     setError(null);
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host; // Change this to your backend host if different
+    const host = '127.0.0.1:8088'; // Hardcoded for local dev to match backend
     const socket = new WebSocket(`${protocol}//${host}/ws/stream/${runId}`);
 
     socket.onopen = () => {

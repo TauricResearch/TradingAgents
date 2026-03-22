@@ -1,0 +1,10 @@
+{
+  "main": "dist/emotion-react-jsx-runtime.cjs.js",
+  "module": "dist/emotion-react-jsx-runtime.esm.js",
+  "umd:main": "dist/emotion-react-jsx-runtime.umd.min.js",
+  "types": "dist/emotion-react-jsx-runtime.cjs.d.ts",
+  "sideEffects": false,
+  "preconstruct": {
+    "umdName": "emotionReactJSXRuntime"
+  }
+}

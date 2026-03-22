@@ -1,0 +1,81 @@
+{
+    "name": "@types/d3",
+    "version": "7.4.3",
+    "description": "TypeScript definitions for d3",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Tom Wanzek",
+            "githubUsername": "tomwanzek",
+            "url": "https://github.com/tomwanzek"
+        },
+        {
+            "name": "Alex Ford",
+            "githubUsername": "gustavderdrache",
+            "url": "https://github.com/gustavderdrache"
+        },
+        {
+            "name": "Boris Yankov",
+            "githubUsername": "borisyankov",
+            "url": "https://github.com/borisyankov"
+        },
+        {
+            "name": "denisname",
+            "githubUsername": "denisname",
+            "url": "https://github.com/denisname"
+        },
+        {
+            "name": "Nathan Bierema",
+            "githubUsername": "Methuselah96",
+            "url": "https://github.com/Methuselah96"
+        },
+        {
+            "name": "Fil",
+            "githubUsername": "Fil",
+            "url": "https://github.com/Fil"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/d3"
+    },
+    "scripts": {},
+    "dependencies": {
+        "@types/d3-array": "*",
+        "@types/d3-axis": "*",
+        "@types/d3-brush": "*",
+        "@types/d3-chord": "*",
+        "@types/d3-color": "*",
+        "@types/d3-contour": "*",
+        "@types/d3-delaunay": "*",
+        "@types/d3-dispatch": "*",
+        "@types/d3-drag": "*",
+        "@types/d3-dsv": "*",
+        "@types/d3-ease": "*",
+        "@types/d3-fetch": "*",
+        "@types/d3-force": "*",
+        "@types/d3-format": "*",
+        "@types/d3-geo": "*",
+        "@types/d3-hierarchy": "*",
+        "@types/d3-interpolate": "*",
+        "@types/d3-path": "*",
+        "@types/d3-polygon": "*",
+        "@types/d3-quadtree": "*",
+        "@types/d3-random": "*",
+        "@types/d3-scale": "*",
+        "@types/d3-scale-chromatic": "*",
+        "@types/d3-selection": "*",
+        "@types/d3-shape": "*",
+        "@types/d3-time": "*",
+        "@types/d3-time-format": "*",
+        "@types/d3-timer": "*",
+        "@types/d3-transition": "*",
+        "@types/d3-zoom": "*"
+    },
+    "typesPublisherContentHash": "7585034c2b0d3e0a098ffbe6db8d66a0f5ec671b95619a561c4288d56b7e2128",
+    "typeScriptVersion": "4.5"
+}

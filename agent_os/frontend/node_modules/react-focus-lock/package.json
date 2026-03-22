@@ -1,0 +1,113 @@
+{
+  "name": "react-focus-lock",
+  "version": "2.13.7",
+  "description": "It is a trap! (for a focus)",
+  "main": "dist/cjs/index.js",
+  "jsnext:main": "dist/es2015/index.js",
+  "module": "dist/es2015/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "sideEffects": [
+    "**/sidecar.js",
+    "**/index.js"
+  ],
+  "scripts": {
+    "build:dts": "copyfiles -u 1 src/**/*.d.ts dist/cjs",
+    "build:cjs": "NODE_ENV=cjs babel src -d dist/cjs",
+    "build:es5": "NODE_ENV=es2015 babel src -d dist/es2015",
+    "build": "rm -Rf ./dist && yarn build:es5 && yarn build:cjs && yarn build:dts",
+    "test": "yarn test:pick -- '_tests/**/*spec.js'",
+    "test:pick": "NODE_ENV=cjs mocha --require @babel/register --require global-jsdom/register --require _tests/spinup/scaffolding --exit",
+    "prepublish": "yarn lint:fix && yarn build && yarn changelog",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "storybook": "NODE_ENV=es2015 start-storybook -p 6006",
+    "build-storybook": "NODE_ENV=es2015 build-storybook",
+    "package-self": "package-self",
+    "size": "yarn build && yarn size-limit",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s -r 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theKashey/react-focus-lock.git"
+  },
+  "files": [
+    "dist",
+    "sidecar",
+    "UI",
+    "interfaces.d.ts",
+    "react-focus-lock.d.ts"
+  ],
+  "keywords": [
+    "react",
+    "focus",
+    "lock",
+    "trap",
+    "tabbable"
+  ],
+  "author": "theKashey <thekashey@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/theKashey/react-focus-lock/issues"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.0.0",
+    "@babel/core": "^7.0.0",
+    "@babel/plugin-proposal-class-properties": "^7.0.0",
+    "@babel/plugin-syntax-dynamic-import": "^7.2.0",
+    "@babel/plugin-transform-runtime": "^7.1.0",
+    "@babel/polyfill": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/preset-react": "^7.0.0",
+    "@babel/register": "^7.0.0",
+    "@size-limit/preset-small-lib": "^4.5.0",
+    "@storybook/addon-actions": "^5.1.8",
+    "@storybook/addon-links": "^5.1.8",
+    "@storybook/react": "^5.1.8",
+    "@testing-library/dom": "^10.1.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^18.0.8",
+    "babel-eslint": "^10.0.1",
+    "babel-loader": "^8.0.4",
+    "babel-plugin-transform-react-remove-prop-types": "^0.4.19",
+    "chai": "^4.1.0",
+    "conventional-changelog-cli": "^2.0.12",
+    "copyfiles": "^2.4.0",
+    "eslint": "^5.16.0",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-plugin-import": "^2.17.3",
+    "eslint-plugin-jsx-a11y": "^6.2.1",
+    "eslint-plugin-mocha": "^5.3.0",
+    "eslint-plugin-react": "^7.13.0",
+    "global-jsdom": "^8.4.0",
+    "jsdom": "^24.1.0",
+    "material-ui": "^0.20.0",
+    "mocha": "^8.3.2",
+    "package-self": "^1.1.1",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "react-hot-loader": "^4.11.0",
+    "react-test-renderer": "^16.2.0",
+    "sinon": "7.3.2",
+    "size-limit": "^4.5.0"
+  },
+  "homepage": "https://github.com/theKashey/react-focus-lock#readme",
+  "dependencies": {
+    "@babel/runtime": "^7.0.0",
+    "focus-lock": "^1.3.6",
+    "prop-types": "^15.6.2",
+    "react-clientside-effect": "^1.2.7",
+    "use-callback-ref": "^1.3.3",
+    "use-sidecar": "^1.1.3"
+  },
+  "packageManager": "yarn@1.22.19"
+}

@@ -1,0 +1,74 @@
+{
+  "name": "@chakra-ui/hooks",
+  "version": "2.4.5",
+  "description": "React hooks for Chakra components",
+  "keywords": [
+    "hooks",
+    "react",
+    "chakra ui",
+    "utilities"
+  ],
+  "sideEffects": false,
+  "author": "Segun Adebayo <sage@adebayosegun.com>",
+  "homepage": "https://github.com/chakra-ui/chakra-ui#readme",
+  "license": "MIT",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.mjs",
+  "types": "dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "directory": "packages/legacy/hooks"
+  },
+  "bugs": {
+    "url": "https://github.com/chakra-ui/chakra-ui/issues"
+  },
+  "dependencies": {
+    "@zag-js/element-size": "0.31.1",
+    "copy-to-clipboard": "3.3.3",
+    "framesync": "6.1.2",
+    "@chakra-ui/utils": "2.2.5"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "react": "^18.2.0"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/esm/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/cjs/index.cjs"
+      }
+    },
+    "./package.json": "./package.json",
+    "./*": {
+      "import": {
+        "types": "./dist/types/*.d.ts",
+        "default": "./dist/esm/*.mjs"
+      },
+      "require": {
+        "types": "./dist/types/*.d.ts",
+        "default": "./dist/cjs/*.cjs"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsup src --dts",
+    "dev": "pnpm build:fast --watch",
+    "clean": "rimraf dist .turbo",
+    "typecheck": "tsc --noEmit",
+    "build:fast": "tsup src"
+  }
+}

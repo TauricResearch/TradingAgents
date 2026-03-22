@@ -1,0 +1,47 @@
+{
+  "name": "@emotion/sheet",
+  "version": "1.4.0",
+  "description": "emotion's stylesheet",
+  "main": "dist/emotion-sheet.cjs.js",
+  "module": "dist/emotion-sheet.esm.js",
+  "types": "dist/emotion-sheet.cjs.d.ts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/emotion-sheet.cjs.mjs",
+        "default": "./dist/emotion-sheet.cjs.js"
+      },
+      "development": {
+        "module": "./dist/emotion-sheet.development.esm.js",
+        "import": "./dist/emotion-sheet.development.cjs.mjs",
+        "default": "./dist/emotion-sheet.development.cjs.js"
+      },
+      "module": "./dist/emotion-sheet.esm.js",
+      "import": "./dist/emotion-sheet.cjs.mjs",
+      "default": "./dist/emotion-sheet.cjs.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#is-development": {
+      "development": "./src/conditions/true.ts",
+      "default": "./src/conditions/false.ts"
+    }
+  },
+  "license": "MIT",
+  "scripts": {
+    "test:typescript": "dtslint types"
+  },
+  "repository": "https://github.com/emotion-js/emotion/tree/main/packages/sheet",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "devDependencies": {
+    "@definitelytyped/dtslint": "0.0.112",
+    "typescript": "^5.4.5"
+  }
+}

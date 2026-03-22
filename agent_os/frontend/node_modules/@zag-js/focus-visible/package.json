@@ -1,0 +1,51 @@
+{
+  "name": "@zag-js/focus-visible",
+  "version": "0.31.1",
+  "description": "Focus visible polyfill utility based on WICG",
+  "keywords": [
+    "js",
+    "utils",
+    "focus-visible",
+    "wicg"
+  ],
+  "author": "Segun Adebayo <sage@adebayosegun.com>",
+  "homepage": "https://github.com/chakra-ui/zag#readme",
+  "license": "MIT",
+  "repository": "https://github.com/chakra-ui/zag/tree/main/packages/utilities/focus-visible",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "bugs": {
+    "url": "https://github.com/chakra-ui/zag/issues"
+  },
+  "clean-package": "../../../clean-package.config.json",
+  "main": "dist/index.js",
+  "dependencies": {
+    "@zag-js/dom-query": "0.31.1"
+  },
+  "devDependencies": {
+    "clean-package": "2.2.0"
+  },
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "jest --config ../../../jest.config.js --rootDir tests",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test-ci": "pnpm test --ci --runInBand -u",
+    "test-watch": "pnpm test --watchAll"
+  }
+}

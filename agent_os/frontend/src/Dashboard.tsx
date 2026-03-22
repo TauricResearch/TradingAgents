@@ -22,7 +22,7 @@ import { AgentGraph } from './components/AgentGraph';
 import { useAgentStream } from './hooks/useAgentStream';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = 'http://127.0.0.1:8088/api';
 
 export const Dashboard: React.FC = () => {
   const [activeRunId, setActiveRunId] = useState<string | null>(null);

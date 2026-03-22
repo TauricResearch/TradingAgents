@@ -1,0 +1,65 @@
+{
+    "name": "framesync",
+    "license": "MIT",
+    "version": "6.1.2",
+    "description": "A frame-synced render loop for JavaScript",
+    "author": "Matt Perry",
+    "homepage": "https://popmotion.io",
+    "main": "dist/framesync.cjs.js",
+    "types": "lib/index.d.ts",
+    "module": "dist/es/index.mjs",
+    "jsnext:main": "dist/es/index.mjs",
+    "unpkg": "./dist/framesync.min.js",
+    "exports": {
+        ".": {
+            "types": "./lib/index.d.ts",
+            "import": "./dist/es/index.mjs",
+            "require": "./dist/framesync.cjs.js",
+            "default": "./dist/framesync.cjs.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "build": "tsc -p . && rollup -c && yarn measure",
+        "watch": "rollup -c -w",
+        "lint": "tslint -c tslint.json 'src/**/*.{ts}'",
+        "test": "jest",
+        "measure": "gzip -c dist/framesync.min.js | wc -c",
+        "prepublishOnly": "npm run test && npm run build"
+    },
+    "files": [
+        "lib",
+        "dist"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Popmotion/popmotion.git"
+    },
+    "keywords": [
+        "animation",
+        "raf"
+    ],
+    "bugs": {
+        "url": "https://github.com/Popmotion/popmotion/issues"
+    },
+    "jest": {
+        "moduleFileExtensions": [
+            "ts",
+            "js"
+        ],
+        "transform": {
+            "\\.(ts)$": "../../../node_modules/ts-jest/preprocessor.js"
+        },
+        "testRegex": "/_tests/.*\\.(ts|js)$",
+        "rootDir": "src"
+    },
+    "prettier": {
+        "printWidth": 80,
+        "tabWidth": 4,
+        "semi": false,
+        "trailingComma": "es5"
+    },
+    "dependencies": {
+        "tslib": "2.4.0"
+    }
+}

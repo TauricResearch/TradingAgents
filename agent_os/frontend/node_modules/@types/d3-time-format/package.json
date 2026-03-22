@@ -1,0 +1,40 @@
+{
+    "name": "@types/d3-time-format",
+    "version": "4.0.3",
+    "description": "TypeScript definitions for d3-time-format",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-time-format",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Tom Wanzek",
+            "githubUsername": "tomwanzek",
+            "url": "https://github.com/tomwanzek"
+        },
+        {
+            "name": "Alex Ford",
+            "githubUsername": "gustavderdrache",
+            "url": "https://github.com/gustavderdrache"
+        },
+        {
+            "name": "Boris Yankov",
+            "githubUsername": "borisyankov",
+            "url": "https://github.com/borisyankov"
+        },
+        {
+            "name": "Nathan Bierema",
+            "githubUsername": "Methuselah96",
+            "url": "https://github.com/Methuselah96"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/d3-time-format"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "13657d5e1edb1a96227fd858aab67f2d7687422010ecd995e26c61e70ea56a40",
+    "typeScriptVersion": "4.5"
+}

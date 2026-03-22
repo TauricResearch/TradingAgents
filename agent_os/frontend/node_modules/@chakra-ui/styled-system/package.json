@@ -1,0 +1,167 @@
+{
+  "name": "@chakra-ui/styled-system",
+  "version": "2.12.4",
+  "description": "Style function for css-in-js building component libraries",
+  "keywords": [
+    "theme",
+    "theming",
+    "style",
+    "system",
+    "styled",
+    "css-in-js",
+    "component",
+    "functions",
+    "parser",
+    "chakra ui"
+  ],
+  "author": "Segun Adebayo <sage@adebayosegun.com>",
+  "homepage": "https://github.com/chakra-ui/chakra-ui#readme",
+  "license": "MIT",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.mjs",
+  "types": "dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "directory": "packages/core/styled-system"
+  },
+  "bugs": {
+    "url": "https://github.com/chakra-ui/chakra-ui/issues"
+  },
+  "dependencies": {
+    "csstype": "^3.1.2",
+    "@chakra-ui/utils": "2.2.5"
+  },
+  "devDependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@chakra-ui/theme": "3.4.9"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/esm/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/cjs/index.cjs"
+      }
+    },
+    "./config": {
+      "import": {
+        "types": "./dist/types/config/index.d.ts",
+        "default": "./dist/esm/config/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/config/index.d.ts",
+        "default": "./dist/cjs/config/index.cjs"
+      }
+    },
+    "./create-theme-vars": {
+      "import": {
+        "types": "./dist/types/create-theme-vars/index.d.ts",
+        "default": "./dist/esm/create-theme-vars/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/create-theme-vars/index.d.ts",
+        "default": "./dist/cjs/create-theme-vars/index.cjs"
+      }
+    },
+    "./css": {
+      "import": {
+        "types": "./dist/types/css.d.ts",
+        "default": "./dist/esm/css.mjs"
+      },
+      "require": {
+        "types": "./dist/types/css.d.ts",
+        "default": "./dist/cjs/css.cjs"
+      }
+    },
+    "./define-styles": {
+      "import": {
+        "types": "./dist/types/define-styles.d.ts",
+        "default": "./dist/esm/define-styles.mjs"
+      },
+      "require": {
+        "types": "./dist/types/define-styles.d.ts",
+        "default": "./dist/cjs/define-styles.cjs"
+      }
+    },
+    "./get": {
+      "import": {
+        "types": "./dist/types/get.d.ts",
+        "default": "./dist/esm/get.mjs"
+      },
+      "require": {
+        "types": "./dist/types/get.d.ts",
+        "default": "./dist/cjs/get.cjs"
+      }
+    },
+    "./get-css-var": {
+      "import": {
+        "types": "./dist/types/get-css-var.d.ts",
+        "default": "./dist/esm/get-css-var.mjs"
+      },
+      "require": {
+        "types": "./dist/types/get-css-var.d.ts",
+        "default": "./dist/cjs/get-css-var.cjs"
+      }
+    },
+    "./pseudos": {
+      "import": {
+        "types": "./dist/types/pseudos.d.ts",
+        "default": "./dist/esm/pseudos.mjs"
+      },
+      "require": {
+        "types": "./dist/types/pseudos.d.ts",
+        "default": "./dist/cjs/pseudos.cjs"
+      }
+    },
+    "./style-config": {
+      "import": {
+        "types": "./dist/types/style-config.d.ts",
+        "default": "./dist/esm/style-config.mjs"
+      },
+      "require": {
+        "types": "./dist/types/style-config.d.ts",
+        "default": "./dist/cjs/style-config.cjs"
+      }
+    },
+    "./system": {
+      "import": {
+        "types": "./dist/types/system.d.ts",
+        "default": "./dist/esm/system.mjs"
+      },
+      "require": {
+        "types": "./dist/types/system.d.ts",
+        "default": "./dist/cjs/system.cjs"
+      }
+    },
+    "./theming-props": {
+      "import": {
+        "types": "./dist/types/theming-props.d.ts",
+        "default": "./dist/esm/theming-props.mjs"
+      },
+      "require": {
+        "types": "./dist/types/theming-props.d.ts",
+        "default": "./dist/cjs/theming-props.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsup --entry src/index.ts --entry src/theming.types.ts --entry src/shared.types.ts --dts",
+    "dev": "pnpm build:fast --watch",
+    "clean": "rimraf dist .turbo",
+    "typecheck": "tsc --noEmit",
+    "build:fast": "tsup src"
+  }
+}

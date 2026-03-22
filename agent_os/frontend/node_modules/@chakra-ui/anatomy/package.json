@@ -1,0 +1,72 @@
+{
+  "name": "@chakra-ui/anatomy",
+  "version": "2.3.6",
+  "description": "The anatomy of all chakra components",
+  "keywords": [
+    "theme",
+    "theming",
+    "ui mode",
+    "ui"
+  ],
+  "author": "Segun Adebayo <sage@adebayosegun.com>",
+  "homepage": "https://github.com/chakra-ui/chakra-ui#readme",
+  "license": "MIT",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.mjs",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/esm/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.ts",
+        "default": "./dist/cjs/index.cjs"
+      }
+    },
+    "./components": {
+      "import": {
+        "types": "./dist/types/components.d.ts",
+        "default": "./dist/esm/components.mjs"
+      },
+      "require": {
+        "types": "./dist/types/components.d.ts",
+        "default": "./dist/cjs/components.cjs"
+      }
+    },
+    "./create-anatomy": {
+      "import": {
+        "types": "./dist/types/create-anatomy.d.ts",
+        "default": "./dist/esm/create-anatomy.mjs"
+      },
+      "require": {
+        "types": "./dist/types/create-anatomy.d.ts",
+        "default": "./dist/cjs/create-anatomy.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chakra-ui/chakra-ui.git",
+    "directory": "packages/components/anatomy"
+  },
+  "bugs": {
+    "url": "https://github.com/chakra-ui/chakra-ui/issues"
+  },
+  "scripts": {
+    "build": "tsup src --dts",
+    "dev": "pnpm build:fast --watch",
+    "clean": "rimraf dist .turbo",
+    "typecheck": "tsc --noEmit",
+    "build:fast": "tsup src"
+  }
+}

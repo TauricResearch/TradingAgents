@@ -1,0 +1,47 @@
+{
+    "name": "@types/d3-axis",
+    "version": "3.0.6",
+    "description": "TypeScript definitions for d3-axis",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-axis",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Tom Wanzek",
+            "githubUsername": "tomwanzek",
+            "url": "https://github.com/tomwanzek"
+        },
+        {
+            "name": "Alex Ford",
+            "githubUsername": "gustavderdrache",
+            "url": "https://github.com/gustavderdrache"
+        },
+        {
+            "name": "Boris Yankov",
+            "githubUsername": "borisyankov",
+            "url": "https://github.com/borisyankov"
+        },
+        {
+            "name": "denisname",
+            "githubUsername": "denisname",
+            "url": "https://github.com/denisname"
+        },
+        {
+            "name": "Nathan Bierema",
+            "githubUsername": "Methuselah96",
+            "url": "https://github.com/Methuselah96"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/d3-axis"
+    },
+    "scripts": {},
+    "dependencies": {
+        "@types/d3-selection": "*"
+    },
+    "typesPublisherContentHash": "54b1b488ceb700b459aa9157899d313ddf4dce4c5b9677facd2289f810392a79",
+    "typeScriptVersion": "4.5"
+}

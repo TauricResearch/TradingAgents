@@ -1,0 +1,100 @@
+{
+  "name": "@emotion/cache",
+  "version": "11.14.0",
+  "description": "emotion's cache",
+  "main": "dist/emotion-cache.cjs.js",
+  "module": "dist/emotion-cache.esm.js",
+  "types": "dist/emotion-cache.cjs.d.ts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/emotion-cache.cjs.mjs",
+        "default": "./dist/emotion-cache.cjs.js"
+      },
+      "development": {
+        "edge-light": {
+          "module": "./dist/emotion-cache.development.edge-light.esm.js",
+          "import": "./dist/emotion-cache.development.edge-light.cjs.mjs",
+          "default": "./dist/emotion-cache.development.edge-light.cjs.js"
+        },
+        "worker": {
+          "module": "./dist/emotion-cache.development.edge-light.esm.js",
+          "import": "./dist/emotion-cache.development.edge-light.cjs.mjs",
+          "default": "./dist/emotion-cache.development.edge-light.cjs.js"
+        },
+        "workerd": {
+          "module": "./dist/emotion-cache.development.edge-light.esm.js",
+          "import": "./dist/emotion-cache.development.edge-light.cjs.mjs",
+          "default": "./dist/emotion-cache.development.edge-light.cjs.js"
+        },
+        "browser": {
+          "module": "./dist/emotion-cache.browser.development.esm.js",
+          "import": "./dist/emotion-cache.browser.development.cjs.mjs",
+          "default": "./dist/emotion-cache.browser.development.cjs.js"
+        },
+        "module": "./dist/emotion-cache.development.esm.js",
+        "import": "./dist/emotion-cache.development.cjs.mjs",
+        "default": "./dist/emotion-cache.development.cjs.js"
+      },
+      "edge-light": {
+        "module": "./dist/emotion-cache.edge-light.esm.js",
+        "import": "./dist/emotion-cache.edge-light.cjs.mjs",
+        "default": "./dist/emotion-cache.edge-light.cjs.js"
+      },
+      "worker": {
+        "module": "./dist/emotion-cache.edge-light.esm.js",
+        "import": "./dist/emotion-cache.edge-light.cjs.mjs",
+        "default": "./dist/emotion-cache.edge-light.cjs.js"
+      },
+      "workerd": {
+        "module": "./dist/emotion-cache.edge-light.esm.js",
+        "import": "./dist/emotion-cache.edge-light.cjs.mjs",
+        "default": "./dist/emotion-cache.edge-light.cjs.js"
+      },
+      "browser": {
+        "module": "./dist/emotion-cache.browser.esm.js",
+        "import": "./dist/emotion-cache.browser.cjs.mjs",
+        "default": "./dist/emotion-cache.browser.cjs.js"
+      },
+      "module": "./dist/emotion-cache.esm.js",
+      "import": "./dist/emotion-cache.cjs.mjs",
+      "default": "./dist/emotion-cache.cjs.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#is-development": {
+      "development": "./src/conditions/true.ts",
+      "default": "./src/conditions/false.ts"
+    },
+    "#is-browser": {
+      "edge-light": "./src/conditions/false.ts",
+      "workerd": "./src/conditions/false.ts",
+      "worker": "./src/conditions/false.ts",
+      "browser": "./src/conditions/true.ts",
+      "default": "./src/conditions/is-browser.ts"
+    }
+  },
+  "license": "MIT",
+  "repository": "https://github.com/emotion-js/emotion/tree/main/packages/cache",
+  "scripts": {
+    "test:typescript": "dtslint types"
+  },
+  "dependencies": {
+    "@emotion/memoize": "^0.9.0",
+    "@emotion/sheet": "^1.4.0",
+    "@emotion/utils": "^1.4.2",
+    "@emotion/weak-memoize": "^0.4.0",
+    "stylis": "4.2.0"
+  },
+  "devDependencies": {
+    "@definitelytyped/dtslint": "0.0.112",
+    "@emotion/hash": "*",
+    "@types/stylis": "^4.2.7",
+    "typescript": "^5.4.5"
+  },
+  "files": [
+    "src",
+    "dist"
+  ]
+}

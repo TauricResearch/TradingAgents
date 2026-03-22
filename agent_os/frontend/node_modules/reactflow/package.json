@@ -1,0 +1,77 @@
+{
+  "name": "reactflow",
+  "version": "11.11.4",
+  "description": "A highly customizable React library for building node-based editors and interactive flow charts",
+  "keywords": [
+    "react",
+    "node-based UI",
+    "graph",
+    "diagram",
+    "workflow",
+    "react-flow"
+  ],
+  "files": [
+    "dist"
+  ],
+  "source": "src/index.ts",
+  "main": "dist/umd/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.mjs",
+      "require": "./dist/umd/index.js"
+    },
+    "./dist/base.css": "./dist/base.css",
+    "./dist/style.css": "./dist/style.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xyflow/xyflow.git",
+    "directory": "packages/reactflow"
+  },
+  "dependencies": {
+    "@reactflow/minimap": "11.7.14",
+    "@reactflow/node-resizer": "2.2.14",
+    "@reactflow/background": "11.3.14",
+    "@reactflow/node-toolbar": "1.3.14",
+    "@reactflow/core": "11.11.4",
+    "@reactflow/controls": "11.2.14"
+  },
+  "peerDependencies": {
+    "react": ">=17",
+    "react-dom": ">=17"
+  },
+  "devDependencies": {
+    "@types/node": "^18.7.16",
+    "@types/react": ">=17",
+    "react": "^18.2.0",
+    "typescript": "^4.9.4",
+    "@reactflow/eslint-config": "0.0.0",
+    "@reactflow/rollup-config": "0.0.0",
+    "@reactflow/tsconfig": "0.0.0"
+  },
+  "rollup": {
+    "globals": {
+      "@reactflow/background": "ReactFlowBackground",
+      "@reactflow/controls": "ReactFlowControls",
+      "@reactflow/core": "ReactFlowCore",
+      "@reactflow/minimap": "ReactFlowMinimap",
+      "@reactflow/node-toolbar": "ReactFlowNodeToolbar"
+    },
+    "name": "ReactFlow"
+  },
+  "scripts": {
+    "dev": "concurrently \"rollup --config node:@reactflow/rollup-config --watch\" pnpm:css-watch",
+    "build": "rollup --config node:@reactflow/rollup-config --environment NODE_ENV:production && npm run css",
+    "css": "postcss src/*.css --config ../../tooling/postcss-config/postcss.config.js --dir dist",
+    "css-watch": "pnpm css --watch",
+    "lint": "eslint --ext .js,.jsx,.ts,.tsx src",
+    "typecheck": "tsc --noEmit"
+  }
+}
