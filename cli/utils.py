@@ -158,6 +158,10 @@ def select_shallow_thinking_agent(provider) -> str:
         "openrouter": [
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
+            ("Anthropic Claude Sonnet 4 (paid)", "anthropic/claude-sonnet-4"),
+            ("Google Gemini 2.5 Flash (paid)", "google/gemini-2.5-flash"),
+            ("OpenAI GPT-5 Mini (paid)", "openai/gpt-5-mini"),
+            ("Enter custom model ID", "__custom__"),
         ],
         "ollama": [
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
@@ -187,6 +191,14 @@ def select_shallow_thinking_agent(provider) -> str:
             "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
         )
         exit(1)
+
+    if choice == "__custom__":
+        choice = questionary.text(
+            "Enter your model ID (e.g. anthropic/claude-sonnet-4):"
+        ).ask()
+        if not choice:
+            console.print("\n[red]No model entered. Exiting...[/red]")
+            exit(1)
 
     return choice
 
@@ -225,6 +237,10 @@ def select_deep_thinking_agent(provider) -> str:
         "openrouter": [
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            ("Anthropic Claude Sonnet 4 (paid)", "anthropic/claude-sonnet-4"),
+            ("Google Gemini 2.5 Pro (paid)", "google/gemini-2.5-pro"),
+            ("OpenAI GPT-5.2 (paid)", "openai/gpt-5.2"),
+            ("Enter custom model ID", "__custom__"),
         ],
         "ollama": [
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
@@ -252,6 +268,14 @@ def select_deep_thinking_agent(provider) -> str:
     if choice is None:
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
         exit(1)
+
+    if choice == "__custom__":
+        choice = questionary.text(
+            "Enter your model ID (e.g. openai/gpt-5.2):"
+        ).ask()
+        if not choice:
+            console.print("\n[red]No model entered. Exiting...[/red]")
+            exit(1)
 
     return choice
 
