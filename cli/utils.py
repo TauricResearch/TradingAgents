@@ -1,11 +1,22 @@
-import questionary
 from typing import List, Optional, Tuple, Dict
+
+try:
+    import questionary
+except ImportError:  # pragma: no cover - optional during non-interactive testing
+    questionary = None
 
 from rich.console import Console
 
 from cli.models import AnalystType
 
 console = Console()
+
+
+def _ensure_questionary():
+    if questionary is None:
+        raise RuntimeError(
+            "questionary is required for interactive CLI prompts. Install dependencies with `pip install .`."
+        )
 
 TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
 
@@ -17,10 +28,12 @@ ANALYST_ORDER = [
 ]
 
 
-def get_ticker() -> str:
+def get_ticker(prompt_text: str | None = None) -> str:
     """Prompt the user to enter a ticker symbol."""
+    _ensure_questionary()
+    prompt = prompt_text or f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):"
     ticker = questionary.text(
-        f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
+        prompt,
         validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
         style=questionary.Style(
             [
@@ -42,8 +55,9 @@ def normalize_ticker_symbol(ticker: str) -> str:
     return ticker.strip().upper()
 
 
-def get_analysis_date() -> str:
+def get_analysis_date(prompt_text: str = "Enter the analysis date (YYYY-MM-DD):") -> str:
     """Prompt the user to enter a date in YYYY-MM-DD format."""
+    _ensure_questionary()
     import re
     from datetime import datetime
 
@@ -57,7 +71,7 @@ def get_analysis_date() -> str:
             return False
 
     date = questionary.text(
-        "Enter the analysis date (YYYY-MM-DD):",
+        prompt_text,
         validate=lambda x: validate_date(x.strip())
         or "Please enter a valid date in YYYY-MM-DD format.",
         style=questionary.Style(
@@ -77,6 +91,7 @@ def get_analysis_date() -> str:
 
 def select_analysts() -> List[AnalystType]:
     """Select analysts using an interactive checkbox."""
+    _ensure_questionary()
     choices = questionary.checkbox(
         "Select Your [Analysts Team]:",
         choices=[
@@ -103,6 +118,7 @@ def select_analysts() -> List[AnalystType]:
 
 def select_research_depth() -> int:
     """Select research depth using an interactive selection."""
+    _ensure_questionary()
 
     # Define research depth options with their corresponding values
     DEPTH_OPTIONS = [
@@ -135,6 +151,7 @@ def select_research_depth() -> int:
 
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
+    _ensure_questionary()
 
     # Define shallow thinking llm engine options with their corresponding model names
     # Ordering: medium → light → heavy (balanced first for quick tasks)
@@ -200,6 +217,7 @@ def select_shallow_thinking_agent(provider) -> str:
 
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
+    _ensure_questionary()
 
     # Define deep thinking llm engine options with their corresponding model names
     # Ordering: heavy → medium → light (most capable first for deep tasks)
@@ -263,8 +281,9 @@ def select_deep_thinking_agent(provider) -> str:
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """Select the LLM provider and API endpoint using interactive selection."""
+    _ensure_questionary()
+    # Define provider API options with their corresponding endpoints
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
@@ -291,7 +310,7 @@ def select_llm_provider() -> tuple[str, str]:
     ).ask()
     
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
     
     display_name, url = choice
@@ -302,6 +321,7 @@ def select_llm_provider() -> tuple[str, str]:
 
 def ask_openai_reasoning_effort() -> str:
     """Ask for OpenAI reasoning effort level."""
+    _ensure_questionary()
     choices = [
         questionary.Choice("Medium (Default)", "medium"),
         questionary.Choice("High (More thorough)", "high"),
@@ -323,6 +343,7 @@ def ask_anthropic_effort() -> str | None:
 
     Controls token usage and response thoroughness on Claude 4.5+ and 4.6 models.
     """
+    _ensure_questionary()
     return questionary.select(
         "Select Effort Level:",
         choices=[
@@ -344,6 +365,7 @@ def ask_gemini_thinking_config() -> str | None:
     Returns thinking_level: "high" or "minimal".
     Client maps to appropriate API param based on model series.
     """
+    _ensure_questionary()
     return questionary.select(
         "Select Thinking Mode:",
         choices=[
