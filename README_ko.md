@@ -65,6 +65,100 @@ TradingAgents는 실제 트레이딩 회사의 운영 구조를 모방한 멀티
 
 프레임워크는 복잡한 트레이딩 작업을 전문화된 역할로 분해합니다. 이를 통해 시장 분석과 의사결정에 대한 견고하고 확장 가능한 접근 방식을 제공합니다.
 
+### 워크플로우
+
+전체 파이프라인은 6단계로 구성됩니다:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  USER INPUT (CLI)                                           │
+│  ticker, date, analysts, persona, broker 설정                │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  PHASE 1: 데이터 수집 (Analysts)                              │
+│                                                             │
+│  Market Analyst ─→ Social Analyst ─→ News Analyst ─→ Fundamentals │
+│  (기술지표/차트)    (소셜/감성)       (뉴스/거시경제)   (재무제표/DART) │
+│                                                             │
+│  각 Analyst는 Tool 호출 → 리포트 작성 → state에 저장              │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  PHASE 2: 투자 토론 (Investment Debate)                       │
+│                                                             │
+│  Bull Researcher ◄──────► Bear Researcher                   │
+│  (강세 논거 + 메모리)       (약세 논거 + 메모리)                   │
+│         └──── max_debate_rounds 만큼 반복 ────┘              │
+│                           │                                 │
+│                           ▼                                 │
+│              Research Manager (심층 LLM)                     │
+│              토론 판정 → investment_plan 작성                   │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  PHASE 3: 트레이더 의사결정                                     │
+│                                                             │
+│  Trader (메모리 + 포트폴리오 컨텍스트)                            │
+│  investment_plan → 구체적 매매 제안                              │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  PHASE 4: 리스크 토론 (Risk Debate)                           │
+│                                                             │
+│  Aggressive ─→ Conservative ─→ Neutral ─→ Aggressive...     │
+│  (공격적)        (보수적)         (중립적)                       │
+│         └── max_risk_discuss_rounds 만큼 순환 ──┘            │
+│                           │                                 │
+│                           ▼                                 │
+│              Risk Manager (심층 LLM)                         │
+│              최종 판정 → final_trade_decision                  │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  PHASE 5: 시그널 추출 + 매매 실행                               │
+│                                                             │
+│  SignalProcessor → "BUY" / "SELL" / "HOLD"                  │
+│         │                                                   │
+│         ▼ (broker.enabled = True일 때)                       │
+│  SafetyGuard 검증 → ExecutionEngine → KISBroker → KIS API   │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  PHASE 6: 반성 & 학습 (Reflection)                            │
+│                                                             │
+│  수익/손실 측정 → 각 에이전트별 반성 → BM25 메모리에 저장            │
+│  다음 분석 시 유사 상황의 과거 교훈을 참고                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 에이전트 역할
+
+| 에이전트 | LLM | 역할 |
+|---------|-----|------|
+| Market / Social / News / Fundamentals Analyst | Quick | 데이터 수집 + 리포트 작성 |
+| Bull / Bear Researcher | Quick | BM25 메모리 기반 강세/약세 토론 |
+| **Research Manager** | **Deep** | 투자 토론 판정 → 투자계획 수립 |
+| Trader | Quick | 투자계획 → 구체적 매매 제안 |
+| Aggressive / Conservative / Neutral Analyst | Quick | 3자 리스크 토론 |
+| **Risk Manager** | **Deep** | 리스크 토론 판정 → 최종 BUY/SELL/HOLD 결정 |
+| Executor | — | SafetyGuard + 주문 실행 (LLM 아님) |
+
+#### 데이터 소스
+
+| 카테고리 | 벤더 | 도구 |
+|---------|------|------|
+| 주가 / 차트 | yfinance | `get_stock_data`, `get_indicators` |
+| 뉴스 | yfinance | `get_news`, `get_global_news`, `get_insider_transactions` |
+| 재무제표 | yfinance | `get_fundamentals`, `get_balance_sheet`, `get_cashflow`, `get_income_statement` |
+| 한국 공시 | OpenDART | `get_dart_financials`, `get_dart_disclosures` |
+
 ### 애널리스트 팀
 - **펀더멘털 애널리스트**: 기업 재무제표와 성과 지표를 평가하여 내재 가치와 잠재적 위험 요소를 식별합니다. 한국 상장 기업의 경우 [OpenDART](https://opendart.fss.or.kr/) 데이터(공시 재무제표 및 규제 공시)를 추가로 활용합니다.
 - **센티멘트 애널리스트**: 소셜 미디어와 대중 여론을 분석하여 단기 시장 분위기를 파악합니다.
@@ -197,9 +291,9 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
-config["deep_think_llm"] = "gpt-5.2"     # 복잡한 추론용 모델
-config["quick_think_llm"] = "gpt-5-mini" # 빠른 분석용 모델
+config["llm_provider"] = "anthropic"      # anthropic, openai, google, xai, openrouter, ollama
+config["deep_think_llm"] = "claude-sonnet-4-6"          # 복잡한 추론용 모델
+config["quick_think_llm"] = "claude-haiku-4-5-20251001" # 빠른 분석용 모델
 config["max_debate_rounds"] = 2
 
 # 투자 페르소나 적용 (선택사항)
@@ -337,10 +431,10 @@ ExecutionEngine (안전장치 + 오케스트레이션)
 
 | 옵션 | 기본값 | 설명 |
 |------|--------|------|
-| `llm_provider` | `"openai"` | LLM 프로바이더: openai, google, anthropic, xai, openrouter, ollama |
-| `deep_think_llm` | `"gpt-5.2"` | 복잡한 추론용 모델 |
-| `quick_think_llm` | `"gpt-5-mini"` | 빠른 분석용 모델 |
-| `backend_url` | `"https://api.openai.com/v1"` | API 엔드포인트 URL |
+| `llm_provider` | `"anthropic"` | LLM 프로바이더: anthropic, openai, google, xai, openrouter, ollama |
+| `deep_think_llm` | `"claude-sonnet-4-6"` | 복잡한 추론용 모델 |
+| `quick_think_llm` | `"claude-haiku-4-5-20251001"` | 빠른 분석용 모델 |
+| `backend_url` | `None` | API 엔드포인트 URL (Anthropic은 자체 엔드포인트 사용) |
 | `max_debate_rounds` | `1` | 강세/약세 토론 라운드 수 |
 | `max_risk_discuss_rounds` | `1` | 리스크 관리 토론 라운드 수 |
 | `data_vendors` | `{"core_stock_apis": "yfinance", ...}` | 카테고리별 데이터 벤더 선택 |
