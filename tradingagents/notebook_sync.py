@@ -51,7 +51,6 @@ def sync_to_notebooklm(digest_path: Path, date: str, notebook_id: str | None = N
         console.print("[yellow]Warning: nlm CLI not found — skipping NotebookLM sync[/yellow]")
         return
 
-    content = digest_path.read_text()
     title = f"Daily Trading Digest ({date})"
 
     # Find and delete existing source with the same title
@@ -60,14 +59,15 @@ def sync_to_notebooklm(digest_path: Path, date: str, notebook_id: str | None = N
         _delete_source(nlm, notebook_id, existing_source_id)
 
     # Add as a new source
-    _add_source(nlm, notebook_id, content, title)
+    _add_source(nlm, notebook_id, digest_path, title)
 
 
 def _find_source(nlm: str, notebook_id: str, title: str) -> str | None:
     """Return the source ID for the daily digest, or None if not found."""
     try:
+        # Use -- to separate options from positional arguments
         result = subprocess.run(
-            [nlm, "source", "list", notebook_id, "--json"],
+            [nlm, "source", "list", "--json", "--", notebook_id],
             capture_output=True,
             text=True,
         )
@@ -85,8 +85,9 @@ def _find_source(nlm: str, notebook_id: str, title: str) -> str | None:
 def _delete_source(nlm: str, notebook_id: str, source_id: str) -> None:
     """Delete an existing source."""
     try:
+        # Use -- to separate options from positional arguments
         subprocess.run(
-            [nlm, "source", "delete", notebook_id, source_id, "-y"],
+            [nlm, "source", "delete", "-y", "--", notebook_id, source_id],
             capture_output=True,
             text=True,
             check=False,  # Ignore non-zero exit since nlm sometimes fails even on success
@@ -95,11 +96,13 @@ def _delete_source(nlm: str, notebook_id: str, source_id: str) -> None:
         pass
 
 
-def _add_source(nlm: str, notebook_id: str, content: str, title: str) -> None:
+def _add_source(nlm: str, notebook_id: str, digest_path: Path, title: str) -> None:
     """Add content as a new source."""
     try:
+        # Use --file instead of --text to avoid ARG_MAX issues and shell injection.
+        # Use -- to separate options from positional arguments.
         result = subprocess.run(
-            [nlm, "source", "add", notebook_id, "--title", title, "--text", content, "--wait"],
+            [nlm, "source", "add", "--title", title, "--file", str(digest_path), "--wait", "--", notebook_id],
             capture_output=True,
             text=True,
         )

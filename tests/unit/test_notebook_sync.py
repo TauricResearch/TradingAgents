@@ -61,18 +61,26 @@ def test_sync_performs_delete_then_add(mock_nlm_path):
                     # Check list call
                     args, kwargs = mock_run.call_args_list[0]
                     assert "list" in args[0]
+                    assert "--json" in args[0]
+                    assert "--" in args[0]
                     assert notebook_id in args[0]
                     
                     # Check delete call
                     args, kwargs = mock_run.call_args_list[1]
                     assert "delete" in args[0]
+                    assert "-y" in args[0]
+                    assert "--" in args[0]
+                    assert notebook_id in args[0]
                     assert source_id in args[0]
                     
                     # Check add call
                     args, kwargs = mock_run.call_args_list[2]
                     assert "add" in args[0]
-                    assert "--text" in args[0]
-                    assert content in args[0]
+                    assert "--file" in args[0]
+                    assert str(digest_path) in args[0]
+                    assert "--wait" in args[0]
+                    assert "--" in args[0]
+                    assert notebook_id in args[0]
 
 def test_sync_adds_directly_when_none_exists(mock_nlm_path):
     """Should add new source directly if no existing one is found."""
