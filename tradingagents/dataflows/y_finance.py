@@ -13,24 +13,21 @@ logger = logging.getLogger(__name__)
 def _yf_retry(func, max_retries=3, initial_delay=2.0):
     """Retry a yfinance call with exponential backoff on rate limit errors."""
     delay = initial_delay
-    last_error = None
     for attempt in range(max_retries + 1):
         try:
             return func()
         except Exception as e:
-            last_error = e
             error_str = str(e).lower()
-            if "rate" in error_str or "too many" in error_str or "429" in error_str:
-                if attempt < max_retries:
-                    logger.warning(
-                        f"yfinance rate limited, retrying in {delay:.0f}s "
-                        f"(attempt {attempt + 1}/{max_retries})"
-                    )
-                    time.sleep(delay)
-                    delay *= 2
-                    continue
-            raise
-    raise last_error
+            is_rate_limit = "rate" in error_str or "too many" in error_str or "429" in error_str
+            if is_rate_limit and attempt < max_retries:
+                logger.warning(
+                    f"yfinance rate limited, retrying in {delay:.0f}s "
+                    f"(attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(delay)
+                delay *= 2
+            else:
+                raise
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
