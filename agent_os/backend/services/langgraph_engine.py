@@ -17,22 +17,21 @@ class LangGraphEngine:
         """Run the 3-phase macro scanner and stream events."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         
-        # Initialize ScannerGraph
-        # Note: ScannerGraph in TradingAgents seems to take date and config
-        scanner = ScannerGraph(date=date, config=self.config)
+        # Initialize ScannerGraph correctly
+        scanner = ScannerGraph(config=self.config)
         
         print(f"Engine: Starting SCAN {run_id} for date {date}")
         
-        # Initial state for scanner
-        # Based on tradingagents/graph/scanner_graph.py
+        # Initial state for scanner - must match ScannerGraph.scan's initial_state keys
         initial_state = {
-            "date": date,
+            "scan_date": date,
+            "messages": [],
             "geopolitical_report": "",
             "market_movers_report": "",
-            "sector_report": "",
+            "sector_performance_report": "",
             "industry_deep_dive_report": "",
-            "macro_synthesis_report": "",
-            "top_10_watchlist": []
+            "macro_scan_summary": "",
+            "sender": "",
         }
 
         async for event in scanner.graph.astream_events(initial_state, version="v2"):
