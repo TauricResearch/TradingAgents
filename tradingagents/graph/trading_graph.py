@@ -146,7 +146,11 @@ class TradingAgentsGraph:
         elif provider == "openai":
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
-                kwargs["reasoning_effort"] = reasoning_effort
+                # reasoning_effort is only supported by o-series models
+                # (o1, o3, o3-mini, o4-mini, etc.), not by gpt-* models
+                model = self.config.get("deep_think_llm", "")
+                if model.startswith("o"):
+                    kwargs["reasoning_effort"] = reasoning_effort
 
         return kwargs
 
