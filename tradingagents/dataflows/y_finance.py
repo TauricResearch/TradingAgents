@@ -1,9 +1,36 @@
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import time
+import logging
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils, _clean_dataframe
+
+logger = logging.getLogger(__name__)
+
+
+def _yf_retry(func, max_retries=3, initial_delay=2.0):
+    """Retry a yfinance call with exponential backoff on rate limit errors."""
+    delay = initial_delay
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except Exception as e:
+            last_error = e
+            error_str = str(e).lower()
+            if "rate" in error_str or "too many" in error_str or "429" in error_str:
+                if attempt < max_retries:
+                    logger.warning(
+                        f"yfinance rate limited, retrying in {delay:.0f}s "
+                        f"(attempt {attempt + 1}/{max_retries})"
+                    )
+                    time.sleep(delay)
+                    delay *= 2
+                    continue
+            raise
+    raise last_error
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -17,8 +44,8 @@ def get_YFin_data_online(
     # Create ticker object
     ticker = yf.Ticker(symbol.upper())
 
-    # Fetch historical data for the specified date range
-    data = ticker.history(start=start_date, end=end_date)
+    # Fetch historical data with retry on rate limiting
+    data = _yf_retry(lambda: ticker.history(start=start_date, end=end_date))
 
     # Check if data is empty
     if data.empty:
