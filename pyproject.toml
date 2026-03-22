@@ -13,6 +13,7 @@ dependencies = [
     "backtrader>=1.9.78.123",
     "langchain-anthropic>=0.3.15",
     "langchain-experimental>=0.3.4",
+    "langchain-aws>=0.2.0",
     "langchain-google-genai>=2.1.5",
     "langchain-openai>=0.3.23",
     "langgraph>=0.4.8",
