@@ -158,6 +158,10 @@ def select_shallow_thinking_agent(provider) -> str:
         "openrouter": [
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
+            ("Anthropic Claude Sonnet 4 (paid)", "anthropic/claude-sonnet-4"),
+            ("Google Gemini 2.5 Flash (paid)", "google/gemini-2.5-flash"),
+            ("OpenAI GPT-5 Mini (paid)", "openai/gpt-5-mini"),
+            ("Enter custom model ID", "__custom__"),
         ],
         "ollama": [
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
@@ -188,7 +192,21 @@ def select_shallow_thinking_agent(provider) -> str:
         )
         exit(1)
 
+    if choice == "__custom__":
+        choice = _prompt_custom_model_id("anthropic/claude-sonnet-4")
+
     return choice
+
+
+def _prompt_custom_model_id(example: str) -> str:
+    """Prompt user for a custom model ID and exit if none provided."""
+    model_id = questionary.text(
+        f"Enter your model ID (e.g. {example}):"
+    ).ask()
+    if not model_id:
+        console.print("\n[red]No model entered. Exiting...[/red]")
+        exit(1)
+    return model_id
 
 
 def select_deep_thinking_agent(provider) -> str:
@@ -225,6 +243,10 @@ def select_deep_thinking_agent(provider) -> str:
         "openrouter": [
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            ("Anthropic Claude Sonnet 4 (paid)", "anthropic/claude-sonnet-4"),
+            ("Google Gemini 2.5 Pro (paid)", "google/gemini-2.5-pro"),
+            ("OpenAI GPT-5.2 (paid)", "openai/gpt-5.2"),
+            ("Enter custom model ID", "__custom__"),
         ],
         "ollama": [
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
@@ -252,6 +274,9 @@ def select_deep_thinking_agent(provider) -> str:
     if choice is None:
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
         exit(1)
+
+    if choice == "__custom__":
+        choice = _prompt_custom_model_id("openai/gpt-5.2")
 
     return choice
 
