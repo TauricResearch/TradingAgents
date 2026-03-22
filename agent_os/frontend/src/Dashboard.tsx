@@ -26,12 +26,16 @@ const API_BASE = 'http://127.0.0.1:8088/api';
 
 export const Dashboard: React.FC = () => {
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [isTriggering, setIsTriggering] = useState(false);
   const [portfolioId, setPortfolioId] = useState<string>("main_portfolio");
   const { events, status, clearEvents } = useAgentStream(activeRunId);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedNode, setSelectedNode] = useState<any>(null);
 
   const startRun = async (type: string) => {
+    if (isTriggering || status === 'streaming' || status === 'connecting') return;
+    
+    setIsTriggering(true);
     try {
       clearEvents();
       const res = await axios.post(`${API_BASE}/run/${type}`, {
@@ -41,6 +45,8 @@ export const Dashboard: React.FC = () => {
       setActiveRunId(res.data.run_id);
     } catch (err) {
       console.error("Failed to start run:", err);
+    } finally {
+      setIsTriggering(false);
     }
   };
 
@@ -73,7 +79,7 @@ export const Dashboard: React.FC = () => {
                   colorScheme="cyan" 
                   variant="solid"
                   onClick={() => startRun('scan')}
-                  isLoading={status === 'connecting' || status === 'streaming'}
+                  isLoading={isTriggering || status === 'connecting' || status === 'streaming'}
                 >
                   Start Market Scan
                 </Button>
