@@ -17,7 +17,7 @@ class BedrockClient(BaseLLMClient):
 
     Model ID formats:
         - Cross-region inference profile (recommended):
-            ``us.anthropic.claude-haiku-4-5-20251001-v1:0``
+            ``global.anthropic.claude-sonnet-4-6``
             ``eu.anthropic.claude-3-5-sonnet-20240620-v1:0``
         - Direct on-demand (us-east-1 default region only):
             ``amazon.nova-lite-v1:0``
@@ -34,7 +34,7 @@ class BedrockClient(BaseLLMClient):
     Example::
 
         config["llm_provider"]    = "bedrock"
-        config["deep_think_llm"]  = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+        config["deep_think_llm"]  = "global.anthropic.claude-sonnet-4-6"
         config["quick_think_llm"] = "amazon.nova-micro-v1:0"
     """
 
