@@ -2,13 +2,11 @@ from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from typing import Dict, Any, List
 import uuid
 import time
+from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
 router = APIRouter(prefix="/api/run", tags=["runs"])
-
-# In-memory store for demo (should be replaced by Redis/DB for persistence)
-runs: Dict[str, Dict[str, Any]] = {}
 
 engine = LangGraphEngine()
 
@@ -24,7 +22,8 @@ async def trigger_scan(
         "type": "scan",
         "status": "queued",
         "created_at": time.time(),
-        "user_id": user["user_id"]
+        "user_id": user["user_id"],
+        "params": params or {}
     }
     background_tasks.add_task(engine.run_scan, run_id, params or {})
     return {"run_id": run_id, "status": "queued"}
@@ -41,7 +40,8 @@ async def trigger_pipeline(
         "type": "pipeline",
         "status": "queued",
         "created_at": time.time(),
-        "user_id": user["user_id"]
+        "user_id": user["user_id"],
+        "params": params or {}
     }
     background_tasks.add_task(engine.run_pipeline, run_id, params or {})
     return {"run_id": run_id, "status": "queued"}
@@ -58,7 +58,8 @@ async def trigger_portfolio(
         "type": "portfolio",
         "status": "queued",
         "created_at": time.time(),
-        "user_id": user["user_id"]
+        "user_id": user["user_id"],
+        "params": params or {}
     }
     background_tasks.add_task(engine.run_portfolio, run_id, params or {})
     return {"run_id": run_id, "status": "queued"}
@@ -75,7 +76,8 @@ async def trigger_auto(
         "type": "auto",
         "status": "queued",
         "created_at": time.time(),
-        "user_id": user["user_id"]
+        "user_id": user["user_id"],
+        "params": params or {}
     }
     background_tasks.add_task(engine.run_auto, run_id, params or {})
     return {"run_id": run_id, "status": "queued"}
