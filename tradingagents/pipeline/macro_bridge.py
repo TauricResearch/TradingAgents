@@ -70,6 +70,7 @@ class TickerResult:
     final_trade_decision: str = ""
 
     error: str | None = None
+    elapsed_seconds: float = 0.0
 
 
 # ─── Parsing ──────────────────────────────────────────────────────────────────
@@ -207,6 +208,7 @@ def run_ticker_analysis(
         result.final_trade_decision = decision
 
         elapsed = time.monotonic() - t0
+        result.elapsed_seconds = elapsed
         logger.info(
             "[%s] ✓ Analysis complete in %.0fs — decision: %s",
             candidate.ticker, elapsed, str(decision)[:80],
@@ -214,6 +216,7 @@ def run_ticker_analysis(
 
     except Exception as exc:
         elapsed = time.monotonic() - t0
+        result.elapsed_seconds = elapsed
         logger.error(
             "[%s] ✗ Analysis FAILED after %.0fs: %s",
             candidate.ticker, elapsed, exc, exc_info=True,
