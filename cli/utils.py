@@ -193,14 +193,20 @@ def select_shallow_thinking_agent(provider) -> str:
         exit(1)
 
     if choice == "__custom__":
-        choice = questionary.text(
-            "Enter your model ID (e.g. anthropic/claude-sonnet-4):"
-        ).ask()
-        if not choice:
-            console.print("\n[red]No model entered. Exiting...[/red]")
-            exit(1)
+        choice = _prompt_custom_model_id("anthropic/claude-sonnet-4")
 
     return choice
+
+
+def _prompt_custom_model_id(example: str) -> str:
+    """Prompt user for a custom model ID and exit if none provided."""
+    model_id = questionary.text(
+        f"Enter your model ID (e.g. {example}):"
+    ).ask()
+    if not model_id:
+        console.print("\n[red]No model entered. Exiting...[/red]")
+        exit(1)
+    return model_id
 
 
 def select_deep_thinking_agent(provider) -> str:
@@ -270,12 +276,7 @@ def select_deep_thinking_agent(provider) -> str:
         exit(1)
 
     if choice == "__custom__":
-        choice = questionary.text(
-            "Enter your model ID (e.g. openai/gpt-5.2):"
-        ).ask()
-        if not choice:
-            console.print("\n[red]No model entered. Exiting...[/red]")
-            exit(1)
+        choice = _prompt_custom_model_id("openai/gpt-5.2")
 
     return choice
 
