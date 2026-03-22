@@ -147,7 +147,9 @@ class TradingAgentsGraph:
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
-
+# Ton nouveau code pour Anthropic
+        elif self.provider == "anthropic" and self.config.get("anthropic_thinking_budget"):
+             kwargs["thinking_config"] = {"type": "enabled", "budget_tokens": int(self.config["anthropic_thinking_budget"])}
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
