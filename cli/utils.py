@@ -311,6 +311,26 @@ def ask_openai_reasoning_effort() -> str:
     ).ask()
 
 
+def ask_anthropic_effort() -> str | None:
+    """Ask for Anthropic effort level.
+
+    Controls token usage and response thoroughness on Claude 4.5+ and 4.6 models.
+    """
+    return questionary.select(
+        "Select Effort Level:",
+        choices=[
+            questionary.Choice("High (recommended)", "high"),
+            questionary.Choice("Medium (balanced)", "medium"),
+            questionary.Choice("Low (faster, cheaper)", "low"),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
 def ask_gemini_thinking_config() -> str | None:
     """Ask for Gemini thinking configuration.
 

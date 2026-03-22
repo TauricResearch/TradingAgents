@@ -556,6 +556,7 @@ def get_user_selections():
     # Step 7: Provider-specific thinking configuration
     thinking_level = None
     reasoning_effort = None
+    anthropic_effort = None
 
     provider_lower = selected_llm_provider.lower()
     if provider_lower == "google":
@@ -574,6 +575,14 @@ def get_user_selections():
             )
         )
         reasoning_effort = ask_openai_reasoning_effort()
+    elif provider_lower == "anthropic":
+        console.print(
+            create_question_box(
+                "Step 7: Effort Level",
+                "Configure Claude effort level"
+            )
+        )
+        anthropic_effort = ask_anthropic_effort()
 
     return {
         "ticker": selected_ticker,
@@ -586,6 +595,7 @@ def get_user_selections():
         "deep_thinker": selected_deep_thinker,
         "google_thinking_level": thinking_level,
         "openai_reasoning_effort": reasoning_effort,
+        "anthropic_effort": anthropic_effort,
     }
 
 
@@ -911,6 +921,7 @@ def run_analysis():
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
+    config["anthropic_effort"] = selections.get("anthropic_effort")
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
