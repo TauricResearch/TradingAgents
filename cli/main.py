@@ -1722,20 +1722,22 @@ def run_portfolio(portfolio_id: str, date: str, macro_path: Path):
 
     repo = PortfolioRepository()
 
-    # Check if portfolio exists
-    portfolio = repo.get_portfolio(portfolio_id)
-    if not portfolio:
+    # Check if portfolio exists and fetch holdings
+    try:
+        portfolio, holdings = repo.get_portfolio_with_holdings(portfolio_id)
+    except Exception as e:
         console.print(
-            f"[yellow]Portfolio '{portfolio_id}' not found. Please ensure it is created in the database.[/yellow]"
+            f"[yellow]Failed to load portfolio '{portfolio_id}': {e}[/yellow]\n"
+            "Please ensure it is created in the database using 'python -m cli.main init-portfolio'."
         )
         raise typer.Exit(1)
 
-    holdings = repo.get_holdings(portfolio_id)
-
-    candidates = scan_summary.get("stocks_to_investigate", [])
+    # scan_summary["stocks_to_investigate"] is a list of dicts, we just want the tickers
+    candidate_dicts = scan_summary.get("stocks_to_investigate", [])
+    candidate_tickers = [c.get("ticker") for c in candidate_dicts if isinstance(c, dict) and "ticker" in c]
     holding_tickers = [h.ticker for h in holdings]
 
-    all_tickers = set(candidates + holding_tickers)
+    all_tickers = set(candidate_tickers + holding_tickers)
 
     console.print(f"[cyan]Fetching prices for {len(all_tickers)} tickers...[/cyan]")
     prices = {}
@@ -1793,6 +1795,26 @@ def portfolio():
     macro_path = Path(macro_output)
 
     run_portfolio(portfolio_id, date, macro_path)
+
+
+@app.command()
+def init_portfolio(
+    name: str = typer.Option("My Portfolio", "--name", "-n", help="Name of the new portfolio"),
+    cash: float = typer.Option(100000.0, "--cash", "-c", help="Starting cash balance"),
+):
+    """Create a completely new portfolio in the database and return its UUID."""
+    from tradingagents.portfolio import PortfolioRepository
+    
+    console.print(f"[cyan]Initializing new portfolio '{name}' with ${cash:,.2f} cash...[/cyan]")
+    repo = PortfolioRepository()
+    try:
+        portfolio = repo.create_portfolio(name, initial_cash=cash)
+        console.print("[green]Portfolio created successfully![/green]")
+        console.print(f"\n[bold white]Your new Portfolio UUID is:[/bold white] [bold magenta]{portfolio.portfolio_id}[/bold magenta]")
+        console.print("\n[dim]Copy this UUID and paste it when the Portfolio Manager asks for 'Portfolio ID'.[/dim]\n")
+    except Exception as e:
+        console.print(f"[red]Failed to create portfolio: {e}[/red]")
+        raise typer.Exit(1)
 
 
 @app.command(name="check-portfolio")
