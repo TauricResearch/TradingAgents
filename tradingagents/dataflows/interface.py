@@ -65,6 +65,33 @@ VENDOR_LIST = [
     "alpha_vantage",
 ]
 
+# DEX vendors for crypto/decentralized exchange data
+DEX_VENDOR_LIST = ["coingecko", "defillama", "birdeye"]
+
+# Tool categories for DEX
+DEX_TOOLS_CATEGORIES = {
+    "core_token_apis": {
+        "tools": ["get_token_ohlcv"],
+        "default": "coingecko"
+    },
+    "token_info": {
+        "tools": ["get_token_info"],
+        "default": "coingecko"
+    },
+    "technical_indicators": {
+        "tools": ["get_token_indicators"],
+        "default": "coingecko"
+    },
+    "defi_fundamentals": {
+        "tools": ["get_pool_data", "get_token_info"],
+        "default": "defillama"
+    },
+    "whale_tracking": {
+        "tools": ["get_whale_transactions"],
+        "default": "birdeye"
+    },
+}
+
 # Mapping of methods to their vendor-specific implementations
 VENDOR_METHODS = {
     # core_stock_apis
