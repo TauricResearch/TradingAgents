@@ -112,9 +112,9 @@ conda create -n tradingagents python=3.13
 conda activate tradingagents
 ```
 
-Install dependencies:
+Install the package and its dependencies:
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
 ### Required APIs
@@ -139,11 +139,12 @@ cp .env.example .env
 
 ### CLI Usage
 
-You can also try out the CLI directly by running:
+Launch the interactive CLI:
 ```bash
-python -m cli.main
+tradingagents          # installed command
+python -m cli.main     # alternative: run directly from source
 ```
-You will see a screen where you can select your desired tickers, date, LLMs, research depth, etc.
+You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
