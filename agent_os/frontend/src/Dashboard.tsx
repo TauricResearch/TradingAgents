@@ -26,6 +26,7 @@ const API_BASE = 'http://localhost:8000/api';
 
 export const Dashboard: React.FC = () => {
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [portfolioId, setPortfolioId] = useState<string>("main_portfolio");
   const { events, status, clearEvents } = useAgentStream(activeRunId);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedNode, setSelectedNode] = useState<any>(null);
@@ -33,7 +34,10 @@ export const Dashboard: React.FC = () => {
   const startRun = async (type: string) => {
     try {
       clearEvents();
-      const res = await axios.post(`${API_BASE}/run/${type}`);
+      const res = await axios.post(`${API_BASE}/run/${type}`, {
+        portfolio_id: portfolioId,
+        date: new Date().toISOString().split('T')[0]
+      });
       setActiveRunId(res.data.run_id);
     } catch (err) {
       console.error("Failed to start run:", err);
@@ -53,7 +57,7 @@ export const Dashboard: React.FC = () => {
       {/* Main Content */}
       <Flex flex="1" direction="column">
         {/* Top Metric Header */}
-        <MetricHeader />
+        <MetricHeader portfolioId={portfolioId} />
 
         {/* Dashboard Body */}
         <Flex flex="1" overflow="hidden">
