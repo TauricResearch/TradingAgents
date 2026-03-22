@@ -27,6 +27,7 @@ import time
 from rich import box
 from rich.align import Align
 from rich.rule import Rule
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.report_paths import get_daily_dir, get_market_dir, get_ticker_dir
@@ -1588,10 +1589,8 @@ def run_pipeline(
             f"  [dim]{c.sector} · {c.conviction.upper()} conviction[/dim]"
         )
     console.print()
-    import time as _time
-    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
-    pipeline_start = _time.monotonic()
+    pipeline_start = time.monotonic()
 
     with Progress(
         SpinnerColumn(),
@@ -1605,17 +1604,17 @@ def run_pipeline(
         overall = progress.add_task("[bold]Pipeline progress[/bold]", total=len(candidates))
 
         def on_done(result, done_count, total_count):
-            ticker_elapsed = _time.monotonic() - pipeline_start
+            ticker_elapsed = result.elapsed_seconds
             if result.error:
                 console.print(
                     f"  [red]✗ {result.ticker}[/red]"
-                    f"  [dim]failed ({ticker_elapsed:.0f}s elapsed) — {result.error[:80]}[/dim]"
+                    f"  [dim]failed ({ticker_elapsed:.0f}s) — {result.error[:80]}[/dim]"
                 )
             else:
                 decision_preview = str(result.final_trade_decision)[:70].replace("\n", " ")
                 console.print(
                     f"  [green]✓ {result.ticker}[/green]"
-                    f"  [dim]({done_count}/{total_count}, {ticker_elapsed:.0f}s elapsed)[/dim]"
+                    f"  [dim]({done_count}/{total_count}, {ticker_elapsed:.0f}s)[/dim]"
                     f"  → {decision_preview}"
                 )
             progress.advance(overall)
@@ -1631,7 +1630,7 @@ def run_pipeline(
             console.print(f"[red]Pipeline failed: {e}[/red]")
             raise typer.Exit(1)
 
-    elapsed_total = _time.monotonic() - pipeline_start
+    elapsed_total = time.monotonic() - pipeline_start
     console.print(
         f"\n[bold green]All {len(candidates)} ticker(s) finished in {elapsed_total:.0f}s[/bold green]\n"
     )
