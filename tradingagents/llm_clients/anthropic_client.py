@@ -20,9 +20,8 @@ class AnthropicClient(BaseLLMClient):
         llm_kwargs = {"model": self.model}
 
         env_base_url = os.getenv("ANTHROPIC_BASE_URL")
-        if self.base_url and not (
-            env_base_url
-            and self.base_url.rstrip("/") == self._DEFAULT_API_URL
+        if self.base_url and (
+            not env_base_url or self.base_url.rstrip("/") != self._DEFAULT_API_URL
         ):
             llm_kwargs["anthropic_api_url"] = self.base_url
 
