@@ -129,8 +129,11 @@ def get_stock_stats_indicators_window(
     }
 
     if indicator not in best_ind_params:
-        raise ValueError(
-            f"Indicator {indicator} is not supported. Please choose from: {list(best_ind_params.keys())}"
+        supported = ", ".join(best_ind_params.keys())
+        return (
+            f"Error: Indicator '{indicator}' is not supported. "
+            f"Supported indicators: {supported}. "
+            f"Please retry with one of the supported indicators."
         )
 
     end_date = curr_date

@@ -58,8 +58,11 @@ def get_indicator(
     }
 
     if indicator not in supported_indicators:
-        raise ValueError(
-            f"Indicator {indicator} is not supported. Please choose from: {list(supported_indicators.keys())}"
+        supported = ", ".join(supported_indicators.keys())
+        return (
+            f"Error: Indicator '{indicator}' is not supported. "
+            f"Supported indicators: {supported}. "
+            f"Please retry with one of the supported indicators."
         )
 
     curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
