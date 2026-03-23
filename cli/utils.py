@@ -375,11 +375,11 @@ def perform_copilot_oauth() -> bool:
         console.print("[red]`gh auth login` failed.[/red]")
         return False
 
-    if _get_github_token():
-        console.print("[green]✓ GitHub authentication successful![/green]")
+    if check_copilot_auth():
+        console.print("[green]✓ Authenticated with GitHub Copilot[/green]")
         return True
 
-    console.print("[red]Could not retrieve token after login.[/red]")
+    console.print("[red]Could not retrieve token or verify Copilot access after login.[/red]")
     return False
 
 
