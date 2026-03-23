@@ -7,6 +7,7 @@ import {
   Text, 
   IconButton, 
   Button, 
+  Input,
   useDisclosure,
   Drawer,
   DrawerOverlay,
@@ -29,14 +30,42 @@ import {
   TabPanels,
   Tab,
   TabPanel,
+  Tooltip,
+  Collapse,
+  useToast,
 } from '@chakra-ui/react';
-import { LayoutDashboard, Wallet, Settings, Play, Terminal as TerminalIcon, ChevronRight, Eye, Search, BarChart3, Bot } from 'lucide-react';
+import { LayoutDashboard, Wallet, Settings, Terminal as TerminalIcon, ChevronRight, Eye, Search, BarChart3, Bot, ChevronDown, ChevronUp } from 'lucide-react';
 import { MetricHeader } from './components/MetricHeader';
 import { AgentGraph } from './components/AgentGraph';
+import { PortfolioViewer } from './components/PortfolioViewer';
 import { useAgentStream, AgentEvent } from './hooks/useAgentStream';
 import axios from 'axios';
 
 const API_BASE = 'http://127.0.0.1:8088/api';
+
+// ─── Run type definitions with required parameters ────────────────────
+type RunType = 'scan' | 'pipeline' | 'portfolio' | 'auto';
+
+interface RunParams {
+  date: string;
+  ticker: string;
+  portfolio_id: string;
+}
+
+const RUN_TYPE_LABELS: Record<RunType, string> = {
+  scan: 'Scan',
+  pipeline: 'Pipeline',
+  portfolio: 'Portfolio',
+  auto: 'Auto',
+};
+
+/** Which params each run type needs. */
+const REQUIRED_PARAMS: Record<RunType, (keyof RunParams)[]> = {
+  scan: ['date'],
+  pipeline: ['ticker', 'date'],
+  portfolio: ['date', 'portfolio_id'],
+  auto: ['date', 'ticker'],
+};
 
 /** Return the colour token for a given event type. */
 const eventColor = (type: AgentEvent['type']): string => {
@@ -256,12 +285,17 @@ const NodeEventsDetail: React.FC<{ nodeId: string; events: AgentEvent[]; onOpenM
   );
 };
 
+// ─── Sidebar page type ────────────────────────────────────────────────
+type Page = 'dashboard' | 'portfolio';
+
 export const Dashboard: React.FC = () => {
+  const [activePage, setActivePage] = useState<Page>('dashboard');
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [activeRunType, setActiveRunType] = useState<RunType | null>(null);
   const [isTriggering, setIsTriggering] = useState(false);
-  const [portfolioId, setPortfolioId] = useState<string>("main_portfolio");
   const { events, status, clearEvents } = useAgentStream(activeRunId);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
 
   // Event detail modal state
   const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
@@ -272,6 +306,14 @@ export const Dashboard: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<AgentEvent | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
+  // Parameter inputs
+  const [showParams, setShowParams] = useState(false);
+  const [params, setParams] = useState<RunParams>({
+    date: new Date().toISOString().split('T')[0],
+    ticker: 'AAPL',
+    portfolio_id: 'main_portfolio',
+  });
+
   // Auto-scroll the terminal to the bottom as new events arrive
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
@@ -279,21 +321,47 @@ export const Dashboard: React.FC = () => {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [events.length]);
 
+  // Clear activeRunType when run completes
+  useEffect(() => {
+    if (status === 'completed' || status === 'error') {
+      setActiveRunType(null);
+    }
+  }, [status]);
+
   const isRunning = isTriggering || status === 'streaming' || status === 'connecting';
 
-  const startRun = async (type: string) => {
+  const startRun = async (type: RunType) => {
     if (isRunning) return;
+
+    // Validate required params
+    const required = REQUIRED_PARAMS[type];
+    const missing = required.filter((k) => !params[k]?.trim());
+    if (missing.length > 0) {
+      toast({
+        title: `Missing required fields for ${RUN_TYPE_LABELS[type]}`,
+        description: `Please fill in: ${missing.join(', ')}`,
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
+      setShowParams(true);
+      return;
+    }
     
     setIsTriggering(true);
+    setActiveRunType(type);
     try {
       clearEvents();
       const res = await axios.post(`${API_BASE}/run/${type}`, {
-        portfolio_id: portfolioId,
-        date: new Date().toISOString().split('T')[0]
+        portfolio_id: params.portfolio_id,
+        date: params.date,
+        ticker: params.ticker,
       });
       setActiveRunId(res.data.run_id);
     } catch (err) {
       console.error("Failed to start run:", err);
+      setActiveRunType(null);
     } finally {
       setIsTriggering(false);
     }
@@ -331,125 +399,196 @@ export const Dashboard: React.FC = () => {
       {/* Sidebar */}
       <VStack w="64px" bg="slate.900" borderRight="1px solid" borderColor="whiteAlpha.100" py={4} spacing={6}>
         <Box mb={4}><Text fontWeight="black" color="cyan.400" fontSize="xl">A</Text></Box>
-        <IconButton aria-label="Dashboard" icon={<LayoutDashboard size={20} />} variant="ghost" color="cyan.400" _hover={{ bg: "whiteAlpha.100" }} />
-        <IconButton aria-label="Portfolio" icon={<Wallet size={20} />} variant="ghost" color="whiteAlpha.600" _hover={{ bg: "whiteAlpha.100" }} />
+        <Tooltip label="Dashboard" placement="right">
+          <IconButton
+            aria-label="Dashboard"
+            icon={<LayoutDashboard size={20} />}
+            variant="ghost"
+            color={activePage === 'dashboard' ? 'cyan.400' : 'whiteAlpha.600'}
+            bg={activePage === 'dashboard' ? 'whiteAlpha.100' : 'transparent'}
+            _hover={{ bg: "whiteAlpha.100" }}
+            onClick={() => setActivePage('dashboard')}
+          />
+        </Tooltip>
+        <Tooltip label="Portfolio" placement="right">
+          <IconButton
+            aria-label="Portfolio"
+            icon={<Wallet size={20} />}
+            variant="ghost"
+            color={activePage === 'portfolio' ? 'cyan.400' : 'whiteAlpha.600'}
+            bg={activePage === 'portfolio' ? 'whiteAlpha.100' : 'transparent'}
+            _hover={{ bg: "whiteAlpha.100" }}
+            onClick={() => setActivePage('portfolio')}
+          />
+        </Tooltip>
         <IconButton aria-label="Settings" icon={<Settings size={20} />} variant="ghost" color="whiteAlpha.600" _hover={{ bg: "whiteAlpha.100" }} />
       </VStack>
 
-      {/* Main Content */}
-      <Flex flex="1" direction="column">
-        {/* Top Metric Header */}
-        <MetricHeader portfolioId={portfolioId} />
+      {/* ─── Portfolio Page ────────────────────────────────────────── */}
+      {activePage === 'portfolio' && (
+        <Box flex="1">
+          <PortfolioViewer defaultPortfolioId={params.portfolio_id} />
+        </Box>
+      )}
 
-        {/* Dashboard Body */}
-        <Flex flex="1" overflow="hidden">
-          {/* Left Side: Graph Area */}
-          <Box flex="1" position="relative" borderRight="1px solid" borderColor="whiteAlpha.100">
-             <AgentGraph events={events} onNodeClick={openNodeDetail} />
-             
-             {/* Floating Control Panel */}
-             <HStack position="absolute" top={4} left={4} bg="blackAlpha.800" p={2} borderRadius="lg" backdropFilter="blur(10px)" border="1px solid" borderColor="whiteAlpha.200" spacing={2} flexWrap="wrap">
-                <Button 
-                  size="sm" 
-                  leftIcon={<Search size={14} />} 
-                  colorScheme="cyan" 
-                  variant="solid"
-                  onClick={() => startRun('scan')}
-                  isLoading={isRunning}
-                  loadingText="Running…"
-                >
-                  Scan
-                </Button>
-                <Button 
-                  size="sm" 
-                  leftIcon={<BarChart3 size={14} />} 
-                  colorScheme="blue" 
-                  variant="solid"
-                  onClick={() => startRun('pipeline')}
-                  isLoading={isRunning}
-                  loadingText="Running…"
-                >
-                  Pipeline
-                </Button>
-                <Button 
-                  size="sm" 
-                  leftIcon={<Wallet size={14} />} 
-                  colorScheme="purple" 
-                  variant="solid"
-                  onClick={() => startRun('portfolio')}
-                  isLoading={isRunning}
-                  loadingText="Running…"
-                >
-                  Portfolio
-                </Button>
-                <Button 
-                  size="sm" 
-                  leftIcon={<Bot size={14} />} 
-                  colorScheme="green" 
-                  variant="solid"
-                  onClick={() => startRun('auto')}
-                  isLoading={isRunning}
-                  loadingText="Running…"
-                >
-                  Auto
-                </Button>
-                <Divider orientation="vertical" h="20px" />
-                <Tag size="sm" colorScheme={status === 'streaming' ? 'green' : status === 'completed' ? 'blue' : 'gray'}>
-                  {status.toUpperCase()}
-                </Tag>
-             </HStack>
-          </Box>
+      {/* ─── Dashboard Page ────────────────────────────────────────── */}
+      {activePage === 'dashboard' && (
+        <Flex flex="1" direction="column">
+          {/* Top Metric Header */}
+          <MetricHeader portfolioId={params.portfolio_id} />
 
-          {/* Right Side: Live Terminal */}
-          <VStack w="400px" bg="blackAlpha.400" align="stretch" spacing={0}>
-            <Flex p={3} bg="whiteAlpha.50" align="center" gap={2} borderBottom="1px solid" borderColor="whiteAlpha.100">
-               <TerminalIcon size={16} color="#4fd1c5" />
-               <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="wider">Live Terminal</Text>
-               <Text fontSize="2xs" color="whiteAlpha.400" ml="auto">{events.length} events</Text>
-            </Flex>
-            
-            <Box flex="1" overflowY="auto" p={4} sx={{
-              '&::-webkit-scrollbar': { width: '4px' },
-              '&::-webkit-scrollbar-track': { background: 'transparent' },
-              '&::-webkit-scrollbar-thumb': { background: 'whiteAlpha.300' }
-            }}>
-               {events.map((evt) => (
-                 <Box
-                   key={evt.id}
-                   mb={2}
-                   fontSize="xs"
-                   fontFamily="mono"
-                   px={2}
-                   py={1}
-                   borderRadius="md"
-                   cursor="pointer"
-                   _hover={{ bg: 'whiteAlpha.100' }}
-                   onClick={() => openEventDetail(evt)}
-                   transition="background 0.15s"
-                 >
-                   <Flex gap={2} align="center">
-                     <Text color="whiteAlpha.400" minW="52px" flexShrink={0}>[{evt.timestamp}]</Text>
-                     <Text flexShrink={0}>{eventLabel(evt.type)}</Text>
-                     <Text color={eventColor(evt.type)} fontWeight="bold" flexShrink={0}>
-                        {evt.agent}
-                     </Text>
-                     <ChevronRight size={10} style={{ flexShrink: 0, opacity: 0.4 }} />
-                     <Text color="whiteAlpha.700" isTruncated>{eventSummary(evt)}</Text>
-                     <Eye size={12} style={{ flexShrink: 0, opacity: 0.3, marginLeft: 'auto' }} />
-                   </Flex>
-                 </Box>
-               ))}
-               {events.length === 0 && (
-                 <Flex h="100%" align="center" justify="center" direction="column" gap={4} opacity={0.3}>
-                    <TerminalIcon size={48} />
-                    <Text fontSize="sm">Awaiting agent activation...</Text>
-                 </Flex>
-               )}
-               <div ref={terminalEndRef} />
+          {/* Dashboard Body */}
+          <Flex flex="1" overflow="hidden">
+            {/* Left Side: Graph Area */}
+            <Box flex="1" position="relative" borderRight="1px solid" borderColor="whiteAlpha.100">
+               <AgentGraph events={events} onNodeClick={openNodeDetail} />
+               
+               {/* Floating Control Panel */}
+               <VStack position="absolute" top={4} left={4} spacing={2} align="stretch">
+                 {/* Run buttons row */}
+                 <HStack bg="blackAlpha.800" p={2} borderRadius="lg" backdropFilter="blur(10px)" border="1px solid" borderColor="whiteAlpha.200" spacing={2}>
+                    {(['scan', 'pipeline', 'portfolio', 'auto'] as RunType[]).map((type) => {
+                      const isThisRunning = isRunning && activeRunType === type;
+                      const isOtherRunning = isRunning && activeRunType !== type;
+                      const icons: Record<RunType, React.ReactElement> = {
+                        scan: <Search size={14} />,
+                        pipeline: <BarChart3 size={14} />,
+                        portfolio: <Wallet size={14} />,
+                        auto: <Bot size={14} />,
+                      };
+                      const colors: Record<RunType, string> = {
+                        scan: 'cyan',
+                        pipeline: 'blue',
+                        portfolio: 'purple',
+                        auto: 'green',
+                      };
+                      return (
+                        <Button
+                          key={type}
+                          size="sm"
+                          leftIcon={icons[type]}
+                          colorScheme={colors[type]}
+                          variant="solid"
+                          onClick={() => startRun(type)}
+                          isLoading={isThisRunning}
+                          loadingText="Running…"
+                          isDisabled={isOtherRunning}
+                        >
+                          {RUN_TYPE_LABELS[type]}
+                        </Button>
+                      );
+                    })}
+                    <Divider orientation="vertical" h="20px" />
+                    <Tag size="sm" colorScheme={status === 'streaming' ? 'green' : status === 'completed' ? 'blue' : status === 'error' ? 'red' : 'gray'}>
+                      {status.toUpperCase()}
+                    </Tag>
+                    <IconButton
+                      aria-label="Toggle params"
+                      icon={showParams ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      size="xs"
+                      variant="ghost"
+                      color="whiteAlpha.600"
+                      onClick={() => setShowParams(!showParams)}
+                    />
+                 </HStack>
+
+                 {/* Collapsible parameter inputs */}
+                 <Collapse in={showParams} animateOpacity>
+                   <Box bg="blackAlpha.800" p={3} borderRadius="lg" backdropFilter="blur(10px)" border="1px solid" borderColor="whiteAlpha.200">
+                     <VStack spacing={2} align="stretch">
+                       <HStack>
+                         <Text fontSize="xs" color="whiteAlpha.600" minW="70px">Date:</Text>
+                         <Input
+                           size="xs"
+                           type="date"
+                           bg="whiteAlpha.100"
+                           borderColor="whiteAlpha.200"
+                           value={params.date}
+                           onChange={(e) => setParams((p) => ({ ...p, date: e.target.value }))}
+                         />
+                       </HStack>
+                       <HStack>
+                         <Text fontSize="xs" color="whiteAlpha.600" minW="70px">Ticker:</Text>
+                         <Input
+                           size="xs"
+                           placeholder="AAPL"
+                           bg="whiteAlpha.100"
+                           borderColor="whiteAlpha.200"
+                           value={params.ticker}
+                           onChange={(e) => setParams((p) => ({ ...p, ticker: e.target.value.toUpperCase() }))}
+                         />
+                       </HStack>
+                       <HStack>
+                         <Text fontSize="xs" color="whiteAlpha.600" minW="70px">Portfolio:</Text>
+                         <Input
+                           size="xs"
+                           placeholder="main_portfolio"
+                           bg="whiteAlpha.100"
+                           borderColor="whiteAlpha.200"
+                           value={params.portfolio_id}
+                           onChange={(e) => setParams((p) => ({ ...p, portfolio_id: e.target.value }))}
+                         />
+                       </HStack>
+                       <Text fontSize="2xs" color="whiteAlpha.400">
+                         Required: Scan → date · Pipeline → ticker, date · Portfolio → date, portfolio · Auto → date, ticker
+                       </Text>
+                     </VStack>
+                   </Box>
+                 </Collapse>
+               </VStack>
             </Box>
-          </VStack>
+
+            {/* Right Side: Live Terminal */}
+            <VStack w="400px" bg="blackAlpha.400" align="stretch" spacing={0}>
+              <Flex p={3} bg="whiteAlpha.50" align="center" gap={2} borderBottom="1px solid" borderColor="whiteAlpha.100">
+                 <TerminalIcon size={16} color="#4fd1c5" />
+                 <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="wider">Live Terminal</Text>
+                 <Text fontSize="2xs" color="whiteAlpha.400" ml="auto">{events.length} events</Text>
+              </Flex>
+              
+              <Box flex="1" overflowY="auto" p={4} sx={{
+                '&::-webkit-scrollbar': { width: '4px' },
+                '&::-webkit-scrollbar-track': { background: 'transparent' },
+                '&::-webkit-scrollbar-thumb': { background: 'whiteAlpha.300' }
+              }}>
+                 {events.map((evt) => (
+                   <Box
+                     key={evt.id}
+                     mb={2}
+                     fontSize="xs"
+                     fontFamily="mono"
+                     px={2}
+                     py={1}
+                     borderRadius="md"
+                     cursor="pointer"
+                     _hover={{ bg: 'whiteAlpha.100' }}
+                     onClick={() => openEventDetail(evt)}
+                     transition="background 0.15s"
+                   >
+                     <Flex gap={2} align="center">
+                       <Text color="whiteAlpha.400" minW="52px" flexShrink={0}>[{evt.timestamp}]</Text>
+                       <Text flexShrink={0}>{eventLabel(evt.type)}</Text>
+                       <Text color={eventColor(evt.type)} fontWeight="bold" flexShrink={0}>
+                          {evt.agent}
+                       </Text>
+                       <ChevronRight size={10} style={{ flexShrink: 0, opacity: 0.4 }} />
+                       <Text color="whiteAlpha.700" isTruncated>{eventSummary(evt)}</Text>
+                       <Eye size={12} style={{ flexShrink: 0, opacity: 0.3, marginLeft: 'auto' }} />
+                     </Flex>
+                   </Box>
+                 ))}
+                 {events.length === 0 && (
+                   <Flex h="100%" align="center" justify="center" direction="column" gap={4} opacity={0.3}>
+                      <TerminalIcon size={48} />
+                      <Text fontSize="sm">Awaiting agent activation...</Text>
+                   </Flex>
+                 )}
+                 <div ref={terminalEndRef} />
+              </Box>
+            </VStack>
+          </Flex>
         </Flex>
-      </Flex>
+      )}
 
       {/* Unified Inspector Drawer (single event or all node events) */}
       <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">

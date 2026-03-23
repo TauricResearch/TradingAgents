@@ -233,19 +233,35 @@ class LangGraphEngine:
 
         Returns the concatenated content of every message so the user can
         inspect the full prompt that was sent to the LLM.
+
+        Handles several structures observed across LangChain / LangGraph versions:
+        - flat list of message objects  ``[SystemMessage, HumanMessage, ...]``
+        - list-of-lists (batched)       ``[[SystemMessage, HumanMessage, ...]]``
+        - list of plain dicts            ``[{"role": "system", "content": "..."}]``
+        - tuple wrapper                  ``([SystemMessage, ...],)``
         """
-        if not isinstance(messages, list) or not messages:
+        if not messages:
             return ""
+
+        # Unwrap single-element tuple / list-of-lists
+        items: list = messages if isinstance(messages, list) else list(messages)
+        if items and isinstance(items[0], (list, tuple)):
+            items = list(items[0])
+
         parts: list[str] = []
-        items = messages
-        # Handle list-of-lists
-        if isinstance(items[0], list):
-            items = items[0]
         for msg in items:
+            # LangChain message objects have .content and .type
             content = getattr(msg, "content", None)
-            role = getattr(msg, "type", "unknown")
+            role = getattr(msg, "type", None)
+            # Plain-dict messages (e.g. {"role": "user", "content": "..."})
+            if content is None and isinstance(msg, dict):
+                content = msg.get("content", "")
+                role = msg.get("role") or msg.get("type") or "unknown"
+            if role is None:
+                role = "unknown"
             text = str(content) if content is not None else str(msg)
             parts.append(f"[{role}] {text}")
+
         return "\n\n".join(parts)
 
     def _extract_model(self, event: Dict[str, Any]) -> str:
@@ -288,13 +304,35 @@ class LangGraphEngine:
         if kind == "on_chat_model_start":
             starts[node_name] = time.monotonic()
 
-            # Extract the full prompt being sent to the LLM
+            data = event.get("data") or {}
+
+            # Extract the full prompt being sent to the LLM.
+            # Try multiple paths observed in different LangChain versions:
+            #   1. data.messages  (most common)
+            #   2. data.input.messages  (newer LangGraph)
+            #   3. data.input  (if it's a list of messages itself)
+            #   4. data.kwargs.messages  (some providers)
             full_prompt = ""
-            prompt_snippet = ""
-            messages = (event.get("data") or {}).get("messages")
-            if messages:
-                full_prompt = self._extract_all_messages_content(messages)
-                prompt_snippet = self._truncate(full_prompt.replace("\n", " "))
+            for source in (
+                data.get("messages"),
+                (data.get("input") or {}).get("messages") if isinstance(data.get("input"), dict) else None,
+                data.get("input") if isinstance(data.get("input"), (list, tuple)) else None,
+                (data.get("kwargs") or {}).get("messages"),
+            ):
+                if source:
+                    full_prompt = self._extract_all_messages_content(source)
+                    if full_prompt:
+                        break
+
+            # If all structured extractions failed, dump a raw preview
+            if not full_prompt:
+                raw_dump = str(data)[:_MAX_FULL_LEN]
+                if raw_dump and raw_dump != "{}":
+                    full_prompt = f"[raw event data] {raw_dump}"
+
+            prompt_snippet = self._truncate(
+                full_prompt.replace("\n", " "), _MAX_CONTENT_LEN
+            ) if full_prompt else ""
 
             # Remember the full prompt so we can attach it to the result event
             prompts[node_name] = full_prompt
@@ -377,7 +415,16 @@ class LangGraphEngine:
                     usage = output.usage_metadata
                 if hasattr(output, "response_metadata") and output.response_metadata:
                     model = output.response_metadata.get("model_name") or output.response_metadata.get("model", model)
+
+                # Extract the response text – handle both message objects and plain dicts
                 raw = self._extract_content(output)
+                # If .content was empty or the repr of the whole object, try harder
+                if not raw or raw.startswith("<") or raw == str(output):
+                    # Some providers wrap in .text or .message
+                    raw = (
+                        getattr(output, "text", "")
+                        or (output.get("content", "") if isinstance(output, dict) else "")
+                    )
                 if raw:
                     full_response = raw[:_MAX_FULL_LEN]
                     response_snippet = self._truncate(raw)
