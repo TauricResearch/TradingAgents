@@ -1,8 +1,0 @@
-{
-  "private": true,
-  "type": "module",
-  "main": "../dist/cjs/UI.js",
-  "module": "../dist/es2015/UI.js",
-  "jsnext:main": "../dist/es2015/UI.js",
-  "types": "./UI.d.ts"
-}

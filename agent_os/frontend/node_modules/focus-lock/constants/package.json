@@ -1,8 +1,0 @@
-{
-  "description": "separate entrypoint for constants only",
-  "private": true,
-  "main": "../dist/es5/constants.js",
-  "jsnext:main": "../dist/es2015/constants.js",
-  "module": "../dist/es2015/constants.js",
-  "sideEffects": false
-}

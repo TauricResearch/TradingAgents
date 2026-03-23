@@ -1,7 +1,0 @@
-{
-  "private": true,
-  "main": "../dist/es5/sidecar.js",
-  "jsnext:main": "../dist/es2015/sidecar.js",
-  "module": "../dist/es2015/sidecar.js",
-  "types": "sidecar.d.ts"
-}

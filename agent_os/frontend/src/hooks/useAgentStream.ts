@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface AgentEvent {
   id: string;
   timestamp: string;
   agent: string;
   tier: 'quick' | 'mid' | 'deep';
-  type: 'thought' | 'tool' | 'result' | 'system';
+  type: 'thought' | 'tool' | 'result' | 'log' | 'system';
   message: string;
   node_id?: string;
   parent_node_id?: string;
@@ -29,6 +29,9 @@ export const useAgentStream = (runId: string | null) => {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'streaming' | 'completed' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  // Track status in a ref to avoid stale closures and infinite reconnect loops
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   const connect = useCallback(() => {
     if (!runId) return;
@@ -50,7 +53,7 @@ export const useAgentStream = (runId: string | null) => {
       
       if (data.type === 'system' && data.message === 'Run completed.') {
         setStatus('completed');
-      } else if (data.type === 'system' && data.message.startsWith('Error:')) {
+      } else if (data.type === 'system' && data.message?.startsWith('Error:')) {
         setStatus('error');
         setError(data.message);
       } else {
@@ -59,7 +62,8 @@ export const useAgentStream = (runId: string | null) => {
     };
 
     socket.onclose = () => {
-      if (status !== 'completed' && status !== 'error') {
+      // Only transition to idle if we weren't already in a terminal state
+      if (statusRef.current !== 'completed' && statusRef.current !== 'error') {
         setStatus('idle');
       }
       console.log(`Disconnected from run: ${runId}`);
@@ -74,7 +78,7 @@ export const useAgentStream = (runId: string | null) => {
     return () => {
       socket.close();
     };
-  }, [runId, status]);
+  }, [runId]); // Removed `status` from deps to prevent reconnection loops
 
   useEffect(() => {
     if (runId) {

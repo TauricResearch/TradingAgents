@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -7,9 +7,11 @@ import ReactFlow, {
   Handle,
   Position,
   NodeProps,
+  useNodesState,
+  useEdgesState,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Box, Text, Flex, Icon, Tooltip, Badge } from '@chakra-ui/react';
+import { Box, Text, Flex, Icon, Badge } from '@chakra-ui/react';
 import { Cpu, Settings, Database, TrendingUp, Clock } from 'lucide-react';
 import { AgentEvent } from '../hooks/useAgentStream';
 
@@ -96,57 +98,108 @@ interface AgentGraphProps {
 }
 
 export const AgentGraph: React.FC<AgentGraphProps> = ({ events }) => {
-  const { nodes, edges } = useMemo(() => {
-    const graphNodes: Node[] = [];
-    const graphEdges: Edge[] = [];
-    const seenNodes = new Set<string>();
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  // Track which node_ids we have already added so we never duplicate
+  const seenNodeIds = useRef(new Set<string>());
+  const seenEdgeIds = useRef(new Set<string>());
+  // Track how many unique nodes exist for vertical layout
+  const nodeCount = useRef(0);
+  // Track the last processed event index to only process new events
+  const processedCount = useRef(0);
 
-    events.forEach((evt) => {
-      if (!evt.node_id) return;
+  useEffect(() => {
+    // Only process newly arrived events
+    const newEvents = events.slice(processedCount.current);
+    if (newEvents.length === 0) return;
+    processedCount.current = events.length;
 
-      if (!seenNodes.has(evt.node_id)) {
-        graphNodes.push({
+    const addedNodes: Node[] = [];
+    const addedEdges: Edge[] = [];
+    const updatedNodeData: Map<string, Partial<Node['data']>> = new Map();
+
+    for (const evt of newEvents) {
+      if (!evt.node_id || evt.node_id === '__system__') continue;
+
+      if (!seenNodeIds.current.has(evt.node_id)) {
+        // New node — create it
+        seenNodeIds.current.add(evt.node_id);
+        nodeCount.current += 1;
+
+        addedNodes.push({
           id: evt.node_id,
           type: 'agentNode',
-          position: { x: 250, y: graphNodes.length * 150 + 50 }, // Simple vertical layout
-          data: { 
-            agent: evt.agent, 
+          position: { x: 250, y: nodeCount.current * 150 + 50 },
+          data: {
+            agent: evt.agent,
             status: evt.type === 'result' ? 'completed' : 'running',
-            metrics: evt.metrics 
+            metrics: evt.metrics,
           },
         });
-        seenNodes.add(evt.node_id);
 
+        // Add edge from parent (if applicable)
         if (evt.parent_node_id && evt.parent_node_id !== 'start') {
-          graphEdges.push({
-            id: `e-${evt.parent_node_id}-${evt.node_id}`,
-            source: evt.parent_node_id,
-            target: evt.node_id,
-            animated: true,
-            style: { stroke: '#4fd1c5' },
-          });
+          const edgeId = `e-${evt.parent_node_id}-${evt.node_id}`;
+          if (!seenEdgeIds.current.has(edgeId)) {
+            seenEdgeIds.current.add(edgeId);
+            addedEdges.push({
+              id: edgeId,
+              source: evt.parent_node_id,
+              target: evt.node_id,
+              animated: true,
+              style: { stroke: '#4fd1c5' },
+            });
+          }
         }
       } else {
-        // Update existing node status and metrics
-        const idx = graphNodes.findIndex(n => n.id === evt.node_id);
-        if (idx !== -1) {
-          graphNodes[idx].data = {
-            ...graphNodes[idx].data,
-            status: evt.type === 'result' ? 'completed' : 'running',
-            metrics: evt.metrics || graphNodes[idx].data.metrics
-          };
-        }
+        // Existing node — queue a status/metrics update
+        updatedNodeData.set(evt.node_id, {
+          status: evt.type === 'result' ? 'completed' : 'running',
+          metrics: evt.metrics,
+        });
       }
-    });
+    }
 
-    return { nodes: graphNodes, edges: graphEdges };
-  }, [events]);
+    // Batch state updates
+    if (addedNodes.length > 0) {
+      setNodes((prev) => [...prev, ...addedNodes]);
+    }
+    if (addedEdges.length > 0) {
+      setEdges((prev) => [...prev, ...addedEdges]);
+    }
+    if (updatedNodeData.size > 0) {
+      setNodes((prev) =>
+        prev.map((n) => {
+          const patch = updatedNodeData.get(n.id);
+          if (!patch) return n;
+          return {
+            ...n,
+            data: { ...n.data, ...patch, metrics: patch.metrics ?? n.data.metrics },
+          };
+        }),
+      );
+    }
+  }, [events, setNodes, setEdges]);
+
+  // Reset tracked state when the events array is cleared (new run)
+  useEffect(() => {
+    if (events.length === 0) {
+      seenNodeIds.current.clear();
+      seenEdgeIds.current.clear();
+      nodeCount.current = 0;
+      processedCount.current = 0;
+      setNodes([]);
+      setEdges([]);
+    }
+  }, [events.length, setNodes, setEdges]);
 
   return (
     <Box height="100%" width="100%" bg="slate.950">
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         fitView
       >
