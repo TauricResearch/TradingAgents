@@ -93,7 +93,7 @@ def list_copilot_models() -> list[tuple[str, str]]:
         models = data.get("data", data) if isinstance(data, dict) else data
         chat_models = [m for m in models if not m.get("id", "").startswith("text-embedding")]
         return [(m["id"], m["id"]) for m in sorted(chat_models, key=lambda x: x.get("id", ""))]
-    except Exception:
+    except requests.exceptions.RequestException:
         return []
 
 
