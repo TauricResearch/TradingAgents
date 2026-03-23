@@ -546,10 +546,8 @@ def get_user_selections():
     )
     selected_llm_provider, backend_url = select_llm_provider()
 
-    provider_id = selected_llm_provider.lower()
-
     # GitHub Copilot: run OAuth before proceeding
-    if provider_id == "copilot":
+    if selected_llm_provider.lower() == "copilot":
         console.print(
             create_question_box(
                 "Step 5b: Copilot Auth",
@@ -565,15 +563,15 @@ def get_user_selections():
             "Step 6: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
-    selected_shallow_thinker = select_shallow_thinking_agent(provider_id)
-    selected_deep_thinker = select_deep_thinking_agent(provider_id)
+    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
+    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
     # Step 7: Provider-specific thinking configuration
     thinking_level = None
     reasoning_effort = None
     anthropic_effort = None
 
-    provider_lower = provider_id
+    provider_lower = selected_llm_provider.lower()
     if provider_lower == "google":
         console.print(
             create_question_box(
@@ -604,7 +602,7 @@ def get_user_selections():
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
-        "llm_provider": provider_id,
+        "llm_provider": selected_llm_provider.lower(),
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,

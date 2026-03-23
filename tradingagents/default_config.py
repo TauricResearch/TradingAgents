@@ -8,9 +8,6 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
-    # Set llm_provider to "copilot" to use GitHub Copilot (no explicit API key
-    # needed — authenticates via `gh auth token` from the GitHub CLI).
-    # Available models are fetched dynamically from the Copilot inference API.
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.2",
     "quick_think_llm": "gpt-5-mini",

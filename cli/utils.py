@@ -137,7 +137,9 @@ def select_research_depth() -> int:
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
+    # Define shallow thinking llm engine options with their corresponding model names
     # Ordering: medium → light → heavy (balanced first for quick tasks)
+    # Within same tier, newer models first
     SHALLOW_AGENT_OPTIONS = {
         "openai": [
             ("GPT-5 Mini - Balanced speed, cost, and capability", "gpt-5-mini"),
@@ -170,7 +172,7 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
         ],
-        "copilot": [],  # populated dynamically by fetch_copilot_models()
+        "copilot": [],
     }
 
     if provider.lower() == "copilot":
@@ -212,7 +214,9 @@ def select_shallow_thinking_agent(provider) -> str:
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
-    # Ordering: heavy → medium → light (most capable first for deep tasks)
+    # Define shallow thinking llm engine options with their corresponding model names
+    # Ordering: medium → light → heavy (balanced first for quick tasks)
+    # Within same tier, newer models first
     DEEP_AGENT_OPTIONS = {
         "openai": [
             ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
