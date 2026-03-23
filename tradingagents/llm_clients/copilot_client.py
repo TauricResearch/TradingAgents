@@ -110,7 +110,7 @@ def check_copilot_auth() -> bool:
             timeout=5,
         )
         return resp.status_code == 200
-    except Exception:
+    except requests.exceptions.RequestException:
         return True  # Network error — accept optimistically
 
 
