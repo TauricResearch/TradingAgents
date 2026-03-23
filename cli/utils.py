@@ -3,9 +3,11 @@ from typing import List, Optional, Tuple, Dict
 
 from rich.console import Console
 
-from cli.models import AnalystType
+from cli.models import AnalysisMode, AnalystType, PMAnalystType
 
 console = Console()
+
+TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -14,11 +16,173 @@ ANALYST_ORDER = [
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
 ]
 
+PM_ANALYST_ORDER = [
+    ("Event Analyst", PMAnalystType.EVENT),
+    ("Odds Analyst", PMAnalystType.ODDS),
+    ("Information Analyst", PMAnalystType.INFORMATION),
+    ("Sentiment Analyst", PMAnalystType.SENTIMENT),
+]
+
+
+def select_analysis_mode() -> AnalysisMode:
+    """Select between Stock and Polymarket analysis."""
+    choice = questionary.select(
+        "Select Analysis Mode:",
+        choices=[
+            questionary.Choice("Stock Ticker (e.g. NVDA, TSLA)", value=AnalysisMode.STOCK),
+            questionary.Choice("Polymarket Market ID (prediction market)", value=AnalysisMode.POLYMARKET),
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style(
+            [
+                ("selected", "fg:cyan noinherit"),
+                ("highlighted", "fg:cyan noinherit"),
+                ("pointer", "fg:cyan noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if choice is None:
+        console.print("\n[red]No mode selected. Exiting...[/red]")
+        exit(1)
+
+    return choice
+
+
+def _resolve_polymarket_url(url: str) -> tuple[str, str]:
+    """Resolve a Polymarket URL to a (market_id, market_question) tuple.
+
+    Supports formats:
+      - https://polymarket.com/event/<event-slug>/<market-slug>
+      - https://polymarket.com/event/<market-slug>
+    """
+    from urllib.parse import urlparse
+    import requests
+
+    parsed = urlparse(url)
+    parts = [p for p in parsed.path.split("/") if p]
+
+    if len(parts) < 2 or parts[0] != "event":
+        return "", ""
+
+    # Last segment is the market slug (or event slug if only 2 parts)
+    market_slug = parts[-1]
+
+    # Try as market slug first
+    try:
+        resp = requests.get(
+            "https://gamma-api.polymarket.com/markets",
+            params={"slug": market_slug},
+            timeout=15,
+        )
+        data = resp.json()
+        if isinstance(data, list) and data:
+            return str(data[0]["id"]), data[0].get("question", "")
+    except Exception:
+        pass
+
+    # If 3+ parts, the second segment is the event slug — resolve event and pick first market
+    if len(parts) >= 2:
+        event_slug = parts[1]
+        try:
+            resp = requests.get(
+                "https://gamma-api.polymarket.com/events",
+                params={"slug": event_slug},
+                timeout=15,
+            )
+            data = resp.json()
+            if isinstance(data, list) and data:
+                markets = data[0].get("markets", [])
+                if markets:
+                    return str(markets[0]["id"]), markets[0].get("question", "")
+        except Exception:
+            pass
+
+    return "", ""
+
+
+def get_market_id() -> tuple[str, str]:
+    """Prompt the user to enter a Polymarket URL or market ID."""
+    user_input = questionary.text(
+        "Paste a Polymarket URL or enter a numeric market ID:",
+        validate=lambda x: len(x.strip()) > 0 or "Please enter a URL or market ID.",
+        style=questionary.Style(
+            [
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if not user_input:
+        console.print("\n[red]No input provided. Exiting...[/red]")
+        exit(1)
+
+    user_input = user_input.strip()
+
+    # Check if it's a URL
+    if "polymarket.com" in user_input:
+        console.print("[dim]Resolving Polymarket URL...[/dim]")
+        market_id, market_question = _resolve_polymarket_url(user_input)
+        if market_id:
+            console.print(f"[green]Found:[/green] {market_question} (ID: {market_id})")
+            return market_id, market_question
+        else:
+            console.print("[red]Could not resolve URL. Please enter a numeric market ID instead.[/red]")
+            exit(1)
+
+    # Otherwise treat as numeric market ID
+    market_id = user_input
+
+    # Try to fetch the question from the API
+    market_question = ""
+    try:
+        import requests
+        resp = requests.get(
+            f"https://gamma-api.polymarket.com/markets/{market_id}",
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            market_question = data.get("question", "")
+            if market_question:
+                console.print(f"[green]Found:[/green] {market_question}")
+    except Exception:
+        pass
+
+    return market_id, market_question
+
+
+def select_pm_analysts() -> List[PMAnalystType]:
+    """Select prediction market analysts using an interactive checkbox."""
+    choices = questionary.checkbox(
+        "Select Your [PM Analysts Team]:",
+        choices=[
+            questionary.Choice(display, value=value) for display, value in PM_ANALYST_ORDER
+        ],
+        instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",
+        validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
+        style=questionary.Style(
+            [
+                ("checkbox-selected", "fg:green"),
+                ("selected", "fg:green noinherit"),
+                ("highlighted", "noinherit"),
+                ("pointer", "noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if not choices:
+        console.print("\n[red]No analysts selected. Exiting...[/red]")
+        exit(1)
+
+    return choices
+
 
 def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol."""
     ticker = questionary.text(
-        "Enter the ticker symbol to analyze:",
+        f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
         validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
         style=questionary.Style(
             [
@@ -32,6 +196,11 @@ def get_ticker() -> str:
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
+    return normalize_ticker_symbol(ticker)
+
+
+def normalize_ticker_symbol(ticker: str) -> str:
+    """Normalize ticker input while preserving exchange suffixes."""
     return ticker.strip().upper()
 
 
@@ -303,6 +472,26 @@ def ask_openai_reasoning_effort() -> str:
     return questionary.select(
         "Select Reasoning Effort:",
         choices=choices,
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
+def ask_anthropic_effort() -> str | None:
+    """Ask for Anthropic effort level.
+
+    Controls token usage and response thoroughness on Claude 4.5+ and 4.6 models.
+    """
+    return questionary.select(
+        "Select Effort Level:",
+        choices=[
+            questionary.Choice("High (recommended)", "high"),
+            questionary.Choice("Medium (balanced)", "medium"),
+            questionary.Choice("Low (faster, cheaper)", "low"),
+        ],
         style=questionary.Style([
             ("selected", "fg:cyan noinherit"),
             ("highlighted", "fg:cyan noinherit"),

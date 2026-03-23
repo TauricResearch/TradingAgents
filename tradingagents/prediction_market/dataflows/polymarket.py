@@ -173,7 +173,7 @@ def get_polymarket_price_history(
 
     try:
         data = _clob_get("/prices-history", params=params, cache_seconds=300)
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         return f"Price history unavailable for this market (API error: {e}). The market may be too new or the date range too large."
 
     history = data.get("history", [])
@@ -224,7 +224,7 @@ def get_polymarket_order_book(market_id: str) -> str:
 
     try:
         data = _clob_get("/book", params={"token_id": token_id}, cache_seconds=30)
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         return f"Order book unavailable for this market (API error: {e})."
 
     bids = data.get("bids", [])
@@ -297,7 +297,7 @@ def get_polymarket_event_context(event_id: str) -> str:
     """Get all markets grouped under a prediction market event."""
     try:
         data = _gamma_get(f"/events/{event_id}")
-    except Exception:
+    except requests.exceptions.RequestException:
         return f"No event found with ID: {event_id}. Note: this may be a market ID, not an event ID. Use get_market_info with the market ID instead."
     if not data:
         return f"No event found with ID: {event_id}. Note: this may be a market ID, not an event ID. Use get_market_info with the market ID instead."
