@@ -1,24 +1,65 @@
+from datetime import datetime, timedelta
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import json
-from tradingagents.agents.utils.news_data_tools import get_news, get_global_news
-from tradingagents.agents.utils.tool_runner import run_tool_loop
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+
+from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    format_prefetched_context,
+    prefetch_tools_parallel,
+)
+from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
 from tradingagents.dataflows.config import get_config
 
 
 def create_news_analyst(llm):
     def news_analyst_node(state):
         current_date = state["trade_date"]
-        instrument_context = build_instrument_context(state["company_of_interest"])
+        ticker = state["company_of_interest"]
+        instrument_context = build_instrument_context(ticker)
 
-        tools = [
-            get_news,
-            get_global_news,
-        ]
+        # ── Pre-fetch company-specific and global news in parallel ────────────
+        trade_date = datetime.strptime(current_date, "%Y-%m-%d")
+        start_date = (trade_date - timedelta(days=7)).strftime("%Y-%m-%d")
+
+        prefetched = prefetch_tools_parallel(
+            [
+                {
+                    "tool": get_news,
+                    "args": {
+                        "ticker": ticker,
+                        "start_date": start_date,
+                        "end_date": current_date,
+                    },
+                    "label": "Company-Specific News (Last 7 Days)",
+                },
+                {
+                    "tool": get_global_news,
+                    "args": {
+                        "curr_date": current_date,
+                        "look_back_days": 7,
+                        "limit": 5,
+                    },
+                    "label": "Global Macroeconomic News (Last 7 Days)",
+                },
+            ]
+        )
+        prefetched_context = format_prefetched_context(prefetched)
 
         system_message = (
-            "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for company-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            "You are a news researcher tasked with analyzing recent news and trends over "
+            "the past week.\n\n"
+            "## Pre-loaded Data\n\n"
+            "Both company-specific news and global macroeconomic news for the past 7 days "
+            "have already been fetched and are provided in the **Pre-loaded Context** section "
+            "below. Do NOT call `get_news` or `get_global_news` — the data is already available.\n\n"
+            "## Your Task\n\n"
+            "Synthesize the pre-loaded news feeds into a comprehensive report covering the "
+            "current state of the world as it is relevant to trading and macroeconomics. "
+            "Cross-reference company-specific developments with the broader macro backdrop. "
+            "Provide specific, actionable insights with supporting evidence to help traders "
+            "make informed decisions. "
+            "Make sure to append a Markdown table at the end of the report to organise key "
+            "points, making it easy to read."
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -26,25 +67,27 @@ def create_news_analyst(llm):
                 (
                     "system",
                     "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
                     " will help where you left off. Execute what you can to make progress."
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. {instrument_context}",
+                    "\n{system_message}"
+                    "For your reference, the current date is {current_date}. {instrument_context}\n\n"
+                    "## Pre-loaded Context\n\n{prefetched_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
         )
 
         prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
+        prompt = prompt.partial(prefetched_context=prefetched_context)
 
-        chain = prompt | llm.bind_tools(tools)
-        result = run_tool_loop(chain, state["messages"], tools)
+        # No tools remain — use direct invocation (no bind_tools, no tool loop)
+        chain = prompt | llm
+
+        result = chain.invoke(state["messages"])
 
         report = result.content or ""
 
