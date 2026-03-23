@@ -168,6 +168,94 @@ class TestLangGraphEngineExtraction(unittest.TestCase):
         result = self.engine._map_langgraph_event("run_123", event)
         self.assertIsNone(result)
 
+    # ── _is_root_chain_end ──────────────────────────────────────────
+
+    def test_is_root_chain_end_true(self):
+        """Root graph terminal event: on_chain_end with empty parent_ids and no node."""
+        event = {
+            "event": "on_chain_end",
+            "name": "LangGraph",
+            "parent_ids": [],
+            "metadata": {},
+            "data": {"output": {"x": "final"}},
+        }
+        self.assertTrue(self.engine._is_root_chain_end(event))
+
+    def test_is_root_chain_end_false_for_node_event(self):
+        """Node on_chain_end should NOT be treated as the root graph end."""
+        event = {
+            "event": "on_chain_end",
+            "name": "geopolitical_scanner",
+            "parent_ids": ["some-parent-run-id"],
+            "metadata": {"langgraph_node": "geopolitical_scanner"},
+            "data": {"output": {"geopolitical_report": "..."}},
+        }
+        self.assertFalse(self.engine._is_root_chain_end(event))
+
+    def test_is_root_chain_end_false_for_non_chain_end(self):
+        """on_chain_start should never match."""
+        event = {
+            "event": "on_chain_start",
+            "name": "LangGraph",
+            "parent_ids": [],
+            "metadata": {},
+            "data": {},
+        }
+        self.assertFalse(self.engine._is_root_chain_end(event))
+
+    def test_is_root_chain_end_false_when_parent_ids_missing(self):
+        """If parent_ids is absent (unexpected), should not match."""
+        event = {
+            "event": "on_chain_end",
+            "name": "LangGraph",
+            "metadata": {},
+            "data": {"output": {"x": "v"}},
+        }
+        self.assertFalse(self.engine._is_root_chain_end(event))
+
+    def test_is_root_chain_end_false_when_langgraph_node_present(self):
+        """Node-level event with empty parent_ids should still not match."""
+        event = {
+            "event": "on_chain_end",
+            "name": "some_node",
+            "parent_ids": [],
+            "metadata": {"langgraph_node": "some_node"},
+            "data": {"output": {}},
+        }
+        self.assertFalse(self.engine._is_root_chain_end(event))
+
+    # ── _extract_tickers_from_scan_data ─────────────────────────────
+
+    def test_extract_tickers_list_of_dicts(self):
+        scan = {"stocks_to_investigate": [
+            {"ticker": "AAPL", "name": "Apple"},
+            {"ticker": "tsla", "sector": "EV"},
+        ]}
+        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
+
+    def test_extract_tickers_list_of_strings(self):
+        scan = {"watchlist": ["msft", "GOOG", "amzn"]}
+        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["MSFT", "GOOG", "AMZN"])
+
+    def test_extract_tickers_prefers_stocks_to_investigate(self):
+        scan = {
+            "stocks_to_investigate": [{"ticker": "NVDA"}],
+            "watchlist": [{"ticker": "AMD"}],
+        }
+        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["NVDA"])
+
+    def test_extract_tickers_deduplicates(self):
+        scan = {"stocks_to_investigate": ["AAPL", "aapl", "AAPL"]}
+        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL"])
+
+    def test_extract_tickers_empty_scan(self):
+        self.assertEqual(self.engine._extract_tickers_from_scan_data(None), [])
+        self.assertEqual(self.engine._extract_tickers_from_scan_data({}), [])
+
+    def test_extract_tickers_symbol_key_fallback(self):
+        scan = {"stocks_to_investigate": [{"symbol": "META"}]}
+        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["META"])
+
 
 if __name__ == "__main__":
     unittest.main()
