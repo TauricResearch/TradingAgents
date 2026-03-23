@@ -111,7 +111,7 @@ def check_copilot_auth() -> bool:
         )
         return resp.status_code == 200
     except requests.exceptions.RequestException:
-        return True  # Network error — accept optimistically
+        return False  # Network error should be treated as an auth failure
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
