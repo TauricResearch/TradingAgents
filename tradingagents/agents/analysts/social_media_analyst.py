@@ -13,8 +13,9 @@ def create_social_media_analyst(llm):
         # Check if bright_data vendor is configured for social sentiment
         config = get_config()
         news_vendor = config.get("data_vendors", {}).get("news_data", "")
+        news_vendors = [v.strip() for v in news_vendor.split(",")]
         tools = [get_news]
-        if "bright_data" in news_vendor:
+        if "bright_data" in news_vendors:
             tools.append(get_social_sentiment)
 
         system_message = (

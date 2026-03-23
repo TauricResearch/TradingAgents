@@ -78,13 +78,11 @@ def _serp_search(query: str, num_results: int = 10) -> list[dict]:
 
     # Parse organic results from SERP response
     # The SERP API wraps results in a "body" key as a JSON string
-    import json as _json
-
     body = data.get("body", data)
     if isinstance(body, str):
         try:
-            body = _json.loads(body)
-        except _json.JSONDecodeError:
+            body = json.loads(body)
+        except json.JSONDecodeError:
             body = data
     organic = body.get("organic", []) if isinstance(body, dict) else []
 
@@ -170,8 +168,8 @@ def _search_and_fetch(
                 if len(content) > max_content_length:
                     content = content[:max_content_length] + "\n[... truncated ...]"
                 r["content"] = content
-            except Exception:
-                r["content"] = ""
+            except Exception as e:
+                r["content"] = f"[Content fetch failed: {e}]"
 
     return results
 
