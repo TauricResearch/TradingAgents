@@ -132,12 +132,16 @@ class CopilotClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return configured ChatOpenAI instance pointed at the Copilot API."""
         token = _get_github_token()
+        if not token:
+            raise RuntimeError(
+                "No GitHub token found. Run `gh auth login` to authenticate."
+            )
         copilot_url = _get_copilot_api_url()
 
         llm_kwargs = {
             "model": self.model,
             "base_url": copilot_url,
-            "api_key": token or "copilot",
+            "api_key": token,
             "default_headers": dict(_COPILOT_HEADERS),
         }
 
