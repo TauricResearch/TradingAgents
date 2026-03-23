@@ -70,10 +70,39 @@ def _cached(key: str):
         return _cache.get(key)
 
 
-def _set_cache(key: str, data: str):
+def _set_cache(key: str, data):
     """Store data in cache (thread-safe)."""
     with _cache_lock:
         _cache[key] = data
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+def _safe_get(obj, key, default='N/A'):
+    """Get attribute from dict or object, returning default if missing or None."""
+    if isinstance(obj, dict):
+        val = obj.get(key, default)
+        return default if val is None else val
+    val = getattr(obj, key, default)
+    return default if val is None else val
+
+
+def _days_to_range(days: int) -> str:
+    """Convert a day count to a Polaris range string."""
+    if days <= 30:
+        return "1mo"
+    elif days <= 90:
+        return "3mo"
+    elif days <= 180:
+        return "6mo"
+    elif days <= 365:
+        return "1y"
+    elif days <= 730:
+        return "2y"
+    else:
+        return "5y"
 
 
 # ---------------------------------------------------------------------------
@@ -93,23 +122,10 @@ def get_stock_data(
 
     client = _get_client()
 
-    # Determine range from date span
     start = datetime.strptime(start_date, "%Y-%m-%d")
     end = datetime.strptime(end_date, "%Y-%m-%d")
     days = (end - start).days
-
-    if days <= 30:
-        range_param = "1mo"
-    elif days <= 90:
-        range_param = "3mo"
-    elif days <= 180:
-        range_param = "6mo"
-    elif days <= 365:
-        range_param = "1y"
-    elif days <= 730:
-        range_param = "2y"
-    else:
-        range_param = "5y"
+    range_param = _days_to_range(days)
 
     try:
         data = client.candles(symbol, interval="1d", range=range_param)
@@ -123,16 +139,19 @@ def get_stock_data(
     # Filter to requested date range
     candles = [c for c in candles if start_date <= c["date"] <= end_date]
 
-    # Format as CSV (matching yfinance output format)
-    header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
-    header += f"# Source: Polaris Knowledge API (multi-provider: Yahoo/TwelveData/FMP)\n"
-    header += f"# Total records: {len(candles)}\n\n"
+    lines = [
+        f"# Stock data for {symbol.upper()} from {start_date} to {end_date}",
+        f"# Source: Polaris Knowledge API (multi-provider: Yahoo/TwelveData/FMP)",
+        f"# Total records: {len(candles)}",
+        "",
+        "Date,Open,High,Low,Close,Volume",
+    ]
+    lines.extend(
+        f"{c['date']},{c['open']},{c['high']},{c['low']},{c['close']},{c['volume']}"
+        for c in candles
+    )
 
-    csv = "Date,Open,High,Low,Close,Volume\n"
-    for c in candles:
-        csv += f"{c['date']},{c['open']},{c['high']},{c['low']},{c['close']},{c['volume']}\n"
-
-    result = header + csv
+    result = "\n".join(lines) + "\n"
     _set_cache(cache_key, result)
     return result
 
@@ -169,23 +188,17 @@ def get_indicators(
     }
 
     polaris_type = indicator_map.get(indicator.lower(), indicator.lower())
+    range_param = _days_to_range(look_back_days)
 
-    # Determine range
-    if look_back_days <= 30:
-        range_param = "1mo"
-    elif look_back_days <= 90:
-        range_param = "3mo"
-    elif look_back_days <= 180:
-        range_param = "6mo"
-    else:
-        range_param = "1y"
+    known_types = {
+        "sma", "ema", "rsi", "macd", "bollinger", "atr",
+        "stochastic", "adx", "obv", "vwap", "williams_r",
+        "cci", "mfi", "roc", "ppo", "trix", "donchian",
+        "parabolic_sar", "ichimoku", "fibonacci",
+    }
 
-    # Try specific indicator first, fall back to full technicals
     try:
-        if polaris_type in ["sma", "ema", "rsi", "macd", "bollinger", "atr",
-                            "stochastic", "adx", "obv", "vwap", "williams_r",
-                            "cci", "mfi", "roc", "ppo", "trix", "donchian",
-                            "parabolic_sar", "ichimoku", "fibonacci"]:
+        if polaris_type in known_types:
             data = client.indicators(symbol, type=polaris_type, range=range_param)
         else:
             data = client.technicals(symbol, range=range_param)
@@ -194,38 +207,39 @@ def get_indicators(
 
     values = data.get("values", [])
 
-    header = f"# Technical Indicator: {indicator} for {symbol.upper()}\n"
-    header += f"# Source: Polaris Knowledge API\n"
-    header += f"# Period: {range_param} | Data points: {len(values)}\n\n"
+    lines = [
+        f"# Technical Indicator: {indicator} for {symbol.upper()}",
+        f"# Source: Polaris Knowledge API",
+        f"# Period: {range_param} | Data points: {len(values) if isinstance(values, list) else 'N/A'}",
+        "",
+    ]
 
     if isinstance(values, list) and values:
-        # Format based on indicator type
         first = values[0]
         if "value" in first:
-            csv = "Date,Value\n"
-            for v in values:
-                csv += f"{v['date']},{v['value']}\n"
+            lines.append("Date,Value")
+            lines.extend(f"{v['date']},{v.get('value', '')}" for v in values)
         elif "macd" in first:
-            csv = "Date,MACD,Signal,Histogram\n"
-            for v in values:
-                csv += f"{v['date']},{v.get('macd','')},{v.get('signal','')},{v.get('histogram','')}\n"
+            lines.append("Date,MACD,Signal,Histogram")
+            lines.extend(f"{v['date']},{v.get('macd', '')},{v.get('signal', '')},{v.get('histogram', '')}" for v in values)
         elif "upper" in first:
-            csv = "Date,Upper,Middle,Lower\n"
-            for v in values:
-                csv += f"{v['date']},{v.get('upper','')},{v.get('middle','')},{v.get('lower','')}\n"
+            lines.append("Date,Upper,Middle,Lower")
+            lines.extend(f"{v['date']},{v.get('upper', '')},{v.get('middle', '')},{v.get('lower', '')}" for v in values)
         elif "k" in first:
-            csv = "Date,K,D\n"
-            for v in values:
-                csv += f"{v['date']},{v.get('k','')},{v.get('d','')}\n"
+            lines.append("Date,K,D")
+            lines.extend(f"{v['date']},{v.get('k', '')},{v.get('d', '')}" for v in values)
         else:
-            csv = str(values)
+            # Format dict keys as CSV columns
+            keys = list(first.keys())
+            lines.append(",".join(keys))
+            lines.extend(",".join(str(v.get(k, '')) for k in keys) for v in values)
     elif isinstance(values, dict):
-        # Fibonacci or similar
-        csv = str(values)
+        for k, v in values.items():
+            lines.append(f"{k}: {v}")
     else:
-        csv = "No indicator data available"
+        lines.append("No indicator data available")
 
-    result = header + csv
+    result = "\n".join(lines) + "\n"
     _set_cache(cache_key, result)
     return result
 
@@ -260,23 +274,27 @@ def get_fundamentals(
     except Exception as e:
         return f"Error fetching fundamentals for {symbol}: {e}"
 
-    result = f"# Company Fundamentals: {data.get('company_name', symbol)}\n"
-    result += f"# Source: Polaris Knowledge API\n\n"
-    result += f"Sector: {data.get('sector', 'N/A')}\n"
-    result += f"Industry: {data.get('industry', 'N/A')}\n"
-    result += f"Market Cap: {data.get('market_cap_formatted', 'N/A')}\n"
-    result += f"P/E Ratio: {data.get('pe_ratio', 'N/A')}\n"
-    result += f"Forward P/E: {data.get('forward_pe', 'N/A')}\n"
-    result += f"EPS: {data.get('eps', 'N/A')}\n"
-    result += f"Revenue: {data.get('revenue_formatted', 'N/A')}\n"
-    result += f"EBITDA: {data.get('ebitda_formatted', 'N/A')}\n"
-    result += f"Profit Margin: {data.get('profit_margin', 'N/A')}\n"
-    result += f"Debt/Equity: {data.get('debt_to_equity', 'N/A')}\n"
-    result += f"ROE: {data.get('return_on_equity', 'N/A')}\n"
-    result += f"Beta: {data.get('beta', 'N/A')}\n"
-    result += f"52-Week High: {data.get('fifty_two_week_high', 'N/A')}\n"
-    result += f"52-Week Low: {data.get('fifty_two_week_low', 'N/A')}\n"
+    lines = [
+        f"# Company Fundamentals: {data.get('company_name', symbol)}",
+        f"# Source: Polaris Knowledge API",
+        "",
+        f"Sector: {_safe_get(data, 'sector')}",
+        f"Industry: {_safe_get(data, 'industry')}",
+        f"Market Cap: {_safe_get(data, 'market_cap_formatted')}",
+        f"P/E Ratio: {_safe_get(data, 'pe_ratio')}",
+        f"Forward P/E: {_safe_get(data, 'forward_pe')}",
+        f"EPS: {_safe_get(data, 'eps')}",
+        f"Revenue: {_safe_get(data, 'revenue_formatted')}",
+        f"EBITDA: {_safe_get(data, 'ebitda_formatted')}",
+        f"Profit Margin: {_safe_get(data, 'profit_margin')}",
+        f"Debt/Equity: {_safe_get(data, 'debt_to_equity')}",
+        f"ROE: {_safe_get(data, 'return_on_equity')}",
+        f"Beta: {_safe_get(data, 'beta')}",
+        f"52-Week High: {_safe_get(data, 'fifty_two_week_high')}",
+        f"52-Week Low: {_safe_get(data, 'fifty_two_week_low')}",
+    ]
 
+    result = "\n".join(lines) + "\n"
     _set_cache(cache_key, result)
     return result
 
@@ -285,17 +303,27 @@ def get_balance_sheet(
     symbol: Annotated[str, "ticker symbol of the company"],
 ) -> str:
     """Fetch balance sheet from Polaris."""
+    cache_key = f"balance_sheet:{symbol}"
+    cached = _cached(cache_key)
+    if cached:
+        return cached
+
     try:
         data = _get_financials_cached(symbol)
     except Exception as e:
         return f"Error fetching balance sheet for {symbol}: {e}"
 
     sheets = data.get("balance_sheets", [])
-    result = f"# Balance Sheet: {symbol.upper()}\n# Source: Polaris Knowledge API\n\n"
-    result += "Date,Total Assets,Total Liabilities,Total Equity\n"
-    for s in sheets:
-        result += f"{s['date']},{s['total_assets']},{s['total_liabilities']},{s['total_equity']}\n"
+    lines = [
+        f"# Balance Sheet: {symbol.upper()}",
+        f"# Source: Polaris Knowledge API",
+        "",
+        "Date,Total Assets,Total Liabilities,Total Equity",
+    ]
+    lines.extend(f"{s['date']},{s['total_assets']},{s['total_liabilities']},{s['total_equity']}" for s in sheets)
 
+    result = "\n".join(lines) + "\n"
+    _set_cache(cache_key, result)
     return result
 
 
@@ -303,13 +331,25 @@ def get_cashflow(
     symbol: Annotated[str, "ticker symbol of the company"],
 ) -> str:
     """Fetch cash flow data from Polaris."""
+    cache_key = f"cashflow:{symbol}"
+    cached = _cached(cache_key)
+    if cached:
+        return cached
+
     try:
         data = _get_financials_cached(symbol)
     except Exception as e:
         return f"Error fetching cashflow for {symbol}: {e}"
 
-    result = f"# Cash Flow: {symbol.upper()}\n# Source: Polaris Knowledge API\n\n"
-    result += f"Free Cash Flow: {data.get('free_cash_flow', 'N/A')}\n"
+    lines = [
+        f"# Cash Flow: {symbol.upper()}",
+        f"# Source: Polaris Knowledge API",
+        "",
+        f"Free Cash Flow: {_safe_get(data, 'free_cash_flow')}",
+    ]
+
+    result = "\n".join(lines) + "\n"
+    _set_cache(cache_key, result)
     return result
 
 
@@ -317,17 +357,27 @@ def get_income_statement(
     symbol: Annotated[str, "ticker symbol of the company"],
 ) -> str:
     """Fetch income statement from Polaris."""
+    cache_key = f"income_stmt:{symbol}"
+    cached = _cached(cache_key)
+    if cached:
+        return cached
+
     try:
         data = _get_financials_cached(symbol)
     except Exception as e:
         return f"Error fetching income statement for {symbol}: {e}"
 
     stmts = data.get("income_statements", [])
-    result = f"# Income Statement: {symbol.upper()}\n# Source: Polaris Knowledge API\n\n"
-    result += "Date,Revenue,Net Income,Gross Profit\n"
-    for s in stmts:
-        result += f"{s['date']},{s['revenue']},{s['net_income']},{s['gross_profit']}\n"
+    lines = [
+        f"# Income Statement: {symbol.upper()}",
+        f"# Source: Polaris Knowledge API",
+        "",
+        "Date,Revenue,Net Income,Gross Profit",
+    ]
+    lines.extend(f"{s['date']},{s['revenue']},{s['net_income']},{s['gross_profit']}" for s in stmts)
 
+    result = "\n".join(lines) + "\n"
+    _set_cache(cache_key, result)
     return result
 
 
@@ -355,8 +405,7 @@ def get_news(
 
     client = _get_client()
     try:
-        data = client.search(symbol, per_page=20)
-        # Handle both dict and typed response objects
+        data = client.search(symbol, per_page=20, from_date=start_date, to_date=end_date)
         if hasattr(data, '__dict__') and not isinstance(data, dict):
             data = data.__dict__ if hasattr(data, '__dict__') else {}
         if isinstance(data, dict):
@@ -366,45 +415,45 @@ def get_news(
     except Exception as e:
         return f"Error fetching news for {symbol}: {e}"
     if not briefs:
-        return f"No intelligence briefs found for {symbol}"
+        return f"No intelligence briefs found for {symbol} between {start_date} and {end_date}"
 
-    result = f"# Intelligence Briefs for {symbol.upper()}\n"
-    result += f"# Source: Polaris Knowledge API (sentiment-scored, bias-analyzed)\n"
-    result += f"# Total: {len(briefs)} briefs\n\n"
-
-    def _get(obj, key, default='N/A'):
-        """Get attribute from dict or object."""
-        if isinstance(obj, dict):
-            return obj.get(key, default)
-        return getattr(obj, key, default)
+    lines = [
+        f"# Intelligence Briefs for {symbol.upper()} ({start_date} to {end_date})",
+        f"# Source: Polaris Knowledge API (sentiment-scored, bias-analyzed)",
+        f"# Total: {len(briefs)} briefs",
+        "",
+    ]
 
     for b in briefs:
-        prov = _get(b, "provenance", {})
-        result += f"--- Brief: {_get(b, 'id', '')} ---\n"
-        result += f"Date: {_get(b, 'published_at', '')}\n"
-        result += f"Headline: {_get(b, 'headline', '')}\n"
-        result += f"Summary: {_get(b, 'summary', '')}\n"
-        result += f"Category: {_get(b, 'category', '')}\n"
-        result += f"Confidence: {_get(prov, 'confidence_score', 'N/A')}\n"
-        result += f"Bias Score: {_get(prov, 'bias_score', 'N/A')}\n"
-        result += f"Review Status: {_get(prov, 'review_status', 'N/A')}\n"
-        result += f"Sentiment: {_get(b, 'sentiment', 'N/A')}\n"
-        result += f"Impact Score: {_get(b, 'impact_score', 'N/A')}\n"
+        prov = _safe_get(b, "provenance", {})
+        if not isinstance(prov, dict):
+            prov = {}
+        lines.append(f"--- Brief: {_safe_get(b, 'id', '')} ---")
+        lines.append(f"Date: {_safe_get(b, 'published_at', '')}")
+        lines.append(f"Headline: {_safe_get(b, 'headline', '')}")
+        lines.append(f"Summary: {_safe_get(b, 'summary', '')}")
+        lines.append(f"Category: {_safe_get(b, 'category', '')}")
+        lines.append(f"Confidence: {_safe_get(prov, 'confidence_score')}")
+        lines.append(f"Bias Score: {_safe_get(prov, 'bias_score')}")
+        lines.append(f"Review Status: {_safe_get(prov, 'review_status')}")
+        lines.append(f"Sentiment: {_safe_get(b, 'sentiment')}")
+        lines.append(f"Impact Score: {_safe_get(b, 'impact_score')}")
 
-        entities = _get(b, "entities_enriched", []) or []
-        if entities:
+        entities = _safe_get(b, "entities_enriched", [])
+        if isinstance(entities, list) and entities:
             ent_str = ", ".join(
-                f"{_get(e, 'name', '?')}({_get(e, 'sentiment_score', '?')})"
-                for e in (entities[:5] if isinstance(entities, list) else [])
+                f"{_safe_get(e, 'name', '?')}({_safe_get(e, 'sentiment_score', '?')})"
+                for e in entities[:5]
             )
-            result += f"Entities: {ent_str}\n"
+            lines.append(f"Entities: {ent_str}")
 
-        ca = _get(b, "counter_argument", None)
-        if ca:
-            result += f"Counter-Argument: {str(ca)[:200]}...\n"
+        ca = _safe_get(b, "counter_argument", None)
+        if ca and ca != 'N/A':
+            lines.append(f"Counter-Argument: {str(ca)[:200]}...")
 
-        result += "\n"
+        lines.append("")
 
+    result = "\n".join(lines)
     _set_cache(cache_key, result)
     return result
 
@@ -421,7 +470,7 @@ def get_global_news(
 
     client = _get_client()
     try:
-        data = client.feed(per_page=20)
+        data = client.feed(per_page=20, from_date=start_date, to_date=end_date)
         if hasattr(data, '__dict__') and not isinstance(data, dict):
             data = data.__dict__ if hasattr(data, '__dict__') else {}
         if isinstance(data, dict):
@@ -430,32 +479,50 @@ def get_global_news(
             briefs = getattr(data, 'briefs', [])
     except Exception as e:
         return f"Error fetching global news: {e}"
-    result = f"# Global Intelligence Feed\n"
-    result += f"# Source: Polaris Knowledge API\n"
-    result += f"# Briefs: {len(briefs)}\n\n"
 
-    def _get2(obj, key, default='N/A'):
-        if isinstance(obj, dict):
-            return obj.get(key, default)
-        return getattr(obj, key, default)
-
+    # Filter to requested date range (belt-and-suspenders)
+    filtered = []
     for b in briefs:
-        prov = _get2(b, "provenance", {})
-        pub = str(_get2(b, 'published_at', ''))[:10]
-        result += f"[{pub}] [{_get2(b, 'category', '')}] "
-        result += f"{_get2(b, 'headline', '')} "
-        result += f"(confidence={_get2(prov, 'confidence_score', '?')}, "
-        result += f"bias={_get2(prov, 'bias_score', '?')}, "
-        result += f"sentiment={_get2(b, 'sentiment', '?')})\n"
+        pub = str(_safe_get(b, 'published_at', ''))[:10]
+        if pub and start_date <= pub <= end_date:
+            filtered.append(b)
+    if not filtered:
+        filtered = briefs  # Fall back to unfiltered if date parsing fails
 
+    lines = [
+        f"# Global Intelligence Feed ({start_date} to {end_date})",
+        f"# Source: Polaris Knowledge API",
+        f"# Briefs: {len(filtered)}",
+        "",
+    ]
+
+    for b in filtered:
+        prov = _safe_get(b, "provenance", {})
+        if not isinstance(prov, dict):
+            prov = {}
+        pub = str(_safe_get(b, 'published_at', ''))[:10]
+        lines.append(
+            f"[{pub}] [{_safe_get(b, 'category', '')}] "
+            f"{_safe_get(b, 'headline', '')} "
+            f"(confidence={_safe_get(prov, 'confidence_score')}, "
+            f"bias={_safe_get(prov, 'bias_score')}, "
+            f"sentiment={_safe_get(b, 'sentiment')})"
+        )
+
+    result = "\n".join(lines) + "\n"
     _set_cache(cache_key, result)
     return result
 
 
-def get_insider_transactions(
+def get_sec_filings(
     symbol: Annotated[str, "ticker symbol of the company"],
 ) -> str:
-    """Fetch SEC EDGAR earnings filings via Polaris."""
+    """Fetch SEC EDGAR earnings filings (8-K, 10-Q, 10-K) via Polaris."""
+    cache_key = f"sec_filings:{symbol}"
+    cached = _cached(cache_key)
+    if cached:
+        return cached
+
     client = _get_client()
     try:
         data = client.transcripts(symbol, days=365)
@@ -463,18 +530,29 @@ def get_insider_transactions(
         return f"Error fetching filings for {symbol}: {e}"
 
     filings = data.get("filings", [])
-    result = f"# SEC Filings for {symbol.upper()}\n"
-    result += f"# Source: Polaris Knowledge API (SEC EDGAR)\n\n"
-    result += "Date,Form,Description,URL\n"
-    for f in filings[:20]:
-        result += f"{f.get('date', '')},{f.get('form', '')},{f.get('description', '')},{f.get('filing_url', '')}\n"
+    lines = [
+        f"# SEC Filings for {symbol.upper()}",
+        f"# Source: Polaris Knowledge API (SEC EDGAR)",
+        "",
+        "Date,Form,Description,URL",
+    ]
+    lines.extend(
+        f"{_safe_get(f, 'date', '')},{_safe_get(f, 'form', '')},{_safe_get(f, 'description', '')},{_safe_get(f, 'filing_url', '')}"
+        for f in filings[:20]
+    )
 
+    result = "\n".join(lines) + "\n"
+    _set_cache(cache_key, result)
     return result
+
+
+# Keep old name as alias for backward compatibility
+get_insider_transactions = get_sec_filings
 
 
 # ---------------------------------------------------------------------------
 # Polaris-Exclusive: Sentiment & Trading Signals
-# (Not available from Yahoo Finance or Alpha Vantage)
+# (Complements price/fundamental data from yfinance and Alpha Vantage)
 # ---------------------------------------------------------------------------
 
 def get_sentiment_score(
@@ -488,7 +566,7 @@ def get_sentiment_score(
     - Coverage velocity (20% weight)
     - Event proximity (15% weight)
 
-    Not available from any other data vendor.
+    Polaris-exclusive: complements price data from other vendors with intelligence signals.
     """
     cache_key = f"sentiment:{symbol}"
     cached = _cached(cache_key)
@@ -501,24 +579,26 @@ def get_sentiment_score(
     except Exception as e:
         return f"Error fetching sentiment score for {symbol}: {e}"
 
-    result = f"# Composite Trading Signal: {symbol.upper()}\n"
-    result += f"# Source: Polaris Knowledge API (exclusive)\n\n"
-    result += f"Signal: {data.get('signal', 'N/A')}\n"
-    result += f"Composite Score: {data.get('composite_score', 'N/A')}\n\n"
-
     components = data.get("components", {})
-    sent = components.get("sentiment", {})
-    result += f"Sentiment (40%): current_24h={sent.get('current_24h')}, week_avg={sent.get('week_avg')}\n"
+    sent = components.get("sentiment", {}) or {}
+    mom = components.get("momentum", {}) or {}
+    vol = components.get("volume", {}) or {}
+    evt = components.get("events", {}) or {}
 
-    mom = components.get("momentum", {})
-    result += f"Momentum (25%): {mom.get('direction', 'N/A')} (value={mom.get('value')})\n"
+    lines = [
+        f"# Composite Trading Signal: {symbol.upper()}",
+        f"# Source: Polaris Knowledge API (exclusive)",
+        "",
+        f"Signal: {_safe_get(data, 'signal')}",
+        f"Composite Score: {_safe_get(data, 'composite_score')}",
+        "",
+        f"Sentiment (40%): current_24h={_safe_get(sent, 'current_24h')}, week_avg={_safe_get(sent, 'week_avg')}",
+        f"Momentum (25%): {_safe_get(mom, 'direction')} (value={_safe_get(mom, 'value')})",
+        f"Volume (20%): {_safe_get(vol, 'briefs_24h')} briefs/24h, velocity={_safe_get(vol, 'velocity_change_pct')}%",
+        f"Events (15%): {_safe_get(evt, 'count_7d')} events, latest={_safe_get(evt, 'latest_type')}",
+    ]
 
-    vol = components.get("volume", {})
-    result += f"Volume (20%): {vol.get('briefs_24h')} briefs/24h, velocity={vol.get('velocity_change_pct')}%\n"
-
-    evt = components.get("events", {})
-    result += f"Events (15%): {evt.get('count_7d')} events, latest={evt.get('latest_type')}\n"
-
+    result = "\n".join(lines) + "\n"
     _set_cache(cache_key, result)
     return result
 
@@ -538,13 +618,21 @@ def get_sector_analysis(
     except Exception as e:
         return f"Error fetching sector analysis for {symbol}: {e}"
 
-    result = f"# Competitor Analysis: {symbol.upper()} ({data.get('sector', 'N/A')})\n"
-    result += f"# Source: Polaris Knowledge API (exclusive)\n\n"
-    result += "Ticker,Name,Price,RSI,Sentiment_7d,Briefs_7d\n"
+    lines = [
+        f"# Competitor Analysis: {symbol.upper()} ({_safe_get(data, 'sector')})",
+        f"# Source: Polaris Knowledge API (exclusive)",
+        "",
+        "Ticker,Name,Price,RSI,Sentiment_7d,Briefs_7d",
+    ]
 
     for c in data.get("competitors", []):
-        result += f"{c.get('ticker')},{c.get('entity_name')},{c.get('price')},{c.get('rsi_14')},{c.get('sentiment_7d')},{c.get('briefs_7d')}\n"
+        lines.append(
+            f"{_safe_get(c, 'ticker')},{_safe_get(c, 'entity_name')},"
+            f"{_safe_get(c, 'price')},{_safe_get(c, 'rsi_14')},"
+            f"{_safe_get(c, 'sentiment_7d')},{_safe_get(c, 'briefs_7d')}"
+        )
 
+    result = "\n".join(lines) + "\n"
     _set_cache(cache_key, result)
     return result
 
@@ -564,19 +652,126 @@ def get_news_impact(
     except Exception as e:
         return f"Error fetching news impact for {symbol}: {e}"
 
-    result = f"# News Impact Analysis: {symbol.upper()}\n"
-    result += f"# Source: Polaris Knowledge API (exclusive)\n\n"
-    result += f"Briefs Analyzed: {data.get('briefs_analyzed', 0)}\n"
-    result += f"Avg 1-Day Impact: {data.get('avg_impact_1d_pct', 'N/A')}%\n"
-    result += f"Avg 3-Day Impact: {data.get('avg_impact_3d_pct', 'N/A')}%\n\n"
+    best = data.get("best_impact", {}) or {}
+    worst = data.get("worst_impact", {}) or {}
 
-    best = data.get("best_impact", {})
+    lines = [
+        f"# News Impact Analysis: {symbol.upper()}",
+        f"# Source: Polaris Knowledge API (exclusive)",
+        "",
+        f"Briefs Analyzed: {_safe_get(data, 'briefs_analyzed', 0)}",
+        f"Avg 1-Day Impact: {_safe_get(data, 'avg_impact_1d_pct')}%",
+        f"Avg 3-Day Impact: {_safe_get(data, 'avg_impact_3d_pct')}%",
+        "",
+    ]
+
     if best:
-        result += f"Best Impact: {best.get('headline', '')[:60]} (+{best.get('impact_1d_pct')}%)\n"
-
-    worst = data.get("worst_impact", {})
+        lines.append(f"Best Impact: {_safe_get(best, 'headline', '')[:60]} (+{_safe_get(best, 'impact_1d_pct')}%)")
     if worst:
-        result += f"Worst Impact: {worst.get('headline', '')[:60]} ({worst.get('impact_1d_pct')}%)\n"
+        lines.append(f"Worst Impact: {_safe_get(worst, 'headline', '')[:60]} ({_safe_get(worst, 'impact_1d_pct')}%)")
 
+    result = "\n".join(lines) + "\n"
+    _set_cache(cache_key, result)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Polaris-Exclusive: Technical Analysis & Competitive Intelligence
+# (Phase 2 — additional intelligence capabilities)
+# ---------------------------------------------------------------------------
+
+def get_technicals(
+    symbol: Annotated[str, "ticker symbol of the company"],
+) -> str:
+    """Get full technical analysis with 20 indicators and buy/sell/neutral signal.
+
+    Returns all indicators at once: SMA, EMA, RSI, MACD, Bollinger, ATR,
+    Stochastic, ADX, OBV, VWAP, Williams %R, CCI, MFI, ROC, and more.
+    Includes a composite signal summary with buy/sell/neutral recommendation.
+
+    Polaris-exclusive: complements price data from other vendors with intelligence signals.
+    """
+    cache_key = f"technicals:{symbol}"
+    cached = _cached(cache_key)
+    if cached:
+        return cached
+
+    client = _get_client()
+    try:
+        data = client.technicals(symbol, range="6mo")
+    except Exception as e:
+        return f"Error fetching technicals for {symbol}: {e}"
+
+    latest = data.get("latest", {}) or {}
+    signal = data.get("signal_summary", {}) or {}
+
+    lines = [
+        f"# Technical Analysis: {symbol.upper()}",
+        f"# Source: Polaris Knowledge API (exclusive — 20 indicators)",
+        "",
+        f"Signal: {_safe_get(signal, 'overall', 'N/A').upper()}",
+        f"Buy signals: {_safe_get(signal, 'buy_count', 0)} | Sell signals: {_safe_get(signal, 'sell_count', 0)} | Neutral: {_safe_get(signal, 'neutral_count', 0)}",
+        "",
+        f"Price: {_safe_get(latest, 'price')}",
+        f"RSI(14): {_safe_get(latest, 'rsi_14')}",
+        f"MACD: {_safe_get(latest.get('macd', {}), 'macd')} (signal={_safe_get(latest.get('macd', {}), 'signal')}, hist={_safe_get(latest.get('macd', {}), 'histogram')})",
+        f"SMA(20): {_safe_get(latest, 'sma_20')} | SMA(50): {_safe_get(latest, 'sma_50')}",
+        f"EMA(12): {_safe_get(latest, 'ema_12')} | EMA(26): {_safe_get(latest, 'ema_26')}",
+        f"Bollinger: upper={_safe_get(latest.get('bollinger', {}), 'upper')}, middle={_safe_get(latest.get('bollinger', {}), 'middle')}, lower={_safe_get(latest.get('bollinger', {}), 'lower')}",
+        f"ATR(14): {_safe_get(latest, 'atr_14')}",
+        f"Stochastic: K={_safe_get(latest.get('stochastic', {}), 'k')}, D={_safe_get(latest.get('stochastic', {}), 'd')}",
+        f"ADX(14): {_safe_get(latest, 'adx_14')}",
+        f"Williams %R(14): {_safe_get(latest, 'williams_r_14')}",
+        f"CCI(20): {_safe_get(latest, 'cci_20')}",
+        f"MFI(14): {_safe_get(latest, 'mfi_14')}",
+        f"ROC(12): {_safe_get(latest, 'roc_12')}",
+        f"OBV: {_safe_get(latest, 'obv')}",
+        f"VWAP: {_safe_get(latest, 'vwap')}",
+    ]
+
+    result = "\n".join(lines) + "\n"
+    _set_cache(cache_key, result)
+    return result
+
+
+def get_competitors(
+    symbol: Annotated[str, "ticker symbol of the company"],
+) -> str:
+    """Get same-sector peers with live price, RSI, sentiment, and news coverage.
+
+    Returns competitors ranked by relevance with real-time data for
+    relative analysis and sector positioning.
+
+    Polaris-exclusive: complements price data from other vendors with intelligence signals.
+    """
+    cache_key = f"peer_analysis:{symbol}"
+    cached = _cached(cache_key)
+    if cached:
+        return cached
+
+    client = _get_client()
+    try:
+        data = client.competitors(symbol)
+    except Exception as e:
+        return f"Error fetching competitors for {symbol}: {e}"
+
+    peers = data.get("competitors", [])
+    lines = [
+        f"# Peer Analysis: {symbol.upper()} ({_safe_get(data, 'sector')})",
+        f"# Source: Polaris Knowledge API (exclusive)",
+        f"# Peers: {len(peers)}",
+        "",
+        "Ticker,Name,Price,Change%,RSI(14),Sentiment_7d,Briefs_7d,Signal",
+    ]
+
+    for c in peers:
+        lines.append(
+            f"{_safe_get(c, 'ticker')},{_safe_get(c, 'entity_name')},"
+            f"${_safe_get(c, 'price')},{_safe_get(c, 'change_pct')}%,"
+            f"{_safe_get(c, 'rsi_14')},{_safe_get(c, 'sentiment_7d')},"
+            f"{_safe_get(c, 'briefs_7d')},{_safe_get(c, 'signal', 'N/A')}"
+        )
+
+    result = "\n".join(lines) + "\n"
     _set_cache(cache_key, result)
     return result

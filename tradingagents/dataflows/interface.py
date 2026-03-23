@@ -36,6 +36,8 @@ from .polaris import (
     get_sentiment_score as get_polaris_sentiment_score,
     get_sector_analysis as get_polaris_sector_analysis,
     get_news_impact as get_polaris_news_impact,
+    get_technicals as get_polaris_technicals,
+    get_competitors as get_polaris_competitors,
 )
 
 # Configuration and routing logic
@@ -148,6 +150,12 @@ VENDOR_METHODS = {
     },
     "get_news_impact": {
         "polaris": get_polaris_news_impact,
+    },
+    "get_technicals": {
+        "polaris": get_polaris_technicals,
+    },
+    "get_competitors": {
+        "polaris": get_polaris_competitors,
     },
 }
 
