@@ -375,7 +375,7 @@ def perform_copilot_oauth() -> bool:
 
     Returns True if a valid token with Copilot access is available, False otherwise.
     """
-    from tradingagents.llm_clients.copilot_client import check_copilot_auth, _get_github_token
+    from tradingagents.llm_clients.copilot_client import check_copilot_auth, get_github_token
 
     token = _get_github_token()
     if token:
