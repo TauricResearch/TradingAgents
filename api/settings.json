@@ -1,0 +1,7 @@
+{
+  "deep_think_llm": "claude-opus-4-6",
+  "quick_think_llm": "claude-haiku-4-5-20251001",
+  "llm_provider": "anthropic",
+  "max_debate_rounds": 2,
+  "max_risk_discuss_rounds": 2
+}

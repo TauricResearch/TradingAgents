@@ -1,0 +1,249 @@
+@import "tailwindcss";
+
+/* ─── APEX Design Tokens ────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-base:     #040C1A;
+  --bg-surface:  #070F1C;
+  --bg-card:     #0C1628;
+  --bg-elevated: #121E30;
+  --bg-hover:    #182338;
+  --bg-active:   #1E2E42;
+  --bg-sidebar:  #030810;
+
+  /* Borders */
+  --border:        rgba(82, 122, 196, 0.10);
+  --border-raised: rgba(82, 122, 196, 0.18);
+  --border-active: rgba(68, 128, 255, 0.40);
+  --border-accent: rgba(68, 128, 255, 0.60);
+
+  /* Text */
+  --text-high:   #E0E8FF;
+  --text-mid:    #7A8FAD;
+  --text-low:    #354869;
+  --text-faint:  #1C2A40;
+
+  /* Accent Blue */
+  --accent:       #4480FF;
+  --accent-light: #8AAFFF;
+  --accent-dim:   #1A3A88;
+  --accent-glow:  rgba(68, 128, 255, 0.14);
+  --accent-glow2: rgba(68, 128, 255, 0.06);
+
+  /* Semantic */
+  --buy:      #00CE68;
+  --buy-bg:   rgba(0, 206, 104, 0.08);
+  --buy-ring: rgba(0, 206, 104, 0.25);
+  --sell:     #FF3355;
+  --sell-bg:  rgba(255, 51, 85, 0.08);
+  --sell-ring:rgba(255, 51, 85, 0.25);
+  --hold:     #F59E0B;
+  --hold-bg:  rgba(245, 158, 11, 0.08);
+  --hold-ring:rgba(245, 158, 11, 0.25);
+  --error:    #FF4444;
+  --error-bg: rgba(255, 68, 68, 0.08);
+
+  /* Status */
+  --status-running: #F59E0B;
+  --status-done:    #4480FF;
+  --status-pending: #1C2A40;
+}
+
+/* ─── Animations ─────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.9;  }
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  50%       { box-shadow: 0 0 0 6px var(--accent-glow); }
+}
+
+@keyframes scan-line {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(200%);  }
+}
+
+/* ─── Base ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  background-color: var(--bg-base);
+  color: var(--text-high);
+  font-family: var(--font-manrope, 'Manrope'), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* ─── Typography ─────────────────────────────────────────────────── */
+.apex-display {
+  font-family: var(--font-manrope, 'Manrope'), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-high);
+}
+
+.apex-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+  font-family: var(--font-manrope, 'Manrope'), sans-serif;
+}
+
+/* ─── Cards ──────────────────────────────────────────────────────── */
+.apex-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.apex-card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-raised);
+  border-radius: 10px;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────── */
+.btn-primary {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  border-radius: 8px;
+  padding: 9px 20px;
+  transition: background 0.15s, opacity 0.15s, box-shadow 0.15s;
+  font-family: var(--font-manrope, 'Manrope'), sans-serif;
+  cursor: pointer;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+  pointer-events: none;
+}
+.btn-primary:hover {
+  background: #5590FF;
+  box-shadow: 0 4px 16px rgba(68,128,255,0.35);
+}
+.btn-primary:active { opacity: 0.85; }
+.btn-primary:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-mid);
+  font-weight: 500;
+  font-size: 13px;
+  border: 1px solid var(--border-raised);
+  border-radius: 8px;
+  padding: 8px 16px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  font-family: var(--font-manrope, 'Manrope'), sans-serif;
+  cursor: pointer;
+}
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  color: var(--text-high);
+  border-color: var(--border-active);
+}
+
+/* backwards compat aliases */
+.btn-ghost { @apply btn-secondary; }
+
+/* ─── Inputs ─────────────────────────────────────────────────────── */
+.vault-input {
+  width: 100%;
+  background: var(--bg-elevated);
+  color: var(--text-high);
+  font-size: 13px;
+  border: 1px solid var(--border-raised);
+  border-radius: 6px;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  font-family: var(--font-manrope, 'Manrope'), sans-serif;
+}
+.vault-input::placeholder { color: var(--text-low); }
+.vault-input:focus {
+  border-color: var(--border-active);
+  background: var(--bg-hover);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.vault-input option { background: var(--bg-elevated); }
+
+/* ─── Badges ─────────────────────────────────────────────────────── */
+.badge-buy {
+  display: inline-flex; align-items: center;
+  background: var(--buy-bg);
+  color: var(--buy);
+  border: 1px solid var(--buy-ring);
+  font-size: 11px; font-weight: 700;
+  padding: 2px 9px; border-radius: 99px;
+  letter-spacing: 0.04em;
+  font-family: var(--font-manrope, 'Manrope'), sans-serif;
+}
+.badge-sell {
+  display: inline-flex; align-items: center;
+  background: var(--sell-bg);
+  color: var(--sell);
+  border: 1px solid var(--sell-ring);
+  font-size: 11px; font-weight: 700;
+  padding: 2px 9px; border-radius: 99px;
+  letter-spacing: 0.04em;
+  font-family: var(--font-manrope, 'Manrope'), sans-serif;
+}
+.badge-hold {
+  display: inline-flex; align-items: center;
+  background: var(--hold-bg);
+  color: var(--hold);
+  border: 1px solid var(--hold-ring);
+  font-size: 11px; font-weight: 700;
+  padding: 2px 9px; border-radius: 99px;
+  letter-spacing: 0.04em;
+  font-family: var(--font-manrope, 'Manrope'), sans-serif;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-raised); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
+
+/* ─── Selection ──────────────────────────────────────────────────── */
+::selection { background: var(--accent-glow); color: var(--text-high); }
+
+/* ─── Fade animations for components ────────────────────────────── */
+.animate-fade-up { animation: fadeUp 0.3s ease-out both; }
+.animate-fade-in { animation: fadeIn 0.25s ease-out both; }
+.animate-shimmer { animation: shimmer 1.6s ease-in-out infinite; }

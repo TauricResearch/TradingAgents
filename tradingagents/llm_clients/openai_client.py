@@ -6,6 +6,28 @@ from langchain_openai import ChatOpenAI
 from .base_client import BaseLLMClient
 from .validators import validate_model
 
+
+class NormalizedChatOpenAI(ChatOpenAI):
+    """ChatOpenAI with normalized content output.
+
+    Some OpenAI-compatible providers (e.g. Responses API) can return content
+    as a list of content blocks. This normalizes to a plain string.
+    """
+
+    def _normalize_content(self, response):
+        content = response.content
+        if isinstance(content, list):
+            texts = [
+                item.get("text", "") if isinstance(item, dict) and item.get("type") == "text"
+                else item if isinstance(item, str) else ""
+                for item in content
+            ]
+            response.content = "\n".join(t for t in texts if t)
+        return response
+
+    def invoke(self, input, config=None, **kwargs):
+        return self._normalize_content(super().invoke(input, config, **kwargs))
+
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",
@@ -66,7 +88,7 @@ class OpenAIClient(BaseLLMClient):
         if self.provider == "openai":
             llm_kwargs["use_responses_api"] = True
 
-        return ChatOpenAI(**llm_kwargs)
+        return NormalizedChatOpenAI(**llm_kwargs)
 
     def validate_model(self) -> bool:
         """Validate model for the provider."""

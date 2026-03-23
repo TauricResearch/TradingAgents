@@ -1,0 +1,31 @@
+{
+  "name": "tradingagents",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">\r   <img src=\"assets/TauricResearch.png\" style=\"width: 60%; height: auto;\">\r </p>",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "concurrently \"venv\\\\Scripts\\\\python.exe -m uvicorn api.main:app --reload --port 8000\" \"cd ui && npm run dev\"",
+    "dev:api": "venv\\Scripts\\python.exe -m uvicorn api.main:app --reload --port 8000",
+    "dev:ui": "cd ui && npm run dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TauricResearch/TradingAgents.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/TauricResearch/TradingAgents/issues"
+  },
+  "homepage": "https://github.com/TauricResearch/TradingAgents#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

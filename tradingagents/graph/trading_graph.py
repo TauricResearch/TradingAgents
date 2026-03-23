@@ -3,10 +3,13 @@
 import os
 import sqlite3
 import hashlib
+import logging
 from pathlib import Path
 import json
 from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
+
+logger = logging.getLogger(__name__)
 
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -41,6 +44,24 @@ from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
+
+
+_NODE_TO_STEP = {
+    "Market Analyst":       "market_analyst",
+    "News Analyst":         "news_analyst",
+    "Fundamentals Analyst": "fundamentals_analyst",
+    "Social Analyst":       "social_analyst",
+    "Bull Researcher":      "bull_researcher",
+    "Bear Researcher":      "bear_researcher",
+    "Research Manager":     "research_manager",
+    "Trader":               "trader",
+    "Aggressive Analyst":   "aggressive_analyst",
+    "Conservative Analyst": "conservative_analyst",
+    "Neutral Analyst":      "neutral_analyst",
+    "Risk Judge":           "risk_judge",
+}
+
+_SKIP_NODES = {"tools_market", "tools_news", "tools_fundamentals", "tools_social"}
 
 
 class TradingAgentsGraph:
@@ -285,6 +306,95 @@ class TradingAgentsGraph:
 
         # Return decision and processed signal
         return final_state, self.process_signal(final_state["final_trade_decision"])
+
+    @staticmethod
+    def _extract_report(step_key: str, update: dict) -> str:
+        """Extract the relevant report string from a node's state update."""
+        extractors = {
+            "market_analyst":       lambda u: u.get("market_report", ""),
+            "news_analyst":         lambda u: u.get("news_report", ""),
+            "fundamentals_analyst": lambda u: u.get("fundamentals_report", ""),
+            "social_analyst":       lambda u: u.get("sentiment_report", ""),
+            "bull_researcher":      lambda u: (u.get("investment_debate_state") or {}).get("bull_history", ""),
+            "bear_researcher":      lambda u: (u.get("investment_debate_state") or {}).get("bear_history", ""),
+            "research_manager":     lambda u: u.get("investment_plan", ""),
+            "trader":               lambda u: u.get("trader_investment_plan", ""),
+            "aggressive_analyst":   lambda u: (u.get("risk_debate_state") or {}).get("current_aggressive_response", ""),
+            "conservative_analyst": lambda u: (u.get("risk_debate_state") or {}).get("current_conservative_response", ""),
+            "neutral_analyst":      lambda u: (u.get("risk_debate_state") or {}).get("current_neutral_response", ""),
+            "risk_judge":           lambda u: (u.get("risk_debate_state") or {}).get("judge_decision", ""),
+        }
+        return extractors[step_key](update) or ""
+
+    def stream_propagate(self, company_name: str, trade_date: str, thread_id=None):
+        """Stream trading analysis events as each agent node completes.
+
+        Yields:
+            (step_key, report) tuples for each meaningful node completion.
+
+        After the generator is exhausted, self._last_decision is set to the
+        normalized decision string ("BUY", "SELL", or "HOLD").
+        """
+        self.ticker = company_name
+        self._last_decision = None
+
+        if thread_id is None:
+            payload = json.dumps(
+                {
+                    "ticker": company_name.strip().upper(),
+                    "trade_date": str(trade_date),
+                    "analysts": sorted(self.selected_analysts),
+                    "llm_provider": self.config.get("llm_provider"),
+                    "deep_think_llm": self.config.get("deep_think_llm"),
+                    "quick_think_llm": self.config.get("quick_think_llm"),
+                    "max_debate_rounds": self.config.get("max_debate_rounds"),
+                    "max_risk_discuss_rounds": self.config.get("max_risk_discuss_rounds"),
+                },
+                sort_keys=True,
+            ).encode()
+            thread_id = "ta_prog_" + hashlib.sha256(payload).hexdigest()[:24]
+
+        init_agent_state = self.propagator.create_initial_state(company_name, trade_date)
+        args = self.propagator.get_graph_args(thread_id=thread_id)
+        args["stream_mode"] = "updates"  # stream per-node deltas, not full state snapshots
+
+        thread_config = {"configurable": {"thread_id": thread_id}}
+        snap = self.graph.get_state(thread_config)
+        stream_input = None if snap.next else init_agent_state
+
+        for chunk in self.graph.stream(stream_input, **args):
+            node_name, update = next(iter(chunk.items()))
+
+            # Filter: skip list first, then known nodes, else warn and skip
+            if node_name in _SKIP_NODES or node_name.startswith("Msg Clear"):
+                continue
+            if node_name not in _NODE_TO_STEP:
+                logger.warning("stream_propagate: unknown node '%s' — skipping", node_name)
+                continue
+
+            step_key = _NODE_TO_STEP[node_name]
+            report = TradingAgentsGraph._extract_report(step_key, update)
+
+            yield step_key, report
+
+        # Post-loop: fetch the complete final state snapshot (all fields populated).
+        # stream_mode="updates" gives only deltas — use get_state() for the full picture
+        # needed by _log_state and process_signal.
+        final_snap = self.graph.get_state(thread_config)
+        final_state = final_snap.values if hasattr(final_snap, "values") else {}
+
+        raw_signal = final_state.get("final_trade_decision", "")
+        try:
+            raw_decision = self.process_signal(raw_signal)
+            decision = raw_decision.strip().upper()
+            if decision not in {"BUY", "SELL", "HOLD"}:
+                logger.warning("stream_propagate: unexpected decision '%s' — defaulting to HOLD", decision)
+                decision = "HOLD"
+        except Exception:
+            raise  # propagate to run_service for run:error handling
+
+        self._last_decision = decision
+        self._log_state(trade_date, final_state)
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""

@@ -6,6 +6,28 @@ from .base_client import BaseLLMClient
 from .validators import validate_model
 
 
+class NormalizedChatAnthropic(ChatAnthropic):
+    """ChatAnthropic with normalized content output.
+
+    Newer Claude models can return content as a list of content blocks.
+    This normalizes to a plain string for consistent downstream handling.
+    """
+
+    def _normalize_content(self, response):
+        content = response.content
+        if isinstance(content, list):
+            texts = [
+                item.get("text", "") if isinstance(item, dict) and item.get("type") == "text"
+                else item if isinstance(item, str) else ""
+                for item in content
+            ]
+            response.content = "\n".join(t for t in texts if t)
+        return response
+
+    def invoke(self, input, config=None, **kwargs):
+        return self._normalize_content(super().invoke(input, config, **kwargs))
+
+
 class AnthropicClient(BaseLLMClient):
     """Client for Anthropic Claude models."""
 
@@ -20,7 +42,7 @@ class AnthropicClient(BaseLLMClient):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
-        return ChatAnthropic(**llm_kwargs)
+        return NormalizedChatAnthropic(**llm_kwargs)
 
     def validate_model(self) -> bool:
         """Validate model for Anthropic."""

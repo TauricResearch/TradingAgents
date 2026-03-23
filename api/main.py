@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routers import runs, settings
@@ -11,5 +14,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(runs.router, prefix="/runs", tags=["runs"])
-app.include_router(settings.router, prefix="/settings", tags=["settings"])
+app.include_router(runs.router, prefix="/api/runs", tags=["runs"])
+app.include_router(settings.router, prefix="/api/settings", tags=["settings"])

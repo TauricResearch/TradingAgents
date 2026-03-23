@@ -38,3 +38,6 @@ tradingagents = "cli.main:app"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
