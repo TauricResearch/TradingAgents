@@ -158,6 +158,36 @@ An interface will appear showing results as they load, letting you track the age
   <img src="assets/cli/cli_transaction.png" width="100%" style="display: inline-block; margin: 0 2%;">
 </p>
 
+### Web API + React Frontend
+
+The existing CLI remains unchanged. You can now also run TradingAgents through a lightweight HTTP API and a React frontend.
+
+Start the API server:
+```bash
+uvicorn tradingagents.api.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+In another terminal, start the frontend:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser.
+
+API endpoints:
+- `GET /api/health`
+- `GET /api/options`
+- `POST /api/analysis/jobs`
+- `GET /api/analysis/jobs/{job_id}`
+
+The frontend defaults to `http://127.0.0.1:8000` for API calls.
+Override with:
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev
+```
+
 ## TradingAgents Package
 
 ### Implementation Details

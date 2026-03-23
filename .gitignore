@@ -217,3 +217,7 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/

@@ -12,6 +12,7 @@ dependencies = [
     "langchain-core>=0.3.81",
     "backtrader>=1.9.78.123",
     "chainlit>=2.5.5",
+    "fastapi>=0.118.0",
     "langchain-anthropic>=0.3.15",
     "langchain-experimental>=0.3.4",
     "langchain-google-genai>=2.1.5",
@@ -30,6 +31,7 @@ dependencies = [
     "stockstats>=0.6.5",
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
+    "uvicorn>=0.37.0",
     "yfinance>=0.2.63",
 ]
 

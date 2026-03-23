@@ -1,0 +1,1 @@
+I apologize, but "gold" is not a valid ticker symbol. Could you please provide the correct ticker symbol for the company you would like me to analyze?
