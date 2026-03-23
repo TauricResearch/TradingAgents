@@ -64,6 +64,35 @@ class ReportStore:
         """
         return self._base_dir / "daily" / date / "portfolio"
 
+    @staticmethod
+    def _sanitize(obj: Any) -> Any:
+        """Recursively convert non-JSON-serializable objects to safe types.
+
+        Handles LangChain message objects (``HumanMessage``, ``AIMessage``,
+        etc.) that appear in LangGraph state dicts, as well as any other
+        arbitrary objects that are not natively JSON-serializable.
+        """
+        if obj is None or isinstance(obj, (bool, int, float, str)):
+            return obj
+        if isinstance(obj, dict):
+            return {k: ReportStore._sanitize(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [ReportStore._sanitize(item) for item in obj]
+        # LangChain BaseMessage objects expose .type and .content
+        if hasattr(obj, "type") and hasattr(obj, "content"):
+            try:
+                if hasattr(obj, "dict") and callable(obj.dict):
+                    return ReportStore._sanitize(obj.dict())
+            except Exception:
+                pass
+            return {"type": str(obj.type), "content": str(obj.content)}
+        # Generic fallback: try a serialization probe first
+        try:
+            json.dumps(obj)
+            return obj
+        except (TypeError, ValueError):
+            return str(obj)
+
     def _write_json(self, path: Path, data: dict[str, Any]) -> Path:
         """Write a dict to a JSON file, creating parent directories as needed.
 
@@ -79,7 +108,8 @@ class ReportStore:
         """
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            sanitized = self._sanitize(data)
+            path.write_text(json.dumps(sanitized, indent=2), encoding="utf-8")
             return path
         except OSError as exc:
             raise ReportStoreError(f"Failed to write {path}: {exc}") from exc
