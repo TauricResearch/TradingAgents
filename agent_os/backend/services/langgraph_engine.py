@@ -112,6 +112,12 @@ class LangGraphEngine:
         return event.get("name", "unknown")
 
     @staticmethod
+    def _extract_content(obj: object) -> str:
+        """Safely extract text content from a LangChain message or plain object."""
+        content = getattr(obj, "content", None)
+        return str(content) if content is not None else str(obj)
+
+    @staticmethod
     def _truncate(text: str, max_len: int = _MAX_CONTENT_LEN) -> str:
         if len(text) <= max_len:
             return text
@@ -128,6 +134,24 @@ class LangGraphEngine:
             "message": message,
             "metrics": {},
         }
+
+    @staticmethod
+    def _first_message_content(messages: Any) -> str:
+        """Extract content from the first message in a LangGraph messages payload.
+
+        ``messages`` may be a flat list of message objects or a list-of-lists.
+        Returns an empty string when extraction fails.
+        """
+        if not isinstance(messages, list) or not messages:
+            return ""
+        first_item = messages[0]
+        # Handle list-of-lists (nested batches)
+        if isinstance(first_item, list):
+            if not first_item:
+                return ""
+            first_item = first_item[0]
+        content = getattr(first_item, "content", None)
+        return str(content) if content is not None else str(first_item)
 
     def _map_langgraph_event(
         self, run_id: str, event: Dict[str, Any]
@@ -147,13 +171,9 @@ class LangGraphEngine:
             prompt_snippet = ""
             messages = (event.get("data") or {}).get("messages")
             if messages:
-                # messages may be a list of lists or a list of message objects
-                flat = messages if not isinstance(messages, list) else messages
-                if isinstance(flat, list) and flat:
-                    first = flat[0] if not isinstance(flat[0], list) else (flat[0][0] if flat[0] else None)
-                    if first is not None:
-                        content = getattr(first, "content", str(first))
-                        prompt_snippet = self._truncate(str(content))
+                raw = self._first_message_content(messages)
+                if raw:
+                    prompt_snippet = self._truncate(raw)
 
             model = "unknown"
             inv_params = (event.get("data") or {}).get("invocation_params") or {}
@@ -199,8 +219,7 @@ class LangGraphEngine:
             tool_output = ""
             out = (event.get("data") or {}).get("output")
             if out is not None:
-                content = getattr(out, "content", str(out))
-                tool_output = self._truncate(str(content))
+                tool_output = self._truncate(self._extract_content(out))
 
             logger.info("Tool end tool=%s node=%s run=%s", name, node_name, run_id)
 
@@ -227,9 +246,9 @@ class LangGraphEngine:
                     usage = output.usage_metadata
                 if hasattr(output, "response_metadata") and output.response_metadata:
                     model = output.response_metadata.get("model_name", model)
-                content = getattr(output, "content", "")
-                if content:
-                    response_snippet = self._truncate(str(content))
+                raw = self._extract_content(output)
+                if raw:
+                    response_snippet = self._truncate(raw)
 
             latency_ms = 0
             start_t = starts.pop(node_name, None)
