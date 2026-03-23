@@ -5,13 +5,25 @@ import RunHistoryTable from '@/features/history/components/RunHistoryTable'
 
 export default function HistoryPage() {
   const { runs, loading, error } = useRunHistory()
+
   return (
     <div className="max-w-4xl animate-fade-up">
-      <div className="flex items-center justify-between mb-8">
+      {/* Header */}
+      <div className="flex items-end justify-between mb-8 gap-4">
         <div>
+          <div className="apex-label mb-3" style={{ color: 'var(--accent)', opacity: 0.7 }}>
+            Execution Log
+          </div>
           <h1
-            className="text-2xl font-bold mb-1"
-            style={{ color: 'var(--text-high)', fontFamily: 'var(--font-manrope)' }}
+            style={{
+              fontFamily: 'var(--font-syne)',
+              fontSize: '32px',
+              fontWeight: 800,
+              letterSpacing: '-0.04em',
+              color: 'var(--text-high)',
+              lineHeight: 1.1,
+              marginBottom: '8px',
+            }}
           >
             Run History
           </h1>
@@ -19,21 +31,40 @@ export default function HistoryPage() {
             Comprehensive log of all agent execution cycles
           </p>
         </div>
-        <Link href="/new-run" className="btn-primary px-5 py-2.5 text-sm">
-          + New Analysis
+
+        <Link href="/new-run" className="btn-primary shrink-0">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <polygon points="2.5,2 9,5.5 2.5,9" fill="var(--bg-base)"/>
+          </svg>
+          New Analysis
         </Link>
       </div>
 
       {loading && (
-        <p className="text-sm" style={{ color: 'var(--text-mid)' }}>
-          Loading...
-        </p>
+        <div className="flex items-center gap-2.5 py-8" style={{ color: 'var(--text-mid)' }}>
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{ background: 'var(--accent)', animation: 'shimmer 1s infinite' }}
+          />
+          <span className="text-sm" style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', letterSpacing: '0.04em' }}>
+            Loading runs…
+          </span>
+        </div>
       )}
+
       {error && (
-        <p className="text-sm" style={{ color: 'var(--error)' }}>
+        <div
+          className="px-4 py-3 rounded-xl text-sm"
+          style={{
+            background: 'var(--error-bg)',
+            color: 'var(--error)',
+            border: '1px solid rgba(255,43,62,0.25)',
+          }}
+        >
           {error}
-        </p>
+        </div>
       )}
+
       {!loading && <RunHistoryTable runs={runs} />}
     </div>
   )

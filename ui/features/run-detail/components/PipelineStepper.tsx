@@ -6,11 +6,12 @@ type Phase = 'analysts' | 'researchers' | 'trader' | 'risk'
 type Props = { steps: Record<string, StepStatus> }
 
 const PHASES: Phase[] = ['analysts', 'researchers', 'trader', 'risk']
-const PHASE_LABELS: Record<Phase, string> = {
-  analysts: 'Analysts', researchers: 'Researchers', trader: 'Trader', risk: 'Risk',
-}
-const PHASE_NUMS: Record<Phase, string> = {
-  analysts: '01', researchers: '02', trader: '03', risk: '04',
+
+const PHASE_META: Record<Phase, { label: string; code: string; desc: string }> = {
+  analysts:    { label: 'Analysis',    code: 'PHASE-01', desc: 'Market data & signals'   },
+  researchers: { label: 'Research',    code: 'PHASE-02', desc: 'Bull/bear debate'         },
+  trader:      { label: 'Trade Plan',  code: 'PHASE-03', desc: 'Strategy formulation'     },
+  risk:        { label: 'Risk Review', code: 'PHASE-04', desc: 'Risk-adjusted decision'   },
 }
 
 function phaseStatus(phase: Phase, steps: Record<string, StepStatus>): StepStatus {
@@ -21,112 +22,190 @@ function phaseStatus(phase: Phase, steps: Record<string, StepStatus>): StepStatu
 }
 
 export default function PipelineStepper({ steps }: Props) {
+  const doneCount = PHASES.filter((p) => phaseStatus(p, steps) === 'done').length
+  const progressPct = (doneCount / PHASES.length) * 100
+
   return (
     <div
-      className="px-6 py-5"
+      className="relative overflow-hidden"
       style={{
-        background:   'var(--bg-card)',
-        border:       '1px solid var(--border)',
-        borderRadius: '10px',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: '14px',
+        padding: '20px 24px',
       }}
     >
-      <div
-        className="apex-label mb-4"
-      >
-        Pipeline
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="apex-label">Agent Pipeline</div>
+        <div
+          className="flex items-center gap-2"
+          style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-mid)', letterSpacing: '0.06em' }}
+        >
+          <span style={{ color: 'var(--accent)' }}>{doneCount}</span>
+          <span style={{ color: 'var(--text-low)' }}>/</span>
+          <span>{PHASES.length}</span>
+          <span style={{ color: 'var(--text-low)', marginLeft: 4 }}>PHASES</span>
+        </div>
       </div>
-      <div className="flex items-center gap-0">
+
+      {/* Progress track */}
+      <div
+        className="relative h-1 rounded-full mb-6 overflow-hidden"
+        style={{ background: 'var(--border-raised)' }}
+      >
+        <div
+          className="absolute left-0 top-0 h-full rounded-full transition-all duration-700"
+          style={{
+            width: `${progressPct}%`,
+            background: 'linear-gradient(90deg, var(--accent-dim), var(--accent))',
+            boxShadow: '0 0 8px var(--accent-glow)',
+          }}
+        >
+          {/* Moving glow tip */}
+          {progressPct > 0 && progressPct < 100 && (
+            <div
+              className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
+              style={{
+                background: 'var(--accent)',
+                boxShadow: '0 0 8px var(--accent)',
+                animation: 'pulse-glow 1.5s ease-in-out infinite',
+              }}
+            />
+          )}
+        </div>
+
+        {/* Scanline on active */}
+        {doneCount < PHASES.length && (
+          <div
+            className="absolute inset-y-0 w-12"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(0,196,232,0.4), transparent)',
+              animation: 'scan-line 2s ease-in-out infinite',
+            }}
+          />
+        )}
+      </div>
+
+      {/* Phase nodes */}
+      <div className="grid grid-cols-4 gap-2">
         {PHASES.map((phase, i) => {
           const status    = phaseStatus(phase, steps)
           const isDone    = status === 'done'
           const isRunning = status === 'running'
-          const isPending = status === 'pending'
+          const meta      = PHASE_META[phase]
 
           return (
-            <div key={phase} className="flex items-center flex-1 last:flex-none">
-              {/* Step node */}
-              <div className="flex flex-col items-center gap-2 relative">
-                {/* Circle */}
+            <div
+              key={phase}
+              className="relative flex flex-col items-center gap-2.5 p-3 rounded-xl transition-all duration-300"
+              style={{
+                background: isDone
+                  ? 'rgba(0,196,232,0.06)'
+                  : isRunning
+                    ? 'rgba(255,180,0,0.06)'
+                    : 'var(--bg-elevated)',
+                border: isDone
+                  ? '1px solid rgba(0,196,232,0.20)'
+                  : isRunning
+                    ? '1px solid rgba(255,180,0,0.25)'
+                    : '1px solid var(--border)',
+              }}
+            >
+              {/* Node circle */}
+              <div
+                className="relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500"
+                style={{
+                  background: isDone
+                    ? 'var(--accent)'
+                    : isRunning
+                      ? 'var(--bg-hover)'
+                      : 'var(--bg-elevated)',
+                  border: isDone
+                    ? '2px solid var(--accent)'
+                    : isRunning
+                      ? '2px solid var(--status-running)'
+                      : '1px solid var(--border-raised)',
+                  boxShadow: isDone
+                    ? '0 0 20px rgba(0,196,232,0.35)'
+                    : isRunning
+                      ? '0 0 16px rgba(255,180,0,0.25)'
+                      : 'none',
+                  animation: isRunning ? 'pulse-glow 2s ease-in-out infinite' : isDone ? 'step-complete 0.4s cubic-bezier(0.16,1,0.3,1) both' : 'none',
+                }}
+              >
+                {isDone ? (
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <polyline
+                      points="3.5,8.5 6.5,11.5 12.5,5"
+                      stroke="var(--bg-base)"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : isRunning ? (
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{
+                      background: 'var(--status-running)',
+                      animation: 'shimmer 0.8s ease-in-out infinite',
+                    }}
+                  />
+                ) : (
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: 'var(--text-low)',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                )}
+              </div>
+
+              {/* Labels */}
+              <div className="text-center">
                 <div
-                  className="relative w-9 h-9 rounded-full flex items-center justify-center transition-all duration-500"
+                  className="text-[12px] font-semibold leading-tight mb-0.5"
                   style={{
-                    background: isDone
-                      ? 'var(--accent)'
+                    fontFamily: 'var(--font-manrope)',
+                    color: isDone
+                      ? 'var(--accent-light)'
                       : isRunning
-                        ? 'var(--bg-elevated)'
-                        : 'var(--bg-elevated)',
-                    border: isDone
-                      ? '2px solid var(--accent)'
-                      : isRunning
-                        ? '2px solid var(--status-running)'
-                        : '1px solid var(--status-pending)',
-                    boxShadow: isDone
-                      ? '0 0 16px var(--accent-glow)'
-                      : isRunning
-                        ? '0 0 12px rgba(245,158,11,0.20)'
-                        : 'none',
-                    animation: isRunning ? 'pulse-glow 2s ease-in-out infinite' : 'none',
+                        ? 'var(--status-running)'
+                        : 'var(--text-mid)',
                   }}
                 >
-                  {isDone ? (
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                      <polyline
-                        points="3,7 5.5,9.5 11,4"
-                        stroke="white"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  ) : isRunning ? (
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{
-                        background: 'var(--status-running)',
-                        animation:  'shimmer 1s ease-in-out infinite',
-                      }}
-                    />
-                  ) : (
-                    <span
-                      className="text-[10px] font-bold"
-                      style={{ color: 'var(--text-low)', fontFamily: 'var(--font-manrope)' }}
-                    >
-                      {PHASE_NUMS[phase]}
-                    </span>
-                  )}
+                  {meta.label}
                 </div>
-
-                {/* Label */}
-                <span
-                  className="text-[10px] font-medium text-center whitespace-nowrap transition-all duration-300"
+                <div
+                  className="text-[9px] leading-snug hidden sm:block"
                   style={{
-                    color:      isDone ? 'var(--accent-light)' : isRunning ? 'var(--status-running)' : 'var(--text-low)',
-                    fontFamily: 'var(--font-manrope)',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-low)',
                     letterSpacing: '0.04em',
                   }}
                 >
-                  {PHASE_LABELS[phase]}
-                </span>
+                  {meta.desc}
+                </div>
               </div>
 
-              {/* Connector */}
-              {i < PHASES.length - 1 && (
-                <div
-                  className="flex-1 h-px mx-3 transition-all duration-700 relative overflow-hidden"
-                  style={{
-                    background: isDone ? 'var(--accent)' : 'var(--border)',
-                    boxShadow:  isDone ? '0 0 6px var(--accent-glow)' : 'none',
-                    marginBottom: '20px',
-                  }}
-                >
-                  {isRunning && (
-                    <div
-                      className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-yellow-400 to-transparent opacity-60"
-                      style={{ animation: 'scan-line 1.5s ease-in-out infinite' }}
-                    />
-                  )}
-                </div>
-              )}
+              {/* Phase code */}
+              <div
+                className="absolute top-2 right-2 text-[8px] font-bold"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.05em',
+                  color: isDone ? 'var(--accent)' : 'var(--text-faint)',
+                  opacity: 0.6,
+                }}
+              >
+                {meta.code}
+              </div>
             </div>
           )
         })}

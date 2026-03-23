@@ -7,11 +7,13 @@ import PhaseTabs from '@/features/run-detail/components/PhaseTabs'
 import { getRun } from '@/lib/api-client'
 import type { RunSummary } from '@/lib/types/run'
 
-const STATUS_CONFIG: Record<string, { bg: string; color: string; dot: string; label: string }> = {
-  connecting: { bg: 'var(--bg-elevated)',     color: 'var(--text-mid)',      dot: 'var(--text-low)',      label: 'Connecting'  },
-  running:    { bg: 'var(--hold-bg)',          color: 'var(--hold)',          dot: 'var(--hold)',          label: 'Running'     },
-  complete:   { bg: 'var(--buy-bg)',           color: 'var(--buy)',           dot: 'var(--buy)',           label: 'Complete'    },
-  error:      { bg: 'var(--error-bg)',         color: 'var(--error)',         dot: 'var(--error)',         label: 'Error'       },
+const STATUS_CONFIG: Record<string, {
+  bg: string; color: string; dot: string; label: string; pulse: boolean
+}> = {
+  connecting: { bg: 'var(--bg-elevated)',     color: 'var(--text-mid)',  dot: 'var(--text-low)',  label: 'Connecting',  pulse: false },
+  running:    { bg: 'var(--hold-bg)',          color: 'var(--hold)',      dot: 'var(--hold)',      label: 'Running',     pulse: true  },
+  complete:   { bg: 'var(--buy-bg)',           color: 'var(--buy)',       dot: 'var(--buy)',       label: 'Complete',    pulse: false },
+  error:      { bg: 'var(--error-bg)',         color: 'var(--error)',     dot: 'var(--error)',     label: 'Error',       pulse: false },
 }
 
 export default function RunDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -29,51 +31,60 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
     <div className="max-w-4xl space-y-4 animate-fade-up">
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 mb-2">
         <div>
-          <div
-            className="apex-label mb-2"
-          >
+          <div className="apex-label mb-3" style={{ color: 'var(--accent)', opacity: 0.7 }}>
             Analysis Run
           </div>
           <h1
-            className="text-[26px] font-bold tracking-tight"
+            className="flex items-baseline gap-3"
             style={{
-              color:       'var(--text-high)',
-              fontFamily:  'var(--font-manrope)',
-              letterSpacing: '-0.03em',
+              fontFamily: 'var(--font-syne)',
+              fontSize: '32px',
+              fontWeight: 800,
+              letterSpacing: '-0.04em',
+              lineHeight: 1.1,
             }}
           >
             {run ? (
               <>
-                <span style={{ color: 'var(--accent-light)' }}>{run.ticker}</span>
-                <span style={{ color: 'var(--text-low)', fontWeight: 400, margin: '0 8px' }}>·</span>
-                <span>{run.date}</span>
+                <span
+                  className="terminal-text"
+                  style={{ color: 'var(--accent-light)', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.04em' }}
+                >
+                  {run.ticker}
+                </span>
+                <span style={{ color: 'var(--text-low)', fontWeight: 400, fontFamily: 'var(--font-manrope)' }}>·</span>
+                <span style={{ color: 'var(--text-mid)', fontSize: '22px', fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
+                  {run.date}
+                </span>
               </>
             ) : (
-              <span style={{ color: 'var(--text-mid)' }}>Loading…</span>
+              <span style={{ color: 'var(--text-mid)', fontSize: '24px' }}>Loading…</span>
             )}
           </h1>
         </div>
 
-        {/* Status badge */}
+        {/* Status pill */}
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium mt-1"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[10px] font-bold mt-1.5 shrink-0"
           style={{
-            background:  sc.bg,
-            color:       sc.color,
-            border:      `1px solid ${sc.dot}40`,
-            fontFamily:  'var(--font-manrope)',
+            background: sc.bg,
+            color: sc.color,
+            border: `1px solid ${sc.dot}40`,
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.1em',
           }}
         >
           <div
             className="w-1.5 h-1.5 rounded-full shrink-0"
             style={{
               background: sc.dot,
-              animation:  status === 'running' ? 'shimmer 1.2s ease-in-out infinite' : 'none',
+              boxShadow: sc.pulse ? `0 0 6px ${sc.dot}` : 'none',
+              animation: sc.pulse ? 'shimmer 1s ease-in-out infinite' : 'none',
             }}
           />
-          {sc.label}
+          {sc.label.toUpperCase()}
         </div>
       </div>
 
@@ -83,14 +94,14 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
       {/* Error */}
       {error && (
         <div
-          className="px-4 py-3 rounded-lg text-sm"
+          className="px-4 py-3 rounded-xl text-sm flex items-center gap-2"
           style={{
             background: 'var(--error-bg)',
-            color:      'var(--error)',
-            border:     '1px solid rgba(255,68,68,0.25)',
+            color: 'var(--error)',
+            border: '1px solid rgba(255,43,62,0.25)',
           }}
         >
-          <span className="font-medium">Error:</span> {error}
+          <span className="font-bold">Error:</span> {error}
         </div>
       )}
 
@@ -101,7 +112,6 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
 
       {/* Phase tabs + reports */}
       <PhaseTabs steps={steps} reports={reports} />
-
     </div>
   )
 }
