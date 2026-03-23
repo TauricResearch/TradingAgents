@@ -227,8 +227,8 @@ def select_shallow_thinking_agent(provider) -> str:
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
-    # Define shallow thinking llm engine options with their corresponding model names
-    # Ordering: medium → light → heavy (balanced first for quick tasks)
+    # Define deep thinking llm engine options with their corresponding model names
+    # Ordering: heavy → medium → light (most capable first for deep tasks)
     # Within same tier, newer models first
     DEEP_AGENT_OPTIONS = {
         "openai": [
