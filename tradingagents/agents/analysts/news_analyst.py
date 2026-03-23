@@ -1,6 +1,8 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import json
 from tradingagents.agents.utils.news_data_tools import get_news, get_global_news
+from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.dataflows.config import get_config
 
 
@@ -42,12 +44,9 @@ def create_news_analyst(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"])
+        result = run_tool_loop(chain, state["messages"], tools)
 
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = result.content
+        report = result.content or ""
 
         return {
             "messages": [result],
