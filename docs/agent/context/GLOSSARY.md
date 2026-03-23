@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-19 -->
+<!-- Last verified: 2026-03-23 -->
 
 # Glossary
 
@@ -109,3 +109,21 @@
 | Finnhub _RATE_LIMIT | `60` calls/min | `dataflows/finnhub_common.py` |
 | AV API_BASE_URL | `"https://www.alphavantage.co/query"` | `dataflows/alpha_vantage_common.py` |
 | Finnhub API_BASE_URL | `"https://finnhub.io/api/v1"` | `dataflows/finnhub_common.py` |
+| _MAX_CONTENT_LEN | `300` (event message truncation) | `agent_os/backend/services/langgraph_engine.py` |
+| _MAX_FULL_LEN | `50_000` (full prompt/response cap) | `agent_os/backend/services/langgraph_engine.py` |
+
+## AgentOS
+
+| Term | Definition | Source |
+|------|-----------|--------|
+| AgentOS | Full-stack visual observability layer for agent execution — FastAPI backend + React frontend | `agent_os/` |
+| LangGraphEngine | Backend service that orchestrates run execution and maps LangGraph v2 events to frontend events | `agent_os/backend/services/langgraph_engine.py` |
+| Run Type | One of 4 execution modes: `scan`, `pipeline`, `portfolio`, `auto` | `agent_os/backend/routes/runs.py` |
+| AgentEvent | TypeScript interface for frontend events: `thought`, `tool`, `tool_result`, `result`, `log`, `system` | `agent_os/frontend/src/hooks/useAgentStream.ts` |
+| useAgentStream | React hook that connects to `/ws/stream/{run_id}` and provides events + status | `agent_os/frontend/src/hooks/useAgentStream.ts` |
+| AgentGraph | ReactFlow-based live graph visualization of agent workflow nodes | `agent_os/frontend/src/components/AgentGraph.tsx` |
+| PortfolioViewer | 3-tab portfolio view: holdings, trade history, snapshot summary | `agent_os/frontend/src/components/PortfolioViewer.tsx` |
+| MetricHeader | Top-3 dashboard metrics: Sharpe ratio, market regime+beta, drawdown+VaR | `agent_os/frontend/src/components/MetricHeader.tsx` |
+| _safe_dict | Helper that converts non-dict metadata to empty dict to prevent crashes | `agent_os/backend/services/langgraph_engine.py` |
+| Inspector Drawer | Side panel showing full prompt/response content for an event or node | `agent_os/frontend/src/Dashboard.tsx` |
+| Field Mapping | `/latest` endpoint translates backend model fields to frontend shape (shares→quantity, etc.) | `agent_os/backend/routes/portfolios.py` |
