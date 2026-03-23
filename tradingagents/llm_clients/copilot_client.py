@@ -67,7 +67,7 @@ def _get_copilot_api_url() -> str:
                 api = resp.json()["data"]["viewer"]["copilotEndpoints"]["api"]
                 if api:
                     return api.rstrip("/")
-        except Exception:
+        except requests.exceptions.RequestException:
             pass
     return "https://api.individual.githubcopilot.com"
 
