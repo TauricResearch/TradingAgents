@@ -68,4 +68,5 @@ Respond with ONLY valid JSON, no other text. Example:
                 "edge": None,
                 "position_size": None,
                 "confidence": None,
+                "raw_output": result,
             })
