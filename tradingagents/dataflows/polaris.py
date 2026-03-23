@@ -102,11 +102,9 @@ def _days_to_range(days: int) -> str:
 
 def _extract_briefs(data) -> list:
     """Extract briefs list from API response (handles both dict and typed objects)."""
-    if hasattr(data, '__dict__') and not isinstance(data, dict):
-        data = data.__dict__ if hasattr(data, '__dict__') else {}
-    if isinstance(data, dict):
-        return data.get("briefs", [])
-    return getattr(data, 'briefs', [])
+    if not isinstance(data, dict):
+        data = vars(data) if hasattr(data, '__dict__') else {}
+    return data.get("briefs", [])
 
 
 # ---------------------------------------------------------------------------
@@ -170,13 +168,20 @@ def get_indicators(
     curr_date: Annotated[str, "Current trading date, YYYY-mm-dd"],
     look_back_days: Annotated[int, "how many days to look back"],
 ) -> str:
-    """Fetch technical indicators from Polaris (20 indicators + signal summary)."""
+    """Fetch technical indicators from Polaris (20 indicators + signal summary).
+
+    Uses curr_date and look_back_days to determine the data range.
+    """
     cache_key = f"indicators:{symbol}:{indicator}:{curr_date}:{look_back_days}"
     cached = _cached(cache_key)
     if cached:
         return cached
 
     client = _get_client()
+
+    # Use curr_date to determine if we need historical vs current data
+    today = datetime.now().strftime("%Y-%m-%d")
+    is_historical = curr_date < today if curr_date else False
 
     # Map common indicator names to Polaris types
     indicator_map = {
@@ -192,7 +197,13 @@ def get_indicators(
     }
 
     polaris_type = indicator_map.get(indicator.lower(), indicator.lower())
-    range_param = _days_to_range(look_back_days)
+
+    # If historical, we need enough range to cover curr_date - look_back_days
+    if is_historical:
+        days_from_now = (datetime.strptime(today, "%Y-%m-%d") - datetime.strptime(curr_date, "%Y-%m-%d")).days
+        range_param = _days_to_range(days_from_now + look_back_days)
+    else:
+        range_param = _days_to_range(look_back_days)
 
     known_types = {
         "sma", "ema", "rsi", "macd", "bollinger", "atr",
@@ -537,9 +548,6 @@ def get_sec_filings(
     _set_cache(cache_key, result)
     return result
 
-
-# Keep old name as alias for backward compatibility
-get_insider_transactions = get_sec_filings
 
 
 # ---------------------------------------------------------------------------

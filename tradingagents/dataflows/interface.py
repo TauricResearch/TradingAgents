@@ -30,7 +30,7 @@ from .polaris import (
     get_balance_sheet as get_polaris_balance_sheet,
     get_cashflow as get_polaris_cashflow,
     get_income_statement as get_polaris_income_statement,
-    get_insider_transactions as get_polaris_insider_transactions,
+    get_sec_filings as get_polaris_sec_filings,
     get_news as get_polaris_news,
     get_global_news as get_polaris_global_news,
     get_sentiment_score as get_polaris_sentiment_score,
@@ -53,7 +53,8 @@ TOOLS_CATEGORIES = {
     "technical_indicators": {
         "description": "Technical analysis indicators",
         "tools": [
-            "get_indicators"
+            "get_indicators",
+            "get_technicals"
         ]
     },
     "fundamental_data": {
@@ -71,6 +72,7 @@ TOOLS_CATEGORIES = {
             "get_news",
             "get_global_news",
             "get_insider_transactions",
+            "get_sec_filings",
         ]
     },
     "sentiment_analysis": {
@@ -138,7 +140,9 @@ VENDOR_METHODS = {
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
-        "polaris": get_polaris_insider_transactions,
+    },
+    "get_sec_filings": {
+        "polaris": get_polaris_sec_filings,
     },
     # sentiment_analysis (Polaris-exclusive)
     "get_sentiment_score": {
