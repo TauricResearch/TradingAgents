@@ -8,6 +8,7 @@ import {
   IconButton, 
   Button, 
   Input,
+  Checkbox,
   useDisclosure,
   Drawer,
   DrawerOverlay,
@@ -50,6 +51,7 @@ interface RunParams {
   date: string;
   ticker: string;
   portfolio_id: string;
+  force: boolean;
 }
 
 const RUN_TYPE_LABELS: Record<RunType, string> = {
@@ -64,7 +66,7 @@ const REQUIRED_PARAMS: Record<RunType, (keyof RunParams)[]> = {
   scan: ['date'],
   pipeline: ['ticker', 'date'],
   portfolio: ['date', 'portfolio_id'],
-  auto: ['date', 'ticker'],
+  auto: ['date', 'portfolio_id'],
 };
 
 /** Return the colour token for a given event type. */
@@ -312,6 +314,7 @@ export const Dashboard: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     ticker: 'AAPL',
     portfolio_id: 'main_portfolio',
+    force: false,
   });
 
   // Auto-scroll the terminal to the bottom as new events arrive
@@ -335,7 +338,7 @@ export const Dashboard: React.FC = () => {
 
     // Validate required params
     const required = REQUIRED_PARAMS[type];
-    const missing = required.filter((k) => !params[k]?.trim());
+    const missing = required.filter((k) => { const v = params[k]; return typeof v === 'string' ? !v.trim() : !v; });
     if (missing.length > 0) {
       toast({
         title: `Missing required fields for ${RUN_TYPE_LABELS[type]}`,
@@ -357,6 +360,7 @@ export const Dashboard: React.FC = () => {
         portfolio_id: params.portfolio_id,
         date: params.date,
         ticker: params.ticker,
+        force: params.force,
       });
       setActiveRunId(res.data.run_id);
     } catch (err) {
@@ -529,8 +533,18 @@ export const Dashboard: React.FC = () => {
                            onChange={(e) => setParams((p) => ({ ...p, portfolio_id: e.target.value }))}
                          />
                        </HStack>
+                       <HStack>
+                         <Checkbox
+                           size="sm"
+                           colorScheme="orange"
+                           isChecked={params.force}
+                           onChange={(e) => setParams((p) => ({ ...p, force: e.target.checked }))}
+                         >
+                           <Text fontSize="xs" color="orange.300">Force re-run (ignore cached results)</Text>
+                         </Checkbox>
+                       </HStack>
                        <Text fontSize="2xs" color="whiteAlpha.400">
-                         Required: Scan → date · Pipeline → ticker, date · Portfolio → date, portfolio · Auto → date, ticker
+                         Required: Scan → date · Pipeline → ticker, date · Portfolio → date, portfolio · Auto → date, portfolio
                        </Text>
                      </VStack>
                    </Box>
