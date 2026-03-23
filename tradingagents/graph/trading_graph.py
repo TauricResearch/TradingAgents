@@ -3,8 +3,7 @@
 import os
 from pathlib import Path
 import json
-from datetime import date
-from typing import Dict, Any, Tuple, List, Optional
+from typing import Dict, Any, List, Optional
 
 from langgraph.prebuilt import ToolNode
 
@@ -13,11 +12,6 @@ from tradingagents.llm_clients import create_llm_client
 from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import FinancialSituationMemory
-from tradingagents.agents.utils.agent_states import (
-    AgentState,
-    InvestDebateState,
-    RiskDebateState,
-)
 from tradingagents.dataflows.config import set_config
 
 # Import the new abstract tool methods from agent_utils
@@ -30,7 +24,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_social_sentiment,
 )
 
 from .conditional_logic import ConditionalLogic
@@ -93,13 +88,17 @@ class TradingAgentsGraph:
 
         self.deep_thinking_llm = deep_client.get_llm()
         self.quick_thinking_llm = quick_client.get_llm()
-        
+
         # Initialize memories
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
         self.bear_memory = FinancialSituationMemory("bear_memory", self.config)
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
-        self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
-        self.portfolio_manager_memory = FinancialSituationMemory("portfolio_manager_memory", self.config)
+        self.invest_judge_memory = FinancialSituationMemory(
+            "invest_judge_memory", self.config
+        )
+        self.risk_manager_memory = FinancialSituationMemory(
+            "risk_manager_memory", self.config
+        )
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -117,7 +116,7 @@ class TradingAgentsGraph:
             self.bear_memory,
             self.trader_memory,
             self.invest_judge_memory,
-            self.portfolio_manager_memory,
+            self.risk_manager_memory,
             self.conditional_logic,
         )
 
@@ -170,6 +169,8 @@ class TradingAgentsGraph:
                 [
                     # News tools for social media analysis
                     get_news,
+                    # Social sentiment (Bright Data only, gracefully errors for other vendors)
+                    get_social_sentiment,
                 ]
             ),
             "news": ToolNode(
@@ -248,8 +249,12 @@ class TradingAgentsGraph:
             },
             "trader_investment_decision": final_state["trader_investment_plan"],
             "risk_debate_state": {
-                "aggressive_history": final_state["risk_debate_state"]["aggressive_history"],
-                "conservative_history": final_state["risk_debate_state"]["conservative_history"],
+                "aggressive_history": final_state["risk_debate_state"][
+                    "aggressive_history"
+                ],
+                "conservative_history": final_state["risk_debate_state"][
+                    "conservative_history"
+                ],
                 "neutral_history": final_state["risk_debate_state"]["neutral_history"],
                 "history": final_state["risk_debate_state"]["history"],
                 "judge_decision": final_state["risk_debate_state"]["judge_decision"],
@@ -283,8 +288,8 @@ class TradingAgentsGraph:
         self.reflector.reflect_invest_judge(
             self.curr_state, returns_losses, self.invest_judge_memory
         )
-        self.reflector.reflect_portfolio_manager(
-            self.curr_state, returns_losses, self.portfolio_manager_memory
+        self.reflector.reflect_risk_manager(
+            self.curr_state, returns_losses, self.risk_manager_memory
         )
 
     def process_signal(self, full_signal):
