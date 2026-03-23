@@ -1,1 +1,0 @@
-System.register(["immer"],function(c){"use strict";var r;return{setters:[function(n){r=n.produce}],execute:function(){const S=c("immer",s=>(o,u,t)=>(t.setState=(e,i,...m)=>{const f=typeof e=="function"?r(e):e;return o(f,i,...m)},s(t.setState,u,t)))}}});

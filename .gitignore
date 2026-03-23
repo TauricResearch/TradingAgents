@@ -227,3 +227,7 @@ Y/
 
 # Backup files
 *.backup
+
+# Frontend
+node_modules/
+agent_os/frontend/dist/

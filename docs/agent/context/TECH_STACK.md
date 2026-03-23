@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-19 -->
+<!-- Last verified: 2026-03-23 -->
 
 # Tech Stack
 
@@ -73,3 +73,40 @@ From `[dependency-groups]`:
 - Version: `0.2.1`
 - Entry point: `tradingagents = cli.main:app`
 - Package discovery: `tradingagents*`, `cli*`
+
+## AgentOS Frontend Dependencies
+
+From `agent_os/frontend/package.json`:
+
+| Package | Constraint | Purpose |
+|---------|-----------|---------|
+| `react` | `^18.3.0` | UI framework |
+| `react-dom` | `^18.3.0` | React DOM rendering |
+| `@chakra-ui/react` | `^2.10.0` | Component library (dark theme) |
+| `@emotion/react` | `^11.13.0` | CSS-in-JS for Chakra |
+| `@emotion/styled` | `^11.13.0` | Styled components for Chakra |
+| `framer-motion` | `^10.18.0` | Animation library (Chakra dependency) |
+| `reactflow` | `^11.11.0` | Graph/DAG visualization for agent workflow |
+| `axios` | `^1.13.5` | HTTP client for REST API calls |
+| `lucide-react` | `^0.460.0` | Icon library |
+
+Dev dependencies: TypeScript `^5.6.0`, Vite `^8.0.1`, ESLint `^8.57.0`, TailwindCSS `^3.4.0`.
+
+## AgentOS Backend Dependencies
+
+From `pyproject.toml` (additions for agent_os):
+
+| Package | Purpose |
+|---------|---------|
+| `fastapi` | Web framework for REST + WebSocket backend |
+| `uvicorn` | ASGI server (port 8088) |
+| `httpx` | Async HTTP client (used by FastAPI test client) |
+
+## AgentOS Build & Run
+
+| Command | Description |
+|---------|-------------|
+| `uvicorn agent_os.backend.main:app --host 0.0.0.0 --port 8088` | Start backend |
+| `cd agent_os/frontend && npm run dev` | Start frontend (Vite dev server, port 5173) |
+| `cd agent_os/frontend && npx vite build` | Production build |
+| `cd agent_os/frontend && node_modules/.bin/tsc --noEmit` | TypeScript check |

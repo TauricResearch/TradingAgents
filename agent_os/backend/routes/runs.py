@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from typing import Dict, Any, List
+import logging
 import uuid
 import time
 from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.services.langgraph_engine import LangGraphEngine
+
+logger = logging.getLogger("agent_os.runs")
 
 router = APIRouter(prefix="/api/run", tags=["runs"])
 
@@ -25,6 +28,7 @@ async def trigger_scan(
         "user_id": user["user_id"],
         "params": params or {}
     }
+    logger.info("Queued SCAN run=%s user=%s", run_id, user["user_id"])
     background_tasks.add_task(engine.run_scan, run_id, params or {})
     return {"run_id": run_id, "status": "queued"}
 
@@ -43,6 +47,7 @@ async def trigger_pipeline(
         "user_id": user["user_id"],
         "params": params or {}
     }
+    logger.info("Queued PIPELINE run=%s user=%s", run_id, user["user_id"])
     background_tasks.add_task(engine.run_pipeline, run_id, params or {})
     return {"run_id": run_id, "status": "queued"}
 
@@ -61,6 +66,7 @@ async def trigger_portfolio(
         "user_id": user["user_id"],
         "params": params or {}
     }
+    logger.info("Queued PORTFOLIO run=%s user=%s", run_id, user["user_id"])
     background_tasks.add_task(engine.run_portfolio, run_id, params or {})
     return {"run_id": run_id, "status": "queued"}
 
@@ -79,6 +85,7 @@ async def trigger_auto(
         "user_id": user["user_id"],
         "params": params or {}
     }
+    logger.info("Queued AUTO run=%s user=%s", run_id, user["user_id"])
     background_tasks.add_task(engine.run_auto, run_id, params or {})
     return {"run_id": run_id, "status": "queued"}
 

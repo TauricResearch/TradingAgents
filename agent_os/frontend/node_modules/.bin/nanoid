@@ -1,1 +1,0 @@
-../nanoid/bin/nanoid.cjs
