@@ -111,12 +111,51 @@ async def get_latest_portfolio_state(
         snapshot = db.get_latest_snapshot(portfolio_id)
         holdings = db.list_holdings(portfolio_id)
         trades = db.list_trades(portfolio_id, limit=10)
-        
+
+        # Map portfolio fields to the shape the frontend expects
+        p = portfolio.to_dict()
+        portfolio_out = {
+            "id": p.get("portfolio_id", ""),
+            "name": p.get("name", ""),
+            "cash_balance": p.get("cash", 0.0),
+            **{k: v for k, v in p.items() if k not in ("portfolio_id", "name", "cash")},
+        }
+
+        # Map holdings: shares→quantity, include computed fields
+        holdings_out = []
+        for h in holdings:
+            d = h.to_dict()
+            market_value = (h.current_value or 0.0) if h.current_value is not None else 0.0
+            unrealized_pnl = (h.unrealized_pnl or 0.0) if h.unrealized_pnl is not None else 0.0
+            holdings_out.append({
+                "ticker": d.get("ticker", ""),
+                "quantity": d.get("shares", 0),
+                "avg_cost": d.get("avg_cost", 0.0),
+                "current_price": h.current_price if h.current_price is not None else 0.0,
+                "market_value": market_value,
+                "unrealized_pnl": unrealized_pnl,
+                "sector": d.get("sector"),
+            })
+
+        # Map trades: shares→quantity, trade_date→executed_at
+        trades_out = []
+        for t in trades:
+            d = t.to_dict()
+            trades_out.append({
+                "id": d.get("trade_id", ""),
+                "ticker": d.get("ticker", ""),
+                "action": d.get("action", ""),
+                "quantity": d.get("shares", 0),
+                "price": d.get("price", 0.0),
+                "executed_at": d.get("trade_date", ""),
+                "rationale": d.get("rationale"),
+            })
+
         return {
-            "portfolio": portfolio.to_dict(),
+            "portfolio": portfolio_out,
             "snapshot": snapshot.to_dict() if snapshot else None,
-            "holdings": [h.to_dict() for h in holdings],
-            "recent_trades": [t.to_dict() for t in trades]
+            "holdings": holdings_out,
+            "recent_trades": trades_out,
         }
     except PortfolioNotFoundError:
         raise HTTPException(status_code=404, detail="Portfolio not found")

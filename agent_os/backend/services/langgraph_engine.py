@@ -88,7 +88,9 @@ class LangGraphEngine:
         self._node_start_times[run_id] = {}
 
         async for event in graph_wrapper.graph.astream_events(
-            initial_state, version="v2"
+            initial_state,
+            version="v2",
+            config={"recursion_limit": graph_wrapper.propagator.max_recur_limit},
         ):
             mapped = self._map_langgraph_event(run_id, event)
             if mapped:
