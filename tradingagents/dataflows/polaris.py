@@ -218,7 +218,12 @@ def get_indicators(
         if polaris_type in known_types:
             data = client.indicators(symbol, type=polaris_type, range=range_param)
         else:
-            data = client.technicals(symbol, range=range_param)
+            # Unknown indicator — return an error rather than silently falling back
+            # to client.technicals() which returns a different structure
+            return (
+                f"Unknown indicator '{indicator}' for {symbol}. "
+                f"Supported: {', '.join(sorted(known_types))}"
+            )
     except Exception as e:
         return f"Error fetching indicators for {symbol}: {e}"
 
@@ -589,11 +594,11 @@ def get_sentiment_score(
     except Exception as e:
         return f"Error fetching sentiment score for {symbol}: {e}"
 
-    components = data.get("components", {})
-    sent = components.get("sentiment", {}) or {}
-    mom = components.get("momentum", {}) or {}
-    vol = components.get("volume", {}) or {}
-    evt = components.get("events", {}) or {}
+    components = _safe_get(data, "components", {})
+    sent = _safe_get(components, "sentiment", {})
+    mom = _safe_get(components, "momentum", {})
+    vol = _safe_get(components, "volume", {})
+    evt = _safe_get(components, "events", {})
 
     lines = [
         f"# Composite Trading Signal: {symbol.upper()}",
