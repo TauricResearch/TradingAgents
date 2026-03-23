@@ -221,15 +221,15 @@ class PortfolioGraphSetup:
 
         # Register LLM nodes
         workflow.add_node("review_holdings", self.agents["review_holdings"])
-        workflow.add_node("pm_decision", self.agents["pm_decision"])
+        workflow.add_node("make_pm_decision", self.agents["pm_decision"])
 
         # Sequential edges
         workflow.add_edge(START, "load_portfolio")
         workflow.add_edge("load_portfolio", "compute_risk")
         workflow.add_edge("compute_risk", "review_holdings")
         workflow.add_edge("review_holdings", "prioritize_candidates")
-        workflow.add_edge("prioritize_candidates", "pm_decision")
-        workflow.add_edge("pm_decision", "execute_trades")
+        workflow.add_edge("prioritize_candidates", "make_pm_decision")
+        workflow.add_edge("make_pm_decision", "execute_trades")
         workflow.add_edge("execute_trades", END)
 
         return workflow.compile()

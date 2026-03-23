@@ -362,12 +362,16 @@ class LangGraphEngine:
 
         # Phase 1: Market scan
         yield self._system_log("Phase 1/3: Running market scan…")
-        async for evt in self.run_scan(f"{run_id}_scan", {"date": date}):
-            yield evt
+        store = ReportStore()
+        if store.load_scan(date):
+            yield self._system_log(f"Phase 1: Macro scan for {date} already exists, skipping.")
+        else:
+            async for evt in self.run_scan(f"{run_id}_scan", {"date": date}):
+                yield evt
 
         # Phase 2: Pipeline analysis — get tickers from saved scan report
         yield self._system_log("Phase 2/3: Loading stocks from scan report…")
-        scan_data = ReportStore().load_scan(date)
+        scan_data = store.load_scan(date)
         tickers = self._extract_tickers_from_scan_data(scan_data)
 
         if not tickers:
@@ -378,6 +382,10 @@ class LangGraphEngine:
             )
         else:
             for ticker in tickers:
+                if store.load_analysis(date, ticker):
+                    yield self._system_log(f"Phase 2: Analysis for {ticker} on {date} already exists, skipping.")
+                    continue
+
                 yield self._system_log(f"Phase 2/3: Running analysis pipeline for {ticker}…")
                 async for evt in self.run_pipeline(
                     f"{run_id}_pipeline_{ticker}", {"ticker": ticker, "date": date}
@@ -387,10 +395,14 @@ class LangGraphEngine:
         # Phase 3: Portfolio management
         yield self._system_log("Phase 3/3: Running portfolio manager…")
         portfolio_params = {k: v for k, v in params.items() if k != "ticker"}
-        async for evt in self.run_portfolio(
-            f"{run_id}_portfolio", {"date": date, **portfolio_params}
-        ):
-            yield evt
+        # Check if portfolio decision already exists
+        if store.load_pm_decision(date, portfolio_id):
+             yield self._system_log(f"Phase 3: Portfolio decision for {portfolio_id} on {date} already exists, skipping.")
+        else:
+            async for evt in self.run_portfolio(
+                f"{run_id}_portfolio", {"date": date, **portfolio_params}
+            ):
+                yield evt
 
         logger.info("Completed AUTO run=%s", run_id)
 
