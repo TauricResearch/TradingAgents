@@ -1,0 +1,17 @@
+.git
+.gitignore
+.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ruff_cache/
+.vscode/
+.env
+data/
+results/
+reports/
+eval_results/
+assets/
+README.md
+LICENSE

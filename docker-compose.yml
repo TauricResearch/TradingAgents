@@ -1,0 +1,16 @@
+services:
+  trading-bot:
+    image: ${IMAGE_NAME:-ghcr.io/jjyn0215/tradingagents:latest}
+    pull_policy: always
+    container_name: tradingagents-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Seoul
+    volumes:
+      - ./data:/app/data
+      - ./results:/app/results
+      - ./reports:/app/reports
+      - ./eval_results:/app/eval_results
+    command: ["python", "-u", "bot.py"]
