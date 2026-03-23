@@ -7,8 +7,8 @@ from api.models.run import RunConfig, RunStatus
 
 
 @pytest.fixture
-def store():
-    return RunsStore()
+def store(tmp_path):
+    return RunsStore(tmp_path / "test.sqlite")
 
 
 @pytest.fixture
@@ -116,3 +116,124 @@ def test_selected_analysts_passed_to_graph(service, store):
 
     call_kwargs = MockGraph.call_args.kwargs
     assert call_kwargs.get("selected_analysts") == ["market", "news"]
+
+
+def test_completed_run_replays_without_re_running_graph(service, store):
+    # Pre-populate a completed run in the store
+    run = store.create(RunConfig(ticker="NVDA", date="2026-03-23"))
+    store.update_status(run.id, RunStatus.RUNNING)
+    store.add_report(run.id, "market_analyst:0", "bullish")
+    store.update_status(run.id, RunStatus.COMPLETE)
+    store.update_decision(run.id, "BUY")
+
+    with patch("api.services.run_service.TradingAgentsGraph") as MockGraph:
+        events = list(service.stream_events(run.id))
+
+    assert MockGraph.call_count == 0  # no agent execution on replay
+    agent_completes = [e for e in events if e["event"] == "agent:complete"]
+    assert len(agent_completes) == 1
+    assert agent_completes[0]["data"]["report"] == "bullish"
+    run_complete = next(e for e in events if e["event"] == "run:complete")
+    assert run_complete["data"]["decision"] == "BUY"
+
+
+def test_running_run_returns_in_progress_error(service, store):
+    run = store.create(RunConfig(ticker="NVDA", date="2026-03-23"))
+    store.update_status(run.id, RunStatus.RUNNING)
+
+    with patch("api.services.run_service.TradingAgentsGraph") as MockGraph:
+        events = list(service.stream_events(run.id))
+
+    assert MockGraph.call_count == 0  # no agent execution
+    assert len(events) == 1
+    assert events[0]["event"] == "run:error"
+    assert "already in progress" in events[0]["data"]["message"]
+
+
+def test_error_run_retries_and_clears_reports(service, store):
+    # Simulate a run that failed partway through with a stale report
+    run = store.create(RunConfig(ticker="NVDA", date="2026-03-23"))
+    store.update_status(run.id, RunStatus.RUNNING)
+    store.add_report(run.id, "market_analyst:0", "stale data")
+    store.set_error(run.id, "timeout")
+
+    assert store.get(run.id).status == RunStatus.ERROR
+    assert store.get(run.id).reports == {"market_analyst:0": "stale data"}
+
+    with patch("api.services.run_service.TradingAgentsGraph") as MockGraph:
+        MockGraph.return_value = _mock_graph([("news_analyst", "fresh")], decision="HOLD")
+        events = list(service.stream_events(run.id))
+
+    assert MockGraph.call_count == 1  # graph was executed on retry
+    final_reports = store.get(run.id).reports
+    assert "news_analyst:0" in final_reports
+    assert "market_analyst:0" not in final_reports  # stale data cleared on retry
+
+
+def test_live_run_agent_complete_includes_token_fields(service, store):
+    """agent:complete events must include tokens_in and tokens_out."""
+    config = RunConfig(ticker="NVDA", date="2026-03-23")
+    run = store.create(config)
+    with patch("api.services.run_service.TradingAgentsGraph") as MockGraph:
+        MockGraph.return_value = _mock_graph([("market_analyst", "bullish")])
+        events = list(service.stream_events(run.id))
+
+    complete_events = [e for e in events if e["event"] == "agent:complete"]
+    assert len(complete_events) == 1
+    data = complete_events[0]["data"]
+    assert "tokens_in" in data
+    assert "tokens_out" in data
+    assert isinstance(data["tokens_in"], int)
+    assert isinstance(data["tokens_out"], int)
+
+
+def test_retry_clears_stale_token_usage(service, store):
+    """After an errored run is retried, stale token keys are absent."""
+    run = store.create(RunConfig(ticker="NVDA", date="2026-03-23"))
+    store.update_status(run.id, RunStatus.RUNNING)
+    store.add_token_usage(run.id, "market_analyst:0", {"tokens_in": 500, "tokens_out": 200})
+    store.set_error(run.id, "timeout")
+
+    with patch("api.services.run_service.TradingAgentsGraph") as MockGraph:
+        MockGraph.return_value = _mock_graph([("news_analyst", "fresh")])
+        list(service.stream_events(run.id))
+
+    final = store.get(run.id)
+    assert "market_analyst:0" not in final.token_usage  # stale key gone
+    assert "news_analyst:0" in final.token_usage         # new key present
+
+
+def test_replay_attaches_token_data_to_agent_complete(service, store):
+    """Replaying a completed run emits agent:complete with token data."""
+    run = store.create(RunConfig(ticker="NVDA", date="2026-03-23"))
+    store.update_status(run.id, RunStatus.RUNNING)
+    store.add_report(run.id, "market_analyst:0", "bullish")
+    store.add_token_usage(run.id, "market_analyst:0", {"tokens_in": 1200, "tokens_out": 400})
+    store.update_status(run.id, RunStatus.COMPLETE)
+    store.update_decision(run.id, "BUY")
+
+    with patch("api.services.run_service.TradingAgentsGraph") as MockGraph:
+        events = list(service.stream_events(run.id))
+
+    assert MockGraph.call_count == 0
+    complete_events = [e for e in events if e["event"] == "agent:complete"]
+    assert len(complete_events) == 1
+    assert complete_events[0]["data"]["tokens_in"] == 1200
+    assert complete_events[0]["data"]["tokens_out"] == 400
+
+
+def test_replay_defaults_to_zero_tokens_when_missing(service, store):
+    """Replay of a run with no token_usage emits tokens_in=0, tokens_out=0."""
+    run = store.create(RunConfig(ticker="NVDA", date="2026-03-23"))
+    store.update_status(run.id, RunStatus.RUNNING)
+    store.add_report(run.id, "market_analyst:0", "bearish")
+    store.update_status(run.id, RunStatus.COMPLETE)
+    store.update_decision(run.id, "SELL")
+    # No add_token_usage call — simulates old run with no token data
+
+    with patch("api.services.run_service.TradingAgentsGraph"):
+        events = list(service.stream_events(run.id))
+
+    complete = next(e for e in events if e["event"] == "agent:complete")
+    assert complete["data"]["tokens_in"] == 0
+    assert complete["data"]["tokens_out"] == 0

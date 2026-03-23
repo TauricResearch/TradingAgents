@@ -1,12 +1,19 @@
 import json
+import pathlib
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from api.models.run import RunConfig, RunResult, RunSummary
 from api.services.run_service import RunService
 from api.store.runs_store import RunsStore
 
+try:
+    from tradingagents.default_config import DEFAULT_CONFIG
+except ImportError:
+    DEFAULT_CONFIG = {"results_dir": "./results"}
+
 router = APIRouter()
-_store = RunsStore()
+_db_path = pathlib.Path(DEFAULT_CONFIG["results_dir"]) / "runs.sqlite"
+_store = RunsStore(_db_path)
 _service = RunService(_store)
 
 

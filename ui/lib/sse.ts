@@ -1,6 +1,9 @@
 export type SSEHandlers = {
   onAgentStart?: (data: { step: string; turn: number }) => void
-  onAgentComplete?: (data: { step: string; turn: number; report: string }) => void
+  onAgentComplete?: (data: {
+    step: string; turn: number; report: string;
+    tokens_in?: number; tokens_out?: number
+  }) => void
   onRunComplete?: (data: { decision: string; run_id: string }) => void
   onRunError?: (data: { message: string }) => void
   onOpen?: () => void

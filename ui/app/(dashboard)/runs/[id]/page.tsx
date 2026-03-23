@@ -6,6 +6,7 @@ import VerdictBanner from '@/features/run-detail/components/VerdictBanner'
 import PhaseTabs from '@/features/run-detail/components/PhaseTabs'
 import { getRun } from '@/lib/api-client'
 import type { RunSummary } from '@/lib/types/run'
+import TokenStatsBar from '@/features/run-detail/components/TokenStatsBar'
 
 const STATUS_CONFIG: Record<string, {
   bg: string; color: string; dot: string; label: string; pulse: boolean
@@ -18,7 +19,7 @@ const STATUS_CONFIG: Record<string, {
 
 export default function RunDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const { steps, reports, verdict, status, error } = useRunStream(id)
+  const { steps, reports, verdict, status, error, tokensTotal, tokensByStep } = useRunStream(id)
   const [run, setRun] = useState<RunSummary | null>(null)
 
   useEffect(() => {
@@ -88,6 +89,9 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
         </div>
       </div>
 
+      {/* Token stats bar */}
+      <TokenStatsBar tokensTotal={tokensTotal} status={status} />
+
       {/* Pipeline */}
       <PipelineStepper steps={steps} />
 
@@ -111,7 +115,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
       )}
 
       {/* Phase tabs + reports */}
-      <PhaseTabs steps={steps} reports={reports} />
+      <PhaseTabs steps={steps} reports={reports} tokensByStep={tokensByStep} />
     </div>
   )
 }

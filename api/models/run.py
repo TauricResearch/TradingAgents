@@ -32,7 +32,13 @@ class RunSummary(BaseModel):
     created_at: str
 
 
+class TokenUsage(BaseModel):
+    tokens_in: int = 0
+    tokens_out: int = 0
+
+
 class RunResult(RunSummary):
     config: Optional[RunConfig] = None
-    reports: dict[str, str] = {}
+    reports: dict[str, str] = Field(default_factory=dict)
     error: Optional[str] = None
+    token_usage: dict[str, TokenUsage] = Field(default_factory=dict)

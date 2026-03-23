@@ -14,14 +14,21 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export type RunResult = RunSummary & {
+  config: RunConfig | null
+  reports: Record<string, string>
+  error: string | null
+  token_usage: Record<string, { tokens_in: number; tokens_out: number }> | null
+}
+
 export const createRun = (config: RunConfig): Promise<RunSummary> =>
   apiFetch('/api/runs', { method: 'POST', body: JSON.stringify(config) })
 
 export const listRuns = (): Promise<RunSummary[]> =>
   apiFetch('/api/runs')
 
-export const getRun = (id: string): Promise<RunSummary> =>
-  apiFetch(`/api/runs/${id}`)
+export const getRun = (id: string): Promise<RunResult> =>
+  apiFetch<RunResult>(`/api/runs/${id}`)
 
 export const getSettings = (): Promise<Settings> =>
   apiFetch('/api/settings')

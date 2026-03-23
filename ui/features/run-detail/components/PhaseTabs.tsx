@@ -15,8 +15,9 @@ const TABS: { label: string; phase: Phase; count: string }[] = [
 ]
 
 type Props = {
-  steps:   Record<AgentStep, StepStatus>
-  reports: Record<AgentStep, string[]>
+  steps:        Record<AgentStep, StepStatus>
+  reports:      Record<AgentStep, string[]>
+  tokensByStep: Record<AgentStep, { in: number; out: number }>
 }
 
 function getPhaseCompletion(phase: Phase, steps: Record<AgentStep, StepStatus>): number {
@@ -32,7 +33,7 @@ function getPhaseStatus(phase: Phase, steps: Record<AgentStep, StepStatus>): 'do
   return 'pending'
 }
 
-export default function PhaseTabs({ steps, reports }: Props) {
+export default function PhaseTabs({ steps, reports, tokensByStep }: Props) {
   const [active, setActive] = useState<Phase>('analysts')
 
   return (
@@ -118,7 +119,7 @@ export default function PhaseTabs({ steps, reports }: Props) {
       </div>
 
       {/* Reports */}
-      <AnalystReports phase={active} steps={steps} reports={reports} />
+      <AnalystReports phase={active} steps={steps} reports={reports} tokensByStep={tokensByStep} />
     </div>
   )
 }

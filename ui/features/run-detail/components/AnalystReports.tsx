@@ -2,6 +2,10 @@ import { AGENT_STEPS, AGENT_STEP_LABELS, STEP_PHASE } from '@/lib/types/run'
 import type { AgentStep } from '@/lib/types/run'
 import type { StepStatus } from '@/lib/types/agents'
 
+function formatTokens(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n)
+}
+
 type Phase = 'analysts' | 'researchers' | 'trader' | 'risk'
 
 const MULTI_TURN_STEPS = new Set<AgentStep>([
@@ -43,9 +47,10 @@ type Props = {
   phase: Phase
   steps: Record<AgentStep, StepStatus>
   reports: Record<AgentStep, string[]>
+  tokensByStep: Record<AgentStep, { in: number; out: number }>
 }
 
-export default function AnalystReports({ phase, steps, reports }: Props) {
+export default function AnalystReports({ phase, steps, reports, tokensByStep }: Props) {
   const phaseSteps = AGENT_STEPS.filter((s) => STEP_PHASE[s] === phase)
 
   return (
@@ -112,6 +117,22 @@ export default function AnalystReports({ phase, steps, reports }: Props) {
                         T{i + 1}
                       </span>
                     )}
+                    {(() => {
+                      const tok = tokensByStep[step]
+                      return tok && (tok.in > 0 || tok.out > 0) ? (
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '9px',
+                            color: 'var(--text-mid)',
+                            letterSpacing: '0.02em',
+                          }}
+                        >
+                          <span style={{ color: 'var(--accent)' }}>{formatTokens(tok.in)}</span>↑{' '}
+                          {formatTokens(tok.out)}↓
+                        </span>
+                      ) : null
+                    })()}
                   </div>
 
                   <div
