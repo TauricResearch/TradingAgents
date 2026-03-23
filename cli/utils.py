@@ -374,9 +374,13 @@ def perform_copilot_oauth() -> bool:
         console.print("[red]GitHub authentication skipped. Exiting...[/red]")
         return False
 
-    result = subprocess.run(["gh", "auth", "login"])
-    if result.returncode != 0:
-        console.print("[red]`gh auth login` failed.[/red]")
+    try:
+        result = subprocess.run(["gh", "auth", "login"])
+        if result.returncode != 0:
+            console.print("[red]`gh auth login` failed.[/red]")
+            return False
+    except FileNotFoundError:
+        console.print("[red]Error: `gh` command not found. Please install the GitHub CLI.[/red]")
         return False
 
     if check_copilot_auth():
