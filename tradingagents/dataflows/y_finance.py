@@ -5,7 +5,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 import os
-from .stockstats_utils import StockstatsUtils, YFinanceError, _clean_dataframe, _load_or_fetch_ohlcv
+from .stockstats_utils import StockstatsUtils, YFinanceError, _clean_dataframe, _load_or_fetch_ohlcv, yf_retry
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def get_YFin_data_online(
     ticker = yf.Ticker(symbol.upper())
 
     # Fetch historical data for the specified date range
-    data = ticker.history(start=start_date, end=end_date)
+    data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
 
     # Check if data is empty
     if data.empty:
@@ -247,7 +247,7 @@ def get_fundamentals(
     """Get company fundamentals overview from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
-        info = ticker_obj.info
+        info = yf_retry(lambda: ticker_obj.info)
 
         if not info:
             return f"No fundamentals data found for symbol '{ticker}'"
@@ -305,11 +305,11 @@ def get_balance_sheet(
     """Get balance sheet data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
-        
+
         if freq.lower() == "quarterly":
-            data = ticker_obj.quarterly_balance_sheet
+            data = yf_retry(lambda: ticker_obj.quarterly_balance_sheet)
         else:
-            data = ticker_obj.balance_sheet
+            data = yf_retry(lambda: ticker_obj.balance_sheet)
             
         if data.empty:
             return f"No balance sheet data found for symbol '{ticker}'"
@@ -335,11 +335,11 @@ def get_cashflow(
     """Get cash flow data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
-        
+
         if freq.lower() == "quarterly":
-            data = ticker_obj.quarterly_cashflow
+            data = yf_retry(lambda: ticker_obj.quarterly_cashflow)
         else:
-            data = ticker_obj.cashflow
+            data = yf_retry(lambda: ticker_obj.cashflow)
             
         if data.empty:
             return f"No cash flow data found for symbol '{ticker}'"
@@ -365,11 +365,11 @@ def get_income_statement(
     """Get income statement data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
-        
+
         if freq.lower() == "quarterly":
-            data = ticker_obj.quarterly_income_stmt
+            data = yf_retry(lambda: ticker_obj.quarterly_income_stmt)
         else:
-            data = ticker_obj.income_stmt
+            data = yf_retry(lambda: ticker_obj.income_stmt)
             
         if data.empty:
             return f"No income statement data found for symbol '{ticker}'"
@@ -393,7 +393,7 @@ def get_insider_transactions(
     """Get insider transactions data from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
-        data = ticker_obj.insider_transactions
+        data = yf_retry(lambda: ticker_obj.insider_transactions)
         
         if data is None or data.empty:
             return f"No insider transactions data found for symbol '{ticker}'"

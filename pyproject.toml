@@ -4,14 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tradingagents"
-version = "0.2.1"
+version = "0.2.2"
 description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "langchain-core>=0.3.81",
     "backtrader>=1.9.78.123",
-    "chainlit>=2.5.5",
     "langchain-anthropic>=0.3.15",
     "langchain-experimental>=0.3.4",
     "langchain-google-genai>=2.1.5",
@@ -62,3 +61,6 @@ markers = [
     "paid_tier: marks tests that require a paid Finnhub subscription (free tier returns HTTP 403)",
 ]
 addopts = "--ignore=tests/integration --ignore=tests/e2e --disable-socket --allow-unix-socket -x -q"
+
+[tool.setuptools.package-data]
+cli = ["static/*"]

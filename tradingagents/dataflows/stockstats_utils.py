@@ -1,6 +1,9 @@
+import time
 import logging
+
 import pandas as pd
 import yfinance as yf
+from yfinance.exceptions import YFRateLimitError
 from stockstats import wrap
 from typing import Annotated
 import os
@@ -118,6 +121,25 @@ def _load_or_fetch_ohlcv(symbol: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+
+def yf_retry(func, max_retries=3, base_delay=2.0):
+    """Execute a yfinance call with exponential backoff on rate limits.
+
+    yfinance raises YFRateLimitError on HTTP 429 responses but does not
+    retry them internally. This wrapper adds retry logic specifically
+    for rate limits. Other exceptions propagate immediately.
+    """
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except YFRateLimitError:
+            if attempt < max_retries:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(delay)
+            else:
+                raise
 
 
 class StockstatsUtils:

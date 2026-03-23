@@ -73,6 +73,7 @@ DEFAULT_CONFIG = {
     # Provider-specific thinking configuration (applies to all roles unless overridden)
     "google_thinking_level": _env("GOOGLE_THINKING_LEVEL"),      # "high", "minimal", etc.
     "openai_reasoning_effort": _env("OPENAI_REASONING_EFFORT"),  # "medium", "high", "low"
+    "anthropic_effort": _env("ANTHROPIC_EFFORT"),                # "high", "medium", "low"
     # Per-role provider-specific thinking configuration
     "deep_think_google_thinking_level": _env("DEEP_THINK_GOOGLE_THINKING_LEVEL"),
     "deep_think_openai_reasoning_effort": _env("DEEP_THINK_OPENAI_REASONING_EFFORT"),

@@ -97,7 +97,7 @@ class TestConditionalLogicWiring:
             )
         }
         result = cl.should_continue_risk_analysis(state)
-        assert result == "Risk Judge"
+        assert result == "Portfolio Manager"
 
 
 class TestNewModulesImportable:
