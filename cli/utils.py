@@ -162,6 +162,18 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
             ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
         ],
+        "groq": [
+            ("Llama 3.1 8B Instant - Fastest, cheapest", "llama-3.1-8b-instant"),
+            ("Llama 3 8B - Simple tasks", "llama-3-8b-8192"),
+            ("Mixtral 8x7B - Fast mixture of experts", "mixtral-8x7b-32768"),
+            ("GPT-Oss 120B via Groq - Large model", "openai/gpt-oss-120b"),
+        ],
+        "kilo": [
+            ("Llama 3.1 8B via Kilo - Fast", "llama-3.1-8b-instant"),
+            ("Claude Haiku via Kilo - Fast", "anthropic/claude-haiku-4-5"),
+            ("Gemini 2.5 Flash via Kilo - Balanced", "google/gemini-2.5-flash"),
+            ("MiniMax M2.5 via Kilo - Free", "minimax/minimax-m2.5:free"),
+        ],
         "openrouter": [
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
@@ -229,6 +241,20 @@ def select_deep_thinking_agent(provider) -> str:
             ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
             ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
         ],
+        "groq": [
+            ("Llama 3.3 70B Versatile - Best overall", "llama-3.3-70b-versatile"),
+            ("Llama 3.1 70B Versatile - Strong reasoning", "llama-3.1-70b-versatile"),
+            ("Mixtral 8x22B - Large mixture of experts", "mixtral-8x22b-32768"),
+            ("Llama 3.1 8B Instant - Fastest", "llama-3.1-8b-instant"),
+            ("GPT-Oss 120B via Groq - Large model", "openai/gpt-oss-120b"),
+        ],
+        "kilo": [
+            ("Claude Sonnet 4.5 via Kilo - Balanced", "anthropic/claude-sonnet-4-5"),
+            ("Claude Opus 4.5 via Kilo - Most capable", "anthropic/claude-opus-4-5"),
+            ("GPT-5 Mini via Kilo - Fast", "openai/gpt-5-mini"),
+            ("Gemini 2.5 Pro via Kilo - Reasoning", "google/gemini-2.5-pro"),
+            ("MiniMax M2.5 via Kilo - Free", "minimax/minimax-m2.5:free"),
+        ],
         "openrouter": [
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
@@ -270,6 +296,8 @@ def select_llm_provider() -> tuple[str, str]:
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("xAI", "https://api.x.ai/v1"),
+        ("Groq", "https://api.groq.com/openai/v1"),
+        ("Kilo Gateway", "https://api.kilo.ai/api/gateway"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
