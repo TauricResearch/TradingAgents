@@ -219,6 +219,8 @@ class Trade:
     trade_date: str = ""
     rationale: str | None = None
     signal_source: str | None = None  # "scanner" | "holding_review" | "pm_agent"
+    stop_loss: float | None = None    # Price level at which the position should be exited to limit loss
+    take_profit: float | None = None  # Price target at which the position should be sold for profit
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -234,12 +236,16 @@ class Trade:
             "trade_date": self.trade_date,
             "rationale": self.rationale,
             "signal_source": self.signal_source,
+            "stop_loss": self.stop_loss,
+            "take_profit": self.take_profit,
             "metadata": self.metadata,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Trade":
         """Deserialise from a DB row or JSON dict."""
+        raw_sl = data.get("stop_loss")
+        raw_tp = data.get("take_profit")
         return cls(
             trade_id=data["trade_id"],
             portfolio_id=data["portfolio_id"],
@@ -251,6 +257,8 @@ class Trade:
             trade_date=data.get("trade_date", ""),
             rationale=data.get("rationale"),
             signal_source=data.get("signal_source"),
+            stop_loss=float(raw_sl) if raw_sl is not None else None,
+            take_profit=float(raw_tp) if raw_tp is not None else None,
             metadata=data.get("metadata") or {},
         )
 

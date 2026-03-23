@@ -119,6 +119,8 @@ Immutable record of a single mock trade execution. Never modified after creation
 | `trade_date` | `str` | Yes | ISO-8601 UTC datetime of execution |
 | `rationale` | `str \| None` | No | PM agent rationale for this trade |
 | `signal_source` | `str \| None` | No | `"scanner"`, `"holding_review"`, `"pm_agent"` |
+| `stop_loss` | `float \| None` | No | Price level at which the position should be exited to limit loss |
+| `take_profit` | `float \| None` | No | Price target at which the position should be sold for profit |
 | `metadata` | `dict` | No | Free-form JSON |
 
 ### Methods
