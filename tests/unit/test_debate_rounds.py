@@ -142,10 +142,10 @@ class TestRiskDebateRounds2:
         assert result == "Aggressive Analyst"
 
     def test_threshold_at_6(self):
-        # count=6 == 3*2=6 → route to Risk Judge
+        # count=6 == 3*2=6 → route to Portfolio Manager
         state = _make_risk_state(count=6, latest_speaker="Aggressive")
         result = self.cl.should_continue_risk_analysis(state)
-        assert result == "Risk Judge"
+        assert result == "Portfolio Manager"
 
     def test_continues_at_count_5(self):
         state = _make_risk_state(count=5, latest_speaker="Aggressive")

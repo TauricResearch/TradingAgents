@@ -9,6 +9,9 @@ from cli.models import AnalystType
 console = Console()
 
 
+
+TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
+
 def _fetch_ollama_models(base_url: str = "http://localhost:11434") -> list[tuple[str, str]]:
     """Fetch available models from a running Ollama instance."""
     try:
@@ -31,7 +34,7 @@ ANALYST_ORDER = [
 def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol."""
     ticker = questionary.text(
-        "Enter the ticker symbol to analyze:",
+        f"Enter the exact ticker symbol to analyze ({TICKER_INPUT_EXAMPLES}):",
         validate=lambda x: len(x.strip()) > 0 or "Please enter a valid ticker symbol.",
         style=questionary.Style(
             [
@@ -45,6 +48,11 @@ def get_ticker() -> str:
         console.print("\n[red]No ticker symbol provided. Exiting...[/red]")
         exit(1)
 
+    return normalize_ticker_symbol(ticker)
+
+
+def normalize_ticker_symbol(ticker: str) -> str:
+    """Normalize ticker input while preserving exchange suffixes."""
     return ticker.strip().upper()
 
 
@@ -402,6 +410,26 @@ def ask_openai_reasoning_effort() -> str:
     return questionary.select(
         "Select Reasoning Effort:",
         choices=choices,
+        style=questionary.Style([
+            ("selected", "fg:cyan noinherit"),
+            ("highlighted", "fg:cyan noinherit"),
+            ("pointer", "fg:cyan noinherit"),
+        ]),
+    ).ask()
+
+
+def ask_anthropic_effort() -> str | None:
+    """Ask for Anthropic effort level.
+
+    Controls token usage and response thoroughness on Claude 4.5+ and 4.6 models.
+    """
+    return questionary.select(
+        "Select Effort Level:",
+        choices=[
+            questionary.Choice("High (recommended)", "high"),
+            questionary.Choice("Medium (balanced)", "medium"),
+            questionary.Choice("Low (faster, cheaper)", "low"),
+        ],
         style=questionary.Style([
             ("selected", "fg:cyan noinherit"),
             ("highlighted", "fg:cyan noinherit"),
