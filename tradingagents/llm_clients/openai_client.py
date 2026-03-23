@@ -3,8 +3,20 @@ from typing import Any, Optional
 
 from langchain_openai import ChatOpenAI
 
-from .base_client import BaseLLMClient
+from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
+
+
+class NormalizedChatOpenAI(ChatOpenAI):
+    """ChatOpenAI with normalized content output.
+
+    The Responses API returns content as a list of typed blocks
+    (reasoning, text, etc.). This normalizes to string for consistent
+    downstream handling.
+    """
+
+    def invoke(self, input, config=None, **kwargs):
+        return normalize_content(super().invoke(input, config, **kwargs))
 
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (
@@ -66,7 +78,7 @@ class OpenAIClient(BaseLLMClient):
         if self.provider == "openai":
             llm_kwargs["use_responses_api"] = True
 
-        return ChatOpenAI(**llm_kwargs)
+        return NormalizedChatOpenAI(**llm_kwargs)
 
     def validate_model(self) -> bool:
         """Validate model for the provider."""

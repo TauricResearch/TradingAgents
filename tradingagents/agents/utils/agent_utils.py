@@ -19,6 +19,15 @@ from tradingagents.agents.utils.news_data_tools import (
     get_global_news
 )
 
+
+def build_instrument_context(ticker: str) -> str:
+    """Describe the exact instrument so agents preserve exchange-qualified tickers."""
+    return (
+        f"The instrument to analyze is `{ticker}`. "
+        "Use this exact ticker in every tool call, report, and recommendation, "
+        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
+    )
+
 def create_msg_delete():
     def delete_messages(state):
         """Clear messages and add placeholder for Anthropic compatibility"""
