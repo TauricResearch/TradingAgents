@@ -33,7 +33,7 @@ _RESPONSES_ONLY_MODELS = frozenset((
 
 _PASSTHROUGH_KWARGS = (
     "timeout", "max_retries", "reasoning_effort",
-    "api_key", "callbacks", "http_client", "http_async_client",
+    "callbacks", "http_client", "http_async_client",
 )
 
 
