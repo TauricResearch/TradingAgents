@@ -48,17 +48,29 @@ VALID_MODELS = {
         "grok-4-fast-reasoning",
         "grok-4-fast-non-reasoning",
     ],
+    "groq": [
+        # Llama series (hosted by Groq)
+        "llama-3.3-70b-versatile",
+        "llama-3.1-70b-versatile",
+        "llama-3.1-8b-instant",
+        "llama-3-8b-8192",
+        # Mixtral series (hosted by Groq)
+        "mixtral-8x7b-32768",
+        "mixtral-8x22b-32768",
+        # Other models via Groq
+        "openai/gpt-oss-120b",
+    ],
 }
 
 
 def validate_model(provider: str, model: str) -> bool:
     """Check if model name is valid for the given provider.
 
-    For ollama, openrouter - any model is accepted.
+    For ollama, openrouter, kilo - any model is accepted.
     """
     provider_lower = provider.lower()
 
-    if provider_lower in ("ollama", "openrouter"):
+    if provider_lower in ("ollama", "openrouter", "kilo"):
         return True
 
     if provider_lower not in VALID_MODELS:
