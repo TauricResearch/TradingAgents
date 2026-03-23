@@ -44,6 +44,8 @@ const AgentNode = ({ data }: NodeProps) => {
       borderRadius="lg" 
       minW="180px"
       boxShadow="0 0 15px rgba(0,0,0,0.5)"
+      cursor="pointer"
+      _hover={{ borderColor: 'cyan.300', boxShadow: '0 0 20px rgba(79,209,197,0.3)' }}
     >
       <Handle type="target" position={Position.Top} />
       
@@ -51,6 +53,9 @@ const AgentNode = ({ data }: NodeProps) => {
         <Flex align="center" gap={2}>
           <Icon as={getIcon(data.agent)} color={getStatusColor(data.status)} boxSize={4} />
           <Text fontSize="sm" fontWeight="bold" color="white">{data.agent}</Text>
+          {data.status === 'completed' && (
+            <Badge colorScheme="green" fontSize="2xs" ml="auto">Done</Badge>
+          )}
         </Flex>
         
         <Box height="1px" bg="whiteAlpha.200" width="100%" />
@@ -60,7 +65,7 @@ const AgentNode = ({ data }: NodeProps) => {
             <Icon as={Clock} boxSize={3} color="whiteAlpha.500" />
             <Text fontSize="2xs" color="whiteAlpha.600">{data.metrics?.latency_ms || 0}ms</Text>
           </Flex>
-          {data.metrics?.model && (
+          {data.metrics?.model && data.metrics.model !== 'unknown' && (
             <Badge variant="outline" fontSize="2xs" colorScheme="blue">{data.metrics.model}</Badge>
           )}
         </Flex>
@@ -95,9 +100,10 @@ const nodeTypes = {
 
 interface AgentGraphProps {
   events: AgentEvent[];
+  onNodeClick?: (nodeId: string) => void;
 }
 
-export const AgentGraph: React.FC<AgentGraphProps> = ({ events }) => {
+export const AgentGraph: React.FC<AgentGraphProps> = ({ events, onNodeClick }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   // Track which node_ids we have already added so we never duplicate
@@ -193,6 +199,10 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events }) => {
     }
   }, [events.length, setNodes, setEdges]);
 
+  const handleNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    onNodeClick?.(node.id);
+  }, [onNodeClick]);
+
   return (
     <Box height="100%" width="100%" bg="slate.950">
       <ReactFlow
@@ -200,6 +210,7 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events }) => {
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
         fitView
       >
