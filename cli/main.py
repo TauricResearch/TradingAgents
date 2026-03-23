@@ -546,18 +546,19 @@ def get_user_selections():
     )
     selected_llm_provider, backend_url = select_llm_provider()
     
+    # Normalize provider name once for all uses (Kilo Gateway -> kilo)
+    normalized_provider = selected_llm_provider.lower().replace(" ", "")
+    if normalized_provider == "kilogateway":
+        normalized_provider = "kilo"
+
     # Step 6: Thinking agents
     console.print(
         create_question_box(
             "Step 6: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
-    # Normalize provider name for model selection (Kilo Gateway -> kilo)
-    provider_for_models = selected_llm_provider.lower().replace(" ", "")
-    if provider_for_models == "kilogateway":
-        provider_for_models = "kilo"
-    selected_shallow_thinker = select_shallow_thinking_agent(provider_for_models)
-    selected_deep_thinker = select_deep_thinking_agent(provider_for_models)
+    selected_shallow_thinker = select_shallow_thinking_agent(normalized_provider)
+    selected_deep_thinker = select_deep_thinking_agent(normalized_provider)
 
     # Step 7: Provider-specific thinking configuration
     thinking_level = None
@@ -590,13 +591,7 @@ def get_user_selections():
         )
         anthropic_effort = ask_anthropic_effort()
 
-    # Normalize provider name for config (Kilo Gateway -> kilo, Openrouter -> openrouter)
-    normalized_provider = selected_llm_provider.lower().replace(" ", "")
-    if normalized_provider == "kilogateway":
-        normalized_provider = "kilo"
-    if normalized_provider == "openrouter":
-        normalized_provider = "openrouter"
-    
+    # Use already normalized provider from earlier
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,

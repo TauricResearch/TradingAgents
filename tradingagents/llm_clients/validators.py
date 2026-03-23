@@ -60,16 +60,6 @@ VALID_MODELS = {
         # Other models via Groq
         "openai/gpt-oss-120b",
     ],
-    "kilo": [
-        # Kilo Gateway supports models from multiple providers
-        # Example models from various providers accessible via Kilo
-        "anthropic/claude-sonnet-4.5",
-        "anthropic/claude-opus-4.5",
-        "openai/gpt-5-mini",
-        "google/gemini-2.5-flash",
-        # Minimax models via Kilo
-        "minimax/minimax-m2.5:free",
-    ],
 }
 
 
