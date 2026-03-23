@@ -37,7 +37,7 @@ _PASSTHROUGH_KWARGS = (
 )
 
 
-def _get_github_token() -> Optional[str]:
+def get_github_token() -> Optional[str]:
     """Return a GitHub token via the ``gh`` CLI."""
     try:
         result = subprocess.run(
@@ -54,7 +54,7 @@ def _get_github_token() -> Optional[str]:
 def _get_copilot_api_url() -> str:
     """Resolve the Copilot inference base URL via GraphQL, falling back to the
     standard individual endpoint."""
-    token = _get_github_token()
+    token = get_github_token()
     if token:
         try:
             resp = requests.post(
@@ -78,7 +78,7 @@ def list_copilot_models() -> list[tuple[str, str]]:
     Returns a list of ``(display_label, model_id)`` tuples sorted by model ID.
     Requires ``gh auth login`` with an active Copilot subscription.
     """
-    token = _get_github_token()
+    token = get_github_token()
     if not token:
         return []
     try:
@@ -99,7 +99,7 @@ def list_copilot_models() -> list[tuple[str, str]]:
 
 def check_copilot_auth() -> bool:
     """Return True if a GitHub token with Copilot access is available."""
-    token = _get_github_token()
+    token = get_github_token()
     if not token:
         return False
     try:
@@ -131,7 +131,7 @@ class CopilotClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatOpenAI instance pointed at the Copilot API."""
-        token = _get_github_token()
+        token = get_github_token()
         if not token:
             raise RuntimeError(
                 "No GitHub token found. Run `gh auth login` to authenticate."

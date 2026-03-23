@@ -377,7 +377,7 @@ def perform_copilot_oauth() -> bool:
     """
     from tradingagents.llm_clients.copilot_client import check_copilot_auth, get_github_token
 
-    token = _get_github_token()
+    token = get_github_token()
     if token:
         if check_copilot_auth():
             console.print("[green]✓ Authenticated with GitHub Copilot[/green]")
