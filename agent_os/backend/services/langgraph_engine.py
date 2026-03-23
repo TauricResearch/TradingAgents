@@ -190,6 +190,9 @@ class LangGraphEngine:
     def _extract_content(obj: object) -> str:
         """Safely extract text content from a LangChain message or plain object."""
         content = getattr(obj, "content", None)
+        # Handle cases where .content might be a method instead of a property
+        if content is not None and callable(content):
+            content = None
         return str(content) if content is not None else str(obj)
 
     @staticmethod
@@ -421,10 +424,19 @@ class LangGraphEngine:
                 # If .content was empty or the repr of the whole object, try harder
                 if not raw or raw.startswith("<") or raw == str(output):
                     # Some providers wrap in .text or .message
+                    potential_text = getattr(output, "text", "")
+                    if callable(potential_text):
+                        potential_text = ""
+
                     raw = (
-                        getattr(output, "text", "")
+                        potential_text
                         or (output.get("content", "") if isinstance(output, dict) else "")
                     )
+
+                # Ensure raw is a string before subscripting
+                if not isinstance(raw, str):
+                    raw = str(raw)
+
                 if raw:
                     full_response = raw[:_MAX_FULL_LEN]
                     response_snippet = self._truncate(raw)

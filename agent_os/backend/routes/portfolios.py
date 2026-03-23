@@ -10,6 +10,16 @@ import datetime
 
 router = APIRouter(prefix="/api/portfolios", tags=["portfolios"])
 
+def _resolve_portfolio_id(portfolio_id: str, db: SupabaseClient) -> str:
+    """Resolves the 'main_portfolio' alias to the first available portfolio ID."""
+    if portfolio_id == "main_portfolio":
+        portfolios = db.list_portfolios()
+        if portfolios:
+            return portfolios[0].portfolio_id
+        else:
+            raise PortfolioNotFoundError("No portfolios found to resolve 'main_portfolio' alias.")
+    return portfolio_id
+
 @router.get("/")
 async def list_portfolios(
     user: dict = Depends(get_current_user),
@@ -25,6 +35,7 @@ async def get_portfolio(
     db: SupabaseClient = Depends(get_db_client)
 ):
     try:
+        portfolio_id = _resolve_portfolio_id(portfolio_id, db)
         portfolio = db.get_portfolio(portfolio_id)
         return portfolio.to_dict()
     except PortfolioNotFoundError:
@@ -42,6 +53,7 @@ async def get_portfolio_summary(
         date = datetime.datetime.now().strftime("%Y-%m-%d")
     
     try:
+        portfolio_id = _resolve_portfolio_id(portfolio_id, db)
         # 1. Sharpe & Drawdown from latest snapshot
         snapshot = db.get_latest_snapshot(portfolio_id)
         sharpe = 0.0
@@ -94,6 +106,7 @@ async def get_latest_portfolio_state(
     db: SupabaseClient = Depends(get_db_client)
 ):
     try:
+        portfolio_id = _resolve_portfolio_id(portfolio_id, db)
         portfolio = db.get_portfolio(portfolio_id)
         snapshot = db.get_latest_snapshot(portfolio_id)
         holdings = db.list_holdings(portfolio_id)
