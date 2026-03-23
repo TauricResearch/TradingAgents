@@ -127,6 +127,8 @@ def get_stock_data(
     start = datetime.strptime(start_date, "%Y-%m-%d")
     end = datetime.strptime(end_date, "%Y-%m-%d")
     days = (end - start).days
+    if days <= 0:
+        return f"Invalid date range: start_date ({start_date}) must be before end_date ({end_date})"
     range_param = _days_to_range(days)
 
     try:
@@ -355,12 +357,20 @@ def get_cashflow(
     except Exception as e:
         return f"Error fetching cashflow for {symbol}: {e}"
 
+    statements = data.get("cash_flow_statements", [])
     lines = [
         f"# Cash Flow: {symbol.upper()}",
         f"# Source: Polaris Knowledge API",
         "",
-        f"Free Cash Flow: {_safe_get(data, 'free_cash_flow')}",
     ]
+    if statements:
+        lines.append("Date,Operating Cash Flow,Capital Expenditure,Free Cash Flow")
+        lines.extend(
+            f"{s.get('date', '')},{s.get('operating_cash_flow', '')},{s.get('capital_expenditure', '')},{s.get('free_cash_flow', '')}"
+            for s in statements
+        )
+    else:
+        lines.append(f"Free Cash Flow: {_safe_get(data, 'free_cash_flow')}")
 
     result = "\n".join(lines) + "\n"
     _set_cache(cache_key, result)
@@ -633,7 +643,7 @@ def get_sector_analysis(
     for c in peers:
         lines.append(
             f"{_safe_get(c, 'ticker')},{_safe_get(c, 'entity_name')},"
-            f"${_safe_get(c, 'price')},{_safe_get(c, 'change_pct', '')}%,"
+            f"{_safe_get(c, 'price')},{_safe_get(c, 'change_pct', '')},"
             f"{_safe_get(c, 'rsi_14')},{_safe_get(c, 'sentiment_7d')},"
             f"{_safe_get(c, 'briefs_7d')},{_safe_get(c, 'signal', 'N/A')}"
         )
