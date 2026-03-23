@@ -1,6 +1,6 @@
 <p align="center">
   <img src="assets/TauricResearch.png" style="width: 60%; height: auto;">
-</p>
+</p>ㅓㅏㅗㅗ;ㅗ;ㅗ;ㅗ
 
 <div align="center" style="line-height: 1;">
   <a href="https://arxiv.org/abs/2412.20138" target="_blank"><img alt="arXiv" src="https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv"/></a>
