@@ -4,6 +4,7 @@ from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.dataflows.config import get_config
 
 
