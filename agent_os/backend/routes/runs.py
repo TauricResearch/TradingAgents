@@ -104,6 +104,27 @@ async def trigger_auto(
     background_tasks.add_task(_run_and_store, run_id, engine.run_auto(run_id, params or {}))
     return {"run_id": run_id, "status": "queued"}
 
+@router.delete("/portfolio-stage")
+async def reset_portfolio_stage(
+    params: Dict[str, Any],
+    user: dict = Depends(get_current_user),
+):
+    """Delete PM decision and execution result for a given date/portfolio_id.
+
+    After calling this, an auto run will re-run Phase 3 from scratch
+    (Phases 1 & 2 are skipped if their cached results still exist).
+    """
+    from tradingagents.portfolio.report_store import ReportStore
+    date = params.get("date")
+    portfolio_id = params.get("portfolio_id")
+    if not date or not portfolio_id:
+        raise HTTPException(status_code=422, detail="date and portfolio_id are required")
+    store = ReportStore()
+    deleted = store.clear_portfolio_stage(date, portfolio_id)
+    logger.info("reset_portfolio_stage date=%s portfolio=%s deleted=%s user=%s", date, portfolio_id, deleted, user["user_id"])
+    return {"deleted": deleted, "date": date, "portfolio_id": portfolio_id}
+
+
 @router.get("/")
 async def list_runs(user: dict = Depends(get_current_user)):
     # Filter by user in production

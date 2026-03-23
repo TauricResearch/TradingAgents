@@ -303,6 +303,23 @@ class ReportStore:
         path = self._portfolio_dir(date) / f"{portfolio_id}_execution_result.json"
         return self._read_json(path)
 
+    def clear_portfolio_stage(self, date: str, portfolio_id: str) -> list[str]:
+        """Delete PM decision and execution result files for a given date/portfolio.
+
+        Returns a list of deleted file names so the caller can log what was removed.
+        """
+        targets = [
+            self._portfolio_dir(date) / f"{portfolio_id}_pm_decision.json",
+            self._portfolio_dir(date) / f"{portfolio_id}_pm_decision.md",
+            self._portfolio_dir(date) / f"{portfolio_id}_execution_result.json",
+        ]
+        deleted = []
+        for path in targets:
+            if path.exists():
+                path.unlink()
+                deleted.append(path.name)
+        return deleted
+
     def list_pm_decisions(self, portfolio_id: str) -> list[Path]:
         """Return all saved PM decision JSON paths for portfolio_id, newest first.
 
