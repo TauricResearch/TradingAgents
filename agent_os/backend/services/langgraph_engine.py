@@ -390,7 +390,7 @@ class LangGraphEngine:
         _store = store or ReportStore()
 
         try:
-            repo = PortfolioRepository(config=self.config)
+            repo = PortfolioRepository()
             executor = TradeExecutor(repo=repo, config=self.config)
 
             # Execute decisions
