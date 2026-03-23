@@ -38,7 +38,10 @@ async def websocket_endpoint(
             stream_gen = engine.run_scan(run_id, params)
         elif run_type == "pipeline":
             stream_gen = engine.run_pipeline(run_id, params)
-        # Add other types as they are implemented in LangGraphEngine
+        elif run_type == "portfolio":
+            stream_gen = engine.run_portfolio(run_id, params)
+        elif run_type == "auto":
+            stream_gen = engine.run_auto(run_id, params)
         
         if stream_gen:
             async for payload in stream_gen:

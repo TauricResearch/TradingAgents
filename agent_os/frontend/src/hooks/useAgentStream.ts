@@ -5,8 +5,12 @@ export interface AgentEvent {
   timestamp: string;
   agent: string;
   tier: 'quick' | 'mid' | 'deep';
-  type: 'thought' | 'tool' | 'result' | 'log' | 'system';
+  type: 'thought' | 'tool' | 'tool_result' | 'result' | 'log' | 'system';
   message: string;
+  /** Full prompt text (available on thought & result events). */
+  prompt?: string;
+  /** Full response text (available on result & tool_result events). */
+  response?: string;
   node_id?: string;
   parent_node_id?: string;
   metrics?: {

@@ -127,6 +127,9 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events, onNodeClick }) =
     for (const evt of newEvents) {
       if (!evt.node_id || evt.node_id === '__system__') continue;
 
+      // Determine if this event means the node is completed
+      const isCompleted = evt.type === 'result' || evt.type === 'tool_result';
+
       if (!seenNodeIds.current.has(evt.node_id)) {
         // New node — create it
         seenNodeIds.current.add(evt.node_id);
@@ -138,7 +141,7 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events, onNodeClick }) =
           position: { x: 250, y: nodeCount.current * 150 + 50 },
           data: {
             agent: evt.agent,
-            status: evt.type === 'result' ? 'completed' : 'running',
+            status: isCompleted ? 'completed' : 'running',
             metrics: evt.metrics,
           },
         });
@@ -159,8 +162,11 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events, onNodeClick }) =
         }
       } else {
         // Existing node — queue a status/metrics update
+        // Never revert a completed node back to running
+        const prev = updatedNodeData.get(evt.node_id);
+        const currentlyCompleted = prev?.status === 'completed';
         updatedNodeData.set(evt.node_id, {
-          status: evt.type === 'result' ? 'completed' : 'running',
+          status: currentlyCompleted || isCompleted ? 'completed' : 'running',
           metrics: evt.metrics,
         });
       }
@@ -178,9 +184,11 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events, onNodeClick }) =
         prev.map((n) => {
           const patch = updatedNodeData.get(n.id);
           if (!patch) return n;
+          // Never revert a completed node back to running
+          const finalStatus = n.data.status === 'completed' ? 'completed' : patch.status;
           return {
             ...n,
-            data: { ...n.data, ...patch, metrics: patch.metrics ?? n.data.metrics },
+            data: { ...n.data, ...patch, status: finalStatus, metrics: patch.metrics ?? n.data.metrics },
           };
         }),
       );
