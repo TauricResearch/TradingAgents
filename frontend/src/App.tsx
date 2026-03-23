@@ -52,6 +52,7 @@ function todayIso(): string {
 export default function App() {
   const [options, setOptions] = useState<OptionsResponse | null>(null);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
   const [ticker, setTicker] = useState("SPY");
   const [analysisDate, setAnalysisDate] = useState(todayIso());
   const [researchDepth, setResearchDepth] = useState(1);
@@ -65,8 +66,11 @@ export default function App() {
   const [quickThink, setQuickThink] = useState("");
   const [deepThink, setDeepThink] = useState("");
   const [googleThinkingLevel, setGoogleThinkingLevel] = useState("high");
+  const [openaiReasoningEffort, setOpenaiReasoningEffort] = useState("medium");
+  const [backendUrlOverride, setBackendUrlOverride] = useState("");
   const [job, setJob] = useState<AnalysisJob | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const providers = options?.providers ?? [];
   const providerMeta = useMemo(
@@ -78,7 +82,11 @@ export default function App() {
     let mounted = true;
     (async () => {
       try {
+        setOptionsError(null);
         const response = await fetch(`${API_BASE}/api/options`);
+        if (!response.ok) {
+          throw new Error(`Failed to load options (${response.status})`);
+        }
         const data: OptionsResponse = await response.json();
         if (!mounted) {
           return;
@@ -88,6 +96,11 @@ export default function App() {
         if (google && google.models.length > 0) {
           setQuickThink(google.models[0]);
           setDeepThink(google.models[0]);
+        }
+      } catch (error) {
+        if (mounted) {
+          const message = error instanceof Error ? error.message : "Failed to load options";
+          setOptionsError(message);
         }
       } finally {
         if (mounted) {
@@ -116,13 +129,41 @@ export default function App() {
     if (!job || (job.status !== "queued" && job.status !== "running")) {
       return;
     }
-    const timer = setTimeout(async () => {
-      const response = await fetch(`${API_BASE}/api/analysis/jobs/${job.id}`);
-      const updated = (await response.json()) as AnalysisJob;
-      setJob(updated);
+    const timer = setInterval(async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/analysis/jobs/${job.id}`);
+        if (!response.ok) {
+          throw new Error(`Polling failed (${response.status})`);
+        }
+        const updated = (await response.json()) as AnalysisJob;
+        setJob(updated);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Polling failed";
+        setJob((current) => {
+          if (!current) {
+            return current;
+          }
+          return {
+            ...current,
+            status: "failed",
+            error: message,
+            completed_at: new Date().toISOString(),
+          };
+        });
+      }
     }, 2500);
-    return () => clearTimeout(timer);
+    return () => clearInterval(timer);
   }, [job]);
+
+  const formValid = useMemo(() => {
+    const normalizedTicker = ticker.trim();
+    return (
+      normalizedTicker.length > 0 &&
+      analysisDate.length === 10 &&
+      selectedAnalysts.length > 0 &&
+      provider.length > 0
+    );
+  }, [ticker, analysisDate, selectedAnalysts, provider]);
 
   const toggleAnalyst = (value: string) => {
     setSelectedAnalysts((current) => {
@@ -134,20 +175,28 @@ export default function App() {
     });
   };
 
-  const submitJob = async () => {
+  const submitJob = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!formValid) {
+      setSubmitError("Complete ticker, date, and analyst selection before submitting.");
+      return;
+    }
     setIsSubmitting(true);
+    setSubmitError(null);
     setJob(null);
     try {
       const payload = {
-        ticker,
+        ticker: ticker.trim().toUpperCase(),
         analysis_date: analysisDate,
         analysts: selectedAnalysts,
         research_depth: researchDepth,
         llm_provider: provider,
-        backend_url: providerMeta?.base_url,
+        backend_url: backendUrlOverride.trim() || providerMeta?.base_url,
         quick_think_llm: quickThink,
         deep_think_llm: deepThink,
         google_thinking_level: provider === "google" ? googleThinkingLevel : null,
+        openai_reasoning_effort:
+          provider === "openai" ? openaiReasoningEffort : null,
       };
       const response = await fetch(`${API_BASE}/api/analysis/jobs`, {
         method: "POST",
@@ -161,19 +210,7 @@ export default function App() {
       setJob(created);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      setJob({
-        id: "n/a",
-        status: "failed",
-        created_at: new Date().toISOString(),
-        request: {
-          ticker,
-          analysis_date: analysisDate,
-          analysts: selectedAnalysts,
-          research_depth: researchDepth,
-          llm_provider: provider,
-        },
-        error: message,
-      });
+      setSubmitError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -195,102 +232,138 @@ export default function App() {
       <section className="grid">
         <aside className="panel stack">
           <h2>Run Setup</h2>
+          {optionsError && <div className="card error">{optionsError}</div>}
 
-          <label>
-            Ticker
-            <input value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} />
-          </label>
-
-          <label>
-            Analysis Date
-            <input
-              type="date"
-              value={analysisDate}
-              onChange={(e) => setAnalysisDate(e.target.value)}
-            />
-          </label>
-
-          <label>
-            Provider
-            <select value={provider} onChange={(e) => setProvider(e.target.value)}>
-              {providers.map((item) => (
-                <option value={item.id} key={item.id}>
-                  {item.id}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Quick-Thinking Model
-            <select value={quickThink} onChange={(e) => setQuickThink(e.target.value)}>
-              {providerMeta?.models?.map((model) => (
-                <option value={model} key={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Deep-Thinking Model
-            <select value={deepThink} onChange={(e) => setDeepThink(e.target.value)}>
-              {providerMeta?.models?.map((model) => (
-                <option value={model} key={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {provider === "google" && (
+          <form className="stack" onSubmit={submitJob}>
             <label>
-              Gemini Thinking Mode
-              <select
-                value={googleThinkingLevel}
-                onChange={(e) => setGoogleThinkingLevel(e.target.value)}
-              >
-                <option value="high">high</option>
-                <option value="minimal">minimal</option>
+              Ticker
+              <input
+                value={ticker}
+                onChange={(e) => setTicker(e.target.value.toUpperCase())}
+                placeholder="e.g. NVDA"
+              />
+            </label>
+
+            <label>
+              Analysis Date
+              <input
+                type="date"
+                value={analysisDate}
+                onChange={(e) => setAnalysisDate(e.target.value)}
+              />
+            </label>
+
+            <label>
+              Provider
+              <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+                {providers.map((item) => (
+                  <option value={item.id} key={item.id}>
+                    {item.id}
+                  </option>
+                ))}
               </select>
             </label>
-          )}
 
-          <label>
-            Research Depth
-            <div className="depth">
-              {[1, 3, 5].map((depth) => (
-                <button
-                  key={depth}
-                  type="button"
-                  className={researchDepth === depth ? "active" : ""}
-                  onClick={() => setResearchDepth(depth)}
+            <label>
+              Provider Base URL Override (optional)
+              <input
+                value={backendUrlOverride}
+                onChange={(e) => setBackendUrlOverride(e.target.value)}
+                placeholder={providerMeta?.base_url || "https://..."}
+              />
+            </label>
+
+            <label>
+              Quick-Thinking Model
+              <select value={quickThink} onChange={(e) => setQuickThink(e.target.value)}>
+                {providerMeta?.models?.map((model) => (
+                  <option value={model} key={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Deep-Thinking Model
+              <select value={deepThink} onChange={(e) => setDeepThink(e.target.value)}>
+                {providerMeta?.models?.map((model) => (
+                  <option value={model} key={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {provider === "google" && (
+              <label>
+                Gemini Thinking Mode
+                <select
+                  value={googleThinkingLevel}
+                  onChange={(e) => setGoogleThinkingLevel(e.target.value)}
                 >
-                  {depth === 1 ? "Shallow" : depth === 3 ? "Medium" : "Deep"}
-                </button>
-              ))}
-            </div>
-          </label>
+                  <option value="high">high</option>
+                  <option value="minimal">minimal</option>
+                </select>
+              </label>
+            )}
 
-          <div className="stack">
-            <span className="mono">Analyst Team</span>
-            <div className="checks">
-              {(options?.analysts || []).map((analyst) => (
-                <label key={analyst}>
-                  <input
-                    type="checkbox"
-                    checked={selectedAnalysts.includes(analyst)}
-                    onChange={() => toggleAnalyst(analyst)}
-                  />
-                  {analyst}
-                </label>
-              ))}
-            </div>
-          </div>
+            {provider === "openai" && (
+              <label>
+                OpenAI Reasoning Effort
+                <select
+                  value={openaiReasoningEffort}
+                  onChange={(e) => setOpenaiReasoningEffort(e.target.value)}
+                >
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+            )}
 
-          <button className="run" type="button" onClick={submitJob} disabled={isSubmitting || loadingOptions}>
-            {isSubmitting ? "Submitting..." : "Start Analysis Job"}
-          </button>
+            <label>
+              Research Depth
+              <div className="depth">
+                {[1, 3, 5].map((depth) => (
+                  <button
+                    key={depth}
+                    type="button"
+                    className={researchDepth === depth ? "active" : ""}
+                    onClick={() => setResearchDepth(depth)}
+                  >
+                    {depth === 1 ? "Shallow" : depth === 3 ? "Medium" : "Deep"}
+                  </button>
+                ))}
+              </div>
+            </label>
+
+            <div className="stack">
+              <span className="mono">Analyst Team</span>
+              <div className="checks">
+                {(options?.analysts || []).map((analyst) => (
+                  <label key={analyst}>
+                    <input
+                      type="checkbox"
+                      checked={selectedAnalysts.includes(analyst)}
+                      onChange={() => toggleAnalyst(analyst)}
+                    />
+                    {analyst}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {submitError && <div className="card error">{submitError}</div>}
+
+            <button
+              className="run"
+              type="submit"
+              disabled={isSubmitting || loadingOptions || !formValid}
+            >
+              {isSubmitting ? "Submitting..." : "Start Analysis Job"}
+            </button>
+          </form>
         </aside>
 
         <article className="panel">
