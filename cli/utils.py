@@ -134,6 +134,28 @@ def select_research_depth() -> int:
     return choice
 
 
+def _resolve_model_options(
+    provider: str, static_options: dict
+) -> list[tuple[str, str]]:
+    """Return model options for the given provider.
+
+    For Copilot, fetches the live model list from the API.
+    For all other providers, looks up the static options dict.
+    Exits with an error message if no models are available.
+    """
+    if provider.lower() == "copilot":
+        options = fetch_copilot_models()
+        if not options:
+            console.print("[red]No Copilot models available. Exiting...[/red]")
+            exit(1)
+    else:
+        options = static_options.get(provider.lower())
+        if not options:
+            console.print(f"[red]No models available for provider '{provider}'. Exiting...[/red]")
+            exit(1)
+    return options
+
+
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
@@ -175,16 +197,7 @@ def select_shallow_thinking_agent(provider) -> str:
         "copilot": [],
     }
 
-    if provider.lower() == "copilot":
-        options = fetch_copilot_models()
-        if not options:
-            console.print("[red]No Copilot models available. Exiting...[/red]")
-            exit(1)
-    else:
-        options = SHALLOW_AGENT_OPTIONS.get(provider.lower())
-        if not options:
-            console.print(f"[red]No models available for provider '{provider}'. Exiting...[/red]")
-            exit(1)
+    options = _resolve_model_options(provider, SHALLOW_AGENT_OPTIONS)
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
@@ -254,16 +267,7 @@ def select_deep_thinking_agent(provider) -> str:
         "copilot": [],  # populated dynamically by fetch_copilot_models()
     }
 
-    if provider.lower() == "copilot":
-        options = fetch_copilot_models()
-        if not options:
-            console.print("[red]No Copilot models available. Exiting...[/red]")
-            exit(1)
-    else:
-        options = DEEP_AGENT_OPTIONS.get(provider.lower())
-        if not options:
-            console.print(f"[red]No models available for provider '{provider}'. Exiting...[/red]")
-            exit(1)
+    options = _resolve_model_options(provider, DEEP_AGENT_OPTIONS)
 
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
@@ -286,6 +290,29 @@ def select_deep_thinking_agent(provider) -> str:
         exit(1)
 
     return choice
+
+def _resolve_model_options(
+    provider: str, static_options: dict
+) -> list[tuple[str, str]]:
+    """Return the model list for the given provider.
+
+    For Copilot, fetches live from the inference API.
+    For all others, looks up the static options dict.
+    Exits with an error message if no models are available.
+    """
+    if provider.lower() == "copilot":
+        options = fetch_copilot_models()
+        if not options:
+            console.print("[red]No Copilot models available. Exiting...[/red]")
+            exit(1)
+        return options
+
+    options = static_options.get(provider.lower())
+    if not options:
+        console.print(f"[red]No models available for provider '{provider}'. Exiting...[/red]")
+        exit(1)
+    return options
+
 
 def fetch_copilot_models() -> list[tuple[str, str]]:
     """Fetch models from the GitHub Copilot inference API.
