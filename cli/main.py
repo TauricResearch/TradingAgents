@@ -24,10 +24,8 @@ from rich.align import Align
 from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.prediction_market import PMTradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.prediction_market.pm_config import PM_DEFAULT_CONFIG
-from cli.models import AnalysisMode, AnalystType, PMAnalystType
+from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
@@ -500,95 +498,62 @@ def get_user_selections():
             box_content += f"\n[dim]Default: {default}[/dim]"
         return Panel(box_content, border_style="blue", padding=(1, 2))
 
-    # Step 1: Analysis mode (Stock or Polymarket)
+    # Step 1: Ticker symbol
     console.print(
         create_question_box(
-            "Step 1: Ticker Symbol or Polymarket Market ID",
-            "Choose between stock analysis or prediction market analysis",
+            "Step 1: Ticker Symbol", "Enter the ticker symbol to analyze", "SPY"
         )
     )
-    selected_mode = select_analysis_mode()
+    selected_ticker = get_ticker()
 
-    # Step 2: Ticker / Market ID based on mode
-    selected_ticker = None
-    market_id = None
-    market_question = ""
-
-    if selected_mode == AnalysisMode.STOCK:
-        console.print(
-            create_question_box(
-                "Step 2: Ticker Symbol", "Enter the ticker symbol to analyze", "SPY"
-            )
-        )
-        selected_ticker = get_ticker()
-    else:
-        console.print(
-            create_question_box(
-                "Step 2: Polymarket Market",
-                "Paste a Polymarket URL or enter a numeric market ID",
-            )
-        )
-        market_id, market_question = get_market_id()
-
-    # Step 3: Analysis date
+    # Step 2: Analysis date
     default_date = datetime.datetime.now().strftime("%Y-%m-%d")
     console.print(
         create_question_box(
-            "Step 3: Analysis Date",
+            "Step 2: Analysis Date",
             "Enter the analysis date (YYYY-MM-DD)",
             default_date,
         )
     )
     analysis_date = get_analysis_date()
 
-    # Step 4: Select analysts
-    if selected_mode == AnalysisMode.STOCK:
-        console.print(
-            create_question_box(
-                "Step 4: Analysts Team", "Select your LLM analyst agents for the analysis"
-            )
-        )
-        selected_analysts = select_analysts()
-        console.print(
-            f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
-        )
-    else:
-        console.print(
-            create_question_box(
-                "Step 4: PM Analysts Team", "Select your prediction market analyst agents"
-            )
-        )
-        selected_analysts = select_pm_analysts()
-        console.print(
-            f"[green]Selected PM analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
-        )
-
-    # Step 5: Research depth
+    # Step 3: Select analysts
     console.print(
         create_question_box(
-            "Step 5: Research Depth", "Select your research depth level"
+            "Step 3: Analysts Team", "Select your LLM analyst agents for the analysis"
+        )
+    )
+    selected_analysts = select_analysts()
+    console.print(
+        f"[green]Selected analysts:[/green] {', '.join(analyst.value for analyst in selected_analysts)}"
+    )
+
+    # Step 4: Research depth
+    console.print(
+        create_question_box(
+            "Step 4: Research Depth", "Select your research depth level"
         )
     )
     selected_research_depth = select_research_depth()
 
-    # Step 6: LLM provider
+    # Step 5: OpenAI backend
     console.print(
         create_question_box(
-            "Step 6: LLM Provider", "Select which service to talk to"
+            "Step 5: OpenAI backend", "Select which service to talk to"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
-
-    # Step 7: Thinking agents
+    
+    # Step 6: Thinking agents
     console.print(
         create_question_box(
-            "Step 7: Thinking Agents", "Select your thinking agents for analysis"
+            "Step 6: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
     selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
     selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
 
-    # Step 8: Provider-specific thinking configuration
+    # Step 7: Provider-specific thinking configuration
     thinking_level = None
     reasoning_effort = None
 
@@ -596,7 +561,7 @@ def get_user_selections():
     if provider_lower == "google":
         console.print(
             create_question_box(
-                "Step 8: Thinking Mode",
+                "Step 7: Thinking Mode",
                 "Configure Gemini thinking mode"
             )
         )
@@ -604,17 +569,14 @@ def get_user_selections():
     elif provider_lower == "openai":
         console.print(
             create_question_box(
-                "Step 8: Reasoning Effort",
+                "Step 7: Reasoning Effort",
                 "Configure OpenAI reasoning effort level"
             )
         )
         reasoning_effort = ask_openai_reasoning_effort()
 
     return {
-        "mode": selected_mode,
         "ticker": selected_ticker,
-        "market_id": market_id,
-        "market_question": market_question,
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
@@ -937,53 +899,6 @@ def format_tool_args(args, max_length=80) -> str:
 def run_analysis():
     # First get all user selections
     selections = get_user_selections()
-
-    # Branch to Polymarket flow if selected
-    if selections["mode"] == AnalysisMode.POLYMARKET:
-        config = PM_DEFAULT_CONFIG.copy()
-        config["max_debate_rounds"] = selections["research_depth"]
-        config["max_risk_discuss_rounds"] = selections["research_depth"]
-        config["quick_think_llm"] = selections["shallow_thinker"]
-        config["deep_think_llm"] = selections["deep_thinker"]
-        config["backend_url"] = selections["backend_url"]
-        config["llm_provider"] = selections["llm_provider"].lower()
-        config["google_thinking_level"] = selections.get("google_thinking_level")
-        config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
-
-        pm_analyst_order = ["event", "odds", "information", "sentiment"]
-        selected_set = {analyst.value for analyst in selections["analysts"]}
-        selected_analyst_keys = [a for a in pm_analyst_order if a in selected_set]
-
-        pm_graph = PMTradingAgentsGraph(
-            selected_analyst_keys,
-            config=config,
-            debug=True,
-        )
-
-        market_id = selections["market_id"]
-        market_question = selections.get("market_question", "")
-        analysis_date = selections["analysis_date"]
-
-        console.print(f"\n[bold cyan]Running Polymarket analysis...[/bold cyan]")
-        console.print(f"  Market ID: [green]{market_id}[/green]")
-        if market_question:
-            console.print(f"  Question: [green]{market_question}[/green]")
-        console.print(f"  Date: [green]{analysis_date}[/green]")
-        console.print(f"  Analysts: [green]{', '.join(selected_analyst_keys)}[/green]")
-        console.print()
-
-        _, decision = pm_graph.propagate(market_id, analysis_date, market_question)
-
-        console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
-        console.print(Panel(
-            Markdown(f"```json\n{decision}\n```"),
-            title="[bold]Final Decision[/bold]",
-            border_style="green",
-            padding=(1, 2),
-        ))
-        return
-
-    # --- Stock analysis flow (original) ---
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
