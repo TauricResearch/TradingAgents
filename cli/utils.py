@@ -289,43 +289,13 @@ def fetch_copilot_models() -> list[tuple[str, str]]:
     Returns a list of (display_label, model_id) tuples sorted by model ID.
     Requires authentication via ``gh auth login`` with a Copilot subscription.
     """
-    import requests
-    from tradingagents.auth import get_github_token, COPILOT_HEADERS, get_copilot_api_url
+    from tradingagents.llm_clients.copilot_client import list_copilot_models
 
-    token = get_github_token()
-    if not token:
-        console.print("[red]No GitHub token available. Run `gh auth login` first.[/red]")
-        return []
-
-    try:
-        console.print("[dim]Fetching available Copilot models...[/dim]")
-        copilot_url = get_copilot_api_url()
-        headers = {
-            "Authorization": f"Bearer {token}",
-            **COPILOT_HEADERS,
-        }
-        resp = requests.get(
-            f"{copilot_url}/models",
-            headers=headers,
-            timeout=10,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-        models = data.get("data", data) if isinstance(data, dict) else data
-        # Filter to chat-capable models (exclude embeddings)
-        chat_models = [
-            m for m in models
-            if not m.get("id", "").startswith("text-embedding")
-        ]
-
-        return [
-            (m["id"], m["id"])
-            for m in sorted(chat_models, key=lambda x: x.get("id", ""))
-        ]
-    except Exception as e:
-        console.print(f"[yellow]Warning: Could not fetch Copilot models: {e}[/yellow]")
-        return []
+    console.print("[dim]Fetching available Copilot models...[/dim]")
+    models = list_copilot_models()
+    if not models:
+        console.print("[yellow]Warning: Could not fetch Copilot models.[/yellow]")
+    return models
 
 
 def select_llm_provider() -> tuple[str, str]:
@@ -374,42 +344,24 @@ def perform_copilot_oauth() -> bool:
 
     Returns True if a valid token with Copilot access is available, False otherwise.
     """
-    from tradingagents.auth import get_github_token
+    from tradingagents.llm_clients.copilot_client import check_copilot_auth, _get_github_token
 
-    token = get_github_token()
+    token = _get_github_token()
     if token:
-        # Verify Copilot access
-        import requests
-        from tradingagents.auth import COPILOT_HEADERS, get_copilot_api_url
-        try:
-            copilot_url = get_copilot_api_url()
-            resp = requests.get(
-                f"{copilot_url}/models",
-                headers={"Authorization": f"Bearer {token}", **COPILOT_HEADERS},
-                timeout=5,
-            )
-            if resp.status_code == 200:
-                console.print("[green]✓ Authenticated with GitHub Copilot[/green]")
-                return True
-            else:
-                console.print(
-                    f"[yellow]⚠  GitHub token found but Copilot access failed "
-                    f"(HTTP {resp.status_code}). Check your Copilot subscription.[/yellow]"
-                )
-                return False
-        except Exception:
-            # Network error — accept the token optimistically
-            console.print("[green]✓ Authenticated with GitHub CLI (Copilot access not verified)[/green]")
+        if check_copilot_auth():
+            console.print("[green]✓ Authenticated with GitHub Copilot[/green]")
             return True
+        console.print(
+            "[yellow]⚠  GitHub token found but Copilot access failed. "
+            "Check your Copilot subscription.[/yellow]"
+        )
+        return False
 
     console.print(
         "[yellow]⚠  No GitHub token found.[/yellow] "
         "You need to authenticate to use GitHub Copilot."
     )
-    should_login = questionary.confirm(
-        "Run `gh auth login` now?", default=True
-    ).ask()
-
+    should_login = questionary.confirm("Run `gh auth login` now?", default=True).ask()
     if not should_login:
         console.print("[red]GitHub authentication skipped. Exiting...[/red]")
         return False
@@ -419,8 +371,7 @@ def perform_copilot_oauth() -> bool:
         console.print("[red]`gh auth login` failed.[/red]")
         return False
 
-    token = get_github_token()
-    if token:
+    if _get_github_token():
         console.print("[green]✓ GitHub authentication successful![/green]")
         return True
 
