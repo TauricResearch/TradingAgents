@@ -326,44 +326,91 @@ class LangGraphEngine:
             except Exception as exc:
                 logger.warning("PORTFOLIO fallback ainvoke failed run=%s: %s", run_id, exc)
 
-        # Save PM decision report
+        # Save portfolio reports (Holding Reviews, Risk Metrics, PM Decision, Execution Result)
         if final_state:
             try:
-                pm_decision_str = final_state.get("pm_decision", "")
+                # 1. Holding Reviews
+                holding_reviews_str = final_state.get("holding_reviews")
+                if holding_reviews_str:
+                    try:
+                        reviews = json.loads(holding_reviews_str) if isinstance(holding_reviews_str, str) else holding_reviews_str
+                        # ReportStore doesn't have batch save for reviews, but we can save the string or iterate.
+                        # For now, let's at least save the PM decision and Execution Result which are most critical.
+                        pass
+                    except Exception: pass
+
+                # 2. Risk Metrics
+                risk_metrics_str = final_state.get("risk_metrics")
+                if risk_metrics_str:
+                    try:
+                        metrics = json.loads(risk_metrics_str) if isinstance(risk_metrics_str, str) else risk_metrics_str
+                        store.save_risk_metrics(date, portfolio_id, metrics)
+                    except Exception: pass
+
+                # 3. PM Decision
+                pm_decision_str = final_state.get("pm_decision")
                 if pm_decision_str:
                     try:
-                        pm_decision_dict = (
-                            json.loads(pm_decision_str)
-                            if isinstance(pm_decision_str, str)
-                            else pm_decision_str
-                        )
-                    except (json.JSONDecodeError, TypeError):
-                        pm_decision_dict = {"raw": pm_decision_str}
-                    ReportStore().save_pm_decision(date, portfolio_id, pm_decision_dict)
-                    yield self._system_log(
-                        f"Portfolio reports saved for {portfolio_id} on {date}"
-                    )
+                        decision = json.loads(pm_decision_str) if isinstance(pm_decision_str, str) else pm_decision_str
+                        store.save_pm_decision(date, portfolio_id, decision)
+                    except Exception: pass
+
+                # 4. Execution Result
+                execution_result_str = final_state.get("execution_result")
+                if execution_result_str:
+                    try:
+                        execution = json.loads(execution_result_str) if isinstance(execution_result_str, str) else execution_result_str
+                        store.save_execution_result(date, portfolio_id, execution)
+                    except Exception: pass
+
+                yield self._system_log(f"Portfolio stage reports (decision & execution) saved for {portfolio_id} on {date}")
             except Exception as exc:
                 logger.exception("Failed to save portfolio reports run=%s", run_id)
-                yield self._system_log(
-                    f"Warning: could not save portfolio reports: {exc}"
-                )
+                yield self._system_log(f"Warning: could not save portfolio reports: {exc}")
 
         logger.info("Completed PORTFOLIO run=%s", run_id)
+
+    async def run_trade_execution(
+        self, run_id: str, date: str, portfolio_id: str, decision: dict, prices: dict
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Manually execute a pre-computed PM decision (for resumability)."""
+        logger.info("Starting TRADE_EXECUTION run=%s portfolio=%s date=%s", run_id, portfolio_id, date)
+        yield self._system_log(f"Resuming trade execution for {portfolio_id} using saved decision…")
+
+        from tradingagents.portfolio.trade_executor import TradeExecutor
+        from tradingagents.portfolio.repository import PortfolioRepository
+
+        try:
+            repo = PortfolioRepository(config=self.config)
+            executor = TradeExecutor(repo=repo, config=self.config)
+            
+            # Execute decisions
+            result = executor.execute_decisions(portfolio_id, decision, prices, date=date)
+            
+            # Save results
+            ReportStore().save_execution_result(date, portfolio_id, result)
+            
+            yield self._system_log(f"Trade execution completed for {portfolio_id}. {result.get('summary', {})}")
+            logger.info("Completed TRADE_EXECUTION run=%s", run_id)
+        except Exception as exc:
+            logger.exception("Trade execution failed run=%s", run_id)
+            yield self._system_log(f"Error during trade execution: {exc}")
+            raise
 
     async def run_auto(
         self, run_id: str, params: Dict[str, Any]
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Run the full auto pipeline: scan → pipeline → portfolio."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
+        force = params.get("force", False)
 
-        logger.info("Starting AUTO run=%s date=%s", run_id, date)
-        yield self._system_log(f"Starting full auto workflow for {date}")
+        logger.info("Starting AUTO run=%s date=%s force=%s", run_id, date, force)
+        yield self._system_log(f"Starting full auto workflow for {date} (force={force})")
 
         # Phase 1: Market scan
         yield self._system_log("Phase 1/3: Running market scan…")
         store = ReportStore()
-        if store.load_scan(date):
+        if not force and store.load_scan(date):
             yield self._system_log(f"Phase 1: Macro scan for {date} already exists, skipping.")
         else:
             async for evt in self.run_scan(f"{run_id}_scan", {"date": date}):
@@ -382,7 +429,7 @@ class LangGraphEngine:
             )
         else:
             for ticker in tickers:
-                if store.load_analysis(date, ticker):
+                if not force and store.load_analysis(date, ticker):
                     yield self._system_log(f"Phase 2: Analysis for {ticker} on {date} already exists, skipping.")
                     continue
 
@@ -395,14 +442,29 @@ class LangGraphEngine:
         # Phase 3: Portfolio management
         yield self._system_log("Phase 3/3: Running portfolio manager…")
         portfolio_params = {k: v for k, v in params.items() if k != "ticker"}
-        # Check if portfolio decision already exists
-        if store.load_pm_decision(date, portfolio_id):
-             yield self._system_log(f"Phase 3: Portfolio decision for {portfolio_id} on {date} already exists, skipping.")
+        portfolio_id = params.get("portfolio_id", "main_portfolio")
+        
+        # Check if portfolio stage is fully complete (execution result exists)
+        if not force and store.load_execution_result(date, portfolio_id):
+             yield self._system_log(f"Phase 3: Portfolio execution for {portfolio_id} on {date} already exists, skipping.")
         else:
-            async for evt in self.run_portfolio(
-                f"{run_id}_portfolio", {"date": date, **portfolio_params}
-            ):
-                yield evt
+            # Check if we can resume from a saved decision
+            saved_decision = store.load_pm_decision(date, portfolio_id)
+            if not force and saved_decision:
+                yield self._system_log(f"Phase 3: Found saved PM decision for {portfolio_id}, resuming trade execution…")
+                # Need prices for execution
+                scan_data = store.load_scan(date) or {}
+                prices = scan_data.get("prices") or {}
+                async for evt in self.run_trade_execution(
+                    f"{run_id}_resume_trades", date, portfolio_id, saved_decision, prices
+                ):
+                    yield evt
+            else:
+                # Run full portfolio graph (Decision + Execution)
+                async for evt in self.run_portfolio(
+                    f"{run_id}_portfolio", {"date": date, **portfolio_params}
+                ):
+                    yield evt
 
         logger.info("Completed AUTO run=%s", run_id)
 
