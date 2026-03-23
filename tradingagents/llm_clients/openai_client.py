@@ -36,6 +36,19 @@ _PROVIDER_CONFIG = {
 }
 
 
+# Models that only support the Responses API on the Copilot endpoint.
+_COPILOT_RESPONSES_ONLY = frozenset((
+    "gpt-5.4", "gpt-5.4-mini",
+    "gpt-5.3-codex", "gpt-5.2-codex",
+    "gpt-5.1-codex", "gpt-5.1-codex-mini", "gpt-5.1-codex-max",
+))
+
+
+def _copilot_needs_responses_api(model: str) -> bool:
+    """Return True if the model requires /responses instead of /chat/completions."""
+    return model in _COPILOT_RESPONSES_ONLY
+
+
 class OpenAIClient(BaseLLMClient):
     """Client for OpenAI, Ollama, OpenRouter, xAI, and GitHub Copilot providers.
 
@@ -96,6 +109,11 @@ class OpenAIClient(BaseLLMClient):
                 codex_token = get_codex_token()
                 if codex_token:
                     llm_kwargs["api_key"] = codex_token
+
+        # Copilot: newer models (gpt-5.4, codex variants) only support the
+        # Responses API (/responses), not Chat Completions (/chat/completions).
+        if self.provider == "copilot" and _copilot_needs_responses_api(self.model):
+            llm_kwargs["use_responses_api"] = True
 
         return NormalizedChatOpenAI(**llm_kwargs)
 
