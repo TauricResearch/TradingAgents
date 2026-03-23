@@ -3628,6 +3628,7 @@ source = { editable = "." }
 dependencies = [
     { name = "backtrader" },
     { name = "chainlit" },
+    { name = "fastapi" },
     { name = "langchain-anthropic" },
     { name = "langchain-core" },
     { name = "langchain-experimental" },
@@ -3649,6 +3650,8 @@ dependencies = [
     { name = "tqdm" },
     { name = "typer" },
     { name = "typing-extensions" },
+    { name = "uvicorn" },
+    { name = "websockets" },
     { name = "yfinance" },
 ]
 
@@ -3664,6 +3667,7 @@ dev = [
 requires-dist = [
     { name = "backtrader", specifier = ">=1.9.78.123" },
     { name = "chainlit", specifier = ">=2.5.5" },
+    { name = "fastapi", specifier = ">=0.115.9" },
     { name = "langchain-anthropic", specifier = ">=0.3.15" },
     { name = "langchain-core", specifier = ">=0.3.81" },
     { name = "langchain-experimental", specifier = ">=0.3.4" },
@@ -3685,6 +3689,8 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.21.0" },
     { name = "typing-extensions", specifier = ">=4.14.0" },
+    { name = "uvicorn", specifier = ">=0.34.3" },
+    { name = "websockets", specifier = ">=15.0.1" },
     { name = "yfinance", specifier = ">=0.2.63" },
 ]
 

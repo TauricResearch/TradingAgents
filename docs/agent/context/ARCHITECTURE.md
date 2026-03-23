@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-19 -->
+<!-- Last verified: 2026-03-23 -->
 
 # Architecture
 
@@ -131,6 +131,70 @@ Source: `tradingagents/observability.py`
 
 Source: `cli/main.py`, `cli/stats_handler.py`
 
+## AgentOS — Visual Observability Layer
+
+Full-stack web UI for monitoring and controlling agent execution in real-time.
+
+### Architecture
+
+```
+┌──────────────────────────────────┐       ┌───────────────────────────────────┐
+│  Frontend (React + Vite 8)       │       │  Backend (FastAPI)                │
+│  localhost:5173                   │◄─WS──►│  127.0.0.1:8088                  │
+│                                  │       │                                   │
+│  Dashboard (2 pages via sidebar) │       │  POST /api/run/{type} — queue run │
+│  ├─ dashboard: graph+terminal    │       │  WS /ws/stream/{run_id} — execute │
+│  └─ portfolio: PortfolioViewer   │       │  GET /api/portfolios/* — data     │
+│                                  │       │                                   │
+│  ReactFlow (live agent graph)    │       │  LangGraphEngine                  │
+│  Terminal (event stream)         │       │  ├─ run_scan()                    │
+│  MetricHeader (Sharpe/regime)    │       │  ├─ run_pipeline()                │
+│  Param panel (date/ticker/id)    │       │  ├─ run_portfolio()               │
+│                                  │       │  └─ run_auto() [scan→pipe→port]   │
+└──────────────────────────────────┘       └───────────────────────────────────┘
+```
+
+### Run Types
+
+| Type | REST Trigger | WebSocket Executor | Description |
+|------|-------------|-------------------|-------------|
+| `scan` | `POST /api/run/scan` | `run_scan()` | 3-phase macro scanner |
+| `pipeline` | `POST /api/run/pipeline` | `run_pipeline()` | Per-ticker trading analysis |
+| `portfolio` | `POST /api/run/portfolio` | `run_portfolio()` | Portfolio manager workflow |
+| `auto` | `POST /api/run/auto` | `run_auto()` | Sequential: scan → pipeline → portfolio |
+
+REST endpoints only queue runs (in-memory store). WebSocket is the sole executor — streaming LangGraph events to the frontend in real-time.
+
+### Event Streaming
+
+`LangGraphEngine._map_langgraph_event()` maps LangGraph v2 events to 4 frontend event types:
+
+| Event | LangGraph Trigger | Content |
+|-------|------------------|---------|
+| `thought` | `on_chat_model_start` | Prompt text, model name |
+| `tool` | `on_tool_start` | Tool name, arguments |
+| `tool_result` | `on_tool_end` | Tool output |
+| `result` | `on_chat_model_end` | Response text, token counts, latency |
+
+Each event includes optional `prompt` and `response` full-text fields. Model name extraction uses 3 fallbacks: `invocation_params` → serialized kwargs → `metadata.ls_model_name`. Event mapping uses try/except per type and `_safe_dict()` helper to prevent crashes from non-dict metadata.
+
+### Portfolio API
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/portfolios/` | List all portfolios |
+| `GET /api/portfolios/{id}` | Get portfolio details |
+| `GET /api/portfolios/{id}/summary` | Top-3 metrics (Sharpe, regime, drawdown) |
+| `GET /api/portfolios/{id}/latest` | Holdings, trades, snapshot with field mapping |
+
+The `/latest` endpoint maps backend model fields to frontend shape: `Holding.shares` → `quantity`, `Portfolio.portfolio_id` → `id`, `cash` → `cash_balance`, `Trade.trade_date` → `executed_at`. Computed runtime fields (`market_value`, `unrealized_pnl`) are included from enriched Holding properties.
+
+### Pipeline Recursion Limit
+
+`run_pipeline()` passes `config={"recursion_limit": propagator.max_recur_limit}` (default 100) to `astream_events()`. Without it, LangGraph defaults to 25 which is too low for the debate + risk cycles.
+
+Source: `agent_os/backend/`, `agent_os/frontend/`
+
 ## Key Source Files
 
 | File | Purpose |
@@ -138,8 +202,10 @@ Source: `cli/main.py`, `cli/stats_handler.py`
 | `tradingagents/default_config.py` | All config keys, defaults, env var override pattern |
 | `tradingagents/graph/trading_graph.py` | `TradingAgentsGraph` class, LLM wiring, tool nodes |
 | `tradingagents/graph/scanner_graph.py` | `ScannerGraph` class, 3-phase workflow |
+| `tradingagents/graph/portfolio_graph.py` | `PortfolioGraph` class, 6-node portfolio workflow |
 | `tradingagents/graph/setup.py` | `GraphSetup` — agent node creation, graph compilation |
 | `tradingagents/graph/scanner_setup.py` | `ScannerGraphSetup` — scanner graph compilation |
+| `tradingagents/graph/portfolio_setup.py` | `PortfolioGraphSetup` — portfolio graph compilation |
 | `tradingagents/dataflows/interface.py` | `route_to_vendor`, `VENDOR_METHODS`, `FALLBACK_ALLOWED` |
 | `tradingagents/agents/utils/tool_runner.py` | `run_tool_loop()`, `MAX_TOOL_ROUNDS=5`, `MIN_REPORT_LENGTH=2000` |
 | `tradingagents/agents/utils/agent_states.py` | `AgentState`, `InvestDebateState`, `RiskDebateState` |
@@ -150,3 +216,13 @@ Source: `cli/main.py`, `cli/stats_handler.py`
 | `tradingagents/report_paths.py` | Unified report path helpers (`get_market_dir`, `get_ticker_dir`, etc.) |
 | `tradingagents/observability.py` | `RunLogger`, `_LLMCallbackHandler`, structured event logging |
 | `tradingagents/dataflows/config.py` | `set_config()`, `get_config()`, `initialize_config()` |
+| `agent_os/backend/main.py` | FastAPI app, CORS, route mounting, health check |
+| `agent_os/backend/services/langgraph_engine.py` | `LangGraphEngine` — run orchestration, LangGraph event mapping |
+| `agent_os/backend/routes/websocket.py` | WebSocket streaming endpoint (`/ws/stream/{run_id}`) |
+| `agent_os/backend/routes/runs.py` | REST run triggers (`POST /api/run/{type}`) |
+| `agent_os/backend/routes/portfolios.py` | Portfolio REST API with field mapping |
+| `agent_os/frontend/src/Dashboard.tsx` | 2-page dashboard, graph + terminal + controls |
+| `agent_os/frontend/src/hooks/useAgentStream.ts` | WebSocket hook, `AgentEvent` type, status tracking |
+| `agent_os/frontend/src/components/AgentGraph.tsx` | ReactFlow live agent graph visualization |
+| `agent_os/frontend/src/components/PortfolioViewer.tsx` | Holdings table, trade history, snapshot summary |
+| `agent_os/frontend/src/components/MetricHeader.tsx` | Top-3 portfolio metrics display |

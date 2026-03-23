@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-19 -->
+<!-- Last verified: 2026-03-23 -->
 
 # Components
 
@@ -93,6 +93,41 @@ tradingagents/
 
 cli/
 └── main.py                          # Typer app, MessageBuffer, Rich UI, 3 commands
+
+agent_os/
+├── __init__.py
+├── DESIGN.md                          # Visual observability design document
+├── README.md                          # AgentOS overview and setup instructions
+├── backend/
+│   ├── __init__.py
+│   ├── main.py                        # FastAPI app, CORS, route mounting (port 8088)
+│   ├── dependencies.py                # get_current_user() (V1 hardcoded), get_db_client()
+│   ├── store.py                       # In-memory run store (Dict[str, Dict])
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── runs.py                    # POST /api/run/{scan,pipeline,portfolio,auto}
+│   │   ├── websocket.py               # WS /ws/stream/{run_id} — sole executor
+│   │   └── portfolios.py             # GET /api/portfolios/* — CRUD + summary + latest
+│   └── services/
+│       ├── __init__.py
+│       └── langgraph_engine.py        # LangGraphEngine: run_scan/pipeline/portfolio/auto, event mapping
+└── frontend/
+    ├── package.json                   # React 18 + Vite 8 + Chakra UI + ReactFlow
+    ├── tsconfig.json
+    ├── vite.config.ts
+    ├── index.html
+    └── src/
+        ├── main.tsx                   # React entry point
+        ├── App.tsx                    # ChakraProvider wrapper
+        ├── Dashboard.tsx              # 2-page layout: dashboard (graph+terminal) / portfolio
+        ├── theme.ts                   # Dark theme customization
+        ├── index.css                  # Global styles
+        ├── hooks/
+        │   └── useAgentStream.ts      # WebSocket hook, AgentEvent type, status ref
+        └── components/
+            ├── AgentGraph.tsx          # ReactFlow live graph with incremental nodes
+            ├── MetricHeader.tsx        # Top-3 metrics: Sharpe, regime, drawdown
+            └── PortfolioViewer.tsx     # Holdings table, trade history, snapshot view
 ```
 
 ## Agent Factory Inventory (17 factories + 1 utility)
@@ -161,6 +196,27 @@ cli/
 | `scan` | `run_scan(date)` | 3-phase macro scanner, saves 5 report files |
 | `pipeline` | `run_pipeline()` | Full pipeline: scan JSON → filter by conviction → per-ticker deep dive |
 
+## AgentOS Frontend Components
+
+| Component | File | Description |
+|-----------|------|-------------|
+| `Dashboard` | `agent_os/frontend/src/Dashboard.tsx` | 2-page layout with sidebar (dashboard/portfolio), run buttons, param panel |
+| `AgentGraph` | `agent_os/frontend/src/components/AgentGraph.tsx` | ReactFlow live graph — incremental node addition via useRef(Set) dedup |
+| `MetricHeader` | `agent_os/frontend/src/components/MetricHeader.tsx` | Top-3 metrics: Sharpe ratio, market regime+beta, drawdown+VaR |
+| `PortfolioViewer` | `agent_os/frontend/src/components/PortfolioViewer.tsx` | 3-tab view: holdings table, trade history, snapshot summary |
+| `useAgentStream` | `agent_os/frontend/src/hooks/useAgentStream.ts` | WebSocket hook with `statusRef` to avoid stale closures |
+
+## AgentOS Backend Services
+
+| Service | File | Description |
+|---------|------|-------------|
+| `LangGraphEngine` | `agent_os/backend/services/langgraph_engine.py` | Orchestrates 4 run types, maps LangGraph v2 events to frontend events |
+| `runs` router | `agent_os/backend/routes/runs.py` | REST triggers: `POST /api/run/{type}` — queues runs in memory store |
+| `websocket` router | `agent_os/backend/routes/websocket.py` | `WS /ws/stream/{run_id}` — sole executor, streams events to frontend |
+| `portfolios` router | `agent_os/backend/routes/portfolios.py` | Portfolio CRUD, summary metrics, holdings/trades with field mapping |
+| `dependencies` | `agent_os/backend/dependencies.py` | `get_current_user()` (V1 hardcoded), `get_db_client()` |
+| `store` | `agent_os/backend/store.py` | In-memory `Dict[str, Dict]` run store (demo, not persisted) |
+
 ## Test Organization
 
 | Test File | Type | What It Covers | Markers |
@@ -190,5 +246,6 @@ cli/
 | `test_ttm_analysis.py` | Mixed | TTM metrics computation, report format | `integration` on live test |
 | `test_vendor_failfast.py` | Unit | ADR 011 fail-fast behavior, error chaining | — |
 | `test_yfinance_integration.py` | Unit | Full yfinance data layer (all mocked) | — |
+| `test_langgraph_engine_extraction.py` | Unit | LangGraph event mapping, model/prompt extraction, _safe_dict helper | — |
 
 Pytest markers: `integration` (live API), `paid_tier` (Finnhub paid subscription), `slow` (long-running). Defined in `conftest.py`.

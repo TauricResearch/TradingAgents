@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-19 -->
+<!-- Last verified: 2026-03-23 -->
 
 # Conventions
 
@@ -94,3 +94,17 @@
 - Fail-fast by default — no silent fallback unless method is in `FALLBACK_ALLOWED`. (ADR 011)
 - Alpha Vantage hierarchy: `AlphaVantageError` → `APIKeyInvalidError`, `RateLimitError`, `ThirdPartyError`, `ThirdPartyTimeoutError`, `ThirdPartyParseError`. (`alpha_vantage_common.py`)
 - Finnhub hierarchy: `FinnhubError` → `APIKeyInvalidError`, `RateLimitError`, `ThirdPartyError`, `ThirdPartyTimeoutError`, `ThirdPartyParseError`. (`finnhub_common.py`)
+
+## AgentOS Patterns
+
+- **REST endpoints only queue runs** — WebSocket is the sole executor. POST `/api/run/{type}` writes to in-memory store, WS `/ws/stream/{run_id}` picks up and executes. (`runs.py`, `websocket.py`)
+- **Event mapping is crash-proof** — `_map_langgraph_event()` wraps each event type branch in try/except. `_safe_dict()` helper converts non-dict metadata to empty dict. (`langgraph_engine.py`)
+- **Model name extraction** uses 3 fallbacks: `invocation_params` → serialized kwargs → `metadata.ls_model_name`. (`langgraph_engine.py`)
+- **Prompt extraction** tries 5 locations: `data.messages` → `data.input.messages` → `data.input` → `data.kwargs.messages` → raw dump. (`langgraph_engine.py`)
+- **ReactFlow nodes are incremental** — never rebuilt from scratch. `useRef(Set)` deduplication prevents duplicates. (`AgentGraph.tsx`)
+- **useAgentStream uses statusRef** to avoid stale closures in WebSocket callbacks. Status is not a useCallback dependency. (`useAgentStream.ts`)
+- **Pipeline recursion limit** — `run_pipeline()` must pass `config={"recursion_limit": propagator.max_recur_limit}` to `astream_events()`. Default LangGraph limit of 25 is too low for debate+risk cycles. (`langgraph_engine.py`)
+- **Portfolio field mapping** — `/latest` endpoint maps backend model fields to frontend shape: `shares` → `quantity`, `portfolio_id` → `id`, `cash` → `cash_balance`, `trade_date` → `executed_at`. Computed fields (`market_value`, `unrealized_pnl`) included from runtime properties. (`portfolios.py`)
+- **Dashboard drawer has 2 modes** — `'event'` (single event detail from terminal click) and `'node'` (all events for a graph node from ReactFlow click). (`Dashboard.tsx`)
+- **Run buttons track activeRunType** — only the triggered button spins, others disabled during run. (`Dashboard.tsx`)
+- **Collapsible param panel** — date/ticker/portfolio_id with per-run-type validation. (`Dashboard.tsx`)
