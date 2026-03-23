@@ -5,6 +5,7 @@ from langchain_openai import ChatOpenAI
 
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
+from ..auth import get_codex_token, get_github_token, get_copilot_api_url, COPILOT_HEADERS
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -24,21 +25,25 @@ _PASSTHROUGH_KWARGS = (
     "api_key", "callbacks", "http_client", "http_async_client",
 )
 
-# Provider base URLs and API key env vars
+# Provider base URLs and API key env vars.
+# Copilot: uses the GitHub Copilot inference API, authenticated via ``gh``
+# CLI token with Copilot-specific headers.  No env var needed.
 _PROVIDER_CONFIG = {
     "xai": ("https://api.x.ai/v1", "XAI_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
+    "copilot": (None, None),  # base_url resolved at runtime via GraphQL
 }
 
 
 class OpenAIClient(BaseLLMClient):
-    """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
+    """Client for OpenAI, Ollama, OpenRouter, xAI, and GitHub Copilot providers.
 
     For native OpenAI models, uses the Responses API (/v1/responses) which
     supports reasoning_effort with function tools across all model families
     (GPT-4.1, GPT-5). Third-party compatible providers (xAI, OpenRouter,
-    Ollama) use standard Chat Completions.
+    Ollama) use standard Chat Completions.  GitHub Copilot uses the Copilot
+    inference API with special headers.
     """
 
     def __init__(
@@ -56,9 +61,18 @@ class OpenAIClient(BaseLLMClient):
         llm_kwargs = {"model": self.model}
 
         # Provider-specific base URL and auth
-        if self.provider in _PROVIDER_CONFIG:
+        if self.provider == "copilot":
+            # GitHub Copilot: resolve base URL and inject required headers
+            copilot_url = get_copilot_api_url()
+            llm_kwargs["base_url"] = copilot_url
+            token = get_github_token()
+            if token:
+                llm_kwargs["api_key"] = token
+            llm_kwargs["default_headers"] = dict(COPILOT_HEADERS)
+        elif self.provider in _PROVIDER_CONFIG:
             base_url, api_key_env = _PROVIDER_CONFIG[self.provider]
-            llm_kwargs["base_url"] = base_url
+            if base_url:
+                llm_kwargs["base_url"] = base_url
             if api_key_env:
                 api_key = os.environ.get(api_key_env)
                 if api_key:
@@ -68,7 +82,7 @@ class OpenAIClient(BaseLLMClient):
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
-        # Forward user-provided kwargs
+        # Forward user-provided kwargs (takes precedence over auto-resolved tokens)
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
@@ -77,6 +91,11 @@ class OpenAIClient(BaseLLMClient):
         # all model families. Third-party providers use Chat Completions.
         if self.provider == "openai":
             llm_kwargs["use_responses_api"] = True
+            # If no explicit api_key in kwargs, fall back to Codex OAuth token.
+            if "api_key" not in llm_kwargs:
+                codex_token = get_codex_token()
+                if codex_token:
+                    llm_kwargs["api_key"] = codex_token
 
         return NormalizedChatOpenAI(**llm_kwargs)
 

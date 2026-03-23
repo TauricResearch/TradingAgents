@@ -1,3 +1,4 @@
+import subprocess
 import questionary
 from typing import List, Optional, Tuple, Dict
 
@@ -136,9 +137,7 @@ def select_research_depth() -> int:
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
-    # Define shallow thinking llm engine options with their corresponding model names
     # Ordering: medium → light → heavy (balanced first for quick tasks)
-    # Within same tier, newer models first
     SHALLOW_AGENT_OPTIONS = {
         "openai": [
             ("GPT-5 Mini - Balanced speed, cost, and capability", "gpt-5-mini"),
@@ -171,13 +170,25 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
         ],
+        "copilot": [],  # populated dynamically by fetch_copilot_models()
     }
+
+    if provider.lower() == "copilot":
+        options = fetch_copilot_models()
+        if not options:
+            console.print("[red]No Copilot models available. Exiting...[/red]")
+            exit(1)
+    else:
+        options = SHALLOW_AGENT_OPTIONS.get(provider.lower())
+        if not options:
+            console.print(f"[red]No models available for provider '{provider}'. Exiting...[/red]")
+            exit(1)
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
+            for display, value in options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -201,9 +212,7 @@ def select_shallow_thinking_agent(provider) -> str:
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
-    # Define deep thinking llm engine options with their corresponding model names
     # Ordering: heavy → medium → light (most capable first for deep tasks)
-    # Within same tier, newer models first
     DEEP_AGENT_OPTIONS = {
         "openai": [
             ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
@@ -238,13 +247,25 @@ def select_deep_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
+        "copilot": [],  # populated dynamically by fetch_copilot_models()
     }
+
+    if provider.lower() == "copilot":
+        options = fetch_copilot_models()
+        if not options:
+            console.print("[red]No Copilot models available. Exiting...[/red]")
+            exit(1)
+    else:
+        options = DEEP_AGENT_OPTIONS.get(provider.lower())
+        if not options:
+            console.print(f"[red]No models available for provider '{provider}'. Exiting...[/red]")
+            exit(1)
 
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
+            for display, value in options
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -262,9 +283,53 @@ def select_deep_thinking_agent(provider) -> str:
 
     return choice
 
+def fetch_copilot_models() -> list[tuple[str, str]]:
+    """Fetch models from the GitHub Copilot inference API.
+
+    Returns a list of (display_label, model_id) tuples sorted by model ID.
+    Requires authentication via ``gh auth login`` with a Copilot subscription.
+    """
+    import requests
+    from tradingagents.auth import get_github_token, COPILOT_HEADERS, get_copilot_api_url
+
+    token = get_github_token()
+    if not token:
+        console.print("[red]No GitHub token available. Run `gh auth login` first.[/red]")
+        return []
+
+    try:
+        console.print("[dim]Fetching available Copilot models...[/dim]")
+        copilot_url = get_copilot_api_url()
+        headers = {
+            "Authorization": f"Bearer {token}",
+            **COPILOT_HEADERS,
+        }
+        resp = requests.get(
+            f"{copilot_url}/models",
+            headers=headers,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        models = data.get("data", data) if isinstance(data, dict) else data
+        # Filter to chat-capable models (exclude embeddings)
+        chat_models = [
+            m for m in models
+            if not m.get("id", "").startswith("text-embedding")
+        ]
+
+        return [
+            (m["id"], m["id"])
+            for m in sorted(chat_models, key=lambda x: x.get("id", ""))
+        ]
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not fetch Copilot models: {e}[/yellow]")
+        return []
+
+
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """Select the LLM provider using interactive selection."""
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
@@ -272,8 +337,9 @@ def select_llm_provider() -> tuple[str, str]:
         ("xAI", "https://api.x.ai/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
+        ("Copilot", ""),  # resolved at runtime via GraphQL
     ]
-    
+
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
@@ -289,15 +355,77 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
+
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
-    
+
     display_name, url = choice
     print(f"You selected: {display_name}\tURL: {url}")
 
     return display_name, url
+
+
+def perform_copilot_oauth() -> bool:
+    """Ensure the user is authenticated with the GitHub CLI for Copilot.
+
+    Checks for an existing token and verifies Copilot access.  If the token
+    is missing, offers to run ``gh auth login`` interactively.
+
+    Returns True if a valid token with Copilot access is available, False otherwise.
+    """
+    from tradingagents.auth import get_github_token
+
+    token = get_github_token()
+    if token:
+        # Verify Copilot access
+        import requests
+        from tradingagents.auth import COPILOT_HEADERS, get_copilot_api_url
+        try:
+            copilot_url = get_copilot_api_url()
+            resp = requests.get(
+                f"{copilot_url}/models",
+                headers={"Authorization": f"Bearer {token}", **COPILOT_HEADERS},
+                timeout=5,
+            )
+            if resp.status_code == 200:
+                console.print("[green]✓ Authenticated with GitHub Copilot[/green]")
+                return True
+            else:
+                console.print(
+                    f"[yellow]⚠  GitHub token found but Copilot access failed "
+                    f"(HTTP {resp.status_code}). Check your Copilot subscription.[/yellow]"
+                )
+                return False
+        except Exception:
+            # Network error — accept the token optimistically
+            console.print("[green]✓ Authenticated with GitHub CLI (Copilot access not verified)[/green]")
+            return True
+
+    console.print(
+        "[yellow]⚠  No GitHub token found.[/yellow] "
+        "You need to authenticate to use GitHub Copilot."
+    )
+    should_login = questionary.confirm(
+        "Run `gh auth login` now?", default=True
+    ).ask()
+
+    if not should_login:
+        console.print("[red]GitHub authentication skipped. Exiting...[/red]")
+        return False
+
+    result = subprocess.run(["gh", "auth", "login"])
+    if result.returncode != 0:
+        console.print("[red]`gh auth login` failed.[/red]")
+        return False
+
+    token = get_github_token()
+    if token:
+        console.print("[green]✓ GitHub authentication successful![/green]")
+        return True
+
+    console.print("[red]Could not retrieve token after login.[/red]")
+    return False
 
 
 def ask_openai_reasoning_effort() -> str:

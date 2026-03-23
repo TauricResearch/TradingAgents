@@ -538,13 +538,26 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 5: OpenAI backend
+    # Step 5: LLM Provider
     console.print(
         create_question_box(
-            "Step 5: OpenAI backend", "Select which service to talk to"
+            "Step 5: LLM Provider", "Select which service to talk to"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
+
+    provider_id = selected_llm_provider.lower()
+
+    # GitHub Copilot: run OAuth before proceeding
+    if provider_id == "copilot":
+        console.print(
+            create_question_box(
+                "Step 5b: Copilot Auth",
+                "Authenticate with the GitHub CLI to use GitHub Copilot",
+            )
+        )
+        if not perform_copilot_oauth():
+            exit(1)
     
     # Step 6: Thinking agents
     console.print(
@@ -552,15 +565,15 @@ def get_user_selections():
             "Step 6: Thinking Agents", "Select your thinking agents for analysis"
         )
     )
-    selected_shallow_thinker = select_shallow_thinking_agent(selected_llm_provider)
-    selected_deep_thinker = select_deep_thinking_agent(selected_llm_provider)
+    selected_shallow_thinker = select_shallow_thinking_agent(provider_id)
+    selected_deep_thinker = select_deep_thinking_agent(provider_id)
 
     # Step 7: Provider-specific thinking configuration
     thinking_level = None
     reasoning_effort = None
     anthropic_effort = None
 
-    provider_lower = selected_llm_provider.lower()
+    provider_lower = provider_id
     if provider_lower == "google":
         console.print(
             create_question_box(
@@ -591,7 +604,7 @@ def get_user_selections():
         "analysis_date": analysis_date,
         "analysts": selected_analysts,
         "research_depth": selected_research_depth,
-        "llm_provider": selected_llm_provider.lower(),
+        "llm_provider": provider_id,
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
