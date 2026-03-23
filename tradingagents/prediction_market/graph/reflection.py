@@ -1,0 +1,121 @@
+# TradingAgents/prediction_market/graph/reflection.py
+
+from typing import Dict, Any
+from langchain_openai import ChatOpenAI
+
+
+class PMReflector:
+    """Handles reflection on prediction market decisions and updating memory."""
+
+    def __init__(self, quick_thinking_llm: ChatOpenAI):
+        """Initialize the reflector with an LLM."""
+        self.quick_thinking_llm = quick_thinking_llm
+        self.reflection_system_prompt = self._get_reflection_prompt()
+
+    def _get_reflection_prompt(self) -> str:
+        """Get the system prompt for prediction market reflection."""
+        return """
+You are an expert prediction market analyst tasked with reviewing trading decisions/analysis and providing a comprehensive, step-by-step analysis.
+Your goal is to deliver detailed insights into prediction market decisions and highlight opportunities for improvement, adhering strictly to the following guidelines:
+
+1. Reasoning:
+   - For each trading decision, determine whether it was correct or incorrect. A correct decision results in an increase in returns, while an incorrect decision does the opposite.
+   - Analyze the contributing factors to each success or mistake. Consider:
+     - Event analysis and understanding of the underlying question.
+     - Odds and probability estimation accuracy.
+     - Market price movement and order book analysis.
+     - Information gathering quality and completeness.
+     - Sentiment analysis from news and social media.
+     - Calibration: was the estimated probability well-calibrated relative to the actual outcome?
+     - Edge detection: was the perceived edge real or illusory?
+     - Weight the importance of each factor in the decision-making process.
+
+2. Improvement:
+   - For any incorrect decisions, propose revisions to maximize returns.
+   - Provide a detailed list of corrective actions or improvements, including specific recommendations (e.g., changing a decision from PASS to BUY_YES on a particular market).
+   - Assess whether probability estimates were systematically biased (overconfident, underconfident, etc.).
+
+3. Summary:
+   - Summarize the lessons learned from the successes and mistakes.
+   - Highlight how these lessons can be adapted for future prediction market scenarios and draw connections between similar market types to apply the knowledge gained.
+
+4. Query:
+   - Extract key insights from the summary into a concise sentence of no more than 1000 tokens.
+   - Ensure the condensed sentence captures the essence of the lessons and reasoning for easy reference.
+
+Adhere strictly to these instructions, and ensure your output is detailed, accurate, and actionable. You will also be given objective descriptions of the market from event, odds, information, and sentiment perspectives to provide more context for your analysis.
+"""
+
+    def _extract_current_situation(self, current_state: Dict[str, Any]) -> str:
+        """Extract the current market situation from the state."""
+        curr_event_report = current_state["event_report"]
+        curr_odds_report = current_state["odds_report"]
+        curr_information_report = current_state["information_report"]
+        curr_sentiment_report = current_state["sentiment_report"]
+
+        return f"{curr_event_report}\n\n{curr_odds_report}\n\n{curr_information_report}\n\n{curr_sentiment_report}"
+
+    def _reflect_on_component(
+        self, component_type: str, report: str, situation: str, returns_losses
+    ) -> str:
+        """Generate reflection for a component."""
+        messages = [
+            ("system", self.reflection_system_prompt),
+            (
+                "human",
+                f"Returns: {returns_losses}\n\nAnalysis/Decision: {report}\n\nObjective Market Reports for Reference: {situation}",
+            ),
+        ]
+
+        result = self.quick_thinking_llm.invoke(messages).content
+        return result
+
+    def reflect_yes_researcher(self, current_state, returns_losses, yes_memory):
+        """Reflect on YES researcher's analysis and update memory."""
+        situation = self._extract_current_situation(current_state)
+        yes_debate_history = current_state["investment_debate_state"]["yes_history"]
+
+        result = self._reflect_on_component(
+            "YES", yes_debate_history, situation, returns_losses
+        )
+        yes_memory.add_situations([(situation, result)])
+
+    def reflect_no_researcher(self, current_state, returns_losses, no_memory):
+        """Reflect on NO researcher's analysis and update memory."""
+        situation = self._extract_current_situation(current_state)
+        no_debate_history = current_state["investment_debate_state"]["no_history"]
+
+        result = self._reflect_on_component(
+            "NO", no_debate_history, situation, returns_losses
+        )
+        no_memory.add_situations([(situation, result)])
+
+    def reflect_trader(self, current_state, returns_losses, trader_memory):
+        """Reflect on trader's decision and update memory."""
+        situation = self._extract_current_situation(current_state)
+        trader_decision = current_state["trader_investment_plan"]
+
+        result = self._reflect_on_component(
+            "TRADER", trader_decision, situation, returns_losses
+        )
+        trader_memory.add_situations([(situation, result)])
+
+    def reflect_invest_judge(self, current_state, returns_losses, invest_judge_memory):
+        """Reflect on investment judge's decision and update memory."""
+        situation = self._extract_current_situation(current_state)
+        judge_decision = current_state["investment_debate_state"]["judge_decision"]
+
+        result = self._reflect_on_component(
+            "INVEST JUDGE", judge_decision, situation, returns_losses
+        )
+        invest_judge_memory.add_situations([(situation, result)])
+
+    def reflect_risk_manager(self, current_state, returns_losses, risk_manager_memory):
+        """Reflect on risk manager's decision and update memory."""
+        situation = self._extract_current_situation(current_state)
+        judge_decision = current_state["risk_debate_state"]["judge_decision"]
+
+        result = self._reflect_on_component(
+            "RISK JUDGE", judge_decision, situation, returns_losses
+        )
+        risk_manager_memory.add_situations([(situation, result)])

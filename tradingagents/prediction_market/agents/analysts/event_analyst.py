@@ -1,0 +1,73 @@
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+from tradingagents.prediction_market.agents.utils.pm_agent_utils import (
+    get_market_info,
+    get_resolution_criteria,
+    get_event_context,
+)
+
+
+def create_event_analyst(llm):
+    def event_analyst_node(state):
+        current_date = state["trade_date"]
+        market_id = state["market_id"]
+        market_question = state["market_question"]
+
+        tools = [
+            get_market_info,
+            get_resolution_criteria,
+            get_event_context,
+        ]
+
+        system_message = (
+            "You are an Event Analyst for prediction markets. Your task is to analyze the prediction market event itself. "
+            "Understand what is being predicted, how the market resolves, and the timeline. "
+            "Use the available tools to gather market info and resolution criteria. "
+            "Your analysis should cover:\n"
+            "1. Event description and what exactly is being predicted\n"
+            "2. Resolution criteria - how will the outcome be determined? Is it clear or ambiguous?\n"
+            "3. Key dates and triggers that could cause resolution\n"
+            "4. Resolution ambiguity assessment (clear/moderate/ambiguous)\n"
+            "5. Related markets within the same event if applicable\n"
+            "Do not simply state that the situation is unclear, provide detailed and finegrained analysis "
+            "and insights that may help traders make decisions."
+            """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+        )
+
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are a helpful AI assistant, collaborating with other assistants."
+                    " Use the provided tools to progress towards answering the question."
+                    " If you are unable to fully answer, that's OK; another assistant with different tools"
+                    " will help where you left off. Execute what you can to make progress."
+                    " If you or any other assistant has the FINAL PREDICTION: **YES/NO** or deliverable,"
+                    " prefix your response with FINAL PREDICTION: **YES/NO** so the team knows to stop."
+                    " You have access to the following tools: {tool_names}.\n{system_message}"
+                    "For your reference, the current date is {current_date}. Market ID: {market_id}. Question: {market_question}",
+                ),
+                MessagesPlaceholder(variable_name="messages"),
+            ]
+        )
+
+        prompt = prompt.partial(system_message=system_message)
+        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
+        prompt = prompt.partial(current_date=current_date)
+        prompt = prompt.partial(market_id=market_id)
+        prompt = prompt.partial(market_question=market_question)
+
+        chain = prompt | llm.bind_tools(tools)
+        result = chain.invoke(state["messages"])
+
+        report = ""
+
+        if len(result.tool_calls) == 0:
+            report = result.content
+
+        return {
+            "messages": [result],
+            "event_report": report,
+        }
+
+    return event_analyst_node
