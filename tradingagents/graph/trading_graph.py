@@ -1,12 +1,15 @@
 # TradingAgents/graph/trading_graph.py
 
 import os
+import sqlite3
+import hashlib
 from pathlib import Path
 import json
 from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
 
 from langgraph.prebuilt import ToolNode
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 from tradingagents.llm_clients import create_llm_client
 
@@ -61,6 +64,7 @@ class TradingAgentsGraph:
         self.debug = debug
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
+        self.selected_analysts = list(selected_analysts)
 
         # Update the interface's config
         set_config(self.config)
@@ -130,8 +134,37 @@ class TradingAgentsGraph:
         self.ticker = None
         self.log_states_dict = {}  # date to full state dict
 
-        # Set up the graph
-        self.graph = self.graph_setup.setup_graph(selected_analysts)
+        self._sqlite_conn, self.checkpointer = self._create_sqlite_checkpointer(self.config)
+        # Set up the graph (durable checkpoints for resume after crash)
+        self.graph = self.graph_setup.setup_graph(
+            selected_analysts, checkpointer=self.checkpointer
+        )
+
+    @staticmethod
+    def _create_sqlite_checkpointer(
+        config: Dict[str, Any],
+    ) -> Tuple[sqlite3.Connection, SqliteSaver]:
+        """SQLite checkpoint store under results_dir/.checkpoints/langgraph.sqlite.
+
+        Returns:
+            (conn, checkpointer) – caller must close conn when done.
+        """
+        results_dir = Path(config.get("results_dir", "./results")).expanduser().resolve()
+        checkpoint_dir = results_dir / ".checkpoints"
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        db_path = checkpoint_dir / "langgraph.sqlite"
+        conn = sqlite3.connect(str(db_path), check_same_thread=False)
+        return conn, SqliteSaver(conn)
+
+    def close(self) -> None:
+        """Close the underlying SQLite connection held by the checkpointer."""
+        try:
+            self._sqlite_conn.close()
+        except Exception:
+            pass
+
+    def __del__(self) -> None:
+        self.close()
 
     def _get_provider_kwargs(self) -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
@@ -186,31 +219,63 @@ class TradingAgentsGraph:
             ),
         }
 
-    def propagate(self, company_name, trade_date):
+    def propagate(self, company_name, trade_date, thread_id: Optional[str] = None):
         """Run the trading agents graph for a company on a specific date."""
 
         self.ticker = company_name
+
+        if thread_id is None:
+            payload = json.dumps(
+                {
+                    "ticker": company_name.strip().upper(),
+                    "trade_date": str(trade_date),
+                    "analysts": sorted(self.selected_analysts),
+                    "llm_provider": self.config.get("llm_provider"),
+                    "deep_think_llm": self.config.get("deep_think_llm"),
+                    "quick_think_llm": self.config.get("quick_think_llm"),
+                    "max_debate_rounds": self.config.get("max_debate_rounds"),
+                    "max_risk_discuss_rounds": self.config.get("max_risk_discuss_rounds"),
+                },
+                sort_keys=True,
+            ).encode()
+            thread_id = "ta_prog_" + hashlib.sha256(payload).hexdigest()[:24]
 
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date
         )
-        args = self.propagator.get_graph_args()
+        args = self.propagator.get_graph_args(thread_id=thread_id)
+
+        # Determine stream input: resume from checkpoint if an incomplete run exists,
+        # otherwise start fresh. Passing None tells LangGraph to resume from the last
+        # saved checkpoint for this thread_id.
+        thread_config = {"configurable": {"thread_id": thread_id}}
+        snap = self.graph.get_state(thread_config)
+        if snap.next:
+            # Incomplete run found — resume automatically (no user prompt in API mode)
+            stream_input = None
+        else:
+            stream_input = init_agent_state
 
         if self.debug:
             # Debug mode with tracing
             trace = []
-            for chunk in self.graph.stream(init_agent_state, **args):
+            for chunk in self.graph.stream(stream_input, **args):
                 if len(chunk["messages"]) == 0:
                     pass
                 else:
                     chunk["messages"][-1].pretty_print()
                     trace.append(chunk)
 
+            if not trace:
+                raise RuntimeError(
+                    "Graph stream produced no output — all chunks had empty messages. "
+                    f"ticker={company_name}, trade_date={trade_date}, thread_id={thread_id}"
+                )
             final_state = trace[-1]
         else:
             # Standard mode without tracing
-            final_state = self.graph.invoke(init_agent_state, **args)
+            final_state = self.graph.invoke(stream_input, **args)
 
         # Store current state for reflection
         self.curr_state = final_state

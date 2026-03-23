@@ -6,6 +6,7 @@ pandas
 yfinance
 stockstats
 langgraph
+langgraph-checkpoint-sqlite
 rank-bm25
 setuptools
 backtrader

@@ -1,7 +1,9 @@
 # TradingAgents/graph/setup.py
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+
 from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
 
@@ -38,7 +40,9 @@ class GraphSetup:
         self.conditional_logic = conditional_logic
 
     def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"]
+        self,
+        selected_analysts=["market", "social", "news", "fundamentals"],
+        checkpointer: Optional[BaseCheckpointSaver] = None,
     ):
         """Set up and compile the agent workflow graph.
 
@@ -199,4 +203,4 @@ class GraphSetup:
         workflow.add_edge("Risk Judge", END)
 
         # Compile and return
-        return workflow.compile()
+        return workflow.compile(checkpointer=checkpointer)

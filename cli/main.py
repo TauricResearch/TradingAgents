@@ -1,5 +1,6 @@
 from typing import Optional
 import datetime
+import uuid
 import typer
 from pathlib import Path
 from functools import wraps
@@ -863,6 +864,16 @@ def extract_content_string(content):
     return str(content).strip() if not is_empty(content) else None
 
 
+def debate_state_text(value) -> str:
+    """Normalize graph debate fields that may be str or list blocks (e.g. Gemini response.content)."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    extracted = extract_content_string(value)
+    return (extracted or "").strip()
+
+
 def classify_message_type(message) -> tuple[str, str | None]:
     """Classify LangChain message into display type and extract content.
 
@@ -981,6 +992,38 @@ def run_analysis():
     message_buffer.add_tool_call = save_tool_call_decorator(message_buffer, "add_tool_call")
     message_buffer.update_report_section = save_report_section_decorator(message_buffer, "update_report_section")
 
+    base_thread_id = compute_analysis_thread_id(selections, selected_analyst_keys)
+    thread_id = base_thread_id
+    init_agent_state = graph.propagator.create_initial_state(
+        selections["ticker"], selections["analysis_date"]
+    )
+    snap = graph.graph.get_state({"configurable": {"thread_id": thread_id}})
+    stream_input = init_agent_state
+    if snap.next:
+        choice = typer.prompt(
+            "Incomplete checkpoint found for this run. [R]esume or start [N]ew run?",
+            default="R",
+        ).strip().upper()
+        if choice.startswith("N"):
+            thread_id = f"{base_thread_id}_{uuid.uuid4().hex[:12]}"
+            stream_input = init_agent_state
+        else:
+            stream_input = None
+    elif snap.values:
+        restart = typer.prompt(
+            "A completed run exists for these settings. Start a new run?",
+            default="Y",
+        ).strip().upper()
+        if restart not in ("Y", "YES", ""):
+            console.print("[yellow]Exiting without re-running.[/yellow]")
+            return
+        thread_id = f"{base_thread_id}_{uuid.uuid4().hex[:12]}"
+        stream_input = init_agent_state
+
+    args = graph.propagator.get_graph_args(
+        callbacks=[stats_handler], thread_id=thread_id
+    )
+
     # Now start the display layout
     layout = create_layout()
 
@@ -997,6 +1040,11 @@ def run_analysis():
             "System",
             f"Selected analysts: {', '.join(analyst.value for analyst in selections['analysts'])}",
         )
+        message_buffer.add_message("System", f"Checkpoint thread: {thread_id}")
+        if stream_input is None:
+            message_buffer.add_message(
+                "System", "Resuming from saved checkpoint (same thread_id)."
+            )
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         # Update agent status to in_progress for the first analyst
@@ -1010,17 +1058,9 @@ def run_analysis():
         )
         update_display(layout, spinner_text, stats_handler=stats_handler, start_time=start_time)
 
-        # Initialize state and get graph args with callbacks
-        init_agent_state = graph.propagator.create_initial_state(
-            selections["ticker"], selections["analysis_date"]
-        )
-        # Pass callbacks to graph config for tool execution tracking
-        # (LLM tracking is handled separately via LLM constructor)
-        args = graph.propagator.get_graph_args(callbacks=[stats_handler])
-
-        # Stream the analysis
+        # Stream the analysis (init_agent_state / args / thread_id set above)
         trace = []
-        for chunk in graph.graph.stream(init_agent_state, **args):
+        for chunk in graph.graph.stream(stream_input, **args):
             # Process messages if present (skip duplicates via message ID)
             if len(chunk["messages"]) > 0:
                 last_message = chunk["messages"][-1]
@@ -1050,9 +1090,9 @@ def run_analysis():
             # Research Team - Handle Investment Debate State
             if chunk.get("investment_debate_state"):
                 debate_state = chunk["investment_debate_state"]
-                bull_hist = debate_state.get("bull_history", "").strip()
-                bear_hist = debate_state.get("bear_history", "").strip()
-                judge = debate_state.get("judge_decision", "").strip()
+                bull_hist = debate_state_text(debate_state.get("bull_history", ""))
+                bear_hist = debate_state_text(debate_state.get("bear_history", ""))
+                judge = debate_state_text(debate_state.get("judge_decision", ""))
 
                 # Only update status when there's actual content
                 if bull_hist or bear_hist:
@@ -1084,10 +1124,10 @@ def run_analysis():
             # Risk Management Team - Handle Risk Debate State
             if chunk.get("risk_debate_state"):
                 risk_state = chunk["risk_debate_state"]
-                agg_hist = risk_state.get("aggressive_history", "").strip()
-                con_hist = risk_state.get("conservative_history", "").strip()
-                neu_hist = risk_state.get("neutral_history", "").strip()
-                judge = risk_state.get("judge_decision", "").strip()
+                agg_hist = debate_state_text(risk_state.get("aggressive_history", ""))
+                con_hist = debate_state_text(risk_state.get("conservative_history", ""))
+                neu_hist = debate_state_text(risk_state.get("neutral_history", ""))
+                judge = debate_state_text(risk_state.get("judge_decision", ""))
 
                 if agg_hist:
                     if message_buffer.agent_status.get("Aggressive Analyst") != "completed":

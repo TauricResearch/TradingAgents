@@ -1,5 +1,7 @@
+import hashlib
+import json
 import questionary
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Any
 
 from rich.console import Console
 
@@ -329,3 +331,26 @@ def ask_gemini_thinking_config() -> str | None:
             ("pointer", "fg:green noinherit"),
         ]),
     ).ask()
+
+
+def compute_analysis_thread_id(
+    selections: Dict[str, Any], selected_analyst_keys: List[str]
+) -> str:
+    """Stable LangGraph thread_id from ticker, date, analysts, and LLM settings."""
+    payload = {
+        "ticker": selections["ticker"].strip().upper(),
+        "analysis_date": selections["analysis_date"],
+        "analyst_keys": selected_analyst_keys,
+        "max_debate_rounds": selections["research_depth"],
+        "max_risk_discuss_rounds": selections["research_depth"],
+        "llm_provider": selections["llm_provider"],
+        "backend_url": selections.get("backend_url"),
+        "quick_think_llm": selections["shallow_thinker"],
+        "deep_think_llm": selections["deep_thinker"],
+        "google_thinking_level": selections.get("google_thinking_level"),
+        "openai_reasoning_effort": selections.get("openai_reasoning_effort"),
+    }
+    h = hashlib.sha256(
+        json.dumps(payload, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:32]
+    return f"ta_{h}"

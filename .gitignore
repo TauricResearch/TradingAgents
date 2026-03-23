@@ -1,3 +1,6 @@
+# LangGraph SQLite checkpoints (under results_dir/.checkpoints/)
+**/.checkpoints/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -217,3 +220,6 @@ __marimo__/
 
 # Cache
 **/data_cache/
+
+# Results
+**/results/
