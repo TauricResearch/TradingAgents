@@ -3,6 +3,7 @@ import time
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
+from tradingagents.agents.utils.tool_runner import run_tool_loop
 from tradingagents.dataflows.config import get_config
 
 
@@ -73,16 +74,14 @@ Volume-Based Indicators:
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        result = run_tool_loop(chain, state["messages"], tools)
 
-        report = ""
+        report = result.content or ""
         macro_regime_report = ""
 
-        if len(result.tool_calls) == 0:
-            report = result.content
-            # Extract macro regime section if present
-            if "Macro Regime Classification" in report or "RISK-ON" in report.upper() or "RISK-OFF" in report.upper() or "TRANSITION" in report.upper():
-                macro_regime_report = report
+        # Extract macro regime section if present
+        if report and ("Macro Regime Classification" in report or "RISK-ON" in report.upper() or "RISK-OFF" in report.upper() or "TRANSITION" in report.upper()):
+            macro_regime_report = report
 
         return {
             "messages": [result],

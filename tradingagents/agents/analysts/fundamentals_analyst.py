@@ -11,6 +11,7 @@ from tradingagents.agents.utils.fundamental_data_tools import (
     get_sector_relative,
 )
 from tradingagents.agents.utils.news_data_tools import get_insider_transactions
+from tradingagents.agents.utils.tool_runner import run_tool_loop
 from tradingagents.dataflows.config import get_config
 
 
@@ -66,12 +67,9 @@ def create_fundamentals_analyst(llm):
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        result = run_tool_loop(chain, state["messages"], tools)
 
-        report = ""
-
-        if len(result.tool_calls) == 0:
-            report = result.content
+        report = result.content or ""
 
         return {
             "messages": [result],
