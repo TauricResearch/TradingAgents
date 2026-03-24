@@ -32,10 +32,9 @@ class GoogleClient(BaseLLMClient):
                 llm_kwargs[key] = self.kwargs[key]
 
         # Unified api_key maps to provider-specific google_api_key
-        if "api_key" in self.kwargs:
-            llm_kwargs["google_api_key"] = self.kwargs["api_key"]
-        elif "google_api_key" in self.kwargs:
-            llm_kwargs["google_api_key"] = self.kwargs["google_api_key"]
+        google_api_key = self.kwargs.get("api_key") or self.kwargs.get("google_api_key")
+        if google_api_key:
+            llm_kwargs["google_api_key"] = google_api_key
 
         # Map thinking_level to appropriate API param based on model
         # Gemini 3 Pro: low, high
