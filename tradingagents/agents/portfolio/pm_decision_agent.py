@@ -54,10 +54,14 @@ def create_pm_decision_agent(llm):
             "produce a structured JSON investment decision. "
             "Consider: reducing risk where metrics are poor, acting on SELL recommendations, "
             "and adding positions in high-conviction candidates that pass constraints. "
+            "For every BUY you MUST set a stop_loss price (maximum acceptable loss level, "
+            "typically 5-15% below entry) and a take_profit price (expected sell target, "
+            "typically 10-30% above entry based on your thesis). "
             "Output ONLY valid JSON matching this exact schema:\n"
             "{\n"
             '  "sells": [{"ticker": "...", "shares": 0.0, "rationale": "..."}],\n'
             '  "buys": [{"ticker": "...", "shares": 0.0, "price_target": 0.0, '
+            '"stop_loss": 0.0, "take_profit": 0.0, '
             '"sector": "...", "rationale": "...", "thesis": "..."}],\n'
             '  "holds": [{"ticker": "...", "rationale": "..."}],\n'
             '  "cash_reserve_pct": 0.10,\n'

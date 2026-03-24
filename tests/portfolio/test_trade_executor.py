@@ -167,7 +167,7 @@ def test_execute_buy_success():
     }
     result = executor.execute_decisions("p1", decisions, PRICES)
 
-    repo.add_holding.assert_called_once_with("p1", "MSFT", 10.0, 300.0, sector="Technology")
+    repo.add_holding.assert_called_once_with("p1", "MSFT", 10.0, 300.0, sector="Technology", stop_loss=None, take_profit=None)
     assert len(result["executed_trades"]) == 1
     assert result["executed_trades"][0]["action"] == "BUY"
 
@@ -247,3 +247,56 @@ def test_execute_decisions_takes_snapshot():
     repo.take_snapshot.assert_called_once_with("p1", PRICES)
     assert "snapshot" in result
     assert result["snapshot"]["snapshot_id"] == "snap-1"
+
+
+# ---------------------------------------------------------------------------
+# Stop loss / take profit tests
+# ---------------------------------------------------------------------------
+
+
+def test_execute_buy_with_stop_loss_and_take_profit():
+    """BUY with stop_loss and take_profit passes them to add_holding and executed_trades."""
+    portfolio = _make_portfolio(cash=50_000.0, total_value=60_000.0)
+    repo = _make_repo(portfolio=portfolio)
+    executor = TradeExecutor(repo=repo, config=_DEFAULT_CONFIG)
+
+    decisions = {
+        "sells": [],
+        "buys": [{
+            "ticker": "MSFT",
+            "shares": 5.0,
+            "sector": "Technology",
+            "rationale": "Breakout",
+            "stop_loss": 270.0,
+            "take_profit": 360.0,
+        }],
+    }
+    result = executor.execute_decisions("p1", decisions, PRICES)
+
+    repo.add_holding.assert_called_once_with(
+        "p1", "MSFT", 5.0, 300.0,
+        sector="Technology",
+        stop_loss=270.0,
+        take_profit=360.0,
+    )
+    assert len(result["executed_trades"]) == 1
+    trade = result["executed_trades"][0]
+    assert trade["stop_loss"] == 270.0
+    assert trade["take_profit"] == 360.0
+
+
+def test_execute_buy_without_risk_levels_stores_none():
+    """BUY with no stop_loss/take_profit stores None for both fields."""
+    portfolio = _make_portfolio(cash=50_000.0, total_value=60_000.0)
+    repo = _make_repo(portfolio=portfolio)
+    executor = TradeExecutor(repo=repo, config=_DEFAULT_CONFIG)
+
+    decisions = {
+        "sells": [],
+        "buys": [{"ticker": "MSFT", "shares": 5.0, "sector": "Technology", "rationale": "Entry"}],
+    }
+    result = executor.execute_decisions("p1", decisions, PRICES)
+
+    trade = result["executed_trades"][0]
+    assert trade["stop_loss"] is None
+    assert trade["take_profit"] is None

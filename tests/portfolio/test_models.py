@@ -113,7 +113,56 @@ def test_trade_to_dict_round_trip(sample_trade):
     assert restored.trade_date == sample_trade.trade_date
     assert restored.rationale == sample_trade.rationale
     assert restored.signal_source == sample_trade.signal_source
+    assert restored.stop_loss == sample_trade.stop_loss
+    assert restored.take_profit == sample_trade.take_profit
     assert restored.metadata == sample_trade.metadata
+
+
+def test_trade_stop_loss_take_profit_round_trip(sample_portfolio_id):
+    """Trade with stop_loss and take_profit serialises and deserialises correctly."""
+    trade = Trade(
+        trade_id="t-risk-1",
+        portfolio_id=sample_portfolio_id,
+        ticker="NVDA",
+        action="BUY",
+        shares=10.0,
+        price=800.0,
+        total_value=8_000.0,
+        stop_loss=720.0,
+        take_profit=960.0,
+    )
+    d = trade.to_dict()
+    assert d["stop_loss"] == 720.0
+    assert d["take_profit"] == 960.0
+
+    restored = Trade.from_dict(d)
+    assert restored.stop_loss == 720.0
+    assert restored.take_profit == 960.0
+
+
+def test_trade_stop_loss_take_profit_default_none(sample_trade):
+    """Trade defaults stop_loss and take_profit to None when not provided."""
+    assert sample_trade.stop_loss is None
+    assert sample_trade.take_profit is None
+    d = sample_trade.to_dict()
+    assert d["stop_loss"] is None
+    assert d["take_profit"] is None
+
+
+def test_trade_from_dict_missing_risk_levels_defaults_none():
+    """from_dict() gracefully handles missing stop_loss/take_profit keys."""
+    data = {
+        "trade_id": "t-1",
+        "portfolio_id": "p-1",
+        "ticker": "AAPL",
+        "action": "BUY",
+        "shares": 5.0,
+        "price": 150.0,
+        "total_value": 750.0,
+    }
+    trade = Trade.from_dict(data)
+    assert trade.stop_loss is None
+    assert trade.take_profit is None
 
 
 # ---------------------------------------------------------------------------
