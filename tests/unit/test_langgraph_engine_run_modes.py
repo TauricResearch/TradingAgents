@@ -947,6 +947,145 @@ class TestRunAutoTickerSource(unittest.TestCase):
             f"Expected a warning log about AAPL failure. Got: {log_messages}",
         )
 
+    def test_run_auto_includes_holdings_tickers_in_pipeline(self):
+        """run_auto should also run pipeline for portfolio holdings not in scan report."""
+        scan_data = {"stocks_to_investigate": ["AAPL"]}
+        pipeline_calls = []
+
+        engine = LangGraphEngine()
+
+        async def fake_run_pipeline(run_id, params):
+            pipeline_calls.append(params.get("ticker"))
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+
+        # Create mock holdings
+        mock_holding = MagicMock()
+        mock_holding.ticker = "MSFT"
+
+        mock_repo = MagicMock()
+        mock_repo.get_portfolio_with_holdings.return_value = (MagicMock(), [mock_holding])
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data), \
+             patch("tradingagents.portfolio.repository.PortfolioRepository", return_value=mock_repo):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_mock_store(scan_data)
+
+            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        # Both scan ticker and holdings ticker should be analyzed
+        self.assertIn("AAPL", pipeline_calls)
+        self.assertIn("MSFT", pipeline_calls)
+
+    def test_run_auto_deduplicates_scan_and_holdings_tickers(self):
+        """A ticker appearing in both scan and holdings should only run once."""
+        scan_data = {"stocks_to_investigate": ["AAPL", "TSLA"]}
+        pipeline_calls = []
+
+        engine = LangGraphEngine()
+
+        async def fake_run_pipeline(run_id, params):
+            pipeline_calls.append(params.get("ticker"))
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+
+        # Holding that overlaps with scan candidate
+        mock_holding = MagicMock()
+        mock_holding.ticker = "AAPL"
+
+        mock_repo = MagicMock()
+        mock_repo.get_portfolio_with_holdings.return_value = (MagicMock(), [mock_holding])
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data), \
+             patch("tradingagents.portfolio.repository.PortfolioRepository", return_value=mock_repo):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_mock_store(scan_data)
+
+            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        # AAPL should appear only once (not duplicated)
+        self.assertEqual(pipeline_calls.count("AAPL"), 1)
+        self.assertIn("TSLA", pipeline_calls)
+
+    def test_run_auto_proceeds_when_holdings_load_fails(self):
+        """Pipeline should still run scan tickers even if holdings fail to load."""
+        scan_data = {"stocks_to_investigate": ["AAPL"]}
+        pipeline_calls = []
+
+        engine = LangGraphEngine()
+
+        async def fake_run_pipeline(run_id, params):
+            pipeline_calls.append(params.get("ticker"))
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+
+        mock_repo = MagicMock()
+        mock_repo.get_portfolio_with_holdings.side_effect = RuntimeError("DB unavailable")
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data), \
+             patch("tradingagents.portfolio.repository.PortfolioRepository", return_value=mock_repo):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_mock_store(scan_data)
+
+            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        # Should still run pipeline for scan tickers despite holdings failure
+        self.assertIn("AAPL", pipeline_calls)
+
 
 # ---------------------------------------------------------------------------
 # TestExtractTickersFromScanData

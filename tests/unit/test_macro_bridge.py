@@ -212,3 +212,64 @@ class TestReportRendering:
         assert (output_dir / "summary.md").exists()
         assert (output_dir / "results.json").exists()
         assert (output_dir / "NVDA" / "2026-03-17_deep_dive.md").exists()
+
+
+class TestCandidatesFromHoldings:
+    """Tests for candidates_from_holdings — portfolio holdings → StockCandidate."""
+
+    def _make_holding(self, ticker, sector=None, industry=None):
+        """Minimal holding-like object with .ticker, .sector, .industry."""
+        from types import SimpleNamespace
+        return SimpleNamespace(ticker=ticker, sector=sector, industry=industry)
+
+    def test_basic_conversion(self):
+        from tradingagents.pipeline.macro_bridge import candidates_from_holdings
+
+        holdings = [self._make_holding("AAPL", sector="Technology")]
+        result = candidates_from_holdings(holdings)
+        assert len(result) == 1
+        assert result[0].ticker == "AAPL"
+        assert result[0].thesis_angle == "portfolio_holding"
+        assert result[0].conviction == "medium"
+        assert result[0].sector == "Technology"
+
+    def test_skips_existing_tickers(self):
+        from tradingagents.pipeline.macro_bridge import candidates_from_holdings
+
+        holdings = [
+            self._make_holding("AAPL"),
+            self._make_holding("TSLA"),
+        ]
+        result = candidates_from_holdings(holdings, existing_tickers={"AAPL"})
+        assert len(result) == 1
+        assert result[0].ticker == "TSLA"
+
+    def test_case_insensitive_dedup(self):
+        from tradingagents.pipeline.macro_bridge import candidates_from_holdings
+
+        holdings = [self._make_holding("aapl")]
+        result = candidates_from_holdings(holdings, existing_tickers={"AAPL"})
+        assert len(result) == 0
+
+    def test_empty_holdings(self):
+        from tradingagents.pipeline.macro_bridge import candidates_from_holdings
+
+        result = candidates_from_holdings([])
+        assert result == []
+
+    def test_deduplicates_within_holdings(self):
+        from tradingagents.pipeline.macro_bridge import candidates_from_holdings
+
+        holdings = [
+            self._make_holding("AAPL"),
+            self._make_holding("AAPL"),
+        ]
+        result = candidates_from_holdings(holdings)
+        assert len(result) == 1
+
+    def test_missing_sector_defaults_to_empty(self):
+        from tradingagents.pipeline.macro_bridge import candidates_from_holdings
+
+        holdings = [self._make_holding("TSLA")]
+        result = candidates_from_holdings(holdings)
+        assert result[0].sector == ""

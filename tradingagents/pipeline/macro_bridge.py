@@ -138,6 +138,52 @@ def _match_theme(sector: str, themes: list[dict]) -> str:
     return themes[0].get("theme", "") if themes else ""
 
 
+# ─── Holdings helpers ─────────────────────────────────────────────────────────
+
+
+def candidates_from_holdings(
+    holdings: list,
+    existing_tickers: set[str] | None = None,
+) -> list[StockCandidate]:
+    """Create StockCandidate objects for portfolio holdings not already in candidates.
+
+    Holdings are assigned ``thesis_angle='portfolio_holding'`` and
+    ``conviction='medium'`` so the pipeline treats them with equal priority
+    while the PM agent can distinguish their source.
+
+    Args:
+        holdings: List of Holding objects (must have ``.ticker`` and
+            optionally ``.sector`` / ``.industry``).
+        existing_tickers: Tickers already present in the scan candidate list
+            (uppercase).  Holdings matching these are skipped to avoid
+            duplicate pipeline runs.
+
+    Returns:
+        List of StockCandidate for holdings that aren't already candidates.
+    """
+    existing = {t.upper() for t in (existing_tickers or set())}
+    result: list[StockCandidate] = []
+    for h in holdings:
+        ticker = h.ticker.upper()
+        if ticker in existing:
+            continue
+        existing.add(ticker)
+        result.append(
+            StockCandidate(
+                ticker=ticker,
+                name=ticker,
+                sector=getattr(h, "sector", None) or "",
+                rationale="Existing portfolio holding — re-analysis for portfolio review.",
+                thesis_angle="portfolio_holding",
+                conviction="medium",
+                key_catalysts=[],
+                risks=[],
+                macro_theme="",
+            )
+        )
+    return result
+
+
 # ─── Core pipeline ────────────────────────────────────────────────────────────
 
 

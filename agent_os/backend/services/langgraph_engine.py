@@ -492,16 +492,53 @@ class LangGraphEngine:
             async for evt in self.run_scan(f"{run_id}_scan", {"date": date}):
                 yield evt
 
-        # Phase 2: Pipeline analysis — get tickers from saved scan report
+        # Phase 2: Pipeline analysis — get tickers from scan report + portfolio holdings
         yield self._system_log("Phase 2/3: Loading stocks from scan report…")
         scan_data = store.load_scan(date)
-        tickers = self._extract_tickers_from_scan_data(scan_data)
+        scan_tickers = self._extract_tickers_from_scan_data(scan_data)
+
+        # Also include tickers from current portfolio holdings so the PM agent
+        # has fresh analysis for existing positions (hold/sell/add decisions).
+        portfolio_id = params.get("portfolio_id", "main_portfolio")
+        holding_tickers: list[str] = []
+        try:
+            from tradingagents.portfolio.repository import PortfolioRepository
+            _repo = PortfolioRepository()
+            _, holdings = _repo.get_portfolio_with_holdings(portfolio_id)
+            holding_tickers = [h.ticker.upper() for h in holdings]
+        except Exception as exc:
+            logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
+
+        # Merge & deduplicate (scan candidates first, then holdings-only tickers)
+        seen: set[str] = set()
+        tickers: list[str] = []
+        for t in scan_tickers:
+            up = t.upper()
+            if up not in seen:
+                seen.add(up)
+                tickers.append(up)
+        holdings_only: list[str] = []
+        for t in holding_tickers:
+            if t not in seen:
+                seen.add(t)
+                tickers.append(t)
+                holdings_only.append(t)
+
+        if scan_tickers:
+            yield self._system_log(
+                f"Phase 2/3: {len(scan_tickers)} ticker(s) from scan report"
+            )
+        if holdings_only:
+            yield self._system_log(
+                f"Phase 2/3: {len(holdings_only)} additional ticker(s) from portfolio holdings: "
+                + ", ".join(holdings_only)
+            )
 
         if not tickers:
             yield self._system_log(
-                "Warning: no stocks found in scan summary — ensure the scan completed "
-                "successfully and produced a 'stocks_to_investigate' list. "
-                "Skipping pipeline phase."
+                "Warning: no stocks found in scan summary and no portfolio holdings — "
+                "ensure the scan completed successfully and produced a "
+                "'stocks_to_investigate' list. Skipping pipeline phase."
             )
         else:
             max_concurrent = int(self.config.get("max_concurrent_pipelines", 2))

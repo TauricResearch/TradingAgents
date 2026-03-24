@@ -1500,6 +1500,7 @@ def run_pipeline(
     ticker_filter_list: Optional[list[str]] = None,
     analysis_date_opt: Optional[str] = None,
     dry_run_opt: Optional[bool] = None,
+    holdings_candidates: Optional[list] = None,
 ):
     """Full pipeline: scan -> filter -> per-ticker deep dive."""
     import asyncio
@@ -1559,9 +1560,26 @@ def run_pipeline(
     # Parse macro output
     macro_context, all_candidates = parse_macro_output(macro_path)
     candidates = filter_candidates(all_candidates, min_conviction, ticker_filter)
+    num_scan_candidates = len(candidates)
+
+    # Append portfolio-holding candidates that aren't already in the scan list
+    num_holdings_added = 0
+    if holdings_candidates:
+        scan_tickers = {c.ticker.upper() for c in candidates}
+        extra = [h for h in holdings_candidates if h.ticker.upper() not in scan_tickers]
+        if extra:
+            console.print(
+                f"[cyan]Adding {len(extra)} ticker(s) from portfolio holdings: "
+                + ", ".join(c.ticker for c in extra)
+                + "[/cyan]"
+            )
+            candidates = list(candidates) + extra
+            num_holdings_added = len(extra)
 
     console.print(
-        f"\n[cyan]Candidates: {len(candidates)} of {len(all_candidates)} stocks passed filter[/cyan]"
+        f"\n[cyan]Candidates: {len(candidates)} total "
+        f"({num_scan_candidates} from scan, "
+        f"{num_holdings_added} from holdings)[/cyan]"
     )
 
     table = Table(title="Selected Stocks", box=box.ROUNDED)
@@ -1881,6 +1899,28 @@ def auto(
     console.print("\n[bold magenta]--- Step 1: Market Scan ---[/bold magenta]")
     run_scan(date=date)
 
+    # Load portfolio holdings so existing positions also get pipeline analysis.
+    # This gives the portfolio manager fresh data for hold/sell/add decisions.
+    from tradingagents.pipeline.macro_bridge import candidates_from_holdings
+
+    extra_candidates: list = []
+    try:
+        from tradingagents.portfolio.repository import PortfolioRepository
+
+        repo = PortfolioRepository()
+        _, holdings = repo.get_portfolio_with_holdings(portfolio_id)
+        if holdings:
+            extra_candidates = candidates_from_holdings(holdings)
+            console.print(
+                f"[cyan]Portfolio '{portfolio_id}' has {len(holdings)} holding(s) — "
+                f"{len(extra_candidates)} will be added to pipeline analysis[/cyan]"
+            )
+    except Exception as e:
+        console.print(
+            f"[yellow]Could not load portfolio holdings: {e} — "
+            f"proceeding with scan candidates only[/yellow]"
+        )
+
     console.print("\n[bold magenta]--- Step 2: Per-Ticker Pipeline ---[/bold magenta]")
     macro_path = get_market_dir(date) / "scan_summary.json"
     run_pipeline(
@@ -1889,6 +1929,7 @@ def auto(
         ticker_filter_list=None,
         analysis_date_opt=date,
         dry_run_opt=False,
+        holdings_candidates=extra_candidates or None,
     )
 
     console.print("\n[bold magenta]--- Step 3: Portfolio Manager ---[/bold magenta]")
