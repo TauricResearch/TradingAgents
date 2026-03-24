@@ -43,6 +43,16 @@ from .signal_processing import SignalProcessor
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
+    ALWAYS_ON_ROLES = {
+        "bull_researcher",
+        "bear_researcher",
+        "research_manager",
+        "trader",
+        "aggressive_analyst",
+        "neutral_analyst",
+        "conservative_analyst",
+        "portfolio_manager",
+    }
     QUICK_THINKING_ROLES = {
         "market",
         "social",
@@ -90,7 +100,7 @@ class TradingAgentsGraph:
 
         self.quick_thinking_llm = self._create_legacy_llm("quick")
         self.deep_thinking_llm = self._create_legacy_llm("deep")
-        self.role_llms = self._create_role_llms()
+        self.role_llms = self._create_role_llms(selected_analysts)
         
         # Initialize memories
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
@@ -164,15 +174,20 @@ class TradingAgentsGraph:
         )
         return client.get_llm()
 
-    def _create_role_llms(self) -> Dict[str, Any]:
+    def _create_role_llms(self, selected_analysts: List[str]) -> Dict[str, Any]:
         role_llms = {}
-        for role in self.QUICK_THINKING_ROLES | self.DEEP_THINKING_ROLES:
+        for role in self._get_required_roles(selected_analysts):
             thinker_depth = "deep" if role in self.DEEP_THINKING_ROLES else "quick"
-            role_llms[role] = self._create_routed_llm(role, thinker_depth)
+            llm_config = self._resolve_llm_config(role, thinker_depth)
+            if self._uses_legacy_llm(llm_config, thinker_depth):
+                continue
+            role_llms[role] = self._create_llm_from_config(llm_config)
         return role_llms
 
-    def _create_routed_llm(self, role: str, thinker_depth: str):
-        llm_config = self._resolve_llm_config(role, thinker_depth)
+    def _get_required_roles(self, selected_analysts: List[str]) -> set[str]:
+        return self.ALWAYS_ON_ROLES | set(selected_analysts)
+
+    def _create_llm_from_config(self, llm_config: Dict[str, Any]):
         llm_kwargs = self._get_provider_kwargs(llm_config["provider"])
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
@@ -184,6 +199,14 @@ class TradingAgentsGraph:
             **llm_kwargs,
         )
         return client.get_llm()
+
+    def _uses_legacy_llm(self, llm_config: Dict[str, Any], thinker_depth: str) -> bool:
+        model_key = "deep_think_llm" if thinker_depth == "deep" else "quick_think_llm"
+        return (
+            llm_config["provider"] == self.config["llm_provider"]
+            and llm_config["model"] == self.config[model_key]
+            and llm_config.get("base_url") == self.config.get("backend_url")
+        )
 
     def _resolve_llm_config(
         self,
