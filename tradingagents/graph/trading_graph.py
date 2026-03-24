@@ -38,6 +38,7 @@ from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
+from .portfolio_analysis import PortfolioAnalyzer
 
 
 class TradingAgentsGraph:
@@ -124,6 +125,7 @@ class TradingAgentsGraph:
         self.propagator = Propagator()
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
+        self.portfolio_analyzer = PortfolioAnalyzer(self.deep_thinking_llm)
 
         # State tracking
         self.curr_state = None
@@ -268,6 +270,21 @@ class TradingAgentsGraph:
             encoding="utf-8",
         ) as f:
             json.dump(self.log_states_dict, f, indent=4)
+
+    def propagate_portfolio(
+        self, tickers: List[str], trade_date: str
+    ) -> Dict[str, Any]:
+        """Run analysis on multiple stocks and produce a comparative portfolio summary.
+
+        Delegates to PortfolioAnalyzer.analyze — see that class for full details.
+
+        Note: Each call to propagate() overwrites self.ticker and self.curr_state,
+        so after this method returns, both reflect only the last ticker analyzed.
+        Calling reflect_and_remember() afterward will only apply to that last ticker.
+        """
+        return self.portfolio_analyzer.analyze(
+            tickers, trade_date, self.propagate, debug=self.debug
+        )
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
