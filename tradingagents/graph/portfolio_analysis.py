@@ -182,6 +182,6 @@ class PortfolioAnalyzer:
             "portfolio_summary": portfolio_summary,
         }
 
-        log_file = directory / f"portfolio_analysis_{Path(str(trade_date)).name}.json"
+        log_file = directory / f"portfolio_analysis_{str(trade_date).replace('/', '-')}.json"
         with log_file.open("w", encoding="utf-8") as f:
             json.dump(log_data, f, indent=4)
