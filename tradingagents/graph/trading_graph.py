@@ -33,6 +33,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_insider_transactions,
     get_global_news,
+    get_valuation_inputs,
     get_yield_curve,
 )
 
@@ -62,6 +63,7 @@ class TradingAgentsGraph:
         "news",
         "fundamentals",
         "factor_rules",
+        "valuation",
         "macro",
         "bull_researcher",
         "bear_researcher",
@@ -302,6 +304,12 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                ]
+            ),
+            "valuation": ToolNode(
+                [
+                    # Valuation analysis tools
+                    get_valuation_inputs,
                 ]
             ),
             "macro": ToolNode(

@@ -47,6 +47,9 @@ class GraphSetup:
         self.factor_rules_analyst_llm = self._get_role_llm(
             "factor_rules", self.quick_thinking_llm
         )
+        self.valuation_analyst_llm = self._get_role_llm(
+            "valuation", self.quick_thinking_llm
+        )
         self.macro_analyst_llm = self._get_role_llm("macro", self.quick_thinking_llm)
         self.bull_researcher_llm = self._get_role_llm(
             "bull_researcher", self.quick_thinking_llm
@@ -104,6 +107,7 @@ class GraphSetup:
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
                 - "factor_rules": Factor rule analyst
+                - "valuation": Valuation analyst
                 - "macro": Macro analyst
         """
         if len(selected_analysts) == 0:
@@ -147,6 +151,13 @@ class GraphSetup:
                 self.factor_rules_analyst_llm
             )
             delete_nodes["factor_rules"] = create_msg_delete()
+
+        if "valuation" in selected_analysts:
+            analyst_nodes["valuation"] = create_valuation_analyst(
+                self.valuation_analyst_llm
+            )
+            delete_nodes["valuation"] = create_msg_delete()
+            tool_nodes["valuation"] = self.tool_nodes["valuation"]
 
         if "macro" in selected_analysts:
             analyst_nodes["macro"] = create_macro_analyst(self.macro_analyst_llm)

@@ -26,6 +26,9 @@ from tradingagents.agents.utils.macro_data_tools import (
     get_fed_calendar,
     get_yield_curve,
 )
+from tradingagents.agents.utils.valuation_tools import (
+    get_valuation_inputs,
+)
 
 
 __all__ = [
@@ -43,6 +46,7 @@ __all__ = [
     "get_insider_transactions",
     "get_news",
     "get_stock_data",
+    "get_valuation_inputs",
     "get_yield_curve",
 ]
 
