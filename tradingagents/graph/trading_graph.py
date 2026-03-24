@@ -146,6 +146,9 @@ class TradingAgentsGraph:
         """Merge user config over defaults without mutating the shared defaults."""
         return self._deep_merge_dicts(DEFAULT_CONFIG, config or {})
 
+    def _normalize_provider(self, provider: Optional[str]) -> str:
+        return (provider or "").lower()
+
     def _deep_merge_dicts(
         self,
         base: Dict[str, Any],
@@ -161,7 +164,7 @@ class TradingAgentsGraph:
 
     def _create_legacy_llm(self, thinker_depth: str):
         model_key = "deep_think_llm" if thinker_depth == "deep" else "quick_think_llm"
-        provider = self.config["llm_provider"]
+        provider = self._normalize_provider(self.config["llm_provider"])
         llm_kwargs = self._get_provider_kwargs(provider)
         if self.callbacks:
             llm_kwargs["callbacks"] = self.callbacks
@@ -203,7 +206,7 @@ class TradingAgentsGraph:
     def _uses_legacy_llm(self, llm_config: Dict[str, Any], thinker_depth: str) -> bool:
         model_key = "deep_think_llm" if thinker_depth == "deep" else "quick_think_llm"
         return (
-            llm_config["provider"] == self.config["llm_provider"]
+            llm_config["provider"] == self._normalize_provider(self.config["llm_provider"])
             and llm_config["model"] == self.config[model_key]
             and llm_config.get("base_url") == self.config.get("backend_url")
         )
@@ -218,7 +221,9 @@ class TradingAgentsGraph:
         route = role_routes.get(role) or routing.get("default") or {}
 
         model_key = "deep_think_llm" if thinker_depth == "deep" else "quick_think_llm"
-        provider = route.get("provider", self.config["llm_provider"]).lower()
+        provider = self._normalize_provider(
+            route.get("provider", self.config["llm_provider"])
+        )
 
         return {
             "provider": provider,

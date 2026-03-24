@@ -177,6 +177,42 @@ def test_unused_role_routes_do_not_instantiate_clients(monkeypatch):
     assert ("bad-provider", "unused-model") not in created_clients
 
 
+def test_provider_normalization_avoids_duplicate_legacy_client_creation(monkeypatch):
+    created_clients = []
+
+    def fake_create_llm_client(provider, model, base_url=None, **kwargs):
+        created_clients.append((provider, model))
+        return DummyClient(provider, model, base_url, **kwargs)
+
+    monkeypatch.setattr(
+        "tradingagents.graph.trading_graph.create_llm_client",
+        fake_create_llm_client,
+    )
+    monkeypatch.setattr(
+        "tradingagents.graph.trading_graph.FinancialSituationMemory",
+        lambda *args, **kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "tradingagents.graph.trading_graph.GraphSetup.setup_graph",
+        lambda self, selected_analysts: {"selected_analysts": selected_analysts},
+    )
+
+    TradingAgentsGraph(
+        selected_analysts=["market"],
+        config={
+            "llm_provider": "OpenAI",
+            "quick_think_llm": "gpt-5-mini",
+            "llm_routing": {
+                "roles": {
+                    "market": {"provider": "openai", "model": "gpt-5-mini"},
+                },
+            },
+        },
+    )
+
+    assert created_clients.count(("openai", "gpt-5-mini")) == 1
+
+
 def test_dataflow_config_returns_isolated_nested_routing(monkeypatch):
     monkeypatch.setattr(dataflow_config, "_config", None)
     dataflow_config.initialize_config()
