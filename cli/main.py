@@ -3,6 +3,7 @@ import datetime
 import typer
 from pathlib import Path
 from functools import wraps
+from copy import deepcopy
 from rich.console import Console
 from dotenv import load_dotenv
 
@@ -920,13 +921,19 @@ def run_analysis():
     selections = get_user_selections()
 
     # Create config with selected research depth
-    config = DEFAULT_CONFIG.copy()
+    config = deepcopy(DEFAULT_CONFIG)
     config["max_debate_rounds"] = selections["research_depth"]
     config["max_risk_discuss_rounds"] = selections["research_depth"]
     config["quick_think_llm"] = selections["shallow_thinker"]
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
+    config["llm_routing"] = build_llm_routing_config(
+        provider=selections["llm_provider"],
+        shallow_model=selections["shallow_thinker"],
+        deep_model=selections["deep_thinker"],
+        backend_url=selections["backend_url"],
+    )
     # Provider-specific thinking configuration
     config["google_thinking_level"] = selections.get("google_thinking_level")
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")

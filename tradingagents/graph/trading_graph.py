@@ -1,10 +1,8 @@
 # TradingAgents/graph/trading_graph.py
 
 import os
-from pathlib import Path
-import json
-from datetime import date
-from typing import Dict, Any, Tuple, List, Optional
+from copy import deepcopy
+from typing import Dict, Any, List, Optional
 
 from langgraph.prebuilt import ToolNode
 
@@ -43,6 +41,23 @@ from .signal_processing import SignalProcessor
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
+    QUICK_THINKING_ROLES = {
+        "market",
+        "social",
+        "news",
+        "fundamentals",
+        "bull_researcher",
+        "bear_researcher",
+        "trader",
+        "aggressive_analyst",
+        "neutral_analyst",
+        "conservative_analyst",
+    }
+    DEEP_THINKING_ROLES = {
+        "research_manager",
+        "portfolio_manager",
+    }
+
     def __init__(
         self,
         selected_analysts=["market", "social", "news", "fundamentals"],
@@ -59,7 +74,7 @@ class TradingAgentsGraph:
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
         """
         self.debug = debug
-        self.config = config or DEFAULT_CONFIG
+        self.config = self._build_config(config)
         self.callbacks = callbacks or []
 
         # Update the interface's config
@@ -71,28 +86,9 @@ class TradingAgentsGraph:
             exist_ok=True,
         )
 
-        # Initialize LLMs with provider-specific thinking configuration
-        llm_kwargs = self._get_provider_kwargs()
-
-        # Add callbacks to kwargs if provided (passed to LLM constructor)
-        if self.callbacks:
-            llm_kwargs["callbacks"] = self.callbacks
-
-        deep_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["deep_think_llm"],
-            base_url=self.config.get("backend_url"),
-            **llm_kwargs,
-        )
-        quick_client = create_llm_client(
-            provider=self.config["llm_provider"],
-            model=self.config["quick_think_llm"],
-            base_url=self.config.get("backend_url"),
-            **llm_kwargs,
-        )
-
-        self.deep_thinking_llm = deep_client.get_llm()
-        self.quick_thinking_llm = quick_client.get_llm()
+        self.quick_thinking_llm = self._create_legacy_llm("quick")
+        self.deep_thinking_llm = self._create_legacy_llm("deep")
+        self.role_llms = self._create_role_llms()
         
         # Initialize memories
         self.bull_memory = FinancialSituationMemory("bull_memory", self.config)
@@ -119,6 +115,7 @@ class TradingAgentsGraph:
             self.invest_judge_memory,
             self.portfolio_manager_memory,
             self.conditional_logic,
+            role_llms=self.role_llms,
         )
 
         self.propagator = Propagator()
@@ -133,10 +130,81 @@ class TradingAgentsGraph:
         # Set up the graph
         self.graph = self.graph_setup.setup_graph(selected_analysts)
 
-    def _get_provider_kwargs(self) -> Dict[str, Any]:
+    def _build_config(self, config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Merge user config over defaults without mutating the shared defaults."""
+        return self._deep_merge_dicts(DEFAULT_CONFIG, config or {})
+
+    def _deep_merge_dicts(
+        self,
+        base: Dict[str, Any],
+        override: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        merged = deepcopy(base)
+        for key, value in override.items():
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key] = self._deep_merge_dicts(merged[key], value)
+            else:
+                merged[key] = deepcopy(value)
+        return merged
+
+    def _create_legacy_llm(self, thinker_depth: str):
+        model_key = "deep_think_llm" if thinker_depth == "deep" else "quick_think_llm"
+        provider = self.config["llm_provider"]
+        llm_kwargs = self._get_provider_kwargs(provider)
+        if self.callbacks:
+            llm_kwargs["callbacks"] = self.callbacks
+
+        client = create_llm_client(
+            provider=provider,
+            model=self.config[model_key],
+            base_url=self.config.get("backend_url"),
+            **llm_kwargs,
+        )
+        return client.get_llm()
+
+    def _create_role_llms(self) -> Dict[str, Any]:
+        role_llms = {}
+        for role in self.QUICK_THINKING_ROLES | self.DEEP_THINKING_ROLES:
+            thinker_depth = "deep" if role in self.DEEP_THINKING_ROLES else "quick"
+            role_llms[role] = self._create_routed_llm(role, thinker_depth)
+        return role_llms
+
+    def _create_routed_llm(self, role: str, thinker_depth: str):
+        llm_config = self._resolve_llm_config(role, thinker_depth)
+        llm_kwargs = self._get_provider_kwargs(llm_config["provider"])
+        if self.callbacks:
+            llm_kwargs["callbacks"] = self.callbacks
+
+        client = create_llm_client(
+            provider=llm_config["provider"],
+            model=llm_config["model"],
+            base_url=llm_config.get("base_url"),
+            **llm_kwargs,
+        )
+        return client.get_llm()
+
+    def _resolve_llm_config(
+        self,
+        role: str,
+        thinker_depth: str,
+    ) -> Dict[str, Any]:
+        routing = self.config.get("llm_routing") or {}
+        role_routes = routing.get("roles") or {}
+        route = role_routes.get(role) or routing.get("default") or {}
+
+        model_key = "deep_think_llm" if thinker_depth == "deep" else "quick_think_llm"
+        provider = route.get("provider", self.config["llm_provider"]).lower()
+
+        return {
+            "provider": provider,
+            "model": route.get("model", self.config[model_key]),
+            "base_url": route.get("base_url", self.config.get("backend_url")),
+        }
+
+    def _get_provider_kwargs(self, provider: Optional[str] = None) -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
         kwargs = {}
-        provider = self.config.get("llm_provider", "").lower()
+        provider = (provider or self.config.get("llm_provider", "")).lower()
 
         if provider == "google":
             thinking_level = self.config.get("google_thinking_level")

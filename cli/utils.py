@@ -1,5 +1,5 @@
 import questionary
-from typing import List, Optional, Tuple, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 from rich.console import Console
 
@@ -298,6 +298,34 @@ def select_llm_provider() -> tuple[str, str]:
     print(f"You selected: {display_name}\tURL: {url}")
 
     return display_name, url
+
+
+def build_llm_routing_config(
+    provider: str,
+    shallow_model: str,
+    deep_model: str,
+    backend_url: Optional[str] = None,
+) -> Dict[str, Any]:
+    default_route: Dict[str, Any] = {
+        "provider": provider.lower(),
+        "model": shallow_model,
+    }
+    deep_route: Dict[str, Any] = {
+        "provider": provider.lower(),
+        "model": deep_model,
+    }
+
+    if backend_url:
+        default_route["base_url"] = backend_url
+        deep_route["base_url"] = backend_url
+
+    return {
+        "default": default_route,
+        "roles": {
+            "research_manager": deep_route.copy(),
+            "portfolio_manager": deep_route.copy(),
+        },
+    }
 
 
 def ask_openai_reasoning_effort() -> str:
