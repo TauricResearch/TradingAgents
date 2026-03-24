@@ -200,6 +200,22 @@ print(decision)
 
 See `tradingagents/default_config.py` for all configuration options.
 
+## Community Projects
+
+Projects built on TradingAgents by the community:
+
+<p align="center">
+  <a href="https://dream.hmyk.ai/?tab=live">
+    <img src="assets/community-live-demo.png" width="80%">
+  </a>
+</p>
+
+| Project | Description | Links |
+|---------|-------------|-------|
+| **AI Quant Fund Live** | Real-time 12-agent debate trading room with cyberpunk UI. Extended with China A-share market support, WebSocket live streaming, and hybrid LLM (GPT + Gemini). | [Live Demo](https://dream.hmyk.ai/?tab=live) · [SDK](https://github.com/demandai/ai-quant-agents) |
+
+> Built your own project on TradingAgents? Open a PR to add it here!
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
