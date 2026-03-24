@@ -1,5 +1,8 @@
 from copy import deepcopy
 
+from langgraph.graph import END, START, StateGraph
+
+from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.managers.research_manager import create_research_manager
 from tradingagents.graph.propagation import Propagator
@@ -67,25 +70,27 @@ def assert_structured_stock_fields(payload):
     assert payload["chief_analyst_data"] == EXPECTED_CHIEF_ANALYST_DATA
 
 
+def compile_single_node_graph(node_name, node):
+    workflow = StateGraph(AgentState)
+    workflow.add_node(node_name, node)
+    workflow.add_edge(START, node_name)
+    workflow.add_edge(node_name, END)
+    return workflow.compile()
+
+
 def test_propagator_initializes_structured_stock_underwriting_fields():
     initial_state = Propagator().create_initial_state("NVDA", "2026-03-24")
 
     assert_structured_stock_fields(initial_state)
 
 
-def test_manager_nodes_preserve_structured_stock_underwriting_fields(monkeypatch):
+def test_research_manager_update_omits_structured_stock_passthrough_fields(monkeypatch):
     monkeypatch.setattr(
         "tradingagents.agents.managers.research_manager.build_instrument_context",
         lambda _ticker: "instrument context",
     )
-    monkeypatch.setattr(
-        "tradingagents.agents.managers.portfolio_manager.build_instrument_context",
-        lambda _ticker: "instrument context",
-    )
 
     state = Propagator().create_initial_state("NVDA", "2026-03-24")
-    state["investment_plan"] = "Existing investment plan"
-
     research_manager = create_research_manager(
         DummyLLM("Research manager output"),
         DummyMemory(),
@@ -96,8 +101,44 @@ def test_manager_nodes_preserve_structured_stock_underwriting_fields(monkeypatch
     assert research_result["investment_debate_state"]["judge_decision"] == (
         "Research manager output"
     )
-    assert_structured_stock_fields(research_result)
+    assert set(research_result) == {"investment_debate_state", "investment_plan"}
 
+
+def test_research_manager_graph_preserves_structured_stock_underwriting_fields(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "tradingagents.agents.managers.research_manager.build_instrument_context",
+        lambda _ticker: "instrument context",
+    )
+
+    research_manager = create_research_manager(
+        DummyLLM("Research manager output"),
+        DummyMemory(),
+    )
+    state = Propagator().create_initial_state("NVDA", "2026-03-24")
+
+    final_state = compile_single_node_graph("Research Manager", research_manager).invoke(
+        state
+    )
+
+    assert final_state["investment_plan"] == "Research manager output"
+    assert final_state["investment_debate_state"]["judge_decision"] == (
+        "Research manager output"
+    )
+    assert_structured_stock_fields(final_state)
+
+
+def test_portfolio_manager_update_omits_structured_stock_passthrough_fields(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "tradingagents.agents.managers.portfolio_manager.build_instrument_context",
+        lambda _ticker: "instrument context",
+    )
+
+    state = Propagator().create_initial_state("NVDA", "2026-03-24")
+    state["investment_plan"] = "Existing investment plan"
     portfolio_manager = create_portfolio_manager(
         DummyLLM("Portfolio manager output"),
         DummyMemory(),
@@ -108,4 +149,30 @@ def test_manager_nodes_preserve_structured_stock_underwriting_fields(monkeypatch
     assert portfolio_result["risk_debate_state"]["judge_decision"] == (
         "Portfolio manager output"
     )
-    assert_structured_stock_fields(portfolio_result)
+    assert set(portfolio_result) == {"risk_debate_state", "final_trade_decision"}
+
+
+def test_portfolio_manager_graph_preserves_structured_stock_underwriting_fields(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "tradingagents.agents.managers.portfolio_manager.build_instrument_context",
+        lambda _ticker: "instrument context",
+    )
+
+    portfolio_manager = create_portfolio_manager(
+        DummyLLM("Portfolio manager output"),
+        DummyMemory(),
+    )
+    state = Propagator().create_initial_state("NVDA", "2026-03-24")
+    state["investment_plan"] = "Existing investment plan"
+
+    final_state = compile_single_node_graph(
+        "Portfolio Manager", portfolio_manager
+    ).invoke(state)
+
+    assert final_state["final_trade_decision"] == "Portfolio manager output"
+    assert final_state["risk_debate_state"]["judge_decision"] == (
+        "Portfolio manager output"
+    )
+    assert_structured_stock_fields(final_state)

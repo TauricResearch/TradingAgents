@@ -1,12 +1,8 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context
-from tradingagents.agents.utils.agent_states import (
-    make_default_structured_stock_underwriting_state,
-)
 
 
 def create_research_manager(llm, memory):
     def research_manager_node(state) -> dict:
-        structured_stock_defaults = make_default_structured_stock_underwriting_state()
         instrument_context = build_instrument_context(state["company_of_interest"])
         history = state["investment_debate_state"].get("history", "")
         market_research_report = state["market_report"]
@@ -56,26 +52,6 @@ Debate History:
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": response.content,
-            "valuation_data": state.get(
-                "valuation_data",
-                structured_stock_defaults["valuation_data"],
-            ),
-            "segment_data": state.get(
-                "segment_data",
-                structured_stock_defaults["segment_data"],
-            ),
-            "scenario_catalyst_data": state.get(
-                "scenario_catalyst_data",
-                structured_stock_defaults["scenario_catalyst_data"],
-            ),
-            "position_sizing_data": state.get(
-                "position_sizing_data",
-                structured_stock_defaults["position_sizing_data"],
-            ),
-            "chief_analyst_data": state.get(
-                "chief_analyst_data",
-                structured_stock_defaults["chief_analyst_data"],
-            ),
         }
 
     return research_manager_node
