@@ -29,7 +29,9 @@ from tradingagents.default_config import _env, _env_float, _env_int
 
 PORTFOLIO_CONFIG: dict = {
     "supabase_connection_string": os.getenv("SUPABASE_CONNECTION_STRING", ""),
-    "data_dir": _env("PORTFOLIO_DATA_DIR", "reports"),
+    # PORTFOLIO_DATA_DIR takes precedence; falls back to TRADINGAGENTS_REPORTS_DIR,
+    # then to "reports" (relative to CWD) — same default as report_paths.REPORTS_ROOT.
+    "data_dir": os.getenv("PORTFOLIO_DATA_DIR") or _env("REPORTS_DIR", "reports"),
     "max_positions": 15,
     "max_position_pct": 0.15,
     "max_sector_pct": 0.35,
@@ -46,7 +48,7 @@ def get_portfolio_config() -> dict:
     """
     cfg = dict(PORTFOLIO_CONFIG)
     cfg["supabase_connection_string"] = os.getenv("SUPABASE_CONNECTION_STRING", cfg["supabase_connection_string"])
-    cfg["data_dir"] = _env("PORTFOLIO_DATA_DIR", cfg["data_dir"])
+    cfg["data_dir"] = os.getenv("PORTFOLIO_DATA_DIR") or _env("REPORTS_DIR", cfg["data_dir"])
     cfg["max_positions"] = _env_int("PM_MAX_POSITIONS", cfg["max_positions"])
     cfg["max_position_pct"] = _env_float("PM_MAX_POSITION_PCT", cfg["max_position_pct"])
     cfg["max_sector_pct"] = _env_float("PM_MAX_SECTOR_PCT", cfg["max_sector_pct"])

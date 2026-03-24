@@ -8,6 +8,7 @@ import {
   IconButton, 
   Button, 
   Input,
+  Checkbox,
   useDisclosure,
   Drawer,
   DrawerOverlay,
@@ -34,7 +35,7 @@ import {
   Collapse,
   useToast,
 } from '@chakra-ui/react';
-import { LayoutDashboard, Wallet, Settings, Terminal as TerminalIcon, ChevronRight, Eye, Search, BarChart3, Bot, ChevronDown, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, Wallet, Settings, Terminal as TerminalIcon, ChevronRight, Eye, Search, BarChart3, Bot, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { MetricHeader } from './components/MetricHeader';
 import { AgentGraph } from './components/AgentGraph';
 import { PortfolioViewer } from './components/PortfolioViewer';
@@ -50,6 +51,7 @@ interface RunParams {
   date: string;
   ticker: string;
   portfolio_id: string;
+  force: boolean;
 }
 
 const RUN_TYPE_LABELS: Record<RunType, string> = {
@@ -64,7 +66,7 @@ const REQUIRED_PARAMS: Record<RunType, (keyof RunParams)[]> = {
   scan: ['date'],
   pipeline: ['ticker', 'date'],
   portfolio: ['date', 'portfolio_id'],
-  auto: ['date', 'ticker'],
+  auto: ['date', 'portfolio_id'],
 };
 
 /** Return the colour token for a given event type. */
@@ -312,6 +314,7 @@ export const Dashboard: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     ticker: 'AAPL',
     portfolio_id: 'main_portfolio',
+    force: false,
   });
 
   // Auto-scroll the terminal to the bottom as new events arrive
@@ -335,7 +338,7 @@ export const Dashboard: React.FC = () => {
 
     // Validate required params
     const required = REQUIRED_PARAMS[type];
-    const missing = required.filter((k) => !params[k]?.trim());
+    const missing = required.filter((k) => { const v = params[k]; return typeof v === 'string' ? !v.trim() : !v; });
     if (missing.length > 0) {
       toast({
         title: `Missing required fields for ${RUN_TYPE_LABELS[type]}`,
@@ -357,6 +360,7 @@ export const Dashboard: React.FC = () => {
         portfolio_id: params.portfolio_id,
         date: params.date,
         ticker: params.ticker,
+        force: params.force,
       });
       setActiveRunId(res.data.run_id);
     } catch (err) {
@@ -364,6 +368,27 @@ export const Dashboard: React.FC = () => {
       setActiveRunType(null);
     } finally {
       setIsTriggering(false);
+    }
+  };
+
+  const resetPortfolioStage = async () => {
+    if (!params.date || !params.portfolio_id) {
+      toast({ title: 'Date and Portfolio ID are required', status: 'warning', duration: 3000, isClosable: true, position: 'top' });
+      setShowParams(true);
+      return;
+    }
+    try {
+      const res = await axios.delete(`${API_BASE}/run/portfolio-stage`, { data: { date: params.date, portfolio_id: params.portfolio_id } });
+      const deleted: string[] = res.data.deleted;
+      toast({
+        title: deleted.length ? `Cleared: ${deleted.join(', ')}` : 'Nothing to clear — no decision files found',
+        status: deleted.length ? 'success' : 'info',
+        duration: 4000,
+        isClosable: true,
+        position: 'top',
+      });
+    } catch (err) {
+      toast({ title: 'Failed to reset portfolio stage', status: 'error', duration: 3000, isClosable: true, position: 'top' });
     }
   };
 
@@ -479,6 +504,19 @@ export const Dashboard: React.FC = () => {
                       );
                     })}
                     <Divider orientation="vertical" h="20px" />
+                    <Tooltip label="Clear PM decision & execution result for this date/portfolio, then re-run Auto to start Phase 3 fresh">
+                      <Button
+                        size="sm"
+                        leftIcon={<Trash2 size={14} />}
+                        colorScheme="red"
+                        variant="outline"
+                        onClick={resetPortfolioStage}
+                        isDisabled={isRunning}
+                      >
+                        Reset Decision
+                      </Button>
+                    </Tooltip>
+                    <Divider orientation="vertical" h="20px" />
                     <Tag size="sm" colorScheme={status === 'streaming' ? 'green' : status === 'completed' ? 'blue' : status === 'error' ? 'red' : 'gray'}>
                       {status.toUpperCase()}
                     </Tag>
@@ -529,8 +567,18 @@ export const Dashboard: React.FC = () => {
                            onChange={(e) => setParams((p) => ({ ...p, portfolio_id: e.target.value }))}
                          />
                        </HStack>
+                       <HStack>
+                         <Checkbox
+                           size="sm"
+                           colorScheme="orange"
+                           isChecked={params.force}
+                           onChange={(e) => setParams((p) => ({ ...p, force: e.target.checked }))}
+                         >
+                           <Text fontSize="xs" color="orange.300">Force re-run (ignore cached results)</Text>
+                         </Checkbox>
+                       </HStack>
                        <Text fontSize="2xs" color="whiteAlpha.400">
-                         Required: Scan → date · Pipeline → ticker, date · Portfolio → date, portfolio · Auto → date, ticker
+                         Required: Scan → date · Pipeline → ticker, date · Portfolio → date, portfolio · Auto → date, portfolio
                        </Text>
                      </VStack>
                    </Box>

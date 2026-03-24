@@ -415,3 +415,20 @@ class PortfolioRepository:
     ) -> dict[str, Any] | None:
         """Load risk metrics. Returns None if not found."""
         return self._store.load_risk_metrics(date, portfolio_id)
+
+    def save_execution_result(
+        self,
+        portfolio_id: str,
+        date: str,
+        result: dict[str, Any],
+    ) -> Path:
+        """Save trade execution results."""
+        return self._store.save_execution_result(date, portfolio_id, result)
+
+    def load_execution_result(
+        self,
+        portfolio_id: str,
+        date: str,
+    ) -> dict[str, Any] | None:
+        """Load trade execution results. Returns None if not found."""
+        return self._store.load_execution_result(date, portfolio_id)

@@ -19,9 +19,12 @@ all generated artifacts land under a single ``reports/`` tree::
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
-REPORTS_ROOT = Path("reports")
+# Configurable via TRADINGAGENTS_REPORTS_DIR env var.
+# Falls back to "reports" (relative to CWD) when unset.
+REPORTS_ROOT = Path(os.getenv("TRADINGAGENTS_REPORTS_DIR") or "reports")
 
 
 def get_daily_dir(date: str) -> Path:
