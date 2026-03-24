@@ -182,6 +182,40 @@ def test_role_specific_route_inherits_default_provider_base_url_and_model(monkey
     assert recorded_llms["Portfolio Manager"]["model"] == "claude-sonnet-4-6"
 
 
+def test_mixed_provider_route_does_not_inherit_legacy_backend_url(monkeypatch):
+    recorded_llms = {}
+
+    monkeypatch.setattr(
+        "tradingagents.graph.trading_graph.create_llm_client",
+        lambda provider, model, base_url=None, **kwargs: DummyClient(
+            provider, model, base_url, **kwargs
+        ),
+    )
+    monkeypatch.setattr(
+        "tradingagents.graph.trading_graph.FinancialSituationMemory",
+        lambda *args, **kwargs: object(),
+    )
+    _patch_graph_setup_wiring(monkeypatch, recorded_llms)
+
+    TradingAgentsGraph(
+        selected_analysts=["market"],
+        config={
+            "llm_provider": "openai",
+            "backend_url": "https://api.openai.com/v1",
+            "llm_routing": {
+                "default": {
+                    "provider": "anthropic",
+                    "model": "claude-sonnet-4-6",
+                }
+            },
+        },
+    )
+
+    assert recorded_llms["Market Analyst"]["provider"] == "anthropic"
+    assert recorded_llms["Market Analyst"]["model"] == "claude-sonnet-4-6"
+    assert recorded_llms["Market Analyst"]["base_url"] is None
+
+
 def test_unused_role_routes_do_not_instantiate_clients(monkeypatch):
     created_clients = []
 
