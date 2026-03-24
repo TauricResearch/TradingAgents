@@ -1,40 +1,39 @@
-import json
-from pathlib import Path
+import warnings
 from typing import Optional
 
 from .base_client import BaseLLMClient
 from .openai_client import OpenAIClient
 from .anthropic_client import AnthropicClient
 from .google_client import GoogleClient
+from .config_loader import load_config, get_config_section
 
-CONFIG_PATH = Path(__file__).resolve().parents[2] / "config.json"
-
-
-def _load_config() -> dict:
-    try:
-        with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
-            config = json.load(config_file)
-    except FileNotFoundError as exc:
-        raise RuntimeError(f"Config file not found: {CONFIG_PATH}") from exc
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Invalid JSON in config file: {CONFIG_PATH}") from exc
-    except OSError as exc:
-        raise RuntimeError(f"Unable to read config file: {CONFIG_PATH}") from exc
-    if not isinstance(config, dict):
-        raise RuntimeError(f"Invalid config format in file: {CONFIG_PATH}")
-    return config
+DEFAULT_PROVIDER_TYPES: dict[str, str] = {
+    "openai": "openai",
+    "anthropic": "anthropic",
+    "google": "google",
+    "xai": "openai",
+    "openrouter": "openai",
+    "ollama": "openai",
+    "lmstudio": "openai",
+}
 
 
 def _load_provider_types() -> dict[str, str]:
-    provider_types = _load_config().get("LLM_PROVIDER_TYPES")
-    if not isinstance(provider_types, dict):
-        raise RuntimeError(
-            f"Invalid or missing 'LLM_PROVIDER_TYPES' in config file: {CONFIG_PATH}"
+    try:
+        config = load_config()
+        provider_types = get_config_section(config, "LLM_PROVIDER_TYPES", dict)
+        return {
+            str(name).lower(): str(client_type).lower()
+            for name, client_type in provider_types.items()
+        }
+    except RuntimeError as exc:
+        warnings.warn(
+            f"Failed to load LLM_PROVIDER_TYPES from config.json: {exc}. "
+            "Using built-in provider mapping.",
+            RuntimeWarning,
+            stacklevel=2,
         )
-    return {
-        str(name).lower(): str(client_type).lower()
-        for name, client_type in provider_types.items()
-    }
+        return DEFAULT_PROVIDER_TYPES.copy()
 
 
 _PROVIDER_TYPES: dict[str, str] | None = None

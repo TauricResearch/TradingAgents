@@ -1,12 +1,11 @@
-import json
 import os
-from pathlib import Path
 from typing import Any, Optional
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
 from .base_client import BaseLLMClient, normalize_content
+from .config_loader import load_config, get_base_urls_map
 from .validators import validate_model
 
 
@@ -27,47 +26,11 @@ _PASSTHROUGH_KWARGS = (
     "api_key", "callbacks", "http_client", "http_async_client",
 )
 
-CONFIG_PATH = Path(__file__).resolve().parents[2] / "config.json"
-
-
-def _load_config() -> dict:
-    try:
-        with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
-            config = json.load(config_file)
-    except FileNotFoundError as exc:
-        raise RuntimeError(f"Config file not found: {CONFIG_PATH}") from exc
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"Invalid JSON in config file: {CONFIG_PATH}") from exc
-    except OSError as exc:
-        raise RuntimeError(f"Unable to read config file: {CONFIG_PATH}") from exc
-
-    if not isinstance(config, dict):
-        raise RuntimeError(f"Invalid config format in file: {CONFIG_PATH}")
-    return config
-
-
-def _get_base_urls(config: dict) -> dict[str, str]:
-    base_urls = config.get("BASE_URLS")
-    if not isinstance(base_urls, list):
-        raise RuntimeError(f"Invalid or missing 'BASE_URLS' in config file: {CONFIG_PATH}")
-
-    mapped_urls: dict[str, str] = {}
-    for item in base_urls:
-        if (
-            isinstance(item, list)
-            and len(item) == 2
-            and isinstance(item[0], str)
-            and isinstance(item[1], str)
-        ):
-            mapped_urls[item[0].lower()] = item[1]
-    return mapped_urls
-
-
-CONFIG = _load_config()
+CONFIG = load_config()
 
 load_dotenv()
 
-_BASE_URLS = _get_base_urls(CONFIG)
+_BASE_URLS = get_base_urls_map(CONFIG)
 _PROVIDER_BASE_URLS = {
     "xai": _BASE_URLS.get("xai", "https://api.x.ai/v1"),
     "openrouter": _BASE_URLS.get("openrouter", "https://openrouter.ai/api/v1"),
