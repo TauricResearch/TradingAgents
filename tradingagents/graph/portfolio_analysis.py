@@ -125,7 +125,6 @@ class PortfolioAnalyzer:
         try:
             return self.deep_thinking_llm.invoke(messages).content
         except Exception as e:
-            import traceback
             return (
                 f"Portfolio summary generation failed: {e}\n{traceback.format_exc()}\n"
                 f"Individual signals were: "
