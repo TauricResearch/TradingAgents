@@ -39,6 +39,10 @@
       ["Qwen3:latest (8B, local)", "qwen3:latest"],
       ["GPT-OSS:latest (20B, local)", "gpt-oss:latest"],
       ["GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"]
+    ],
+    "lmstudio": [
+      ["qwen3.5-35b-a3b","qwen/qwen3.5-35b-a3b"],
+      ["openai/gpt-oss-20b", "openai/gpt-oss-20b"]
     ]
   },
   "DEEP_AGENT_OPTIONS": {
@@ -74,11 +78,24 @@
       ["GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"],
       ["GPT-OSS:latest (20B, local)", "gpt-oss:latest"],
       ["Qwen3:latest (8B, local)", "qwen3:latest"]
+    ],
+      "lmstudio": [
+      ["qwen3.5-35b-a3b","qwen/qwen3.5-35b-a3b"],
+      ["openai/gpt-oss-20b", "openai/gpt-oss-20b"]
     ]
   },
   "DEFAULT_LLM_SETTINGS": {
     "llm_provider": "openai",
     "deep_think_llm": "gpt-5.2",
     "quick_think_llm": "gpt-5-mini"
+  },
+  "LLM_PROVIDER_TYPES": {
+    "openai": "openai",
+    "anthropic": "anthropic",
+    "google": "google",
+    "xai": "openai",
+    "openrouter": "openai",
+    "ollama": "openai",
+    "lmstudio": "openai"
   }
 }
