@@ -1,10 +1,19 @@
-from typing import Annotated, Sequence
+from typing import Annotated, Sequence, Literal
 from datetime import date, timedelta, datetime
-from typing_extensions import TypedDict, Optional
+from typing_extensions import TypedDict, Optional, NotRequired
+from pydantic import BaseModel
 from langchain_openai import ChatOpenAI
 from tradingagents.agents import *
 from langgraph.prebuilt import ToolNode
 from langgraph.graph import END, StateGraph, START, MessagesState
+
+
+class ChiefAnalystReport(BaseModel):
+    """Pydantic model for Chief Analyst report."""
+    verdict: Literal["BUY", "SELL", "HOLD"]
+    catalyst: str
+    execution: str
+    tail_risk: str
 
 
 # Researcher team state
@@ -74,3 +83,5 @@ class AgentState(MessagesState):
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
+
+    chief_analyst_report: NotRequired[Optional[dict]]
