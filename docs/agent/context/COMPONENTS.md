@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-23 -->
+<!-- Last verified: 2026-03-24 -->
 
 # Components
 
@@ -34,6 +34,7 @@ tradingagents/
 │   │   ├── geopolitical_scanner.py  # create_geopolitical_scanner(llm)
 │   │   ├── market_movers_scanner.py # create_market_movers_scanner(llm)
 │   │   ├── sector_scanner.py        # create_sector_scanner(llm)
+│   │   ├── smart_money_scanner.py   # create_smart_money_scanner(llm)  ← NEW
 │   │   ├── industry_deep_dive.py    # create_industry_deep_dive(llm)
 │   │   └── macro_synthesis.py       # create_macro_synthesis(llm)
 │   ├── trader/
@@ -47,7 +48,7 @@ tradingagents/
 │       ├── memory.py                # FinancialSituationMemory
 │       ├── news_data_tools.py       # get_news, get_global_news, get_insider_transactions
 │       ├── scanner_states.py        # ScannerState, _last_value reducer
-│       ├── scanner_tools.py         # Scanner @tool definitions (7 tools)
+│       ├── scanner_tools.py         # Scanner @tool definitions (10 tools: 7 routed + 3 Finviz direct)
 │       ├── technical_indicators_tools.py
 │       └── tool_runner.py           # run_tool_loop(), MAX_TOOL_ROUNDS, MIN_REPORT_LENGTH
 ├── dataflows/
@@ -130,7 +131,7 @@ agent_os/
             └── PortfolioViewer.tsx     # Holdings table, trade history, snapshot view
 ```
 
-## Agent Factory Inventory (17 factories + 1 utility)
+## Agent Factory Inventory (18 factories + 1 utility)
 
 | Factory | File | LLM Tier | Extra Params |
 |---------|------|----------|-------------|
@@ -149,6 +150,7 @@ agent_os/
 | `create_geopolitical_scanner` | `agents/scanners/geopolitical_scanner.py` | quick | — |
 | `create_market_movers_scanner` | `agents/scanners/market_movers_scanner.py` | quick | — |
 | `create_sector_scanner` | `agents/scanners/sector_scanner.py` | quick | — |
+| `create_smart_money_scanner` | `agents/scanners/smart_money_scanner.py` | quick | — |
 | `create_industry_deep_dive` | `agents/scanners/industry_deep_dive.py` | mid | — |
 | `create_macro_synthesis` | `agents/scanners/macro_synthesis.py` | deep | — |
 | `create_msg_delete` | `agents/utils/agent_utils.py` | — | No LLM param |
@@ -193,7 +195,7 @@ agent_os/
 | Command | Function | Description |
 |---------|----------|-------------|
 | `analyze` | `run_analysis()` | Interactive per-ticker multi-agent analysis with Rich live UI |
-| `scan` | `run_scan(date)` | 3-phase macro scanner, saves 5 report files |
+| `scan` | `run_scan(date)` | Macro scanner (4 Phase-1 nodes + deep dive + synthesis), saves 5 report files |
 | `pipeline` | `run_pipeline()` | Full pipeline: scan JSON → filter by conviction → per-ticker deep dive |
 
 ## AgentOS Frontend Components

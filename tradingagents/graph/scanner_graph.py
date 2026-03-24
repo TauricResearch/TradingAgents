@@ -1,4 +1,4 @@
-"""Scanner graph — orchestrates the 3-phase macro scanner pipeline."""
+"""Scanner graph — orchestrates the 4-phase macro scanner pipeline."""
 
 from typing import Any, List, Optional
 
@@ -8,6 +8,7 @@ from tradingagents.agents.scanners import (
     create_geopolitical_scanner,
     create_market_movers_scanner,
     create_sector_scanner,
+    create_smart_money_scanner,
     create_industry_deep_dive,
     create_macro_synthesis,
 )
@@ -15,10 +16,11 @@ from .scanner_setup import ScannerGraphSetup
 
 
 class ScannerGraph:
-    """Orchestrates the 3-phase macro scanner pipeline.
+    """Orchestrates the macro scanner pipeline.
 
-    Phase 1 (parallel): geopolitical_scanner, market_movers_scanner, sector_scanner
-    Phase 2: industry_deep_dive (fan-in from Phase 1)
+    Phase 1a (parallel): geopolitical_scanner, market_movers_scanner, sector_scanner
+    Phase 1b (sequential after sector): smart_money_scanner
+    Phase 2: industry_deep_dive (fan-in from all Phase 1 nodes)
     Phase 3: macro_synthesis -> END
     """
 
@@ -47,6 +49,7 @@ class ScannerGraph:
             "geopolitical_scanner": create_geopolitical_scanner(quick_llm),
             "market_movers_scanner": create_market_movers_scanner(quick_llm),
             "sector_scanner": create_sector_scanner(quick_llm),
+            "smart_money_scanner": create_smart_money_scanner(quick_llm),
             "industry_deep_dive": create_industry_deep_dive(mid_llm),
             "macro_synthesis": create_macro_synthesis(deep_llm),
         }
@@ -143,6 +146,7 @@ class ScannerGraph:
             "geopolitical_report": "",
             "market_movers_report": "",
             "sector_performance_report": "",
+            "smart_money_report": "",
             "industry_deep_dive_report": "",
             "macro_scan_summary": "",
             "sender": "",

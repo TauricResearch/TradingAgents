@@ -31,6 +31,7 @@ class ScannerState(MessagesState):
     geopolitical_report: Annotated[str, _last_value]
     market_movers_report: Annotated[str, _last_value]
     sector_performance_report: Annotated[str, _last_value]
+    smart_money_report: Annotated[str, _last_value]
 
     # Phase 2: Deep dive output
     industry_deep_dive_report: Annotated[str, _last_value]

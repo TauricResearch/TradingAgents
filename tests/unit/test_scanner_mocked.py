@@ -727,3 +727,94 @@ class TestScannerRouting:
             result = route_to_vendor("get_topic_news", "economy")
 
         assert isinstance(result, str)
+
+
+# ---------------------------------------------------------------------------
+# Finviz smart-money screener tools
+# ---------------------------------------------------------------------------
+
+def _make_finviz_df():
+    """Minimal DataFrame matching what finvizfinance screener_view() returns."""
+    return pd.DataFrame([
+        {"Ticker": "NVDA", "Sector": "Technology", "Price": "620.00", "Volume": "45000000"},
+        {"Ticker": "AMD",  "Sector": "Technology", "Price": "175.00", "Volume": "32000000"},
+        {"Ticker": "XOM",  "Sector": "Energy",     "Price": "115.00", "Volume": "18000000"},
+    ])
+
+
+class TestFinvizSmartMoneyTools:
+    """Mocked unit tests for Finviz screener tools — no network required."""
+
+    def _mock_overview(self, df):
+        """Return a patched Overview instance whose screener_view() yields df."""
+        mock_inst = MagicMock()
+        mock_inst.screener_view.return_value = df
+        mock_cls = MagicMock(return_value=mock_inst)
+        return mock_cls
+
+    def test_get_insider_buying_stocks_returns_report(self):
+        from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
+
+        with patch("tradingagents.agents.utils.scanner_tools._run_finviz_screen",
+                   wraps=None) as _:
+            pass  # use full stack — patch Overview only
+
+        mock_cls = self._mock_overview(_make_finviz_df())
+        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+            result = get_insider_buying_stocks.invoke({})
+
+        assert "insider_buying" in result
+        assert "NVDA" in result or "AMD" in result or "XOM" in result
+
+    def test_get_unusual_volume_stocks_returns_report(self):
+        from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
+
+        mock_cls = self._mock_overview(_make_finviz_df())
+        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+            result = get_unusual_volume_stocks.invoke({})
+
+        assert "unusual_volume" in result
+
+    def test_get_breakout_accumulation_stocks_returns_report(self):
+        from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
+
+        mock_cls = self._mock_overview(_make_finviz_df())
+        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+            result = get_breakout_accumulation_stocks.invoke({})
+
+        assert "breakout_accumulation" in result
+
+    def test_empty_dataframe_returns_no_match_message(self):
+        from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
+
+        mock_cls = self._mock_overview(pd.DataFrame())
+        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+            result = get_insider_buying_stocks.invoke({})
+
+        assert "No stocks matched" in result
+
+    def test_exception_returns_graceful_unavailable_message(self):
+        from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
+
+        mock_inst = MagicMock()
+        mock_inst.screener_view.side_effect = ConnectionError("timeout")
+        mock_cls = MagicMock(return_value=mock_inst)
+
+        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+            result = get_breakout_accumulation_stocks.invoke({})
+
+        assert "Smart money scan unavailable" in result
+        assert "timeout" in result
+
+    def test_all_three_tools_sort_by_volume(self):
+        """Verify the top result is the highest-volume ticker."""
+        from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
+
+        # NVDA has highest volume (45M) — should appear first in report
+        mock_cls = self._mock_overview(_make_finviz_df())
+        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+            result = get_unusual_volume_stocks.invoke({})
+
+        nvda_pos = result.find("NVDA")
+        amd_pos = result.find("AMD")
+        assert nvda_pos < amd_pos, "NVDA (higher volume) should appear before AMD"

@@ -30,8 +30,9 @@ used by every agent.
    - [4.13 Geopolitical Scanner](#413-geopolitical-scanner)
    - [4.14 Market Movers Scanner](#414-market-movers-scanner)
    - [4.15 Sector Scanner](#415-sector-scanner)
-   - [4.16 Industry Deep Dive](#416-industry-deep-dive)
-   - [4.17 Macro Synthesis](#417-macro-synthesis)
+   - [4.16 Smart Money Scanner](#416-smart-money-scanner)
+   - [4.17 Industry Deep Dive](#417-industry-deep-dive)
+   - [4.18 Macro Synthesis](#418-macro-synthesis)
 5. [Tool → Data-Source Mapping](#5-tool--data-source-mapping)
 6. [Memory System](#6-memory-system)
 7. [Tool Data Formats & Sizes](#7-tool-data-formats--sizes)
@@ -73,8 +74,9 @@ All are overridable via `TRADINGAGENTS_<KEY>` env vars.
 | 13 | Geopolitical Scanner | **Quick** | ✅ | — | `run_tool_loop()` |
 | 14 | Market Movers Scanner | **Quick** | ✅ | — | `run_tool_loop()` |
 | 15 | Sector Scanner | **Quick** | ✅ | — | `run_tool_loop()` |
-| 16 | Industry Deep Dive | **Mid** | ✅ | — | `run_tool_loop()` |
-| 17 | Macro Synthesis | **Deep** | — | — | — |
+| 16 | Smart Money Scanner | **Quick** | ✅ | — | `run_tool_loop()` |
+| 17 | Industry Deep Dive | **Mid** | ✅ | — | `run_tool_loop()` |
+| 18 | Macro Synthesis | **Deep** | — | — | — |
 
 ---
 
@@ -186,67 +188,96 @@ All are overridable via `TRADINGAGENTS_<KEY>` env vars.
 ## 3. Scanner Pipeline Flow
 
 ```
-                         ┌─────────────────────────┐
-                         │         START            │
-                         │      (scan_date)         │
-                         └────────────┬─────────────┘
+                              ┌─────────────────────────┐
+                              │         START            │
+                              │      (scan_date)         │
+                              └────────────┬─────────────┘
+                                           │
+         ┌─────────────────────────────────┼──────────────────────────────────┐
+         ▼                                 ▼                                  ▼
+┌──────────────────┐          ┌──────────────────┐          ┌──────────────────┐
+│  Geopolitical    │          │  Market Movers   │          │  Sector Scanner  │
+│  Scanner         │          │  Scanner         │          │                  │
+│  (quick_think)   │          │  (quick_think)   │          │  (quick_think)   │
+│                  │          │                  │          │                  │
+│ Tools:           │          │ Tools:           │          │ Tools:           │
+│ • get_topic_news │          │ • get_market_    │          │ • get_sector_    │
+│                  │          │   movers         │          │   performance    │
+│ Output:          │          │ • get_market_    │          │                  │
+│ geopolitical_rpt │          │   indices        │          │ Output:          │
+│                  │          │                  │          │ sector_perf_rpt  │
+│                  │          │ Output:          │          │                  │
+│                  │          │ market_movers_rpt│          │        │         │
+└────────┬─────────┘          └────────┬─────────┘          └────────┼─────────┘
+         │                             │                              │
+         │                             │              ┌───────────────┘
+         │                             │              ▼  (sector data available)
+         │                             │   ┌──────────────────────────┐
+         │                             │   │   Smart Money Scanner    │
+         │                             │   │   (quick_think)          │
+         │                             │   │                          │
+         │                             │   │ Context: sector_perf_rpt │
+         │                             │   │                          │
+         │                             │   │ Tools (no params):       │
+         │                             │   │ • get_insider_buying_    │
+         │                             │   │   stocks                 │
+         │                             │   │ • get_unusual_volume_    │
+         │                             │   │   stocks                 │
+         │                             │   │ • get_breakout_          │
+         │                             │   │   accumulation_stocks    │
+         │                             │   │                          │
+         │                             │   │ Output:                  │
+         │                             │   │ smart_money_report       │
+         │                             │   └──────────┬───────────────┘
+         │                             │              │
+         └─────────────────────────────┼──────────────┘
+                                       │  (Phase 1 → Phase 2, all 4 reports)
+                                       ▼
+                       ┌─────────────────────────────┐
+                       │    Industry Deep Dive        │
+                       │    (mid_think)               │
+                       │                              │
+                       │ Reads: all 4 Phase-1 reports │
+                       │ Auto-extracts top 3 sectors  │
+                       │                              │
+                       │ Tools:                       │
+                       │ • get_industry_performance   │
+                       │   (called per top sector)    │
+                       │ • get_topic_news             │
+                       │   (sector-specific searches) │
+                       │                              │
+                       │ Output:                      │
+                       │ industry_deep_dive_report    │
+                       └──────────────┬───────────────┘
+                                      │  (Phase 2 → Phase 3)
+                                      ▼
+                       ┌─────────────────────────────┐
+                       │     Macro Synthesis          │
+                       │     (deep_think)             │
+                       │                              │
+                       │ Reads: all 5 prior reports   │
+                       │ Golden Overlap: cross-refs   │
+                       │ smart money tickers with     │
+                       │ top-down macro thesis        │
+                       │ No tools – pure LLM reasoning│
+                       │                              │
+                       │ Output:                      │
+                       │ macro_scan_summary (JSON)    │
+                       │ Top 8-10 stock candidates    │
+                       │ with conviction & catalysts  │
+                       └──────────────┬───────────────┘
                                       │
-         ┌────────────────────────────┼────────────────────────────┐
-         ▼                            ▼                            ▼
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│  Geopolitical    │     │  Market Movers   │     │  Sector Scanner  │
-│  Scanner         │     │  Scanner         │     │                  │
-│  (quick_think)   │     │  (quick_think)   │     │  (quick_think)   │
-│                  │     │                  │     │                  │
-│ Tools:           │     │ Tools:           │     │ Tools:           │
-│ • get_topic_news │     │ • get_market_    │     │ • get_sector_    │
-│                  │     │   movers         │     │   performance    │
-│ Output:          │     │ • get_market_    │     │                  │
-│ geopolitical_rpt │     │   indices        │     │ Output:          │
-│                  │     │                  │     │ sector_perf_rpt  │
-│                  │     │ Output:          │     │                  │
-│                  │     │ market_movers_rpt│     │                  │
-└────────┬─────────┘     └────────┬─────────┘     └────────┬─────────┘
-         │                        │                         │
-         └────────────────────────┼─────────────────────────┘
-                                  │  (Phase 1 → Phase 2)
-                                  ▼
-                    ┌─────────────────────────────┐
-                    │    Industry Deep Dive        │
-                    │    (mid_think)               │
-                    │                              │
-                    │ Reads: all 3 Phase-1 reports │
-                    │ Auto-extracts top 3 sectors  │
-                    │                              │
-                    │ Tools:                       │
-                    │ • get_industry_performance   │
-                    │   (called per top sector)    │
-                    │ • get_topic_news             │
-                    │   (sector-specific searches) │
-                    │                              │
-                    │ Output:                      │
-                    │ industry_deep_dive_report    │
-                    └──────────────┬───────────────┘
-                                   │  (Phase 2 → Phase 3)
-                                   ▼
-                    ┌─────────────────────────────┐
-                    │     Macro Synthesis          │
-                    │     (deep_think)             │
-                    │                              │
-                    │ Reads: all 4 prior reports   │
-                    │ No tools – pure LLM reasoning│
-                    │                              │
-                    │ Output:                      │
-                    │ macro_scan_summary (JSON)    │
-                    │ Top 8-10 stock candidates    │
-                    │ with conviction & catalysts  │
-                    └──────────────┬───────────────┘
-                                   │
-                                   ▼
-                           ┌───────────────┐
-                           │      END      │
-                           └───────────────┘
+                                      ▼
+                              ┌───────────────┐
+                              │      END      │
+                              └───────────────┘
 ```
+
+**Graph Topology Notes:**
+- **Phase 1a** (parallel from START): geopolitical, market_movers, sector scanners
+- **Phase 1b** (sequential after sector): smart_money_scanner — runs after sector data is available so it can use sector rotation context when interpreting Finviz signals
+- **Phase 2** (fan-in from all 4 Phase 1 nodes): industry_deep_dive
+- **Phase 3**: macro_synthesis with Golden Overlap strategy
 
 ---
 
@@ -1072,7 +1103,75 @@ Round 1 ≈ 17 KB (~4,250 tokens), Round 2 ≈ 31 KB (~7,800 tokens).
 
 ---
 
-### 4.16 Industry Deep Dive
+### 4.16 Smart Money Scanner
+
+| | |
+|---|---|
+| **File** | `agents/scanners/smart_money_scanner.py` |
+| **Factory** | `create_smart_money_scanner(llm)` |
+| **Thinking Modality** | **Quick** (`quick_think_llm`, default `gpt-5-mini`) |
+| **Tool Execution** | `run_tool_loop()` |
+| **Graph position** | Sequential after `sector_scanner` (Phase 1b) |
+
+**Data Flow:**
+
+```
+ State Input: scan_date
+ + sector_performance_report  ← injected from sector_scanner (available
+                                because this node runs after it)
+                          │
+                          ▼
+ Tool calls via run_tool_loop():
+ (All three tools have NO parameters — filters are hardcoded.
+  The LLM calls each tool by name; nothing to hallucinate.)
+
+ 1. get_insider_buying_stocks()
+    → Mid/Large cap stocks with positive insider purchases, volume > 1M
+    → Filters: InsiderPurchases=Positive, MarketCap=+Mid, Volume=Over 1M
+    Data source: Finviz screener (web scraper, graceful fallback on error)
+
+ 2. get_unusual_volume_stocks()
+    → Stocks trading at 2x+ normal volume today, price > $10
+    → Filters: RelativeVolume=Over 2, Price=Over $10
+    Data source: Finviz screener
+
+ 3. get_breakout_accumulation_stocks()
+    → Stocks at 52-week highs on 2x+ volume (O'Neil CAN SLIM pattern)
+    → Filters: Performance2=52-Week High, RelativeVolume=Over 2, Price=Over $10
+    Data source: Finviz screener
+                          │
+                          ▼
+ LLM Prompt (quick_think):
+ "Hunt for Smart Money institutional footprints. Call all three tools.
+  Use sector rotation context to prioritize tickers from leading sectors.
+  Flag signals that confirm or contradict sector trends.
+  Report: 5-8 tickers with scan source, sector, and anomaly explanation."
+
+ Context: sector_performance_report + 3 Finviz tool results
+                          │
+                          ▼
+ Output: smart_money_report
+```
+
+**Hallucination Safety:** Each Finviz tool is a zero-parameter `@tool`. Filters
+are hardcoded inside the helper `_run_finviz_screen()`. If Finviz is unavailable
+(rate-limited, scraped HTML changed), each tool returns
+`"Smart money scan unavailable (Finviz error): <reason>"` — the pipeline never fails.
+
+**Prompt Size Budget:**
+
+| Component | Data Type | Format | Avg Size | Avg Tokens |
+|-----------|-----------|--------|----------|------------|
+| System prompt | Text | Instructions | ~0.7 KB | ~175 |
+| Sector performance report (injected) | Markdown | Table (11 sectors) | ~0.9 KB | ~220 |
+| `get_insider_buying_stocks` result | Markdown | 5-row ticker list | ~0.3 KB | ~75 |
+| `get_unusual_volume_stocks` result | Markdown | 5-row ticker list | ~0.3 KB | ~75 |
+| `get_breakout_accumulation_stocks` result | Markdown | 5-row ticker list | ~0.3 KB | ~75 |
+| **Total prompt** | | | **~2.5 KB** | **~620** |
+
+---
+
+### 4.17 Industry Deep Dive
 
 | | |
 |---|---|
@@ -1087,9 +1186,10 @@ Round 1 ≈ 17 KB (~4,250 tokens), Round 2 ≈ 31 KB (~7,800 tokens).
  ┌─────────────────────────────────────────────────────┐
  │ State Input:                                         │
  │  • scan_date                                         │
- │  • geopolitical_report     (Phase 1)                │
- │  • market_movers_report    (Phase 1)                │
- │  • sector_performance_report (Phase 1)              │
+ │  • geopolitical_report     (Phase 1a)               │
+ │  • market_movers_report    (Phase 1a)               │
+ │  • sector_performance_report (Phase 1a)             │
+ │  • smart_money_report      (Phase 1b)               │
  └────────────────────────┬────────────────────────────┘
                           │
                           ▼
@@ -1139,14 +1239,14 @@ Round 1 ≈ 17 KB (~4,250 tokens), Round 2 ≈ 31 KB (~7,800 tokens).
 | Component | Data Type | Format | Avg Size | Avg Tokens |
 |-----------|-----------|--------|----------|------------|
 | System prompt | Text | Instructions + sector list | ~1 KB | ~250 |
-| Phase 1 context (3 reports) | Text | Concatenated Markdown | ~6 KB | ~1,500 |
+| Phase 1 context (4 reports) | Text | Concatenated Markdown | ~8 KB | ~2,000 |
 | `get_industry_performance` × 3 | Markdown | Tables (10–15 companies each) | ~7.5 KB | ~1,875 |
 | `get_topic_news` × 2 | Markdown | Article lists (10 articles each) | ~5 KB | ~1,250 |
-| **Total prompt** | | | **~20 KB** | **~4,875** |
+| **Total prompt** | | | **~21.5 KB** | **~5,375** |
 
 ---
 
-### 4.17 Macro Synthesis
+### 4.18 Macro Synthesis
 
 | | |
 |---|---|
@@ -1160,15 +1260,20 @@ Round 1 ≈ 17 KB (~4,250 tokens), Round 2 ≈ 31 KB (~7,800 tokens).
 ```
  ┌─────────────────────────────────────────────────────┐
  │ State Input:                                         │
- │  • geopolitical_report      (Phase 1)               │
- │  • market_movers_report     (Phase 1)               │
- │  • sector_performance_report (Phase 1)              │
+ │  • geopolitical_report      (Phase 1a)              │
+ │  • market_movers_report     (Phase 1a)              │
+ │  • sector_performance_report (Phase 1a)             │
+ │  • smart_money_report       (Phase 1b)  ← NEW       │
  │  • industry_deep_dive_report (Phase 2)              │
  └────────────────────────┬────────────────────────────┘
                           │
                           ▼
  LLM Prompt (deep_think):
  "Synthesize all reports into final investment thesis.
+  GOLDEN OVERLAP: Cross-reference Smart Money tickers with macro thesis.
+  If a Smart Money ticker fits the top-down narrative (e.g., Energy stock
+  with heavy insider buying during an oil shortage) → label conviction 'high'.
+  If no Smart Money tickers fit → select best from other reports.
   Output ONLY valid JSON (no markdown, no preamble).
   Structure:
   {
@@ -1180,7 +1285,7 @@ Round 1 ≈ 17 KB (~4,250 tokens), Round 2 ≈ 31 KB (~7,800 tokens).
     risk_factors
   }"
 
- Context: all 4 prior reports concatenated
+ Context: all 5 prior reports concatenated
                           │
                           ▼
  Post-processing (Python, no LLM):
@@ -1194,12 +1299,13 @@ Round 1 ≈ 17 KB (~4,250 tokens), Round 2 ≈ 31 KB (~7,800 tokens).
 
 | Component | Data Type | Format | Avg Size | Avg Tokens |
 |-----------|-----------|--------|----------|------------|
-| System prompt | Text | Instructions + JSON schema | ~1.3 KB | ~325 |
-| Geopolitical report (Phase 1) | Text | Markdown report | ~3 KB | ~750 |
-| Market movers report (Phase 1) | Text | Markdown report | ~3 KB | ~750 |
-| Sector performance report (Phase 1) | Text | Markdown report | ~2 KB | ~500 |
+| System prompt | Text | Instructions + JSON schema + Golden Overlap | ~1.5 KB | ~375 |
+| Geopolitical report (Phase 1a) | Text | Markdown report | ~3 KB | ~750 |
+| Market movers report (Phase 1a) | Text | Markdown report | ~3 KB | ~750 |
+| Sector performance report (Phase 1a) | Text | Markdown report | ~2 KB | ~500 |
+| Smart money report (Phase 1b) | Text | Markdown report | ~2 KB | ~500 |
 | Industry deep dive report (Phase 2) | Text | Markdown report | ~8 KB | ~2,000 |
-| **Total prompt** | | | **~17 KB** | **~4,325** |
+| **Total prompt** | | | **~19.5 KB** | **~4,875** |
 
 **Output:** Valid JSON (~3–5 KB, ~750–1,250 tokens).
 
@@ -1239,9 +1345,17 @@ dispatches to the configured vendor.
 | `get_topic_news` | scanner_data | yfinance | — | Topic news |
 | `get_earnings_calendar` | calendar_data | **Finnhub** | — | Earnings cal. |
 | `get_economic_calendar` | calendar_data | **Finnhub** | — | Econ cal. |
+| `get_insider_buying_stocks` | *(Finviz direct)* | **Finviz** | graceful string | Insider buys |
+| `get_unusual_volume_stocks` | *(Finviz direct)* | **Finviz** | graceful string | Vol anomalies |
+| `get_breakout_accumulation_stocks` | *(Finviz direct)* | **Finviz** | graceful string | Breakouts |
 
 > **Fallback rules** (ADR 011): Only 5 methods in `FALLBACK_ALLOWED` get
 > cross-vendor fallback. All others fail-fast on error.
+>
+> **Finviz tools** bypass `route_to_vendor()` — they call `finvizfinance` directly
+> via the shared `_run_finviz_screen()` helper. Errors return a graceful string
+> starting with `"Smart money scan unavailable"` so the pipeline never hard-fails.
+> `finvizfinance` is a web scraper, not an official API — treat it as best-effort.
 
 ---
 
@@ -1326,6 +1440,9 @@ typical size, and any truncation limits for each tool.
 | `get_topic_news` | Markdown (article list) | ~2.5 KB | ~625 | 10 articles (default) | Configurable limit |
 | `get_earnings_calendar` | Markdown (table) | ~3 KB | ~750 | 20–50+ events | All events in date range |
 | `get_economic_calendar` | Markdown (table) | ~2.5 KB | ~625 | 5–15 events | All events in date range |
+| `get_insider_buying_stocks` | Markdown (list) | ~0.3 KB | ~75 | Top 5 stocks | Hard limit: top 5 by volume; returns error string on Finviz failure |
+| `get_unusual_volume_stocks` | Markdown (list) | ~0.3 KB | ~75 | Top 5 stocks | Hard limit: top 5 by volume; returns error string on Finviz failure |
+| `get_breakout_accumulation_stocks` | Markdown (list) | ~0.3 KB | ~75 | Top 5 stocks | Hard limit: top 5 by volume; returns error string on Finviz failure |
 
 ### Non-Tool Data Injected into Prompts
 
@@ -1377,8 +1494,9 @@ the context windows of popular models to identify potential overflow risks.
 | 13 | Geopolitical Scanner | Quick | ~2,150 tok | ~3,000 tok | 2% | ✅ Safe |
 | 14 | Market Movers Scanner | Quick | ~1,525 tok | ~2,000 tok | 1–2% | ✅ Safe |
 | 15 | Sector Scanner | Quick | ~345 tok | ~500 tok | <1% | ✅ Safe |
-| 16 | Industry Deep Dive | Mid | ~4,875 tok | ~7,000 tok | 4–5% | ✅ Safe |
-| 17 | Macro Synthesis | Deep | ~4,325 tok | ~6,500 tok | 3–5% | ✅ Safe |
+| 16 | Smart Money Scanner | Quick | ~620 tok | ~900 tok | <1% | ✅ Safe |
+| 17 | Industry Deep Dive | Mid | ~5,375 tok | ~7,500 tok | 4–6% | ✅ Safe |
+| 18 | Macro Synthesis | Deep | ~4,875 tok | ~7,000 tok | 4–5% | ✅ Safe |
 
 > **†Peak Prompt** = estimate with `max_debate_rounds=3` or maximum optional
 > tool calls. All agents are well within the 128K context window.
@@ -1451,37 +1569,41 @@ TOTAL INPUT TOKENS (single company):                          ~98,400
 ```
 Phase                          Calls   Avg Tokens (per call)   Subtotal
 ─────────────────────────────────────────────────────────────────────────
-1. PHASE 1 SCANNERS (parallel)
+1a. PHASE 1 SCANNERS (parallel from START)
    Geopolitical Scanner        1       ~2,150                  ~2,150
    Market Movers Scanner       1       ~1,525                  ~1,525
    Sector Scanner              1       ~345                    ~345
-                                                     Phase 1: ~4,020
+                                                    Phase 1a: ~4,020
+
+1b. SMART MONEY (sequential after Sector Scanner)
+   Smart Money Scanner         1       ~620                    ~620
+                                                    Phase 1b: ~620
 
 2. PHASE 2
-   Industry Deep Dive          1       ~4,875                  ~4,875
-                                                     Phase 2: ~4,875
+   Industry Deep Dive          1       ~5,375                  ~5,375
+                                                     Phase 2: ~5,375
 
 3. PHASE 3
-   Macro Synthesis             1       ~4,325                  ~4,325
-                                                     Phase 3: ~4,325
+   Macro Synthesis             1       ~4,875                  ~4,875
+                                                     Phase 3: ~4,875
 
 ═══════════════════════════════════════════════════════════════════════════
-TOTAL INPUT TOKENS (market scan):                             ~13,220
+TOTAL INPUT TOKENS (market scan):                             ~14,890
 ═══════════════════════════════════════════════════════════════════════════
 ```
 
-> Scanner output tokens ≈ 5,000–8,000 additional.
-> **Grand total (input + output) ≈ 18,000–21,000 tokens per scan.**
+> Scanner output tokens ≈ 6,000–9,000 additional.
+> **Grand total (input + output) ≈ 21,000–24,000 tokens per scan.**
 
 ### Full Pipeline (Scan → Per-Ticker Deep Dives)
 
 When running the `pipeline` command (scan + per-ticker analysis for top picks):
 
 ```
-Scanner pipeline:                          ~13,220 input tokens
+Scanner pipeline:                          ~14,890 input tokens
 + N company analyses (N = 8–10 picks):     ~98,400 × N input tokens
 ───────────────────────────────────────────────────────────────────
-Example (10 companies):                    ~997,220 input tokens
+Example (10 companies):                    ~998,890 input tokens
                                            ≈ 1.0M total tokens (input + output)
 ```
 
@@ -1502,5 +1624,5 @@ Example (10 companies):                    ~997,220 input tokens
    cannot accommodate debate agents beyond round 1. Use
    `max_debate_rounds=1` for such models.
 
-5. **Cost optimization**: The scanner pipeline uses ~13K tokens total —
-   roughly 7× cheaper than a single company analysis.
+5. **Cost optimization**: The scanner pipeline uses ~15K tokens total —
+   roughly 6-7× cheaper than a single company analysis.

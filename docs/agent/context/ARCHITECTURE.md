@@ -1,8 +1,8 @@
-<!-- Last verified: 2026-03-23 -->
+<!-- Last verified: 2026-03-24 -->
 
 # Architecture
 
-TradingAgents v0.2.1 is a multi-agent LLM framework using LangGraph. It has 17 agent factory functions, 3 data vendors (yfinance, Alpha Vantage, Finnhub), and 6 LLM providers (OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama).
+TradingAgents v0.2.2 is a multi-agent LLM framework using LangGraph. It has 18 agent factory functions, 4 data vendors (yfinance, Alpha Vantage, Finnhub, Finviz), and 6 LLM providers (OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama).
 
 ## 3-Tier LLM System
 
@@ -36,6 +36,7 @@ Source: `tradingagents/llm_clients/`
 | yfinance | Primary (free) | OHLCV, fundamentals, news, screener, sector/industry, indices |
 | Alpha Vantage | Fallback | OHLCV, fundamentals, news, sector ETF proxies, market movers |
 | Finnhub | Specialized | Insider transactions (primary), earnings calendar, economic calendar |
+| Finviz | Smart Money (best-effort) | Institutional screeners via `finvizfinance` web scraper — insider buys, unusual volume, breakout accumulation; graceful degradation on failure |
 
 Routing: 2-level dispatch — category-level (`data_vendors` config) + tool-level (`tool_vendors` config). Fail-fast by default; only 5 methods in `FALLBACK_ALLOWED` get cross-vendor fallback (ADR 011).
 
@@ -65,12 +66,16 @@ Source: `tradingagents/graph/trading_graph.py`, `tradingagents/graph/setup.py`
 ## Scanner Pipeline
 
 ```
-START ──┬── Geopolitical Scanner (quick) ──┐
-        ├── Market Movers Scanner (quick) ──┼── Industry Deep Dive (mid) ── Macro Synthesis (deep) ── END
-        └── Sector Scanner (quick) ─────────┘
+START ──┬── Geopolitical Scanner (quick) ──────────────────────┐
+        ├── Market Movers Scanner (quick) ─────────────────────┤
+        └── Sector Scanner (quick) ── Smart Money Scanner ─────┴── Industry Deep Dive (mid) ── Macro Synthesis (deep) ── END
+                                         (quick, Finviz)
 ```
 
-Phase 1: 3 scanners run in parallel. Phase 2: Deep dive cross-references all outputs, calls `get_industry_performance` per sector. Phase 3: Macro synthesis produces top-10 watchlist as JSON.
+- **Phase 1a** (parallel): geopolitical, market_movers, sector scanners
+- **Phase 1b** (sequential after sector): smart_money_scanner — uses sector rotation context when running Finviz screeners (insider buys, unusual volume, breakout accumulation)
+- **Phase 2**: Industry deep dive cross-references all 4 Phase 1 outputs
+- **Phase 3**: Macro synthesis applies **Golden Overlap** — cross-references smart money tickers with top-down macro thesis to assign high/medium/low conviction; produces top 8-10 watchlist as JSON
 
 Source: `tradingagents/graph/scanner_graph.py`, `tradingagents/graph/scanner_setup.py`
 
@@ -158,7 +163,7 @@ Full-stack web UI for monitoring and controlling agent execution in real-time.
 
 | Type | REST Trigger | WebSocket Executor | Description |
 |------|-------------|-------------------|-------------|
-| `scan` | `POST /api/run/scan` | `run_scan()` | 3-phase macro scanner |
+| `scan` | `POST /api/run/scan` | `run_scan()` | 4-node macro scanner (3 parallel + smart money) |
 | `pipeline` | `POST /api/run/pipeline` | `run_pipeline()` | Per-ticker trading analysis |
 | `portfolio` | `POST /api/run/portfolio` | `run_portfolio()` | Portfolio manager workflow |
 | `auto` | `POST /api/run/auto` | `run_auto()` | Sequential: scan → pipeline → portfolio |

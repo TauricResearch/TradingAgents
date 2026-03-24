@@ -1,8 +1,13 @@
 """Scanner tools for market-wide analysis."""
 
-from langchain_core.tools import tool
+import logging
 from typing import Annotated
+
+from langchain_core.tools import tool
+
 from tradingagents.dataflows.interface import route_to_vendor
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -111,3 +116,87 @@ def get_economic_calendar(
     Unique Finnhub capability not available in Alpha Vantage.
     """
     return route_to_vendor("get_economic_calendar", from_date, to_date)
+
+
+# ---------------------------------------------------------------------------
+# Finviz smart-money screener tools
+# Each tool has NO parameters — filters are hardcoded to prevent LLM
+# hallucinating invalid Finviz filter strings.
+# ---------------------------------------------------------------------------
+
+
+def _run_finviz_screen(filters_dict: dict, label: str) -> str:
+    """Shared helper — runs a Finviz Overview screener with hardcoded filters."""
+    try:
+        from finvizfinance.screener.overview import Overview  # lazy import
+
+        foverview = Overview()
+        foverview.set_filter(filters_dict=filters_dict)
+        df = foverview.screener_view()
+
+        if df is None or df.empty:
+            return f"No stocks matched the {label} criteria today."
+
+        if "Volume" in df.columns:
+            df = df.sort_values(by="Volume", ascending=False)
+
+        cols = [c for c in ["Ticker", "Sector", "Price", "Volume"] if c in df.columns]
+        top_results = df.head(5)[cols].to_dict("records")
+
+        report = f"Top 5 stocks for {label}:\n"
+        for row in top_results:
+            report += f"- {row.get('Ticker', 'N/A')} ({row.get('Sector', 'N/A')}) @ ${row.get('Price', 'N/A')}\n"
+        return report
+
+    except Exception as e:
+        logger.error("Finviz screener error (%s): %s", label, e)
+        return f"Smart money scan unavailable (Finviz error): {e}"
+
+
+@tool
+def get_insider_buying_stocks() -> str:
+    """
+    Finds Mid/Large cap stocks with positive insider purchases and volume > 1M today.
+    Insider open-market buys are a strong smart money signal — insiders know their
+    company's prospects better than the market.
+    """
+    return _run_finviz_screen(
+        {
+            "InsiderPurchases": "Positive (>0%)",
+            "Market Cap.": "+Mid (over $2bln)",
+            "Current Volume": "Over 1M",
+        },
+        label="insider_buying",
+    )
+
+
+@tool
+def get_unusual_volume_stocks() -> str:
+    """
+    Finds stocks trading at 2x+ their normal volume today, priced above $10.
+    Unusual volume is a footprint of institutional accumulation or distribution.
+    """
+    return _run_finviz_screen(
+        {
+            "Relative Volume": "Over 2",
+            "Price": "Over $10",
+        },
+        label="unusual_volume",
+    )
+
+
+@tool
+def get_breakout_accumulation_stocks() -> str:
+    """
+    Finds stocks hitting 52-week highs on 2x+ normal volume, priced above $10.
+    This is the classic institutional accumulation-before-breakout pattern
+    (O'Neil CAN SLIM). Price strength combined with volume confirms institutional buying.
+    """
+    return _run_finviz_screen(
+        {
+            "Performance 2": "52-Week High",
+            "Relative Volume": "Over 2",
+            "Price": "Over $10",
+        },
+        label="breakout_accumulation",
+    )

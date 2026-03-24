@@ -13,6 +13,7 @@ def create_macro_synthesis(llm):
         scan_date = state["scan_date"]
 
         # Inject all previous reports for synthesis — no tools, pure LLM reasoning
+        smart_money = state.get("smart_money_report", "") or "Not available"
         all_reports_context = f"""## All Scanner and Research Reports
 
 ### Geopolitical Report:
@@ -24,6 +25,9 @@ def create_macro_synthesis(llm):
 ### Sector Performance Report:
 {state.get("sector_performance_report", "Not available")}
 
+### Smart Money Report (Finviz institutional screeners):
+{smart_money}
+
 ### Industry Deep Dive Report:
 {state.get("industry_deep_dive_report", "Not available")}
 """
@@ -31,8 +35,13 @@ def create_macro_synthesis(llm):
         system_message = (
             "You are a macro strategist synthesizing all scanner and research reports into a final investment thesis. "
             "You have received: geopolitical analysis, market movers analysis, sector performance analysis, "
-            "and industry deep dive analysis. "
-            "Synthesize these into a structured output with: "
+            "smart money institutional screener results, and industry deep dive analysis. "
+            "## THE GOLDEN OVERLAP (apply when Smart Money Report is available and not 'Not available'):\n"
+            "Cross-reference the Smart Money tickers with your macro regime thesis. "
+            "If a Smart Money ticker fits your top-down macro narrative (e.g., an Energy stock with heavy insider "
+            "buying during an oil shortage), prioritize it as a top candidate and label its conviction as 'high'. "
+            "If no Smart Money tickers fit the macro narrative, proceed with the best candidates from other reports.\n\n"
+            "Synthesize all reports into a structured output with: "
             "(1) Executive summary of the macro environment, "
             "(2) Top macro themes with conviction levels, "
             "(3) A list of 8-10 specific stocks worth investigating with ticker, name, sector, rationale, "

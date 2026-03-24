@@ -1,32 +1,26 @@
 # Current Milestone
 
-AgentOS visual observability layer shipped. Portfolio Manager fully implemented (Phases 1–10). All 725 tests passing (14 skipped). Stop-loss / take-profit fields added to trades.
+Smart Money Scanner added to scanner pipeline (Phase 1b). `finvizfinance` integration with Golden Overlap strategy in macro_synthesis. 18 agent factories. All tests passing (2 pre-existing failures excluded).
 
 # Recent Progress
 
-- **Stop-loss & Take-profit on trades**: Added `stop_loss` and `take_profit` optional fields to the `Trade` model, SQL migration, PM agent prompt, trade executor, repository, API route, and frontend Trade History tab.
-- **AgentOS (current PR)**: Full-stack visual observability layer for agent execution
-  - `agent_os/backend/` — FastAPI backend (port 8088) with REST + WebSocket streaming
-  - `agent_os/frontend/` — React + Vite 8 + Chakra UI + ReactFlow dashboard
-  - `agent_os/backend/services/langgraph_engine.py` — LangGraph event mapping engine (4 run types: scan, pipeline, portfolio, auto)
-  - `agent_os/backend/routes/websocket.py` — WebSocket streaming endpoint (`/ws/stream/{run_id}`)
-  - `agent_os/backend/routes/runs.py` — REST run triggers (`POST /api/run/{type}`)
-  - `agent_os/backend/routes/portfolios.py` — Portfolio REST API with field mapping (backend models → frontend shape)
-  - `agent_os/frontend/src/Dashboard.tsx` — 2-page layout (dashboard + portfolio), agent graph + terminal + controls
-  - `agent_os/frontend/src/components/AgentGraph.tsx` — ReactFlow live graph visualization
-  - `agent_os/frontend/src/components/PortfolioViewer.tsx` — Holdings, trade history, summary views
-  - `agent_os/frontend/src/components/MetricHeader.tsx` — Top-3 metrics (Sharpe, regime, drawdown)
-  - `agent_os/frontend/src/hooks/useAgentStream.ts` — WebSocket hook with status tracking
-  - `tests/unit/test_langgraph_engine_extraction.py` — 14 tests for event mapping
-  - Pipeline recursion limit fix: passes `config={"recursion_limit": propagator.max_recur_limit}` to `astream_events()`
-  - Portfolio field mapping fix: shares→quantity, portfolio_id→id, cash→cash_balance, trade_date→executed_at
-- **PR #32 merged**: Portfolio Manager data foundation — models, SQL schema, module scaffolding
-- **Portfolio Manager Phases 2-5** (implemented): risk_evaluator, candidate_prioritizer, trade_executor, holding_reviewer, pm_decision_agent, portfolio_states, portfolio_setup, portfolio_graph
-- **Portfolio CLI integration**: `portfolio`, `check-portfolio`, `auto` commands in `cli/main.py`
+- **Smart Money Scanner (current branch)**: 4th scanner node added to macro pipeline
+  - `tradingagents/agents/scanners/smart_money_scanner.py` — Phase 1b node, runs sequentially after sector_scanner
+  - `tradingagents/agents/utils/scanner_tools.py` — 3 zero-parameter Finviz tools: `get_insider_buying_stocks`, `get_unusual_volume_stocks`, `get_breakout_accumulation_stocks`
+  - `tradingagents/agents/utils/scanner_states.py` — Added `smart_money_report` field with `_last_value` reducer
+  - `tradingagents/graph/scanner_setup.py` — Topology: sector_scanner → smart_money_scanner → industry_deep_dive
+  - `tradingagents/graph/scanner_graph.py` — Instantiates smart_money_scanner with quick_llm
+  - `tradingagents/agents/scanners/macro_synthesis.py` — Golden Overlap instructions + smart_money_report in context
+  - `pyproject.toml` — Added `finvizfinance>=0.14.0` dependency
+  - `docs/agent/decisions/014-finviz-smart-money-scanner.md` — ADR documenting all design decisions
+  - Tests: 6 new mocked tests in `tests/unit/test_scanner_mocked.py`, 1 fix in `tests/unit/test_scanner_graph.py`
+- **AgentOS**: Full-stack visual observability layer (FastAPI + React + ReactFlow)
+- **Portfolio Manager**: Phases 1–10 fully implemented (models, agents, CLI integration, stop-loss/take-profit)
+- **PR #32 merged**: Portfolio Manager data foundation
 
 # In Progress
 
-- None — PR ready for merge
+- None — branch ready for PR
 
 # Active Blockers
 

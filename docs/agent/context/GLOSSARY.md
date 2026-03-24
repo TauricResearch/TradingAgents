@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-23 -->
+<!-- Last verified: 2026-03-24 -->
 
 # Glossary
 
@@ -7,7 +7,9 @@
 | Term | Definition | Source |
 |------|-----------|--------|
 | Trading Graph | Full per-ticker analysis pipeline: analysts → debate → trader → risk → decision | `graph/trading_graph.py` |
-| Scanner Graph | 3-phase macro scanner: parallel scanners → deep dive → synthesis | `graph/scanner_graph.py` |
+| Scanner Graph | 4-phase macro scanner: Phase 1a parallel scanners → Phase 1b smart money → deep dive → synthesis | `graph/scanner_graph.py` |
+| Smart Money Scanner | Phase 1b scanner node, runs sequentially after sector_scanner. Runs 3 Finviz screeners (insider buying, unusual volume, breakout accumulation) to surface institutional footprints. Output feeds industry_deep_dive and macro_synthesis. | `agents/scanners/smart_money_scanner.py` |
+| Golden Overlap | Cross-reference strategy in macro_synthesis: if a bottom-up Smart Money ticker also fits the top-down macro thesis, label it high-conviction. Provides dual evidence confirmation for stock selection. | `agents/scanners/macro_synthesis.py` |
 | Agent Factory | Closure pattern `create_X(llm)` → returns `_node(state)` function | `agents/analysts/*.py`, `agents/scanners/*.py` |
 | ToolNode | LangGraph-native tool executor — used in trading graph for analyst tools | `langgraph.prebuilt`, wired in `graph/setup.py` |
 | run_tool_loop | Inline tool executor for scanner agents — iterates up to `MAX_TOOL_ROUNDS` | `agents/utils/tool_runner.py` |
@@ -18,6 +20,11 @@
 | Term | Definition | Source |
 |------|-----------|--------|
 | route_to_vendor | Central dispatch: resolves vendor for a method, calls it, handles fallback for `FALLBACK_ALLOWED` methods | `dataflows/interface.py` |
+| Finviz / finvizfinance | Web scraper library (not official API) for Finviz screener data. Used only in Smart Money Scanner tools. Graceful fallback on any exception — returns error string, never raises. | `agents/utils/scanner_tools.py` |
+| _run_finviz_screen | Shared private helper that runs a Finviz screener with hardcoded filters. Catches all exceptions, returns "Smart money scan unavailable" on failure. All 3 smart money tools delegate to this helper. | `agents/utils/scanner_tools.py` |
+| Insider Buying Screen | Finviz filter: Mid+ market cap, InsiderPurchases > 0%, Volume > 1M. Surfaces stocks where corporate insiders are making open-market purchases. | `agents/utils/scanner_tools.py` |
+| Unusual Volume Screen | Finviz filter: Relative Volume > 2x, Price > $10. Surfaces institutional accumulation/distribution footprints. | `agents/utils/scanner_tools.py` |
+| Breakout Accumulation Screen | Finviz filter: 52-Week High, Relative Volume > 2x, Price > $10. O'Neil CAN SLIM institutional accumulation pattern. | `agents/utils/scanner_tools.py` |
 | VENDOR_METHODS | Dict mapping method name → vendor → function reference. Direct function refs, not module paths. | `dataflows/interface.py` |
 | FALLBACK_ALLOWED | Set of 5 method names that get cross-vendor fallback: `get_stock_data`, `get_market_indices`, `get_sector_performance`, `get_market_movers`, `get_industry_performance` | `dataflows/interface.py` |
 | TOOLS_CATEGORIES | Dict mapping category name → `{"description": str, "tools": list}`. 6 categories: `core_stock_apis`, `technical_indicators`, `fundamental_data`, `news_data`, `scanner_data`, `calendar_data` | `dataflows/interface.py` |

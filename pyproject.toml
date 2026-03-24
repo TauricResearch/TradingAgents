@@ -31,6 +31,7 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    "finvizfinance>=0.14.0",
     "psycopg2-binary>=2.9.11",
     "fastapi>=0.115.9",
     "uvicorn>=0.34.3",

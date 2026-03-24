@@ -127,9 +127,15 @@ const AgentNode = ({ data }: NodeProps) => {
         </Flex>
 
         {data.metrics?.model && data.metrics.model !== 'unknown' && (
-          <Badge variant="outline" fontSize="2xs" colorScheme="blue" alignSelf="flex-start">
-            {data.metrics.model}
-          </Badge>
+          <Tooltip label={data.metrics.model} placement="top" hasArrow openDelay={300}>
+            <Badge
+              variant="outline" fontSize="2xs" colorScheme="blue"
+              display="block" maxW="100%"
+              overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap"
+            >
+              {data.metrics.model}
+            </Badge>
+          </Tooltip>
         )}
 
         {/* Running shimmer */}
