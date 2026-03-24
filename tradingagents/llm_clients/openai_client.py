@@ -1,6 +1,9 @@
+import json
 import os
+from pathlib import Path
 from typing import Any, Optional
 
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
 from .base_client import BaseLLMClient, normalize_content
@@ -24,11 +27,23 @@ _PASSTHROUGH_KWARGS = (
     "api_key", "callbacks", "http_client", "http_async_client",
 )
 
-# Provider base URLs and API key env vars
-_PROVIDER_CONFIG = {
-    "xai": ("https://api.x.ai/v1", "XAI_API_KEY"),
-    "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
-    "ollama": ("http://localhost:11434/v1", None),
+CONFIG_PATH = Path(__file__).resolve().parents[2] / "config.json"
+with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
+    CONFIG = json.load(config_file)
+
+load_dotenv()
+
+_BASE_URLS = {
+    display.lower(): url for display, url in CONFIG.get("BASE_URLS", [])
+}
+_PROVIDER_BASE_URLS = {
+    "xai": _BASE_URLS.get("xai", "https://api.x.ai/v1"),
+    "openrouter": _BASE_URLS.get("openrouter", "https://openrouter.ai/api/v1"),
+    "ollama": _BASE_URLS.get("ollama", "http://localhost:11434/v1"),
+}
+_PROVIDER_API_KEY_ENV = {
+    "xai": "XAI_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
 }
 
 
@@ -56,14 +71,15 @@ class OpenAIClient(BaseLLMClient):
         llm_kwargs = {"model": self.model}
 
         # Provider-specific base URL and auth
-        if self.provider in _PROVIDER_CONFIG:
-            base_url, api_key_env = _PROVIDER_CONFIG[self.provider]
+        if self.provider in _PROVIDER_BASE_URLS:
+            base_url = _PROVIDER_BASE_URLS[self.provider]
             llm_kwargs["base_url"] = base_url
+            api_key_env = _PROVIDER_API_KEY_ENV.get(self.provider)
             if api_key_env:
                 api_key = os.environ.get(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
-            else:
+            elif self.provider == "ollama":
                 llm_kwargs["api_key"] = "ollama"
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
