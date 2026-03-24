@@ -278,13 +278,18 @@ class TradingAgentsGraph:
 
         Delegates to PortfolioAnalyzer.analyze — see that class for full details.
 
-        Note: Each call to propagate() overwrites self.ticker and self.curr_state,
-        so after this method returns, both reflect only the last ticker analyzed.
-        Calling reflect_and_remember() afterward will only apply to that last ticker.
+        This method preserves the instance's ticker and curr_state attributes,
+        restoring them after the portfolio analysis is complete.
         """
-        return self.portfolio_analyzer.analyze(
-            tickers, trade_date, self.propagate, debug=self.debug
-        )
+        original_ticker = self.ticker
+        original_curr_state = self.curr_state
+        try:
+            return self.portfolio_analyzer.analyze(
+                tickers, trade_date, self.propagate, debug=self.debug
+            )
+        finally:
+            self.ticker = original_ticker
+            self.curr_state = original_curr_state
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""

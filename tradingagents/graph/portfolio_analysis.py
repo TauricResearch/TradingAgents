@@ -1,6 +1,7 @@
 # TradingAgents/graph/portfolio_analysis.py
 
 import json
+import traceback
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
@@ -88,7 +89,6 @@ class PortfolioAnalyzer:
                     "final_trade_decision": final_state["final_trade_decision"],
                 }
             except Exception as e:
-                import traceback
                 if debug:
                     print(f"Error analyzing {ticker}: {e}")
                 individual_results[ticker] = {
@@ -177,9 +177,6 @@ class PortfolioAnalyzer:
             "portfolio_summary": portfolio_summary,
         }
 
-        with open(
-            f"eval_results/portfolio/portfolio_analysis_{trade_date}.json",
-            "w",
-            encoding="utf-8",
-        ) as f:
+        log_file = directory / f"portfolio_analysis_{trade_date}.json"
+        with log_file.open("w", encoding="utf-8") as f:
             json.dump(log_data, f, indent=4)
