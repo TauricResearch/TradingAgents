@@ -166,7 +166,7 @@ class PortfolioAnalyzer:
         portfolio_summary: str,
     ) -> None:
         """Log the portfolio analysis results to a JSON file."""
-        directory = Path("eval_results/portfolio/")
+        directory = Path(self.config.get("portfolio_log_dir", "eval_results/portfolio/"))
         directory.mkdir(parents=True, exist_ok=True)
 
         log_data = {
