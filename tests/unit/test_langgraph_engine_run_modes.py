@@ -600,6 +600,19 @@ class TestRunAutoTickerSource(unittest.TestCase):
         mock_pg.graph = mock_graph
         return mock_pg
 
+    def _make_mock_store(self, scan_data=None):
+        """Return a ReportStore mock where all 'already exists' checks return None
+        (falsy) by default so that tests do not accidentally hit the skip branches.
+        Pass scan_data to make load_scan() return it (simulating a completed scan).
+        """
+        mock_store = MagicMock()
+        mock_store.load_scan.return_value = scan_data
+        # By default: no existing analysis / execution / decision
+        mock_store.load_analysis.return_value = None
+        mock_store.load_execution_result.return_value = None
+        mock_store.load_pm_decision.return_value = None
+        return mock_store
+
     def test_run_auto_gets_tickers_from_scan_report(self):
         """run_auto should run pipeline for AAPL and TSLA from the scan report."""
         scan_data = {"stocks_to_investigate": ["AAPL", "TSLA"]}
@@ -675,9 +688,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
             fake_daily.exists.return_value = False
             mock_gdd.return_value = fake_daily
 
-            mock_store = MagicMock()
-            mock_store.load_scan.return_value = scan_data
-            mock_rs_cls.return_value = mock_store
+            mock_rs_cls.return_value = self._make_mock_store(scan_data)
 
             asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01", "ticker": "GOOG"})))
 
@@ -795,9 +806,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
             fake_mdir.mkdir = MagicMock()
             mock_gmd.return_value = fake_mdir
 
-            mock_store = MagicMock()
-            mock_store.load_scan.return_value = {}
-            mock_rs_cls.return_value = mock_store
+            mock_rs_cls.return_value = self._make_mock_store(scan_data={})
 
             events = asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
 
@@ -808,6 +817,135 @@ class TestRunAutoTickerSource(unittest.TestCase):
                         f"Expected Phase 2/3 log. Got: {log_messages}")
         self.assertTrue(any("Phase 3/3" in m or "3/3" in m for m in log_messages),
                         f"Expected Phase 3/3 log. Got: {log_messages}")
+
+    def test_run_auto_concurrent_all_tickers_processed(self):
+        """All tickers should be processed even when run concurrently (max_concurrent=3)."""
+        scan_data = {"stocks_to_investigate": ["AAPL", "TSLA", "NVDA", "MSFT"]}
+        pipeline_calls = []
+
+        engine = LangGraphEngine()
+        engine.config["max_concurrent_pipelines"] = 3
+
+        async def fake_run_pipeline(run_id, params):
+            pipeline_calls.append(params.get("ticker"))
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_mock_store(scan_data)
+
+            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        self.assertEqual(sorted(pipeline_calls), ["AAPL", "MSFT", "NVDA", "TSLA"])
+
+    def test_run_auto_concurrency_log_mentions_max_concurrent(self):
+        """Phase 2 log should mention the configured max_concurrent value."""
+        scan_data = {"stocks_to_investigate": ["AAPL", "TSLA"]}
+
+        engine = LangGraphEngine()
+        engine.config["max_concurrent_pipelines"] = 5
+
+        async def fake_run_pipeline(run_id, params):
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_mock_store(scan_data)
+
+            events = asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        log_messages = [e.get("message", "") for e in events if e.get("type") == "log"]
+        self.assertTrue(
+            any("5" in m for m in log_messages),
+            f"Expected a log mentioning max_concurrent=5. Got: {log_messages}",
+        )
+
+    def test_run_auto_pipeline_failure_does_not_abort_other_tickers(self):
+        """If one ticker's pipeline raises, the other ticker should still complete."""
+        scan_data = {"stocks_to_investigate": ["AAPL", "TSLA"]}
+        completed = []
+
+        engine = LangGraphEngine()
+        engine.config["max_concurrent_pipelines"] = 2
+
+        async def fake_run_pipeline(run_id, params):
+            ticker = params.get("ticker")
+            if ticker == "AAPL":
+                raise RuntimeError("Simulated AAPL failure")
+            completed.append(ticker)
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_mock_store(scan_data)
+
+            events = asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        # TSLA should still complete despite AAPL failure
+        self.assertIn("TSLA", completed)
+        # A warning log should mention the failure
+        log_messages = [e.get("message", "") for e in events if e.get("type") == "log"]
+        self.assertTrue(
+            any("AAPL" in m and ("failed" in m or "Warning" in m) for m in log_messages),
+            f"Expected a warning log about AAPL failure. Got: {log_messages}",
+        )
 
 
 # ---------------------------------------------------------------------------

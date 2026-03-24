@@ -1583,13 +1583,14 @@ def run_pipeline(
 
     config = DEFAULT_CONFIG.copy()
     output_dir = get_daily_dir(analysis_date)
+    max_concurrent = int(config.get("max_concurrent_pipelines", 2))
 
     run_logger = RunLogger()
     set_run_logger(run_logger)
 
     console.print(
         f"\n[cyan]Running TradingAgents for {len(candidates)} tickers...[/cyan]"
-        f"  [dim](up to 2 concurrent)[/dim]\n"
+        f"  [dim](up to {max_concurrent} concurrent)[/dim]\n"
     )
     for c in candidates:
         console.print(
@@ -1631,6 +1632,7 @@ def run_pipeline(
             results = asyncio.run(
                 run_all_tickers(
                     candidates, macro_context, config, analysis_date,
+                    max_concurrent=max_concurrent,
                     on_ticker_done=on_done,
                 )
             )

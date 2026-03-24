@@ -504,16 +504,57 @@ class LangGraphEngine:
                 "Skipping pipeline phase."
             )
         else:
-            for ticker in tickers:
-                if not force and store.load_analysis(date, ticker):
-                    yield self._system_log(f"Phase 2: Analysis for {ticker} on {date} already exists, skipping.")
-                    continue
+            max_concurrent = int(self.config.get("max_concurrent_pipelines", 2))
+            yield self._system_log(
+                f"Phase 2/3: Queuing {len(tickers)} ticker(s) "
+                f"(max {max_concurrent} concurrent)…"
+            )
 
-                yield self._system_log(f"Phase 2/3: Running analysis pipeline for {ticker}…")
-                async for evt in self.run_pipeline(
-                    f"{run_id}_pipeline_{ticker}", {"ticker": ticker, "date": date}
-                ):
-                    yield evt
+            # Run all tickers concurrently, bounded by a semaphore.
+            # Events from all pipelines are funnelled through a shared queue
+            # so this async generator can yield them as they arrive.
+            _sentinel = object()
+            pipeline_queue: asyncio.Queue = asyncio.Queue()
+            semaphore = asyncio.Semaphore(max_concurrent)
+
+            async def _run_one_ticker(ticker: str) -> None:
+                async with semaphore:
+                    if not force and store.load_analysis(date, ticker):
+                        await pipeline_queue.put(
+                            self._system_log(
+                                f"Phase 2: Analysis for {ticker} on {date} already exists, skipping."
+                            )
+                        )
+                        return
+                    await pipeline_queue.put(
+                        self._system_log(f"Phase 2/3: Running analysis pipeline for {ticker}…")
+                    )
+                    try:
+                        async for evt in self.run_pipeline(
+                            f"{run_id}_pipeline_{ticker}", {"ticker": ticker, "date": date}
+                        ):
+                            await pipeline_queue.put(evt)
+                    except Exception as exc:
+                        logger.exception(
+                            "Pipeline failed ticker=%s run=%s", ticker, run_id
+                        )
+                        await pipeline_queue.put(
+                            self._system_log(
+                                f"Warning: pipeline for {ticker} failed: {exc}"
+                            )
+                        )
+
+            async def _pipeline_producer() -> None:
+                await asyncio.gather(*[_run_one_ticker(t) for t in tickers])
+                await pipeline_queue.put(_sentinel)
+
+            asyncio.create_task(_pipeline_producer())
+
+            while True:
+                item = await pipeline_queue.get()
+                if item is _sentinel:
+                    break
+                yield item
 
         # Phase 3: Portfolio management
         yield self._system_log("Phase 3/3: Running portfolio manager…")

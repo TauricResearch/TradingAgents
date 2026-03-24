@@ -85,6 +85,10 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": _env_int("MAX_DEBATE_ROUNDS", 2),
     "max_risk_discuss_rounds": _env_int("MAX_RISK_DISCUSS_ROUNDS", 2),
     "max_recur_limit": _env_int("MAX_RECUR_LIMIT", 100),
+    # Concurrency settings
+    # Controls how many per-ticker analysis pipelines run in parallel during
+    # 'auto' mode (CLI and AgentOS).  Set higher if your API plan supports it.
+    "max_concurrent_pipelines": _env_int("MAX_CONCURRENT_PIPELINES", 2),
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
