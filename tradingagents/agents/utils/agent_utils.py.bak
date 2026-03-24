@@ -18,23 +18,19 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
-from tradingagents.dataflows.config import get_config
 
 
-def build_instrument_context(ticker: str) -> str:
+def build_instrument_context(ticker: str, language: str = "en") -> str:
     """Describe the exact instrument so agents preserve exchange-qualified tickers."""
-    config = get_config()
-    language = config.get("language", "English")
-    
     context = (
         f"The instrument to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
     )
-    
-    # 动态指令注入
-    context += f" Please perform all analysis, reports, and communications in {language}."
-    
+    if language.lower() in ["zh", "zh-cn", "chinese"]:
+        context += (
+            " 请务必使用中文进行回复、分析和报告。"
+        )
     return context
 
 def create_msg_delete():

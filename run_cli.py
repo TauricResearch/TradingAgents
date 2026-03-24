@@ -10,29 +10,33 @@ from cli.main import save_report_to_disk
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run TradingAgents Analysis via Command Line")
-    
+
     parser.add_argument("-t", "--ticker", type=str, required=True,
                         help="分析的股票代码（如 NVDA, MU）")
-    
+
     parser.add_argument("-d", "--date", type=str, default=datetime.datetime.now().strftime("%Y-%m-%d"),
                         help="分析日期（格式 YYYY-MM-DD），默认是当天")
-    
+
     parser.add_argument("-a", "--analysts", type=str, default="market,social,news,fundamentals",
                         help="分析师列表，用逗号分隔（可选值: market, social, news, fundamentals）。默认全部包括。")
-    
-    parser.add_argument("--depth", type=int, default=1, choices=[1, 2, 3, 4, 5],
-                        help="研究深度/辩论轮数（推荐 1, 3 或 5），默认使用1")
-    
+
+    parser.add_argument("--depth", type=int, default=2, choices=[1, 2, 3, 4, 5],
+                        help="研究深度/辩论轮数（推荐 1, 3 或 5），默认使用2")
+
     parser.add_argument("-p", "--provider", type=str, default="google",
                         choices=["openai", "anthropic", "google", "openrouter", "ollama", "xai"],
                         help="LLM 提供商，默认是 google")
-    
+
     parser.add_argument("--shallow-model", type=str, default="gemini-3.1-flash-lite-preview",
                         help="指定用于快速思考的模型，默认是 gemini-3.1-flash-lite-preview")
-    
+
     parser.add_argument("--deep-model", type=str, default="gemini-3.1-pro-preview",
                         help="指定用于深度推理的模型，默认是 gemini-3.1-pro-preview")
-    
+                        
+    # ======= 新增：语言控制参数 =======
+    parser.add_argument("-l", "--language", type=str, default="Chinese",
+                        help="指定输出报告的语言（如 Chinese, English），默认使用 Chinese")
+
     parser.add_argument("-n", "--non-interactive", action="store_true", required=True,
                         help="必须加上此参数以确认非交互模式运行")
 
@@ -46,7 +50,7 @@ def main():
 
     valid_analyst_keys = ["market", "social", "news", "fundamentals"]
     selected_analysts = [
-        a.strip().lower() for a in args.analysts.split(",") 
+        a.strip().lower() for a in args.analysts.split(",")
         if a.strip().lower() in valid_analyst_keys
     ]
 
@@ -62,13 +66,18 @@ def main():
     config["deep_think_llm"] = args.deep_model
     config["max_debate_rounds"] = args.depth
     config["max_risk_discuss_rounds"] = args.depth
+    
+    # ======= 新增：将语言注入到配置中 =======
+    config["language"] = args.language
 
     print(f"[System] LLM Provider: {args.provider}")
+    print(f"[System] Output Language: {args.language}")
     print(f"[System] Shallow Model: {args.shallow_model} | Deep Model: {args.deep_model}")
     print(f"[System] Research Depth: {args.depth}")
 
     print("\n[System] Initializing Trading Agents Graph...")
-    ta = TradingAgentsGraph(selected_analysts, debug=False, config=config)
+    # 这里设置 debug=True 才能获取到所有的中间 Markdown 报告
+    ta = TradingAgentsGraph(selected_analysts, debug=True, config=config)
 
     print("\n[System] Propagating analysis... (This may take a while depending on depth and models)")
     try:
