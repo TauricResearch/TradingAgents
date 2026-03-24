@@ -5,7 +5,7 @@ import traceback
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 
 class PortfolioAnalyzer:
