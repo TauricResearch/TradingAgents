@@ -10,6 +10,49 @@ ANALYST_ORDER = [
     ("Fundamentals Analyst", AnalystType.FUNDAMENTALS),
 ]
 
+AGENT_OPTIONS = {
+        "openai": [
+            ("GPT-4o-mini - Fast and efficient for quick tasks", "gpt-4o-mini"),
+            ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
+            ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
+            ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
+        ],
+        "anthropic": [
+            ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
+            ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
+            ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
+            ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
+            ("CCR", "openai/gpt-oss-20b"),
+        ],
+        "google": [
+            ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
+            ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
+            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
+        ],
+        "openrouter": [
+            ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
+            ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
+            ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
+        ],
+        "ollama": [
+            ("llama3.1 local", "llama3.1"),
+            ("llama3.2 local", "llama3.2"),
+        ],
+        "lmstudio": [
+            ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
+            ("LMStudio GLM 4.6v", "zai-org/glm-4.6v-flash"),
+            ("LMStudio GLM 4.7", "glm-4.7-reap-218b-a32b"),
+            ("LMStudio OSS 20b","openai/gpt-oss-20b"),
+            ("LMStudio Minimax 2.1","minimax-m2.1-reap-30-mlx"),
+        ],
+        "nvidia": [
+            ("MiniMax M2.1","minimaxai/minimax-m2.1"),
+            ("Moonshot K2", "moonshotai/kimi-k2-thinking"),
+            ("Z.AI GLM4.7","z-ai/glm4.7"),
+            ("Deepseek v3.2","deepseek-ai/deepseek-v3.2"),
+        ],        
+    }
+
 
 def get_ticker() -> str:
     """Prompt the user to enter a ticker symbol."""
@@ -126,41 +169,8 @@ def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
     # Define shallow thinking llm engine options with their corresponding model names
-    SHALLOW_AGENT_OPTIONS = {
-        "openai": [
-            ("GPT-4o-mini - Fast and efficient for quick tasks", "gpt-4o-mini"),
-            ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
-            ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
-            ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
-        ],
-        "anthropic": [
-            ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
-            ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
-            ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
-            ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
-            ("CCR", "openai/gpt-oss-20b"),
-        ],
-        "google": [
-            ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
-            ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
-        ],
-        "openrouter": [
-            ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
-            ("Meta: Llama 3.3 8B Instruct - A lightweight and ultra-fast variant of Llama 3.3 70B", "meta-llama/llama-3.3-8b-instruct:free"),
-            ("google/gemini-2.0-flash-exp:free - Gemini Flash 2.0 offers a significantly faster time to first token", "google/gemini-2.0-flash-exp:free"),
-        ],
-        "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("llama3.2 local", "llama3.2"),
-        ],
-        "lmstudio": [
-            ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
-            ("LMStudio GLM 4.6v", "zai-org/glm-4.6v-flash"),
-            ("LMStudio OSS 20b","openai/gpt-oss-20b"),
-            ("LMStudio Minimax 2.1","minimax-m2.1-reap-30-mlx"),
-        ]
-    }
+    SHALLOW_AGENT_OPTIONS = AGENT_OPTIONS
+    
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
@@ -191,44 +201,7 @@ def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
 
     # Define deep thinking llm engine options with their corresponding model names
-    DEEP_AGENT_OPTIONS = {
-        "openai": [
-            ("GPT-4.1-nano - Ultra-lightweight model for basic operations", "gpt-4.1-nano"),
-            ("GPT-4.1-mini - Compact model with good performance", "gpt-4.1-mini"),
-            ("GPT-4o - Standard model with solid capabilities", "gpt-4o"),
-            ("o4-mini - Specialized reasoning model (compact)", "o4-mini"),
-            ("o3-mini - Advanced reasoning model (lightweight)", "o3-mini"),
-            ("o3 - Full advanced reasoning model", "o3"),
-            ("o1 - Premier reasoning and problem-solving model", "o1"),
-        ],
-        "anthropic": [
-            ("Claude Haiku 3.5 - Fast inference and standard capabilities", "claude-3-5-haiku-latest"),
-            ("Claude Sonnet 3.5 - Highly capable standard model", "claude-3-5-sonnet-latest"),
-            ("Claude Sonnet 3.7 - Exceptional hybrid reasoning and agentic capabilities", "claude-3-7-sonnet-latest"),
-            ("Claude Sonnet 4 - High performance and excellent reasoning", "claude-sonnet-4-0"),
-            ("Claude Opus 4 - Most powerful Anthropic model", "	claude-opus-4-0"),
-        ],
-        "google": [
-            ("Gemini 2.0 Flash-Lite - Cost efficiency and low latency", "gemini-2.0-flash-lite"),
-            ("Gemini 2.0 Flash - Next generation features, speed, and thinking", "gemini-2.0-flash"),
-            ("Gemini 2.5 Flash - Adaptive thinking, cost efficiency", "gemini-2.5-flash-preview-05-20"),
-            ("Gemini 2.5 Pro", "gemini-2.5-pro-preview-06-05"),
-        ],
-        "openrouter": [
-            ("DeepSeek V3 - a 685B-parameter, mixture-of-experts model", "deepseek/deepseek-chat-v3-0324:free"),
-            ("Deepseek - latest iteration of the flagship chat model family from the DeepSeek team.", "deepseek/deepseek-chat-v3-0324:free"),
-        ],
-        "ollama": [
-            ("llama3.1 local", "llama3.1"),
-            ("qwen3", "qwen3"),
-        ],
-        "lmstudio": [
-            ("LMStudio Qwen 4b Thinking","qwen/qwen3-4b-thinking-2507"),
-            ("LMStudio GLM 4.6v", "zai-org/glm-4.6v-flash"),
-            ("LMStudio OSS 20b","openai/gpt-oss-20b"),
-            ("LMStudio Minimax 2.1","minimax-m2.1-reap-30-mlx"),
-        ]
-    }
+    DEEP_AGENT_OPTIONS = AGENT_OPTIONS
     
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
@@ -257,12 +230,12 @@ def select_llm_provider() -> tuple[str, str]:
     # Define OpenAI api options with their corresponding endpoints
     BASE_URLS = [
         ("LMStudio", "http://192.168.0.20:1234/v1"),
-        ("OpenAI Local", "http://192.168.0.20:1234/v1"),
         ("OpenAI", "https://api.openai.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
+        ("Nvidia","https://integrate.api.nvidia.com"),
     ]
     
     choice = questionary.select(

@@ -14,12 +14,21 @@ class FinancialSituationMemory:
             self.embedding = "nomic-embed-text"
         elif config["backend_url"] == "http://192.168.0.20:1234/v1":
             self.embedding = "text-embedding-nomic-embed-text-v2-moe"
+        elif config["backend_url"] == "http://192.168.0.20:1234/v1":
+            self.embedding = "text-embedding-nomic-embed-text-v2-moe"            
         else:
             self.embedding = "text-embedding-nomic-embed-text-v2-moe"
                 
-        self.client = OpenAI(base_url=config["backend_url"])
+        self.client = OpenAI(base_url=config["local_url"])
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         self.situation_collection = self.chroma_client.create_collection(name=name)
+        
+        """ If nvidia is selected as the LLM """
+        if config["llm_provider"].lower() == "nvidia" :
+            #self.embedding = "nvidia/embed-qa-4"
+            #self.client = OpenAI(base_url=config["nvidia_backend_url"])
+            self.embedding = "text-embedding-nomic-embed-text-v2-moe"
+            self.client = OpenAI(base_url=config["local_url"])    
 
     def get_embedding(self, text):
         """Get OpenAI embedding for a text"""
