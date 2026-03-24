@@ -58,7 +58,7 @@ class PortfolioAnalyzer:
         )
 
         portfolio_summary = self._generate_summary(
-            individual_results, trade_date
+            individual_results, trade_date, debug
         )
 
         try:
@@ -97,9 +97,12 @@ class PortfolioAnalyzer:
             except Exception as e:
                 if debug:
                     print(f"Error analyzing {ticker}: {e}")
+                error_msg = f"Analysis failed: {e}"
+                if debug:
+                    error_msg += f"\n{traceback.format_exc()}"
                 individual_results[ticker] = {
                     "signal": "ERROR",
-                    "final_trade_decision": f"Analysis failed: {e}\n{traceback.format_exc()}",
+                    "final_trade_decision": error_msg,
                 }
 
         return individual_results
@@ -108,6 +111,7 @@ class PortfolioAnalyzer:
         self,
         individual_results: Dict[str, Dict[str, str]],
         trade_date: str,
+        debug: bool = False,
     ) -> str:
         """Use the deep thinking LLM to compare all positions."""
         # Skip summary if all tickers failed
@@ -131,11 +135,11 @@ class PortfolioAnalyzer:
         try:
             return self.deep_thinking_llm.invoke(messages).content
         except Exception as e:
-            return (
-                f"Portfolio summary generation failed: {e}\n{traceback.format_exc()}\n"
-                f"Individual signals were: "
-                + ", ".join(f"{t}: {r['signal']}" for t, r in individual_results.items())
-            )
+            error_msg = f"Portfolio summary generation failed: {e}"
+            if debug:
+                error_msg += f"\n{traceback.format_exc()}"
+            signals = ", ".join(f"{t}: {r['signal']}" for t, r in individual_results.items())
+            return f"{error_msg}\nIndividual signals were: {signals}"
 
     def _build_analyses_text(self, results: Dict[str, Dict[str, str]]) -> str:
         """Format individual results into a text block for the LLM prompt."""
