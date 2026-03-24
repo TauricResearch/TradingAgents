@@ -1,4 +1,5 @@
 from copy import deepcopy
+import json
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
@@ -53,3 +54,49 @@ def test_role_specific_llm_config_overrides_default(monkeypatch):
     )
 
     assert graph.graph_setup.portfolio_manager_llm["model"] == "gpt-5.2"
+
+
+def test_log_state_writes_json_snapshot(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    graph = TradingAgentsGraph.__new__(TradingAgentsGraph)
+    graph.ticker = "AAPL"
+    graph.log_states_dict = {}
+
+    final_state = {
+        "company_of_interest": "Apple",
+        "trade_date": "2026-03-24",
+        "market_report": "market",
+        "sentiment_report": "sentiment",
+        "news_report": "news",
+        "fundamentals_report": "fundamentals",
+        "investment_debate_state": {
+            "bull_history": "bull",
+            "bear_history": "bear",
+            "history": "debate history",
+            "current_response": "current",
+            "judge_decision": "judge",
+        },
+        "trader_investment_plan": "trader plan",
+        "risk_debate_state": {
+            "aggressive_history": "agg",
+            "conservative_history": "cons",
+            "neutral_history": "neutral",
+            "history": "risk history",
+            "judge_decision": "risk judge",
+        },
+        "investment_plan": "investment plan",
+        "final_trade_decision": "buy",
+    }
+
+    graph._log_state("2026-03-24", final_state)
+
+    output_path = (
+        tmp_path
+        / "eval_results"
+        / "AAPL"
+        / "TradingAgentsStrategy_logs"
+        / "full_states_log_2026-03-24.json"
+    )
+    assert output_path.exists()
+    assert json.loads(output_path.read_text())["2026-03-24"]["company_of_interest"] == "Apple"
