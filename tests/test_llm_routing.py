@@ -137,7 +137,7 @@ def test_role_specific_llm_config_overrides_actual_graph_wiring(monkeypatch):
     assert "News Analyst" not in recorded_llms
 
 
-def test_role_specific_route_inherits_default_provider_and_base_url(monkeypatch):
+def test_role_specific_route_inherits_default_provider_base_url_and_model(monkeypatch):
     recorded_llms = {}
 
     monkeypatch.setattr(
@@ -161,10 +161,11 @@ def test_role_specific_route_inherits_default_provider_and_base_url(monkeypatch)
                 "default": {
                     "provider": "anthropic",
                     "base_url": "https://anthropic.example/v1",
+                    "model": "claude-sonnet-4-6",
                 },
                 "roles": {
                     "portfolio_manager": {
-                        "model": "claude-opus-4-6",
+                        "base_url": "https://anthropic-pm.example/v1",
                     }
                 },
             },
@@ -173,9 +174,10 @@ def test_role_specific_route_inherits_default_provider_and_base_url(monkeypatch)
 
     assert recorded_llms["Market Analyst"]["provider"] == "anthropic"
     assert recorded_llms["Market Analyst"]["base_url"] == "https://anthropic.example/v1"
+    assert recorded_llms["Market Analyst"]["model"] == "claude-sonnet-4-6"
     assert recorded_llms["Portfolio Manager"]["provider"] == "anthropic"
-    assert recorded_llms["Portfolio Manager"]["base_url"] == "https://anthropic.example/v1"
-    assert recorded_llms["Portfolio Manager"]["model"] == "claude-opus-4-6"
+    assert recorded_llms["Portfolio Manager"]["base_url"] == "https://anthropic-pm.example/v1"
+    assert recorded_llms["Portfolio Manager"]["model"] == "claude-sonnet-4-6"
 
 
 def test_unused_role_routes_do_not_instantiate_clients(monkeypatch):

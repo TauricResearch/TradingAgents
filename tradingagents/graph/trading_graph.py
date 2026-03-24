@@ -226,20 +226,18 @@ class TradingAgentsGraph:
     ) -> Dict[str, Any]:
         routing = self.config.get("llm_routing") or {}
         role_routes = routing.get("roles") or {}
+        model_key = "deep_think_llm" if thinker_depth == "deep" else "quick_think_llm"
+        legacy_route = {
+            "provider": self._normalize_provider(self.config["llm_provider"]),
+            "model": self.config[model_key],
+            "base_url": self.config.get("backend_url"),
+        }
         default_route = routing.get("default") or {}
         role_route = role_routes.get(role) or {}
-        route = self._deep_merge_dicts(default_route, role_route)
-
-        model_key = "deep_think_llm" if thinker_depth == "deep" else "quick_think_llm"
-        provider = self._normalize_provider(
-            route.get("provider", self.config["llm_provider"])
-        )
-
-        return {
-            "provider": provider,
-            "model": route.get("model", self.config[model_key]),
-            "base_url": route.get("base_url", self.config.get("backend_url")),
-        }
+        route = self._deep_merge_dicts(legacy_route, default_route)
+        route = self._deep_merge_dicts(route, role_route)
+        route["provider"] = self._normalize_provider(route.get("provider"))
+        return route
 
     def _get_provider_kwargs(self, provider: Optional[str] = None) -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation."""
