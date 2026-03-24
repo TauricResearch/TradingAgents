@@ -33,7 +33,7 @@ def _coerce_optional_float(value):
 def _parse_json_payload(raw_text: str):
     text = raw_text.strip()
     if not text:
-        return {}
+        return {}, False
 
     candidates = [text]
     fenced_blocks = re.findall(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL)
@@ -45,12 +45,13 @@ def _parse_json_payload(raw_text: str):
         except json.JSONDecodeError:
             continue
         if isinstance(parsed, dict):
-            return parsed
-    return {}
+            return parsed, True
+    return {}, False
 
 
 def _parse_valuation_data(content):
-    payload = _parse_json_payload(_content_to_text(content))
+    raw_text = _content_to_text(content).strip()
+    payload, parsed = _parse_json_payload(raw_text)
     valuation_data = make_default_valuation_data()
 
     fair_value_range = payload.get("fair_value_range")
@@ -65,6 +66,10 @@ def _parse_valuation_data(content):
     )
     valuation_data["primary_method"] = str(payload.get("primary_method") or "")
     valuation_data["thesis"] = str(payload.get("thesis") or "")
+
+    if not parsed:
+        valuation_data["primary_method"] = "parse_error"
+        valuation_data["thesis"] = raw_text or "[empty model response]"
 
     return valuation_data
 
