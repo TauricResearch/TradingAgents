@@ -2,16 +2,17 @@ import { AGENT_STEPS, STEP_PHASE } from '@/lib/types/run'
 import type { AgentStep } from '@/lib/types/run'
 import type { StepStatus } from '@/lib/types/agents'
 
-type Phase = 'analysts' | 'researchers' | 'trader' | 'risk'
+type Phase = 'analysts' | 'researchers' | 'trader' | 'risk' | 'summary'
 type Props = { steps: Record<string, StepStatus> }
 
-const PHASES: Phase[] = ['analysts', 'researchers', 'trader', 'risk']
+const PHASES: Phase[] = ['analysts', 'researchers', 'trader', 'risk', 'summary']
 
 const PHASE_META: Record<Phase, { label: string; code: string; desc: string }> = {
-  analysts:    { label: 'Analysis',    code: 'PHASE-01', desc: 'Market data & signals'   },
-  researchers: { label: 'Research',    code: 'PHASE-02', desc: 'Bull/bear debate'         },
-  trader:      { label: 'Trade Plan',  code: 'PHASE-03', desc: 'Strategy formulation'     },
-  risk:        { label: 'Risk Review', code: 'PHASE-04', desc: 'Risk-adjusted decision'   },
+  analysts:    { label: 'Analysis',      code: 'PHASE-01', desc: 'Market data & signals'   },
+  researchers: { label: 'Research',      code: 'PHASE-02', desc: 'Bull/bear debate'         },
+  trader:      { label: 'Trade Plan',    code: 'PHASE-03', desc: 'Strategy formulation'     },
+  risk:        { label: 'Risk Review',   code: 'PHASE-04', desc: 'Risk-adjusted decision'   },
+  summary:     { label: 'Chief Analyst', code: 'PHASE-05', desc: 'Executive synthesis'      },
 }
 
 function phaseStatus(phase: Phase, steps: Record<string, StepStatus>): StepStatus {
@@ -88,7 +89,7 @@ export default function PipelineStepper({ steps }: Props) {
       </div>
 
       {/* Phase nodes */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         {PHASES.map((phase, i) => {
           const status    = phaseStatus(phase, steps)
           const isDone    = status === 'done'

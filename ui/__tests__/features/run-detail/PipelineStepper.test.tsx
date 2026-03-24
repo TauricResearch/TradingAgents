@@ -9,12 +9,13 @@ function makeSteps(overrides: Partial<Record<string, StepStatus>> = {}) {
   ) as Record<string, StepStatus>
 }
 
-test('renders 4 phase labels', () => {
+test('renders 5 phase labels', () => {
   render(<PipelineStepper steps={makeSteps()} />)
-  expect(screen.getByText('Analysts')).toBeInTheDocument()
-  expect(screen.getByText('Researchers')).toBeInTheDocument()
-  expect(screen.getByText('Trader')).toBeInTheDocument()
-  expect(screen.getByText('Risk')).toBeInTheDocument()
+  expect(screen.getByText('Analysis')).toBeInTheDocument()
+  expect(screen.getByText('Research')).toBeInTheDocument()
+  expect(screen.getByText('Trade Plan')).toBeInTheDocument()
+  expect(screen.getByText('Risk Review')).toBeInTheDocument()
+  expect(screen.getByText('Chief Analyst')).toBeInTheDocument()
 })
 
 test('phase is done when all its steps are done', () => {
@@ -22,8 +23,6 @@ test('phase is done when all its steps are done', () => {
     market_analyst: 'done', news_analyst: 'done',
     fundamentals_analyst: 'done', social_analyst: 'done',
   })
-  const { container } = render(<PipelineStepper steps={steps} />)
-  // The Analysts phase dot should have done styling (text-[#adc6ff])
-  // We verify by checking the component renders without error and has 4 phases
-  expect(screen.getAllByText(/Analysts|Researchers|Trader|Risk/).length).toBeGreaterThanOrEqual(4)
+  render(<PipelineStepper steps={steps} />)
+  expect(screen.getAllByText(/Analysis|Research|Trade Plan|Risk Review|Chief Analyst/).length).toBeGreaterThanOrEqual(5)
 })
