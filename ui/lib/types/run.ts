@@ -11,12 +11,14 @@ export type AgentStep =
   | 'conservative_analyst'
   | 'neutral_analyst'
   | 'risk_judge'
+  | 'chief_analyst'
 
 export const AGENT_STEPS: AgentStep[] = [
   'market_analyst', 'news_analyst', 'fundamentals_analyst', 'social_analyst',
   'bull_researcher', 'bear_researcher', 'research_manager',
   'trader',
   'aggressive_analyst', 'conservative_analyst', 'neutral_analyst', 'risk_judge',
+  'chief_analyst',
 ]
 
 export const AGENT_STEP_LABELS: Record<AgentStep, string> = {
@@ -32,9 +34,10 @@ export const AGENT_STEP_LABELS: Record<AgentStep, string> = {
   conservative_analyst: 'Conservative',
   neutral_analyst:      'Neutral',
   risk_judge:           'Risk Judge',
+  chief_analyst:        'Chief Analyst',
 }
 
-export const STEP_PHASE: Record<AgentStep, 'analysts' | 'researchers' | 'trader' | 'risk'> = {
+export const STEP_PHASE: Record<AgentStep, 'analysts' | 'researchers' | 'trader' | 'risk' | 'summary'> = {
   market_analyst:       'analysts',
   news_analyst:         'analysts',
   fundamentals_analyst: 'analysts',
@@ -47,6 +50,7 @@ export const STEP_PHASE: Record<AgentStep, 'analysts' | 'researchers' | 'trader'
   conservative_analyst: 'risk',
   neutral_analyst:      'risk',
   risk_judge:           'risk',
+  chief_analyst:        'summary',
 }
 
 export type RunStatus = 'queued' | 'running' | 'complete' | 'error'

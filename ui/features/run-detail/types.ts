@@ -1,5 +1,5 @@
 import type { AgentStep, RunStatus } from '@/lib/types/run'
-import type { Decision, StepStatus } from '@/lib/types/agents'
+import type { Decision, StepStatus, ChiefAnalystReport } from '@/lib/types/agents'
 
 export type TokenCount = { in: number; out: number }
 
@@ -11,4 +11,5 @@ export type RunStreamState = {
   error: string | null
   tokensByStep: Record<AgentStep, TokenCount>
   tokensTotal: TokenCount
+  chiefAnalystReport: ChiefAnalystReport | null
 }

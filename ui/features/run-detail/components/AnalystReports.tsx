@@ -26,6 +26,7 @@ const STEP_ACCENT: Record<AgentStep, string> = {
   conservative_analyst: '#00C4E8',
   neutral_analyst:      '#A78BFA',
   risk_judge:           '#FFB400',
+  chief_analyst:        '#adc6ff',
 }
 
 const STEP_ROLE_DESC: Partial<Record<AgentStep, string>> = {
