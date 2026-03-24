@@ -1,6 +1,7 @@
 # TradingAgents/graph/portfolio_analysis.py
 
 import json
+import re
 import traceback
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
