@@ -200,7 +200,11 @@ class GraphSetup:
             },
         )
 
-        workflow.add_edge("Risk Judge", END)
+        from tradingagents.agents.managers.chief_analyst import create_chief_analyst
+        chief_analyst_node = create_chief_analyst(self.deep_thinking_llm)
+        workflow.add_node("Chief Analyst", chief_analyst_node)
+        workflow.add_edge("Risk Judge", "Chief Analyst")
+        workflow.add_edge("Chief Analyst", END)
 
         # Compile and return
         return workflow.compile(checkpointer=checkpointer)
