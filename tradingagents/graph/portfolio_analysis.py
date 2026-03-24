@@ -61,7 +61,11 @@ class PortfolioAnalyzer:
             individual_results, trade_date
         )
 
-        self._log_portfolio(trade_date, tickers, individual_results, portfolio_summary)
+        try:
+            self._log_portfolio(trade_date, tickers, individual_results, portfolio_summary)
+        except OSError as e:
+            if debug:
+                print(f"Warning: failed to save portfolio log: {e}")
 
         return {
             "individual_results": individual_results,
