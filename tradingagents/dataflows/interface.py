@@ -23,6 +23,11 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .macro_utils import (
+    get_economic_indicators_report,
+    get_fed_calendar_and_minutes,
+    get_treasury_yield_curve,
+)
 
 # Configuration and routing logic
 from .config import get_config
@@ -57,12 +62,21 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_transactions",
         ]
+    },
+    "macro_data": {
+        "description": "Macroeconomic indicators and Federal Reserve data",
+        "tools": [
+            "get_economic_indicators",
+            "get_yield_curve",
+            "get_fed_calendar",
+        ],
     }
 }
 
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "fred",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -106,6 +120,16 @@ VENDOR_METHODS = {
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+    },
+    # macro_data
+    "get_economic_indicators": {
+        "fred": get_economic_indicators_report,
+    },
+    "get_yield_curve": {
+        "fred": get_treasury_yield_curve,
+    },
+    "get_fed_calendar": {
+        "fred": get_fed_calendar_and_minutes,
     },
 }
 

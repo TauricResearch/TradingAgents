@@ -3,6 +3,7 @@ from .utils.agent_states import AgentState, InvestDebateState, RiskDebateState
 from .utils.memory import FinancialSituationMemory
 
 from .analysts.fundamentals_analyst import create_fundamentals_analyst
+from .analysts.macro_analyst import create_macro_analyst
 from .analysts.market_analyst import create_market_analyst
 from .analysts.news_analyst import create_news_analyst
 from .analysts.social_media_analyst import create_social_media_analyst
@@ -29,6 +30,7 @@ __all__ = [
     "create_bull_researcher",
     "create_research_manager",
     "create_fundamentals_analyst",
+    "create_macro_analyst",
     "create_market_analyst",
     "create_neutral_debator",
     "create_news_analyst",

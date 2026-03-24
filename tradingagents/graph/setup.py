@@ -44,6 +44,7 @@ class GraphSetup:
         self.fundamentals_analyst_llm = self._get_role_llm(
             "fundamentals", self.quick_thinking_llm
         )
+        self.macro_analyst_llm = self._get_role_llm("macro", self.quick_thinking_llm)
         self.bull_researcher_llm = self._get_role_llm(
             "bull_researcher", self.quick_thinking_llm
         )
@@ -70,6 +71,24 @@ class GraphSetup:
     def _get_role_llm(self, role: str, fallback_llm: ChatOpenAI):
         return self.role_llms.get(role, fallback_llm)
 
+    def _get_continue_handler(self, analyst_type: str):
+        specific_handler = getattr(
+            self.conditional_logic,
+            f"should_continue_{analyst_type}",
+            None,
+        )
+        if specific_handler is not None:
+            return specific_handler
+
+        def default_handler(state: AgentState):
+            messages = state["messages"]
+            last_message = messages[-1]
+            if getattr(last_message, "tool_calls", None):
+                return f"tools_{analyst_type}"
+            return f"Msg Clear {analyst_type.capitalize()}"
+
+        return default_handler
+
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
     ):
@@ -81,6 +100,7 @@ class GraphSetup:
                 - "social": Social media analyst
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
+                - "macro": Macro analyst
         """
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
@@ -117,6 +137,11 @@ class GraphSetup:
             )
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
+
+        if "macro" in selected_analysts:
+            analyst_nodes["macro"] = create_macro_analyst(self.macro_analyst_llm)
+            delete_nodes["macro"] = create_msg_delete()
+            tool_nodes["macro"] = self.tool_nodes["macro"]
 
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(
@@ -175,7 +200,7 @@ class GraphSetup:
             # Add conditional edges for current analyst
             workflow.add_conditional_edges(
                 current_analyst,
-                getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
+                self._get_continue_handler(analyst_type),
                 [current_tools, current_clear],
             )
             workflow.add_edge(current_tools, current_analyst)

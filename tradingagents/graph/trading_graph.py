@@ -28,9 +28,12 @@ from tradingagents.agents.utils.agent_utils import (
     get_balance_sheet,
     get_cashflow,
     get_income_statement,
+    get_economic_indicators,
+    get_fed_calendar,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_yield_curve,
 )
 
 from .conditional_logic import ConditionalLogic
@@ -58,6 +61,7 @@ class TradingAgentsGraph:
         "social",
         "news",
         "fundamentals",
+        "macro",
         "bull_researcher",
         "bear_researcher",
         "trader",
@@ -299,6 +303,14 @@ class TradingAgentsGraph:
                     get_income_statement,
                 ]
             ),
+            "macro": ToolNode(
+                [
+                    # Macroeconomic analysis tools
+                    get_economic_indicators,
+                    get_yield_curve,
+                    get_fed_calendar,
+                ]
+            ),
         }
 
     def propagate(self, company_name, trade_date):
@@ -345,6 +357,7 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "macro_report": final_state.get("macro_report", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
