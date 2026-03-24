@@ -7,6 +7,7 @@ import PhaseTabs from '@/features/run-detail/components/PhaseTabs'
 import { getRun } from '@/lib/api-client'
 import type { RunSummary } from '@/lib/types/run'
 import TokenStatsBar from '@/features/run-detail/components/TokenStatsBar'
+import ChiefAnalystCard from '@/features/run-detail/components/ChiefAnalystCard'
 
 const STATUS_CONFIG: Record<string, {
   bg: string; color: string; dot: string; label: string; pulse: boolean
@@ -19,7 +20,7 @@ const STATUS_CONFIG: Record<string, {
 
 export default function RunDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const { steps, reports, verdict, status, error, tokensTotal, tokensByStep } = useRunStream(id)
+  const { steps, reports, verdict, status, error, tokensTotal, tokensByStep, chiefAnalystReport } = useRunStream(id)
   const [run, setRun] = useState<RunSummary | null>(null)
 
   useEffect(() => {
@@ -91,6 +92,14 @@ export default function RunDetailPage({ params }: { params: Promise<{ id: string
 
       {/* Token stats bar */}
       <TokenStatsBar tokensTotal={tokensTotal} status={status} />
+
+      {/* Chief Analyst Executive Summary */}
+      <ChiefAnalystCard
+        report={chiefAnalystReport}
+        status={steps['chief_analyst']}
+        ticker={run?.ticker ?? ''}
+        date={run?.date ?? ''}
+      />
 
       {/* Pipeline */}
       <PipelineStepper steps={steps} />
