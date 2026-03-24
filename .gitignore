@@ -226,3 +226,5 @@ __marimo__/
 **/results/
 
 node_modules/
+# Git worktrees
+.worktrees/
