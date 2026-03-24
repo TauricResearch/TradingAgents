@@ -117,6 +117,8 @@ class PortfolioRepository:
         price: float,
         sector: str | None = None,
         industry: str | None = None,
+        stop_loss: float | None = None,
+        take_profit: float | None = None,
     ) -> Holding:
         """Buy shares and update portfolio cash and holdings."""
         if shares <= 0:
@@ -173,6 +175,8 @@ class PortfolioRepository:
             total_value=cost,
             trade_date=datetime.now(timezone.utc).isoformat(),
             signal_source="pm_agent",
+            stop_loss=stop_loss,
+            take_profit=take_profit,
         )
         self._client.record_trade(trade)
 

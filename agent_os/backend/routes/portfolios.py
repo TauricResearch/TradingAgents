@@ -149,6 +149,8 @@ async def get_latest_portfolio_state(
                 "price": d.get("price", 0.0),
                 "executed_at": d.get("trade_date", ""),
                 "rationale": d.get("rationale"),
+                "stop_loss": d.get("stop_loss"),
+                "take_profit": d.get("take_profit"),
             })
 
         return {

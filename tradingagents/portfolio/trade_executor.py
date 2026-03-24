@@ -137,6 +137,10 @@ class TradeExecutor:
             shares = float(buy.get("shares") or 0)
             sector = buy.get("sector")
             rationale = buy.get("rationale") or ""
+            raw_sl = buy.get("stop_loss")
+            raw_tp = buy.get("take_profit")
+            stop_loss = float(raw_sl) if raw_sl is not None else None
+            take_profit = float(raw_tp) if raw_tp is not None else None
 
             if not ticker or shares <= 0:
                 failed_trades.append({
@@ -196,6 +200,8 @@ class TradeExecutor:
                     shares,
                     price,
                     sector=sector,
+                    stop_loss=stop_loss,
+                    take_profit=take_profit,
                 )
                 executed_trades.append({
                     "action": "BUY",
@@ -204,9 +210,16 @@ class TradeExecutor:
                     "price": price,
                     "sector": sector,
                     "rationale": rationale,
+                    "stop_loss": stop_loss,
+                    "take_profit": take_profit,
                     "trade_date": trade_date,
                 })
-                logger.info("BUY %s x %.2f @ %.2f", ticker, shares, price)
+                logger.info(
+                    "BUY %s x %.2f @ %.2f (SL=%s TP=%s)",
+                    ticker, shares, price,
+                    f"{stop_loss:.2f}" if stop_loss is not None else "N/A",
+                    f"{take_profit:.2f}" if take_profit is not None else "N/A",
+                )
             except (InsufficientCashError, PortfolioError) as exc:
                 failed_trades.append({
                     "action": "BUY",

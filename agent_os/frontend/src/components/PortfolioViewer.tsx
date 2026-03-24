@@ -46,6 +46,8 @@ interface Trade {
   price: number;
   executed_at?: string;
   rationale?: string;
+  stop_loss?: number | null;
+  take_profit?: number | null;
   [key: string]: unknown;
 }
 
@@ -219,14 +221,34 @@ export const PortfolioViewer: React.FC<PortfolioViewerProps> = ({ defaultPortfol
                       border="1px solid"
                       borderColor="whiteAlpha.100"
                       justify="space-between"
-                      align="center"
+                      align="flex-start"
                     >
-                      <HStack spacing={3}>
+                      <HStack spacing={3} align="flex-start">
                         <Badge colorScheme={t.action?.toUpperCase() === 'BUY' ? 'green' : t.action?.toUpperCase() === 'SELL' ? 'red' : 'gray'}>
                           {t.action?.toUpperCase()}
                         </Badge>
-                        <Code colorScheme="cyan" fontSize="sm">{t.ticker}</Code>
-                        <Text fontSize="sm">{t.quantity} @ ${(t.price ?? 0).toFixed(2)}</Text>
+                        <VStack align="flex-start" spacing={0}>
+                          <HStack spacing={2}>
+                            <Code colorScheme="cyan" fontSize="sm">{t.ticker}</Code>
+                            <Text fontSize="sm">{t.quantity} @ ${(t.price ?? 0).toFixed(2)}</Text>
+                          </HStack>
+                          {(t.stop_loss != null || t.take_profit != null) && (
+                            <HStack spacing={3} mt={1}>
+                              {t.stop_loss != null && (
+                                <HStack spacing={1}>
+                                  <Text fontSize="2xs" color="red.400">SL:</Text>
+                                  <Text fontSize="2xs" color="red.300" fontWeight="semibold">${t.stop_loss.toFixed(2)}</Text>
+                                </HStack>
+                              )}
+                              {t.take_profit != null && (
+                                <HStack spacing={1}>
+                                  <Text fontSize="2xs" color="green.400">TP:</Text>
+                                  <Text fontSize="2xs" color="green.300" fontWeight="semibold">${t.take_profit.toFixed(2)}</Text>
+                                </HStack>
+                              )}
+                            </HStack>
+                          )}
+                        </VStack>
                       </HStack>
                       <VStack align="flex-end" spacing={0}>
                         <Text fontSize="2xs" color="whiteAlpha.400">{t.executed_at || '—'}</Text>

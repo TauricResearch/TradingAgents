@@ -1,9 +1,10 @@
 # Current Milestone
 
-AgentOS visual observability layer shipped. Portfolio Manager fully implemented (Phases 1–10). All 725 tests passing (14 skipped).
+AgentOS visual observability layer shipped. Portfolio Manager fully implemented (Phases 1–10). All 725 tests passing (14 skipped). Stop-loss / take-profit fields added to trades.
 
 # Recent Progress
 
+- **Stop-loss & Take-profit on trades**: Added `stop_loss` and `take_profit` optional fields to the `Trade` model, SQL migration, PM agent prompt, trade executor, repository, API route, and frontend Trade History tab.
 - **AgentOS (current PR)**: Full-stack visual observability layer for agent execution
   - `agent_os/backend/` — FastAPI backend (port 8088) with REST + WebSocket streaming
   - `agent_os/frontend/` — React + Vite 8 + Chakra UI + ReactFlow dashboard

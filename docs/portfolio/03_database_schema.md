@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS trades (
     trade_date     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     rationale      TEXT,
     signal_source  TEXT,
+    stop_loss      NUMERIC(18,4) CHECK (stop_loss IS NULL OR stop_loss > 0),
+    take_profit    NUMERIC(18,4) CHECK (take_profit IS NULL OR take_profit > 0),
     metadata       JSONB        NOT NULL DEFAULT '{}',
 
     CONSTRAINT trades_action_values CHECK (action IN ('BUY', 'SELL'))
@@ -85,6 +87,8 @@ CREATE TABLE IF NOT EXISTS trades (
 **Constraints:**
 - `action IN ('BUY', 'SELL')` — only two valid actions
 - `shares > 0`, `price > 0` — all quantities positive
+- `stop_loss > 0` (when set) — stop-loss price must be positive; NULL means not specified
+- `take_profit > 0` (when set) — take-profit target must be positive; NULL means not specified
 - No `updated_at` — trades are immutable
 
 ---
