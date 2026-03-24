@@ -16,7 +16,7 @@ class PortfolioAnalyzer:
     owns the portfolio-level prompt, comparison logic, and logging.
     """
 
-    def __init__(self, deep_thinking_llm: ChatOpenAI):
+    def __init__(self, deep_thinking_llm: BaseChatModel):
         """Initialize with the deep thinking LLM for comparative analysis.
 
         Args:
