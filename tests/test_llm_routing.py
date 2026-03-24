@@ -300,6 +300,18 @@ def test_google_client_passes_base_url_to_langchain(monkeypatch):
     assert captured_kwargs["base_url"] == "https://google.example/v1beta"
 
 
+def test_default_config_copy_does_not_share_mutable_llm_routing_state():
+    config = default_config.DEFAULT_CONFIG.copy()
+
+    assert config["llm_routing"] is None
+    config["llm_routing"] = {
+        "default": {},
+        "roles": {"portfolio_manager": {"model": "gpt-5.2"}},
+    }
+
+    assert default_config.DEFAULT_CONFIG["llm_routing"] is None
+
+
 def test_dataflow_config_returns_isolated_nested_routing(monkeypatch):
     monkeypatch.setattr(dataflow_config, "_config", None)
     dataflow_config.initialize_config()
@@ -311,7 +323,7 @@ def test_dataflow_config_returns_isolated_nested_routing(monkeypatch):
     }
 
     assert dataflow_config.get_config()["llm_routing"]["roles"] == {}
-    assert default_config.DEFAULT_CONFIG["llm_routing"]["roles"] == {}
+    assert default_config.DEFAULT_CONFIG["llm_routing"] is None
 
 
 def test_log_state_writes_json_snapshot(tmp_path, monkeypatch):

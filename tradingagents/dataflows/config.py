@@ -20,20 +20,22 @@ def initialize_config():
     """Initialize the configuration with default values."""
     global _config
     if _config is None:
-        _config = deepcopy(default_config.DEFAULT_CONFIG)
+        _config = default_config.normalize_llm_routing(default_config.DEFAULT_CONFIG)
 
 
 def set_config(config: Dict):
     """Update the configuration with custom values."""
     global _config
-    _config = _deep_merge_dicts(default_config.DEFAULT_CONFIG, config)
+    _config = default_config.normalize_llm_routing(
+        _deep_merge_dicts(default_config.DEFAULT_CONFIG, config)
+    )
 
 
 def get_config() -> Dict:
     """Get the current configuration."""
     if _config is None:
         initialize_config()
-    return deepcopy(_config)
+    return default_config.normalize_llm_routing(_config)
 
 
 # Initialize with default config

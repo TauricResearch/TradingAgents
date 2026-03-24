@@ -11,7 +11,7 @@ from langgraph.prebuilt import ToolNode
 from tradingagents.llm_clients import create_llm_client
 
 from tradingagents.agents import *
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.default_config import DEFAULT_CONFIG, normalize_llm_routing
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.agents.utils.agent_states import (
     AgentState,
@@ -144,7 +144,7 @@ class TradingAgentsGraph:
 
     def _build_config(self, config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Merge user config over defaults without mutating the shared defaults."""
-        return self._deep_merge_dicts(DEFAULT_CONFIG, config or {})
+        return normalize_llm_routing(self._deep_merge_dicts(DEFAULT_CONFIG, config or {}))
 
     def _normalize_provider(self, provider: Optional[str]) -> str:
         return (provider or "").lower()

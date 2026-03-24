@@ -1,4 +1,23 @@
+from copy import deepcopy
 import os
+
+
+def normalize_llm_routing(config):
+    """Return config with llm_routing normalized to the expected dict shape."""
+    normalized = deepcopy(config)
+    llm_routing = normalized.get("llm_routing")
+
+    if not isinstance(llm_routing, dict):
+        normalized["llm_routing"] = {"default": {}, "roles": {}}
+        return normalized
+
+    default_route = llm_routing.get("default")
+    role_routes = llm_routing.get("roles")
+    normalized["llm_routing"] = {
+        "default": deepcopy(default_route) if isinstance(default_route, dict) else {},
+        "roles": deepcopy(role_routes) if isinstance(role_routes, dict) else {},
+    }
+    return normalized
 
 DEFAULT_CONFIG = {
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
@@ -12,10 +31,7 @@ DEFAULT_CONFIG = {
     "deep_think_llm": "gpt-5.2",
     "quick_think_llm": "gpt-5-mini",
     "backend_url": "https://api.openai.com/v1",
-    "llm_routing": {
-        "default": {},
-        "roles": {},
-    },
+    "llm_routing": None,
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
