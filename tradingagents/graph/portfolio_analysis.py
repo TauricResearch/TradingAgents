@@ -70,7 +70,7 @@ class PortfolioAnalyzer:
         self,
         tickers: List[str],
         trade_date: str,
-        propagate_fn: Callable,
+        propagate_fn: Callable[[str, str], Tuple[Dict[str, Any], str]],
         debug: bool,
     ) -> Dict[str, Dict[str, str]]:
         """Run the agent pipeline on each ticker, collecting results."""
