@@ -1,8 +1,12 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_states import (
+    make_default_structured_stock_underwriting_state,
+)
 
 
 def create_portfolio_manager(llm, memory):
     def portfolio_manager_node(state) -> dict:
+        structured_stock_defaults = make_default_structured_stock_underwriting_state()
 
         instrument_context = build_instrument_context(state["company_of_interest"])
 
@@ -70,6 +74,26 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
         return {
             "risk_debate_state": new_risk_debate_state,
             "final_trade_decision": response.content,
+            "valuation_data": state.get(
+                "valuation_data",
+                structured_stock_defaults["valuation_data"],
+            ),
+            "segment_data": state.get(
+                "segment_data",
+                structured_stock_defaults["segment_data"],
+            ),
+            "scenario_catalyst_data": state.get(
+                "scenario_catalyst_data",
+                structured_stock_defaults["scenario_catalyst_data"],
+            ),
+            "position_sizing_data": state.get(
+                "position_sizing_data",
+                structured_stock_defaults["position_sizing_data"],
+            ),
+            "chief_analyst_data": state.get(
+                "chief_analyst_data",
+                structured_stock_defaults["chief_analyst_data"],
+            ),
         }
 
     return portfolio_manager_node

@@ -5,6 +5,7 @@ from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
     RiskDebateState,
+    make_default_structured_stock_underwriting_state,
 )
 
 
@@ -51,6 +52,7 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            **make_default_structured_stock_underwriting_state(),
         }
 
     def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:
