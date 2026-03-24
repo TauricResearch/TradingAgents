@@ -72,6 +72,8 @@ class LangGraphEngine:
         self._node_start_times: Dict[str, Dict[str, float]] = {}
         # Track the last prompt per node so we can attach it to result events
         self._node_prompts: Dict[str, Dict[str, str]] = {}
+        # Track the human-readable identifier (ticker / "MARKET" / portfolio_id) per run
+        self._run_identifiers: Dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Run helpers
@@ -100,6 +102,7 @@ class LangGraphEngine:
         }
 
         self._node_start_times[run_id] = {}
+        self._run_identifiers[run_id] = "MARKET"
         final_state: Dict[str, Any] = {}
 
         async for event in scanner.graph.astream_events(initial_state, version="v2"):
@@ -116,6 +119,7 @@ class LangGraphEngine:
 
         self._node_start_times.pop(run_id, None)
         self._node_prompts.pop(run_id, None)
+        self._run_identifiers.pop(run_id, None)
 
         # Fallback: if the root on_chain_end event was never captured (can happen
         # with deeply nested sub-graphs), re-invoke to get the complete final state.
@@ -205,6 +209,7 @@ class LangGraphEngine:
         initial_state = graph_wrapper.propagator.create_initial_state(ticker, date)
 
         self._node_start_times[run_id] = {}
+        self._run_identifiers[run_id] = ticker.upper()
         final_state: Dict[str, Any] = {}
 
         async for event in graph_wrapper.graph.astream_events(
@@ -223,6 +228,7 @@ class LangGraphEngine:
 
         self._node_start_times.pop(run_id, None)
         self._node_prompts.pop(run_id, None)
+        self._run_identifiers.pop(run_id, None)
 
         # Fallback: if the root on_chain_end event was never captured (can happen
         # with deeply nested sub-graphs), re-invoke to get the complete final state.
@@ -351,6 +357,7 @@ class LangGraphEngine:
         }
 
         self._node_start_times[run_id] = {}
+        self._run_identifiers[run_id] = portfolio_id
         final_state: Dict[str, Any] = {}
 
         async for event in portfolio_graph.graph.astream_events(
@@ -366,6 +373,7 @@ class LangGraphEngine:
 
         self._node_start_times.pop(run_id, None)
         self._node_prompts.pop(run_id, None)
+        self._run_identifiers.pop(run_id, None)
 
         # Fallback: if the root on_chain_end event was never captured, re-invoke.
         if not final_state:
@@ -805,6 +813,7 @@ class LangGraphEngine:
 
         starts = self._node_start_times.get(run_id, {})
         prompts = self._node_prompts.setdefault(run_id, {})
+        identifier = self._run_identifiers.get(run_id, "")
 
         # ------ LLM start ------
         if kind == "on_chat_model_start":
@@ -856,6 +865,7 @@ class LangGraphEngine:
                     "parent_node_id": "start",
                     "type": "thought",
                     "agent": node_name.upper(),
+                    "identifier": identifier,
                     "message": f"Prompting {model}…"
                     + (f" | {prompt_snippet}" if prompt_snippet else ""),
                     "prompt": full_prompt,
@@ -868,6 +878,7 @@ class LangGraphEngine:
                     "node_id": node_name,
                     "type": "thought",
                     "agent": node_name.upper(),
+                    "identifier": identifier,
                     "message": f"Prompting LLM… (event parse error)",
                     "prompt": "",
                     "metrics": {},
@@ -891,6 +902,7 @@ class LangGraphEngine:
                     "parent_node_id": node_name,
                     "type": "tool",
                     "agent": node_name.upper(),
+                    "identifier": identifier,
                     "message": f"▶ Tool: {name}"
                     + (f" | {tool_input}" if tool_input else ""),
                     "prompt": full_input,
@@ -919,6 +931,7 @@ class LangGraphEngine:
                     "parent_node_id": node_name,
                     "type": "tool_result",
                     "agent": node_name.upper(),
+                    "identifier": identifier,
                     "message": f"✓ Tool result: {name}"
                     + (f" | {tool_output}" if tool_output else ""),
                     "response": full_output,
@@ -1002,6 +1015,7 @@ class LangGraphEngine:
                     "node_id": node_name,
                     "type": "result",
                     "agent": node_name.upper(),
+                    "identifier": identifier,
                     "message": response_snippet or "Completed.",
                     "prompt": matched_prompt,
                     "response": full_response,
@@ -1020,6 +1034,7 @@ class LangGraphEngine:
                     "node_id": node_name,
                     "type": "result",
                     "agent": node_name.upper(),
+                    "identifier": identifier,
                     "message": "Completed (event parse error).",
                     "prompt": matched_prompt,
                     "response": "",

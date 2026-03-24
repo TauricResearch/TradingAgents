@@ -11,6 +11,8 @@ export interface AgentEvent {
   prompt?: string;
   /** Full response text (available on result & tool_result events). */
   response?: string;
+  /** Ticker symbol (e.g. "AAPL"), "MARKET" for scans, or portfolio id. */
+  identifier?: string;
   node_id?: string;
   parent_node_id?: string;
   metrics?: {

@@ -35,7 +35,7 @@ import {
   Collapse,
   useToast,
 } from '@chakra-ui/react';
-import { LayoutDashboard, Wallet, Settings, Terminal as TerminalIcon, ChevronRight, Eye, Search, BarChart3, Bot, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Wallet, Settings, Terminal as TerminalIcon, ChevronRight, Eye, Search, BarChart3, Bot, ChevronDown, ChevronUp, FlaskConical, Trash2 } from 'lucide-react';
 import { MetricHeader } from './components/MetricHeader';
 import { AgentGraph } from './components/AgentGraph';
 import { PortfolioViewer } from './components/PortfolioViewer';
@@ -45,12 +45,17 @@ import axios from 'axios';
 const API_BASE = 'http://127.0.0.1:8088/api';
 
 // ─── Run type definitions with required parameters ────────────────────
-type RunType = 'scan' | 'pipeline' | 'portfolio' | 'auto';
+type RunType = 'scan' | 'pipeline' | 'portfolio' | 'auto' | 'mock';
+
+/** Mock-specific sub-type. */
+type MockType = 'pipeline' | 'scan' | 'auto';
 
 interface RunParams {
   date: string;
   ticker: string;
   portfolio_id: string;
+  mock_type: MockType;
+  speed: string;
   force: boolean;
 }
 
@@ -59,6 +64,7 @@ const RUN_TYPE_LABELS: Record<RunType, string> = {
   pipeline: 'Pipeline',
   portfolio: 'Portfolio',
   auto: 'Auto',
+  mock: 'Mock',
 };
 
 /** Which params each run type needs. */
@@ -67,6 +73,7 @@ const REQUIRED_PARAMS: Record<RunType, (keyof RunParams)[]> = {
   pipeline: ['ticker', 'date'],
   portfolio: ['date', 'portfolio_id'],
   auto: ['date', 'portfolio_id'],
+  mock: [],
 };
 
 /** Return the colour token for a given event type. */
@@ -266,10 +273,13 @@ const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent)
 );
 
 // ─── Detail drawer showing all events for a given graph node ──────────
-const NodeEventsDetail: React.FC<{ nodeId: string; events: AgentEvent[]; onOpenModal: (evt: AgentEvent) => void }> = ({ nodeId, events, onOpenModal }) => {
+const NodeEventsDetail: React.FC<{ nodeId: string; identifier?: string | null; events: AgentEvent[]; onOpenModal: (evt: AgentEvent) => void }> = ({ nodeId, identifier, events, onOpenModal }) => {
   const nodeEvents = useMemo(
-    () => events.filter((e) => e.node_id === nodeId),
-    [events, nodeId],
+    () => events.filter((e) =>
+      e.node_id === nodeId &&
+      (!identifier || e.identifier === identifier)
+    ),
+    [events, nodeId, identifier],
   );
 
   if (nodeEvents.length === 0) {
@@ -307,6 +317,7 @@ export const Dashboard: React.FC = () => {
   const [drawerMode, setDrawerMode] = useState<'event' | 'node'>('event');
   const [selectedEvent, setSelectedEvent] = useState<AgentEvent | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeIdentifier, setSelectedNodeIdentifier] = useState<string | null>(null);
 
   // Parameter inputs
   const [showParams, setShowParams] = useState(false);
@@ -314,6 +325,8 @@ export const Dashboard: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     ticker: 'AAPL',
     portfolio_id: 'main_portfolio',
+    mock_type: 'pipeline',
+    speed: '3',
     force: false,
   });
 
@@ -333,12 +346,14 @@ export const Dashboard: React.FC = () => {
 
   const isRunning = isTriggering || status === 'streaming' || status === 'connecting';
 
-  const startRun = async (type: RunType) => {
+  const startRun = async (type: RunType, overrideParams?: Partial<RunParams>) => {
     if (isRunning) return;
+
+    const effectiveParams = { ...params, ...overrideParams };
 
     // Validate required params
     const required = REQUIRED_PARAMS[type];
-    const missing = required.filter((k) => { const v = params[k]; return typeof v === 'string' ? !v.trim() : !v; });
+    const missing = required.filter((k) => { const v = effectiveParams[k]; return typeof v === 'string' ? !v.trim() : !v; });
     if (missing.length > 0) {
       toast({
         title: `Missing required fields for ${RUN_TYPE_LABELS[type]}`,
@@ -351,17 +366,30 @@ export const Dashboard: React.FC = () => {
       setShowParams(true);
       return;
     }
-    
+
     setIsTriggering(true);
     setActiveRunType(type);
     try {
       clearEvents();
-      const res = await axios.post(`${API_BASE}/run/${type}`, {
-        portfolio_id: params.portfolio_id,
-        date: params.date,
-        ticker: params.ticker,
-        force: params.force,
-      });
+      // For mock auto runs, parse comma-separated tickers into an array
+      const mockTickers = effectiveParams.mock_type === 'auto'
+        ? effectiveParams.ticker.split(',').map((t) => t.trim().toUpperCase()).filter(Boolean)
+        : undefined;
+      const body = type === 'mock'
+        ? {
+            mock_type: effectiveParams.mock_type,
+            ticker: effectiveParams.ticker.split(',')[0].trim().toUpperCase(),
+            ...(mockTickers && mockTickers.length > 1 ? { tickers: mockTickers } : {}),
+            date: effectiveParams.date,
+            speed: parseFloat(effectiveParams.speed) || 3,
+          }
+        : {
+            portfolio_id: effectiveParams.portfolio_id,
+            date: effectiveParams.date,
+            ticker: effectiveParams.ticker,
+            force: effectiveParams.force,
+          };
+      const res = await axios.post(`${API_BASE}/run/${type}`, body);
       setActiveRunId(res.data.run_id);
     } catch (err) {
       console.error("Failed to start run:", err);
@@ -370,6 +398,16 @@ export const Dashboard: React.FC = () => {
       setIsTriggering(false);
     }
   };
+
+  /** Re-run triggered from a graph node's Re-run button. */
+  const handleNodeRerun = useCallback((identifier: string, _nodeId: string) => {
+    if (identifier === 'MARKET' || identifier === '') {
+      startRun('scan');
+    } else {
+      startRun('pipeline', { ticker: identifier });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning, params]);
 
   const resetPortfolioStage = async () => {
     if (!params.date || !params.portfolio_id) {
@@ -407,9 +445,10 @@ export const Dashboard: React.FC = () => {
   }, [onOpen]);
 
   /** Open the drawer showing all events for a graph node (node click). */
-  const openNodeDetail = useCallback((nodeId: string) => {
+  const openNodeDetail = useCallback((nodeId: string, identifier?: string) => {
     setDrawerMode('node');
     setSelectedNodeId(nodeId);
+    setSelectedNodeIdentifier(identifier || null);
     setSelectedEvent(null);
     onOpen();
   }, [onOpen]);
@@ -417,7 +456,7 @@ export const Dashboard: React.FC = () => {
   // Derive a readable drawer title
   const drawerTitle = drawerMode === 'event'
     ? `Event: ${selectedEvent?.agent ?? ''} — ${selectedEvent?.type ?? ''}`
-    : `Node: ${selectedNodeId ?? ''}`;
+    : `Node: ${selectedNodeId ?? ''}${selectedNodeIdentifier ? ` · ${selectedNodeIdentifier}` : ''}`;
 
   return (
     <Flex h="100vh" bg="slate.950" color="white" overflow="hidden">
@@ -466,7 +505,7 @@ export const Dashboard: React.FC = () => {
           <Flex flex="1" overflow="hidden">
             {/* Left Side: Graph Area */}
             <Box flex="1" position="relative" borderRight="1px solid" borderColor="whiteAlpha.100">
-               <AgentGraph events={events} onNodeClick={openNodeDetail} />
+               <AgentGraph events={events} onNodeClick={openNodeDetail} onNodeRerun={handleNodeRerun} />
                
                {/* Floating Control Panel */}
                <VStack position="absolute" top={4} left={4} spacing={2} align="stretch">
@@ -475,13 +514,13 @@ export const Dashboard: React.FC = () => {
                     {(['scan', 'pipeline', 'portfolio', 'auto'] as RunType[]).map((type) => {
                       const isThisRunning = isRunning && activeRunType === type;
                       const isOtherRunning = isRunning && activeRunType !== type;
-                      const icons: Record<RunType, React.ReactElement> = {
+                      const icons: Record<string, React.ReactElement> = {
                         scan: <Search size={14} />,
                         pipeline: <BarChart3 size={14} />,
                         portfolio: <Wallet size={14} />,
                         auto: <Bot size={14} />,
                       };
-                      const colors: Record<RunType, string> = {
+                      const colors: Record<string, string> = {
                         scan: 'cyan',
                         pipeline: 'blue',
                         portfolio: 'purple',
@@ -504,6 +543,21 @@ export const Dashboard: React.FC = () => {
                       );
                     })}
                     <Divider orientation="vertical" h="20px" />
+                    {/* Mock run button — no LLM calls */}
+                    <Tooltip label="Stream scripted events — no LLM calls" hasArrow placement="bottom">
+                      <Button
+                        size="sm"
+                        leftIcon={<FlaskConical size={14} />}
+                        colorScheme="orange"
+                        variant="outline"
+                        onClick={() => startRun('mock')}
+                        isLoading={isRunning && activeRunType === 'mock'}
+                        loadingText="Mocking…"
+                        isDisabled={isRunning && activeRunType !== 'mock'}
+                      >
+                        Mock
+                      </Button>
+                    </Tooltip>
                     <Tooltip label="Clear PM decision & execution result for this date/portfolio, then re-run Auto to start Phase 3 fresh">
                       <Button
                         size="sm"
@@ -549,7 +603,7 @@ export const Dashboard: React.FC = () => {
                          <Text fontSize="xs" color="whiteAlpha.600" minW="70px">Ticker:</Text>
                          <Input
                            size="xs"
-                           placeholder="AAPL"
+                           placeholder={params.mock_type === 'auto' ? 'AAPL,NVDA,TSLA' : 'AAPL'}
                            bg="whiteAlpha.100"
                            borderColor="whiteAlpha.200"
                            value={params.ticker}
@@ -567,6 +621,42 @@ export const Dashboard: React.FC = () => {
                            onChange={(e) => setParams((p) => ({ ...p, portfolio_id: e.target.value }))}
                          />
                        </HStack>
+                       {/* Mock-specific controls */}
+                       <Box height="1px" bg="whiteAlpha.100" />
+                       <Text fontSize="2xs" color="orange.300" fontWeight="bold">Mock settings</Text>
+                       <HStack>
+                         <Text fontSize="xs" color="whiteAlpha.600" minW="70px">Type:</Text>
+                         <HStack spacing={1}>
+                           {(['pipeline', 'scan', 'auto'] as const).map((t) => (
+                             <Button
+                               key={t}
+                               size="xs"
+                               variant={params.mock_type === t ? 'solid' : 'ghost'}
+                               colorScheme="orange"
+                               onClick={() => setParams((p) => ({ ...p, mock_type: t }))}
+                             >
+                               {t}
+                             </Button>
+                           ))}
+                         </HStack>
+                       </HStack>
+                       <HStack>
+                         <Text fontSize="xs" color="whiteAlpha.600" minW="70px">Speed:</Text>
+                         <HStack spacing={1}>
+                           {[['1×', '1'], ['3×', '3'], ['5×', '5'], ['10×', '10']].map(([label, val]) => (
+                             <Button
+                               key={val}
+                               size="xs"
+                               variant={params.speed === val ? 'solid' : 'ghost'}
+                               colorScheme="orange"
+                               onClick={() => setParams((p) => ({ ...p, speed: val }))}
+                             >
+                               {label}
+                             </Button>
+                           ))}
+                         </HStack>
+                       </HStack>
+                       <Box height="1px" bg="whiteAlpha.100" />
                        <HStack>
                          <Checkbox
                            size="sm"
@@ -578,7 +668,7 @@ export const Dashboard: React.FC = () => {
                          </Checkbox>
                        </HStack>
                        <Text fontSize="2xs" color="whiteAlpha.400">
-                         Required: Scan → date · Pipeline → ticker, date · Portfolio → date, portfolio · Auto → date, portfolio
+                         Required: Scan → date · Pipeline → ticker, date · Portfolio → date, portfolio · Auto → date, portfolio · Mock → no API calls
                        </Text>
                      </VStack>
                    </Box>
@@ -651,7 +741,7 @@ export const Dashboard: React.FC = () => {
               <EventDetail event={selectedEvent} onOpenModal={openModal} />
             )}
             {drawerMode === 'node' && selectedNodeId && (
-              <NodeEventsDetail nodeId={selectedNodeId} events={events} onOpenModal={openModal} />
+              <NodeEventsDetail nodeId={selectedNodeId} identifier={selectedNodeIdentifier} events={events} onOpenModal={openModal} />
             )}
           </DrawerBody>
         </DrawerContent>

@@ -7,6 +7,7 @@ from typing import Dict, Any
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.store import runs
 from agent_os.backend.services.langgraph_engine import LangGraphEngine
+from agent_os.backend.services.mock_engine import MockEngine
 
 logger = logging.getLogger("agent_os.websocket")
 
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/ws", tags=["websocket"])
 _EVENT_POLL_INTERVAL_SECONDS = 0.05
 
 engine = LangGraphEngine()
+_mock_engine = MockEngine()
 
 @router.websocket("/stream/{run_id}")
 async def websocket_endpoint(
@@ -66,7 +68,9 @@ async def websocket_endpoint(
         else:
             # status == "queued" — WebSocket is the executor (background task didn't start yet)
             stream_gen = None
-            if run_type == "scan":
+            if run_type == "mock":
+                stream_gen = _mock_engine.run_mock(run_id, params)
+            elif run_type == "scan":
                 stream_gen = engine.run_scan(run_id, params)
             elif run_type == "pipeline":
                 stream_gen = engine.run_pipeline(run_id, params)
