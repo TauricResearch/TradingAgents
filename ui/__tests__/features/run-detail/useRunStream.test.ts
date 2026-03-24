@@ -174,3 +174,78 @@ test('completed-run hydration populates tokens from getRun().token_usage without
   expect(result.current.tokensByStep['market_analyst']).toEqual({ in: 1200, out: 400 })
   expect(result.current.tokensTotal).toEqual({ in: 1200, out: 400 })
 })
+
+test('AGENT_COMPLETE for chief_analyst parses JSON into chiefAnalystReport', async () => {
+  const { getRun } = jest.requireMock('@/lib/api-client')
+  const { createSSEConnection } = jest.requireMock('@/lib/sse')
+  jest.clearAllMocks()
+
+  getRun.mockResolvedValueOnce({
+    id: 'ca1', ticker: 'AAPL', date: '2024-01-15', status: 'queued',
+    decision: null, created_at: '2024-01-15T00:00:00Z',
+    config: null, reports: {}, error: null, token_usage: null,
+  })
+
+  const reportPayload = JSON.stringify({
+    verdict: 'BUY',
+    catalyst: 'Strong Q4 earnings',
+    execution: 'Enter at market, SL at 180',
+    tail_risk: 'Rate hike risk',
+  })
+
+  createSSEConnection.mockImplementationOnce(
+    (_url: string, handlers: Record<string, (d: unknown) => void>) => {
+      setTimeout(() => {
+        handlers.onAgentStart?.({ step: 'chief_analyst', turn: 0 })
+        handlers.onAgentComplete?.({ step: 'chief_analyst', turn: 0, report: reportPayload })
+        handlers.onRunComplete?.({ decision: 'BUY', run_id: 'ca1' })
+      }, 0)
+      return jest.fn()
+    }
+  )
+
+  const { result } = renderHook(() => useRunStream('ca1'))
+  await act(async () => { await new Promise((r) => setTimeout(r, 10)) })
+
+  expect(result.current.chiefAnalystReport).toEqual({
+    verdict: 'BUY',
+    catalyst: 'Strong Q4 earnings',
+    execution: 'Enter at market, SL at 180',
+    tail_risk: 'Rate hike risk',
+  })
+  // Raw JSON must also land in reports['chief_analyst']
+  expect(result.current.reports['chief_analyst']).toEqual([reportPayload])
+})
+
+test('AGENT_COMPLETE for chief_analyst with invalid JSON sets chiefAnalystReport to null', async () => {
+  const { getRun } = jest.requireMock('@/lib/api-client')
+  const { createSSEConnection } = jest.requireMock('@/lib/sse')
+  jest.clearAllMocks()
+
+  getRun.mockResolvedValueOnce({
+    id: 'ca2', ticker: 'AAPL', date: '2024-01-15', status: 'queued',
+    decision: null, created_at: '2024-01-15T00:00:00Z',
+    config: null, reports: {}, error: null, token_usage: null,
+  })
+
+  createSSEConnection.mockImplementationOnce(
+    (_url: string, handlers: Record<string, (d: unknown) => void>) => {
+      setTimeout(() => {
+        handlers.onAgentStart?.({ step: 'chief_analyst', turn: 0 })
+        handlers.onAgentComplete?.({ step: 'chief_analyst', turn: 0, report: 'not-valid-json' })
+        handlers.onRunComplete?.({ decision: 'HOLD', run_id: 'ca2' })
+      }, 0)
+      return jest.fn()
+    }
+  )
+
+  const { result } = renderHook(() => useRunStream('ca2'))
+  await act(async () => { await new Promise((r) => setTimeout(r, 10)) })
+
+  expect(result.current.chiefAnalystReport).toBeNull()
+})
+
+test('initial chiefAnalystReport is null', () => {
+  const { result } = renderHook(() => useRunStream('abc'))
+  expect(result.current.chiefAnalystReport).toBeNull()
+})

@@ -4,6 +4,7 @@ import { createSSEConnection } from '@/lib/sse'
 import { getRun, getRunStreamUrl } from '@/lib/api-client'
 import { AGENT_STEPS } from '@/lib/types/run'
 import type { AgentStep } from '@/lib/types/run'
+import type { ChiefAnalystReport } from '@/lib/types/agents'
 import type { RunStreamState, TokenCount } from '../types'
 
 const zeroTokens = (): TokenCount => ({ in: 0, out: 0 })
@@ -11,11 +12,12 @@ const zeroTokens = (): TokenCount => ({ in: 0, out: 0 })
 const initialState: RunStreamState = {
   status: 'connecting',
   steps:        Object.fromEntries(AGENT_STEPS.map((s) => [s, 'pending'])) as RunStreamState['steps'],
-  reports:      Object.fromEntries(AGENT_STEPS.map((s) => [s, []])) as RunStreamState['reports'],
+  reports:      Object.fromEntries(AGENT_STEPS.map((s) => [s, []])) as unknown as RunStreamState['reports'],
   tokensByStep: Object.fromEntries(AGENT_STEPS.map((s) => [s, zeroTokens()])) as RunStreamState['tokensByStep'],
   tokensTotal:  zeroTokens(),
   verdict: null,
   error: null,
+  chiefAnalystReport: null,
 }
 
 type Action =
@@ -38,6 +40,13 @@ function reducer(state: RunStreamState, action: Action): RunStreamState {
       const dIn  = action.tokens_in  ?? 0
       const dOut = action.tokens_out ?? 0
       const prev = state.tokensByStep[action.step] ?? zeroTokens()
+
+      let chiefAnalystReport: ChiefAnalystReport | null = state.chiefAnalystReport
+      if (action.step === 'chief_analyst') {
+        try { chiefAnalystReport = JSON.parse(action.report) as ChiefAnalystReport }
+        catch { chiefAnalystReport = null }
+      }
+
       return {
         ...state,
         steps:   { ...state.steps,   [action.step]: 'done' },
@@ -53,6 +62,7 @@ function reducer(state: RunStreamState, action: Action): RunStreamState {
           in:  state.tokensTotal.in  + dIn,
           out: state.tokensTotal.out + dOut,
         },
+        chiefAnalystReport,
       }
     }
 
