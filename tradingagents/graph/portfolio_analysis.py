@@ -63,7 +63,7 @@ class PortfolioAnalyzer:
 
         try:
             self._log_portfolio(trade_date, tickers, individual_results, portfolio_summary)
-        except OSError as e:
+        except Exception as e:
             if debug:
                 print(f"Warning: failed to save portfolio log: {e}")
 
