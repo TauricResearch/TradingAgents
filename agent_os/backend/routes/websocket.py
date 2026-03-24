@@ -63,7 +63,7 @@ async def websocket_endpoint(
 
             if run_info.get("status") == "failed":
                 await websocket.send_json(
-                    {"type": "system", "message": f"Run failed: {run_info.get('error', 'unknown error')}"}
+                    {"type": "system", "message": f"Error: Run failed: {run_info.get('error', 'unknown error')}"}
                 )
         else:
             # status == "queued" — WebSocket is the executor (background task didn't start yet)
@@ -102,10 +102,15 @@ async def websocket_endpoint(
             else:
                 msg = f"Run type '{run_type}' streaming not yet implemented."
                 logger.warning(msg)
+                run_info["status"] = "failed"
+                run_info["error"] = msg
                 await websocket.send_json({"type": "system", "message": f"Error: {msg}"})
 
-        await websocket.send_json({"type": "system", "message": "Run completed."})
-        logger.info("Run completed run=%s type=%s", run_id, run_type)
+        if run_info.get("status") == "completed":
+            await websocket.send_json({"type": "system", "message": "Run completed."})
+            logger.info("Run completed run=%s type=%s", run_id, run_type)
+        else:
+            logger.info("Run ended with status=%s run=%s type=%s", run_info.get("status"), run_id, run_type)
         
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected run=%s", run_id)

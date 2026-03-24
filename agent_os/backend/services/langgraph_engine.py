@@ -346,6 +346,7 @@ class LangGraphEngine:
             "analysis_date": date,        # PortfolioManagerState uses analysis_date
             "prices": prices,
             "scan_summary": scan_summary,
+            "ticker_analyses": ticker_analyses,
             "messages": [],
             "portfolio_data": "",
             "risk_metrics": "",

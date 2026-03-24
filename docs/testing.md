@@ -1,7 +1,7 @@
 # TradingAgents — Test Suite Reference
 
-> **Last verified:** 2026-03-19  
-> **Test counts (current):** 405 unit · 68 integration · 1 e2e
+> **Last verified:** 2026-03-24  
+> **Test counts (current):** 793 passed · 14 skipped (unit+portfolio+cli default run) · 101 integration · 1 e2e
 
 ---
 
@@ -16,7 +16,8 @@
 7. [Execution Flow Diagrams](#execution-flow-diagrams)
 8. [How to Run Tests](#how-to-run-tests)
 9. [Mock Patterns](#mock-patterns)
-10. [Adding New Tests — Checklist](#adding-new-tests--checklist)
+10. [What is MagicMock?](#what-is-magicmock)
+11. [Adding New Tests — Checklist](#adding-new-tests--checklist)
 
 ---
 
@@ -32,12 +33,18 @@ tests/
 ├── conftest.py              ← root fixtures (shared across all tiers)
 ├── unit/                    ← offline, <5 s total, default run
 │   ├── conftest.py          ← mock factories (yfinance, AV, LLM)
+│   ├── agents/              ← agent-specific unit tests
 │   └── test_*.py
 ├── integration/             ← live APIs, excluded from default run
 │   ├── conftest.py          ← VCR config + live key fixtures
-│   └── test_*.py
+│   └── test_*_live.py
 ├── e2e/                     ← real LLM pipeline, manual only
 │   ├── conftest.py
+│   └── test_*.py
+├── portfolio/               ← portfolio module unit tests (no DB)
+│   ├── conftest.py
+│   └── test_*.py
+├── cli/                     ← CLI module unit tests
 │   └── test_*.py
 └── cassettes/               ← recorded HTTP responses (VCR)
 ```
@@ -48,7 +55,7 @@ tests/
 
 | Tier | Directory | Default run? | Network? | Speed | Purpose |
 |------|-----------|:---:|:---:|-------|---------|
-| **Unit** | `tests/unit/` | ✅ yes | ❌ blocked by `pytest-socket` | < 5 s | Validate logic, parsing, routing with mocks |
+| **Unit** | `tests/unit/`, `tests/portfolio/`, `tests/cli/` | ✅ yes | ❌ blocked by `pytest-socket` | < 5 s | Validate logic, parsing, routing with mocks |
 | **Integration** | `tests/integration/` | ❌ ignored | ✅ real APIs | seconds–minutes | Validate vendor API contracts, live data shapes |
 | **E2E** | `tests/e2e/` | ❌ ignored | ✅ real LLM + APIs | minutes | Validate the full multi-agent pipeline |
 
@@ -370,18 +377,48 @@ def pytest_collection_modifyitems(config, items):
 | `test_e2e_api_integration.py` | 19 | `route_to_vendor` + full yfinance+AV pipeline | `yf.Ticker`, `requests.get` |
 | `test_env_override.py` | 15 | `TRADINGAGENTS_*` env vars override `DEFAULT_CONFIG` | `importlib.reload`, `patch.dict` |
 | `test_finnhub_integration.py` | ~100 | Finnhub data layer — all endpoints, exception types | `requests.get` (mock response) |
+| `test_finnhub_scanner_utils.py` | 10 | `_safe_fmt` and other Finnhub scanner utility functions | None (pure logic) |
+| `test_incident_fixes.py` | 15 | `_load_or_fetch_ohlcv` cache, `YFinanceError` propagation | `yf.Ticker`, `tmp_path` |
 | `test_industry_deep_dive.py` | 12 | `_extract_top_sectors()` + `run_tool_loop` nudge | `MagicMock` LLM, `ToolMessage` |
 | `test_json_utils.py` | 15 | `extract_json` — fences, think-tags, malformed input | None (pure logic) |
+| `test_langgraph_engine_extraction.py` | 14 | `_map_langgraph_event` — event type mapping, metadata extraction | `MagicMock` events |
+| `test_langgraph_engine_run_modes.py` | 28 | `run_scan/pipeline/portfolio/auto` — phase coordination, skip logic | `MagicMock` store, `AsyncMock` graph |
 | `test_macro_bridge.py` | ~12 | Macro JSON parsing, filtering, report rendering | `tmp_path` |
 | `test_macro_regime.py` | ~32 | VIX signals, credit spread, breadth, regime classifier | `pd.Series`, `patch` (yfinance) |
 | `test_notebook_sync.py` | 5 | `sync_to_notebooklm` subprocess flow | `subprocess.run` |
 | `test_peer_comparison.py` | ~18 | Sector peers, relative performance, comparison report | `yf.Ticker`, `yf.Sector` |
+| `test_portfolio_tools.py` | 23 | `portfolio_tools.py` — in-memory data, no DB | `MagicMock` repo |
 | `test_scanner_fallback.py` | 2 | AV scanner raises on total failure | `_fetch_global_quote` side_effect |
 | `test_scanner_graph.py` | 4 | `ScannerGraph` + `ScannerGraphSetup` compile correctly | `ScannerGraph._create_llm` |
 | `test_scanner_mocked.py` | ~57 | yfinance + AV scanner functions, route_to_vendor routing | `yf.Screener`, `requests.get` |
+| `test_security_notebook_sync.py` | 3 | Shell injection guard in `sync_to_notebooklm` | None |
+| `test_stockstats_utils.py` | ~20 | `get_stockstats_indicator` + `stockstats` formatting | `yf.download` mock |
 | `test_ttm_analysis.py` | ~21 | TTM metric computation, report formatting | `yf.Ticker` (quarterly data) |
 | `test_vendor_failfast.py` | 11 | Fail-fast routing (ADR 011), error chaining | `requests.get`, `MagicMock` |
 | `test_yfinance_integration.py` | ~48 | yfinance data layer — OHLCV, fundamentals, news | `yf.Ticker`, `yf.Search` |
+| `agents/test_analyst_agents.py` | ~15 | Analyst agent node wiring + prompt formatting | `MagicMock` LLM |
+
+### Portfolio tests (`tests/portfolio/`)
+
+These tests cover the portfolio management module with in-memory data only — no database connection is required.
+
+| File | # Tests | What it covers | Key mocks used |
+|------|--------:|----------------|---------------|
+| `test_candidate_prioritizer.py` | 10 | Candidate scoring + ranking algorithm | None (pure logic) |
+| `test_config.py` | 8 | Portfolio config defaults + env var overrides | `patch.dict` |
+| `test_models.py` | 23 | `Portfolio`, `Holding`, `Trade`, `PortfolioSnapshot` dataclasses | None (pure logic) |
+| `test_report_store.py` | 23 | `ReportStore` save/load cycle, JSON serialization | `tmp_path` |
+| `test_repository.py` | 16 | `PortfolioRepository` — CRUD operations | `MagicMock` Supabase client |
+| `test_risk_evaluator.py` | 28 | Risk constraint checks — position limits, sector limits, cash floor | None (pure logic) |
+| `test_risk_metrics.py` | 48 | Volatility, Sharpe, max drawdown, beta metrics | `pd.Series` |
+| `test_trade_executor.py` | 10 | `TradeExecutor` — sell/buy ordering, constraint pre-flight, snapshot | `MagicMock` repo |
+
+### CLI tests (`tests/cli/`)
+
+| File | # Tests | What it covers | Key mocks used |
+|------|--------:|----------------|---------------|
+| `test_main.py` | ~8 | `extract_content_string`, CLI argument parsing | `patch` (LLM), `tmp_path` |
+| `test_stats_handler.py` | ~6 | `StatsCallbackHandler` — token counting, threading safety | `MagicMock` LLM callbacks |
 
 ### Integration tests (`tests/integration/`)
 
@@ -389,8 +426,10 @@ def pytest_collection_modifyitems(config, items):
 |------|--------:|----------------|---------|
 | `test_alpha_vantage_live.py` | 3 | Live AV `_make_api_request` — key errors, timeout, success | Network |
 | `test_finnhub_live.py` | ~41 | All Finnhub free-tier + paid-tier endpoints (live HTTP) | `FINNHUB_API_KEY` |
+| `test_finviz_live.py` | 27 | All three Finviz smart-money screener tools — live HTTP | Network; auto-skips if `finvizfinance` not installed |
 | `test_nlm_live.py` | 1 | NotebookLM source CRUD via `nlm` CLI | `NOTEBOOKLM_ID` + `nlm` binary |
 | `test_scanner_live.py` | ~23 | yfinance scanner tools + AV routing (live yfinance + AV) | Network; `ALPHA_VANTAGE_API_KEY` for AV tests |
+| `test_stockstats_live.py` | ~6 | `get_stockstats_indicator` against live yfinance data | Network |
 
 ### E2E tests (`tests/e2e/`)
 
@@ -444,7 +483,10 @@ flowchart TD
     J -- no --> K["pytest.mark.skipif\n→ test_nlm_live.py SKIPPED"]
     J -- yes --> L[NotebookLM live test runs]
     B --> M[Scanner live tests run\nagainst real yfinance API]
-    E & I & L & M --> N([Results reported])
+    B --> N{finvizfinance installed?}
+    N -- no --> O["pytestmark skipif\n→ test_finviz_live.py SKIPPED"]
+    N -- yes --> P[Finviz screener tests run\nno API key needed]
+    E & I & K & L & M & O & P --> Q([Results reported])
 ```
 
 ---
@@ -517,67 +559,176 @@ flowchart TD
 
 ## How to Run Tests
 
-### Default (unit only, CI-safe)
+### Quick reference
 
-```bash
-pytest
-# or equivalently:
-pytest tests/unit/
-```
-
-Expected: **405 collected → ~395 passed, ~10 skipped**, < 5 s
+| What to run | Command | Expected result |
+|---|---|---|
+| **All unit tests (CI-safe)** | `pytest` | 793 passed, 14 skipped, < 5 s |
+| **Unit tests only** | `pytest tests/unit/` | ~600 passed |
+| **Portfolio tests only** | `pytest tests/portfolio/` | ~166 passed |
+| **CLI tests only** | `pytest tests/cli/` | ~14 passed |
+| **All integration tests** | `pytest tests/integration/ -v` | varies (network required) |
+| **Finviz integration** | `pytest tests/integration/test_finviz_live.py -v` | 27 tests, network required |
+| **Finnhub integration** | `FINNHUB_API_KEY=<key> pytest tests/integration/test_finnhub_live.py -v` | requires key |
+| **E2E pipeline** | `pytest tests/e2e/ -v` | requires LLM key + network |
 
 ---
 
-### Integration tests (requires network + optional API keys)
+### Install dependencies first
 
 ```bash
-# All integration tests
+pip install -e .
+pip install pytest pytest-socket
+```
+
+---
+
+### Default (unit + portfolio + cli, CI-safe)
+
+The default `pytest` invocation is controlled by `addopts` in `pyproject.toml`:
+
+```toml
+addopts = "--ignore=tests/integration --ignore=tests/e2e --disable-socket --allow-unix-socket -x -q"
+```
+
+Run it with:
+
+```bash
+# Simplest — uses addopts automatically
+pytest
+
+# Equivalent explicit form
+pytest tests/ --ignore=tests/integration --ignore=tests/e2e \
+    --disable-socket --allow-unix-socket -x -q
+```
+
+Expected output:
+
+```
+793 passed, 14 skipped in 4.9s
+```
+
+**What `-x` does:** stops at the first failing test.  
+**What `-q` does:** minimal output (dots + summary).  
+**What `--disable-socket` does:** blocks all real network calls — any accidental HTTP call fails with `SocketBlockedError`.
+
+To see all failures instead of stopping at the first:
+
+```bash
+pytest tests/ --ignore=tests/integration --ignore=tests/e2e \
+    --disable-socket --allow-unix-socket -q
+# (omit -x)
+```
+
+---
+
+### Run a single test file
+
+```bash
+# Unit file
+pytest tests/unit/test_langgraph_engine_run_modes.py -v \
+    --disable-socket --allow-unix-socket
+
+# Portfolio file
+pytest tests/portfolio/test_trade_executor.py -v \
+    --disable-socket --allow-unix-socket
+
+# CLI file
+pytest tests/cli/test_stats_handler.py -v \
+    --disable-socket --allow-unix-socket
+```
+
+---
+
+### Run a single test class or test function
+
+```bash
+# Single class
+pytest tests/unit/test_langgraph_engine_run_modes.py::TestRunAutoTickerSource -v \
+    --disable-socket --allow-unix-socket
+
+# Single test function
+pytest tests/unit/test_langgraph_engine_run_modes.py::TestRunAutoTickerSource::test_run_auto_gets_tickers_from_scan_report -v \
+    --disable-socket --allow-unix-socket
+```
+
+---
+
+### Integration tests (requires network)
+
+Integration tests make **real HTTP calls** to external APIs.  They are
+excluded from the default run but can be run explicitly at any time.
+
+```bash
+# All integration tests (everything in tests/integration/)
 pytest tests/integration/ -v
 
-# Only Alpha Vantage live tests
+# Finviz smart-money screener tests (no API key needed — free public screener)
+pytest tests/integration/test_finviz_live.py -v
+
+# Alpha Vantage live tests ('demo' key works for basic calls)
 pytest tests/integration/test_alpha_vantage_live.py -v
 
-# Only Finnhub live tests (requires key)
+# Finnhub live tests (free-tier endpoints only)
+FINNHUB_API_KEY=your_key pytest tests/integration/test_finnhub_live.py -v \
+    -m "integration and not paid_tier"
+
+# Finnhub — all tests including paid-tier (requires premium subscription)
 FINNHUB_API_KEY=your_key pytest tests/integration/test_finnhub_live.py -v
 
-# Only free-tier Finnhub tests
-FINNHUB_API_KEY=your_key pytest tests/integration/test_finnhub_live.py -v -m "integration and not paid_tier"
-
-# Scanner live tests
+# Live scanner tests (hits real yfinance + Alpha Vantage APIs)
 pytest tests/integration/test_scanner_live.py -v
+
+# Live stockstats tests
+pytest tests/integration/test_stockstats_live.py -v
+
+# NotebookLM tests (requires NOTEBOOKLM_ID env var and nlm CLI binary)
+NOTEBOOKLM_ID=your_id pytest tests/integration/test_nlm_live.py -v
 ```
+
+> **Tip:** When running integration tests from a network-blocked environment
+> (e.g., CI without outbound access), tests that require a network connection
+> will auto-skip rather than fail — they detect the blocked socket and call
+> `pytest.skip()` gracefully.
 
 ---
 
 ### E2E tests (requires LLM API key + network, manual only)
 
 ```bash
+# Requires a real LLM API key (e.g., OPENAI_API_KEY) and network access.
+# Takes several minutes to complete.
 pytest tests/e2e/ -v
 ```
 
 ---
 
-### Targeting by marker
+### Run only tests with a specific marker
 
 ```bash
-# Run only integration-marked tests (wherever they are)
-pytest tests/ --override-ini="addopts=" -m integration
+# All integration-marked tests across the entire test suite
+pytest tests/ --override-ini="addopts=" -m integration -v
 
-# Run excluding slow tests
-pytest tests/ --override-ini="addopts=" -m "not slow"
+# All tests except slow ones
+pytest tests/ --override-ini="addopts=" -m "not slow" \
+    --disable-socket --allow-unix-socket
 
-# Run unit tests without -x (see all failures, not just first)
-pytest tests/unit/ --override-ini="addopts=--disable-socket --allow-unix-socket -q"
+# Only paid_tier Finnhub tests (requires premium key)
+FINNHUB_API_KEY=your_key pytest tests/integration/ -m paid_tier -v
 ```
+
+> **`--override-ini="addopts="`** clears the default `addopts` from
+> `pyproject.toml` so you can pass your own flags instead.
 
 ---
 
 ### Re-record VCR cassettes
 
 ```bash
+# Record only new requests (existing cassettes kept)
 pytest tests/integration/ --record-mode=new_episodes
-# or to record from scratch:
+
+# Re-record everything from scratch
 pytest tests/integration/ --record-mode=all
 ```
 
@@ -722,6 +873,187 @@ automatically to every test in the file without explicit declaration.
 
 ---
 
+## What is MagicMock?
+
+`MagicMock` is the workhorse of Python's `unittest.mock` library — the
+standard tool for replacing real objects with controllable stand-ins during
+tests.  Understanding it is essential for reading and writing tests in this
+project.
+
+---
+
+### The core idea: a pretend object
+
+When you write:
+
+```python
+from unittest.mock import MagicMock
+
+repo = MagicMock()
+```
+
+`repo` is now an object that:
+- **accepts any attribute access** (`repo.some_attr` → another `MagicMock`)
+- **accepts any method call** (`repo.get_portfolio()` → another `MagicMock`)
+- **records everything** so you can ask later: "was this called? with what?"
+
+No database, no HTTP, no file system — just a pretend object you fully control.
+
+---
+
+### Setting return values
+
+By default every method returns a new `MagicMock`.  You can override this:
+
+```python
+repo = MagicMock()
+repo.get_portfolio.return_value = {"portfolio_id": "p1", "cash": 50_000.0}
+
+result = repo.get_portfolio("p1")   # returns the dict you set, not a MagicMock
+print(result["cash"])               # 50000.0
+```
+
+This is critical.  If you forget `return_value=...`, the method returns a
+`MagicMock`, which is **truthy**.  Code that does `if repo.load_data(...):`
+will take the "data exists" branch even when it shouldn't.
+
+---
+
+### The truthy problem (and why it caused the mock trade bug)
+
+This project has guard clauses like:
+
+```python
+if not force and store.load_execution_result(date, portfolio_id):
+    # skip — already done
+    return
+```
+
+If `store = MagicMock()` and `load_execution_result` is never given a
+`return_value`, the call returns a new `MagicMock`, which is truthy.
+The entire Phase 3 (portfolio execution / trades) gets **skipped** even
+though no trades ever ran.
+
+**The fix:** always set `return_value=None` for methods that are supposed to
+return "nothing found":
+
+```python
+mock_store = MagicMock()
+mock_store.load_scan.return_value = scan_data       # some data
+mock_store.load_execution_result.return_value = None  # ← explicitly "not found"
+mock_store.load_pm_decision.return_value = None       # ← explicitly "not found"
+mock_store.load_analysis.return_value = None          # ← explicitly "not found"
+```
+
+This is the pattern used in `TestRunAutoTickerSource._make_mock_store()`.
+
+---
+
+### Checking calls (assertions)
+
+```python
+repo = MagicMock()
+repo.add_holding("p1", "AAPL", 10, 150.0)
+
+# Was it called?
+repo.add_holding.assert_called_once()
+
+# Was it called with these exact arguments?
+repo.add_holding.assert_called_once_with("p1", "AAPL", 10, 150.0)
+
+# How many times?
+assert repo.add_holding.call_count == 1
+
+# What args did the last call use?
+args, kwargs = repo.add_holding.call_args
+assert args[1] == "AAPL"
+```
+
+---
+
+### Raising exceptions from mocks
+
+```python
+repo.add_holding.side_effect = InsufficientCashError("Not enough cash")
+
+# Now calling add_holding() will raise the error instead of returning a value
+```
+
+`side_effect` can also be a callable or a list of values/exceptions to cycle
+through on successive calls.
+
+---
+
+### AsyncMock — for `async def` functions
+
+LangGraph uses `async for` and `await` extensively.  For those, use
+`AsyncMock`:
+
+```python
+from unittest.mock import AsyncMock, MagicMock
+
+mock_graph = MagicMock()
+mock_graph.astream_events = AsyncMock(return_value=iter([]))
+# or as an async generator:
+async def fake_stream(*args, **kwargs):
+    yield {"event": "on_chain_end", "data": {"output": {}}}
+mock_graph.astream_events = fake_stream
+```
+
+---
+
+### patch() — replacing real objects temporarily
+
+`MagicMock` creates the stand-in; `patch()` *swaps* it in for the duration
+of a `with` block (or test function):
+
+```python
+from unittest.mock import patch, MagicMock
+
+def test_run_portfolio_skips_when_already_done():
+    mock_store = MagicMock()
+    mock_store.load_execution_result.return_value = {"summary": "done"}
+
+    with patch("agent_os.backend.services.langgraph_engine.ReportStore",
+               return_value=mock_store):
+        # All code inside here that imports ReportStore gets mock_store instead
+        ...
+```
+
+The `target` string must be the **import path where the name is used**, not
+where it is defined.  If `langgraph_engine.py` does
+`from tradingagents.portfolio.report_store import ReportStore`, you patch
+`agent_os.backend.services.langgraph_engine.ReportStore`.
+
+---
+
+### PropertyMock — for `@property` attributes
+
+```python
+from unittest.mock import MagicMock, PropertyMock
+
+mock_ticker = MagicMock()
+type(mock_ticker).info = PropertyMock(return_value={"longName": "Apple Inc."})
+# mock_ticker.info now returns the dict (not a MagicMock)
+```
+
+---
+
+### Quick reference table
+
+| Tool | Use case |
+|------|----------|
+| `MagicMock()` | Stand-in for any object (repo, client, graph) |
+| `mock.method.return_value = x` | Make a method return `x` |
+| `mock.method.side_effect = exc` | Make a method raise `exc` |
+| `mock.method.assert_called_once_with(...)` | Assert exact call args |
+| `AsyncMock()` | Stand-in for `async def` functions / methods |
+| `patch("module.Name")` | Swap a real class/function with a mock temporarily |
+| `patch.dict(os.environ, {...})` | Inject env vars for the duration of a test |
+| `PropertyMock` | Mock `@property` descriptors |
+
+---
+
 ## Adding New Tests — Checklist
 
 When adding a test to this project, choose the right tier and follow the
@@ -734,9 +1066,18 @@ corresponding checklist.
 - [ ] yfinance: use `patch("...yf.Ticker", ...)` — never call yfinance directly.
 - [ ] AV / Finnhub: use `patch("...requests.get", return_value=_mock_response(...))`.
 - [ ] Use `monkeypatch.setenv` or `patch.dict(os.environ, ...)` for env var tests.
+- [ ] When mocking a store/repo, always pin `load_*` methods to `None` to avoid
+      truthy MagicMock accidentally triggering "already done" skip branches.
 - [ ] Do NOT use `@pytest.mark.integration` — that signals the test is being tracked
       for future migration, not that it's already mocked.
-- [ ] Run `pytest tests/unit/ -x` to confirm the test passes offline.
+- [ ] Run `pytest tests/unit/ -x --disable-socket --allow-unix-socket` to confirm the test passes offline.
+
+### Portfolio module test (no DB needed)
+
+- [ ] File goes in `tests/portfolio/test_<component>.py`.
+- [ ] Use `MagicMock()` for the Supabase client / `PortfolioRepository` if testing
+      higher-level logic.  Do NOT use a real DB connection.
+- [ ] Run `pytest tests/portfolio/ -x --disable-socket --allow-unix-socket`.
 
 ### Integration test (live API needed)
 
@@ -744,6 +1085,8 @@ corresponding checklist.
 - [ ] Class or function decorated with `@pytest.mark.integration`.
 - [ ] Use the `av_api_key` fixture (or a similar guard) to auto-skip when the API
       is unavailable.
+- [ ] For APIs with no key (e.g., Finviz): use `pytest.mark.skipif(not lib_available, ...)`
+      so the file is skipped if the library is not installed.
 - [ ] For Finnhub paid-tier endpoints: add both `@pytest.mark.paid_tier` and
       `@pytest.mark.skip` so they are documented but never run accidentally.
 - [ ] Do NOT add the file path to `addopts`'s `--ignore` list — it is already

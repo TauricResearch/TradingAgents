@@ -28,6 +28,7 @@ class PortfolioManagerState(MessagesState):
     analysis_date: str
     prices: dict  # ticker → price
     scan_summary: dict  # macro scan output from ScannerGraph
+    ticker_analyses: dict  # per-ticker analysis results keyed by ticker symbol
 
     # Processing fields (string-serialised JSON — written by individual nodes)
     portfolio_data: Annotated[str, _last_value]
