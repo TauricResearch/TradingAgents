@@ -168,7 +168,11 @@ class AgentState(MessagesState):
     news_report: Annotated[
         str, "Report from the News Researcher of current world affairs"
     ]
+    macro_report: Annotated[str, "Report from the Macro Analyst"]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
+    factor_rules_report: Annotated[
+        str, "Summary from the optional factor rule analyst"
+    ]
     valuation_data: Annotated[
         ValuationData, "Structured valuation underwriting output"
     ]

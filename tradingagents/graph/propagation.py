@@ -52,6 +52,8 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "factor_rules_report": "",
+            "macro_report": "",
             **make_default_structured_stock_underwriting_state(),
         }
 

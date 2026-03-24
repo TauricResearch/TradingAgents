@@ -1,3 +1,8 @@
+from inspect import signature
+
+from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableLambda
+
 from tradingagents.graph.setup import GraphSetup
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
@@ -180,3 +185,66 @@ def test_trading_graph_creates_macro_tool_node(monkeypatch):
         "get_yield_curve",
         "get_fed_calendar",
     ]
+
+
+def test_macro_analyst_keeps_macro_output_out_of_news_report():
+    from tradingagents.agents.analysts.macro_analyst import create_macro_analyst
+
+    class FakeLLM:
+        def bind_tools(self, _tools):
+            return RunnableLambda(
+                lambda _inputs: AIMessage(content="macro summary", tool_calls=[])
+            )
+
+    node = create_macro_analyst(FakeLLM())
+    result = node(
+        {
+            "trade_date": "2026-03-24",
+            "company_of_interest": "AAPL",
+            "messages": [("human", "Analyze AAPL")],
+            "news_report": "existing news",
+        }
+    )
+
+    assert result["macro_report"] == "macro summary"
+    assert "news_report" not in result
+
+
+def test_shared_analyst_context_and_state_contract_include_macro():
+    from tradingagents.agents.utils.agent_states import AgentState
+    from tradingagents.agents.utils.agent_utils import build_analyst_report_context
+    from tradingagents.graph.propagation import Propagator
+
+    context = build_analyst_report_context(
+        {
+            "market_report": "market",
+            "sentiment_report": "sentiment",
+            "news_report": "news",
+            "macro_report": "macro",
+            "fundamentals_report": "fundamentals",
+        }
+    )
+
+    assert "Macro Economic Report: macro" in context
+    assert "macro_report" in AgentState.__annotations__
+    assert Propagator().create_initial_state("AAPL", "2026-03-24")["macro_report"] == ""
+
+
+def test_macro_is_exposed_in_default_graph_and_cli_selection_paths():
+    from cli.main import MessageBuffer
+    from cli.models import AnalystType
+    from cli.utils import ANALYST_ORDER as CLI_ANALYST_ORDER
+
+    selected_analysts_default = signature(TradingAgentsGraph.__init__).parameters[
+        "selected_analysts"
+    ].default
+
+    assert AnalystType.MACRO.value == "macro"
+    assert ("Macro Analyst", AnalystType.MACRO) in CLI_ANALYST_ORDER
+    assert "macro" in selected_analysts_default
+
+    message_buffer = MessageBuffer()
+    message_buffer.init_for_analysis(["macro"])
+
+    assert message_buffer.agent_status["Macro Analyst"] == "pending"
+    assert "macro_report" in message_buffer.report_sections

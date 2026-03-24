@@ -1,3 +1,6 @@
+from collections.abc import Mapping
+from typing import Any
+
 from langchain_core.messages import HumanMessage, RemoveMessage
 
 # Import tools from separate utility files
@@ -27,6 +30,7 @@ from tradingagents.agents.utils.macro_data_tools import (
 
 __all__ = [
     "build_instrument_context",
+    "build_analyst_report_context",
     "create_msg_delete",
     "get_balance_sheet",
     "get_cashflow",
@@ -49,6 +53,21 @@ def build_instrument_context(ticker: str) -> str:
         f"The instrument to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
+    )
+
+
+def build_analyst_report_context(state: Mapping[str, Any]) -> str:
+    """Build a stable analyst context block for downstream prompts and memory."""
+    sections = [
+        ("Market Research Report", state.get("market_report", "")),
+        ("Social Media Sentiment Report", state.get("sentiment_report", "")),
+        ("Latest World Affairs Report", state.get("news_report", "")),
+        ("Macro Economic Report", state.get("macro_report", "")),
+        ("Company Fundamentals Report", state.get("fundamentals_report", "")),
+        ("Factor Rules Report", state.get("factor_rules_report", "")),
+    ]
+    return "\n".join(
+        f"{label}: {content}" for label, content in sections if content
     )
 
 

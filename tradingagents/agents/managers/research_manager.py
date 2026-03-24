@@ -1,18 +1,20 @@
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_utils import (
+    build_analyst_report_context,
+    build_instrument_context,
+)
 
 
 def create_research_manager(llm, memory):
     def research_manager_node(state) -> dict:
         instrument_context = build_instrument_context(state["company_of_interest"])
+        analyst_report_context = build_analyst_report_context(state)
+        factor_rules_report = state.get("factor_rules_report", "")
+        factor_rules_context = f"Factor rules summary: {factor_rules_report}"
         history = state["investment_debate_state"].get("history", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
 
         investment_debate_state = state["investment_debate_state"]
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{analyst_report_context}\n{factor_rules_context}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -34,6 +36,10 @@ Here are your past reflections on mistakes:
 \"{past_memory_str}\"
 
 {instrument_context}
+
+Source analyst reports:
+{analyst_report_context}
+{factor_rules_context}
 
 Here is the debate:
 Debate History:

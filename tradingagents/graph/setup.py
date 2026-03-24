@@ -44,6 +44,9 @@ class GraphSetup:
         self.fundamentals_analyst_llm = self._get_role_llm(
             "fundamentals", self.quick_thinking_llm
         )
+        self.factor_rules_analyst_llm = self._get_role_llm(
+            "factor_rules", self.quick_thinking_llm
+        )
         self.macro_analyst_llm = self._get_role_llm("macro", self.quick_thinking_llm)
         self.bull_researcher_llm = self._get_role_llm(
             "bull_researcher", self.quick_thinking_llm
@@ -90,7 +93,7 @@ class GraphSetup:
         return default_handler
 
     def setup_graph(
-        self, selected_analysts=["market", "social", "news", "fundamentals"]
+        self, selected_analysts=["market", "social", "news", "fundamentals", "macro"]
     ):
         """Set up and compile the agent workflow graph.
 
@@ -100,6 +103,7 @@ class GraphSetup:
                 - "social": Social media analyst
                 - "news": News analyst
                 - "fundamentals": Fundamentals analyst
+                - "factor_rules": Factor rule analyst
                 - "macro": Macro analyst
         """
         if len(selected_analysts) == 0:
@@ -138,6 +142,12 @@ class GraphSetup:
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
+        if "factor_rules" in selected_analysts:
+            analyst_nodes["factor_rules"] = create_factor_rule_analyst(
+                self.factor_rules_analyst_llm
+            )
+            delete_nodes["factor_rules"] = create_msg_delete()
+
         if "macro" in selected_analysts:
             analyst_nodes["macro"] = create_macro_analyst(self.macro_analyst_llm)
             delete_nodes["macro"] = create_msg_delete()
@@ -174,7 +184,8 @@ class GraphSetup:
             workflow.add_node(
                 f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
             )
-            workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
+            if analyst_type in tool_nodes:
+                workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
         # Add other nodes
         workflow.add_node("Bull Researcher", bull_researcher_node)
@@ -201,9 +212,12 @@ class GraphSetup:
             workflow.add_conditional_edges(
                 current_analyst,
                 self._get_continue_handler(analyst_type),
-                [current_tools, current_clear],
+                [current_tools, current_clear]
+                if analyst_type in tool_nodes
+                else [current_clear],
             )
-            workflow.add_edge(current_tools, current_analyst)
+            if analyst_type in tool_nodes:
+                workflow.add_edge(current_tools, current_analyst)
 
             # Connect to next analyst or to Bull Researcher if this is the last analyst
             if i < len(selected_analysts) - 1:

@@ -8,14 +8,6 @@ from tradingagents.agents.utils.agent_utils import (
 )
 
 
-def _merge_with_news_report(existing_report: str, macro_report: str) -> str:
-    if not macro_report:
-        return existing_report
-    if not existing_report:
-        return macro_report
-    return f"{existing_report.rstrip()}\n\n## Macro Economic Overlay\n\n{macro_report}"
-
-
 def create_macro_analyst(llm):
     def macro_analyst_node(state):
         current_date = state["trade_date"]
@@ -71,7 +63,6 @@ def create_macro_analyst(llm):
         return {
             "messages": [result],
             "macro_report": report,
-            "news_report": _merge_with_news_report(state.get("news_report", ""), report),
         }
 
     return macro_analyst_node
