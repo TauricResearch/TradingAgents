@@ -32,6 +32,8 @@ class AnthropicClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return configured ChatAnthropic instance."""
         llm_kwargs = {"model": self.model}
+        if self.base_url:
+            llm_kwargs["anthropic_api_url"] = self.base_url
 
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:

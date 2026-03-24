@@ -3,6 +3,8 @@ import json
 
 import tradingagents.dataflows.config as dataflow_config
 import tradingagents.default_config as default_config
+from tradingagents.llm_clients.anthropic_client import AnthropicClient
+from tradingagents.llm_clients.google_client import GoogleClient
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
 
@@ -254,6 +256,48 @@ def test_provider_normalization_avoids_duplicate_legacy_client_creation(monkeypa
     )
 
     assert created_clients.count(("openai", "gpt-5-mini")) == 1
+
+
+def test_anthropic_client_passes_base_url_to_langchain(monkeypatch):
+    captured_kwargs = {}
+
+    class FakeChatAnthropic:
+        def __init__(self, **kwargs):
+            captured_kwargs.update(kwargs)
+
+    monkeypatch.setattr(
+        "tradingagents.llm_clients.anthropic_client.NormalizedChatAnthropic",
+        FakeChatAnthropic,
+    )
+
+    client = AnthropicClient(
+        model="claude-sonnet-4-6",
+        base_url="https://anthropic.example/v1",
+    )
+    client.get_llm()
+
+    assert captured_kwargs["anthropic_api_url"] == "https://anthropic.example/v1"
+
+
+def test_google_client_passes_base_url_to_langchain(monkeypatch):
+    captured_kwargs = {}
+
+    class FakeChatGoogleGenerativeAI:
+        def __init__(self, **kwargs):
+            captured_kwargs.update(kwargs)
+
+    monkeypatch.setattr(
+        "tradingagents.llm_clients.google_client.NormalizedChatGoogleGenerativeAI",
+        FakeChatGoogleGenerativeAI,
+    )
+
+    client = GoogleClient(
+        model="gemini-2.5-pro",
+        base_url="https://google.example/v1beta",
+    )
+    client.get_llm()
+
+    assert captured_kwargs["base_url"] == "https://google.example/v1beta"
 
 
 def test_dataflow_config_returns_isolated_nested_routing(monkeypatch):
