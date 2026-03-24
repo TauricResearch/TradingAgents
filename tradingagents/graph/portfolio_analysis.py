@@ -88,11 +88,12 @@ class PortfolioAnalyzer:
                     "final_trade_decision": final_state["final_trade_decision"],
                 }
             except Exception as e:
+                import traceback
                 if debug:
                     print(f"Error analyzing {ticker}: {e}")
                 individual_results[ticker] = {
                     "signal": "ERROR",
-                    "final_trade_decision": f"Analysis failed: {e}",
+                    "final_trade_decision": f"Analysis failed: {e}\n{traceback.format_exc()}",
                 }
 
         return individual_results
