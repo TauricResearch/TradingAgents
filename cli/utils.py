@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List
+from typing import List, NoReturn
 
 import questionary
 from rich.console import Console
@@ -11,9 +11,10 @@ console = Console()
 
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.json"
 
-def _exit_with_config_error(message: str) -> None:
+def _exit_with_config_error(message: str) -> NoReturn:
+    """Exit with error message. This function never returns."""
     console.print(f"\n[red]{message}[/red]")
-    exit(1)
+    raise SystemExit(1)
 
 
 def _load_config() -> dict:
@@ -26,7 +27,6 @@ def _load_config() -> dict:
         _exit_with_config_error(f"Invalid JSON in config file: {exc}")
     except OSError as exc:
         _exit_with_config_error(f"Unable to read config file: {exc}")
-    return {}
 
 
 def _get_config_section(config: dict, key: str, expected_type: type):
