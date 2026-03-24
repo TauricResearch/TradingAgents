@@ -28,14 +28,46 @@ _PASSTHROUGH_KWARGS = (
 )
 
 CONFIG_PATH = Path(__file__).resolve().parents[2] / "config.json"
-with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
-    CONFIG = json.load(config_file)
+
+
+def _load_config() -> dict:
+    try:
+        with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
+            config = json.load(config_file)
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Config file not found: {CONFIG_PATH}") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Invalid JSON in config file: {CONFIG_PATH}") from exc
+    except OSError as exc:
+        raise RuntimeError(f"Unable to read config file: {CONFIG_PATH}") from exc
+
+    if not isinstance(config, dict):
+        raise RuntimeError(f"Invalid config format in file: {CONFIG_PATH}")
+    return config
+
+
+def _get_base_urls(config: dict) -> dict[str, str]:
+    base_urls = config.get("BASE_URLS")
+    if not isinstance(base_urls, list):
+        raise RuntimeError(f"Invalid or missing 'BASE_URLS' in config file: {CONFIG_PATH}")
+
+    mapped_urls: dict[str, str] = {}
+    for item in base_urls:
+        if (
+            isinstance(item, list)
+            and len(item) == 2
+            and isinstance(item[0], str)
+            and isinstance(item[1], str)
+        ):
+            mapped_urls[item[0].lower()] = item[1]
+    return mapped_urls
+
+
+CONFIG = _load_config()
 
 load_dotenv()
 
-_BASE_URLS = {
-    display.lower(): url for display, url in CONFIG.get("BASE_URLS", [])
-}
+_BASE_URLS = _get_base_urls(CONFIG)
 _PROVIDER_BASE_URLS = {
     "xai": _BASE_URLS.get("xai", "https://api.x.ai/v1"),
     "openrouter": _BASE_URLS.get("openrouter", "https://openrouter.ai/api/v1"),
@@ -68,7 +100,7 @@ class OpenAIClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatOpenAI instance."""
-        llm_kwargs = {"model": self.model}
+        llm_kwargs: dict[str, Any] = {"model": self.model}
 
         # Provider-specific base URL and auth
         if self.provider in _PROVIDER_BASE_URLS:

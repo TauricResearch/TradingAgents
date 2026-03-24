@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict
+from typing import List
 
 import questionary
 from rich.console import Console
@@ -10,17 +10,50 @@ from cli.models import AnalystType
 console = Console()
 
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.json"
-with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
-    CONFIG = json.load(config_file)
 
-BASE_URLS = [(display, url) for display, url in CONFIG["BASE_URLS"]]
+def _exit_with_config_error(message: str) -> None:
+    console.print(f"\n[red]{message}[/red]")
+    exit(1)
+
+
+def _load_config() -> dict:
+    try:
+        with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
+            return json.load(config_file)
+    except FileNotFoundError:
+        _exit_with_config_error(f"Config file not found: {CONFIG_PATH}")
+    except json.JSONDecodeError as exc:
+        _exit_with_config_error(f"Invalid JSON in config file: {exc}")
+    except OSError as exc:
+        _exit_with_config_error(f"Unable to read config file: {exc}")
+    return {}
+
+
+def _get_config_section(config: dict, key: str, expected_type: type):
+    value = config.get(key)
+    if not isinstance(value, expected_type):
+        _exit_with_config_error(
+            f"Invalid or missing '{key}' in config file: {CONFIG_PATH}"
+        )
+    return value
+
+
+CONFIG = _load_config()
+BASE_URLS = [
+    (display, url)
+    for display, url in _get_config_section(CONFIG, "BASE_URLS", list)
+]
 DEEP_AGENT_OPTIONS = {
-    provider: [(display, value) for display, value in options]
-    for provider, options in CONFIG["DEEP_AGENT_OPTIONS"].items()
+    provider: [(display, model) for display, model in options]
+    for provider, options in _get_config_section(
+        CONFIG, "DEEP_AGENT_OPTIONS", dict
+    ).items()
 }
 SHALLOW_AGENT_OPTIONS = {
-    provider: [(display, value) for display, value in options]
-    for provider, options in CONFIG["SHALLOW_AGENT_OPTIONS"].items()
+    provider: [(display, model) for display, model in options]
+    for provider, options in _get_config_section(
+        CONFIG, "SHALLOW_AGENT_OPTIONS", dict
+    ).items()
 }
 
 TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"

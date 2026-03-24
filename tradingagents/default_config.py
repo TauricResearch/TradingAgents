@@ -3,11 +3,37 @@ import os
 from pathlib import Path
 
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "config.json"
-with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
-    CONFIG = json.load(config_file)
 
-DEFAULT_LLM_SETTINGS = CONFIG.get("DEFAULT_LLM_SETTINGS", {})
-BASE_URLS = {display.lower(): url for display, url in CONFIG.get("BASE_URLS", [])}
+
+def _load_config() -> dict:
+    try:
+        with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
+            config = json.load(config_file)
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Config file not found: {CONFIG_PATH}") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Invalid JSON in config file: {CONFIG_PATH}") from exc
+    except OSError as exc:
+        raise RuntimeError(f"Unable to read config file: {CONFIG_PATH}") from exc
+
+    if not isinstance(config, dict):
+        raise RuntimeError(f"Invalid config format in file: {CONFIG_PATH}")
+    return config
+
+
+def _get_section(config: dict, key: str, expected_type: type):
+    section = config.get(key)
+    if not isinstance(section, expected_type):
+        raise RuntimeError(f"Invalid or missing '{key}' in config file: {CONFIG_PATH}")
+    return section
+
+
+CONFIG = _load_config()
+DEFAULT_LLM_SETTINGS = _get_section(CONFIG, "DEFAULT_LLM_SETTINGS", dict)
+BASE_URLS = {
+    display.lower(): url
+    for display, url in _get_section(CONFIG, "BASE_URLS", list)
+}
 DEFAULT_PROVIDER = DEFAULT_LLM_SETTINGS.get("llm_provider", "openai").lower()
 DEFAULT_BACKEND_URL = BASE_URLS.get(
     DEFAULT_PROVIDER, BASE_URLS.get("openai", "https://api.openai.com/v1")
