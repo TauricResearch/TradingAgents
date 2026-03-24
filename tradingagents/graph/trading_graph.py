@@ -179,12 +179,20 @@ class TradingAgentsGraph:
 
     def _create_role_llms(self, selected_analysts: List[str]) -> Dict[str, Any]:
         role_llms = {}
+        llm_cache = {}
         for role in self._get_required_roles(selected_analysts):
             thinker_depth = "deep" if role in self.DEEP_THINKING_ROLES else "quick"
             llm_config = self._resolve_llm_config(role, thinker_depth)
             if self._uses_legacy_llm(llm_config, thinker_depth):
                 continue
-            role_llms[role] = self._create_llm_from_config(llm_config)
+            cache_key = (
+                llm_config["provider"],
+                llm_config["model"],
+                llm_config.get("base_url"),
+            )
+            if cache_key not in llm_cache:
+                llm_cache[cache_key] = self._create_llm_from_config(llm_config)
+            role_llms[role] = llm_cache[cache_key]
         return role_llms
 
     def _get_required_roles(self, selected_analysts: List[str]) -> set[str]:
@@ -218,7 +226,9 @@ class TradingAgentsGraph:
     ) -> Dict[str, Any]:
         routing = self.config.get("llm_routing") or {}
         role_routes = routing.get("roles") or {}
-        route = role_routes.get(role) or routing.get("default") or {}
+        default_route = routing.get("default") or {}
+        role_route = role_routes.get(role) or {}
+        route = self._deep_merge_dicts(default_route, role_route)
 
         model_key = "deep_think_llm" if thinker_depth == "deep" else "quick_think_llm"
         provider = self._normalize_provider(
