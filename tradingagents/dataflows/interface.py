@@ -23,6 +23,7 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .adanos_social import get_social_sentiment as get_adanos_social_sentiment
 
 # Configuration and routing logic
 from .config import get_config
@@ -57,12 +58,19 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_transactions",
         ]
+    },
+    "social_data": {
+        "description": "Structured social and public sentiment data",
+        "tools": [
+            "get_social_sentiment",
+        ],
     }
 }
 
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "adanos",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -106,6 +114,10 @@ VENDOR_METHODS = {
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+    },
+    # social_data
+    "get_social_sentiment": {
+        "adanos": get_adanos_social_sentiment,
     },
 }
 

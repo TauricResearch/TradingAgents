@@ -27,6 +27,7 @@ DEFAULT_CONFIG = {
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "social_data": "default",            # Options: default, adanos
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
