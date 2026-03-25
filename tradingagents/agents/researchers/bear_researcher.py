@@ -2,7 +2,10 @@ from langchain_core.messages import AIMessage
 import time
 import json
 
-from tradingagents.agents.utils.agent_utils import build_analyst_report_context
+from tradingagents.agents.utils.agent_utils import (
+    build_analyst_report_context,
+    build_structured_stock_priority_context,
+)
 
 
 def create_bear_researcher(llm, memory):
@@ -15,7 +18,11 @@ def create_bear_researcher(llm, memory):
         analyst_report_context = build_analyst_report_context(state)
         factor_rules_report = state.get("factor_rules_report", "")
         factor_rules_context = f"Factor rules summary: {factor_rules_report}"
-        curr_situation = f"{analyst_report_context}\n{factor_rules_context}"
+        structured_stock_context = build_structured_stock_priority_context(state)
+
+        curr_situation = (
+            f"{analyst_report_context}\n{factor_rules_context}\n\n{structured_stock_context}"
+        )
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -36,6 +43,7 @@ Resources available:
 
 {analyst_report_context}
 {factor_rules_context}
+Structured stock underwriting outputs to prioritize: {structured_stock_context}
 Conversation history of the debate: {history}
 Last bull argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}

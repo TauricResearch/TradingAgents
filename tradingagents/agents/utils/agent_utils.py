@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+import json
 from typing import Any
 
 from langchain_core.messages import HumanMessage, RemoveMessage
@@ -36,6 +37,11 @@ from tradingagents.agents.utils.segment_tools import (
     get_segment_income_statement,
     get_segment_news,
 )
+from tradingagents.agents.utils.sizing_tools import (
+    get_sizing_fundamentals,
+    get_sizing_indicator,
+    get_sizing_price_history,
+)
 from tradingagents.agents.utils.valuation_tools import (
     get_valuation_inputs,
 )
@@ -44,6 +50,8 @@ from tradingagents.agents.utils.valuation_tools import (
 __all__ = [
     "build_instrument_context",
     "build_analyst_report_context",
+    "build_structured_stock_context",
+    "build_structured_stock_priority_context",
     "create_msg_delete",
     "get_balance_sheet",
     "get_cashflow",
@@ -61,6 +69,9 @@ __all__ = [
     "get_segment_fundamentals",
     "get_segment_income_statement",
     "get_segment_news",
+    "get_sizing_fundamentals",
+    "get_sizing_indicator",
+    "get_sizing_price_history",
     "get_stock_data",
     "get_valuation_inputs",
     "get_yield_curve",
@@ -88,6 +99,47 @@ def build_analyst_report_context(state: Mapping[str, Any]) -> str:
     ]
     return "\n".join(
         f"{label}: {content}" for label, content in sections if content
+    )
+
+
+def build_structured_stock_context(state: Mapping[str, Any]) -> str:
+    """Render structured underwriting outputs into prompt-friendly text."""
+    sections = []
+
+    segment_data = state.get("segment_data", {})
+    if segment_data:
+        sections.append(
+            "Structured segment analysis:\n"
+            + json.dumps(segment_data, indent=2, sort_keys=True)
+        )
+
+    scenario_catalyst_data = state.get("scenario_catalyst_data", {})
+    if scenario_catalyst_data:
+        sections.append(
+            "Structured scenario and catalyst analysis:\n"
+            + json.dumps(scenario_catalyst_data, indent=2, sort_keys=True)
+        )
+
+    position_sizing_data = state.get("position_sizing_data", {})
+    if position_sizing_data:
+        sections.append(
+            "Structured position sizing analysis:\n"
+            + json.dumps(position_sizing_data, indent=2, sort_keys=True)
+        )
+
+    return "\n\n".join(section for section in sections if section)
+
+
+def build_structured_stock_priority_context(state: Mapping[str, Any]) -> str:
+    structured_context = build_structured_stock_context(state)
+    if not structured_context:
+        return ""
+    return (
+        "Prioritize the structured stock underwriting outputs below as primary evidence. "
+        "Anchor your reasoning first on numeric fields such as revenue_share_pct, "
+        "probability_pct, target_weight_pct, initial_weight_pct, and max_loss_pct "
+        "before using freeform analyst reports for narrative color.\n\n"
+        + structured_context
     )
 
 

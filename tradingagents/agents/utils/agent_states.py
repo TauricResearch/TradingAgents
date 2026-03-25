@@ -82,10 +82,13 @@ class ScenarioCatalystData(TypedDict):
 
 
 class PositionSizingData(TypedDict):
+    ticker: str
+    analysis_date: str
     conviction: str
     target_weight_pct: Optional[float]
     initial_weight_pct: Optional[float]
     max_loss_pct: Optional[float]
+    sizing_rationale: str
 
 
 class ChiefAnalystData(TypedDict):
@@ -134,10 +137,13 @@ def make_default_scenario_catalyst_data() -> ScenarioCatalystData:
 
 def make_default_position_sizing_data() -> PositionSizingData:
     return {
+        "ticker": "",
+        "analysis_date": "",
         "conviction": "",
         "target_weight_pct": None,
         "initial_weight_pct": None,
         "max_loss_pct": None,
+        "sizing_rationale": "",
     }
 
 
@@ -181,6 +187,10 @@ class AgentState(MessagesState):
     scenario_catalyst_report: Annotated[
         str,
         "Report from the Scenario and Catalyst Analyst",
+    ]
+    position_sizing_report: Annotated[
+        str,
+        "Report from the Position Sizing Analyst",
     ]
     valuation_data: Annotated[
         ValuationData, "Structured valuation underwriting output"

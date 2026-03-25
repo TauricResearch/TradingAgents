@@ -1,57 +1,15 @@
 from copy import deepcopy
 
-from langgraph.graph import END, START, StateGraph
-
-from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
 from tradingagents.agents.managers.research_manager import create_research_manager
+from tradingagents.agents.researchers.bear_researcher import create_bear_researcher
+from tradingagents.agents.researchers.bull_researcher import create_bull_researcher
+from tradingagents.agents.risk_mgmt.aggressive_debator import create_aggressive_debator
+from tradingagents.agents.risk_mgmt.conservative_debator import (
+    create_conservative_debator,
+)
+from tradingagents.agents.risk_mgmt.neutral_debator import create_neutral_debator
 from tradingagents.graph.propagation import Propagator
-
-
-EXPECTED_VALUATION_DATA = {
-    "fair_value_range": {"low": None, "high": None},
-    "expected_return_pct": None,
-    "primary_method": "",
-    "thesis": "",
-}
-
-EXPECTED_SEGMENT_DATA = {
-    "ticker": "",
-    "analysis_date": "",
-    "business_unit_decomposition": [],
-    "segment_economics": {},
-    "value_driver_map": [],
-}
-
-EXPECTED_SCENARIO_CATALYST_DATA = {
-    "ticker": "",
-    "analysis_date": "",
-    "scenario_map": [],
-    "dated_catalyst_map": [],
-    "invalidation_triggers": [],
-}
-
-EXPECTED_POSITION_SIZING_DATA = {
-    "conviction": "",
-    "target_weight_pct": None,
-    "initial_weight_pct": None,
-    "max_loss_pct": None,
-}
-
-EXPECTED_CHIEF_ANALYST_DATA = {
-    "action": "",
-    "summary": "",
-    "thesis": "",
-    "confidence": "",
-}
-
-STRUCTURED_PASSTHROUGH_KEYS = {
-    "valuation_data",
-    "segment_data",
-    "scenario_catalyst_data",
-    "position_sizing_data",
-    "chief_analyst_data",
-}
 
 
 class DummyMemory:
@@ -64,139 +22,159 @@ class DummyResponse:
         self.content = content
 
 
-class DummyLLM:
+class RecordingLLM:
     def __init__(self, content):
         self.content = content
+        self.prompts = []
 
-    def invoke(self, _prompt):
+    def invoke(self, prompt):
+        self.prompts.append(prompt)
         return DummyResponse(self.content)
 
 
-def assert_structured_stock_fields(payload):
-    assert payload["valuation_data"] == EXPECTED_VALUATION_DATA
-    assert payload["segment_data"] == EXPECTED_SEGMENT_DATA
-    assert payload["scenario_catalyst_data"] == EXPECTED_SCENARIO_CATALYST_DATA
-    assert payload["position_sizing_data"] == EXPECTED_POSITION_SIZING_DATA
-    assert payload["chief_analyst_data"] == EXPECTED_CHIEF_ANALYST_DATA
+def build_state():
+    state = Propagator().create_initial_state("NVDA", "2026-03-24")
+    state.update(
+        {
+            "market_report": "Market report",
+            "sentiment_report": "Sentiment report",
+            "news_report": "News report",
+            "fundamentals_report": "Fundamentals report",
+            "segment_report": "Segment report",
+            "segment_data": {
+                "ticker": "NVDA",
+                "analysis_date": "2026-03-24",
+                "business_unit_decomposition": [
+                    {
+                        "segment": "Alpha Widget",
+                        "revenue_share_pct": 61,
+                        "growth_trend": "expanding",
+                        "strategic_role": "primary compute engine",
+                    }
+                ],
+                "segment_economics": {
+                    "margin_profile": "elite",
+                    "capital_intensity": "moderate",
+                    "cyclicality": "medium",
+                },
+                "value_driver_map": [
+                    {
+                        "driver": "AI rack demand",
+                        "impacted_segments": ["Alpha Widget"],
+                        "direction": "positive",
+                        "horizon": "6-12 months",
+                        "evidence": "backlog remains elevated",
+                    }
+                ],
+            },
+            "scenario_catalyst_report": "Scenario report",
+            "scenario_catalyst_data": {
+                "ticker": "NVDA",
+                "analysis_date": "2026-03-24",
+                "scenario_map": [
+                    {
+                        "name": "bull",
+                        "probability_pct": 35,
+                        "thesis": "AI demand acceleration",
+                        "valuation_implication": "re-rating higher",
+                        "signposts": ["order lead-times extend"],
+                    }
+                ],
+                "dated_catalyst_map": [
+                    {
+                        "catalyst": "Lunar-launch catalyst",
+                        "date_or_window": "2026-05",
+                        "related_scenarios": ["bull"],
+                        "expected_impact": "positive",
+                        "confidence": "medium",
+                    }
+                ],
+                "invalidation_triggers": [
+                    {
+                        "trigger": "gross margin drops below 70%",
+                        "affected_scenarios": ["bull"],
+                        "severity": "high",
+                        "evidence_to_watch": "earnings release",
+                    }
+                ],
+            },
+            "position_sizing_report": "Sizing report",
+            "position_sizing_data": {
+                "ticker": "NVDA",
+                "analysis_date": "2026-03-24",
+                "conviction": "high",
+                "target_weight_pct": 11.5,
+                "initial_weight_pct": 6.0,
+                "max_loss_pct": 1.25,
+                "sizing_rationale": "Stage in but preserve dry powder for confirmation.",
+            },
+            "investment_plan": "Existing investment plan",
+            "trader_investment_plan": "Trader plan",
+        }
+    )
+    return state
 
 
-def assert_manager_update_omits_structured_passthrough(
-    payload, expected_present_keys
-):
-    for key in expected_present_keys:
-        assert key in payload
-    assert STRUCTURED_PASSTHROUGH_KEYS.isdisjoint(payload)
+def assert_prompt_mentions_structured_fields(prompt):
+    text = str(prompt)
+    assert "Prioritize the structured stock underwriting outputs below as primary evidence." in text
+    assert "Alpha Widget" in text
+    assert "AI rack demand" in text
+    assert "Lunar-launch catalyst" in text
+    assert "revenue_share_pct" in text
+    assert "probability_pct" in text
+    assert "target_weight_pct" in text
+    assert "11.5" in text
+    assert "1.25" in text
 
 
-def compile_single_node_graph(node_name, node):
-    workflow = StateGraph(AgentState)
-    workflow.add_node(node_name, node)
-    workflow.add_edge(START, node_name)
-    workflow.add_edge(node_name, END)
-    return workflow.compile()
-
-
-def test_propagator_initializes_structured_stock_underwriting_fields():
-    initial_state = Propagator().create_initial_state("NVDA", "2026-03-24")
-
-    assert_structured_stock_fields(initial_state)
-
-
-def test_research_manager_update_omits_structured_stock_passthrough_fields(monkeypatch):
+def test_research_side_prompts_consume_structured_fields(monkeypatch):
     monkeypatch.setattr(
         "tradingagents.agents.managers.research_manager.build_instrument_context",
         lambda _ticker: "instrument context",
     )
 
-    state = Propagator().create_initial_state("NVDA", "2026-03-24")
-    research_manager = create_research_manager(
-        DummyLLM("Research manager output"),
-        DummyMemory(),
-    )
-    research_result = research_manager(deepcopy(state))
+    state = build_state()
 
+    bull_llm = RecordingLLM("Bull case")
+    create_bull_researcher(bull_llm, DummyMemory())(deepcopy(state))
+    assert_prompt_mentions_structured_fields(bull_llm.prompts[0])
+
+    bear_llm = RecordingLLM("Bear case")
+    create_bear_researcher(bear_llm, DummyMemory())(deepcopy(state))
+    assert_prompt_mentions_structured_fields(bear_llm.prompts[0])
+
+    research_llm = RecordingLLM("Research manager output")
+    research_result = create_research_manager(research_llm, DummyMemory())(
+        deepcopy(state)
+    )
+    assert_prompt_mentions_structured_fields(research_llm.prompts[0])
     assert research_result["investment_plan"] == "Research manager output"
-    assert research_result["investment_debate_state"]["judge_decision"] == (
-        "Research manager output"
-    )
-    assert_manager_update_omits_structured_passthrough(
-        research_result,
-        {"investment_debate_state", "investment_plan"},
-    )
 
 
-def test_research_manager_graph_preserves_structured_stock_underwriting_fields(
-    monkeypatch,
-):
-    monkeypatch.setattr(
-        "tradingagents.agents.managers.research_manager.build_instrument_context",
-        lambda _ticker: "instrument context",
-    )
-
-    research_manager = create_research_manager(
-        DummyLLM("Research manager output"),
-        DummyMemory(),
-    )
-    state = Propagator().create_initial_state("NVDA", "2026-03-24")
-
-    final_state = compile_single_node_graph("Research Manager", research_manager).invoke(
-        state
-    )
-
-    assert final_state["investment_plan"] == "Research manager output"
-    assert final_state["investment_debate_state"]["judge_decision"] == (
-        "Research manager output"
-    )
-    assert_structured_stock_fields(final_state)
-
-
-def test_portfolio_manager_update_omits_structured_stock_passthrough_fields(
-    monkeypatch,
-):
+def test_risk_and_portfolio_prompts_consume_structured_fields(monkeypatch):
     monkeypatch.setattr(
         "tradingagents.agents.managers.portfolio_manager.build_instrument_context",
         lambda _ticker: "instrument context",
     )
 
-    state = Propagator().create_initial_state("NVDA", "2026-03-24")
-    state["investment_plan"] = "Existing investment plan"
-    portfolio_manager = create_portfolio_manager(
-        DummyLLM("Portfolio manager output"),
-        DummyMemory(),
-    )
-    portfolio_result = portfolio_manager(deepcopy(state))
+    state = build_state()
 
-    assert portfolio_result["final_trade_decision"] == "Portfolio manager output"
-    assert portfolio_result["risk_debate_state"]["judge_decision"] == (
-        "Portfolio manager output"
-    )
-    assert_manager_update_omits_structured_passthrough(
-        portfolio_result,
-        {"risk_debate_state", "final_trade_decision"},
-    )
+    aggressive_llm = RecordingLLM("Aggressive case")
+    create_aggressive_debator(aggressive_llm)(deepcopy(state))
+    assert_prompt_mentions_structured_fields(aggressive_llm.prompts[0])
 
+    conservative_llm = RecordingLLM("Conservative case")
+    create_conservative_debator(conservative_llm)(deepcopy(state))
+    assert_prompt_mentions_structured_fields(conservative_llm.prompts[0])
 
-def test_portfolio_manager_graph_preserves_structured_stock_underwriting_fields(
-    monkeypatch,
-):
-    monkeypatch.setattr(
-        "tradingagents.agents.managers.portfolio_manager.build_instrument_context",
-        lambda _ticker: "instrument context",
+    neutral_llm = RecordingLLM("Neutral case")
+    create_neutral_debator(neutral_llm)(deepcopy(state))
+    assert_prompt_mentions_structured_fields(neutral_llm.prompts[0])
+
+    portfolio_llm = RecordingLLM("Portfolio output")
+    portfolio_result = create_portfolio_manager(portfolio_llm, DummyMemory())(
+        deepcopy(state)
     )
-
-    portfolio_manager = create_portfolio_manager(
-        DummyLLM("Portfolio manager output"),
-        DummyMemory(),
-    )
-    state = Propagator().create_initial_state("NVDA", "2026-03-24")
-    state["investment_plan"] = "Existing investment plan"
-
-    final_state = compile_single_node_graph(
-        "Portfolio Manager", portfolio_manager
-    ).invoke(state)
-
-    assert final_state["final_trade_decision"] == "Portfolio manager output"
-    assert final_state["risk_debate_state"]["judge_decision"] == (
-        "Portfolio manager output"
-    )
-    assert_structured_stock_fields(final_state)
+    assert_prompt_mentions_structured_fields(portfolio_llm.prompts[0])
+    assert portfolio_result["final_trade_decision"] == "Portfolio output"

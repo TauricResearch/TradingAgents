@@ -56,6 +56,7 @@ class Propagator:
             "macro_report": "",
             "segment_report": "",
             "scenario_catalyst_report": "",
+            "position_sizing_report": "",
             **make_default_structured_stock_underwriting_state(),
         }
 

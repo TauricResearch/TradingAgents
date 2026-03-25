@@ -39,6 +39,9 @@ from tradingagents.agents.utils.agent_utils import (
     get_segment_fundamentals,
     get_segment_income_statement,
     get_segment_news,
+    get_sizing_fundamentals,
+    get_sizing_indicator,
+    get_sizing_price_history,
     get_valuation_inputs,
     get_yield_curve,
 )
@@ -72,6 +75,7 @@ class TradingAgentsGraph:
         "valuation",
         "segment",
         "scenario",
+        "position_sizing",
         "macro",
         "bull_researcher",
         "bear_researcher",
@@ -336,6 +340,14 @@ class TradingAgentsGraph:
                     get_catalyst_calendar,
                 ]
             ),
+            "position_sizing": ToolNode(
+                [
+                    # Position sizing analysis tools
+                    get_sizing_fundamentals,
+                    get_sizing_indicator,
+                    get_sizing_price_history,
+                ]
+            ),
             "macro": ToolNode(
                 [
                     # Macroeconomic analysis tools
@@ -396,6 +408,8 @@ class TradingAgentsGraph:
             "macro_report": final_state.get("macro_report", ""),
             "scenario_catalyst_report": final_state.get("scenario_catalyst_report", ""),
             "scenario_catalyst_data": final_state.get("scenario_catalyst_data", {}),
+            "position_sizing_report": final_state.get("position_sizing_report", ""),
+            "position_sizing_data": final_state.get("position_sizing_data", {}),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],

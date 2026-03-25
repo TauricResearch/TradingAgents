@@ -59,6 +59,9 @@ class GraphSetup:
         )
         self.segment_analyst_llm = self._get_role_llm("segment", self.quick_thinking_llm)
         self.scenario_analyst_llm = self._get_role_llm("scenario", self.quick_thinking_llm)
+        self.position_sizing_analyst_llm = self._get_role_llm(
+            "position_sizing", self.quick_thinking_llm
+        )
         self.macro_analyst_llm = self._get_role_llm("macro", self.quick_thinking_llm)
         self.bull_researcher_llm = self._get_role_llm(
             "bull_researcher", self.quick_thinking_llm
@@ -119,6 +122,7 @@ class GraphSetup:
                 - "valuation": Valuation analyst
                 - "segment": Segment analyst
                 - "scenario": Scenario and catalyst analyst
+                - "position_sizing": Position sizing analyst
                 - "macro": Macro analyst
         """
         if len(selected_analysts) == 0:
@@ -182,6 +186,13 @@ class GraphSetup:
             )
             delete_nodes["scenario"] = create_msg_delete()
             tool_nodes["scenario"] = self.tool_nodes["scenario"]
+
+        if "position_sizing" in selected_analysts:
+            analyst_nodes["position_sizing"] = create_position_sizing_analyst(
+                self.position_sizing_analyst_llm
+            )
+            delete_nodes["position_sizing"] = create_msg_delete()
+            tool_nodes["position_sizing"] = self.tool_nodes["position_sizing"]
 
         if "macro" in selected_analysts:
             analyst_nodes["macro"] = create_macro_analyst(self.macro_analyst_llm)
