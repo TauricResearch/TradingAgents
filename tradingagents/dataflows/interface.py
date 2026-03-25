@@ -23,6 +23,7 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .adanos_social import get_social_sentiment as get_adanos_social_sentiment
 
 # Configuration and routing logic
 from .config import get_config
@@ -57,12 +58,19 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_transactions",
         ]
+    },
+    "social_data": {
+        "description": "Structured social and public sentiment data",
+        "tools": [
+            "get_social_sentiment",
+        ],
     }
 }
 
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "adanos",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -107,6 +115,10 @@ VENDOR_METHODS = {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
     },
+    # social_data
+    "get_social_sentiment": {
+        "adanos": get_adanos_social_sentiment,
+    },
 }
 
 def get_category_for_method(method: str) -> str:
@@ -131,10 +143,25 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+def is_tool_configured(method: str) -> bool:
+    """Return True when a tool has an explicit non-default vendor configured."""
+    category = get_category_for_method(method)
+    vendor_config = get_vendor(category, method)
+    configured_vendors = [
+        vendor.strip().lower()
+        for vendor in str(vendor_config or "").split(",")
+        if vendor.strip()
+    ]
+    return any(vendor not in {"default", "none", "disabled"} for vendor in configured_vendors)
+
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
+
+    if method == "get_social_sentiment" and not is_tool_configured(method):
+        raise RuntimeError("No configured vendor for 'get_social_sentiment'")
+
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:

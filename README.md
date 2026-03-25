@@ -128,6 +128,7 @@ export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export ADANOS_API_KEY=...          # Optional: Adanos social sentiment
 ```
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.
@@ -136,6 +137,27 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
 ```
+
+### Optional Social Sentiment Provider
+
+The sentiment analyst can optionally use Adanos as a structured social sentiment provider for Reddit, News, X, and Polymarket coverage. Configure it with:
+
+```bash
+export ADANOS_API_KEY=...
+export ADANOS_BASE_URL=https://api.adanos.org
+```
+
+To enable the Adanos-backed social tool in code, set the `social_data` vendor to `adanos`:
+
+```python
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["data_vendors"] = DEFAULT_CONFIG["data_vendors"].copy()
+config["data_vendors"]["social_data"] = "adanos"
+```
+
+The Adanos integration is currently best suited for letter-based tickers such as `NVDA` or `TSLA`. Exchange-qualified or numeric symbols may still rely on the framework's existing news tools for coverage.
 
 ### CLI Usage
 
@@ -192,6 +214,8 @@ config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openr
 config["deep_think_llm"] = "gpt-5.2"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
+config["data_vendors"] = DEFAULT_CONFIG["data_vendors"].copy()
+config["data_vendors"]["social_data"] = "adanos"  # Optional: structured social sentiment
 
 ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")

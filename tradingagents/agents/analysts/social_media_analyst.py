@@ -1,8 +1,8 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 import time
 import json
-from tradingagents.agents.utils.agent_utils import build_instrument_context, get_news
-from tradingagents.dataflows.config import get_config
+from tradingagents.agents.utils.agent_utils import build_instrument_context, get_news, get_social_sentiment
+from tradingagents.dataflows.interface import is_tool_configured
 
 
 def create_social_media_analyst(llm):
@@ -10,12 +10,22 @@ def create_social_media_analyst(llm):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
 
-        tools = [
-            get_news,
-        ]
+        social_tool_enabled = is_tool_configured("get_social_sentiment")
+        tools = [get_news]
+        social_tool_guidance = (
+            "Use the get_news(query, start_date, end_date) tool to search for company-specific news and public discussion context."
+        )
+        if social_tool_enabled:
+            tools.insert(0, get_social_sentiment)
+            social_tool_guidance = (
+                "Use the get_social_sentiment(ticker, curr_date, look_back_days) tool for structured multi-source sentiment data when it is available, "
+                "and use the get_news(query, start_date, end_date) tool to search for company-specific news and public discussion context."
+            )
 
         system_message = (
-            "You are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for a specific company over the past week. You will be given a company's name your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders and investors on this company's current state after looking at social media and what people are saying about that company, analyzing sentiment data of what people feel each day about the company, and looking at recent company news. Use the get_news(query, start_date, end_date) tool to search for company-specific news and social media discussions. Try to look at all sources possible from social media to sentiment to news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
+            "You are a social media and company specific news researcher/analyst tasked with analyzing social media posts, recent company news, and public sentiment for a specific company over the past week. You will be given a company's name your objective is to write a comprehensive long report detailing your analysis, insights, and implications for traders and investors on this company's current state after looking at social media and what people are saying about that company, analyzing sentiment data of what people feel each day about the company, and looking at recent company news. "
+            + social_tool_guidance
+            + " Try to look at all sources possible from social media to sentiment to news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
         )
 
