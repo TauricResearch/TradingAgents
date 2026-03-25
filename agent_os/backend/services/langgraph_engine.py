@@ -175,9 +175,11 @@ class LangGraphEngine:
     # Run logger lifecycle
     # ------------------------------------------------------------------
 
-    def _start_run_logger(self, run_id: str) -> RunLogger:
+    def _start_run_logger(self, run_id: str, flow_id: str | None = None) -> RunLogger:
         """Create and register a ``RunLogger`` for the given run."""
-        rl = RunLogger()
+        uri = self.config.get("mongo_uri")
+        db = self.config.get("mongo_db") or "tradingagents"
+        rl = RunLogger(run_id=run_id, mongo_uri=uri, mongo_db=db, flow_id=flow_id)
         self._run_loggers[run_id] = rl
         set_run_logger(rl)
         return rl
@@ -209,7 +211,8 @@ class LangGraphEngine:
         short_rid = generate_run_id()
         store = create_report_store(run_id=short_rid)
 
-        rl = self._start_run_logger(run_id)
+        flow_id = params.get("flow_id")
+        rl = self._start_run_logger(run_id, flow_id=flow_id)
         scan_config = {**self.config}
         if params.get("max_tickers"):
             scan_config["max_auto_tickers"] = int(params["max_tickers"])
@@ -330,11 +333,11 @@ class LangGraphEngine:
         short_rid = generate_run_id()
         store = create_report_store(run_id=short_rid)
 
-        rl = self._start_run_logger(run_id)
+        flow_id = params.get("flow_id")
+        rl = self._start_run_logger(run_id, flow_id=flow_id)
 
-        logger.info(
-            "Starting PIPELINE run=%s ticker=%s date=%s rid=%s", run_id, ticker, date, short_rid
-        )
+        logger.info("Starting PIPELINE run=%s ticker=%s date=%s rid=%s", run_id, ticker, date, short_rid)
+
         yield self._system_log(f"Starting analysis pipeline for {ticker} on {date}")
 
         graph_wrapper = TradingAgentsGraph(
@@ -471,7 +474,8 @@ class LangGraphEngine:
         # A reader store with no run_id resolves to the latest run for loading
         reader_store = create_report_store()
 
-        rl = self._start_run_logger(run_id)
+        flow_id = params.get("flow_id")
+        rl = self._start_run_logger(run_id, flow_id=flow_id)
 
         logger.info(
             "Starting PORTFOLIO run=%s portfolio=%s date=%s rid=%s",
@@ -818,23 +822,27 @@ class LangGraphEngine:
         """Run the full auto pipeline: scan → pipeline → portfolio."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = params.get("force", False)
+        flow_id = params.get("flow_id") or str(uuid.uuid4())
 
         # Use a reader store (no run_id) for skip-if-exists checks.
         # Each sub-phase (run_scan, run_pipeline, run_portfolio) creates
         # its own writer store with a fresh run_id internally.
         store = create_report_store()
 
-        self._start_run_logger(run_id)  # auto-run's own logger; sub-phases create their own
+        self._start_run_logger(run_id, flow_id=flow_id)  # auto-run's own logger; sub-phases create their own
 
-        logger.info("Starting AUTO run=%s date=%s force=%s", run_id, date, force)
-        yield self._system_log(f"Starting full auto workflow for {date} (force={force})")
+        logger.info("Starting AUTO run=%s flow=%s date=%s force=%s", run_id, flow_id, date, force)
+        yield self._system_log(f"Starting full auto workflow for {date} (force={force}, flow={flow_id})")
 
         # Phase 1: Market scan
         yield self._system_log("Phase 1/3: Running market scan…")
         if not force and store.load_scan(date):
             yield self._system_log(f"Phase 1: Macro scan for {date} already exists, skipping.")
         else:
-            async for evt in self.run_scan(f"{run_id}_scan", {"date": date}):
+            scan_params = {"date": date, "flow_id": flow_id}
+            if params.get("max_tickers"):
+                scan_params["max_tickers"] = params["max_tickers"]
+            async for evt in self.run_scan(f"{run_id}_scan", scan_params):
                 yield evt
 
         # Phase 2: Pipeline analysis — get tickers from scan report + portfolio holdings
@@ -917,7 +925,8 @@ class LangGraphEngine:
                     )
                     try:
                         async for evt in self.run_pipeline(
-                            f"{run_id}_pipeline_{ticker}", {"ticker": ticker, "date": date}
+                            f"{run_id}_pipeline_{ticker}",
+                            {"ticker": ticker, "date": date, "flow_id": flow_id},
                         ):
                             await pipeline_queue.put(evt)
                     except Exception as exc:
@@ -943,7 +952,7 @@ class LangGraphEngine:
                                 try:
                                     async for evt in self.run_pipeline(
                                         f"{run_id}_fallback_{ticker}",
-                                        {"ticker": ticker, "date": date},
+                                        {"ticker": ticker, "date": date, "flow_id": flow_id},
                                     ):
                                         await pipeline_queue.put(evt)
                                 except Exception as fallback_exc:
@@ -993,6 +1002,7 @@ class LangGraphEngine:
         # Phase 3: Portfolio management
         yield self._system_log("Phase 3/3: Running portfolio manager…")
         portfolio_params = {k: v for k, v in params.items() if k != "ticker"}
+        portfolio_params["flow_id"] = flow_id
         portfolio_id = params.get("portfolio_id", "main_portfolio")
 
         # Check if portfolio stage is fully complete (execution result exists)
@@ -1018,7 +1028,7 @@ class LangGraphEngine:
                     yield evt
 
         logger.info("Completed AUTO run=%s", run_id)
-        self._finish_run_logger(run_id, get_daily_dir(date))
+        self._finish_run_logger(run_id, get_daily_dir(date, run_id=flow_id[:8]))
 
     # ------------------------------------------------------------------
     # Report helpers
