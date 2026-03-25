@@ -33,6 +33,12 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
     get_insider_transactions,
     get_global_news,
+    get_catalyst_calendar,
+    get_scenario_fundamentals,
+    get_scenario_news,
+    get_segment_fundamentals,
+    get_segment_income_statement,
+    get_segment_news,
     get_valuation_inputs,
     get_yield_curve,
 )
@@ -64,6 +70,8 @@ class TradingAgentsGraph:
         "fundamentals",
         "factor_rules",
         "valuation",
+        "segment",
+        "scenario",
         "macro",
         "bull_researcher",
         "bear_researcher",
@@ -312,6 +320,22 @@ class TradingAgentsGraph:
                     get_valuation_inputs,
                 ]
             ),
+            "segment": ToolNode(
+                [
+                    # Segment and business-mix analysis tools
+                    get_segment_fundamentals,
+                    get_segment_income_statement,
+                    get_segment_news,
+                ]
+            ),
+            "scenario": ToolNode(
+                [
+                    # Scenario and catalyst mapping tools
+                    get_scenario_fundamentals,
+                    get_scenario_news,
+                    get_catalyst_calendar,
+                ]
+            ),
             "macro": ToolNode(
                 [
                     # Macroeconomic analysis tools
@@ -367,7 +391,11 @@ class TradingAgentsGraph:
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
             "factor_rules_report": final_state.get("factor_rules_report", ""),
+            "segment_report": final_state.get("segment_report", ""),
+            "segment_data": final_state.get("segment_data", {}),
             "macro_report": final_state.get("macro_report", ""),
+            "scenario_catalyst_report": final_state.get("scenario_catalyst_report", ""),
+            "scenario_catalyst_data": final_state.get("scenario_catalyst_data", {}),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],

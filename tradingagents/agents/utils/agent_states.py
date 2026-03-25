@@ -60,9 +60,11 @@ class ValuationData(TypedDict):
 
 
 class SegmentData(TypedDict):
-    segments: list[dict[str, Any]]
-    dominant_segment: str
-    thesis: str
+    ticker: str
+    analysis_date: str
+    business_unit_decomposition: list[dict[str, Any]]
+    segment_economics: dict[str, Any]
+    value_driver_map: list[dict[str, Any]]
 
 
 class ScenarioCaseData(TypedDict):
@@ -72,11 +74,11 @@ class ScenarioCaseData(TypedDict):
 
 
 class ScenarioCatalystData(TypedDict):
-    bull_case: ScenarioCaseData
-    base_case: ScenarioCaseData
-    bear_case: ScenarioCaseData
-    catalysts: list[dict[str, Any]]
-    invalidation_triggers: list[str]
+    ticker: str
+    analysis_date: str
+    scenario_map: list[dict[str, Any]]
+    dated_catalyst_map: list[dict[str, Any]]
+    invalidation_triggers: list[dict[str, Any]]
 
 
 class PositionSizingData(TypedDict):
@@ -104,9 +106,11 @@ def make_default_valuation_data() -> ValuationData:
 
 def make_default_segment_data() -> SegmentData:
     return {
-        "segments": [],
-        "dominant_segment": "",
-        "thesis": "",
+        "ticker": "",
+        "analysis_date": "",
+        "business_unit_decomposition": [],
+        "segment_economics": {},
+        "value_driver_map": [],
     }
 
 
@@ -120,10 +124,10 @@ def make_default_scenario_case_data() -> ScenarioCaseData:
 
 def make_default_scenario_catalyst_data() -> ScenarioCatalystData:
     return {
-        "bull_case": make_default_scenario_case_data(),
-        "base_case": make_default_scenario_case_data(),
-        "bear_case": make_default_scenario_case_data(),
-        "catalysts": [],
+        "ticker": "",
+        "analysis_date": "",
+        "scenario_map": [],
+        "dated_catalyst_map": [],
         "invalidation_triggers": [],
     }
 
@@ -172,6 +176,11 @@ class AgentState(MessagesState):
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
     factor_rules_report: Annotated[
         str, "Summary from the optional factor rule analyst"
+    ]
+    segment_report: Annotated[str, "Report from the Segment Analyst"]
+    scenario_catalyst_report: Annotated[
+        str,
+        "Report from the Scenario and Catalyst Analyst",
     ]
     valuation_data: Annotated[
         ValuationData, "Structured valuation underwriting output"

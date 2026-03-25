@@ -7,6 +7,8 @@ from .analysts.factor_rule_analyst import create_factor_rule_analyst
 from .analysts.macro_analyst import create_macro_analyst
 from .analysts.market_analyst import create_market_analyst
 from .analysts.news_analyst import create_news_analyst
+from .analysts.scenario_catalyst_analyst import create_scenario_catalyst_analyst
+from .analysts.segment_analyst import create_segment_analyst
 from .analysts.social_media_analyst import create_social_media_analyst
 from .analysts.valuation_analyst import create_valuation_analyst
 
@@ -37,6 +39,8 @@ __all__ = [
     "create_market_analyst",
     "create_neutral_debator",
     "create_news_analyst",
+    "create_scenario_catalyst_analyst",
+    "create_segment_analyst",
     "create_valuation_analyst",
     "create_aggressive_debator",
     "create_portfolio_manager",

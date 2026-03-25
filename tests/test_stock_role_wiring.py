@@ -16,16 +16,18 @@ EXPECTED_VALUATION_DATA = {
 }
 
 EXPECTED_SEGMENT_DATA = {
-    "segments": [],
-    "dominant_segment": "",
-    "thesis": "",
+    "ticker": "",
+    "analysis_date": "",
+    "business_unit_decomposition": [],
+    "segment_economics": {},
+    "value_driver_map": [],
 }
 
 EXPECTED_SCENARIO_CATALYST_DATA = {
-    "bull_case": {"probability": None, "price_target": None, "thesis": ""},
-    "base_case": {"probability": None, "price_target": None, "thesis": ""},
-    "bear_case": {"probability": None, "price_target": None, "thesis": ""},
-    "catalysts": [],
+    "ticker": "",
+    "analysis_date": "",
+    "scenario_map": [],
+    "dated_catalyst_map": [],
     "invalidation_triggers": [],
 }
 

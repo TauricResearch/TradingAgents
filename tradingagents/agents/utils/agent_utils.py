@@ -26,6 +26,16 @@ from tradingagents.agents.utils.macro_data_tools import (
     get_fed_calendar,
     get_yield_curve,
 )
+from tradingagents.agents.utils.scenario_tools import (
+    get_catalyst_calendar,
+    get_scenario_fundamentals,
+    get_scenario_news,
+)
+from tradingagents.agents.utils.segment_tools import (
+    get_segment_fundamentals,
+    get_segment_income_statement,
+    get_segment_news,
+)
 from tradingagents.agents.utils.valuation_tools import (
     get_valuation_inputs,
 )
@@ -45,6 +55,12 @@ __all__ = [
     "get_indicators",
     "get_insider_transactions",
     "get_news",
+    "get_catalyst_calendar",
+    "get_scenario_fundamentals",
+    "get_scenario_news",
+    "get_segment_fundamentals",
+    "get_segment_income_statement",
+    "get_segment_news",
     "get_stock_data",
     "get_valuation_inputs",
     "get_yield_curve",
