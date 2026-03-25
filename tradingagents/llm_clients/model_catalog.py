@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Dict, List, Tuple
 
 ModelOption = Tuple[str, str]
-ProviderModeOptions = Dict[str, List[ModelOption]]
+ProviderModeOptions = Dict[str, Dict[str, List[ModelOption]]]
 
 
 MODEL_OPTIONS: ProviderModeOptions = {
@@ -95,12 +95,13 @@ def get_model_options(provider: str, mode: str) -> List[ModelOption]:
 
 def get_known_models() -> Dict[str, List[str]]:
     """Build known model names from the shared CLI catalog."""
-    known_models: Dict[str, List[str]] = {}
-    for provider, mode_options in MODEL_OPTIONS.items():
-        model_names = {
-            value
-            for options in mode_options.values()
-            for _, value in options
-        }
-        known_models[provider] = sorted(model_names)
-    return known_models
+    return {
+        provider: sorted(
+            {
+                value
+                for options in mode_options.values()
+                for _, value in options
+            }
+        )
+        for provider, mode_options in MODEL_OPTIONS.items()
+    }
