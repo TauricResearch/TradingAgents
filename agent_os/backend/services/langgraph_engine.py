@@ -694,9 +694,9 @@ class LangGraphEngine:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         portfolio_id = params.get("portfolio_id", "main_portfolio")
 
+        store = create_report_store()
         flow_id = params.get("flow_id") or generate_flow_id()
-        store = create_report_store(flow_id=flow_id)
-        writer_store = store
+        writer_store = create_report_store(flow_id=flow_id)
 
         if phase == "analysts":
             # Full re-run
