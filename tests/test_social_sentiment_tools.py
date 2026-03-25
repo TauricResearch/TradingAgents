@@ -7,14 +7,20 @@ from tradingagents.dataflows import adanos_social, interface
 
 class SocialSentimentToolTests(unittest.TestCase):
     def test_route_to_vendor_supports_social_data(self):
-        with patch.dict(
-            interface.VENDOR_METHODS["get_social_sentiment"],
-            {"adanos": lambda ticker, curr_date, look_back_days: f"{ticker}|{curr_date}|{look_back_days}"},
-            clear=True,
-        ):
-            result = interface.route_to_vendor("get_social_sentiment", "NVDA", "2026-01-15", 5)
+        with patch("tradingagents.dataflows.interface.get_vendor", return_value="adanos"):
+            with patch.dict(
+                interface.VENDOR_METHODS["get_social_sentiment"],
+                {"adanos": lambda ticker, curr_date, look_back_days: f"{ticker}|{curr_date}|{look_back_days}"},
+                clear=True,
+            ):
+                result = interface.route_to_vendor("get_social_sentiment", "NVDA", "2026-01-15", 5)
 
         self.assertEqual(result, "NVDA|2026-01-15|5")
+
+    def test_route_to_vendor_requires_explicit_social_vendor(self):
+        with patch("tradingagents.dataflows.interface.get_vendor", return_value="default"):
+            with self.assertRaises(RuntimeError):
+                interface.route_to_vendor("get_social_sentiment", "NVDA", "2026-01-15", 5)
 
     def test_social_tool_routes_to_vendor(self):
         with patch("tradingagents.agents.utils.social_data_tools.route_to_vendor", return_value="ok") as mock_route:

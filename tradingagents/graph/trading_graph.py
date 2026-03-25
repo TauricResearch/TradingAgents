@@ -19,6 +19,7 @@ from tradingagents.agents.utils.agent_states import (
     RiskDebateState,
 )
 from tradingagents.dataflows.config import set_config
+from tradingagents.dataflows.interface import is_tool_configured
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -158,6 +159,10 @@ class TradingAgentsGraph:
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources using abstract methods."""
+        social_tools = [get_news]
+        if is_tool_configured("get_social_sentiment"):
+            social_tools.insert(0, get_social_sentiment)
+
         return {
             "market": ToolNode(
                 [
@@ -167,13 +172,7 @@ class TradingAgentsGraph:
                     get_indicators,
                 ]
             ),
-            "social": ToolNode(
-                [
-                    # Dedicated social sentiment first, then news context
-                    get_social_sentiment,
-                    get_news,
-                ]
-            ),
+            "social": ToolNode(social_tools),
             "news": ToolNode(
                 [
                     # News and insider information

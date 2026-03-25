@@ -143,10 +143,25 @@ def get_vendor(category: str, method: str = None) -> str:
     # Fall back to category-level configuration
     return config.get("data_vendors", {}).get(category, "default")
 
+def is_tool_configured(method: str) -> bool:
+    """Return True when a tool has an explicit non-default vendor configured."""
+    category = get_category_for_method(method)
+    vendor_config = get_vendor(category, method)
+    configured_vendors = [
+        vendor.strip().lower()
+        for vendor in str(vendor_config or "").split(",")
+        if vendor.strip()
+    ]
+    return any(vendor not in {"default", "none", "disabled"} for vendor in configured_vendors)
+
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
     vendor_config = get_vendor(category, method)
+
+    if method == "get_social_sentiment" and not is_tool_configured(method):
+        raise RuntimeError("No configured vendor for 'get_social_sentiment'")
+
     primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:
