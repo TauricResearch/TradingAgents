@@ -171,6 +171,10 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
         ],
+        "cerebras": [
+            ("Llama 3.1 8B - Fastest, lightweight", "llama3.1-8b"),
+            ("Qwen 3 235B - Most capable", "qwen-3-235b-a22b-instruct-2507"),
+        ],
     }
 
     choice = questionary.select(
@@ -238,6 +242,10 @@ def select_deep_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
+        "cerebras": [
+            ("Qwen 3 235B - Most capable", "qwen-3-235b-a22b-instruct-2507"),
+            ("Llama 3.1 8B - Fastest, lightweight", "llama3.1-8b"),
+        ],
     }
 
     choice = questionary.select(
@@ -272,6 +280,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("xAI", "https://api.x.ai/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
+        ("Cerebras", "https://api.cerebras.ai/v1"),
     ]
     
     choice = questionary.select(

@@ -48,6 +48,10 @@ VALID_MODELS = {
         "grok-4-fast-reasoning",
         "grok-4-fast-non-reasoning",
     ],
+    "cerebras": [
+        "qwen-3-235b-a22b-instruct-2507",
+        "llama3.1-8b",
+    ],
 }
 
 
