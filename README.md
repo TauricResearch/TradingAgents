@@ -127,6 +127,7 @@ export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export OPENROUTER_API_KEY=...      # OpenRouter
+export ZAI_API_KEY=...             # Z.AI (GLM)
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
