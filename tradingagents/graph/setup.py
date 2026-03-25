@@ -14,6 +14,13 @@ from .conditional_logic import ConditionalLogic
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
+    @staticmethod
+    def _order_selected_analysts(selected_analysts):
+        if "macro" not in selected_analysts:
+            return selected_analysts
+        remaining = [analyst for analyst in selected_analysts if analyst != "macro"]
+        return ["macro", *remaining]
+
     def __init__(
         self,
         quick_thinking_llm: ChatOpenAI,
@@ -112,6 +119,7 @@ class GraphSetup:
         """
         if len(selected_analysts) == 0:
             raise ValueError("Trading Agents Graph Setup Error: no analysts selected!")
+        selected_analysts = self._order_selected_analysts(list(selected_analysts))
 
         # Create analyst nodes
         analyst_nodes = {}

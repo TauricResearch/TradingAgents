@@ -7,15 +7,52 @@ from tradingagents.agents.utils.agent_utils import (
     get_cashflow,
     get_fundamentals,
     get_income_statement,
-    get_insider_transactions,
 )
-from tradingagents.dataflows.config import get_config
-
-
+from tradingagents.dataflows.interface import route_to_vendor
+from tradingagents.dataflows.macro_regime import classify_macro_regime, format_macro_report
+from tradingagents.dataflows.peer_comparison import (
+    get_peer_comparison_report,
+    get_sector_relative_report,
+)
+from tradingagents.dataflows.ttm_analysis import compute_ttm_metrics, format_ttm_report
 def create_fundamentals_analyst(llm):
     def fundamentals_analyst_node(state):
         current_date = state["trade_date"]
+        ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(state["company_of_interest"])
+
+        income_csv = route_to_vendor(
+            "get_income_statement",
+            ticker,
+            "quarterly",
+            current_date,
+        )
+        balance_csv = route_to_vendor(
+            "get_balance_sheet",
+            ticker,
+            "quarterly",
+            current_date,
+        )
+        cashflow_csv = route_to_vendor(
+            "get_cashflow",
+            ticker,
+            "quarterly",
+            current_date,
+        )
+        ttm_report = format_ttm_report(
+            compute_ttm_metrics(income_csv, balance_csv, cashflow_csv, n_quarters=8),
+            ticker,
+        )
+        peer_report = get_peer_comparison_report(ticker, current_date)
+        sector_report = get_sector_relative_report(ticker, current_date)
+        macro_regime_report = format_macro_report(classify_macro_regime(current_date))
+        upstream_macro_report = state.get("macro_report", "").strip()
+        macro_report = macro_regime_report
+        if upstream_macro_report:
+            macro_report = (
+                f"{upstream_macro_report}\n\n## Medium-Term Macro Regime Overlay\n\n"
+                f"{macro_regime_report}"
+            )
 
         tools = [
             get_fundamentals,
@@ -27,7 +64,12 @@ def create_fundamentals_analyst(llm):
         system_message = (
             "You are a researcher tasked with analyzing fundamental information over the past week about a company. Please write a comprehensive report of the company's fundamental information such as financial documents, company profile, basic company financials, and company financial history to gain a full view of the company's fundamental information to inform traders. Make sure to include as much detail as possible. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
             + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."
-            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements.",
+            + " Use the available tools: `get_fundamentals` for comprehensive company analysis, `get_balance_sheet`, `get_cashflow`, and `get_income_statement` for specific financial statements."
+            + f"\n\nPrecomputed medium-term context for {ticker}:"
+            + f"\n\n[TTM Analysis]\n{ttm_report}"
+            + f"\n\n[Peer Comparison]\n{peer_report}"
+            + f"\n\n[Sector Relative Performance]\n{sector_report}"
+            + f"\n\n[Macro Regime]\n{macro_report}"
         )
 
         prompt = ChatPromptTemplate.from_messages(

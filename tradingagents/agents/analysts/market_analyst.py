@@ -6,7 +6,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_indicators,
     get_stock_data,
 )
-from tradingagents.dataflows.config import get_config
+from tradingagents.dataflows.macro_regime import classify_macro_regime, format_macro_report
 
 
 def create_market_analyst(llm):
@@ -14,6 +14,14 @@ def create_market_analyst(llm):
     def market_analyst_node(state):
         current_date = state["trade_date"]
         instrument_context = build_instrument_context(state["company_of_interest"])
+        macro_regime_report = format_macro_report(classify_macro_regime(current_date))
+        upstream_macro_report = state.get("macro_report", "").strip()
+        macro_report = macro_regime_report
+        if upstream_macro_report:
+            macro_report = (
+                f"{upstream_macro_report}\n\n## Medium-Term Macro Regime Overlay\n\n"
+                f"{macro_regime_report}"
+            )
 
         tools = [
             get_stock_data,
@@ -46,6 +54,7 @@ Volume-Based Indicators:
 - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
 
 - Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
+            + f"\n\nUse this macro regime context to frame the technical read:\n{macro_report}"
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
         )
 
