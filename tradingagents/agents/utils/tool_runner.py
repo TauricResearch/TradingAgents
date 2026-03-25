@@ -57,7 +57,17 @@ def run_tool_loop(
     result = None
 
     for _ in range(max_rounds):
-        result: AIMessage = chain.invoke(current_messages)
+        try:
+            result: AIMessage = chain.invoke(current_messages)
+        except Exception as exc:
+            if getattr(exc, "status_code", None) == 404:
+                raise RuntimeError(
+                    f"LLM returned 404 — model may be blocked by provider policy.\n"
+                    f"Original: {exc}\n"
+                    f"If using OpenRouter: https://openrouter.ai/settings/privacy\n"
+                    f"Or set TRADINGAGENTS_QUICK/MID/DEEP_THINK_FALLBACK_LLM."
+                ) from exc
+            raise
         current_messages.append(result)
 
         if not result.tool_calls:

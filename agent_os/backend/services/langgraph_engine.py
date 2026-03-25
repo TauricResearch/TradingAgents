@@ -18,6 +18,37 @@ from tradingagents.observability import RunLogger, set_run_logger
 
 logger = logging.getLogger("agent_os.engine")
 
+# ---------------------------------------------------------------------------
+# LLM policy / 404 error helpers
+# ---------------------------------------------------------------------------
+
+def _is_policy_error(exc: Exception) -> bool:
+    """Return True if *exc* is a provider 404 / guardrail / policy error."""
+    if getattr(exc, "status_code", None) == 404:
+        return True
+    cause = getattr(exc, "__cause__", None)
+    if getattr(cause, "status_code", None) == 404:
+        return True
+    # Catch RuntimeErrors wrapped by tool_runner
+    msg = str(exc).lower()
+    return "404" in msg and ("policy" in msg or "guardrail" in msg or "openrouter" in msg)
+
+
+def _build_fallback_config(config: dict) -> "dict | None":
+    """Return config with per-tier fallback models substituted, or None if none set."""
+    tiers = ("quick_think", "mid_think", "deep_think")
+    replacements: dict = {}
+    for tier in tiers:
+        fb_llm = config.get(f"{tier}_fallback_llm")
+        fb_prov = config.get(f"{tier}_fallback_llm_provider")
+        if fb_llm:
+            replacements[f"{tier}_llm"] = fb_llm
+        if fb_prov:
+            replacements[f"{tier}_llm_provider"] = fb_prov
+    if not replacements:
+        return None
+    return {**config, **replacements}
+
 # Maximum characters of prompt/response content to include in the short message
 _MAX_CONTENT_LEN = 300
 
@@ -296,22 +327,33 @@ class LangGraphEngine:
         self._run_identifiers[run_id] = ticker.upper()
         final_state: Dict[str, Any] = {}
 
-        async for event in graph_wrapper.graph.astream_events(
-            initial_state,
-            version="v2",
-            config={
-                "recursion_limit": graph_wrapper.propagator.max_recur_limit,
-                "callbacks": [rl.callback],
-            },
-        ):
-            # Capture the complete final state from the root graph's terminal event.
-            if self._is_root_chain_end(event):
-                output = (event.get("data") or {}).get("output")
-                if isinstance(output, dict):
-                    final_state = output
-            mapped = self._map_langgraph_event(run_id, event)
-            if mapped:
-                yield mapped
+        try:
+            async for event in graph_wrapper.graph.astream_events(
+                initial_state,
+                version="v2",
+                config={
+                    "recursion_limit": graph_wrapper.propagator.max_recur_limit,
+                    "callbacks": [rl.callback],
+                },
+            ):
+                # Capture the complete final state from the root graph's terminal event.
+                if self._is_root_chain_end(event):
+                    output = (event.get("data") or {}).get("output")
+                    if isinstance(output, dict):
+                        final_state = output
+                mapped = self._map_langgraph_event(run_id, event)
+                if mapped:
+                    yield mapped
+        except Exception as exc:
+            if _is_policy_error(exc):
+                model = self.config.get("quick_think_llm") or self.config.get("llm_provider", "unknown")
+                provider = self.config.get("llm_provider", "unknown")
+                raise RuntimeError(
+                    f"LLM 404 (model={model}, provider={provider}): model blocked by "
+                    f"provider policy — https://openrouter.ai/settings/privacy — "
+                    f"or set TRADINGAGENTS_QUICK/MID/DEEP_THINK_FALLBACK_LLM."
+                ) from exc
+            raise
 
         self._node_start_times.pop(run_id, None)
         self._node_prompts.pop(run_id, None)
@@ -693,14 +735,62 @@ class LangGraphEngine:
                         ):
                             await pipeline_queue.put(evt)
                     except Exception as exc:
-                        logger.exception(
-                            "Pipeline failed ticker=%s run=%s", ticker, run_id
-                        )
-                        await pipeline_queue.put(
-                            self._system_log(
-                                f"Warning: pipeline for {ticker} failed: {exc}"
+                        if _is_policy_error(exc):
+                            logger.error(
+                                "Pipeline blocked ticker=%s run=%s: %s", ticker, run_id, exc
                             )
-                        )
+                            fallback_config = _build_fallback_config(self.config)
+                            if fallback_config:
+                                fallback_models = ", ".join(
+                                    f"{t}={fallback_config.get(f'{t}_llm', 'same')}"
+                                    for t in ("quick_think", "mid_think", "deep_think")
+                                    if fallback_config.get(f"{t}_llm") != self.config.get(f"{t}_llm")
+                                )
+                                await pipeline_queue.put(
+                                    self._system_log(
+                                        f"Primary model blocked for {ticker} — retrying with "
+                                        f"fallback: {fallback_models}…"
+                                    )
+                                )
+                                original_config = self.config
+                                self.config = fallback_config
+                                try:
+                                    async for evt in self.run_pipeline(
+                                        f"{run_id}_fallback_{ticker}",
+                                        {"ticker": ticker, "date": date},
+                                    ):
+                                        await pipeline_queue.put(evt)
+                                except Exception as fallback_exc:
+                                    logger.error(
+                                        "Fallback pipeline failed ticker=%s: %s",
+                                        ticker, fallback_exc,
+                                    )
+                                    await pipeline_queue.put(
+                                        self._system_log(
+                                            f"Warning: pipeline for {ticker} failed "
+                                            f"(fallback also failed): {fallback_exc}"
+                                        )
+                                    )
+                                finally:
+                                    self.config = original_config
+                            else:
+                                await pipeline_queue.put(
+                                    self._system_log(
+                                        f"Warning: pipeline for {ticker} blocked by LLM provider policy. "
+                                        f"{exc} — "
+                                        f"Set TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM (and MID/DEEP) "
+                                        f"to auto-retry with a different model."
+                                    )
+                                )
+                        else:
+                            logger.exception(
+                                "Pipeline failed ticker=%s run=%s", ticker, run_id
+                            )
+                            await pipeline_queue.put(
+                                self._system_log(
+                                    f"Warning: pipeline for {ticker} failed: {exc}"
+                                )
+                            )
 
             async def _pipeline_producer() -> None:
                 await asyncio.gather(*[_run_one_ticker(t) for t in tickers])

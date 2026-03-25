@@ -159,3 +159,16 @@ if isinstance(reviews, dict):
 
 - Plan `pymongo` → `motor` migration before production deployment.
 - Add TTL index strategy after retention policy is decided.
+
+---
+
+## Corrected Status — Post-Verification
+
+Re-verification of the actual `copilot/increase-observability-logging` branch code shows
+that recommended actions 1–3 are **already implemented in PR#106**:
+
+1. ~~Fix `list_pm_decisions` — add `{"_id": 0}` projection~~ **Already done**: `{"_id": 0}` is present with doc comment "Excludes `_id` (BSON ObjectId) which is not JSON-serializable."
+2. ~~Standardise `created_at` to native `datetime` in `ReflexionMemory`~~ **Already done**: uses `datetime.now(timezone.utc)`; ISO string conversion only for local JSON fallback (which is correct — JSON has no native datetime type).
+3. ~~Fix `write_latest_pointer`/`read_latest_pointer` to respect `base_dir`~~ **Already done**: both functions accept `base_dir: Path | None = None`; `_update_latest` already passes `self._base_dir`.
+
+Items 4–7 remain as future work (no code changes required before merge).

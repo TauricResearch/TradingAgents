@@ -97,6 +97,7 @@ OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
 - **Ollama remote host**: Never hardcode `localhost:11434`. Use configured `base_url`.
 - **.env loading**: `load_dotenv()` runs at module level in `default_config.py` — import-order-independent. Check actual env var values when debugging auth.
 - **Rate limiter locks**: Never hold a lock during `sleep()` or IO. Release, sleep, re-acquire.
+- **LLM policy errors**: `_is_policy_error(exc)` detects 404 from any provider (checks `status_code` attribute or message content). `_build_fallback_config(config)` substitutes per-tier fallback models. Both live in `agent_os/backend/services/langgraph_engine.py`.
 - **Config fallback keys**: `llm_provider` and `backend_url` must always exist at top level — `scanner_graph.py` and `trading_graph.py` use them as fallbacks.
 
 ## Agentic Memory (docs/agent/)
@@ -130,6 +131,22 @@ TRADINGAGENTS_VENDOR_SCANNER_DATA=alpha_vantage
 ```
 
 Empty or unset vars preserve the hardcoded default. `None`-default fields (like `mid_think_llm`) stay `None` when unset, preserving fallback semantics.
+
+### Per-Tier Fallback LLM
+
+When a model returns HTTP 404 (blocked by provider guardrail/policy), the engine
+auto-detects it via `_is_policy_error()` and retries with a per-tier fallback:
+
+```env
+TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM=gpt-5-mini
+TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM_PROVIDER=openai
+TRADINGAGENTS_MID_THINK_FALLBACK_LLM=gpt-5-mini
+TRADINGAGENTS_MID_THINK_FALLBACK_LLM_PROVIDER=openai
+TRADINGAGENTS_DEEP_THINK_FALLBACK_LLM=gpt-5.2
+TRADINGAGENTS_DEEP_THINK_FALLBACK_LLM_PROVIDER=openai
+```
+
+Leave unset to disable auto-retry (pipeline emits a clear actionable error instead).
 
 ## Running the Scanner
 

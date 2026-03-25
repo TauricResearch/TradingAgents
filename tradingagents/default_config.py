@@ -70,6 +70,23 @@ DEFAULT_CONFIG = {
     "mid_think_backend_url": _env("MID_THINK_BACKEND_URL"),         # override backend URL for mid-think model
     "quick_think_llm_provider": _env("QUICK_THINK_LLM_PROVIDER"),  # e.g. "openai", "ollama"
     "quick_think_backend_url": _env("QUICK_THINK_BACKEND_URL"),     # override backend URL for quick-think model
+    # Per-tier fallback LLM — used automatically when primary model returns 404
+    # (e.g. blocked by provider policy). Leave unset to disable auto-retry.
+    # Each tier falls back independently; set only the tiers you need.
+    #
+    # Example .env:
+    #   TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM=gpt-5-mini
+    #   TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM_PROVIDER=openai
+    #   TRADINGAGENTS_MID_THINK_FALLBACK_LLM=gpt-5-mini
+    #   TRADINGAGENTS_MID_THINK_FALLBACK_LLM_PROVIDER=openai
+    #   TRADINGAGENTS_DEEP_THINK_FALLBACK_LLM=gpt-5.2
+    #   TRADINGAGENTS_DEEP_THINK_FALLBACK_LLM_PROVIDER=openai
+    "quick_think_fallback_llm":          _env("QUICK_THINK_FALLBACK_LLM"),
+    "quick_think_fallback_llm_provider": _env("QUICK_THINK_FALLBACK_LLM_PROVIDER"),
+    "mid_think_fallback_llm":            _env("MID_THINK_FALLBACK_LLM"),
+    "mid_think_fallback_llm_provider":   _env("MID_THINK_FALLBACK_LLM_PROVIDER"),
+    "deep_think_fallback_llm":           _env("DEEP_THINK_FALLBACK_LLM"),
+    "deep_think_fallback_llm_provider":  _env("DEEP_THINK_FALLBACK_LLM_PROVIDER"),
     # Provider-specific thinking configuration (applies to all roles unless overridden)
     "google_thinking_level": _env("GOOGLE_THINKING_LEVEL"),      # "high", "minimal", etc.
     "openai_reasoning_effort": _env("OPENAI_REASONING_EFFORT"),  # "medium", "high", "low"
