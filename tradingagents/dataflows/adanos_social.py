@@ -5,9 +5,11 @@ from typing import Any
 import requests
 
 
-ADANOS_BASE_URL = "https://api.adanos.org"
-_LETTER_TICKER_RE = re.compile(r"^[A-Z]{1,10}$")
-_REDDIT_NEWS_TICKER_RE = re.compile(r"^[A-Z][A-Z0-9]{0,9}(?:\.[A-Z])?$")
+ADANOS_DEFAULT_BASE_URL = "https://api.adanos.org"
+ADANOS_DEFAULT_TIMEOUT_SECONDS = 20
+DEFAULT_SOCIAL_LOOK_BACK_DAYS = 7
+LETTER_TICKER_REGEX = re.compile(r"^[A-Z]{1,10}$")
+REDDIT_NEWS_TICKER_REGEX = re.compile(r"^[A-Z][A-Z0-9]{0,9}(?:\.[A-Z])?$")
 
 
 def _normalize_ticker(ticker: str) -> str:
@@ -19,7 +21,7 @@ def _request_json(path: str, *, api_key: str, base_url: str, params: dict[str, A
         f"{base_url.rstrip('/')}{path}",
         headers={"X-API-Key": api_key, "Accept": "application/json"},
         params=params or {},
-        timeout=float(os.getenv("ADANOS_TIMEOUT", "20")),
+        timeout=float(os.getenv("ADANOS_TIMEOUT", str(ADANOS_DEFAULT_TIMEOUT_SECONDS))),
     )
     response.raise_for_status()
     return response.json()
@@ -28,7 +30,7 @@ def _request_json(path: str, *, api_key: str, base_url: str, params: dict[str, A
 def _iter_source_requests(ticker: str) -> list[tuple[str, str]]:
     requests_to_make: list[tuple[str, str]] = []
 
-    if _REDDIT_NEWS_TICKER_RE.fullmatch(ticker):
+    if REDDIT_NEWS_TICKER_REGEX.fullmatch(ticker):
         requests_to_make.extend(
             [
                 ("Reddit", f"/reddit/stocks/v1/stock/{ticker}"),
@@ -36,7 +38,7 @@ def _iter_source_requests(ticker: str) -> list[tuple[str, str]]:
             ]
         )
 
-    if _LETTER_TICKER_RE.fullmatch(ticker):
+    if LETTER_TICKER_REGEX.fullmatch(ticker):
         requests_to_make.extend(
             [
                 ("X/Twitter", f"/x/stocks/v1/stock/{ticker}"),
@@ -86,7 +88,11 @@ def _format_source_section(source_name: str, payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def get_social_sentiment(ticker: str, curr_date: str, look_back_days: int = 7) -> str:
+def get_social_sentiment(
+    ticker: str,
+    curr_date: str,
+    look_back_days: int = DEFAULT_SOCIAL_LOOK_BACK_DAYS,
+) -> str:
     """Retrieve multi-source social sentiment from Adanos when available."""
     api_key = os.getenv("ADANOS_API_KEY")
     if not api_key:
@@ -103,8 +109,8 @@ def get_social_sentiment(ticker: str, curr_date: str, look_back_days: int = 7) -
             "Exchange-qualified or numeric symbols should fall back to the framework's existing news tools."
         )
 
-    base_url = os.getenv("ADANOS_BASE_URL", ADANOS_BASE_URL)
-    days = max(1, int(look_back_days or 7))
+    base_url = os.getenv("ADANOS_BASE_URL", ADANOS_DEFAULT_BASE_URL)
+    days = max(1, int(look_back_days or DEFAULT_SOCIAL_LOOK_BACK_DAYS))
 
     sections: list[str] = []
     notes: list[str] = []
