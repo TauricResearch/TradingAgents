@@ -78,7 +78,7 @@ class RecordingLLM:
 
 
 def make_factory(recorded_llms, node_name):
-    def factory(llm, *_args):
+    def factory(llm, *_args, **_kwargs):
         recorded_llms[node_name] = llm
         return node_name
 
