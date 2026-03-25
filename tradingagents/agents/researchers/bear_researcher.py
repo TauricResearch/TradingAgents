@@ -54,6 +54,9 @@ Use this information to deliver a compelling bear argument, refute the bull's cl
             "count": investment_debate_state["count"] + 1,
         }
 
-        return {"investment_debate_state": new_investment_debate_state}
+        return {
+            "investment_debate_state": new_investment_debate_state,
+            "factor_rules_report": factor_rules_report,
+        }
 
     return bear_node

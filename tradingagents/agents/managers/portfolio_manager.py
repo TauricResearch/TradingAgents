@@ -73,6 +73,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
         return {
             "risk_debate_state": new_risk_debate_state,
             "final_trade_decision": response.content,
+            "factor_rules_report": factor_rules_report,
         }
 
     return portfolio_manager_node

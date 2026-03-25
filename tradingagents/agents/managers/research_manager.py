@@ -58,6 +58,7 @@ Debate History:
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": response.content,
+            "factor_rules_report": factor_rules_report,
         }
 
     return research_manager_node

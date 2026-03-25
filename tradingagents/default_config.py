@@ -32,6 +32,7 @@ DEFAULT_CONFIG = {
     "quick_think_llm": "gpt-5-mini",
     "backend_url": "https://api.openai.com/v1",
     "llm_routing": None,
+    "factor_rules_path": None,
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
