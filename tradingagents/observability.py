@@ -60,29 +60,11 @@ class RunLogger:
         events: Thread-safe list of all recorded events.
     """
 
-    def __init__(
-        self,
-        run_id: str | None = None,
-        mongo_uri: str | None = None,
-        mongo_db: str | None = "tradingagents",
-        flow_id: str | None = None,
-    ) -> None:
+    def __init__(self) -> None:
         self._lock = threading.Lock()
         self.events: list[_Event] = []
         self.callback = _LLMCallbackHandler(self)
         self._start = time.time()
-        self.run_id = run_id
-        self.flow_id = flow_id
-        self._mongo_col = None
-
-        if mongo_uri and run_id:
-            try:
-                from pymongo import MongoClient
-                client = MongoClient(mongo_uri)
-                self._mongo_col = client[mongo_db]["run_events"]
-                _py_logger.info("RunLogger: persisting events to MongoDB (run_id=%s, flow_id=%s)", run_id, flow_id)
-            except Exception as exc:
-                _py_logger.warning("RunLogger: MongoDB connection failed: %s", exc)
 
     # -- public helpers to record events from non-callback code ----------------
 
@@ -215,16 +197,6 @@ class RunLogger:
             self.events.append(evt)
         _py_logger.debug("%s | %s", evt.kind, json.dumps(evt.data))
 
-        if self._mongo_col is not None and self.run_id:
-            try:
-                doc = evt.to_dict()
-                doc["run_id"] = self.run_id
-                if self.flow_id:
-                    doc["flow_id"] = self.flow_id
-                self._mongo_col.insert_one(doc)
-            except Exception as exc:
-                _py_logger.warning("RunLogger: MongoDB insert failed: %s", exc)
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # LangChain callback handler — captures LLM call details
@@ -253,24 +225,11 @@ class _LLMCallbackHandler(BaseCallbackHandler):
         model = _extract_model(serialized, kwargs)
         agent = kwargs.get("name") or serialized.get("name") or _extract_graph_node(kwargs)
         key = str(run_id) if run_id else str(id(messages))
-
-        # Capture prompt content
-        prompt = ""
-        try:
-            if messages and isinstance(messages[0], list):
-                # batched messages
-                prompt = "\n\n".join([str(m.content) if hasattr(m, "content") else str(m) for m in messages[0]])
-            else:
-                prompt = "\n\n".join([str(m.content) if hasattr(m, "content") else str(m) for m in messages])
-        except Exception:
-            pass
-
         with self._lock:
             self._inflight[key] = {
                 "model": model,
                 "agent": agent or "",
                 "t0": time.time(),
-                "prompt": prompt,
             }
 
     # -- legacy LLM start (completion-style) -----------------------------------
@@ -291,7 +250,6 @@ class _LLMCallbackHandler(BaseCallbackHandler):
                 "model": model,
                 "agent": agent or "",
                 "t0": time.time(),
-                "prompt": prompts[0] if prompts else "",
             }
 
     # -- LLM end ---------------------------------------------------------------
@@ -304,13 +262,10 @@ class _LLMCallbackHandler(BaseCallbackHandler):
         tokens_in = 0
         tokens_out = 0
         model_from_response = ""
-        full_response = ""
         try:
             generation = response.generations[0][0]
-            full_response = generation.text if hasattr(generation, "text") else str(generation)
             if hasattr(generation, "message"):
                 msg = generation.message
-                full_response = msg.content if hasattr(msg, "content") else full_response
                 if isinstance(msg, AIMessage) and hasattr(msg, "usage_metadata") and msg.usage_metadata:
                     tokens_in = msg.usage_metadata.get("input_tokens", 0)
                     tokens_out = msg.usage_metadata.get("output_tokens", 0)
@@ -322,7 +277,6 @@ class _LLMCallbackHandler(BaseCallbackHandler):
         model = model_from_response or (meta["model"] if meta else "unknown")
         agent = meta["agent"] if meta else ""
         duration_ms = (time.time() - meta["t0"]) * 1000 if meta else 0
-        prompt = meta["prompt"] if meta else ""
 
         evt = _Event(
             kind="llm",
@@ -333,8 +287,6 @@ class _LLMCallbackHandler(BaseCallbackHandler):
                 "tokens_in": tokens_in,
                 "tokens_out": tokens_out,
                 "duration_ms": round(duration_ms, 1),
-                "prompt": prompt,
-                "response": full_response,
             },
         )
         self._rl._append(evt)
