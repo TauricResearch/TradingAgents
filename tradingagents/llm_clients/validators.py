@@ -48,6 +48,16 @@ VALID_MODELS = {
         "grok-4-fast-reasoning",
         "grok-4-fast-non-reasoning",
     ],
+    "perplexity": [
+        # Sonar Pro series
+        "sonar-pro",
+        "sonar-reasoning-pro",
+        # Sonar series
+        "sonar",
+        "sonar-reasoning",
+        # Deep Research
+        "sonar-deep-research",
+    ],
 }
 
 
