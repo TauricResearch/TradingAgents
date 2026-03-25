@@ -18,15 +18,23 @@ from tradingagents.agents.utils.json_utils import extract_json
 logger = logging.getLogger(__name__)
 
 
-def create_pm_decision_agent(llm):
+def create_pm_decision_agent(llm, config: dict | None = None):
     """Create a PM decision agent node.
 
     Args:
         llm: A LangChain chat model instance (deep_think recommended).
+        config: Portfolio configuration dictionary containing constraints.
 
     Returns:
         A node function ``pm_decision_node(state)`` compatible with LangGraph.
     """
+    cfg = config or {}
+    constraints_str = (
+        f"- Max position size: {cfg.get('max_position_pct', 0.15):.0%}\n"
+        f"- Max sector exposure: {cfg.get('max_sector_pct', 0.35):.0%}\n"
+        f"- Minimum cash reserve: {cfg.get('min_cash_pct', 0.05):.0%}\n"
+        f"- Max total positions: {cfg.get('max_positions', 15)}\n"
+    )
 
     def pm_decision_node(state):
         analysis_date = state.get("analysis_date") or ""
@@ -35,7 +43,10 @@ def create_pm_decision_agent(llm):
         holding_reviews_str = state.get("holding_reviews") or "{}"
         prioritized_candidates_str = state.get("prioritized_candidates") or "[]"
 
-        context = f"""## Portfolio Data
+        context = f"""## Portfolio Constraints
+{constraints_str}
+
+## Portfolio Data
 {portfolio_data_str}
 
 ## Risk Metrics
@@ -50,8 +61,13 @@ def create_pm_decision_agent(llm):
 
         system_message = (
             "You are a portfolio manager making final investment decisions. "
-            "Given the risk metrics, holding reviews, and prioritized investment candidates, "
+            "Given the constraints, risk metrics, holding reviews, and prioritized investment candidates, "
             "produce a structured JSON investment decision. "
+            "## CONSTRAINTS COMPLIANCE:\n"
+            "You MUST ensure your suggested buys and position sizes adhere to the portfolio constraints. "
+            "If a high-conviction candidate would exceed the max position size or sector limit, "
+            "YOU MUST adjust the suggested 'shares' downward to fit within the limit. "
+            "Do not suggest buys that you know will be rejected by the risk engine.\n\n"
             "Consider: reducing risk where metrics are poor, acting on SELL recommendations, "
             "and adding positions in high-conviction candidates that pass constraints. "
             "For every BUY you MUST set a stop_loss price (maximum acceptable loss level, "
@@ -69,7 +85,7 @@ def create_pm_decision_agent(llm):
             '  "risk_summary": "..."\n'
             "}\n\n"
             "IMPORTANT: Output ONLY valid JSON. Start your response with '{' and end with '}'. "
-            "Do NOT use markdown code fences. Do NOT include any explanation before or after the JSON.\n\n"
+            "Do NOT use markdown code fences. Do NOT include any explanation or preamble before or after the JSON.\n\n"
             f"{context}"
         )
 

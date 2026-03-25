@@ -48,12 +48,13 @@ class PortfolioGraph:
         mid_llm = self._create_llm("mid_think")
         deep_llm = self._create_llm("deep_think")
 
+        portfolio_config = self._get_portfolio_config()
+
         agents = {
             "review_holdings": create_holding_reviewer(mid_llm),
-            "pm_decision": create_pm_decision_agent(deep_llm),
+            "pm_decision": create_pm_decision_agent(deep_llm, config=portfolio_config),
         }
 
-        portfolio_config = self._get_portfolio_config()
         setup = PortfolioGraphSetup(agents, repo=self._repo, config=portfolio_config)
         self.graph = setup.setup_graph()
 

@@ -3,6 +3,7 @@ from typing import Dict, Any, List, AsyncGenerator
 import logging
 import uuid
 import time
+import os
 from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.services.langgraph_engine import LangGraphEngine, NODE_TO_PHASE
@@ -269,30 +270,99 @@ async def reset_portfolio_stage(
     return {"deleted": deleted, "date": date, "portfolio_id": portfolio_id}
 
 
+def _get_mongo_col():
+    """Return the run_events collection if MongoDB is configured."""
+    uri = os.getenv("TRADINGAGENTS_MONGO_URI")
+    db_name = os.getenv("TRADINGAGENTS_MONGO_DB", "tradingagents")
+    if uri:
+        try:
+            from pymongo import MongoClient
+            client = MongoClient(uri)
+            return client[db_name]["run_events"]
+        except Exception:
+            logger.warning("Failed to connect to MongoDB for historical events")
+    return None
+
+
 @router.get("/")
 async def list_runs(user: dict = Depends(get_current_user)):
     # Filter by user in production
-    return list(runs.values())
+    all_runs = dict(runs)
+
+    # Supplement with historical metadata from MongoDB if available
+    col = _get_mongo_col()
+    if col is not None:
+        try:
+            # Fetch unique run_ids from the last 7 days (simplified)
+            # In a real app, we'd have a separate 'runs' collection for metadata.
+            # Here we use the events collection and group by run_id.
+            pipeline = [
+                {"$match": {"type": "log", "agent": "SYSTEM"}}, # Filter for start logs
+                {"$sort": {"ts": -1}},
+                {"$group": {
+                    "_id": "$run_id",
+                    "id": {"$first": "$run_id"},
+                    "type": {"$first": "$type"},
+                    "created_at": {"$first": "$ts"},
+                    # Status is harder to get from events without a dedicated meta doc
+                }},
+                {"$limit": 50}
+            ]
+            for doc in col.aggregate(pipeline):
+                rid = doc["id"]
+                if rid not in all_runs:
+                    all_runs[rid] = {
+                        "id": rid,
+                        "type": doc.get("type", "unknown"),
+                        "status": "historical",
+                        "created_at": doc.get("created_at", 0),
+                        "user_id": "anonymous",
+                    }
+        except Exception:
+            logger.warning("Failed to fetch historical runs from MongoDB")
+
+    return list(all_runs.values())
 
 @router.get("/{run_id}")
 async def get_run_status(run_id: str, user: dict = Depends(get_current_user)):
-    if run_id not in runs:
-        raise HTTPException(status_code=404, detail="Run not found")
-    run = runs[run_id]
-    # Lazy-load events from disk if they were not kept in memory
-    if (
-        not run.get("events")
-        and run.get("status") in ("completed", "failed")
-    ):
+    if run_id in runs:
+        run = runs[run_id]
+        # Lazy-load events from disk if they were not kept in memory
+        if (
+            not run.get("events")
+            and run.get("status") in ("completed", "failed")
+        ):
+            try:
+                from tradingagents.portfolio.store_factory import create_report_store
+                short_rid = run.get("short_rid") or run_id[:8]
+                store = create_report_store(run_id=short_rid)
+                date = (run.get("params") or {}).get("date", "")
+                if date:
+                    events = store.load_run_events(date)
+                    if events:
+                        run["events"] = events
+            except Exception:
+                logger.warning("Failed to lazy-load events for run=%s", run_id)
+        return run
+
+    # Not in memory — try MongoDB
+    col = _get_mongo_col()
+    if col is not None:
         try:
-            from tradingagents.portfolio.store_factory import create_report_store
-            short_rid = run.get("short_rid") or run_id[:8]
-            store = create_report_store(run_id=short_rid)
-            date = (run.get("params") or {}).get("date", "")
-            if date:
-                events = store.load_run_events(date)
-                if events:
-                    run["events"] = events
+            cursor = col.find({"run_id": run_id}).sort("ts", 1)
+            events = list(cursor)
+            if events:
+                # Remove MongoDB _id for JSON serialization
+                for e in events:
+                    e.pop("_id", None)
+                return {
+                    "id": run_id,
+                    "status": "historical",
+                    "events": events,
+                    "type": events[0].get("type", "unknown") if events else "unknown",
+                    "created_at": events[0].get("ts", 0) if events else 0,
+                }
         except Exception:
-            logger.warning("Failed to lazy-load events for run=%s", run_id)
-    return run
+            logger.warning("Failed to fetch historical run %s from MongoDB", run_id)
+
+    raise HTTPException(status_code=404, detail="Run not found")
