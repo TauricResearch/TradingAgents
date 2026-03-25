@@ -22,6 +22,10 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+from tradingagents.agents.utils.social_data_tools import (
+    get_social_sentiment,
+    has_social_sentiment_support,
+)
 from tradingagents.agents.utils.macro_data_tools import (
     get_economic_indicators,
     get_fed_calendar,
@@ -48,6 +52,7 @@ from tradingagents.agents.utils.valuation_tools import (
 
 
 __all__ = [
+    "build_social_tools",
     "build_instrument_context",
     "build_analyst_report_context",
     "build_structured_stock_context",
@@ -72,10 +77,19 @@ __all__ = [
     "get_sizing_fundamentals",
     "get_sizing_indicator",
     "get_sizing_price_history",
+    "get_social_sentiment",
     "get_stock_data",
     "get_valuation_inputs",
+    "has_social_sentiment_support",
     "get_yield_curve",
 ]
+
+
+def build_social_tools(include_social_sentiment: bool) -> list:
+    tools = [get_news]
+    if include_social_sentiment:
+        tools.insert(0, get_social_sentiment)
+    return tools
 
 
 def build_instrument_context(ticker: str) -> str:

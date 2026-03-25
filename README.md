@@ -67,7 +67,8 @@ Our framework decomposes complex trading tasks into specialized roles. This ensu
 ### Analyst Team
 - Fundamentals Analyst: Evaluates company financials and performance metrics, identifying intrinsic values and potential red flags.
 - Sentiment Analyst: Analyzes social media and public sentiment using sentiment scoring algorithms to gauge short-term market mood.
-- News Analyst: Monitors global news and macroeconomic indicators, interpreting the impact of events on market conditions.
+- News Analyst: Monitors company and global news, interpreting the impact of events on market conditions.
+- Macro Analyst: Tracks macroeconomic indicators, Treasury curve structure, and Fed policy context using FRED-backed data.
 - Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements.
 
 <p align="center">
@@ -128,6 +129,8 @@ export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export FRED_API_KEY=...            # Required for Macro Analyst / FRED macro data
+export ADANOS_API_KEY=...          # Optional, for live social sentiment snapshots in the social analyst
 ```
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.
@@ -137,6 +140,8 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
+If you want to use the Macro Analyst in the CLI or graph, you must also configure `FRED_API_KEY`.
+
 ### CLI Usage
 
 Launch the interactive CLI:
@@ -144,7 +149,7 @@ Launch the interactive CLI:
 tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
-You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+You will see a screen where you can select your desired tickers, analysis date, LLM provider, analyst team (including Macro Analyst), research depth, and more.
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">

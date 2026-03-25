@@ -33,6 +33,7 @@ class GraphSetup:
         portfolio_manager_memory,
         conditional_logic: ConditionalLogic,
         role_llms: Dict[str, Any] | None = None,
+        social_sentiment_available: bool = False,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -45,6 +46,7 @@ class GraphSetup:
         self.invest_judge_memory = invest_judge_memory
         self.portfolio_manager_memory = portfolio_manager_memory
         self.conditional_logic = conditional_logic
+        self.social_sentiment_available = social_sentiment_available
         self.market_analyst_llm = self._get_role_llm("market", self.quick_thinking_llm)
         self.social_analyst_llm = self._get_role_llm("social", self.quick_thinking_llm)
         self.news_analyst_llm = self._get_role_llm("news", self.quick_thinking_llm)
@@ -143,7 +145,8 @@ class GraphSetup:
 
         if "social" in selected_analysts:
             analyst_nodes["social"] = create_social_media_analyst(
-                self.social_analyst_llm
+                self.social_analyst_llm,
+                social_sentiment_available=self.social_sentiment_available,
             )
             delete_nodes["social"] = create_msg_delete()
             tool_nodes["social"] = self.tool_nodes["social"]
