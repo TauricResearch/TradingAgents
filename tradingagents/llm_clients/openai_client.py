@@ -25,20 +25,22 @@ _PASSTHROUGH_KWARGS = (
 )
 
 # Provider base URLs and API key env vars
+# Format: (default_base_url, api_key_env_var)
 _PROVIDER_CONFIG = {
     "xai": ("https://api.x.ai/v1", "XAI_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
+    "lm studio": (None, "LMSTUDIO_API_KEY"),  # Base URL from LMSTUDIO_BASE_URL
 }
 
 
 class OpenAIClient(BaseLLMClient):
-    """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
+    """Client for OpenAI, Ollama, OpenRouter, LM Studio, and xAI providers.
 
     For native OpenAI models, uses the Responses API (/v1/responses) which
     supports reasoning_effort with function tools across all model families
     (GPT-4.1, GPT-5). Third-party compatible providers (xAI, OpenRouter,
-    Ollama) use standard Chat Completions.
+    Ollama, LM Studio) use standard Chat Completions.
     """
 
     def __init__(
@@ -58,13 +60,27 @@ class OpenAIClient(BaseLLMClient):
         # Provider-specific base URL and auth
         if self.provider in _PROVIDER_CONFIG:
             base_url, api_key_env = _PROVIDER_CONFIG[self.provider]
-            llm_kwargs["base_url"] = base_url
+
+            # Special handling for LM Studio - get base URL from env
+            if self.provider == "lm studio":
+                base_url = os.environ.get("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+
+            # Set base URL if available
+            if base_url:
+                llm_kwargs["base_url"] = base_url
+
+            # Handle API key
             if api_key_env:
                 api_key = os.environ.get(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
+                else:
+                    # For LM Studio, use placeholder if no API key set
+                    if self.provider == "lm studio":
+                        llm_kwargs["api_key"] = "not-needed"
             else:
-                llm_kwargs["api_key"] = "ollama"
+                # For providers with no API key env var (like ollama)
+                llm_kwargs["api_key"] = "not-needed"
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 

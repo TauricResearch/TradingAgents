@@ -585,6 +585,7 @@ def get_user_selections():
             )
         )
         anthropic_effort = ask_anthropic_effort()
+    # LM Studio, Ollama, xAI, and Openrouter don't need additional configuration
 
     return {
         "ticker": selected_ticker,

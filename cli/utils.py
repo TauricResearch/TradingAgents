@@ -1,3 +1,5 @@
+import os
+import requests
 import questionary
 from typing import List, Optional, Tuple, Dict
 
@@ -133,6 +135,31 @@ def select_research_depth() -> int:
     return choice
 
 
+def fetch_lmstudio_models(base_url: str) -> Optional[List[str]]:
+    """Fetch available models from LM Studio API.
+
+    Args:
+        base_url: LM Studio base URL (e.g., http://localhost:1234/v1)
+
+    Returns:
+        List of model IDs if successful, None if connection fails
+    """
+    try:
+        # Remove /v1 suffix if present and add /models endpoint
+        api_url = base_url.rstrip('/') + '/models'
+        response = requests.get(api_url, timeout=2)
+        response.raise_for_status()
+
+        data = response.json()
+        if 'data' in data and isinstance(data['data'], list):
+            models = [model['id'] for model in data['data'] if 'id' in model]
+            return models if models else None
+        return None
+    except (requests.RequestException, KeyError, ValueError) as e:
+        # Connection failed or invalid response
+        return None
+
+
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
 
@@ -171,13 +198,78 @@ def select_shallow_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
         ],
+        "lm studio": [
+            ("Custom model (enter model name)", "custom"),
+        ],
     }
+
+    provider_key = provider.lower()
+
+    # For LM Studio, fetch models dynamically from API
+    if provider_key == "lm studio":
+        lmstudio_url = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+
+        console.print(f"[dim]Fetching models from LM Studio at {lmstudio_url}...[/dim]")
+        available_models = fetch_lmstudio_models(lmstudio_url)
+
+        if available_models:
+            console.print(f"[green]✓ Found {len(available_models)} model(s)[/green]")
+
+            # Create choices from available models
+            choices = [questionary.Choice(model, value=model) for model in available_models]
+            # Add manual entry option at the end
+            choices.append(questionary.Choice("Enter model name manually", value="__manual__"))
+
+            choice = questionary.select(
+                "Select Your [Quick-Thinking LLM Engine]:",
+                choices=choices,
+                instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+                style=questionary.Style([
+                    ("selected", "fg:magenta noinherit"),
+                    ("highlighted", "fg:magenta noinherit"),
+                    ("pointer", "fg:magenta noinherit"),
+                ]),
+            ).ask()
+
+            if choice is None:
+                console.print("\n[red]No model selected. Exiting...[/red]")
+                exit(1)
+
+            # If manual entry selected, prompt for model name
+            if choice == "__manual__":
+                model_name = questionary.text(
+                    "Enter the model name:",
+                    instruction="\n- This should match the model ID from LM Studio",
+                ).ask()
+
+                if not model_name:
+                    console.print("\n[red]No model name entered. Exiting...[/red]")
+                    exit(1)
+
+                return model_name
+
+            return choice
+        else:
+            # Connection failed, show error and fall back to manual entry
+            console.print(f"[yellow]⚠ Could not connect to LM Studio at {lmstudio_url}[/yellow]")
+            console.print("[yellow]Please make sure LM Studio is running and a model is loaded.[/yellow]")
+
+            model_name = questionary.text(
+                "Enter the model name manually:",
+                instruction="\n- This should match the model ID from LM Studio",
+            ).ask()
+
+            if not model_name:
+                console.print("\n[red]No model name entered. Exiting...[/red]")
+                exit(1)
+
+            return model_name
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
+            for display, value in SHALLOW_AGENT_OPTIONS[provider_key]
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -238,13 +330,78 @@ def select_deep_thinking_agent(provider) -> str:
             ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
+        "lm studio": [
+            ("Custom model (enter model name)", "custom"),
+        ],
     }
+
+    provider_key = provider.lower()
+
+    # For LM Studio, fetch models dynamically from API
+    if provider_key == "lm studio":
+        lmstudio_url = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+
+        console.print(f"[dim]Fetching models from LM Studio at {lmstudio_url}...[/dim]")
+        available_models = fetch_lmstudio_models(lmstudio_url)
+
+        if available_models:
+            console.print(f"[green]✓ Found {len(available_models)} model(s)[/green]")
+
+            # Create choices from available models
+            choices = [questionary.Choice(model, value=model) for model in available_models]
+            # Add manual entry option at the end
+            choices.append(questionary.Choice("Enter model name manually", value="__manual__"))
+
+            choice = questionary.select(
+                "Select Your [Deep-Thinking LLM Engine]:",
+                choices=choices,
+                instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+                style=questionary.Style([
+                    ("selected", "fg:magenta noinherit"),
+                    ("highlighted", "fg:magenta noinherit"),
+                    ("pointer", "fg:magenta noinherit"),
+                ]),
+            ).ask()
+
+            if choice is None:
+                console.print("\n[red]No model selected. Exiting...[/red]")
+                exit(1)
+
+            # If manual entry selected, prompt for model name
+            if choice == "__manual__":
+                model_name = questionary.text(
+                    "Enter the model name:",
+                    instruction="\n- This should match the model ID from LM Studio",
+                ).ask()
+
+                if not model_name:
+                    console.print("\n[red]No model name entered. Exiting...[/red]")
+                    exit(1)
+
+                return model_name
+
+            return choice
+        else:
+            # Connection failed, show error and fall back to manual entry
+            console.print(f"[yellow]⚠ Could not connect to LM Studio at {lmstudio_url}[/yellow]")
+            console.print("[yellow]Please make sure LM Studio is running and a model is loaded.[/yellow]")
+
+            model_name = questionary.text(
+                "Enter the model name manually:",
+                instruction="\n- This should match the model ID from LM Studio",
+            ).ask()
+
+            if not model_name:
+                console.print("\n[red]No model name entered. Exiting...[/red]")
+                exit(1)
+
+            return model_name
 
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
+            for display, value in DEEP_AGENT_OPTIONS[provider_key]
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -264,6 +421,9 @@ def select_deep_thinking_agent(provider) -> str:
 
 def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
+    # Get LM Studio URL from environment or use default
+    lmstudio_url = os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+
     # Define OpenAI api options with their corresponding endpoints
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
@@ -272,6 +432,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("xAI", "https://api.x.ai/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
+        ("LM Studio", lmstudio_url),
     ]
     
     choice = questionary.select(
