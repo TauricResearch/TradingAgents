@@ -54,7 +54,6 @@ VALID_MODELS = {
         "sonar-reasoning-pro",
         # Sonar series
         "sonar",
-        "sonar-reasoning",
         # Deep Research
         "sonar-deep-research",
     ],

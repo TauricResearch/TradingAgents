@@ -164,7 +164,6 @@ def select_shallow_thinking_agent(provider) -> str:
         ],
         "perplexity": [
             ("Sonar - Fast online search", "sonar"),
-            ("Sonar Reasoning - Reasoning with search", "sonar-reasoning"),
             ("Sonar Pro - Advanced online search", "sonar-pro"),
         ],
         "openrouter": [
@@ -237,7 +236,6 @@ def select_deep_thinking_agent(provider) -> str:
         "perplexity": [
             ("Sonar Pro - Advanced online search", "sonar-pro"),
             ("Sonar Reasoning Pro - Advanced reasoning with search", "sonar-reasoning-pro"),
-            ("Sonar Reasoning - Reasoning with search", "sonar-reasoning"),
             ("Sonar Deep Research - In-depth research", "sonar-deep-research"),
         ],
         "openrouter": [
