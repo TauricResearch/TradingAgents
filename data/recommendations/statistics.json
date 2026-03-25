@@ -38,13 +38,13 @@
       "wins_7d": 61,
       "losses_7d": 76,
       "wins_30d": 19,
-      "losses_30d": 37,
+      "losses_30d": 43,
       "avg_return_1d": -0.08,
       "avg_return_7d": -1.02,
-      "avg_return_30d": -1.01,
+      "avg_return_30d": -1.76,
       "win_rate_1d": 38.7,
       "win_rate_7d": 44.5,
-      "win_rate_30d": 33.9
+      "win_rate_30d": 30.6
     },
     "options_flow": {
       "count": 83,
@@ -52,14 +52,14 @@
       "losses_1d": 55,
       "wins_7d": 32,
       "losses_7d": 40,
-      "wins_30d": 12,
-      "losses_30d": 34,
+      "wins_30d": 15,
+      "losses_30d": 35,
       "avg_return_1d": 0.07,
       "avg_return_7d": -1.26,
-      "avg_return_30d": -3.64,
+      "avg_return_30d": -3.08,
       "win_rate_1d": 33.7,
       "win_rate_7d": 44.4,
-      "win_rate_30d": 26.1
+      "win_rate_30d": 30.0
     },
     "earnings_play": {
       "count": 54,
@@ -67,14 +67,14 @@
       "losses_1d": 34,
       "wins_7d": 21,
       "losses_7d": 32,
-      "wins_30d": 18,
+      "wins_30d": 20,
       "losses_30d": 22,
       "avg_return_1d": -0.8,
       "avg_return_7d": -2.22,
-      "avg_return_30d": -3.89,
+      "avg_return_30d": -3.55,
       "win_rate_1d": 37.0,
       "win_rate_7d": 39.6,
-      "win_rate_30d": 45.0
+      "win_rate_30d": 47.6
     },
     "contrarian_value": {
       "count": 7,
@@ -143,13 +143,13 @@
       "wins_7d": 10,
       "losses_7d": 13,
       "wins_30d": 4,
-      "losses_30d": 5,
+      "losses_30d": 7,
       "avg_return_1d": -0.02,
       "avg_return_7d": -1.3,
-      "avg_return_30d": 2.48,
+      "avg_return_30d": 0.47,
       "win_rate_1d": 29.2,
       "win_rate_7d": 43.5,
-      "win_rate_30d": 44.4
+      "win_rate_30d": 36.4
     },
     "ipo_opportunity": {
       "count": 1,
@@ -173,13 +173,13 @@
       "wins_7d": 2,
       "losses_7d": 13,
       "wins_30d": 2,
-      "losses_30d": 8,
+      "losses_30d": 9,
       "avg_return_1d": -3.32,
       "avg_return_7d": -4.84,
-      "avg_return_30d": -10.99,
+      "avg_return_30d": -10.15,
       "win_rate_1d": 5.9,
       "win_rate_7d": 13.3,
-      "win_rate_30d": 20.0
+      "win_rate_30d": 18.2
     },
     "social_dd": {
       "count": 25,
@@ -210,9 +210,9 @@
     "win_rate": 41.2
   },
   "overall_30d": {
-    "count": 345,
-    "wins": 119,
-    "avg_return": -2.86,
-    "win_rate": 34.5
+    "count": 360,
+    "wins": 124,
+    "avg_return": -2.88,
+    "win_rate": 34.4
   }
 }
