@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Backend (FastAPI / uvicorn)",
+      "runtimeExecutable": "/opt/miniconda3/envs/tradingagents/bin/python",
+      "runtimeArgs": ["-m", "agent_os.backend.main"],
+      "port": 8088
+    },
+    {
+      "name": "Frontend (Vite / React)",
+      "runtimeExecutable": "/opt/homebrew/bin/node",
+      "runtimeArgs": ["/Users/Ahmet/Repo/TradingAgents/agent_os/frontend/node_modules/.bin/vite", "/Users/Ahmet/Repo/TradingAgents/agent_os/frontend"],
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}

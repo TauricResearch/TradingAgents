@@ -57,6 +57,22 @@ def _assert_valid_result(result: str, label: str) -> None:
     )
 
 
+_INVALID_FILTER_MARKER = "Invalid filter"
+
+
+def _assert_no_invalid_filter_error(result: str, label: str) -> None:
+    """Assert result does not contain a Finviz 'Invalid filter' error.
+
+    Distinguishes code bugs (wrong filter name/value hardcoded in the tool)
+    from acceptable transient failures (network errors, rate limits).
+    Catches both 'Invalid filter 'name'' and 'Invalid filter option 'value''.
+    """
+    assert _INVALID_FILTER_MARKER not in result, (
+        f"{label}: Finviz filter string is invalid — this is a code bug, "
+        f"not a transient network issue:\n{result}"
+    )
+
+
 def _assert_ticker_rows(result: str, label: str) -> None:
     """When results were found, every data row must have the expected shape."""
     if not result.startswith("Top 5 stocks for "):
@@ -272,6 +288,53 @@ class TestGetBreakoutAccumulationStocks:
 # ---------------------------------------------------------------------------
 # All three tools together — smoke test
 # ---------------------------------------------------------------------------
+
+
+@_skip_if_no_finviz
+class TestNoInvalidFilterErrors:
+    """Assert that none of the three tools produce an 'Invalid filter' error.
+
+    The existing tests accept 'Smart money scan unavailable' as a valid result
+    to tolerate network/rate-limit failures.  This class tightens that: it
+    rejects results where Finviz rejected the *filter name itself* (a code bug
+    in the hardcoded filter dict), while still permitting genuine transient
+    failures.  All calls hit the real finviz.com — no mocks.
+    """
+
+    def test_insider_buying_filter_is_valid(self):
+        from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
+
+        result = get_insider_buying_stocks.invoke({})
+        _assert_no_invalid_filter_error(result, "insider_buying")
+
+    def test_unusual_volume_filter_is_valid(self):
+        from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
+
+        result = get_unusual_volume_stocks.invoke({})
+        _assert_no_invalid_filter_error(result, "unusual_volume")
+
+    def test_breakout_accumulation_filter_is_valid(self):
+        from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
+
+        result = get_breakout_accumulation_stocks.invoke({})
+        _assert_no_invalid_filter_error(result, "breakout_accumulation")
+
+    def test_all_three_tools_no_invalid_filter(self):
+        """Single test exercising all three tools — useful for quick CI smoke run."""
+        from tradingagents.agents.utils.scanner_tools import (
+            get_breakout_accumulation_stocks,
+            get_insider_buying_stocks,
+            get_unusual_volume_stocks,
+        )
+
+        tools = [
+            (get_insider_buying_stocks, "insider_buying"),
+            (get_unusual_volume_stocks, "unusual_volume"),
+            (get_breakout_accumulation_stocks, "breakout_accumulation"),
+        ]
+        for tool_fn, label in tools:
+            result = tool_fn.invoke({})
+            _assert_no_invalid_filter_error(result, label)
 
 
 @_skip_if_no_finviz

@@ -162,7 +162,7 @@ def get_insider_buying_stocks() -> str:
     """
     return _run_finviz_screen(
         {
-            "InsiderPurchases": "Positive (>0%)",
+            "InsiderTransactions": "Positive (>0%)",
             "Market Cap.": "+Mid (over $2bln)",
             "Current Volume": "Over 1M",
         },
@@ -194,7 +194,7 @@ def get_breakout_accumulation_stocks() -> str:
     """
     return _run_finviz_screen(
         {
-            "Performance 2": "52-Week High",
+            "52-Week High/Low": "New High",
             "Relative Volume": "Over 2",
             "Price": "Over $10",
         },
