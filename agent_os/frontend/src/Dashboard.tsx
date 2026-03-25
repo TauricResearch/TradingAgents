@@ -34,8 +34,14 @@ import {
   Tooltip,
   Collapse,
   useToast,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverHeader,
+  PopoverBody,
+  PopoverCloseButton,
 } from '@chakra-ui/react';
-import { LayoutDashboard, Wallet, Settings, Terminal as TerminalIcon, ChevronRight, Eye, Search, BarChart3, Bot, ChevronDown, ChevronUp, FlaskConical, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Wallet, Settings, Terminal as TerminalIcon, ChevronRight, Eye, Search, BarChart3, Bot, ChevronDown, ChevronUp, FlaskConical, Trash2, History, Loader2 } from 'lucide-react';
 import { MetricHeader } from './components/MetricHeader';
 import { AgentGraph } from './components/AgentGraph';
 import { PortfolioViewer } from './components/PortfolioViewer';
@@ -54,6 +60,7 @@ interface RunParams {
   date: string;
   ticker: string;
   portfolio_id: string;
+  max_auto_tickers: string;
   mock_type: MockType;
   speed: string;
   force: boolean;
@@ -393,6 +400,7 @@ export const Dashboard: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     ticker: 'AAPL',
     portfolio_id: 'main_portfolio',
+    max_auto_tickers: '',
     mock_type: 'pipeline',
     speed: '3',
     force: false,
@@ -456,6 +464,7 @@ export const Dashboard: React.FC = () => {
             date: effectiveParams.date,
             ticker: effectiveParams.ticker,
             force: effectiveParams.force,
+            ...(effectiveParams.max_auto_tickers ? { max_tickers: parseInt(effectiveParams.max_auto_tickers, 10) } : {}),
           };
       const res = await axios.post(`${API_BASE}/run/${type}`, body);
       setActiveRunId(res.data.run_id);
@@ -468,14 +477,19 @@ export const Dashboard: React.FC = () => {
   };
 
   /** Re-run triggered from a graph node's Re-run button. */
-  const handleNodeRerun = useCallback((identifier: string, _nodeId: string) => {
+  const handleNodeRerun = useCallback((identifier: string, nodeId: string) => {
+    // If we have an active loaded run and the node is in NODE_TO_PHASE, use phase-level rerun
+    if (activeRunId && nodeId && identifier && identifier !== 'MARKET' && identifier !== '') {
+      triggerNodeRerun(activeRunId, identifier, nodeId);
+      return;
+    }
     if (identifier === 'MARKET' || identifier === '') {
       startRun('scan');
     } else {
       startRun('pipeline', { ticker: identifier });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning, params]);
+  }, [isRunning, params, activeRunId]);
 
   const resetPortfolioStage = async () => {
     if (!params.date || !params.portfolio_id) {
@@ -495,6 +509,70 @@ export const Dashboard: React.FC = () => {
       });
     } catch (err) {
       toast({ title: 'Failed to reset portfolio stage', status: 'error', duration: 3000, isClosable: true, position: 'top' });
+    }
+  };
+
+  // ─── History panel state ───────────────────────────────────────────
+  const [historyRuns, setHistoryRuns] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/run/`);
+      const sorted = (res.data as any[]).sort((a: any, b: any) => (b.created_at || 0) - (a.created_at || 0));
+      setHistoryRuns(sorted);
+    } catch (err) {
+      console.error('Failed to load run history', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const loadRun = (run: any) => {
+    clearEvents();
+    // Pre-fill params from run
+    if (run.params) {
+      setParams((p) => ({
+        ...p,
+        date: run.params.date || p.date,
+        ticker: run.params.ticker || p.ticker,
+        portfolio_id: run.params.portfolio_id || p.portfolio_id,
+      }));
+    }
+    setActiveRunId(null);
+    setTimeout(() => setActiveRunId(run.id), 0);
+  };
+
+  /** Trigger a phase-level re-run for a specific node on the active run. */
+  const triggerNodeRerun = async (runId: string, identifier: string, nodeId: string) => {
+    try {
+      const res = await axios.post(`${API_BASE}/run/rerun-node`, {
+        run_id: runId,
+        node_id: nodeId,
+        identifier,
+        date: params.date,
+        portfolio_id: params.portfolio_id,
+      });
+      // Force WebSocket reconnect to stream new events
+      setActiveRunId(null);
+      setTimeout(() => setActiveRunId(res.data.run_id), 0);
+      toast({
+        title: `Re-running ${res.data.phase} phase for ${identifier}`,
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Re-run failed',
+        description: err?.response?.data?.detail || String(err),
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top',
+      });
     }
   };
 
@@ -642,6 +720,52 @@ export const Dashboard: React.FC = () => {
                     <Tag size="sm" colorScheme={status === 'streaming' ? 'green' : status === 'completed' ? 'blue' : status === 'error' ? 'red' : 'gray'}>
                       {status.toUpperCase()}
                     </Tag>
+                    <Popover placement="bottom-end" onOpen={loadHistory}>
+                      <PopoverTrigger>
+                        <IconButton
+                          aria-label="Run history"
+                          icon={<History size={14} />}
+                          size="xs"
+                          variant="ghost"
+                          color="whiteAlpha.600"
+                        />
+                      </PopoverTrigger>
+                      <PopoverContent bg="slate.900" borderColor="whiteAlpha.200" maxH="400px" overflowY="auto" w="360px">
+                        <PopoverCloseButton />
+                        <PopoverHeader borderColor="whiteAlpha.100" fontSize="sm" fontWeight="bold">Run History</PopoverHeader>
+                        <PopoverBody p={2}>
+                          {historyLoading && <Flex justify="center" py={4}><Loader2 size={20} /></Flex>}
+                          {!historyLoading && historyRuns.length === 0 && (
+                            <Text fontSize="sm" color="whiteAlpha.400" textAlign="center" py={4}>No runs found</Text>
+                          )}
+                          <VStack spacing={1} align="stretch">
+                            {historyRuns.map((r) => (
+                              <Flex
+                                key={r.id}
+                                p={2}
+                                borderRadius="md"
+                                _hover={{ bg: 'whiteAlpha.100' }}
+                                cursor="pointer"
+                                onClick={() => loadRun(r)}
+                                align="center"
+                                gap={2}
+                              >
+                                <Badge colorScheme={r.type === 'auto' ? 'green' : r.type === 'scan' ? 'cyan' : r.type === 'pipeline' ? 'blue' : 'purple'} fontSize="2xs">
+                                  {r.type}
+                                </Badge>
+                                <Text fontSize="xs" color="whiteAlpha.700">{(r.params || {}).date || '—'}</Text>
+                                <Tag size="sm" colorScheme={r.status === 'completed' ? 'blue' : r.status === 'running' ? 'green' : r.status === 'failed' ? 'red' : 'gray'} ml="auto">
+                                  {r.status}
+                                </Tag>
+                                <Text fontSize="2xs" color="whiteAlpha.400">
+                                  {r.created_at ? new Date(r.created_at * 1000).toLocaleTimeString() : ''}
+                                </Text>
+                              </Flex>
+                            ))}
+                          </VStack>
+                        </PopoverBody>
+                      </PopoverContent>
+                    </Popover>
                     <IconButton
                       aria-label="Toggle params"
                       icon={showParams ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -688,6 +812,15 @@ export const Dashboard: React.FC = () => {
                            value={params.portfolio_id}
                            onChange={(e) => setParams((p) => ({ ...p, portfolio_id: e.target.value }))}
                          />
+                       </HStack>
+                       <HStack>
+                         <Text fontSize="xs" color="whiteAlpha.600" minW="70px">Max Tickers</Text>
+                         <Input size="xs" type="number" min={1} placeholder="default (env)" w="80px"
+                           bg="whiteAlpha.100"
+                           borderColor="whiteAlpha.200"
+                           value={params.max_auto_tickers}
+                           onChange={(e) => setParams((p) => ({ ...p, max_auto_tickers: e.target.value }))} />
+                         <Text fontSize="2xs" color="whiteAlpha.400">(scan only, portfolio always included)</Text>
                        </HStack>
                        {/* Mock-specific controls */}
                        <Box height="1px" bg="whiteAlpha.100" />

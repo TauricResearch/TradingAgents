@@ -270,6 +270,64 @@ class MongoReportStore:
             )
         )
 
+    # ------------------------------------------------------------------
+    # Run Meta / Events
+    # ------------------------------------------------------------------
+
+    def save_run_meta(self, date: str, data: dict[str, Any]) -> str:
+        return self._save(date, "run_meta", data)
+
+    def load_run_meta(self, date: str, *, run_id: str | None = None) -> dict[str, Any] | None:
+        return self._load(date, "run_meta", run_id=run_id)
+
+    def save_run_events(self, date: str, events: list[dict[str, Any]]) -> str:
+        """Save run events as a single document wrapping the events list."""
+        return self._save(date, "run_events", {"events": events})
+
+    def load_run_events(self, date: str, *, run_id: str | None = None) -> list[dict[str, Any]]:
+        """Load run events. Returns empty list if not found."""
+        doc = self._load(date, "run_events", run_id=run_id)
+        if doc is None:
+            return []
+        return doc.get("events", [])
+
+    def list_run_metas(self) -> list[dict[str, Any]]:
+        """Return all run_meta documents, newest first."""
+        docs = self._col.find(
+            {"report_type": "run_meta"},
+            {"_id": 0},
+            sort=[("created_at", DESCENDING)],
+        )
+        return [d.get("data", d) for d in docs]
+
+    # ------------------------------------------------------------------
+    # Analyst / Trader Checkpoints
+    # ------------------------------------------------------------------
+
+    def save_analysts_checkpoint(
+        self, date: str, ticker: str, data: dict[str, Any]
+    ) -> str:
+        return self._save(date, "analysts_checkpoint", data, ticker=ticker)
+
+    def load_analysts_checkpoint(
+        self, date: str, ticker: str, *, run_id: str | None = None
+    ) -> dict[str, Any] | None:
+        return self._load(date, "analysts_checkpoint", ticker=ticker, run_id=run_id)
+
+    def save_trader_checkpoint(
+        self, date: str, ticker: str, data: dict[str, Any]
+    ) -> str:
+        return self._save(date, "trader_checkpoint", data, ticker=ticker)
+
+    def load_trader_checkpoint(
+        self, date: str, ticker: str, *, run_id: str | None = None
+    ) -> dict[str, Any] | None:
+        return self._load(date, "trader_checkpoint", ticker=ticker, run_id=run_id)
+
+    # ------------------------------------------------------------------
+    # Utility (continued)
+    # ------------------------------------------------------------------
+
     def list_analyses_for_date(self, date: str) -> list[str]:
         """Return ticker symbols that have an analysis for the given date."""
         docs = self._col.find(

@@ -45,13 +45,15 @@ class ScannerGraph:
         mid_llm = self._create_llm("mid_think")
         deep_llm = self._create_llm("deep_think")
 
+        max_scan_tickers = int(self.config.get("max_auto_tickers", 10))
+
         agents = {
             "geopolitical_scanner": create_geopolitical_scanner(quick_llm),
             "market_movers_scanner": create_market_movers_scanner(quick_llm),
             "sector_scanner": create_sector_scanner(quick_llm),
             "smart_money_scanner": create_smart_money_scanner(quick_llm),
             "industry_deep_dive": create_industry_deep_dive(mid_llm),
-            "macro_synthesis": create_macro_synthesis(deep_llm),
+            "macro_synthesis": create_macro_synthesis(deep_llm, max_scan_tickers=max_scan_tickers),
         }
 
         setup = ScannerGraphSetup(agents)

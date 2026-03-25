@@ -8,7 +8,7 @@ from tradingagents.agents.utils.json_utils import extract_json
 logger = logging.getLogger(__name__)
 
 
-def create_macro_synthesis(llm):
+def create_macro_synthesis(llm, max_scan_tickers: int = 10):
     def macro_synthesis_node(state):
         scan_date = state["scan_date"]
 
@@ -44,7 +44,7 @@ def create_macro_synthesis(llm):
             "Synthesize all reports into a structured output with: "
             "(1) Executive summary of the macro environment, "
             "(2) Top macro themes with conviction levels, "
-            "(3) A list of 8-10 specific stocks worth investigating with ticker, name, sector, rationale, "
+            f"(3) A list of exactly {max_scan_tickers} specific stocks worth investigating with ticker, name, sector, rationale, "
             "thesis_angle (growth/value/catalyst/turnaround/defensive/momentum), conviction (high/medium/low), "
             "key_catalysts, and risks. "
             "Output your response as valid JSON matching this schema:\n"

@@ -137,6 +137,25 @@ _TOOL_SERVICE_MAP: Dict[str, str] = {
 }
 
 
+NODE_TO_PHASE = {
+    # Phase analysts: re-run full pipeline from scratch
+    "Market Analyst": "analysts",
+    "Social Analyst": "analysts",
+    "News Analyst": "analysts",
+    "Fundamentals Analyst": "analysts",
+    # Phase debate_and_trader: load analysts_checkpoint, skip analysts
+    "Bull Researcher": "debate_and_trader",
+    "Bear Researcher": "debate_and_trader",
+    "Research Manager": "debate_and_trader",
+    "Trader": "debate_and_trader",
+    # Phase risk: load trader_checkpoint, skip analysts+debate+trader
+    "Aggressive Analyst": "risk",
+    "Conservative Analyst": "risk",
+    "Neutral Analyst": "risk",
+    "Portfolio Manager": "risk",
+}
+
+
 class LangGraphEngine:
     """Orchestrates LangGraph pipeline executions and streams events."""
 
@@ -191,7 +210,10 @@ class LangGraphEngine:
         store = create_report_store(run_id=short_rid)
 
         rl = self._start_run_logger(run_id)
-        scanner = ScannerGraph(config=self.config)
+        scan_config = {**self.config}
+        if params.get("max_tickers"):
+            scan_config["max_auto_tickers"] = int(params["max_tickers"])
+        scanner = ScannerGraph(config=scan_config)
 
         logger.info("Starting SCAN run=%s date=%s rid=%s", run_id, date, short_rid)
         yield self._system_log(f"Starting macro scan for {date}")
@@ -400,6 +422,32 @@ class LangGraphEngine:
                 )
                 if digest_content:
                     append_to_digest(date, "analyze", ticker, digest_content)
+
+                # Save analysts checkpoint (all 4 analyst reports populated)
+                _analyst_keys = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
+                if all(final_state.get(k) for k in _analyst_keys):
+                    analysts_ckpt = {
+                        "company_of_interest": ticker,
+                        "trade_date": date,
+                        **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                        "macro_regime_report": serializable_state.get("macro_regime_report", ""),
+                        "messages": serializable_state.get("messages", []),
+                    }
+                    store.save_analysts_checkpoint(date, ticker, analysts_ckpt)
+
+                # Save trader checkpoint (trader output populated)
+                if final_state.get("trader_investment_plan"):
+                    trader_ckpt = {
+                        "company_of_interest": ticker,
+                        "trade_date": date,
+                        **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                        "macro_regime_report": serializable_state.get("macro_regime_report", ""),
+                        "investment_debate_state": serializable_state.get("investment_debate_state", {}),
+                        "investment_plan": serializable_state.get("investment_plan", ""),
+                        "trader_investment_plan": serializable_state.get("trader_investment_plan", ""),
+                        "messages": serializable_state.get("messages", []),
+                    }
+                    store.save_trader_checkpoint(date, ticker, trader_ckpt)
 
                 yield self._system_log(f"Analysis report for {ticker} saved to {save_dir}")
                 logger.info("Saved pipeline report run=%s ticker=%s dir=%s", run_id, ticker, save_dir)
@@ -630,6 +678,140 @@ class LangGraphEngine:
             yield self._system_log(f"Error during trade execution: {exc}")
             raise
 
+    async def run_pipeline_from_phase(
+        self, run_id: str, params: Dict[str, Any], phase: str,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Re-run a single ticker's pipeline from a specific phase.
+
+        Phases:
+            analysts        - full re-run (delegates to run_pipeline)
+            debate_and_trader - load analysts_checkpoint, run debate+trader+risk subgraph
+            risk            - load trader_checkpoint, run risk subgraph only
+
+        After the subgraph completes the ticker's reports and checkpoints are
+        overwritten and the portfolio manager is re-run so that the PM
+        decision reflects the updated ticker analysis.
+        """
+        ticker = params.get("ticker", params.get("identifier", "AAPL"))
+        date = params.get("date", time.strftime("%Y-%m-%d"))
+        portfolio_id = params.get("portfolio_id", "main_portfolio")
+
+        store = create_report_store()
+        short_rid = generate_run_id()
+        writer_store = create_report_store(run_id=short_rid)
+
+        if phase == "analysts":
+            # Full re-run
+            async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date}):
+                yield evt
+        elif phase == "debate_and_trader":
+            yield self._system_log(f"Loading analysts checkpoint for {ticker}...")
+            ckpt = store.load_analysts_checkpoint(date, ticker)
+            if not ckpt:
+                yield self._system_log(f"No analysts checkpoint found for {ticker} — falling back to full re-run")
+                async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date}):
+                    yield evt
+            else:
+                yield self._system_log(f"Running debate + trader + risk for {ticker} from checkpoint...")
+                graph_wrapper = TradingAgentsGraph(config=self.config, debug=True)
+                initial_state = graph_wrapper.propagator.create_initial_state(ticker, date)
+                # Overlay checkpoint data onto initial state
+                for k, v in ckpt.items():
+                    if k in initial_state or k in ("market_report", "sentiment_report", "news_report", "fundamentals_report", "macro_regime_report"):
+                        initial_state[k] = v
+
+                rl = self._start_run_logger(run_id)
+                self._node_start_times[run_id] = {}
+                self._run_identifiers[run_id] = ticker.upper()
+                final_state: Dict[str, Any] = {}
+
+                async for event in graph_wrapper.debate_graph.astream_events(
+                    initial_state, version="v2",
+                    config={"recursion_limit": graph_wrapper.propagator.max_recur_limit, "callbacks": [rl.callback]},
+                ):
+                    if self._is_root_chain_end(event):
+                        output = (event.get("data") or {}).get("output")
+                        if isinstance(output, dict):
+                            final_state = output
+                    mapped = self._map_langgraph_event(run_id, event)
+                    if mapped:
+                        yield mapped
+
+                self._node_start_times.pop(run_id, None)
+                self._node_prompts.pop(run_id, None)
+                self._run_identifiers.pop(run_id, None)
+
+                if final_state:
+                    serializable_state = self._sanitize_for_json(final_state)
+                    writer_store.save_analysis(date, ticker, serializable_state)
+                    # Overwrite checkpoints
+                    _analyst_keys = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
+                    if final_state.get("trader_investment_plan"):
+                        trader_ckpt = {
+                            "company_of_interest": ticker,
+                            "trade_date": date,
+                            **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                            "macro_regime_report": serializable_state.get("macro_regime_report", ""),
+                            "investment_debate_state": serializable_state.get("investment_debate_state", {}),
+                            "investment_plan": serializable_state.get("investment_plan", ""),
+                            "trader_investment_plan": serializable_state.get("trader_investment_plan", ""),
+                            "messages": serializable_state.get("messages", []),
+                        }
+                        writer_store.save_trader_checkpoint(date, ticker, trader_ckpt)
+
+                self._finish_run_logger(run_id, get_ticker_dir(date, ticker, run_id=short_rid))
+        elif phase == "risk":
+            yield self._system_log(f"Loading trader checkpoint for {ticker}...")
+            ckpt = store.load_trader_checkpoint(date, ticker)
+            if not ckpt:
+                yield self._system_log(f"No trader checkpoint found for {ticker} — falling back to full re-run")
+                async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date}):
+                    yield evt
+            else:
+                yield self._system_log(f"Running risk phase for {ticker} from checkpoint...")
+                graph_wrapper = TradingAgentsGraph(config=self.config, debug=True)
+                initial_state = graph_wrapper.propagator.create_initial_state(ticker, date)
+                for k, v in ckpt.items():
+                    if k != "messages":
+                        initial_state[k] = v
+
+                rl = self._start_run_logger(run_id)
+                self._node_start_times[run_id] = {}
+                self._run_identifiers[run_id] = ticker.upper()
+                final_state: Dict[str, Any] = {}
+
+                async for event in graph_wrapper.risk_graph.astream_events(
+                    initial_state, version="v2",
+                    config={"recursion_limit": graph_wrapper.propagator.max_recur_limit, "callbacks": [rl.callback]},
+                ):
+                    if self._is_root_chain_end(event):
+                        output = (event.get("data") or {}).get("output")
+                        if isinstance(output, dict):
+                            final_state = output
+                    mapped = self._map_langgraph_event(run_id, event)
+                    if mapped:
+                        yield mapped
+
+                self._node_start_times.pop(run_id, None)
+                self._node_prompts.pop(run_id, None)
+                self._run_identifiers.pop(run_id, None)
+
+                if final_state:
+                    serializable_state = self._sanitize_for_json(final_state)
+                    writer_store.save_analysis(date, ticker, serializable_state)
+
+                self._finish_run_logger(run_id, get_ticker_dir(date, ticker, run_id=short_rid))
+        else:
+            yield self._system_log(f"Unknown phase '{phase}' — skipping")
+            return
+
+        # Cascade: re-run portfolio manager with updated data
+        yield self._system_log(f"Cascading: re-running portfolio manager after {ticker} {phase} re-run...")
+        async for evt in self.run_portfolio(
+            f"{run_id}_cascade_pm", {"date": date, "portfolio_id": portfolio_id}
+        ):
+            yield evt
+
     async def run_auto(
         self, run_id: str, params: Dict[str, Any]
     ) -> AsyncGenerator[Dict[str, Any], None]:
@@ -659,6 +841,10 @@ class LangGraphEngine:
         yield self._system_log("Phase 2/3: Loading stocks from scan report…")
         scan_data = store.load_scan(date)
         scan_tickers = self._extract_tickers_from_scan_data(scan_data)
+
+        # Safety cap: truncate scan candidates to max_auto_tickers (portfolio holdings added after)
+        max_t = int(params.get("max_tickers") or self.config.get("max_auto_tickers") or 10)
+        scan_tickers = scan_tickers[:max_t]
 
         # Also include tickers from current portfolio holdings so the PM agent
         # has fresh analysis for existing positions (hold/sell/add decisions).

@@ -171,6 +171,24 @@ class TradingAgentsGraph:
         # Set up the graph
         self.graph = self.graph_setup.setup_graph(selected_analysts)
 
+        # Phase subgraphs (compiled lazily on first access)
+        self._debate_graph = None
+        self._risk_graph = None
+
+    @property
+    def debate_graph(self):
+        """Subgraph starting from Bull Researcher (skips analysts)."""
+        if self._debate_graph is None:
+            self._debate_graph = self.graph_setup.build_debate_subgraph()
+        return self._debate_graph
+
+    @property
+    def risk_graph(self):
+        """Subgraph starting from Aggressive Analyst (skips analysts + debate + trader)."""
+        if self._risk_graph is None:
+            self._risk_graph = self.graph_setup.build_risk_subgraph()
+        return self._risk_graph
+
     def _get_provider_kwargs(self, role: str = "") -> Dict[str, Any]:
         """Get provider-specific kwargs for LLM client creation.
 

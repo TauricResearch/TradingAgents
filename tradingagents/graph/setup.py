@@ -202,3 +202,135 @@ class GraphSetup:
 
         # Compile and return
         return workflow.compile()
+
+    def build_debate_subgraph(self):
+        """Build a subgraph that starts from Bull Researcher (skips analysts).
+
+        Use this to re-run the debate + trader + risk phases when analysts
+        checkpoints are available. Entry point: Bull Researcher.
+        """
+        # Create researcher and manager nodes
+        bull_researcher_node = create_bull_researcher(
+            self.mid_thinking_llm, self.bull_memory
+        )
+        bear_researcher_node = create_bear_researcher(
+            self.mid_thinking_llm, self.bear_memory
+        )
+        research_manager_node = create_research_manager(
+            self.deep_thinking_llm, self.invest_judge_memory
+        )
+        trader_node = create_trader(self.mid_thinking_llm, self.trader_memory)
+
+        aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
+        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
+        conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+        portfolio_manager_node = create_portfolio_manager(
+            self.deep_thinking_llm, self.portfolio_manager_memory
+        )
+
+        workflow = StateGraph(AgentState)
+
+        workflow.add_node("Bull Researcher", bull_researcher_node)
+        workflow.add_node("Bear Researcher", bear_researcher_node)
+        workflow.add_node("Research Manager", research_manager_node)
+        workflow.add_node("Trader", trader_node)
+        workflow.add_node("Aggressive Analyst", aggressive_analyst)
+        workflow.add_node("Neutral Analyst", neutral_analyst)
+        workflow.add_node("Conservative Analyst", conservative_analyst)
+        workflow.add_node("Portfolio Manager", portfolio_manager_node)
+
+        workflow.add_edge(START, "Bull Researcher")
+        workflow.add_conditional_edges(
+            "Bull Researcher",
+            self.conditional_logic.should_continue_debate,
+            {
+                "Bear Researcher": "Bear Researcher",
+                "Research Manager": "Research Manager",
+            },
+        )
+        workflow.add_conditional_edges(
+            "Bear Researcher",
+            self.conditional_logic.should_continue_debate,
+            {
+                "Bull Researcher": "Bull Researcher",
+                "Research Manager": "Research Manager",
+            },
+        )
+        workflow.add_edge("Research Manager", "Trader")
+        workflow.add_edge("Trader", "Aggressive Analyst")
+        workflow.add_conditional_edges(
+            "Aggressive Analyst",
+            self.conditional_logic.should_continue_risk_analysis,
+            {
+                "Conservative Analyst": "Conservative Analyst",
+                "Portfolio Manager": "Portfolio Manager",
+            },
+        )
+        workflow.add_conditional_edges(
+            "Conservative Analyst",
+            self.conditional_logic.should_continue_risk_analysis,
+            {
+                "Neutral Analyst": "Neutral Analyst",
+                "Portfolio Manager": "Portfolio Manager",
+            },
+        )
+        workflow.add_conditional_edges(
+            "Neutral Analyst",
+            self.conditional_logic.should_continue_risk_analysis,
+            {
+                "Aggressive Analyst": "Aggressive Analyst",
+                "Portfolio Manager": "Portfolio Manager",
+            },
+        )
+        workflow.add_edge("Portfolio Manager", END)
+
+        return workflow.compile()
+
+    def build_risk_subgraph(self):
+        """Build a subgraph that starts from Aggressive Analyst (skips analysts + debate + trader).
+
+        Use this to re-run only the risk debate + PM phases when trader
+        checkpoints are available. Entry point: Aggressive Analyst.
+        """
+        aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
+        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
+        conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+        portfolio_manager_node = create_portfolio_manager(
+            self.deep_thinking_llm, self.portfolio_manager_memory
+        )
+
+        workflow = StateGraph(AgentState)
+
+        workflow.add_node("Aggressive Analyst", aggressive_analyst)
+        workflow.add_node("Neutral Analyst", neutral_analyst)
+        workflow.add_node("Conservative Analyst", conservative_analyst)
+        workflow.add_node("Portfolio Manager", portfolio_manager_node)
+
+        workflow.add_edge(START, "Aggressive Analyst")
+        workflow.add_conditional_edges(
+            "Aggressive Analyst",
+            self.conditional_logic.should_continue_risk_analysis,
+            {
+                "Conservative Analyst": "Conservative Analyst",
+                "Portfolio Manager": "Portfolio Manager",
+            },
+        )
+        workflow.add_conditional_edges(
+            "Conservative Analyst",
+            self.conditional_logic.should_continue_risk_analysis,
+            {
+                "Neutral Analyst": "Neutral Analyst",
+                "Portfolio Manager": "Portfolio Manager",
+            },
+        )
+        workflow.add_conditional_edges(
+            "Neutral Analyst",
+            self.conditional_logic.should_continue_risk_analysis,
+            {
+                "Aggressive Analyst": "Aggressive Analyst",
+                "Portfolio Manager": "Portfolio Manager",
+            },
+        )
+        workflow.add_edge("Portfolio Manager", END)
+
+        return workflow.compile()

@@ -393,6 +393,133 @@ class ReportStore:
                 deleted.append(path.name)
         return deleted
 
+    # ------------------------------------------------------------------
+    # Run Meta / Events persistence
+    # ------------------------------------------------------------------
+
+    def save_run_meta(self, date: str, data: dict[str, Any]) -> Path:
+        """Save run metadata JSON.
+
+        Path: ``{base}/daily/{date}[/runs/{run_id}]/run_meta.json``
+        """
+        root = self._date_root(date, for_write=True)
+        path = root / "run_meta.json"
+        result = self._write_json(path, data)
+        self._update_latest(date)
+        return result
+
+    def load_run_meta(self, date: str) -> dict[str, Any] | None:
+        """Load run metadata. Returns None if the file does not exist."""
+        root = self._date_root(date)
+        path = root / "run_meta.json"
+        return self._read_json(path)
+
+    def save_run_events(self, date: str, events: list[dict[str, Any]]) -> Path:
+        """Save run events as JSONL (one JSON object per line).
+
+        Path: ``{base}/daily/{date}[/runs/{run_id}]/run_events.jsonl``
+        """
+        root = self._date_root(date, for_write=True)
+        path = root / "run_events.jsonl"
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            lines = []
+            for evt in events:
+                sanitized = self._sanitize(evt)
+                lines.append(json.dumps(sanitized, separators=(",", ":")))
+            path.write_text("\n".join(lines) + "\n" if lines else "", encoding="utf-8")
+            return path
+        except OSError as exc:
+            raise ReportStoreError(f"Failed to write {path}: {exc}") from exc
+
+    def load_run_events(self, date: str) -> list[dict[str, Any]]:
+        """Load run events from JSONL file. Returns empty list if file does not exist."""
+        root = self._date_root(date)
+        path = root / "run_events.jsonl"
+        if not path.exists():
+            return []
+        events: list[dict[str, Any]] = []
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line:
+                    events.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            raise ReportStoreError(f"Corrupt JSONL at {path}: {exc}") from exc
+        return events
+
+    @classmethod
+    def list_run_metas(cls, base_dir: str | Path = "reports") -> list[dict[str, Any]]:
+        """Scan for all run_meta.json files and return metadata dicts, newest first.
+
+        Args:
+            base_dir: Root reports directory.
+
+        Returns:
+            List of run_meta dicts sorted by ``created_at`` descending.
+        """
+        base = Path(base_dir)
+        pattern = "daily/*/runs/*/run_meta.json"
+        metas: list[dict[str, Any]] = []
+        for path in base.glob(pattern):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                metas.append(data)
+            except (json.JSONDecodeError, OSError):
+                continue
+        metas.sort(key=lambda m: m.get("created_at", 0), reverse=True)
+        return metas
+
+    # ------------------------------------------------------------------
+    # Analyst / Trader Checkpoints
+    # ------------------------------------------------------------------
+
+    def save_analysts_checkpoint(
+        self, date: str, ticker: str, data: dict[str, Any]
+    ) -> Path:
+        """Save analysts checkpoint for a ticker.
+
+        Path: ``{base}/daily/{date}[/runs/{run_id}]/{TICKER}/analysts_checkpoint.json``
+        """
+        root = self._date_root(date, for_write=True)
+        path = root / ticker.upper() / "analysts_checkpoint.json"
+        result = self._write_json(path, data)
+        self._update_latest(date)
+        return result
+
+    def load_analysts_checkpoint(
+        self, date: str, ticker: str
+    ) -> dict[str, Any] | None:
+        """Load analysts checkpoint. Returns None if file does not exist."""
+        root = self._date_root(date)
+        path = root / ticker.upper() / "analysts_checkpoint.json"
+        return self._read_json(path)
+
+    def save_trader_checkpoint(
+        self, date: str, ticker: str, data: dict[str, Any]
+    ) -> Path:
+        """Save trader checkpoint for a ticker.
+
+        Path: ``{base}/daily/{date}[/runs/{run_id}]/{TICKER}/trader_checkpoint.json``
+        """
+        root = self._date_root(date, for_write=True)
+        path = root / ticker.upper() / "trader_checkpoint.json"
+        result = self._write_json(path, data)
+        self._update_latest(date)
+        return result
+
+    def load_trader_checkpoint(
+        self, date: str, ticker: str
+    ) -> dict[str, Any] | None:
+        """Load trader checkpoint. Returns None if file does not exist."""
+        root = self._date_root(date)
+        path = root / ticker.upper() / "trader_checkpoint.json"
+        return self._read_json(path)
+
+    # ------------------------------------------------------------------
+    # PM Decisions
+    # ------------------------------------------------------------------
+
     def list_pm_decisions(self, portfolio_id: str) -> list[Path]:
         """Return all saved PM decision JSON paths for portfolio_id, newest first.
 

@@ -106,6 +106,10 @@ DEFAULT_CONFIG = {
     # Controls how many per-ticker analysis pipelines run in parallel during
     # 'auto' mode (CLI and AgentOS).  Set higher if your API plan supports it.
     "max_concurrent_pipelines": _env_int("MAX_CONCURRENT_PIPELINES", 2),
+    # Maximum number of scan-candidate tickers the macro synthesis LLM produces
+    # in auto mode.  Portfolio holdings are always included regardless.
+    # Set to 0 or leave unset for the default (10).
+    "max_auto_tickers": _env_int("MAX_AUTO_TICKERS", 10),
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
