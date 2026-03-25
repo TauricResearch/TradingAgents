@@ -977,7 +977,7 @@ def parse_tool_call(tool_call) -> tuple[str, dict | str]:
     """Parse a tool call into a name and arguments dictionary.
     Handles dicts, objects with name/args attributes, and string representations.
     """
-    import ast
+    import json
 
     if isinstance(tool_call, dict):
         tool_name = tool_call.get("name", "Unknown Tool")
@@ -986,10 +986,17 @@ def parse_tool_call(tool_call) -> tuple[str, dict | str]:
 
     if isinstance(tool_call, str):
         try:
-            tool_call_dict = ast.literal_eval(tool_call)
+            # We use json.loads instead of ast.literal_eval to prevent DoS attacks
+            # and code execution vulnerabilities from malicious or deeply nested inputs.
+            # Using extract_json allows us to handle markdown formatting robustly.
+            try:
+                tool_call_dict = extract_json(tool_call)
+            except ValueError:
+                tool_call_dict = json.loads(tool_call)
+
             if not isinstance(tool_call_dict, dict):
                 tool_call_dict = {}
-        except (ValueError, SyntaxError):
+        except (json.JSONDecodeError, ValueError):
             tool_call_dict = {}
 
         tool_name = tool_call_dict.get("name", "Unknown Tool")
