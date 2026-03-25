@@ -22,14 +22,16 @@ class ZAIClient(BaseLLMClient):
             "base_url": self.base_url or self.DEFAULT_BASE_URL,
         }
 
-        api_key = os.environ.get("ZAI_API_KEY")
+        api_key = self.kwargs.get("api_key")
+        if api_key is None:
+            api_key = os.environ.get("ZAI_API_KEY")
+
         if api_key:
             llm_kwargs["api_key"] = api_key
 
         for key in (
             "timeout",
             "max_retries",
-            "api_key",
             "callbacks",
             "http_client",
             "http_async_client",
