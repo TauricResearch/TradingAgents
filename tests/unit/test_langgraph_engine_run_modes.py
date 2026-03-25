@@ -94,7 +94,7 @@ class TestRunScanReportStorage(unittest.TestCase):
 
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir", return_value=fake_dir), \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}):
             mock_rs_cls.return_value.save_scan = MagicMock()
@@ -114,7 +114,7 @@ class TestRunScanReportStorage(unittest.TestCase):
 
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=parsed):
             fake_dir = MagicMock(spec=Path)
@@ -135,7 +135,7 @@ class TestRunScanReportStorage(unittest.TestCase):
 
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest, \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}):
             fake_dir = MagicMock(spec=Path)
@@ -159,7 +159,7 @@ class TestRunScanReportStorage(unittest.TestCase):
 
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}):
             fake_dir = MagicMock(spec=Path)
@@ -191,7 +191,7 @@ class TestRunScanReportStorage(unittest.TestCase):
 
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir", return_value=fake_dir), \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", side_effect=ValueError("bad json")):
             mock_store = MagicMock()
@@ -219,7 +219,7 @@ class TestRunScanReportStorage(unittest.TestCase):
         engine = LangGraphEngine()
 
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner), \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest:
             mock_store = MagicMock()
             mock_rs_cls.return_value = mock_store
@@ -269,7 +269,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
 
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch.object(LangGraphEngine, "_write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
@@ -289,7 +289,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
 
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch.object(LangGraphEngine, "_write_complete_report_md") as mock_write_md:
             fake_dir = MagicMock(spec=Path)
@@ -308,7 +308,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
 
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest, \
              patch.object(LangGraphEngine, "_write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
@@ -331,7 +331,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
 
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch.object(LangGraphEngine, "_write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
@@ -362,7 +362,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         engine = LangGraphEngine()
 
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest:
             mock_store = MagicMock()
             mock_rs_cls.return_value = mock_store
@@ -408,8 +408,8 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
         fake_daily_dir.iterdir.return_value = []
 
         with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
-             patch("tradingagents.report_paths.get_daily_dir", return_value=fake_daily_dir):
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=fake_daily_dir):
             mock_store = MagicMock()
             mock_store.load_scan.return_value = scan_data
             mock_store.load_analysis.return_value = None
@@ -455,8 +455,8 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
             return {"AAPL": aapl_analysis, "TSLA": tsla_analysis}.get(ticker)
 
         with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
-             patch("tradingagents.report_paths.get_daily_dir", return_value=fake_daily_dir):
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=fake_daily_dir):
             mock_store = MagicMock()
             mock_store.load_scan.return_value = {}
             mock_store.load_analysis.side_effect = load_analysis_side_effect
@@ -487,8 +487,8 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
         fake_daily_dir.iterdir.return_value = fake_tickers
 
         with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
-             patch("tradingagents.report_paths.get_daily_dir", return_value=fake_daily_dir):
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=fake_daily_dir):
             mock_store = MagicMock()
             mock_store.load_scan.return_value = {}
             mock_rs_cls.return_value = mock_store
@@ -513,8 +513,8 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
         fake_daily_dir.iterdir.return_value = [make_dir_mock("AAPL")]
 
         with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
-             patch("tradingagents.report_paths.get_daily_dir", return_value=fake_daily_dir):
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=fake_daily_dir):
             mock_store = MagicMock()
             mock_store.load_scan.return_value = {}
             mock_store.load_analysis.return_value = {"final_trade_decision": "BUY"}
@@ -545,8 +545,8 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
         fake_daily_dir.exists.return_value = False
 
         with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
-             patch("tradingagents.report_paths.get_daily_dir", return_value=fake_daily_dir):
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=fake_daily_dir):
             mock_store = MagicMock()
             mock_store.load_scan.return_value = {}
             mock_rs_cls.return_value = mock_store
@@ -634,8 +634,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
                    return_value=self._make_noop_portfolio_graph()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
-             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
             # Set up fake dirs
@@ -676,8 +676,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
                    return_value=self._make_noop_portfolio_graph()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
-             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
             fake_mdir = MagicMock(spec=Path)
@@ -718,7 +718,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
                    return_value=self._make_noop_scanner()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}):
             fake_mdir = MagicMock(spec=Path)
@@ -758,7 +758,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
                    return_value=self._make_noop_scanner()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}):
             fake_mdir = MagicMock(spec=Path)
@@ -798,7 +798,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
                    return_value=self._make_noop_scanner()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}):
             fake_mdir = MagicMock(spec=Path)
@@ -839,8 +839,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
                    return_value=self._make_noop_portfolio_graph()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
-             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
             fake_mdir = MagicMock(spec=Path)
@@ -876,8 +876,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
                    return_value=self._make_noop_portfolio_graph()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
-             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
             fake_mdir = MagicMock(spec=Path)
@@ -922,8 +922,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
                    return_value=self._make_noop_portfolio_graph()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
-             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
             fake_mdir = MagicMock(spec=Path)
@@ -974,8 +974,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
                    return_value=self._make_noop_portfolio_graph()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
-             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data), \
              patch("tradingagents.portfolio.repository.PortfolioRepository", return_value=mock_repo):
@@ -1022,8 +1022,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
                    return_value=self._make_noop_portfolio_graph()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
-             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data), \
              patch("tradingagents.portfolio.repository.PortfolioRepository", return_value=mock_repo):
@@ -1066,8 +1066,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
                    return_value=self._make_noop_portfolio_graph()), \
              patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
-             patch("tradingagents.report_paths.get_daily_dir") as mock_gdd, \
-             patch("agent_os.backend.services.langgraph_engine.ReportStore") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data), \
              patch("tradingagents.portfolio.repository.PortfolioRepository", return_value=mock_repo):

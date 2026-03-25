@@ -1,22 +1,33 @@
 # Current Milestone
 
-Smart Money Scanner added to scanner pipeline (Phase 1b). `finvizfinance` integration with Golden Overlap strategy in macro_synthesis. 18 agent factories. All tests passing (2 pre-existing failures excluded).
+Smart Money Scanner added to scanner pipeline (Phase 1b). MongoDB report store + run-ID namespacing + reflexion memory added. PR#106 review findings addressed (ADR 016). 18 agent factories. All tests passing (886 passed, 14 skipped).
 
 # Recent Progress
 
-- **Smart Money Scanner (current branch)**: 4th scanner node added to macro pipeline
-  - `tradingagents/agents/scanners/smart_money_scanner.py` — Phase 1b node, runs sequentially after sector_scanner
-  - `tradingagents/agents/utils/scanner_tools.py` — 3 zero-parameter Finviz tools: `get_insider_buying_stocks`, `get_unusual_volume_stocks`, `get_breakout_accumulation_stocks`
-  - `tradingagents/agents/utils/scanner_states.py` — Added `smart_money_report` field with `_last_value` reducer
-  - `tradingagents/graph/scanner_setup.py` — Topology: sector_scanner → smart_money_scanner → industry_deep_dive
-  - `tradingagents/graph/scanner_graph.py` — Instantiates smart_money_scanner with quick_llm
-  - `tradingagents/agents/scanners/macro_synthesis.py` — Golden Overlap instructions + smart_money_report in context
-  - `pyproject.toml` — Added `finvizfinance>=0.14.0` dependency
-  - `docs/agent/decisions/014-finviz-smart-money-scanner.md` — ADR documenting all design decisions
-  - Tests: 6 new mocked tests in `tests/unit/test_scanner_mocked.py`, 1 fix in `tests/unit/test_scanner_graph.py`
+- **PR#106 review fixes (ADR 016)**:
+  - Fix 1: `save_holding_review` iteration — was passing `portfolio_id` as ticker; now iterates per ticker
+  - Fix 2: `contextvars.ContextVar` replaces `threading.local` for RunLogger — async-safe
+  - Fix 3: `list_pm_decisions` — added `{"_id": 0}` projection to exclude non-serializable ObjectId
+  - Fix 4: `ReflexionMemory.created_at` — native `datetime` for MongoDB, ISO string for local JSON fallback
+  - Fix 5: `write/read_latest_pointer` — accepts `base_dir` parameter; `ReportStore` passes its `_base_dir`
+  - Fix 6: `RunLogger.callback` — wired into all 3 `astream_events()` calls (scan, pipeline, portfolio)
+  - Fix 7: `MongoReportStore.__init__` — calls `ensure_indexes()` automatically
+  - `docs/agent/decisions/016-pr106-review-findings.md` — full writeup of all 13 findings and resolutions
+  - Tests: 14 new tests covering all 7 fixes
+- **MongoDB Report Store + Run-ID + Reflexion (current branch)**:
+  - `tradingagents/report_paths.py` — All path helpers accept optional `run_id` for run-scoped directories; `latest.json` pointer mechanism
+  - `tradingagents/portfolio/report_store.py` — `ReportStore` supports `run_id` + `latest.json` pointer for read resolution
+  - `tradingagents/portfolio/mongo_report_store.py` — MongoDB-backed report store (same interface as filesystem)
+  - `tradingagents/portfolio/store_factory.py` — Factory returns MongoDB or filesystem store based on config
+  - `tradingagents/memory/reflexion.py` — Reflexion memory: store decisions, record outcomes, build context for agent prompts
+  - `agent_os/backend/services/langgraph_engine.py` — Uses store factory + run_id for all run methods; fixed run_portfolio directory iteration for run-scoped layouts
+  - `tradingagents/default_config.py` — Added `mongo_uri` and `mongo_db` config keys
+  - `pyproject.toml` — Added `pymongo>=4.12.1` dependency
+  - Tests: 56 new tests (report_paths, report_store run_id, mongo store, reflexion, factory)
+  - `docs/agent/decisions/015-mongodb-report-store-reflexion.md` — ADR documenting all design decisions
+- **Smart Money Scanner**: 4th scanner node added to macro pipeline
 - **AgentOS**: Full-stack visual observability layer (FastAPI + React + ReactFlow)
-- **Portfolio Manager**: Phases 1–10 fully implemented (models, agents, CLI integration, stop-loss/take-profit)
-- **PR #32 merged**: Portfolio Manager data foundation
+- **Portfolio Manager**: Phases 1–10 fully implemented
 
 # In Progress
 

@@ -33,6 +33,7 @@ dependencies = [
     "yfinance>=0.2.63",
     "finvizfinance>=0.14.0",
     "psycopg2-binary>=2.9.11",
+    "pymongo>=4.12.1",
     "fastapi>=0.115.9",
     "uvicorn>=0.34.3",
     "websockets>=15.0.1",

@@ -104,4 +104,9 @@ DEFAULT_CONFIG = {
         # Finnhub free tier provides same data + MSPR aggregate bonus signal
         "get_insider_transactions": "finnhub",
     },
+    # Report storage backend
+    # When mongo_uri is set, reports are persisted in MongoDB (never overwritten).
+    # Otherwise, the filesystem store is used (run_id prevents same-day overwrites).
+    "mongo_uri": _env("MONGO_URI"),                  # e.g. "mongodb://localhost:27017"
+    "mongo_db": _env("MONGO_DB", "tradingagents"),   # MongoDB database name
 }

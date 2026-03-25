@@ -91,7 +91,7 @@
 | RunLogger | Accumulates structured events (llm, tool, vendor, report) for a single CLI run. Thread-safe. | `observability.py` |
 | _LLMCallbackHandler | LangChain `BaseCallbackHandler` that feeds LLM call events (model, tokens, latency) into a `RunLogger` | `observability.py` |
 | _Event | @dataclass: `kind`, `ts`, `data` — one JSON-line per event | `observability.py` |
-| set_run_logger / get_run_logger | Thread-local context for passing `RunLogger` to vendor/tool layers | `observability.py` |
+| set_run_logger / get_run_logger | `contextvars.ContextVar`-based context for passing `RunLogger` to vendor/tool layers. Asyncio-safe (isolated per task). | `observability.py` |
 
 ## Report Paths
 

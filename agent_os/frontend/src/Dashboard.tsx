@@ -77,7 +77,11 @@ const REQUIRED_PARAMS: Record<RunType, (keyof RunParams)[]> = {
 };
 
 /** Return the colour token for a given event type. */
-const eventColor = (type: AgentEvent['type']): string => {
+const eventColor = (type: AgentEvent['type'], status?: AgentEvent['status']): string => {
+  // Error events always show in red
+  if (status === 'error') return 'red.400';
+  // Graceful skips show in orange/yellow
+  if (status === 'graceful_skip') return 'orange.300';
   switch (type) {
     case 'tool':        return 'purple.400';
     case 'tool_result': return 'purple.300';
@@ -88,7 +92,9 @@ const eventColor = (type: AgentEvent['type']): string => {
 };
 
 /** Return a short label badge for the event type. */
-const eventLabel = (type: AgentEvent['type']): string => {
+const eventLabel = (type: AgentEvent['type'], status?: AgentEvent['status']): string => {
+  if (status === 'error') return '❌';
+  if (status === 'graceful_skip') return '⚠️';
   switch (type) {
     case 'thought':     return '💭';
     case 'tool':        return '🔧';
@@ -101,10 +107,20 @@ const eventLabel = (type: AgentEvent['type']): string => {
 
 /** Short summary for terminal — no inline prompts, just agent + type. */
 const eventSummary = (evt: AgentEvent): string => {
+  const svc = evt.service ? ` [${evt.service}]` : '';
   switch (evt.type) {
     case 'thought':     return `Thinking… (${evt.metrics?.model || 'LLM'})`;
-    case 'tool':        return evt.message.startsWith('✓') ? 'Tool result received' : `Tool call: ${evt.message.replace(/^▶ Tool: /, '').split(' | ')[0]}`;
-    case 'tool_result': return `Tool done: ${evt.message.replace(/^✓ Tool result: /, '').split(' | ')[0]}`;
+    case 'tool': {
+      if (evt.message.startsWith('✓')) return 'Tool result received';
+      const toolName = evt.message.replace(/^▶ Tool: /, '').split(' | ')[0];
+      return `Tool call: ${toolName}${svc}`;
+    }
+    case 'tool_result': {
+      const resultToolName = evt.message.replace(/^[✓✗⚠] Tool result: /, '').split(' | ')[0];
+      if (evt.status === 'error') return `Tool error: ${resultToolName}${svc}`;
+      if (evt.status === 'graceful_skip') return `Tool skipped: ${resultToolName}${svc}`;
+      return `Tool done: ${resultToolName}${svc}`;
+    }
     case 'result':      return 'Completed';
     case 'log':         return evt.message;
     default:            return evt.type;
@@ -115,6 +131,12 @@ const eventSummary = (evt: AgentEvent): string => {
 const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; onClose: () => void }> = ({ event, isOpen, onClose }) => {
   if (!event) return null;
 
+  const headerBadgeColor = event.status === 'error' ? 'red'
+    : event.status === 'graceful_skip' ? 'orange'
+    : event.type === 'result' ? 'green'
+    : event.type === 'tool' || event.type === 'tool_result' ? 'purple'
+    : 'cyan';
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
       <ModalOverlay backdropFilter="blur(6px)" />
@@ -122,10 +144,13 @@ const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; on
         <ModalCloseButton />
         <ModalHeader borderBottomWidth="1px" borderColor="whiteAlpha.100">
           <HStack>
-            <Badge colorScheme={event.type === 'result' ? 'green' : event.type === 'tool' || event.type === 'tool_result' ? 'purple' : 'cyan'} fontSize="sm">
+            <Badge colorScheme={headerBadgeColor} fontSize="sm">
               {event.type.toUpperCase()}
             </Badge>
             <Badge variant="outline" fontSize="sm">{event.agent}</Badge>
+            {event.status === 'error' && <Badge colorScheme="red" variant="solid" fontSize="sm">ERROR</Badge>}
+            {event.status === 'graceful_skip' && <Badge colorScheme="orange" variant="solid" fontSize="sm">GRACEFUL SKIP</Badge>}
+            {event.service && <Badge colorScheme="teal" fontSize="sm">{event.service}</Badge>}
             <Text fontSize="sm" color="whiteAlpha.400" fontWeight="normal">{event.timestamp}</Text>
           </HStack>
         </ModalHeader>
@@ -134,6 +159,7 @@ const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; on
             <TabList mb={4}>
               {event.prompt && <Tab>Prompt / Request</Tab>}
               {(event.response || (event.type === 'result' && event.message)) && <Tab>Response</Tab>}
+              {event.error && <Tab color="red.400">Error</Tab>}
               <Tab>Summary</Tab>
               {event.metrics && <Tab>Metrics</Tab>}
             </TabList>
@@ -149,9 +175,18 @@ const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; on
               )}
               {(event.response || (event.type === 'result' && event.message)) && (
                 <TabPanel p={0}>
-                  <Box bg="blackAlpha.500" p={4} borderRadius="md" border="1px solid" borderColor="whiteAlpha.100" maxH="60vh" overflowY="auto">
-                    <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color="whiteAlpha.900">
+                  <Box bg="blackAlpha.500" p={4} borderRadius="md" border="1px solid" borderColor={event.status === 'error' ? 'red.700' : 'whiteAlpha.100'} maxH="60vh" overflowY="auto">
+                    <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color={event.status === 'error' ? 'red.200' : 'whiteAlpha.900'}>
                       {event.response || event.message}
+                    </Text>
+                  </Box>
+                </TabPanel>
+              )}
+              {event.error && (
+                <TabPanel p={0}>
+                  <Box bg="red.900" p={4} borderRadius="md" border="1px solid" borderColor="red.600" maxH="60vh" overflowY="auto">
+                    <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color="red.200">
+                      {event.error}
                     </Text>
                   </Box>
                 </TabPanel>
@@ -168,6 +203,9 @@ const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; on
                   <VStack align="stretch" spacing={3}>
                     {event.metrics.model && event.metrics.model !== 'unknown' && (
                       <HStack><Text fontSize="sm" color="whiteAlpha.600" minW="80px">Model:</Text><Code colorScheme="blue" fontSize="sm">{event.metrics.model}</Code></HStack>
+                    )}
+                    {event.service && (
+                      <HStack><Text fontSize="sm" color="whiteAlpha.600" minW="80px">Service:</Text><Code colorScheme="teal" fontSize="sm">{event.service}</Code></HStack>
                     )}
                     {event.metrics.tokens_in != null && event.metrics.tokens_in > 0 && (
                       <HStack><Text fontSize="sm" color="whiteAlpha.600" minW="80px">Tokens In:</Text><Code>{event.metrics.tokens_in}</Code></HStack>
@@ -193,11 +231,20 @@ const EventDetailModal: React.FC<{ event: AgentEvent | null; isOpen: boolean; on
 };
 
 // ─── Detail card for a single event in the drawer ─────────────────────
-const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent) => void }> = ({ event, onOpenModal }) => (
+const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent) => void }> = ({ event, onOpenModal }) => {
+  const badgeColor = event.status === 'error' ? 'red'
+    : event.status === 'graceful_skip' ? 'orange'
+    : event.type === 'result' ? 'green'
+    : event.type === 'tool' || event.type === 'tool_result' ? 'purple'
+    : 'cyan';
+
+  return (
   <VStack align="stretch" spacing={4}>
     <HStack>
-      <Badge colorScheme={event.type === 'result' ? 'green' : event.type === 'tool' || event.type === 'tool_result' ? 'purple' : 'cyan'}>{event.type.toUpperCase()}</Badge>
+      <Badge colorScheme={badgeColor}>{event.type.toUpperCase()}</Badge>
       <Badge variant="outline">{event.agent}</Badge>
+      {event.status === 'error' && <Badge colorScheme="red" variant="solid">ERROR</Badge>}
+      {event.status === 'graceful_skip' && <Badge colorScheme="orange" variant="solid">GRACEFUL SKIP</Badge>}
       <Text fontSize="xs" color="whiteAlpha.400">{event.timestamp}</Text>
       {onOpenModal && (
         <Button size="xs" variant="ghost" colorScheme="cyan" ml="auto" onClick={() => onOpenModal(event)}>
@@ -205,6 +252,14 @@ const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent)
         </Button>
       )}
     </HStack>
+
+    {/* Service info for tool events */}
+    {event.service && (
+      <Box>
+        <Text fontSize="xs" fontWeight="bold" color="whiteAlpha.600" mb={1}>Service</Text>
+        <Code colorScheme="teal" fontSize="sm">{event.service}</Code>
+      </Box>
+    )}
 
     {event.metrics?.model && event.metrics.model !== 'unknown' && (
       <Box>
@@ -227,6 +282,18 @@ const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent)
       </Box>
     )}
 
+    {/* Error display */}
+    {event.error && (
+      <Box>
+        <Text fontSize="xs" fontWeight="bold" color="red.400" mb={1}>Error</Text>
+        <Box bg="red.900" p={3} borderRadius="md" border="1px solid" borderColor="red.600" maxH="200px" overflowY="auto">
+          <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color="red.200">
+            {event.error}
+          </Text>
+        </Box>
+      </Box>
+    )}
+
     {/* Show prompt if available */}
     {event.prompt && (
       <Box>
@@ -243,8 +310,8 @@ const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent)
     {event.response && (
       <Box>
         <Text fontSize="xs" fontWeight="bold" color="whiteAlpha.600" mb={1}>Response</Text>
-        <Box bg="blackAlpha.500" p={3} borderRadius="md" border="1px solid" borderColor="green.900" maxH="200px" overflowY="auto">
-          <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color="whiteAlpha.900">
+        <Box bg="blackAlpha.500" p={3} borderRadius="md" border="1px solid" borderColor={event.status === 'error' ? 'red.700' : 'green.900'} maxH="200px" overflowY="auto">
+          <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color={event.status === 'error' ? 'red.200' : 'whiteAlpha.900'}>
             {event.response.length > 1000 ? event.response.substring(0, 1000) + '…' : event.response}
           </Text>
         </Box>
@@ -252,7 +319,7 @@ const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent)
     )}
 
     {/* Fallback: show message if no prompt/response */}
-    {!event.prompt && !event.response && (
+    {!event.prompt && !event.response && !event.error && (
       <Box>
         <Text fontSize="xs" fontWeight="bold" color="whiteAlpha.600" mb={1}>Message</Text>
         <Box bg="blackAlpha.500" p={3} borderRadius="md" border="1px solid" borderColor="whiteAlpha.100" maxH="300px" overflowY="auto">
@@ -270,7 +337,8 @@ const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent)
       </Box>
     )}
   </VStack>
-);
+  );
+};
 
 // ─── Detail drawer showing all events for a given graph node ──────────
 const NodeEventsDetail: React.FC<{ nodeId: string; identifier?: string | null; events: AgentEvent[]; onOpenModal: (evt: AgentEvent) => void }> = ({ nodeId, identifier, events, onOpenModal }) => {
@@ -699,18 +767,24 @@ export const Dashboard: React.FC = () => {
                      py={1}
                      borderRadius="md"
                      cursor="pointer"
-                     _hover={{ bg: 'whiteAlpha.100' }}
+                     bg={evt.status === 'error' ? 'red.900' : evt.status === 'graceful_skip' ? 'orange.900' : undefined}
+                     borderLeft={evt.status === 'error' ? '3px solid' : evt.status === 'graceful_skip' ? '3px solid' : undefined}
+                     borderColor={evt.status === 'error' ? 'red.500' : evt.status === 'graceful_skip' ? 'orange.500' : undefined}
+                     _hover={{ bg: evt.status === 'error' ? 'red.800' : 'whiteAlpha.100' }}
                      onClick={() => openEventDetail(evt)}
                      transition="background 0.15s"
                    >
                      <Flex gap={2} align="center">
                        <Text color="whiteAlpha.400" minW="52px" flexShrink={0}>[{evt.timestamp}]</Text>
-                       <Text flexShrink={0}>{eventLabel(evt.type)}</Text>
-                       <Text color={eventColor(evt.type)} fontWeight="bold" flexShrink={0}>
+                       <Text flexShrink={0}>{eventLabel(evt.type, evt.status)}</Text>
+                       <Text color={eventColor(evt.type, evt.status)} fontWeight="bold" flexShrink={0}>
                           {evt.agent}
                        </Text>
+                       {evt.service && (
+                         <Text color="teal.300" fontSize="2xs" flexShrink={0}>[{evt.service}]</Text>
+                       )}
                        <ChevronRight size={10} style={{ flexShrink: 0, opacity: 0.4 }} />
-                       <Text color="whiteAlpha.700" isTruncated>{eventSummary(evt)}</Text>
+                       <Text color={evt.status === 'error' ? 'red.300' : 'whiteAlpha.700'} isTruncated>{eventSummary(evt)}</Text>
                        <Eye size={12} style={{ flexShrink: 0, opacity: 0.3, marginLeft: 'auto' }} />
                      </Flex>
                    </Box>

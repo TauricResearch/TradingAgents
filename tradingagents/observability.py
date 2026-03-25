@@ -322,14 +322,18 @@ def _extract_graph_node(kwargs: dict) -> str:
 # Thread-local context for passing RunLogger to vendor/tool layers
 # ──────────────────────────────────────────────────────────────────────────────
 
-_current_run_logger: threading.local = threading.local()
+import contextvars as _cv
+
+_current_run_logger: _cv.ContextVar["RunLogger | None"] = _cv.ContextVar(
+    "current_run_logger", default=None
+)
 
 
-def set_run_logger(rl: RunLogger | None) -> None:
-    """Set the active RunLogger for the current thread."""
-    _current_run_logger.instance = rl
+def set_run_logger(rl: "RunLogger | None") -> None:
+    """Set the active RunLogger for the current async task or thread."""
+    _current_run_logger.set(rl)
 
 
-def get_run_logger() -> RunLogger | None:
-    """Get the active RunLogger (or None if not set)."""
-    return getattr(_current_run_logger, "instance", None)
+def get_run_logger() -> "RunLogger | None":
+    """Get the active RunLogger for the current async task (or None if not set)."""
+    return _current_run_logger.get()

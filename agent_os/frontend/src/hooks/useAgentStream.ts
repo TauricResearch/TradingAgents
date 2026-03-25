@@ -15,6 +15,12 @@ export interface AgentEvent {
   identifier?: string;
   node_id?: string;
   parent_node_id?: string;
+  /** Data service used by this tool (e.g. "yfinance", "finnhub", "finviz"). */
+  service?: string;
+  /** Tool execution status: "running", "success", "error", or "graceful_skip". */
+  status?: 'running' | 'success' | 'error' | 'graceful_skip';
+  /** Error message when status is "error". */
+  error?: string | null;
   metrics?: {
     model: string;
     tokens_in?: number;

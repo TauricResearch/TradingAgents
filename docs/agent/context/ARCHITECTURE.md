@@ -124,7 +124,7 @@ Integration points:
 - **LLM calls**: `_LLMCallbackHandler` (LangChain `BaseCallbackHandler`) — attach as callback to LLM constructors or graph invocations. Extracts model name from `invocation_params` / `serialized`, token counts from `usage_metadata`.
 - **Vendor calls**: `log_vendor_call()` — called from `route_to_vendor`.
 - **Tool calls**: `log_tool_call()` — called from `run_tool_loop()`.
-- **Thread-local context**: `set_run_logger()` / `get_run_logger()` for passing logger to vendor/tool layers without changing signatures.
+- **Context propagation**: `set_run_logger()` / `get_run_logger()` use `contextvars.ContextVar` for passing logger to vendor/tool layers without changing signatures. Asyncio-safe (isolated per task).
 
 `RunLogger.summary()` returns aggregated stats (total tokens, model breakdown, vendor success/fail counts). `RunLogger.write_log(path)` writes all events + summary to a JSON-lines file.
 
