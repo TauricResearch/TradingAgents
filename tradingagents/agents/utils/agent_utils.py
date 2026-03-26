@@ -1,5 +1,32 @@
 from langchain_core.messages import HumanMessage, RemoveMessage
 
+from tradingagents.dataflows.config import get_config
+
+# Providers whose APIs do not support tool/function calling.
+_NO_TOOL_CALLING_PROVIDERS = frozenset({"perplexity"})
+
+
+def supports_tool_calling() -> bool:
+    """Check if the current LLM provider supports tool calling."""
+    config = get_config()
+    return config.get("llm_provider", "openai").lower() not in _NO_TOOL_CALLING_PROVIDERS
+
+
+def prefetch_tool_data(tools, tool_args_list) -> str:
+    """Pre-call tools and return formatted results for prompt injection.
+
+    Used as a fallback for providers that don't support tool calling.
+    """
+    results = []
+    for tool, args in zip(tools, tool_args_list):
+        try:
+            data = tool.invoke(args)
+            results.append(f"=== {tool.name} ===\n{data}")
+        except Exception as e:
+            results.append(f"=== {tool.name} ===\n[Error fetching data: {e}]")
+    return "\n\n".join(results)
+
+
 # Import tools from separate utility files
 from tradingagents.agents.utils.core_stock_tools import (
     get_stock_data

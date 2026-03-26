@@ -1,10 +1,14 @@
+from datetime import datetime, timedelta
+
+from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
-import json
+
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_global_news,
     get_news,
+    prefetch_tool_data,
+    supports_tool_calling,
 )
 from tradingagents.dataflows.config import get_config
 
@@ -46,12 +50,23 @@ def create_news_analyst(llm):
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"])
+        if supports_tool_calling():
+            chain = prompt | llm.bind_tools(tools)
+            result = chain.invoke(state["messages"])
+        else:
+            ticker = state["company_of_interest"]
+            start_date = (datetime.strptime(current_date, "%Y-%m-%d") - timedelta(days=7)).strftime("%Y-%m-%d")
+            tool_data = prefetch_tool_data(tools, [
+                {"ticker": ticker, "start_date": start_date, "end_date": current_date},
+                {"curr_date": current_date, "look_back_days": 7, "limit": 5},
+            ])
+            result = (prompt | llm).invoke([
+                HumanMessage(content=f"Analyze {ticker}.\n\nHere is the pre-fetched news data:\n\n{tool_data}\n\nWrite your comprehensive report.")
+            ])
 
         report = ""
 
-        if len(result.tool_calls) == 0:
+        if not getattr(result, "tool_calls", None):
             report = result.content
 
         return {

@@ -1,6 +1,6 @@
+from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-import time
-import json
+
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_balance_sheet,
@@ -8,6 +8,8 @@ from tradingagents.agents.utils.agent_utils import (
     get_fundamentals,
     get_income_statement,
     get_insider_transactions,
+    prefetch_tool_data,
+    supports_tool_calling,
 )
 from tradingagents.dataflows.config import get_config
 
@@ -52,13 +54,24 @@ def create_fundamentals_analyst(llm):
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
 
-        chain = prompt | llm.bind_tools(tools)
-
-        result = chain.invoke(state["messages"])
+        if supports_tool_calling():
+            chain = prompt | llm.bind_tools(tools)
+            result = chain.invoke(state["messages"])
+        else:
+            ticker = state["company_of_interest"]
+            tool_data = prefetch_tool_data(tools, [
+                {"ticker": ticker, "curr_date": current_date},
+                {"ticker": ticker, "freq": "quarterly", "curr_date": current_date},
+                {"ticker": ticker, "freq": "quarterly", "curr_date": current_date},
+                {"ticker": ticker, "freq": "quarterly", "curr_date": current_date},
+            ])
+            result = (prompt | llm).invoke([
+                HumanMessage(content=f"Analyze {ticker}.\n\nHere is the pre-fetched fundamental data:\n\n{tool_data}\n\nWrite your comprehensive report.")
+            ])
 
         report = ""
 
-        if len(result.tool_calls) == 0:
+        if not getattr(result, "tool_calls", None):
             report = result.content
 
         return {
