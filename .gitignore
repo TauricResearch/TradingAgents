@@ -233,3 +233,5 @@ node_modules/
 agent_os/frontend/dist/
 
 .DS_Store
+
+.claude/worktrees
