@@ -64,6 +64,7 @@ interface RunParams {
   mock_type: MockType;
   speed: string;
   force: boolean;
+  flow_id: string;
 }
 
 const RUN_TYPE_LABELS: Record<RunType, string> = {
@@ -404,6 +405,7 @@ export const Dashboard: React.FC = () => {
     mock_type: 'pipeline',
     speed: '3',
     force: false,
+    flow_id: '',
   });
 
   // Auto-scroll the terminal to the bottom as new events arrive
@@ -465,9 +467,14 @@ export const Dashboard: React.FC = () => {
             ticker: effectiveParams.ticker,
             force: effectiveParams.force,
             ...(effectiveParams.max_auto_tickers ? { max_tickers: parseInt(effectiveParams.max_auto_tickers, 10) } : {}),
+            ...(effectiveParams.flow_id ? { flow_id: effectiveParams.flow_id } : {}),
           };
       const res = await axios.post(`${API_BASE}/run/${type}`, body);
       setActiveRunId(res.data.run_id);
+      // Track the active flow_id so subsequent runs continue from the same flow
+      if (res.data.flow_id) {
+        setParams((p) => ({ ...p, flow_id: res.data.flow_id }));
+      }
     } catch (err) {
       console.error("Failed to start run:", err);
       setActiveRunType(null);
@@ -538,6 +545,10 @@ export const Dashboard: React.FC = () => {
         date: run.params.date || p.date,
         ticker: run.params.ticker || p.ticker,
         portfolio_id: run.params.portfolio_id || p.portfolio_id,
+        // Restore flow_id so the next run continues in the same flow directory
+        flow_id: run.flow_id || run.params.flow_id || '',
+        // Restore max_auto_tickers so the ticker cap matches the original run
+        max_auto_tickers: run.params.max_tickers?.toString() || run.params.max_auto_tickers?.toString() || '',
       }));
     }
     setActiveRunId(null);

@@ -3,19 +3,30 @@
 Every CLI command and internal save routine should use these helpers so that
 all generated artifacts land under a single ``reports/`` tree.
 
-When a ``run_id`` is supplied the layout becomes::
+When a ``flow_id`` is supplied the layout becomes::
 
     reports/
     └── daily/{YYYY-MM-DD}/
-        ├── runs/{run_id}/
-        │   ├── market/                # scan results
-        │   ├── {TICKER}/              # per-ticker analysis
-        │   └── portfolio/             # PM artefacts
+        └── {flow_id}/
+            ├── market/report/         # scan results (timestamped files)
+            ├── {TICKER}/report/       # per-ticker analysis (timestamped)
+            ├── portfolio/report/      # PM artefacts (timestamped)
+            ├── run_meta.json          # metadata for the latest run
+            └── run_events.jsonl       # events for the latest run
+
+When only a legacy ``run_id`` is supplied the layout becomes::
+
+    reports/
+    └── daily/{YYYY-MM-DD}/
+        ├── runs/{run_id}/             # legacy run-scoped layout
+        │   ├── market/
+        │   ├── {TICKER}/
+        │   └── portfolio/
         ├── latest.json                # pointer → most recent run_id
         └── daily_digest.md            # append-only (shared across runs)
 
-Without a ``run_id`` the legacy flat layout is preserved for backward
-compatibility::
+Without a ``run_id`` or ``flow_id`` the legacy flat layout is preserved for
+backward compatibility::
 
     reports/
     └── daily/{YYYY-MM-DD}/
@@ -38,12 +49,37 @@ REPORTS_ROOT = Path(os.getenv("TRADINGAGENTS_REPORTS_DIR") or "reports")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Run-ID helpers
+# ID / timestamp helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
-def generate_run_id() -> str:
-    """Return a short, human-readable run identifier (8-char hex)."""
+def generate_flow_id() -> str:
+    """Return a short, human-readable flow identifier (8-char hex).
+
+    A *flow* groups all phases of one analysis intent (scan + pipeline +
+    portfolio).  Prefer :func:`generate_flow_id` for new code.
+    """
     return uuid.uuid4().hex[:8]
+
+
+def generate_run_id() -> str:
+    """Return a short, human-readable run identifier (8-char hex).
+
+    .. deprecated::
+        Use :func:`generate_flow_id` for new code.  ``generate_run_id``
+        is kept for backward compatibility only.
+    """
+    return uuid.uuid4().hex[:8]
+
+
+def ts_now() -> str:
+    """Return a sortable UTC timestamp string: ``'20260325T143022123Z'`` (ms precision).
+
+    Used as a filename prefix so that lexicographic sort gives temporal order
+    and ``load_*`` helpers can always find the most recent report without a
+    separate pointer file.  Millisecond precision prevents same-second collisions.
+    """
+    dt = datetime.now(timezone.utc)
+    return dt.strftime("%Y%m%dT%H%M%S") + f"{dt.microsecond // 1000:03d}Z"
 
 
 def write_latest_pointer(date: str, run_id: str, base_dir: Path | None = None) -> Path:
@@ -92,32 +128,62 @@ def read_latest_pointer(date: str, base_dir: Path | None = None) -> str | None:
 # Path helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _run_prefix(date: str, run_id: str | None) -> Path:
-    """Base directory for a date, optionally scoped by run_id."""
+def _run_prefix(date: str, run_id: str | None, flow_id: str | None = None) -> Path:
+    """Base directory for a date, scoped by flow_id or legacy run_id.
+
+    Resolution order:
+    1. ``flow_id`` → ``daily/{date}/{flow_id}`` (new layout, no ``runs/`` prefix)
+    2. ``run_id``  → ``daily/{date}/runs/{run_id}`` (legacy layout)
+    3. Neither     → ``daily/{date}`` (flat legacy layout)
+    """
     daily = REPORTS_ROOT / "daily" / date
+    if flow_id:
+        return daily / flow_id
     if run_id:
         return daily / "runs" / run_id
     return daily
 
 
-def get_daily_dir(date: str, run_id: str | None = None) -> Path:
-    """``reports/daily/{date}/`` or ``reports/daily/{date}/runs/{run_id}/``"""
-    return _run_prefix(date, run_id)
+def get_daily_dir(
+    date: str,
+    run_id: str | None = None,
+    *,
+    flow_id: str | None = None,
+) -> Path:
+    """``reports/daily/{date}/[{flow_id}/|runs/{run_id}/]``"""
+    return _run_prefix(date, run_id, flow_id)
 
 
-def get_market_dir(date: str, run_id: str | None = None) -> Path:
-    """``…/{date}[/runs/{run_id}]/market/``"""
-    return get_daily_dir(date, run_id) / "market"
+def get_market_dir(
+    date: str,
+    run_id: str | None = None,
+    *,
+    flow_id: str | None = None,
+) -> Path:
+    """``…/{date}[/{flow_id}|/runs/{run_id}]/market/``"""
+    return get_daily_dir(date, run_id, flow_id=flow_id) / "market"
 
 
-def get_ticker_dir(date: str, ticker: str, run_id: str | None = None) -> Path:
-    """``…/{date}[/runs/{run_id}]/{TICKER}/``"""
-    return get_daily_dir(date, run_id) / ticker.upper()
+def get_ticker_dir(
+    date: str,
+    ticker: str,
+    run_id: str | None = None,
+    *,
+    flow_id: str | None = None,
+) -> Path:
+    """``…/{date}[/{flow_id}|/runs/{run_id}]/{TICKER}/``"""
+    return get_daily_dir(date, run_id, flow_id=flow_id) / ticker.upper()
 
 
-def get_eval_dir(date: str, ticker: str, run_id: str | None = None) -> Path:
-    """``…/{date}[/runs/{run_id}]/{TICKER}/eval/``"""
-    return get_ticker_dir(date, ticker, run_id) / "eval"
+def get_eval_dir(
+    date: str,
+    ticker: str,
+    run_id: str | None = None,
+    *,
+    flow_id: str | None = None,
+) -> Path:
+    """``…/{date}[/{flow_id}|/runs/{run_id}]/{TICKER}/eval/``"""
+    return get_ticker_dir(date, ticker, run_id, flow_id=flow_id) / "eval"
 
 
 def get_digest_path(date: str) -> Path:

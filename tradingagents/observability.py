@@ -78,7 +78,9 @@ class RunLogger:
         if mongo_uri and run_id:
             try:
                 from pymongo import MongoClient
-                client = MongoClient(mongo_uri)
+                # Short timeout so a dead/unreachable cluster fails fast instead
+                # of blocking every LLM callback for pymongo's 30s default.
+                client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
                 self._mongo_col = client[mongo_db]["run_events"]
                 _py_logger.info("RunLogger: persisting events to MongoDB (run_id=%s, flow_id=%s)", run_id, flow_id)
             except Exception as exc:

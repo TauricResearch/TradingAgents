@@ -9,7 +9,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.scanner_graph import ScannerGraph
 from tradingagents.graph.portfolio_graph import PortfolioGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.report_paths import get_market_dir, get_ticker_dir, get_daily_dir, generate_run_id
+from tradingagents.report_paths import get_market_dir, get_ticker_dir, get_daily_dir, generate_flow_id, generate_run_id
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.store_factory import create_report_store
 from tradingagents.daily_digest import append_to_digest
@@ -207,18 +207,16 @@ class LangGraphEngine:
         """Run the 3-phase macro scanner and stream events."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
 
-        # Generate a short run_id for report namespacing
-        short_rid = generate_run_id()
-        store = create_report_store(run_id=short_rid)
+        flow_id = params.get("flow_id") or generate_flow_id()
+        store = create_report_store(flow_id=flow_id)
 
-        flow_id = params.get("flow_id")
         rl = self._start_run_logger(run_id, flow_id=flow_id)
         scan_config = {**self.config}
         if params.get("max_tickers"):
             scan_config["max_auto_tickers"] = int(params["max_tickers"])
         scanner = ScannerGraph(config=scan_config)
 
-        logger.info("Starting SCAN run=%s date=%s rid=%s", run_id, date, short_rid)
+        logger.info("Starting SCAN run=%s date=%s flow_id=%s", run_id, date, flow_id)
         yield self._system_log(f"Starting macro scan for {date}")
 
         initial_state = {
@@ -270,7 +268,7 @@ class LangGraphEngine:
         if final_state:
             yield self._system_log("Saving scan reports…")
             try:
-                save_dir = get_market_dir(date, run_id=short_rid)
+                save_dir = get_market_dir(date, flow_id=flow_id)
                 save_dir.mkdir(parents=True, exist_ok=True)
 
                 for key in (
@@ -319,7 +317,7 @@ class LangGraphEngine:
                 yield self._system_log(f"Warning: could not save scan reports: {exc}")
 
         logger.info("Completed SCAN run=%s", run_id)
-        self._finish_run_logger(run_id, get_market_dir(date, run_id=short_rid))
+        self._finish_run_logger(run_id, get_market_dir(date, flow_id=flow_id))
 
     async def run_pipeline(
         self, run_id: str, params: Dict[str, Any]
@@ -329,14 +327,12 @@ class LangGraphEngine:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         analysts = params.get("analysts", ["market", "news", "fundamentals"])
 
-        # Generate a short run_id for report namespacing
-        short_rid = generate_run_id()
-        store = create_report_store(run_id=short_rid)
+        flow_id = params.get("flow_id") or generate_flow_id()
+        store = create_report_store(flow_id=flow_id)
 
-        flow_id = params.get("flow_id")
         rl = self._start_run_logger(run_id, flow_id=flow_id)
 
-        logger.info("Starting PIPELINE run=%s ticker=%s date=%s rid=%s", run_id, ticker, date, short_rid)
+        logger.info("Starting PIPELINE run=%s ticker=%s date=%s flow_id=%s", run_id, ticker, date, flow_id)
 
         yield self._system_log(f"Starting analysis pipeline for {ticker} on {date}")
 
@@ -404,7 +400,7 @@ class LangGraphEngine:
         if final_state:
             yield self._system_log(f"Saving analysis report for {ticker}…")
             try:
-                save_dir = get_ticker_dir(date, ticker, run_id=short_rid)
+                save_dir = get_ticker_dir(date, ticker, flow_id=flow_id)
                 save_dir.mkdir(parents=True, exist_ok=True)
 
                 # Sanitize final_state to remove non-JSON-serializable objects
@@ -459,7 +455,7 @@ class LangGraphEngine:
                 yield self._system_log(f"Warning: could not save analysis report for {ticker}: {exc}")
 
         logger.info("Completed PIPELINE run=%s", run_id)
-        self._finish_run_logger(run_id, get_ticker_dir(date, ticker, run_id=short_rid))
+        self._finish_run_logger(run_id, get_ticker_dir(date, ticker, flow_id=flow_id))
 
     async def run_portfolio(
         self, run_id: str, params: Dict[str, Any]
@@ -468,18 +464,16 @@ class LangGraphEngine:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         portfolio_id = params.get("portfolio_id", "main_portfolio")
 
-        # Generate a short run_id for report namespacing
-        short_rid = generate_run_id()
-        store = create_report_store(run_id=short_rid)
-        # A reader store with no run_id resolves to the latest run for loading
+        flow_id = params.get("flow_id") or generate_flow_id()
+        store = create_report_store(flow_id=flow_id)
+        # A reader store with no flow_id resolves via latest pointer for loading
         reader_store = create_report_store()
 
-        flow_id = params.get("flow_id")
         rl = self._start_run_logger(run_id, flow_id=flow_id)
 
         logger.info(
-            "Starting PORTFOLIO run=%s portfolio=%s date=%s rid=%s",
-            run_id, portfolio_id, date, short_rid,
+            "Starting PORTFOLIO run=%s portfolio=%s date=%s flow_id=%s",
+            run_id, portfolio_id, date, flow_id,
         )
         yield self._system_log(
             f"Starting portfolio manager for {portfolio_id} on {date}"
@@ -640,7 +634,7 @@ class LangGraphEngine:
                 yield self._system_log(f"Warning: could not save portfolio reports: {exc}")
 
         logger.info("Completed PORTFOLIO run=%s", run_id)
-        self._finish_run_logger(run_id, get_daily_dir(date, run_id=short_rid) / "portfolio")
+        self._finish_run_logger(run_id, get_daily_dir(date, flow_id=flow_id) / "portfolio")
 
     async def run_trade_execution(
         self, run_id: str, date: str, portfolio_id: str, decision: dict, prices: dict,
@@ -701,8 +695,8 @@ class LangGraphEngine:
         portfolio_id = params.get("portfolio_id", "main_portfolio")
 
         store = create_report_store()
-        short_rid = generate_run_id()
-        writer_store = create_report_store(run_id=short_rid)
+        flow_id = params.get("flow_id") or generate_flow_id()
+        writer_store = create_report_store(flow_id=flow_id)
 
         if phase == "analysts":
             # Full re-run
@@ -763,7 +757,7 @@ class LangGraphEngine:
                         }
                         writer_store.save_trader_checkpoint(date, ticker, trader_ckpt)
 
-                self._finish_run_logger(run_id, get_ticker_dir(date, ticker, run_id=short_rid))
+                self._finish_run_logger(run_id, get_ticker_dir(date, ticker, flow_id=flow_id))
         elif phase == "risk":
             yield self._system_log(f"Loading trader checkpoint for {ticker}...")
             ckpt = store.load_trader_checkpoint(date, ticker)
@@ -804,7 +798,7 @@ class LangGraphEngine:
                     serializable_state = self._sanitize_for_json(final_state)
                     writer_store.save_analysis(date, ticker, serializable_state)
 
-                self._finish_run_logger(run_id, get_ticker_dir(date, ticker, run_id=short_rid))
+                self._finish_run_logger(run_id, get_ticker_dir(date, ticker, flow_id=flow_id))
         else:
             yield self._system_log(f"Unknown phase '{phase}' — skipping")
             return
@@ -822,12 +816,13 @@ class LangGraphEngine:
         """Run the full auto pipeline: scan → pipeline → portfolio."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = params.get("force", False)
-        flow_id = params.get("flow_id") or str(uuid.uuid4())
+        flow_id = params.get("flow_id") or generate_flow_id()
 
-        # Use a reader store (no run_id) for skip-if-exists checks.
-        # Each sub-phase (run_scan, run_pipeline, run_portfolio) creates
-        # its own writer store with a fresh run_id internally.
-        store = create_report_store()
+        # Thread the flow_id into params so all sub-phases share the same flow.
+        params = {**params, "flow_id": flow_id}
+
+        # Reader store scoped to this flow for skip-if-exists checks.
+        store = create_report_store(flow_id=flow_id)
 
         self._start_run_logger(run_id, flow_id=flow_id)  # auto-run's own logger; sub-phases create their own
 

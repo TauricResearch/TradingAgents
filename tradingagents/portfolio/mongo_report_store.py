@@ -58,27 +58,52 @@ class MongoReportStore:
     ``load_scan(date, run_id=run_id)`` to pin to a particular run.
     """
 
+    # How long to wait for a server before treating the cluster as unreachable.
+    # Keeping this short lets store_factory fall back to the filesystem quickly
+    # instead of blocking for pymongo's 30-second default.
+    _SERVER_SELECTION_TIMEOUT_MS: int = 5_000
+
     def __init__(
         self,
         connection_string: str,
         db_name: str = "tradingagents",
         run_id: str | None = None,
+        flow_id: str | None = None,
     ) -> None:
+        self._flow_id = flow_id
         self._run_id = run_id
+        self._indexes_ensured: bool = False
         try:
-            self._client: MongoClient = MongoClient(connection_string)
+            self._client: MongoClient = MongoClient(
+                connection_string,
+                serverSelectionTimeoutMS=self._SERVER_SELECTION_TIMEOUT_MS,
+            )
             self._db: Database = self._client[db_name]
             self._col: Collection = self._db[_REPORTS_COLLECTION]
         except Exception as exc:
             raise ReportStoreError(f"MongoDB connection failed: {exc}") from exc
-        self.ensure_indexes()
+        # Indexes are created lazily on the first write so that __init__ never
+        # blocks on a live network call.  Call ensure_indexes() explicitly if
+        # you need them to exist before the first write (e.g. in tests).
+
+    @property
+    def flow_id(self) -> str | None:
+        """The flow identifier set on this store, if any."""
+        return self._flow_id
 
     @property
     def run_id(self) -> str | None:
-        return self._run_id
+        """The run/flow identifier (flow_id takes precedence for backward compat)."""
+        return self._flow_id or self._run_id
 
     def ensure_indexes(self) -> None:
-        """Create indexes for efficient querying (idempotent)."""
+        """Create indexes for efficient querying (idempotent).
+
+        Called automatically on the first write so that ``__init__`` never
+        blocks on a live network call.  Safe to call multiple times.
+        """
+        if self._indexes_ensured:
+            return
         self._col.create_index([("date", DESCENDING), ("report_type", 1)])
         self._col.create_index(
             [("date", DESCENDING), ("report_type", 1), ("ticker", 1)]
@@ -86,8 +111,10 @@ class MongoReportStore:
         self._col.create_index(
             [("date", DESCENDING), ("report_type", 1), ("portfolio_id", 1)]
         )
+        self._col.create_index("flow_id")
         self._col.create_index("run_id")
         self._col.create_index("created_at")
+        self._indexes_ensured = True
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -104,8 +131,10 @@ class MongoReportStore:
         markdown: str | None = None,
     ) -> str:
         """Insert a report document.  Returns the inserted document's _id."""
+        self.ensure_indexes()
         doc = {
-            "run_id": self._run_id,
+            "flow_id": self._flow_id,
+            "run_id": self._run_id or self._flow_id,  # backward compat
             "date": date,
             "report_type": report_type,
             "ticker": ticker.upper() if ticker else None,
@@ -143,6 +172,8 @@ class MongoReportStore:
             query["portfolio_id"] = portfolio_id
         if run_id:
             query["run_id"] = run_id
+        elif self._flow_id:
+            query["flow_id"] = self._flow_id
 
         doc = self._col.find_one(query, sort=[("created_at", DESCENDING)])
         if doc is None:

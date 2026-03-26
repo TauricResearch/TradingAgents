@@ -16,6 +16,7 @@ import pytest
 
 from tradingagents import report_paths
 from tradingagents.report_paths import (
+    generate_flow_id,
     generate_run_id,
     get_daily_dir,
     get_digest_path,
@@ -23,6 +24,7 @@ from tradingagents.report_paths import (
     get_market_dir,
     get_ticker_dir,
     read_latest_pointer,
+    ts_now,
     write_latest_pointer,
 )
 
@@ -144,3 +146,69 @@ def test_get_eval_dir_with_run_id(tmp_path):
     with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
         result = get_eval_dir("2026-03-20", "AAPL", run_id="abc12345")
     assert result == tmp_path / "daily" / "2026-03-20" / "runs" / "abc12345" / "AAPL" / "eval"
+
+
+# ---------------------------------------------------------------------------
+# generate_flow_id + ts_now
+# ---------------------------------------------------------------------------
+
+
+def test_generate_flow_id_format():
+    """Flow IDs should be 8-char lowercase hex strings."""
+    fid = generate_flow_id()
+    assert len(fid) == 8
+    assert all(c in "0123456789abcdef" for c in fid)
+
+
+def test_generate_flow_id_unique():
+    """Consecutive flow IDs should not collide."""
+    ids = {generate_flow_id() for _ in range(100)}
+    assert len(ids) == 100
+
+
+def test_ts_now_format():
+    """ts_now should return a sortable 19-char ISO UTC string with ms precision."""
+    ts = ts_now()
+    assert len(ts) == 19  # YYYYMMDDTHHMMSSxxxZ
+    assert ts.endswith("Z")
+    assert "T" in ts
+
+
+def test_ts_now_is_sortable():
+    """Two successive ts_now() calls should be lexicographically ordered."""
+    import time as _time
+    t1 = ts_now()
+    _time.sleep(0.002)
+    t2 = ts_now()
+    assert t2 >= t1
+
+
+# ---------------------------------------------------------------------------
+# Path helpers — with flow_id (new layout, no 'runs/' prefix)
+# ---------------------------------------------------------------------------
+
+
+def test_get_daily_dir_with_flow_id(tmp_path):
+    """flow_id places output directly under date/, without runs/ prefix."""
+    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
+        result = get_daily_dir("2026-03-20", flow_id="abc12345")
+    assert result == tmp_path / "daily" / "2026-03-20" / "abc12345"
+
+
+def test_get_market_dir_with_flow_id(tmp_path):
+    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
+        result = get_market_dir("2026-03-20", flow_id="abc12345")
+    assert result == tmp_path / "daily" / "2026-03-20" / "abc12345" / "market"
+
+
+def test_get_ticker_dir_with_flow_id(tmp_path):
+    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
+        result = get_ticker_dir("2026-03-20", "AAPL", flow_id="abc12345")
+    assert result == tmp_path / "daily" / "2026-03-20" / "abc12345" / "AAPL"
+
+
+def test_flow_id_takes_precedence_over_run_id(tmp_path):
+    """When both flow_id and run_id are supplied, flow_id wins."""
+    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
+        result = get_daily_dir("2026-03-20", run_id="old", flow_id="new")
+    assert result == tmp_path / "daily" / "2026-03-20" / "new"

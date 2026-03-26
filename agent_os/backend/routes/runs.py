@@ -8,7 +8,7 @@ from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.services.langgraph_engine import LangGraphEngine, NODE_TO_PHASE
 from agent_os.backend.services.mock_engine import MockEngine
-from tradingagents.report_paths import generate_run_id
+from tradingagents.report_paths import generate_flow_id, generate_run_id
 
 logger = logging.getLogger("agent_os.runs")
 
@@ -25,14 +25,15 @@ def _persist_run_to_disk(run_id: str) -> None:
         return
     try:
         from tradingagents.portfolio.store_factory import create_report_store
-        short_rid = run.get("short_rid") or run_id[:8]
-        store = create_report_store(run_id=short_rid)
+        flow_id = run.get("flow_id") or run.get("short_rid") or run_id[:8]
+        store = create_report_store(flow_id=flow_id)
         date = (run.get("params") or {}).get("date", "")
         if not date:
             return
         meta = {
             "id": run_id,
-            "short_rid": short_rid,
+            "flow_id": flow_id,
+            "short_rid": flow_id,  # backward compat alias
             "type": run.get("type", ""),
             "status": run.get("status", ""),
             "created_at": run.get("created_at", 0),
@@ -44,7 +45,7 @@ def _persist_run_to_disk(run_id: str) -> None:
         }
         store.save_run_meta(date, meta)
         store.save_run_events(date, run.get("events", []))
-        logger.info("Persisted run to disk run=%s rid=%s", run_id, short_rid)
+        logger.info("Persisted run to disk run=%s flow_id=%s", run_id, flow_id)
     except Exception:
         logger.exception("Failed to persist run to disk run=%s", run_id)
 
@@ -71,20 +72,23 @@ async def trigger_scan(
     params: Dict[str, Any] = None,
     user: dict = Depends(get_current_user)
 ):
+    p = params or {}
     run_id = str(uuid.uuid4())
+    flow_id = p.get("flow_id") or generate_flow_id()
     runs[run_id] = {
         "id": run_id,
-        "short_rid": generate_run_id(),
+        "flow_id": flow_id,
+        "short_rid": flow_id,  # backward compat alias
         "type": "scan",
         "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
-        "params": params or {},
+        "params": {**p, "flow_id": flow_id},
         "rerun_seq": 0,
     }
-    logger.info("Queued SCAN run=%s user=%s", run_id, user["user_id"])
-    background_tasks.add_task(_run_and_store, run_id, engine.run_scan(run_id, params or {}))
-    return {"run_id": run_id, "status": "queued"}
+    logger.info("Queued SCAN run=%s flow_id=%s user=%s", run_id, flow_id, user["user_id"])
+    background_tasks.add_task(_run_and_store, run_id, engine.run_scan(run_id, runs[run_id]["params"]))
+    return {"run_id": run_id, "flow_id": flow_id, "status": "queued"}
 
 @router.post("/pipeline")
 async def trigger_pipeline(
@@ -92,20 +96,23 @@ async def trigger_pipeline(
     params: Dict[str, Any] = None,
     user: dict = Depends(get_current_user)
 ):
+    p = params or {}
     run_id = str(uuid.uuid4())
+    flow_id = p.get("flow_id") or generate_flow_id()
     runs[run_id] = {
         "id": run_id,
-        "short_rid": generate_run_id(),
+        "flow_id": flow_id,
+        "short_rid": flow_id,
         "type": "pipeline",
         "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
-        "params": params or {},
+        "params": {**p, "flow_id": flow_id},
         "rerun_seq": 0,
     }
-    logger.info("Queued PIPELINE run=%s user=%s", run_id, user["user_id"])
-    background_tasks.add_task(_run_and_store, run_id, engine.run_pipeline(run_id, params or {}))
-    return {"run_id": run_id, "status": "queued"}
+    logger.info("Queued PIPELINE run=%s flow_id=%s user=%s", run_id, flow_id, user["user_id"])
+    background_tasks.add_task(_run_and_store, run_id, engine.run_pipeline(run_id, runs[run_id]["params"]))
+    return {"run_id": run_id, "flow_id": flow_id, "status": "queued"}
 
 @router.post("/portfolio")
 async def trigger_portfolio(
@@ -113,20 +120,23 @@ async def trigger_portfolio(
     params: Dict[str, Any] = None,
     user: dict = Depends(get_current_user)
 ):
+    p = params or {}
     run_id = str(uuid.uuid4())
+    flow_id = p.get("flow_id") or generate_flow_id()
     runs[run_id] = {
         "id": run_id,
-        "short_rid": generate_run_id(),
+        "flow_id": flow_id,
+        "short_rid": flow_id,
         "type": "portfolio",
         "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
-        "params": params or {},
+        "params": {**p, "flow_id": flow_id},
         "rerun_seq": 0,
     }
-    logger.info("Queued PORTFOLIO run=%s user=%s", run_id, user["user_id"])
-    background_tasks.add_task(_run_and_store, run_id, engine.run_portfolio(run_id, params or {}))
-    return {"run_id": run_id, "status": "queued"}
+    logger.info("Queued PORTFOLIO run=%s flow_id=%s user=%s", run_id, flow_id, user["user_id"])
+    background_tasks.add_task(_run_and_store, run_id, engine.run_portfolio(run_id, runs[run_id]["params"]))
+    return {"run_id": run_id, "flow_id": flow_id, "status": "queued"}
 
 @router.post("/auto")
 async def trigger_auto(
@@ -134,20 +144,23 @@ async def trigger_auto(
     params: Dict[str, Any] = None,
     user: dict = Depends(get_current_user)
 ):
+    p = params or {}
     run_id = str(uuid.uuid4())
+    flow_id = p.get("flow_id") or generate_flow_id()
     runs[run_id] = {
         "id": run_id,
-        "short_rid": generate_run_id(),
+        "flow_id": flow_id,
+        "short_rid": flow_id,
         "type": "auto",
         "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
-        "params": params or {},
+        "params": {**p, "flow_id": flow_id},
         "rerun_seq": 0,
     }
-    logger.info("Queued AUTO run=%s user=%s", run_id, user["user_id"])
-    background_tasks.add_task(_run_and_store, run_id, engine.run_auto(run_id, params or {}))
-    return {"run_id": run_id, "status": "queued"}
+    logger.info("Queued AUTO run=%s flow_id=%s user=%s", run_id, flow_id, user["user_id"])
+    background_tasks.add_task(_run_and_store, run_id, engine.run_auto(run_id, runs[run_id]["params"]))
+    return {"run_id": run_id, "flow_id": flow_id, "status": "queued"}
 
 @router.post("/mock")
 async def trigger_mock(
@@ -166,24 +179,27 @@ async def trigger_mock(
     """
     p = params or {}
     run_id = str(uuid.uuid4())
+    flow_id = p.get("flow_id") or generate_flow_id()
+    p_with_flow = {**p, "flow_id": flow_id}
     runs[run_id] = {
         "id": run_id,
-        "short_rid": generate_run_id(),
+        "flow_id": flow_id,
+        "short_rid": flow_id,
         "type": "mock",
         "status": "queued",
         "created_at": time.time(),
         "user_id": user["user_id"],
-        "params": p,
+        "params": p_with_flow,
         "rerun_seq": 0,
     }
     logger.info(
-        "Queued MOCK run=%s mock_type=%s user=%s",
-        run_id, p.get("mock_type", "pipeline"), user["user_id"],
+        "Queued MOCK run=%s mock_type=%s flow_id=%s user=%s",
+        run_id, p.get("mock_type", "pipeline"), flow_id, user["user_id"],
     )
     background_tasks.add_task(
-        _run_and_store, run_id, mock_engine.run_mock(run_id, p)
+        _run_and_store, run_id, mock_engine.run_mock(run_id, p_with_flow)
     )
-    return {"run_id": run_id, "status": "queued"}
+    return {"run_id": run_id, "flow_id": flow_id, "status": "queued"}
 
 async def _append_and_store(run_id: str, gen) -> None:
     """Append events from a re-run generator to an existing run entry."""
@@ -334,8 +350,8 @@ async def get_run_status(run_id: str, user: dict = Depends(get_current_user)):
         ):
             try:
                 from tradingagents.portfolio.store_factory import create_report_store
-                short_rid = run.get("short_rid") or run_id[:8]
-                store = create_report_store(run_id=short_rid)
+                flow_id = run.get("flow_id") or run.get("short_rid") or run_id[:8]
+                store = create_report_store(flow_id=flow_id)
                 date = (run.get("params") or {}).get("date", "")
                 if date:
                     events = store.load_run_events(date)

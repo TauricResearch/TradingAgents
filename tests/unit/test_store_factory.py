@@ -39,6 +39,16 @@ def test_default_passes_run_id():
     assert store.run_id == "abc123"
 
 
+def test_default_passes_flow_id():
+    """flow_id should be forwarded to the filesystem store."""
+    with patch.dict("os.environ", {}, clear=True):
+        store = create_report_store(flow_id="flow001")
+
+    assert isinstance(store, ReportStore)
+    assert store.flow_id == "flow001"
+    assert store.run_id == "flow001"  # flow_id takes precedence
+
+
 def test_base_dir_forwarded():
     """base_dir should be forwarded to the filesystem store."""
     with patch.dict("os.environ", {}, clear=True):
