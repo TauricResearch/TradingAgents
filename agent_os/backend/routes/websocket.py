@@ -37,6 +37,29 @@ async def websocket_endpoint(
     run_type = run_info["type"]
     params = run_info.get("params", {})
 
+    # Lazy-load events from disk when not in memory.
+    # Covers three cases: hydrated completed/failed runs (events=[]), and orphaned "running"
+    # runs where the server restarted mid-run. New genuine runs return [] from disk (safe no-op).
+    if not run_info.get("events"):
+        try:
+            from tradingagents.portfolio.store_factory import create_report_store
+            flow_id = run_info.get("flow_id") or run_info.get("short_rid") or run_id[:8]
+            store = create_report_store(flow_id=flow_id)
+            date = (run_info.get("params") or {}).get("date", "")
+            if date:
+                disk_events = store.load_run_events(date)
+                if disk_events:
+                    run_info["events"] = disk_events
+                    logger.info("Lazy-loaded %d events from disk run=%s", len(disk_events), run_id)
+                    # If still marked "running" but disk has events, the producer is gone
+                    # (server restarted mid-run) — mark failed so the replay loop terminates
+                    # and the UI shows the partial output with an error indicator.
+                    if run_info.get("status") == "running":
+                        run_info["status"] = "failed"
+                        run_info["error"] = "Run did not complete (server restarted)"
+        except Exception:
+            logger.warning("Failed to lazy-load events for run=%s", run_id)
+
     try:
         status = run_info.get("status", "queued")
 

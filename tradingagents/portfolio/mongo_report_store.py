@@ -92,6 +92,11 @@ class MongoReportStore:
         return self._flow_id
 
     @property
+    def flow_id(self) -> str | None:
+        """The flow identifier set on this store, if any."""
+        return self._flow_id
+
+    @property
     def run_id(self) -> str | None:
         """The run/flow identifier (flow_id takes precedence for backward compat)."""
         return self._flow_id or self._run_id

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted — extended by ADR 018 (adds lazy-loading, run history, phase re-run)
 
 ## Context
 
@@ -39,12 +39,25 @@ Portfolio models use different field names than the frontend expects. The `/late
 
 `run_pipeline()` passes `config={"recursion_limit": propagator.max_recur_limit}` (default 100) to `astream_events()`. Without this, LangGraph defaults to 25, which is insufficient for the debate + risk cycles (up to ~10 iterations).
 
+## Updated Architecture (see ADR 018 for full detail)
+
+The original "WebSocket is the sole executor" model was revised. REST endpoints
+now start a `BackgroundTask` that drives the engine generator and caches events
+in `runs[run_id]["events"]`. The WebSocket streams from this cache, polling every
+50ms. This allows the connection to disconnect and reconnect without losing events.
+
+On server restart, `hydrate_runs_from_disk()` rebuilds the runs dict from
+`run_meta.json` files (events are lazy-loaded on first WebSocket connect). Runs
+stuck in `"running"` state with events on disk are detected as orphaned and
+marked `"failed"` automatically.
+
 ## Consequences
 
 - **Pro**: Real-time visibility into agent execution with zero CLI changes
 - **Pro**: Crash-proof event mapping — one bad event doesn't kill the stream
-- **Pro**: Clean separation — frontend can reconnect to ongoing runs
-- **Con**: In-memory run store is not persistent (acceptable for V1)
+- **Pro**: Run history survives server restarts via disk persistence
+- **Pro**: Phase-level re-run preserves full graph context across tickers
+- **Con**: In-memory run store cleared on restart (mitigated by disk hydration)
 - **Con**: Single-tenant auth (hardcoded user) — needs JWT for production
 
 ## Source Files

@@ -565,7 +565,8 @@ export const Dashboard: React.FC = () => {
         date: params.date,
         portfolio_id: params.portfolio_id,
       });
-      // Force WebSocket reconnect to stream new events
+      // Clear terminal and reconnect WebSocket to stream only the new phase's events
+      clearEvents();
       setActiveRunId(null);
       setTimeout(() => setActiveRunId(res.data.run_id), 0);
       toast({

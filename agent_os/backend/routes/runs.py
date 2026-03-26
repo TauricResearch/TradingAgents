@@ -201,18 +201,67 @@ async def trigger_mock(
     )
     return {"run_id": run_id, "flow_id": flow_id, "status": "queued"}
 
-async def _append_and_store(run_id: str, gen) -> None:
-    """Append events from a re-run generator to an existing run entry."""
+# Nodes produced by each phase (used to selectively remove stale events on re-run)
+_DEBATE_TRADER_NODES = frozenset({
+    "Bull Researcher", "Bear Researcher", "Research Manager", "Trader",
+    "Aggressive Analyst", "Conservative Analyst", "Neutral Analyst", "Portfolio Manager",
+})
+_RISK_NODES = frozenset({
+    "Aggressive Analyst", "Conservative Analyst", "Neutral Analyst", "Portfolio Manager",
+})
+# Portfolio-level cascade nodes always re-run after any phase re-run
+_PORTFOLIO_NODES = frozenset({"review_holdings", "make_pm_decision"})
+
+
+def _filter_rerun_events(events: list, ticker: str, phase: str) -> list:
+    """Remove stale events for ticker+phase so fresh re-run events can replace them.
+
+    Events for other tickers and phases earlier than the requested phase are kept,
+    preserving the full auto-flow graph context in the UI.
+    """
+    if phase == "analysts":
+        ticker_nodes_to_clear = None  # clear all nodes for this ticker
+    elif phase == "debate_and_trader":
+        ticker_nodes_to_clear = _DEBATE_TRADER_NODES
+    elif phase == "risk":
+        ticker_nodes_to_clear = _RISK_NODES
+    else:
+        return events  # unknown phase — keep everything
+
+    kept = []
+    for e in events:
+        ident = e.get("identifier", "")
+        node_id = e.get("node_id", "")
+        parent = e.get("parent_node_id", "")
+        # Always remove portfolio-level cascade events (they will be re-emitted)
+        if node_id in _PORTFOLIO_NODES:
+            continue
+        # Remove stale ticker events for the phase being re-run
+        if ident == ticker:
+            if ticker_nodes_to_clear is None:
+                continue
+            if node_id in ticker_nodes_to_clear or parent in ticker_nodes_to_clear:
+                continue
+        kept.append(e)
+    return kept
+
+
+async def _append_and_store(run_id: str, gen, ticker: str = None, phase: str = None) -> None:
+    """Drive a re-run generator, preserving events from other tickers/phases."""
     run = runs.get(run_id)
     if not run:
         return
     run["rerun_seq"] = run.get("rerun_seq", 0) + 1
     run["status"] = "running"
+    # Preserve events for other tickers and earlier phases; remove only the stale
+    # nodes that the re-run will replace.
+    if ticker and phase:
+        run["events"] = _filter_rerun_events(run.get("events") or [], ticker, phase)
+    else:
+        run["events"] = []
     try:
         async for event in gen:
             event["rerun_seq"] = run["rerun_seq"]
-            if "events" not in run:
-                run["events"] = []
             run["events"].append(event)
         run["status"] = "completed"
     except Exception as exc:
@@ -247,20 +296,32 @@ async def trigger_rerun_node(
         raise HTTPException(status_code=422, detail="identifier (ticker) is required")
 
     phase = NODE_TO_PHASE[node_id]
+    _run = runs[run_id]
+    _orig_flow_id = (
+        _run.get("flow_id")
+        or _run.get("short_rid")
+        or (_run.get("params") or {}).get("flow_id")
+    )
     rerun_params = {
         "ticker": identifier,
-        "date": date or (runs[run_id].get("params") or {}).get("date", ""),
+        "date": date or (_run.get("params") or {}).get("date", ""),
         "portfolio_id": portfolio_id,
+        "flow_id": _orig_flow_id,  # preserve original flow_id for checkpoint lookup
     }
 
     logger.info(
         "Queued RERUN run=%s node=%s phase=%s ticker=%s user=%s",
         run_id, node_id, phase, identifier, user["user_id"],
     )
+    # Set status synchronously so the WebSocket that reconnects immediately after
+    # this response sees "running" and enters the polling loop instead of closing.
+    runs[run_id]["status"] = "running"
     background_tasks.add_task(
         _append_and_store,
         run_id,
         engine.run_pipeline_from_phase(f"{run_id}_rerun_{phase}", rerun_params, phase),
+        ticker=identifier,
+        phase=phase,
     )
     return {"run_id": run_id, "phase": phase, "status": "queued"}
 

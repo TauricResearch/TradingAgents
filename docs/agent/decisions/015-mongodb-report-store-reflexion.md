@@ -1,8 +1,12 @@
 # ADR 015 — MongoDB Report Store, Run-ID Namespacing, and Reflexion Memory
 
-**Status**: accepted  
-**Date**: 2026-03-24  
+**Status**: superseded by ADR 018
+**Date**: 2026-03-24
 **Deciders**: @aguzererler  
+
+> **Superseded**: The `run_id` namespacing described here has been replaced by
+> `flow_id`-based layout. The MongoDB vs local storage decision guide has been
+> expanded in ADR 018, which is now the canonical reference.
 
 ## Context
 

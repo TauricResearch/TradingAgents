@@ -29,7 +29,10 @@ conda activate tradingagents
 - `tradingagents/agents/` - Agent implementations
 - `tradingagents/graph/` - Workflow graphs and setup
 - `tradingagents/dataflows/` - Data access layer
+- `tradingagents/portfolio/` - Portfolio models, report stores, store factory
 - `cli/` - Command-line interface
+- `agent_os/backend/` - FastAPI backend (routes, engine, services)
+- `agent_os/frontend/` - React + Chakra UI + ReactFlow dashboard
 
 ## Agent Flow (Existing Trading Analysis)
 
@@ -87,6 +90,75 @@ OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
 - Graph setup (scanner): `tradingagents/graph/scanner_setup.py`
 - Inline tool loop: `tradingagents/agents/utils/tool_runner.py`
 
+## AgentOS — Storage, Events & Phase Re-run (see ADR 018 for full detail)
+
+### Storage Layout
+
+Reports are scoped by `flow_id` (8-char hex), NOT `run_id` (UUID):
+
+```
+reports/daily/{date}/{flow_id}/
+  run_meta.json           ← run metadata persisted on completion
+  run_events.jsonl        ← all WebSocket events, newline-delimited JSON
+  {TICKER}/report/        ← e.g. RIG/report/
+    {ts}_complete_report.json
+    {ts}_analysts_checkpoint.json   ← written after analysts phase
+    {ts}_trader_checkpoint.json     ← written after trader phase
+  market/report/          ← scan output
+  portfolio/report/       ← PM decisions, execution results
+```
+
+- **`flow_id`** = stable disk key, shared across all sub-phases of one auto run
+- **`run_id`** = ephemeral in-memory UUID (WebSocket endpoint key only)
+
+### Store Factory — Always Use It
+
+```python
+from tradingagents.portfolio.store_factory import create_report_store
+
+# Writing: always pass flow_id
+writer = create_report_store(flow_id=flow_id)
+
+# Reading / checkpoint lookup: always pass the ORIGINAL flow_id
+reader = create_report_store(flow_id=original_flow_id)
+
+# Reading latest (skip-if-exists checks): omit flow_id
+reader = create_report_store()
+```
+
+**Never** instantiate `ReportStore()` or `MongoReportStore()` directly in engine code.
+
+### Phase Re-run
+
+Node → phase mapping lives in `NODE_TO_PHASE` (langgraph_engine.py):
+
+| Nodes | Phase | Checkpoint loaded |
+|-------|-------|-------------------|
+| Market/News/Fundamentals/Social Analyst | `analysts` | none |
+| Bull/Bear Researcher, Research Manager, Trader | `debate_and_trader` | analysts_checkpoint |
+| Aggressive/Conservative/Neutral Analyst, Portfolio Manager | `risk` | trader_checkpoint |
+
+- **Checkpoint lookup requires the original `flow_id`** — pass it through `rerun_params["flow_id"]`
+- **Analysts checkpoint**: saved when `any()` analyst report is populated (Social Analyst is optional — never use `all()`)
+- **Selective event filtering**: re-run preserves events from other tickers and earlier phases; only clears nodes in the re-run scope
+- **Cascade**: every phase re-run ends with a `run_portfolio()` call to update the PM decision
+
+### WebSocket Event Flow
+
+```
+POST /api/run/{type} → BackgroundTask drives engine → caches events in runs[run_id]
+WS /ws/stream/{run_id} → replays cached events (polling 50ms) → streams new ones
+On reconnect (history) → lazy-loads run_events.jsonl from disk if events == []
+Orphaned "running" run with disk events → auto-marked "failed"
+```
+
+### MongoDB vs Local Storage
+
+- **Local (default)**: development, single-machine, offline. Set via `TRADINGAGENTS_REPORTS_DIR`.
+- **MongoDB**: multi-process, production, reflexion memory. Set `TRADINGAGENTS_MONGO_URI`.
+- `DualReportStore` writes to both when Mongo is configured; reads Mongo first, falls back to disk.
+- Mongo failures always fall back gracefully — never crash on missing Mongo.
+
 ## Critical Patterns (see `docs/agent/decisions/008-lessons-learned.md` for full details)
 
 - **Tool execution**: Trading graph uses `ToolNode` in graph. Scanner agents use `run_tool_loop()` inline. If `bind_tools()` is used, there MUST be a tool execution path.
@@ -99,6 +171,10 @@ OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
 - **Rate limiter locks**: Never hold a lock during `sleep()` or IO. Release, sleep, re-acquire.
 - **LLM policy errors**: `_is_policy_error(exc)` detects 404 from any provider (checks `status_code` attribute or message content). `_build_fallback_config(config)` substitutes per-tier fallback models. Both live in `agent_os/backend/services/langgraph_engine.py`.
 - **Config fallback keys**: `llm_provider` and `backend_url` must always exist at top level — `scanner_graph.py` and `trading_graph.py` use them as fallbacks.
+- **Report store writes**: always pass `flow_id` to `create_report_store(flow_id=…)`. Omitting it writes to the flat legacy path and overwrites across runs.
+- **Checkpoint lookup on re-run**: pass the original run's `flow_id` (from `run.get("flow_id") or run.get("short_rid") or run["params"]["flow_id"]`). Without it, `_date_root()` falls back to flat layout and finds nothing.
+- **Analysts checkpoint condition**: use `any()` not `all()` over analyst keys — Social Analyst is not in the default analysts list, so `sentiment_report` is empty in typical runs.
+- **Re-run event filtering**: use `_filter_rerun_events(events, ticker, phase)` — never clear all events on re-run. Clearing all loses scan nodes and other tickers from the graph.
 
 ## Agentic Memory (docs/agent/)
 

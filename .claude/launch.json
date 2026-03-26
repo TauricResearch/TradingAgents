@@ -10,7 +10,7 @@
     {
       "name": "Frontend (Vite / React)",
       "runtimeExecutable": "/opt/homebrew/bin/node",
-      "runtimeArgs": ["/Users/Ahmet/Repo/TradingAgents/agent_os/frontend/node_modules/.bin/vite", "/Users/Ahmet/Repo/TradingAgents/agent_os/frontend"],
+      "runtimeArgs": ["/Users/Ahmet/Repo/TradingAgents/agent_os/frontend/node_modules/.bin/vite", "/Users/Ahmet/Repo/TradingAgents/.claude/worktrees/wizardly-poitras/agent_os/frontend"],
       "port": 5173,
       "autoPort": true
     }

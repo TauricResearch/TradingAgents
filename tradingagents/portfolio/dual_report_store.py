@@ -63,6 +63,11 @@ class DualReportStore:
         return self._local.flow_id
 
     @property
+    def flow_id(self) -> str | None:
+        """The flow identifier set on this store, if any."""
+        return self._local.flow_id
+
+    @property
     def run_id(self) -> str | None:
         """The run/flow identifier (flow_id takes precedence)."""
         return self._local.run_id

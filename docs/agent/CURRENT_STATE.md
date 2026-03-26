@@ -1,23 +1,45 @@
 # Current Milestone
 
-FE improvements: configurable max_auto_tickers + run persistence with phase-level node re-run. PR pending review on `feat/fe-max-tickers-load-run`.
+Storage finalisation + run history UX. Branch `claude/wizardly-poitras` (PR pending).
+All storage, event, checkpoint, and phase re-run logic is now documented in ADR 018.
 
 # Recent Progress
 
-- **feat/fe-max-tickers-load-run**: Two features implemented:
-  - Feature 1: `max_auto_tickers` config key + macro synthesis prompt injection + frontend number input + backend safety cap
-  - Feature 2: Run persistence (run_meta.json + run_events.jsonl), intermediate phase checkpoints (analysts/trader), phase subgraphs (debate + risk), POST /api/run/rerun-node endpoint, frontend history panel + modified node re-run
-- **PR#108 merged**: Per-tier LLM fallback for 404/policy errors
-- **PR#107 merged**: `save_holding_review` per-ticker fix, `RunLogger` threading.local to contextvars.ContextVar
-- **PR#106 merged**: MongoDB report store, RunLogger observability, reflexion memory, run-ID namespaced reports
-- **Smart Money Scanner**: Finviz integration with Golden Overlap strategy (ADR 014)
-- **AgentOS**: Full-stack visual observability layer (FastAPI + React + ReactFlow)
-- **Portfolio Manager**: Phases 1-10 complete (models, agents, CLI, stop-loss/take-profit)
+- **feat/fe-max-tickers-load-run** (merged base):
+  - `max_auto_tickers` config + macro synthesis prompt injection + frontend input
+  - Run persistence: `run_meta.json` + `run_events.jsonl` per flow_id
+  - Phase subgraphs (debate_graph, risk_graph) in LangGraphEngine
+  - `POST /api/run/rerun-node` endpoint + frontend Re-run buttons on graph nodes
+  - Run History popover in UI
+
+- **claude/wizardly-poitras** (this PR — storage finalisation):
+  - **flow_id layout** replaces run_id namespacing: `reports/daily/{date}/{flow_id}/`
+  - **Startup hydration**: `hydrate_runs_from_disk()` rebuilds runs dict from disk on restart
+  - **WebSocket lazy-loading**: events loaded from disk on first WS connect (fixes blank Run History)
+  - **Orphaned run detection**: runs stuck in "running" with disk events → marked "failed"
+  - **Analysts checkpoint fix**: `any()` instead of `all()` — Social Analyst is optional
+  - **flow_id checkpoint lookup**: re-run passes original flow_id to store so checkpoints resolve correctly
+  - **Selective event filtering**: phase re-run preserves scan + other tickers; only clears stale nodes for the re-run scope
+  - **ADR 018**: definitive documentation of storage, events, checkpoints, MongoDB vs local
+
+- **PR#108 merged**: Per-tier LLM fallback for 404/policy errors (ADR 017)
+- **PR#107 merged**: `save_holding_review` per-ticker fix; RunLogger threading.local → contextvars
+- **PR#106 merged**: MongoDB report store, RunLogger observability, reflexion memory
 
 # In Progress
 
-- feat/fe-max-tickers-load-run PR under review
+- claude/wizardly-poitras PR: storage finalisation + run history UX
 
 # Active Blockers
 
 - None
+
+# Key Architectural Decisions Active
+
+| ADR | Topic | Status |
+|-----|-------|--------|
+| 013 | WebSocket streaming (extended by 018) | accepted |
+| 015 | MongoDB/run-id namespacing | superseded by 018 (flow_id replaces run_id) |
+| 016 | PR#106 review findings | accepted |
+| 017 | LLM policy fallback | accepted |
+| 018 | Storage layout, events, checkpoints, MongoDB vs local | **accepted — canonical reference** |
