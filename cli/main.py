@@ -140,10 +140,13 @@ class MessageBuffer:
 
         This prevents interim updates (like debate rounds) from counting as completed.
         """
+        # Optimized: Iterate over active report sections directly instead of all possible sections,
+        # checking content first to short-circuit the finalizing agent status lookup.
         count = 0
-        for section, (_, finalizing_agent) in self.REPORT_SECTIONS.items():
-            if self.report_sections.get(section) is not None:
-                if self.agent_status.get(finalizing_agent) == "completed":
+        for section, content in self.report_sections.items():
+            if content is not None:
+                section_info = self.REPORT_SECTIONS.get(section)
+                if section_info and self.agent_status.get(section_info[1]) == "completed":
                     count += 1
         return count
 
