@@ -1,12 +1,15 @@
 """Portfolio Manager workflow graph setup.
 
-Sequential workflow:
+Fan-out/fan-in workflow:
   START → load_portfolio → compute_risk → review_holdings
-        → prioritize_candidates → pm_decision → execute_trades → END
+        → prioritize_candidates → macro_summary (parallel)
+                                → micro_summary  (parallel)
+        → make_pm_decision → execute_trades → END
 
 Non-LLM nodes (load_portfolio, compute_risk, prioritize_candidates,
 execute_trades) receive ``repo`` and ``config`` via closure.
-LLM nodes (review_holdings, pm_decision) are created externally and passed in.
+LLM nodes (review_holdings, macro_summary, micro_summary, pm_decision)
+are created externally and passed in.
 """
 
 from __future__ import annotations
@@ -34,13 +37,16 @@ _EMPTY_PORTFOLIO_DICT = {
 
 
 class PortfolioGraphSetup:
-    """Builds the sequential Portfolio Manager workflow graph.
+    """Builds the Portfolio Manager workflow graph with parallel summary fan-out.
 
     Args:
-        agents: Dict with keys ``review_holdings`` and ``pm_decision``
-                mapping to LLM agent node functions.
+        agents: Dict with keys ``review_holdings``, ``macro_summary``,
+                ``micro_summary``, and ``pm_decision`` mapping to LLM agent
+                node functions.
         repo: PortfolioRepository instance (injected into closure nodes).
         config: Portfolio config dict.
+        macro_memory: MacroMemory instance forwarded to summary agents.
+        micro_memory: ReflexionMemory instance forwarded to summary agents.
     """
 
     def __init__(
@@ -48,10 +54,17 @@ class PortfolioGraphSetup:
         agents: dict[str, Any],
         repo=None,
         config: dict[str, Any] | None = None,
+        macro_memory=None,
+        micro_memory=None,
     ) -> None:
         self.agents = agents
         self._repo = repo
         self._config = config or {}
+        # Memory instances are already baked into the agent closures at the call site
+        # (portfolio_graph.py passes them to create_macro/micro_summary_agent).
+        # Stored here for future direct access by non-LLM closure nodes if needed.
+        self._macro_memory = macro_memory
+        self._micro_memory = micro_memory
 
     # ------------------------------------------------------------------
     # Node factories (non-LLM)
@@ -206,7 +219,13 @@ class PortfolioGraphSetup:
     # ------------------------------------------------------------------
 
     def setup_graph(self):
-        """Build and compile the sequential portfolio workflow graph.
+        """Build and compile the portfolio workflow graph with parallel summary fan-out.
+
+        Topology:
+            START → load_portfolio → compute_risk → review_holdings
+                  → prioritize_candidates → macro_summary (parallel)
+                                          → micro_summary  (parallel)
+                  → make_pm_decision → execute_trades → END
 
         Returns:
             A compiled LangGraph graph ready to invoke.
@@ -221,14 +240,25 @@ class PortfolioGraphSetup:
 
         # Register LLM nodes
         workflow.add_node("review_holdings", self.agents["review_holdings"])
+        workflow.add_node("macro_summary", self.agents["macro_summary"])
+        workflow.add_node("micro_summary", self.agents["micro_summary"])
         workflow.add_node("make_pm_decision", self.agents["pm_decision"])
 
-        # Sequential edges
+        # Sequential backbone
         workflow.add_edge(START, "load_portfolio")
         workflow.add_edge("load_portfolio", "compute_risk")
         workflow.add_edge("compute_risk", "review_holdings")
         workflow.add_edge("review_holdings", "prioritize_candidates")
-        workflow.add_edge("prioritize_candidates", "make_pm_decision")
+
+        # Fan-out: prioritize_candidates → both summary nodes (parallel)
+        workflow.add_edge("prioritize_candidates", "macro_summary")
+        workflow.add_edge("prioritize_candidates", "micro_summary")
+
+        # Fan-in: both summary nodes → make_pm_decision
+        workflow.add_edge("macro_summary", "make_pm_decision")
+        workflow.add_edge("micro_summary", "make_pm_decision")
+
+        # Tail
         workflow.add_edge("make_pm_decision", "execute_trades")
         workflow.add_edge("execute_trades", END)
 

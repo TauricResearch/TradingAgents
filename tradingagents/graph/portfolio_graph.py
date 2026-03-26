@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, List, Optional
 
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
+from tradingagents.memory.macro_memory import MacroMemory
+from tradingagents.memory.reflexion import ReflexionMemory
 from tradingagents.agents.portfolio import (
     create_holding_reviewer,
     create_pm_decision_agent,
+    create_macro_summary_agent,
+    create_micro_summary_agent,
 )
 from .portfolio_setup import PortfolioGraphSetup
 
@@ -50,12 +55,31 @@ class PortfolioGraph:
 
         portfolio_config = self._get_portfolio_config()
 
+        mongo_uri = self.config.get("mongo_uri") or os.environ.get("TRADINGAGENTS_MONGO_URI")
+        macro_mem = MacroMemory(mongo_uri=mongo_uri)
+        micro_mem = ReflexionMemory(
+            mongo_uri=mongo_uri,
+            collection_name="micro_reflexion",
+            fallback_path="reports/micro_reflexion.json",  # distinct from pipeline reflexion.json
+        )
+
         agents = {
             "review_holdings": create_holding_reviewer(mid_llm),
-            "pm_decision": create_pm_decision_agent(deep_llm, config=portfolio_config),
+            "macro_summary":   create_macro_summary_agent(mid_llm, macro_mem),
+            "micro_summary":   create_micro_summary_agent(mid_llm, micro_mem),
+            "pm_decision":     create_pm_decision_agent(
+                deep_llm, config=portfolio_config,
+                macro_memory=macro_mem, micro_memory=micro_mem,
+            ),
         }
 
-        setup = PortfolioGraphSetup(agents, repo=self._repo, config=portfolio_config)
+        setup = PortfolioGraphSetup(
+            agents,
+            repo=self._repo,
+            config=portfolio_config,
+            macro_memory=macro_mem,
+            micro_memory=micro_mem,
+        )
         self.graph = setup.setup_graph()
 
     def _get_portfolio_config(self) -> dict[str, Any]:
@@ -163,6 +187,10 @@ class PortfolioGraph:
             "risk_metrics": "",
             "holding_reviews": "",
             "prioritized_candidates": "",
+            "macro_brief": "",
+            "micro_brief": "",
+            "macro_memory_context": "",
+            "micro_memory_context": "",
             "pm_decision": "",
             "execution_result": "",
             "sender": "",

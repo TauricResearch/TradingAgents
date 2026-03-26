@@ -35,6 +35,15 @@ class PortfolioManagerState(MessagesState):
     risk_metrics: Annotated[str, _last_value]
     holding_reviews: Annotated[str, _last_value]
     prioritized_candidates: Annotated[str, _last_value]
+
+    # Summary briefs (written by parallel summary agents)
+    macro_brief: Annotated[str, _last_value]
+    micro_brief: Annotated[str, _last_value]
+
+    # Pre-fetched memory context strings
+    macro_memory_context: Annotated[str, _last_value]
+    micro_memory_context: Annotated[str, _last_value]
+
     pm_decision: Annotated[str, _last_value]
     execution_result: Annotated[str, _last_value]
 

@@ -56,6 +56,7 @@ class ReflexionMemory:
         mongo_uri: str | None = None,
         db_name: str = "tradingagents",
         fallback_path: str | Path = "reports/reflexion.json",
+        collection_name: str = "reflexion",
     ) -> None:
         self._col = None
         self._fallback_path = Path(fallback_path)
@@ -66,7 +67,7 @@ class ReflexionMemory:
 
                 client = MongoClient(mongo_uri)
                 db = client[db_name]
-                self._col = db[_COLLECTION]
+                self._col = db[collection_name]
                 self._col.create_index(
                     [("ticker", 1), ("decision_date", DESCENDING)]
                 )
@@ -184,7 +185,7 @@ class ReflexionMemory:
             from pymongo import DESCENDING
 
             cursor = self._col.find(
-                {"ticker": ticker.upper()},
+                {"ticker": ticker.upper()},  # Hard metadata filter — prevents cross-ticker contamination
                 {"_id": 0},
             ).sort("decision_date", DESCENDING).limit(limit)
             return list(cursor)
@@ -260,7 +261,7 @@ class ReflexionMemory:
     def _load_local(self, ticker: str, limit: int) -> list[dict[str, Any]]:
         """Load and filter records for a ticker from the local file."""
         records = self._load_all_local()
-        filtered = [r for r in records if r.get("ticker") == ticker]
+        filtered = [r for r in records if r.get("ticker") == ticker]  # Hard metadata filter — local fallback
         filtered.sort(key=lambda r: r.get("decision_date", ""), reverse=True)
         return filtered[:limit]
 
