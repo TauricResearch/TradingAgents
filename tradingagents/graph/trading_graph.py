@@ -283,7 +283,6 @@ class TradingAgentsGraph:
         """
         original_ticker = self.ticker
         original_curr_state = self.curr_state
-        original_log_states = self.log_states_dict.copy()
         try:
             return self.portfolio_analyzer.analyze(
                 tickers, trade_date, self.propagate, debug=self.debug
@@ -291,7 +290,6 @@ class TradingAgentsGraph:
         finally:
             self.ticker = original_ticker
             self.curr_state = original_curr_state
-            self.log_states_dict = original_log_states
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
