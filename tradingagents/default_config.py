@@ -15,6 +15,7 @@ DEFAULT_CONFIG = {
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
+    "anthropic_effort": None,           # "high", "medium", "low"
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
