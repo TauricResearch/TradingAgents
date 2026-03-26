@@ -169,7 +169,15 @@ class PortfolioGraphSetup:
                             h.enrich(prices[h.ticker], total_value)
                     portfolio.enrich(holdings)
 
-                ranked = prioritize_candidates(candidates, portfolio, holdings, config)
+                from tradingagents.portfolio.memory_loader import build_selection_memory
+
+                try:
+                    selection_memory = build_selection_memory()
+                except Exception as exc:
+                    logger.warning("prioritize_candidates_node: could not load selection_memory: %s", exc)
+                    selection_memory = None
+
+                ranked = prioritize_candidates(candidates, portfolio, holdings, config, selection_memory=selection_memory)
             except Exception as exc:
                 logger.error("prioritize_candidates_node: %s", exc)
                 ranked = []

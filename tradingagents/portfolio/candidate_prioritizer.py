@@ -14,6 +14,7 @@ from tradingagents.portfolio.risk_evaluator import sector_concentration
 
 if TYPE_CHECKING:
     from tradingagents.portfolio.models import Holding, Portfolio
+    from tradingagents.agents.utils.memory import FinancialSituationMemory
 
 
 # ---------------------------------------------------------------------------
@@ -94,12 +95,20 @@ def score_candidate(
     return conviction_weight * thesis_score * diversification_factor * held_penalty
 
 
+def _build_candidate_description(candidate: dict) -> str:
+    """Concatenate ticker, sector, thesis_angle, rationale, conviction for BM25 query."""
+    parts = [candidate.get(k, "") for k in
+             ("ticker", "sector", "thesis_angle", "rationale", "conviction")]
+    return " ".join(p for p in parts if p)
+
+
 def prioritize_candidates(
     candidates: list[dict[str, Any]],
     portfolio: "Portfolio",
     holdings: list["Holding"],
     config: dict[str, Any],
     top_n: int | None = None,
+    selection_memory: "FinancialSituationMemory | None" = None,
 ) -> list[dict[str, Any]]:
     """Score and rank candidates by priority_score descending.
 
@@ -137,6 +146,19 @@ def prioritize_candidates(
                 f"Sector '{sector}' is at or above max exposure limit "
                 f"({config.get('max_sector_pct', 0.35):.0%})"
             )
+
+        # Memory rejection gate
+        if selection_memory is not None and ps > 0.0:
+            desc = _build_candidate_description(candidate)
+            matches = selection_memory.get_memories(desc, n_matches=1)
+            if matches and matches[0]["similarity_score"] > 0.5:
+                ps = 0.0
+                item["priority_score"] = 0.0
+                item["skip_reason"] = (
+                    f"Memory lesson (score={matches[0]['similarity_score']:.2f}): "
+                    f"{matches[0]['recommendation'][:120]}"
+                )
+
         enriched.append(item)
 
     enriched.sort(key=lambda c: c["priority_score"], reverse=True)

@@ -1382,6 +1382,61 @@ def run_analysis():
         display_complete_report(final_state)
 
 
+def run_reflect(date: str | None = None, horizons_str: str = "30,90"):
+    """Core reflect logic. Callable from tests."""
+    from tradingagents.portfolio.lesson_store import LessonStore
+    from tradingagents.portfolio.selection_reflector import reflect_on_scan
+
+    reflect_date = date or datetime.datetime.now().strftime("%Y-%m-%d")
+    horizons = [int(h.strip()) for h in horizons_str.split(",")]
+
+    # Build quick_think LLM using DEFAULT_CONFIG
+    from tradingagents.graph.scanner_graph import ScannerGraph
+    scanner = ScannerGraph(config=DEFAULT_CONFIG.copy())
+    llm = scanner._create_llm("quick_think")
+
+    all_lessons = []
+    for horizon in horizons:
+        scan_date = (datetime.datetime.strptime(reflect_date, "%Y-%m-%d")
+                     - datetime.timedelta(days=horizon)).strftime("%Y-%m-%d")
+        console.print(f"[cyan]Reflecting on {scan_date} ({horizon}d ago)...[/cyan]")
+        lessons = reflect_on_scan(scan_date, reflect_date, llm, horizon)
+        all_lessons.extend(lessons)
+
+    store = LessonStore()
+    added = store.append(all_lessons)
+    console.print(f"[green]Added {added} new lessons. Total: {len(store.load_all())}[/green]")
+
+    # Print Rich table summary
+    if all_lessons:
+        table = Table(title="Reflected Lessons", box=box.ROUNDED)
+        table.add_column("Ticker", style="cyan bold")
+        table.add_column("Scan Date")
+        table.add_column("Horizon")
+        table.add_column("Alpha", style="magenta")
+        table.add_column("MFE / MAE")
+        table.add_column("Sentiment")
+        table.add_column("Screening Advice")
+        table.add_column("Exit Advice")
+        for l in all_lessons:
+            color = "green" if l.get("sentiment") == "positive" else ("red" if l.get("sentiment") == "negative" else "yellow")
+
+            alpha_str = f"{l.get('terminal_return_pct', 0.0) - l.get('spy_return_pct', 0.0):+.1f}%"
+            mfe_mae_str = f"+{l.get('mfe_pct', 0.0):.1f}% / {l.get('mae_pct', 0.0):.1f}%"
+
+            table.add_row(
+                l.get("ticker", ""),
+                l.get("scan_date", ""),
+                str(l.get("horizon_days", "")),
+                alpha_str,
+                mfe_mae_str,
+                f"[{color}]{l.get('sentiment', '')}[/{color}]",
+                l.get("screening_advice", ""),
+                l.get("exit_advice", "")
+            )
+        console.print(table)
+
+
 def run_scan(date: Optional[str] = None):
     """Run the 3-phase LLM scanner pipeline via ScannerGraph."""
     console.print(
@@ -1727,6 +1782,15 @@ def scan(
 ):
     """Run 3-phase macro scanner (geopolitical → sector → synthesis)."""
     run_scan(date=date)
+
+
+@app.command()
+def reflect(
+    date: Optional[str] = typer.Option(None, "--date", "-d", help="Reference date YYYY-MM-DD"),
+    horizons: str = typer.Option("30,90", "--horizons", help="Comma-separated lookback days"),
+):
+    """Reflect on past scan picks: compute returns, fetch news, generate screening lessons."""
+    run_reflect(date=date, horizons_str=horizons)
 
 
 @app.command()
