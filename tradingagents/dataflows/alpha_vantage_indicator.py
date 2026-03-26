@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Dict, Any
 from dateutil.relativedelta import relativedelta
-from .alpha_vantage_common import _make_api_request
+from .alpha_vantage_common import _make_api_request, ThirdPartyTimeoutError
 
 
 SUPPORTED_INDICATORS = {
@@ -221,6 +221,8 @@ def get_indicator(
             f"{INDICATOR_DESCRIPTIONS.get(indicator, 'No description available.')}"
         )
 
+    except ThirdPartyTimeoutError:
+        raise
     except Exception as e:
         print(f"Error getting Alpha Vantage indicator data for {indicator}: {e}")
         return f"Error retrieving {indicator} data: {str(e)}"

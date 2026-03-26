@@ -4,7 +4,9 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
+import requests
 import os
+from .finnhub_common import ThirdPartyTimeoutError
 from .stockstats_utils import StockstatsUtils, YFinanceError, _clean_dataframe, _load_or_fetch_ohlcv, yf_retry
 
 logger = logging.getLogger(__name__)
@@ -293,6 +295,10 @@ def get_fundamentals(
 
         return header + "\n".join(lines)
 
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving fundamentals for {ticker}")
+    except ThirdPartyTimeoutError:
+        raise
     except Exception as e:
         return f"Error retrieving fundamentals for {ticker}: {str(e)}"
 
@@ -323,6 +329,10 @@ def get_balance_sheet(
         
         return header + csv_string
         
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving balance sheet for {ticker}")
+    except ThirdPartyTimeoutError:
+        raise
     except Exception as e:
         return f"Error retrieving balance sheet for {ticker}: {str(e)}"
 
@@ -353,6 +363,10 @@ def get_cashflow(
         
         return header + csv_string
         
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving cash flow for {ticker}")
+    except ThirdPartyTimeoutError:
+        raise
     except Exception as e:
         return f"Error retrieving cash flow for {ticker}: {str(e)}"
 
@@ -383,6 +397,10 @@ def get_income_statement(
         
         return header + csv_string
         
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving income statement for {ticker}")
+    except ThirdPartyTimeoutError:
+        raise
     except Exception as e:
         return f"Error retrieving income statement for {ticker}: {str(e)}"
 
@@ -407,5 +425,9 @@ def get_insider_transactions(
         
         return header + csv_string
         
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError(f"Request timed out retrieving insider transactions for {ticker}")
+    except ThirdPartyTimeoutError:
+        raise
     except Exception as e:
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"

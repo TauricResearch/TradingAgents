@@ -454,6 +454,10 @@ class TestEnsureIndexesInInit(unittest.TestCase):
 
             store = MongoReportStore("mongodb://localhost:27017", run_id="test")
 
+            # Indexes are now created lazily, not in __init__.
+            # Explicitly call ensure_indexes() to test index creation logic.
+            store.ensure_indexes()
+
             # create_index should have been called at least 4 times
             # (the indexes from ensure_indexes)
             self.assertGreaterEqual(mock_col.create_index.call_count, 4)

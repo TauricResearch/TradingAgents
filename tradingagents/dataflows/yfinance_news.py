@@ -1,8 +1,10 @@
 """yfinance-based news data fetching functions."""
 
 import yfinance as yf
+import requests
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from .finnhub_common import ThirdPartyTimeoutError
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -98,6 +100,10 @@ def get_news_yfinance(
 
         return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
 
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError(f"Request timed out fetching news for {ticker}")
+    except ThirdPartyTimeoutError:
+        raise
     except Exception as e:
         return f"Error fetching news for {ticker}: {str(e)}"
 
@@ -186,5 +192,9 @@ def get_global_news_yfinance(
 
         return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError(f"Request timed out fetching global news")
+    except ThirdPartyTimeoutError:
+        raise
     except Exception as e:
         return f"Error fetching global news: {str(e)}"
