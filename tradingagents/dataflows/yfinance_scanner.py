@@ -43,9 +43,12 @@ def get_market_movers_yfinance(
         header = f"# Market Movers: {category.replace('_', ' ').title()}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
-        result_str = header
-        result_str += "| Symbol | Name | Price | Change % | Volume | Market Cap |\n"
-        result_str += "|--------|------|-------|----------|--------|------------|\n"
+        # Optimized: Used list collection and string join to avoid memory reallocation overhead
+        lines = [
+            header,
+            "| Symbol | Name | Price | Change % | Volume | Market Cap |",
+            "|--------|------|-------|----------|--------|------------|"
+        ]
         
         for quote in quotes[:15]:  # Top 15
             symbol = quote.get('symbol', 'N/A')
@@ -65,9 +68,9 @@ def get_market_movers_yfinance(
             if isinstance(market_cap, (int, float)):
                 market_cap = f"${market_cap:,.0f}"
             
-            result_str += f"| {symbol} | {name[:30]} | {price} | {change_pct} | {volume} | {market_cap} |\n"
+            lines.append(f"| {symbol} | {name[:30]} | {price} | {change_pct} | {volume} | {market_cap} |")
         
-        return result_str
+        return "\n".join(lines) + "\n"
         
     except Exception as e:
         return f"Error fetching market movers for {category}: {str(e)}"
@@ -90,12 +93,15 @@ def get_market_indices_yfinance() -> str:
             "^RUT": "Russell 2000"
         }
         
-        header = f"# Major Market Indices\n"
+        header = "# Major Market Indices\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
-        result_str = header
-        result_str += "| Index | Current Price | Change | Change % | 52W High | 52W Low |\n"
-        result_str += "|-------|---------------|--------|----------|----------|----------|\n"
+        # Optimized: Used list collection and string join to avoid memory reallocation overhead
+        lines = [
+            header,
+            "| Index | Current Price | Change | Change % | 52W High | 52W Low |",
+            "|-------|---------------|--------|----------|----------|----------|"
+        ]
         
         # Batch-download 1-day history for all symbols in a single request
         symbols = list(indices.keys())
@@ -117,7 +123,7 @@ def get_market_indices_yfinance() -> str:
                     closes = None
 
                 if closes is None or len(closes) == 0:
-                    result_str += f"| {name} | N/A | - | - | - | - |\n"
+                    lines.append(f"| {name} | N/A | - | - | - | - |")
                     continue
 
                 current_price = closes.iloc[-1]
@@ -138,12 +144,12 @@ def get_market_indices_yfinance() -> str:
                 high_str = f"{high_52w:.2f}" if isinstance(high_52w, (int, float)) else str(high_52w)
                 low_str = f"{low_52w:.2f}" if isinstance(low_52w, (int, float)) else str(low_52w)
                 
-                result_str += f"| {name} | {current_str} | {change_str} | {change_pct_str} | {high_str} | {low_str} |\n"
+                lines.append(f"| {name} | {current_str} | {change_str} | {change_pct_str} | {high_str} | {low_str} |")
                 
             except Exception as e:
-                result_str += f"| {name} | Error: {str(e)} | - | - | - | - |\n"
+                lines.append(f"| {name} | Error: {str(e)} | - | - | - | - |")
         
-        return result_str
+        return "\n".join(lines) + "\n"
         
     except Exception as e:
         return f"Error fetching market indices: {str(e)}"
@@ -180,12 +186,15 @@ def get_sector_performance_yfinance() -> str:
         # Download ~6 months of data to cover YTD, 1-month, 1-week
         hist = yf.download(symbols, period="6mo", auto_adjust=True, progress=False, threads=True)
 
-        header = f"# Sector Performance Overview\n"
+        header = "# Sector Performance Overview\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
-        result_str = header
-        result_str += "| Sector | 1-Day % | 1-Week % | 1-Month % | YTD % |\n"
-        result_str += "|--------|---------|----------|-----------|-------|\n"
+        # Optimized: Used list collection and string join to avoid memory reallocation overhead
+        lines = [
+            header,
+            "| Sector | 1-Day % | 1-Week % | 1-Month % | YTD % |",
+            "|--------|---------|----------|-----------|-------|"
+        ]
 
         for sector_name, etf in sector_etfs.items():
             try:
@@ -196,7 +205,7 @@ def get_sector_performance_yfinance() -> str:
                     closes = hist["Close"].dropna()
 
                 if closes.empty or len(closes) < 2:
-                    result_str += f"| {sector_name} | N/A | N/A | N/A | N/A |\n"
+                    lines.append(f"| {sector_name} | N/A | N/A | N/A | N/A |")
                     continue
 
                 current = closes.iloc[-1]
@@ -222,12 +231,12 @@ def get_sector_performance_yfinance() -> str:
                 month_str = f"{month_pct:+.2f}%" if month_pct is not None else "N/A"
                 ytd_str = f"{ytd_pct:+.2f}%" if ytd_pct is not None else "N/A"
 
-                result_str += f"| {sector_name} | {day_str} | {week_str} | {month_str} | {ytd_str} |\n"
+                lines.append(f"| {sector_name} | {day_str} | {week_str} | {month_str} | {ytd_str} |")
 
             except Exception as e:
-                result_str += f"| {sector_name} | Error: {str(e)[:30]} | - | - | - |\n"
+                lines.append(f"| {sector_name} | Error: {str(e)[:30]} | - | - | - |")
 
-        return result_str
+        return "\n".join(lines) + "\n"
 
     except Exception as e:
         return f"Error fetching sector performance: {str(e)}"
@@ -299,9 +308,12 @@ def get_industry_performance_yfinance(
         header = f"# Industry Performance: {sector_key.replace('-', ' ').title()}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
-        result_str = header
-        result_str += "| Company | Symbol | Rating | Market Weight | 1-Day % | 1-Week % | 1-Month % |\n"
-        result_str += "|---------|--------|--------|---------------|---------|----------|-----------|\n"
+        # Optimized: Used list collection and string join to avoid memory reallocation overhead
+        lines = [
+            header,
+            "| Company | Symbol | Rating | Market Weight | 1-Day % | 1-Week % | 1-Month % |",
+            "|---------|--------|--------|---------------|---------|----------|-----------|"
+        ]
         
         # top_companies has ticker as the DataFrame index (index.name == 'symbol')
         # Columns: name, rating, market weight
@@ -319,12 +331,12 @@ def get_industry_performance_yfinance(
             week_str = f"{ret['1w']:+.2f}%" if ret.get('1w') is not None else "N/A"
             month_str = f"{ret['1m']:+.2f}%" if ret.get('1m') is not None else "N/A"
 
-            result_str += (
+            lines.append(
                 f"| {name_short} | {symbol} | {rating} | {weight_str}"
-                f" | {day_str} | {week_str} | {month_str} |\n"
+                f" | {day_str} | {week_str} | {month_str} |"
             )
         
-        return result_str
+        return "\n".join(lines) + "\n"
         
     except Exception as e:
         return f"Error fetching industry performance for sector '{sector_key}': {str(e)}"
@@ -357,7 +369,8 @@ def get_topic_news_yfinance(
         header = f"# News for Topic: {topic}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
-        result_str = header
+        # Optimized: Used list collection and string join to avoid memory reallocation overhead
+        lines = [header.strip(), ""]
         
         for article in search.news[:limit]:
             # Handle nested content structure
@@ -377,14 +390,14 @@ def get_topic_news_yfinance(
                 publisher = article.get("publisher", "Unknown")
                 link = article.get("link", "")
             
-            result_str += f"### {title} (source: {publisher})\n"
+            lines.append(f"### {title} (source: {publisher})")
             if summary:
-                result_str += f"{summary}\n"
+                lines.append(f"{summary}")
             if link:
-                result_str += f"Link: {link}\n"
-            result_str += "\n"
+                lines.append(f"Link: {link}")
+            lines.append("")
         
-        return result_str
+        return "\n".join(lines) + "\n"
         
     except Exception as e:
         return f"Error fetching news for topic '{topic}': {str(e)}"
