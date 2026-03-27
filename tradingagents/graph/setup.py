@@ -14,6 +14,11 @@ from .conditional_logic import ConditionalLogic
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
+    def _should_short_circuit_to_portfolio_manager(self, state: AgentState) -> bool:
+        return self.conditional_logic._check_critical_abort(
+            state, "market_report"
+        ) or self.conditional_logic._check_critical_abort(state, "fundamentals_report")
+
     def __init__(
         self,
         quick_thinking_llm: ChatOpenAI,
@@ -149,10 +154,23 @@ class GraphSetup:
 
             # Connect to next analyst or to Bull Researcher if this is the last analyst
             if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
-                workflow.add_edge(current_clear, next_analyst)
+                next_node = f"{selected_analysts[i+1].capitalize()} Analyst"
             else:
-                workflow.add_edge(current_clear, "Bull Researcher")
+                next_node = "Bull Researcher"
+
+            def _route_after_clear(state: AgentState, next_node: str = next_node) -> str:
+                if self._should_short_circuit_to_portfolio_manager(state):
+                    return "Portfolio Manager"
+                return next_node
+
+            workflow.add_conditional_edges(
+                current_clear,
+                _route_after_clear,
+                {
+                    "Portfolio Manager": "Portfolio Manager",
+                    next_node: next_node,
+                },
+            )
 
         # Add remaining edges
         workflow.add_conditional_edges(
@@ -161,6 +179,7 @@ class GraphSetup:
             {
                 "Bear Researcher": "Bear Researcher",
                 "Research Manager": "Research Manager",
+                "Portfolio Manager": "Portfolio Manager",
             },
         )
         workflow.add_conditional_edges(
@@ -169,6 +188,7 @@ class GraphSetup:
             {
                 "Bull Researcher": "Bull Researcher",
                 "Research Manager": "Research Manager",
+                "Portfolio Manager": "Portfolio Manager",
             },
         )
         workflow.add_edge("Research Manager", "Trader")
