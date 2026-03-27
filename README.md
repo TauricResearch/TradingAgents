@@ -122,9 +122,9 @@ pip install .
 TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
 
 ```bash
+export ANTHROPIC_API_KEY=...       # Anthropic (Claude) - default provider
 export OPENAI_API_KEY=...          # OpenAI (GPT)
 export GOOGLE_API_KEY=...          # Google (Gemini)
-export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export OPENROUTER_API_KEY=...      # OpenRouter
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
@@ -188,9 +188,9 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
-config["deep_think_llm"] = "gpt-5.2"     # Model for complex reasoning
-config["quick_think_llm"] = "gpt-5-mini" # Model for quick tasks
+config["llm_provider"] = "anthropic"          # anthropic, openai, google, xai, openrouter, ollama
+config["deep_think_llm"] = "claude-sonnet-4-6" # Model for complex reasoning
+config["quick_think_llm"] = "claude-haiku-4-5" # Model for quick tasks
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
