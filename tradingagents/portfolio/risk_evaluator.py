@@ -205,27 +205,85 @@ def sector_concentration(
 # Aggregate risk computation
 # ---------------------------------------------------------------------------
 
+_SECTOR_ETFS: dict[str, str] = {
+    "technology": "XLK",
+    "healthcare": "XLV",
+    "financials": "XLF",
+    "energy": "XLE",
+    "consumer-discretionary": "XLY",
+    "consumer-staples": "XLP",
+    "industrials": "XLI",
+    "materials": "XLB",
+    "real-estate": "XLRE",
+    "utilities": "XLU",
+    "communication-services": "XLC",
+}
+
+_SECTOR_NORMALISE: dict[str, str] = {
+    "Technology": "technology",
+    "Healthcare": "healthcare",
+    "Health Care": "healthcare",
+    "Financial Services": "financials",
+    "Financials": "financials",
+    "Energy": "energy",
+    "Consumer Cyclical": "consumer-discretionary",
+    "Consumer Discretionary": "consumer-discretionary",
+    "Consumer Defensive": "consumer-staples",
+    "Consumer Staples": "consumer-staples",
+    "Industrials": "industrials",
+    "Basic Materials": "materials",
+    "Materials": "materials",
+    "Real Estate": "real-estate",
+    "Utilities": "utilities",
+    "Communication Services": "communication-services",
+}
 
 def compute_holding_risk(
     holding: "Holding",
     price_history: list[float],
+    price_histories: dict[str, list[float]] | None = None,
+    benchmark_prices: list[float] | None = None,
 ) -> dict[str, Any]:
     """Compute per-holding risk metrics.
 
     Args:
         holding: A Holding dataclass instance.
         price_history: Ordered list of historical closing prices for the ticker.
+        price_histories: Dict mapping ticker -> list of closing prices (used for proxy fallback).
+        benchmark_prices: Optional benchmark price series for ultimate fallback.
 
     Returns:
-        Dict with keys: ticker, sharpe, sortino, var_5pct, max_drawdown.
+        Dict with keys: ticker, sharpe, sortino, var_5pct, max_drawdown, is_proxy_risk.
     """
-    returns = compute_returns(price_history)
+    if price_histories is None:
+        price_histories = {}
+
+    is_proxy_risk = False
+    active_history = price_history
+
+    if len(active_history) < 30:
+        is_proxy_risk = True
+        sector_key = ""
+        if holding.sector:
+            sector_key = _SECTOR_NORMALISE.get(holding.sector, holding.sector.lower().replace(" ", "-"))
+
+        etf_ticker = _SECTOR_ETFS.get(sector_key)
+
+        if etf_ticker and etf_ticker in price_histories and len(price_histories[etf_ticker]) >= 30:
+            active_history = price_histories[etf_ticker]
+        elif "SPY" in price_histories and len(price_histories["SPY"]) >= 30:
+            active_history = price_histories["SPY"]
+        elif benchmark_prices and len(benchmark_prices) >= 30:
+            active_history = benchmark_prices
+
+    returns = compute_returns(active_history)
     return {
         "ticker": holding.ticker,
         "sharpe": sharpe_ratio(returns),
         "sortino": sortino_ratio(returns),
         "var_5pct": value_at_risk(returns),
-        "max_drawdown": max_drawdown(price_history),
+        "max_drawdown": max_drawdown(active_history),
+        "is_proxy_risk": is_proxy_risk,
     }
 
 
@@ -262,9 +320,26 @@ def compute_portfolio_risk(
     holding_returns: dict[str, list[float]] = {}
     holding_weights: dict[str, float] = {}
     for h in holdings:
-        if h.ticker not in price_histories or len(price_histories[h.ticker]) < 2:
+        h_history = price_histories.get(h.ticker, [])
+        active_history = h_history
+
+        if len(active_history) < 30:
+            sector_key = ""
+            if h.sector:
+                sector_key = _SECTOR_NORMALISE.get(h.sector, h.sector.lower().replace(" ", "-"))
+
+            etf_ticker = _SECTOR_ETFS.get(sector_key)
+            if etf_ticker and etf_ticker in price_histories and len(price_histories[etf_ticker]) >= 30:
+                active_history = price_histories[etf_ticker]
+            elif "SPY" in price_histories and len(price_histories["SPY"]) >= 30:
+                active_history = price_histories["SPY"]
+            elif benchmark_prices and len(benchmark_prices) >= 30:
+                active_history = benchmark_prices
+
+        if len(active_history) < 2:
             continue
-        rets = compute_returns(price_histories[h.ticker])
+
+        rets = compute_returns(active_history)
         holding_returns[h.ticker] = rets
         hv = (
             h.current_value
@@ -299,7 +374,12 @@ def compute_portfolio_risk(
 
     concentration = sector_concentration(holdings, total_value)
     holding_metrics = [
-        compute_holding_risk(h, price_histories.get(h.ticker, []))
+        compute_holding_risk(
+            h,
+            price_histories.get(h.ticker, []),
+            price_histories=price_histories,
+            benchmark_prices=benchmark_prices
+        )
         for h in holdings
     ]
 
