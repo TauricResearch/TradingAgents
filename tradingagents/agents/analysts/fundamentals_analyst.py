@@ -14,9 +14,7 @@ from tradingagents.agents.utils.fundamental_data_tools import (
     get_sector_relative,
     get_ttm_analysis,
 )
-from tradingagents.agents.utils.news_data_tools import get_insider_transactions
 from tradingagents.agents.utils.tool_runner import run_tool_loop
-from tradingagents.dataflows.config import get_config
 
 
 def create_fundamentals_analyst(llm):

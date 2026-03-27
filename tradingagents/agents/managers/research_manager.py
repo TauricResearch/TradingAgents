@@ -1,5 +1,3 @@
-import time
-
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 
 
