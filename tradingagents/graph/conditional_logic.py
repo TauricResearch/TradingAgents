@@ -13,11 +13,11 @@ class ConditionalLogic:
 
     def _check_critical_abort(self, state: AgentState, report_field: str) -> bool:
         """Check if a report contains [CRITICAL ABORT] trigger.
-        
+
         Args:
             state: The current agent state
             report_field: The field name to check (e.g., 'market_report', 'fundamentals_report')
-            
+
         Returns:
             True if [CRITICAL ABORT] is found in the report, False otherwise
         """

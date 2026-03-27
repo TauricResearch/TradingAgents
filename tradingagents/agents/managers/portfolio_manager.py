@@ -17,8 +17,8 @@ def create_portfolio_manager(llm, memory):
 
         # Check for critical abort in market_report or fundamentals_report
         is_critical_abort = (
-            "[CRITICAL ABORT]" in market_research_report or
-            "[CRITICAL ABORT]" in fundamentals_report
+            (market_research_report and "[CRITICAL ABORT]" in market_research_report)
+            or (fundamentals_report and "[CRITICAL ABORT]" in fundamentals_report)
         )
 
         # Build current situation with all reports
@@ -35,8 +35,14 @@ def create_portfolio_manager(llm, memory):
         # Build prompt based on whether this is a critical abort scenario
         if is_critical_abort:
             # Critical abort: Use the aborting analyst's report and recommend SELL/AVOID
-            abort_report = market_research_report if "[CRITICAL ABORT]" in market_research_report else fundamentals_report
-            
+            abort_report = (
+                market_research_report
+                if (
+                    market_research_report
+                    and "[CRITICAL ABORT]" in market_research_report
+                )
+                else fundamentals_report
+            )
             prompt = f"""As the Portfolio Manager, you have received a critical abort signal from an early analyst. This indicates catastrophic conditions (bankruptcy, SEC delisting, etc.) that require immediate action.
 
 {instrument_context}
