@@ -93,6 +93,7 @@ class MessageBuffer:
         self.agent_status = {}
         self.current_agent = None
         self.report_sections = {}
+        self.report_finalizers = {}
         self.selected_analysts = []
         self._last_message_id = None
 
@@ -119,9 +120,11 @@ class MessageBuffer:
 
         # Build report_sections dynamically
         self.report_sections = {}
+        self.report_finalizers = {}
         for section, (analyst_key, _) in self.REPORT_SECTIONS.items():
             if analyst_key is None or analyst_key in self.selected_analysts:
                 self.report_sections[section] = None
+                self.report_finalizers[section] = self.REPORT_SECTIONS[section][1]
 
         # Reset other state
         self.current_report = None
@@ -145,8 +148,8 @@ class MessageBuffer:
         count = 0
         for section, content in self.report_sections.items():
             if content is not None:
-                section_info = self.REPORT_SECTIONS.get(section)
-                if section_info and self.agent_status.get(section_info[1]) == "completed":
+                finalizing_agent = self.report_finalizers.get(section)
+                if finalizing_agent and self.agent_status.get(finalizing_agent) == "completed":
                     count += 1
         return count
 
