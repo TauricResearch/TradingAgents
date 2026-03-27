@@ -1,12 +1,10 @@
-import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 import yfinance as yf
 import pandas as pd
 from langchain_core.messages import HumanMessage
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.report_paths import get_market_dir
-from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.dataflows.finnhub import get_company_news
 
 logger = logging.getLogger(__name__)

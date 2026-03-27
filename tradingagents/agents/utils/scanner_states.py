@@ -1,6 +1,5 @@
 """State definitions for the Global Macro Scanner graph."""
 
-import operator
 from typing import Annotated
 from langgraph.graph import MessagesState
 

@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Dict, Any
 from dateutil.relativedelta import relativedelta
 from .alpha_vantage_common import _make_api_request, ThirdPartyTimeoutError
 

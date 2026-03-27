@@ -8,7 +8,6 @@ from tradingagents.agents.utils.agent_utils import (
     prefetch_tools_parallel,
 )
 from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
-from tradingagents.dataflows.config import get_config
 
 
 def create_news_analyst(llm):

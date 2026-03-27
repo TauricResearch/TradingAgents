@@ -16,7 +16,6 @@ regardless of how much data is returned.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Alpha Vantage tier limits
@@ -92,8 +91,6 @@ class UsageEstimate:
 def _resolve_vendor(config: dict, method: str) -> str:
     """Determine which vendor a method will use given the config."""
     from tradingagents.dataflows.interface import (
-        TOOLS_CATEGORIES,
-        VENDOR_METHODS,
         get_category_for_method,
     )
 

@@ -6,7 +6,6 @@ import asyncio
 import json
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor
 from tradingagents.agents.utils.json_utils import extract_json
 from dataclasses import dataclass
 from datetime import datetime

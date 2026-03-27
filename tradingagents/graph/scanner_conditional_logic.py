@@ -1,6 +1,5 @@
 """Scanner conditional logic for determining continuation in scanner graph."""
 
-from typing import Any
 from tradingagents.agents.utils.scanner_states import ScannerState
 
 _ERROR_PREFIXES = ("Error", "No data", "No quotes", "No movers", "No news", "No industry", "Invalid")

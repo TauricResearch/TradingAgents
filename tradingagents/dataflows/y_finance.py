@@ -2,12 +2,10 @@ import logging
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-import pandas as pd
 import yfinance as yf
 import requests
-import os
 from .finnhub_common import ThirdPartyTimeoutError
-from .stockstats_utils import StockstatsUtils, YFinanceError, _clean_dataframe, _load_or_fetch_ohlcv, yf_retry
+from .stockstats_utils import StockstatsUtils, _clean_dataframe, _load_or_fetch_ohlcv, yf_retry
 
 logger = logging.getLogger(__name__)
 
