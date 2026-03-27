@@ -1,4 +1,5 @@
 from langchain_core.messages import HumanMessage, RemoveMessage
+from tradingagents.dataflows.config import get_config
 
 # Import tools from separate utility files
 from tradingagents.agents.utils.core_stock_tools import (
@@ -18,6 +19,15 @@ from tradingagents.agents.utils.news_data_tools import (
     get_insider_transactions,
     get_global_news
 )
+
+
+def get_language_instruction() -> str:
+    """Returns a prompt instruction to write output in the configured language.
+    Returns empty string when output_language is English (no instruction needed)."""
+    lang = get_config().get("output_language", "English")
+    if lang.strip().lower() == "english":
+        return ""
+    return f"\n\nIMPORTANT: Write your entire response in {lang} only."
 
 
 def build_instrument_context(ticker: str) -> str:

@@ -11,7 +11,7 @@ config = DEFAULT_CONFIG.copy()
 config["deep_think_llm"] = "gpt-5-mini"  # Use a different model
 config["quick_think_llm"] = "gpt-5-mini"  # Use a different model
 config["max_debate_rounds"] = 1  # Increase debate rounds
-
+                                                                                                                                   
 # Configure data vendors (default uses yfinance, no extra API keys needed)
 config["data_vendors"] = {
     "core_stock_apis": "yfinance",           # Options: alpha_vantage, yfinance
