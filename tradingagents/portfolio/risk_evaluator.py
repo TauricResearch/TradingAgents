@@ -9,7 +9,6 @@ All monetary values are ``float``.
 from __future__ import annotations
 
 import math
-import statistics
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -19,6 +18,29 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Core financial metrics
 # ---------------------------------------------------------------------------
+
+# Optimized: Pure-Python statistical helpers to avoid `statistics` module overhead
+def _mean(values: list[float]) -> float:
+    if not values:
+        raise ValueError("mean requires at least one data point")
+    return sum(values) / len(values)
+
+
+def _std(values: list[float], ddof: int = 1) -> float:
+    n = len(values)
+    if n <= ddof:
+        return 0.0
+    mu = _mean(values)
+    variance = sum((x - mu) ** 2 for x in values) / (n - ddof)
+    return math.sqrt(variance)
+
+
+def _pvariance(values: list[float]) -> float:
+    n = len(values)
+    if n == 0:
+        return 0.0
+    mu = _mean(values)
+    return sum((x - mu) ** 2 for x in values) / n
 
 
 def compute_returns(prices: list[float]) -> list[float]:
@@ -53,13 +75,10 @@ def sharpe_ratio(
     if len(returns) < 2:
         return None
     excess = [r - risk_free_daily for r in returns]
-    try:
-        std = statistics.stdev(excess)
-    except statistics.StatisticsError:
-        return None
+    std = _std(excess)
     if std == 0.0:
         return None
-    return (statistics.mean(excess) / std) * math.sqrt(252)
+    return (_mean(excess) / std) * math.sqrt(252)
 
 
 def sortino_ratio(
@@ -82,13 +101,10 @@ def sortino_ratio(
     downside = [r for r in excess if r < 0]
     if len(downside) < 2:
         return None
-    try:
-        downside_std = statistics.stdev(downside)
-    except statistics.StatisticsError:
-        return None
+    downside_std = _std(downside)
     if downside_std == 0.0:
         return None
-    return (statistics.mean(excess) / downside_std) * math.sqrt(252)
+    return (_mean(excess) / downside_std) * math.sqrt(252)
 
 
 def value_at_risk(
@@ -161,14 +177,17 @@ def beta(
         return None
     if len(asset_returns) < 2:
         return None
-    bm_var = statistics.pvariance(benchmark_returns)
+    bm_var = _pvariance(benchmark_returns)
     if bm_var == 0.0:
         return None
-    bm_mean = statistics.mean(benchmark_returns)
-    asset_mean = statistics.mean(asset_returns)
-    cov = statistics.mean(
-        [(a - asset_mean) * (b - bm_mean) for a, b in zip(asset_returns, benchmark_returns)]
-    )
+    bm_mean = _mean(benchmark_returns)
+    asset_mean = _mean(asset_returns)
+
+    # Optimized: covariance without statistics.mean
+    n = len(asset_returns)
+    cov = sum(
+        (a - asset_mean) * (b - bm_mean) for a, b in zip(asset_returns, benchmark_returns)
+    ) / n
     return cov / bm_var
 
 
