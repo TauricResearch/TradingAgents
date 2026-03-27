@@ -174,6 +174,44 @@ class TradeExecutor:
                 })
                 continue
 
+            # Auto-liquidate cash-sweep ETF (SGOV) if cash is insufficient
+            cost = shares * price
+            if portfolio.cash < cost and ticker != "SGOV":
+                sgov_holding = next((h for h in holdings if h.ticker == "SGOV"), None)
+                if sgov_holding:
+                    shortfall = cost - portfolio.cash
+                    sgov_price = prices.get("SGOV")
+                    if sgov_price and sgov_price > 0:
+                        # Add a tiny buffer (1.01) to ensure we have enough to avoid precision issues
+                        sgov_shares_to_sell = int((shortfall * 1.01) / sgov_price) + 1
+
+                        # Don't sell more than we own
+                        sgov_shares_to_sell = min(sgov_shares_to_sell, int(sgov_holding.shares))
+
+                        if sgov_shares_to_sell > 0:
+                            logger.info(
+                                "TradeExecutor: Auto-liquidating %d shares of SGOV to cover shortfall for %s",
+                                sgov_shares_to_sell, ticker
+                            )
+                            try:
+                                executed, failed = self.repo.batch_remove_holdings(
+                                    portfolio_id,
+                                    [{
+                                        "ticker": "SGOV",
+                                        "shares": sgov_shares_to_sell,
+                                        "price": sgov_price,
+                                        "rationale": f"Auto-liquidated to fund {ticker} purchase"
+                                    }],
+                                    trade_date
+                                )
+                                executed_trades.extend(executed)
+                                # Reload portfolio to reflect new cash balance
+                                portfolio, holdings = self.repo.get_portfolio_with_holdings(
+                                    portfolio_id, prices
+                                )
+                            except PortfolioError as exc:
+                                logger.error("TradeExecutor auto-liquidation failed: %s", exc)
+
             violations = check_constraints(
                 portfolio,
                 holdings,

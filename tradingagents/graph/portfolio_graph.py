@@ -192,6 +192,7 @@ class PortfolioGraph:
             "macro_memory_context": "",
             "micro_memory_context": "",
             "pm_decision": "",
+            "cash_sweep": "",
             "execution_result": "",
             "sender": "",
         }

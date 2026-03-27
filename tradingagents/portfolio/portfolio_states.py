@@ -45,6 +45,7 @@ class PortfolioManagerState(MessagesState):
     micro_memory_context: Annotated[str, _last_value]
 
     pm_decision: Annotated[str, _last_value]
+    cash_sweep: Annotated[str, _last_value]
     execution_result: Annotated[str, _last_value]
 
     sender: Annotated[str, _last_value]
