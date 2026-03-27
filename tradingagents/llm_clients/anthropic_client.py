@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional
 
 from langchain_anthropic import ChatAnthropic
@@ -24,7 +25,12 @@ class NormalizedChatAnthropic(ChatAnthropic):
 
 
 class AnthropicClient(BaseLLMClient):
-    """Client for Anthropic Claude models."""
+    """Client for Anthropic Claude models.
+
+    Supports custom base URLs via the base_url parameter or ANTHROPIC_BASE_URL
+    environment variable, enabling use with Claude account subscriptions
+    or proxy endpoints instead of direct API key access.
+    """
 
     def __init__(self, model: str, base_url: Optional[str] = None, **kwargs):
         super().__init__(model, base_url, **kwargs)
@@ -32,6 +38,11 @@ class AnthropicClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return configured ChatAnthropic instance."""
         llm_kwargs = {"model": self.model}
+
+        # Resolve base URL: explicit param > env var > default Anthropic API
+        base_url = self.base_url or os.environ.get("ANTHROPIC_BASE_URL")
+        if base_url:
+            llm_kwargs["anthropic_api_url"] = base_url
 
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
