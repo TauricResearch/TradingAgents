@@ -216,11 +216,11 @@ def _get_stock_stats_bulk(
             raise Exception("Stockstats fail: Yahoo Finance data not fetched yet!")
     else:
         # Online data fetching with caching
-        today_date = pd.Timestamp.today()
         curr_date_dt = pd.to_datetime(curr_date)
 
-        end_date = today_date
-        start_date = today_date - pd.DateOffset(years=15)
+        # Cap end_date to curr_date to prevent look-ahead bias in backtesting.
+        end_date = curr_date_dt + pd.DateOffset(days=1)
+        start_date = curr_date_dt - pd.DateOffset(years=15)
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
 
@@ -353,7 +353,7 @@ def get_fundamentals(
 def get_balance_sheet(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date in YYYY-MM-DD format for look-ahead bias prevention"] = None
 ):
     """Get balance sheet data from yfinance."""
     try:
@@ -363,9 +363,16 @@ def get_balance_sheet(
             data = yf_retry(lambda: ticker_obj.quarterly_balance_sheet)
         else:
             data = yf_retry(lambda: ticker_obj.balance_sheet)
-            
+
+        # Filter out fiscal periods after curr_date to prevent look-ahead bias.
+        if curr_date and not data.empty:
+            cutoff = pd.Timestamp(curr_date)
+            data = data.loc[:, [c for c in data.columns if pd.Timestamp(c) <= cutoff]]
+
         if data.empty:
-            return f"No balance sheet data found for symbol '{ticker}'"
+            return f"No balance sheet data found for symbol '{ticker}'" + (
+                f" on or before {curr_date}" if curr_date else ""
+            )
             
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
@@ -383,7 +390,7 @@ def get_balance_sheet(
 def get_cashflow(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date in YYYY-MM-DD format for look-ahead bias prevention"] = None
 ):
     """Get cash flow data from yfinance."""
     try:
@@ -393,9 +400,16 @@ def get_cashflow(
             data = yf_retry(lambda: ticker_obj.quarterly_cashflow)
         else:
             data = yf_retry(lambda: ticker_obj.cashflow)
-            
+
+        # Filter out fiscal periods after curr_date to prevent look-ahead bias.
+        if curr_date and not data.empty:
+            cutoff = pd.Timestamp(curr_date)
+            data = data.loc[:, [c for c in data.columns if pd.Timestamp(c) <= cutoff]]
+
         if data.empty:
-            return f"No cash flow data found for symbol '{ticker}'"
+            return f"No cash flow data found for symbol '{ticker}'" + (
+                f" on or before {curr_date}" if curr_date else ""
+            )
             
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()
@@ -413,7 +427,7 @@ def get_cashflow(
 def get_income_statement(
     ticker: Annotated[str, "ticker symbol of the company"],
     freq: Annotated[str, "frequency of data: 'annual' or 'quarterly'"] = "quarterly",
-    curr_date: Annotated[str, "current date (not used for yfinance)"] = None
+    curr_date: Annotated[str, "current date in YYYY-MM-DD format for look-ahead bias prevention"] = None
 ):
     """Get income statement data from yfinance."""
     try:
@@ -423,9 +437,16 @@ def get_income_statement(
             data = yf_retry(lambda: ticker_obj.quarterly_income_stmt)
         else:
             data = yf_retry(lambda: ticker_obj.income_stmt)
-            
+
+        # Filter out fiscal periods after curr_date to prevent look-ahead bias.
+        if curr_date and not data.empty:
+            cutoff = pd.Timestamp(curr_date)
+            data = data.loc[:, [c for c in data.columns if pd.Timestamp(c) <= cutoff]]
+
         if data.empty:
-            return f"No income statement data found for symbol '{ticker}'"
+            return f"No income statement data found for symbol '{ticker}'" + (
+                f" on or before {curr_date}" if curr_date else ""
+            )
             
         # Convert to CSV string for consistency with other functions
         csv_string = data.to_csv()

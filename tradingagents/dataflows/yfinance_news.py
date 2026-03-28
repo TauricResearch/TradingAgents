@@ -167,6 +167,11 @@ def get_global_news_yfinance(
             # Handle both flat and nested structures
             if "content" in article:
                 data = _extract_article_data(article)
+                # Skip articles published after curr_date (look-ahead guard)
+                if data["pub_date"]:
+                    pub_naive = data["pub_date"].replace(tzinfo=None)
+                    if pub_naive > curr_dt + relativedelta(days=1):
+                        continue
                 title = data["title"]
                 publisher = data["publisher"]
                 link = data["link"]
