@@ -1,9 +1,12 @@
 """yfinance-based scanner data fetching functions for market-wide analysis."""
 
-import yfinance as yf
-import requests
 from datetime import datetime
 from typing import Annotated
+
+import requests
+import yfinance as yf
+from yfinance import EquityQuery
+
 from .finnhub_common import ThirdPartyTimeoutError
 
 
@@ -190,6 +193,78 @@ def get_gap_candidates_yfinance() -> str:
         raise
     except Exception as e:
         return f"Error fetching live gap candidates: {str(e)}"
+
+
+def get_gatekeeper_universe_yfinance(limit: int = 25) -> str:
+    """
+    Build the bounded stock universe for downstream scanners using yfinance's
+    equity screener.
+
+    Mirrors the intended Finviz gatekeeper economics as closely as Yahoo's
+    query model allows:
+    - US listed equities only
+    - market cap >= $2B
+    - positive trailing-twelve-month net income margin
+    - average daily volume (3M) > 2M
+    - price > $5
+
+    Returns:
+        Markdown table of the gatekeeper universe candidates.
+    """
+    try:
+        query = EquityQuery(
+            "and",
+            [
+                EquityQuery("is-in", ["exchange", "NMS", "NYQ", "ASE"]),
+                EquityQuery("gte", ["intradaymarketcap", 2_000_000_000]),
+                EquityQuery("gt", ["netincomemargin.lasttwelvemonths", 0]),
+                EquityQuery("gt", ["avgdailyvol3m", 2_000_000]),
+                EquityQuery("gt", ["intradayprice", 5]),
+            ],
+        )
+
+        data = yf.screen(query, size=max(limit, 1), sortField="dayvolume", sortAsc=False)
+        if not data or not isinstance(data, dict):
+            return "No stocks matched the gatekeeper universe today."
+
+        quotes = data.get("quotes", [])
+        if not quotes:
+            return "No stocks matched the gatekeeper universe today."
+
+        header = "# Gatekeeper Universe\n"
+        header += "# Filters: US-listed, market cap >= $2B, positive net margin, avg volume > 2M, price > $5\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        lines = [
+            header,
+            "| Symbol | Name | Exchange | Price | Avg Vol 3M | Current Vol | Market Cap |",
+            "|--------|------|----------|-------|------------|-------------|------------|",
+        ]
+
+        for quote in quotes[:limit]:
+            symbol = quote.get("symbol", "N/A")
+            name = quote.get("shortName", quote.get("longName", "N/A"))
+            exchange = quote.get("exchange", "N/A")
+            price = quote.get("regularMarketPrice")
+            avg_vol = quote.get("averageDailyVolume3Month")
+            cur_vol = quote.get("regularMarketVolume")
+            market_cap = quote.get("marketCap")
+
+            price_str = f"${price:.2f}" if isinstance(price, (int, float)) else "N/A"
+            avg_vol_str = f"{avg_vol:,.0f}" if isinstance(avg_vol, (int, float)) else "N/A"
+            cur_vol_str = f"{cur_vol:,.0f}" if isinstance(cur_vol, (int, float)) else "N/A"
+            market_cap_str = f"${market_cap:,.0f}" if isinstance(market_cap, (int, float)) else "N/A"
+            lines.append(
+                f"| {symbol} | {name[:30]} | {exchange} | {price_str} | {avg_vol_str} | {cur_vol_str} | {market_cap_str} |"
+            )
+
+        return "\n".join(lines) + "\n"
+
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe")
+    except ThirdPartyTimeoutError:
+        raise
+    except Exception as e:
+        return f"Error fetching gatekeeper universe: {str(e)}"
 
 
 def get_market_indices_yfinance() -> str:

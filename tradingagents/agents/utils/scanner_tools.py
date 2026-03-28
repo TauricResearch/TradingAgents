@@ -40,15 +40,43 @@ def get_market_indices() -> str:
 
 
 @tool
-def get_gap_candidates() -> str:
+def get_gatekeeper_universe() -> str:
     """
-    Get a bounded set of real gap-up candidates derived from live market data.
-    Uses the configured scanner_data vendor, but currently relies on yfinance.
+    Get the bounded stock universe used for downstream discovery.
+    Uses the configured scanner_data vendor and currently relies on yfinance's
+    equity screener with the following hardcoded constraints:
+    - US-listed stocks
+    - market cap >= $2B
+    - positive net margin
+    - average daily volume > 2M
+    - price > $5
 
     Returns:
-        str: Formatted table of gap candidates with gap %, price change, and relative volume
+        str: Formatted table of gatekeeper-universe candidates
     """
-    return route_to_vendor("get_gap_candidates")
+    return route_to_vendor("get_gatekeeper_universe")
+
+
+@tool
+def get_gap_candidates() -> str:
+    """
+    Get the Finviz gap-up subset of the gatekeeper universe.
+    Hardcoded to the exact gatekeeper filter plus Gap Up 5%, so the model
+    cannot hallucinate Finviz filter names or options.
+
+    Returns:
+        str: Formatted list of Finviz gap candidates
+    """
+    return _run_finviz_screen(
+        {
+            "Market Cap.": "+Mid (over $2bln)",
+            "Net Profit Margin": "Positive (>0%)",
+            "Average Volume": "Over 2M",
+            "Price": "Over $5",
+            "Gap": "Up 5%",
+        },
+        label="gatekeeper_gap",
+    )
 
 
 @tool

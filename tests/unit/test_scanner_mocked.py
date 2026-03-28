@@ -196,6 +196,39 @@ class TestYfinanceScannerGapCandidates:
         assert "No stocks matched the live gap criteria today." in result
 
 
+class TestYfinanceScannerGatekeeperUniverse:
+    """Offline tests for get_gatekeeper_universe_yfinance."""
+
+    def _quote(self, symbol, exchange="NMS", price=25.0, avg_volume=3_000_000, cur_volume=4_000_000, market_cap=5_000_000_000):
+        return {
+            "symbol": symbol,
+            "shortName": f"{symbol} Inc",
+            "exchange": exchange,
+            "regularMarketPrice": price,
+            "averageDailyVolume3Month": avg_volume,
+            "regularMarketVolume": cur_volume,
+            "marketCap": market_cap,
+        }
+
+    def test_returns_gatekeeper_table(self):
+        from tradingagents.dataflows.yfinance_scanner import get_gatekeeper_universe_yfinance
+
+        screen_data = {"quotes": [self._quote("NVDA"), self._quote("AAPL", exchange="NYQ")]}
+        with patch("tradingagents.dataflows.yfinance_scanner.yf.screen", return_value=screen_data):
+            result = get_gatekeeper_universe_yfinance(limit=10)
+
+        assert "# Gatekeeper Universe" in result
+        assert "NVDA" in result
+
+    def test_returns_no_match_message_when_empty(self):
+        from tradingagents.dataflows.yfinance_scanner import get_gatekeeper_universe_yfinance
+
+        with patch("tradingagents.dataflows.yfinance_scanner.yf.screen", return_value={"quotes": []}):
+            result = get_gatekeeper_universe_yfinance(limit=10)
+
+        assert result == "No stocks matched the gatekeeper universe today."
+
+
 # ---------------------------------------------------------------------------
 # yfinance scanner — get_market_indices_yfinance
 # ---------------------------------------------------------------------------
@@ -858,3 +891,12 @@ class TestFinvizSmartMoneyTools:
         nvda_pos = result.find("NVDA")
         amd_pos = result.find("AMD")
         assert nvda_pos < amd_pos, "NVDA (higher volume) should appear before AMD"
+
+    def test_get_gap_candidates_uses_gatekeeper_gap_label(self):
+        from tradingagents.agents.utils.scanner_tools import get_gap_candidates
+
+        mock_cls = self._mock_overview(_make_finviz_df())
+        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+            result = get_gap_candidates.invoke({})
+
+        assert "gatekeeper_gap" in result

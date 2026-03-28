@@ -25,10 +25,16 @@ All storage, event, checkpoint, and phase re-run logic is now documented in ADR 
 - **PR#108 merged**: Per-tier LLM fallback for 404/policy errors (ADR 017)
 - **PR#107 merged**: `save_holding_review` per-ticker fix; RunLogger threading.local → contextvars
 - **PR#106 merged**: MongoDB report store, RunLogger observability, reflexion memory
+- **codex/global-search-graph-main-squash** (scanner gatekeeper foundation, local):
+  - Added live-tested `yfinance` gatekeeper universe query for US-listed liquid profitable mid-cap+ names
+  - Added live-tested Finviz gap-subset path using the bounded gatekeeper-plus-gap filter
+  - Narrowed Finviz usage to the gap/event layer instead of the full market-universe layer
+  - Next step is graph wiring so downstream candidate selection is hard-filtered by the gatekeeper universe
 
 # In Progress
 
 - claude/wizardly-poitras PR: storage finalisation + run history UX
+- codex/global-search-graph-main-squash: wire gatekeeper universe into scanner graph and deterministic ranking
 
 # Active Blockers
 

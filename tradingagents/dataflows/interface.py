@@ -12,6 +12,7 @@ from .y_finance import (
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
 from .yfinance_scanner import (
+    get_gatekeeper_universe_yfinance,
     get_market_movers_yfinance,
     get_gap_candidates_yfinance,
     get_market_indices_yfinance,
@@ -89,6 +90,7 @@ TOOLS_CATEGORIES = {
     "scanner_data": {
         "description": "Market-wide scanner data (movers, indices, sectors, industries)",
         "tools": [
+            "get_gatekeeper_universe",
             "get_market_movers",
             "get_gap_candidates",
             "get_market_indices",
@@ -170,6 +172,9 @@ VENDOR_METHODS = {
     "get_market_movers": {
         "yfinance": get_market_movers_yfinance,
         "alpha_vantage": get_market_movers_alpha_vantage,
+    },
+    "get_gatekeeper_universe": {
+        "yfinance": get_gatekeeper_universe_yfinance,
     },
     "get_gap_candidates": {
         "yfinance": get_gap_candidates_yfinance,

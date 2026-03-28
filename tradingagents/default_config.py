@@ -127,8 +127,6 @@ DEFAULT_CONFIG = {
     "tool_vendors": {
         # Finnhub free tier provides same data + MSPR aggregate bonus signal
         "get_insider_transactions": "finnhub",
-        # First implementation is yfinance-only until another vendor is validated.
-        "get_gap_candidates": "yfinance",
     },
     # Report storage backend
     # When mongo_uri is set, reports are persisted in MongoDB (never overwritten).
