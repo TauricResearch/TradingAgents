@@ -40,13 +40,15 @@ _DISPLAY_TO_KEY = {
 
 def _extract_top_sectors(sector_report: str, top_n: int = 3) -> list[str]:
     """Parse the sector performance report and return the *top_n* sector keys
-    ranked by absolute 1-month performance (largest absolute move first).
+    ranked by strongest positive 1-month performance.
 
     The sector performance table looks like:
 
         | Technology | +0.45% | +1.20% | +5.67% | +12.3% |
 
-    We parse the 1-month column (index 3) and sort by absolute value.
+    We parse the 1-month column (index 3) and rank sectors by descending
+    1-month performance so the deep dive follows sector tailwinds. When all
+    sectors are weak, this still returns the least-bad leaders.
     If the report is not a table, it attempts to parse list formats
     (bullet points, numbered lists, or plain text).
 
@@ -77,8 +79,7 @@ def _extract_top_sectors(sector_report: str, top_n: int = 3) -> list[str]:
             rows.append((key, month_val))
 
     if rows:
-        # Sort by absolute 1-month move (biggest mover first)
-        rows.sort(key=lambda r: abs(r[1]), reverse=True)
+        rows.sort(key=lambda r: r[1], reverse=True)
         return [r[0] for r in rows[:top_n]]
 
     # Fallback to parsing text formats: bullet points, numbered lists, plain text
@@ -140,6 +141,15 @@ def create_industry_deep_dive(llm):
 
 ### Sector Performance Report:
 {sector_report or "Not available"}
+
+### Factor Alignment Report:
+{state.get("factor_alignment_report", "Not available")}
+
+### Drift Opportunities Report:
+{state.get("drift_opportunities_report", "Not available")}
+
+### Smart Money Report:
+{state.get("smart_money_report", "Not available")}
 """
 
         sector_list_str = ", ".join(f"'{s}'" for s in top_sectors)

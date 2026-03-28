@@ -48,7 +48,7 @@ SAMPLE_SECTOR_REPORT = """\
 class TestExtractTopSectors:
     """Verify _extract_top_sectors parses the table correctly."""
 
-    def test_returns_top_3_by_absolute_1month(self):
+    def test_returns_top_3_by_positive_1month(self):
         result = _extract_top_sectors(SAMPLE_SECTOR_REPORT, top_n=3)
         assert len(result) == 3
         assert result[0] == "energy"
@@ -73,8 +73,8 @@ class TestExtractTopSectors:
         result = _extract_top_sectors("not a table at all\njust random text", top_n=3)
         assert result == VALID_SECTOR_KEYS[:3]
 
-    def test_negative_returns_sorted_by_absolute_value(self):
-        """Sectors with large negative moves should rank high (big movers)."""
+    def test_negative_returns_do_not_outrank_positive_tailwinds(self):
+        """Large drawdowns should not displace positive leadership."""
         report = """\
 | Sector | 1-Day % | 1-Week % | 1-Month % | YTD % |
 |--------|---------|----------|-----------|-------|
@@ -83,7 +83,7 @@ class TestExtractTopSectors:
 | Healthcare | +0.05% | +0.10% | +0.50% | +1.00% |
 """
         result = _extract_top_sectors(report, top_n=2)
-        assert result[0] == "energy"
+        assert result == ["technology", "healthcare"]
 
     def test_all_returned_keys_are_valid(self):
         result = _extract_top_sectors(SAMPLE_SECTOR_REPORT, top_n=11)

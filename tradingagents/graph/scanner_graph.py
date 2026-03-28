@@ -8,6 +8,8 @@ from tradingagents.agents.scanners import (
     create_geopolitical_scanner,
     create_market_movers_scanner,
     create_sector_scanner,
+    create_factor_alignment_scanner,
+    create_drift_scanner,
     create_smart_money_scanner,
     create_industry_deep_dive,
     create_macro_synthesis,
@@ -19,7 +21,8 @@ class ScannerGraph:
     """Orchestrates the macro scanner pipeline.
 
     Phase 1a (parallel): geopolitical_scanner, market_movers_scanner, sector_scanner
-    Phase 1b (sequential after sector): smart_money_scanner
+    Phase 1b (bounded global follow-ons): factor_alignment_scanner, smart_money_scanner
+    Phase 1c (after market + sector): drift_scanner
     Phase 2: industry_deep_dive (fan-in from all Phase 1 nodes)
     Phase 3: macro_synthesis -> END
     """
@@ -46,14 +49,21 @@ class ScannerGraph:
         deep_llm = self._create_llm("deep_think")
 
         max_scan_tickers = int(self.config.get("max_auto_tickers", 10))
+        scan_horizon_days = int(self.config.get("scan_horizon_days", 30))
 
         agents = {
             "geopolitical_scanner": create_geopolitical_scanner(quick_llm),
             "market_movers_scanner": create_market_movers_scanner(quick_llm),
             "sector_scanner": create_sector_scanner(quick_llm),
+            "factor_alignment_scanner": create_factor_alignment_scanner(quick_llm),
+            "drift_scanner": create_drift_scanner(quick_llm),
             "smart_money_scanner": create_smart_money_scanner(quick_llm),
             "industry_deep_dive": create_industry_deep_dive(mid_llm),
-            "macro_synthesis": create_macro_synthesis(deep_llm, max_scan_tickers=max_scan_tickers),
+            "macro_synthesis": create_macro_synthesis(
+                deep_llm,
+                max_scan_tickers=max_scan_tickers,
+                scan_horizon_days=scan_horizon_days,
+            ),
         }
 
         setup = ScannerGraphSetup(agents)
@@ -148,6 +158,8 @@ class ScannerGraph:
             "geopolitical_report": "",
             "market_movers_report": "",
             "sector_performance_report": "",
+            "factor_alignment_report": "",
+            "drift_opportunities_report": "",
             "smart_money_report": "",
             "industry_deep_dive_report": "",
             "macro_scan_summary": "",

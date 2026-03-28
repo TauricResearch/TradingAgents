@@ -156,6 +156,46 @@ class TestYfinanceScannerMarketMovers:
         assert "Error" in result
 
 
+class TestYfinanceScannerGapCandidates:
+    """Offline tests for get_gap_candidates_yfinance."""
+
+    def _quote(self, symbol, open_price, prev_close, volume=2_000_000, avg_volume=1_000_000, price=25.0, change_pct=4.0):
+        return {
+            "symbol": symbol,
+            "shortName": f"{symbol} Inc",
+            "regularMarketOpen": open_price,
+            "regularMarketPreviousClose": prev_close,
+            "regularMarketVolume": volume,
+            "averageDailyVolume3Month": avg_volume,
+            "regularMarketPrice": price,
+            "regularMarketChangePercent": change_pct,
+        }
+
+    def test_returns_gap_table(self):
+        from tradingagents.dataflows.yfinance_scanner import get_gap_candidates_yfinance
+
+        screen_data = {
+            "quotes": [
+                self._quote("NVDA", 110.0, 100.0),
+                self._quote("AAPL", 103.0, 100.0),
+            ]
+        }
+        with patch("tradingagents.dataflows.yfinance_scanner.yf.screen", return_value=screen_data):
+            result = get_gap_candidates_yfinance()
+
+        assert "# Gap Candidates" in result
+        assert "NVDA" in result
+
+    def test_returns_no_match_message_when_filters_fail(self):
+        from tradingagents.dataflows.yfinance_scanner import get_gap_candidates_yfinance
+
+        screen_data = {"quotes": [self._quote("AAPL", 100.5, 100.0, avg_volume=10_000_000)]}
+        with patch("tradingagents.dataflows.yfinance_scanner.yf.screen", return_value=screen_data):
+            result = get_gap_candidates_yfinance()
+
+        assert "No stocks matched the live gap criteria today." in result
+
+
 # ---------------------------------------------------------------------------
 # yfinance scanner — get_market_indices_yfinance
 # ---------------------------------------------------------------------------

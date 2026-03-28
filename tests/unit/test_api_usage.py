@@ -76,11 +76,28 @@ class TestUsageEstimate:
 
 
 class TestEstimateAnalyze:
-    def test_default_config_no_av_calls(self):
-        """With default config (yfinance primary), AV calls should be 0."""
+    def test_default_config_uses_yfinance(self):
+        """Default analyze path should materially use yfinance."""
         est = estimate_analyze()
-        assert est.vendor_calls.alpha_vantage == 0
         assert est.vendor_calls.yfinance > 0
+
+    def test_explicit_yfinance_config_has_no_av_calls(self):
+        """A pure yfinance config should keep Alpha Vantage at zero."""
+        cfg = {
+            "data_vendors": {
+                "core_stock_apis": "yfinance",
+                "technical_indicators": "yfinance",
+                "fundamental_data": "yfinance",
+                "news_data": "yfinance",
+                "scanner_data": "yfinance",
+                "calendar_data": "finnhub",
+            },
+            "tool_vendors": {
+                "get_insider_transactions": "finnhub",
+            },
+        }
+        est = estimate_analyze(config=cfg)
+        assert est.vendor_calls.alpha_vantage == 0
 
     def test_all_analysts_nonzero_total(self):
         est = estimate_analyze(selected_analysts=["market", "news", "fundamentals", "social"])
@@ -141,19 +158,23 @@ class TestEstimateScan:
         assert est.vendor_calls.yfinance > 0
 
     def test_finnhub_for_calendars(self):
-        """Calendars should always use Finnhub."""
+        """Global bounded scanners should add Finnhub earnings-calendar usage."""
         est = estimate_scan()
-        assert est.vendor_calls.finnhub >= 2  # earnings + economic calendar
+        assert est.vendor_calls.finnhub >= 2
 
     def test_scan_total_reasonable(self):
         est = estimate_scan()
-        # Should be between 15-40 calls total
+        # Global-only scanner remains bounded despite added nodes.
         assert 10 <= est.vendor_calls.total <= 50
 
     def test_notes_have_phases(self):
         est = estimate_scan()
         phase_notes = [n for n in est.notes if "Phase" in n]
-        assert len(phase_notes) >= 3  # Phase 1A, 1B, 1C, 2, 3
+        assert len(phase_notes) >= 5
+
+    def test_macro_synthesis_has_no_external_calls(self):
+        est = estimate_scan()
+        assert any("Macro Synthesis" in note and "no external tool calls" in note for note in est.notes)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -201,10 +222,10 @@ class TestFormatEstimate:
         assert "yfinance" in text
         assert "Total:" in text
 
-    def test_no_av_shows_not_needed(self):
-        est = estimate_analyze()  # default config → no AV
+    def test_default_format_includes_av_assessment(self):
+        est = estimate_analyze()
         text = format_estimate(est)
-        assert "NOT needed" in text
+        assert "Alpha Vantage Assessment" in text
 
     def test_av_shows_assessment(self):
         av_config = {

@@ -239,6 +239,17 @@ def estimate_scan(config: dict | None = None) -> UsageEstimate:
     _add("get_sector_performance")
     est.notes.append("Phase 1C (Sector): 1 sector performance call")
 
+    # Phase 1D: Factor Alignment — bounded global revision/sentiment checks
+    _add("get_topic_news", 2)
+    _add("get_earnings_calendar")
+    est.notes.append("Phase 1D (Factor Alignment): ~2 topic news + 1 earnings calendar")
+
+    # Phase 1E: Drift Scanner — bounded global continuation checks
+    _add("get_gap_candidates")
+    _add("get_topic_news")
+    _add("get_earnings_calendar")
+    est.notes.append("Phase 1E (Drift): 1 live gap scan + ~1 topic news + 1 earnings calendar")
+
     # Phase 2: Industry Deep Dive — ~3 industry perf + ~3 topic news
     industry_calls = 3
     _add("get_industry_performance", industry_calls)
@@ -248,11 +259,8 @@ def estimate_scan(config: dict | None = None) -> UsageEstimate:
         f"~{industry_calls} topic news calls"
     )
 
-    # Phase 3: Macro Synthesis — ~2 topic news + calendars
-    _add("get_topic_news", 2)
-    _add("get_earnings_calendar")
-    _add("get_economic_calendar")
-    est.notes.append("Phase 3 (Macro Synthesis): ~2 topic news + calendar calls")
+    # Phase 3: Macro Synthesis — pure LLM reasoning, no external tools
+    est.notes.append("Phase 3 (Macro Synthesis): no external tool calls")
 
     est.method_breakdown = breakdown
     return est

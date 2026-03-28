@@ -82,6 +82,116 @@ def get_market_movers_yfinance(
         return f"Error fetching market movers for {category}: {str(e)}"
 
 
+def get_gap_candidates_yfinance() -> str:
+    """
+    Compute real gap candidates from live yfinance screener quotes.
+
+    Uses a bounded universe from DAY_GAINERS and MOST_ACTIVES, then calculates
+    gap percentage from today's open versus the previous close. This is a real
+    market-data gap calculation, not a news heuristic.
+
+    Returns:
+        Markdown table of bounded gap candidates with liquidity confirmation.
+    """
+    try:
+        universe = {}
+        for screener_key in ("DAY_GAINERS", "MOST_ACTIVES"):
+            data = yf.screen(screener_key, count=25)
+            if not data or not isinstance(data, dict):
+                continue
+            for quote in data.get("quotes", []):
+                symbol = quote.get("symbol")
+                if symbol:
+                    universe[symbol] = quote
+
+        if not universe:
+            return "No stocks matched the live gap universe today."
+
+        rows = []
+        for symbol, quote in universe.items():
+            prev_close = quote.get("regularMarketPreviousClose")
+            open_price = quote.get("regularMarketOpen")
+            current_price = quote.get("regularMarketPrice")
+            volume = quote.get("regularMarketVolume")
+            avg_volume = quote.get("averageDailyVolume3Month")
+            change_pct = quote.get("regularMarketChangePercent")
+            name = quote.get("shortName", quote.get("displayName", "N/A"))
+
+            if not isinstance(prev_close, (int, float)) or prev_close == 0:
+                continue
+            if not isinstance(open_price, (int, float)):
+                continue
+
+            gap_pct = (open_price - prev_close) / prev_close * 100
+            rel_volume = None
+            if isinstance(volume, (int, float)) and isinstance(avg_volume, (int, float)) and avg_volume > 0:
+                rel_volume = volume / avg_volume
+
+            # Bounded long-bias filter for drift setups.
+            if gap_pct < 2.0:
+                continue
+            if rel_volume is not None and rel_volume < 1.25:
+                continue
+            if isinstance(current_price, (int, float)) and current_price < 5:
+                continue
+
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "name": name[:30],
+                    "open": open_price,
+                    "prev_close": prev_close,
+                    "gap_pct": gap_pct,
+                    "price": current_price,
+                    "change_pct": change_pct,
+                    "rel_volume": rel_volume,
+                }
+            )
+
+        if not rows:
+            return "No stocks matched the live gap criteria today."
+
+        rows.sort(
+            key=lambda row: (
+                row["gap_pct"],
+                row["rel_volume"] if row["rel_volume"] is not None else 0,
+            ),
+            reverse=True,
+        )
+
+        header = "# Gap Candidates\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        lines = [
+            header,
+            "| Symbol | Name | Open | Prev Close | Gap % | Price | Change % | Rel Volume |",
+            "|--------|------|------|------------|-------|-------|----------|------------|",
+        ]
+
+        for row in rows[:10]:
+            open_str = f"${row['open']:.2f}"
+            prev_str = f"${row['prev_close']:.2f}"
+            gap_str = f"{row['gap_pct']:+.2f}%"
+            price = row["price"]
+            price_str = f"${price:.2f}" if isinstance(price, (int, float)) else "N/A"
+            change = row["change_pct"]
+            change_str = f"{change:+.2f}%" if isinstance(change, (int, float)) else "N/A"
+            rel_volume = row["rel_volume"]
+            rel_volume_str = f"{rel_volume:.2f}x" if isinstance(rel_volume, (int, float)) else "N/A"
+            lines.append(
+                f"| {row['symbol']} | {row['name']} | {open_str} | {prev_str} | {gap_str} | "
+                f"{price_str} | {change_str} | {rel_volume_str} |"
+            )
+
+        return "\n".join(lines) + "\n"
+
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError("Request timed out fetching live gap candidates")
+    except ThirdPartyTimeoutError:
+        raise
+    except Exception as e:
+        return f"Error fetching live gap candidates: {str(e)}"
+
+
 def get_market_indices_yfinance() -> str:
     """
     Get major market indices data.

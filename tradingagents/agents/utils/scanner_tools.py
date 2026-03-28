@@ -40,6 +40,18 @@ def get_market_indices() -> str:
 
 
 @tool
+def get_gap_candidates() -> str:
+    """
+    Get a bounded set of real gap-up candidates derived from live market data.
+    Uses the configured scanner_data vendor, but currently relies on yfinance.
+
+    Returns:
+        str: Formatted table of gap candidates with gap %, price change, and relative volume
+    """
+    return route_to_vendor("get_gap_candidates")
+
+
+@tool
 def get_sector_performance() -> str:
     """
     Get sector-level performance overview for all 11 GICS sectors.
