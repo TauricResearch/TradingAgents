@@ -27,6 +27,7 @@ class ScannerState(MessagesState):
     scan_date: str
 
     # Phase 1: Parallel scanner outputs — each written by exactly one node
+    gatekeeper_universe_report: Annotated[str, _last_value]
     geopolitical_report: Annotated[str, _last_value]
     market_movers_report: Annotated[str, _last_value]
     sector_performance_report: Annotated[str, _last_value]

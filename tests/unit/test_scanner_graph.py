@@ -41,6 +41,7 @@ def test_scanner_setup_compiles_graph():
     from tradingagents.graph.scanner_setup import ScannerGraphSetup
 
     mock_agents = {
+        "gatekeeper_scanner": MagicMock(),
         "geopolitical_scanner": MagicMock(),
         "market_movers_scanner": MagicMock(),
         "sector_scanner": MagicMock(),

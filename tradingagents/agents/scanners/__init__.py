@@ -1,3 +1,4 @@
+from .gatekeeper_scanner import create_gatekeeper_scanner
 from .geopolitical_scanner import create_geopolitical_scanner
 from .market_movers_scanner import create_market_movers_scanner
 from .sector_scanner import create_sector_scanner

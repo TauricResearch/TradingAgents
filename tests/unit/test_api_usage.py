@@ -23,8 +23,8 @@ from tradingagents.api_usage import (
 
 class TestVendorEstimate:
     def test_total(self):
-        ve = VendorEstimate(yfinance=10, alpha_vantage=5, finnhub=2)
-        assert ve.total == 17
+        ve = VendorEstimate(yfinance=10, alpha_vantage=5, finnhub=2, finviz=1)
+        assert ve.total == 18
 
     def test_default_zeros(self):
         ve = VendorEstimate()
@@ -157,6 +157,10 @@ class TestEstimateScan:
         est = estimate_scan()
         assert est.vendor_calls.yfinance > 0
 
+    def test_scan_uses_finviz_for_gap_subset(self):
+        est = estimate_scan()
+        assert est.vendor_calls.finviz >= 1
+
     def test_finnhub_for_calendars(self):
         """Global bounded scanners should add Finnhub earnings-calendar usage."""
         est = estimate_scan()
@@ -220,6 +224,15 @@ class TestFormatEstimate:
         est = estimate_analyze()
         text = format_estimate(est)
         assert "yfinance" in text
+
+    def test_includes_finviz_when_present(self):
+        est = UsageEstimate(
+            command="scan",
+            description="scan",
+            vendor_calls=VendorEstimate(finviz=1),
+        )
+        text = format_estimate(est)
+        assert "Finviz" in text
         assert "Total:" in text
 
     def test_default_format_includes_av_assessment(self):
@@ -264,12 +277,14 @@ class TestFormatVendorBreakdown:
                 "yfinance": {"ok": 8, "fail": 1},
                 "alpha_vantage": {"ok": 3, "fail": 0},
                 "finnhub": {"ok": 2, "fail": 0},
+                "finviz": {"ok": 1, "fail": 0},
             }
         }
         text = format_vendor_breakdown(summary)
         assert "yfinance:8ok/1fail" in text
         assert "AV:3ok/0fail" in text
         assert "Finnhub:2ok/0fail" in text
+        assert "Finviz:1ok/0fail" in text
 
 
 # ──────────────────────────────────────────────────────────────────────────────

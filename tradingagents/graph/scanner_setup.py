@@ -9,7 +9,7 @@ class ScannerGraphSetup:
     """Sets up the scanner graph with LLM agent nodes.
 
     Phase 1a (parallel from START):
-        geopolitical_scanner, market_movers_scanner, sector_scanner
+        gatekeeper_scanner, geopolitical_scanner, market_movers_scanner, sector_scanner
     Phase 1b (sequential after sector_scanner):
         factor_alignment_scanner, smart_money_scanner — bounded global follow-ons
         that use sector rotation context
@@ -24,6 +24,7 @@ class ScannerGraphSetup:
         Args:
             agents: Dict mapping node names to agent node functions:
                 - geopolitical_scanner
+                - gatekeeper_scanner
                 - market_movers_scanner
                 - sector_scanner
                 - factor_alignment_scanner
@@ -46,6 +47,7 @@ class ScannerGraphSetup:
             workflow.add_node(name, node_fn)
 
         # Phase 1a: parallel fan-out from START
+        workflow.add_edge(START, "gatekeeper_scanner")
         workflow.add_edge(START, "geopolitical_scanner")
         workflow.add_edge(START, "market_movers_scanner")
         workflow.add_edge(START, "sector_scanner")
@@ -55,8 +57,10 @@ class ScannerGraphSetup:
         workflow.add_edge("sector_scanner", "smart_money_scanner")
         workflow.add_edge("sector_scanner", "drift_scanner")
         workflow.add_edge("market_movers_scanner", "drift_scanner")
+        workflow.add_edge("gatekeeper_scanner", "drift_scanner")
 
         # Fan-in: all Phase 1 nodes must complete before Phase 2
+        workflow.add_edge("gatekeeper_scanner", "industry_deep_dive")
         workflow.add_edge("geopolitical_scanner", "industry_deep_dive")
         workflow.add_edge("market_movers_scanner", "industry_deep_dive")
         workflow.add_edge("factor_alignment_scanner", "industry_deep_dive")

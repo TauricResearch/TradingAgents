@@ -29,7 +29,7 @@ All storage, event, checkpoint, and phase re-run logic is now documented in ADR 
   - Added live-tested `yfinance` gatekeeper universe query for US-listed liquid profitable mid-cap+ names
   - Added live-tested Finviz gap-subset path using the bounded gatekeeper-plus-gap filter
   - Narrowed Finviz usage to the gap/event layer instead of the full market-universe layer
-  - Next step is graph wiring so downstream candidate selection is hard-filtered by the gatekeeper universe
+  - Added graph wiring: dedicated gatekeeper scanner node, gatekeeper-aware drift context, and deterministic ranking that excludes names outside the gatekeeper universe
 
 # In Progress
 

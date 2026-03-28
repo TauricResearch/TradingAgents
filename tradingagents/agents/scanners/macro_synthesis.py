@@ -42,6 +42,7 @@ def _extract_rankable_tickers(text: str) -> set[str]:
 
 
 def _build_candidate_rankings(state: dict, limit: int = 15) -> list[dict[str, object]]:
+    allowed_tickers = _extract_rankable_tickers(state.get("gatekeeper_universe_report", ""))
     weighted_sources = [
         ("market_movers_report", 2, "market_movers"),
         ("smart_money_report", 2, "smart_money"),
@@ -56,6 +57,8 @@ def _build_candidate_rankings(state: dict, limit: int = 15) -> list[dict[str, ob
     for state_key, weight, label in weighted_sources:
         tickers = _extract_rankable_tickers(state.get(state_key, ""))
         for ticker in tickers:
+            if allowed_tickers and ticker not in allowed_tickers:
+                continue
             scores[ticker] += weight
             sources[ticker].append(label)
 
@@ -92,6 +95,9 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
             ranking_section = "\n\n### Deterministic Candidate Ranking:\n" + "\n".join(ranking_lines)
         all_reports_context = f"""## All Scanner and Research Reports
 
+### Gatekeeper Universe Report:
+{state.get("gatekeeper_universe_report", "Not available")}
+
 ### Geopolitical Report:
 {state.get("geopolitical_report", "Not available")}
 
@@ -117,10 +123,11 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
 
         system_message = (
             "You are a macro strategist synthesizing all scanner and research reports into a final investment thesis. "
-            "You have received: geopolitical analysis, market movers analysis, sector performance analysis, "
+            "You have received: gatekeeper universe analysis, geopolitical analysis, market regime analysis, sector performance analysis, "
             "smart money institutional screener results, and industry deep dive analysis. "
             "A deterministic candidate-ranking snapshot is also provided when available. Treat higher-ranked "
             "candidates as preferred because they appeared across more independent scanner streams. "
+            "Do not recommend stocks outside the gatekeeper universe. "
             "## THE GOLDEN OVERLAP (apply when Smart Money Report is available and not 'Not available'):\n"
             "Cross-reference the Smart Money tickers with your macro regime thesis. "
             "If a Smart Money ticker fits your top-down macro narrative (e.g., an Energy stock with heavy insider "

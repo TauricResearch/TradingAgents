@@ -15,11 +15,14 @@ def create_drift_scanner(llm):
         scan_date = state["scan_date"]
         tools = [get_gap_candidates, get_topic_news, get_earnings_calendar]
 
+        gatekeeper_context = state.get("gatekeeper_universe_report", "")
         market_context = state.get("market_movers_report", "")
         sector_context = state.get("sector_performance_report", "")
         context_chunks = []
+        if gatekeeper_context:
+            context_chunks.append(f"Gatekeeper universe:\n{gatekeeper_context}")
         if market_context:
-            context_chunks.append(f"Market movers context:\n{market_context}")
+            context_chunks.append(f"Market regime context:\n{market_context}")
         if sector_context:
             context_chunks.append(f"Sector rotation context:\n{sector_context}")
         context_section = f"\n\n{'\n\n'.join(context_chunks)}" if context_chunks else ""
@@ -32,16 +35,16 @@ def create_drift_scanner(llm):
 
         system_message = (
             "You are a drift-window scanner focused on 1-3 month continuation setups. "
-            "Stay global and bounded: use the existing market movers context, then confirm whether those moves "
-            "look like the start of a sustained drift rather than one-day noise.\n\n"
+            "Stay global and bounded: the gatekeeper universe defines the only admissible stock set, and the Finviz "
+            "gap scan provides the event subset within that universe.\n\n"
             "You MUST perform these bounded searches:\n"
-            "1. Call get_gap_candidates to retrieve real market-data gap candidates.\n"
+            "1. Call get_gap_candidates to retrieve Finviz gap candidates from the gatekeeper universe.\n"
             "2. Call get_topic_news for earnings beats, raised guidance, and positive post-event follow-through.\n"
             f"3. Call get_earnings_calendar from {start_date.isoformat()} to {end_date.isoformat()}.\n\n"
             "Then write a concise report covering:\n"
-            "(1) which current movers look most likely to sustain a 1-3 month drift,\n"
+            "(1) which gatekeeper names look most likely to sustain a 1-3 month drift,\n"
             "(2) which sectors show the cleanest drift setup rather than short-covering noise,\n"
-            "(3) 5-8 candidate tickers surfaced globally from the mover context plus catalyst confirmation,\n"
+            "(3) 5-8 candidate tickers surfaced from the gap subset plus catalyst confirmation,\n"
             "(4) the key evidence for continuation risk versus reversal risk."
             f"{context_section}"
         )

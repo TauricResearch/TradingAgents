@@ -5,6 +5,7 @@ from typing import Any, List, Optional
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.agents.scanners import (
+    create_gatekeeper_scanner,
     create_geopolitical_scanner,
     create_market_movers_scanner,
     create_sector_scanner,
@@ -20,7 +21,7 @@ from .scanner_setup import ScannerGraphSetup
 class ScannerGraph:
     """Orchestrates the macro scanner pipeline.
 
-    Phase 1a (parallel): geopolitical_scanner, market_movers_scanner, sector_scanner
+    Phase 1a (parallel): gatekeeper_scanner, geopolitical_scanner, market_movers_scanner, sector_scanner
     Phase 1b (bounded global follow-ons): factor_alignment_scanner, smart_money_scanner
     Phase 1c (after market + sector): drift_scanner
     Phase 2: industry_deep_dive (fan-in from all Phase 1 nodes)
@@ -52,6 +53,7 @@ class ScannerGraph:
         scan_horizon_days = int(self.config.get("scan_horizon_days", 30))
 
         agents = {
+            "gatekeeper_scanner": create_gatekeeper_scanner(quick_llm),
             "geopolitical_scanner": create_geopolitical_scanner(quick_llm),
             "market_movers_scanner": create_market_movers_scanner(quick_llm),
             "sector_scanner": create_sector_scanner(quick_llm),
@@ -155,6 +157,7 @@ class ScannerGraph:
         initial_state: dict[str, Any] = {
             "scan_date": scan_date,
             "messages": [],
+            "gatekeeper_universe_report": "",
             "geopolitical_report": "",
             "market_movers_report": "",
             "sector_performance_report": "",

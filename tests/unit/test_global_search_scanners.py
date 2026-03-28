@@ -8,6 +8,9 @@ from tradingagents.agents.scanners.drift_scanner import create_drift_scanner
 from tradingagents.agents.scanners.factor_alignment_scanner import (
     create_factor_alignment_scanner,
 )
+from tradingagents.agents.scanners.gatekeeper_scanner import (
+    create_gatekeeper_scanner,
+)
 
 
 class MockRunnable(Runnable):
@@ -38,9 +41,40 @@ def _base_state():
     return {
         "messages": [HumanMessage(content="Run the market scan.")],
         "scan_date": "2026-03-27",
+        "gatekeeper_universe_report": "| Symbol |\n| NVDA |\n| AAPL |",
         "sector_performance_report": "| Sector | 1-Month % |\n| Technology | +5.0% |",
         "market_movers_report": "| Symbol | Change % |\n| NVDA | +4.0% |",
     }
+
+
+def test_gatekeeper_scanner_end_to_end():
+    llm = MockLLM(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {"name": "get_gatekeeper_universe", "args": {}, "id": "tc1"},
+                ],
+            ),
+            AIMessage(content="Gatekeeper report with liquid profitable names."),
+        ]
+    )
+
+    gatekeeper_tool = SimpleNamespace(
+        name="get_gatekeeper_universe",
+        invoke=lambda args: "gatekeeper universe table",
+    )
+
+    with patch(
+        "tradingagents.agents.scanners.gatekeeper_scanner.get_gatekeeper_universe",
+        gatekeeper_tool,
+    ):
+        node = create_gatekeeper_scanner(llm)
+        result = node(_base_state())
+
+    assert "Gatekeeper report" in result["gatekeeper_universe_report"]
+    assert result["sender"] == "gatekeeper_scanner"
+    assert [tool.name for tool in llm.tools_bound] == ["get_gatekeeper_universe"]
 
 
 def test_factor_alignment_scanner_end_to_end():

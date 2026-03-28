@@ -56,10 +56,11 @@ class VendorEstimate:
     yfinance: int = 0
     alpha_vantage: int = 0
     finnhub: int = 0
+    finviz: int = 0
 
     @property
     def total(self) -> int:
-        return self.yfinance + self.alpha_vantage + self.finnhub
+        return self.yfinance + self.alpha_vantage + self.finnhub + self.finviz
 
 
 @dataclass
@@ -93,6 +94,9 @@ def _resolve_vendor(config: dict, method: str) -> str:
     from tradingagents.dataflows.interface import (
         get_category_for_method,
     )
+
+    if method == "get_gap_candidates":
+        return "finviz"
 
     # Tool-level override first
     tool_vendors = config.get("tool_vendors", {})
@@ -220,6 +224,8 @@ def estimate_scan(config: dict | None = None) -> UsageEstimate:
             est.vendor_calls.alpha_vantage += count
         elif vendor == "finnhub":
             est.vendor_calls.finnhub += count
+        elif vendor == "finviz":
+            est.vendor_calls.finviz += count
         if vendor not in breakdown:
             breakdown[vendor] = {}
         breakdown[vendor][method] = breakdown[vendor].get(method, 0) + count
@@ -230,25 +236,28 @@ def estimate_scan(config: dict | None = None) -> UsageEstimate:
         _add("get_topic_news")
     est.notes.append(f"Phase 1A (Geopolitical): ~{topic_news_calls} topic news calls")
 
-    # Phase 1B: Market Movers Scanner — 3 market_movers + 1 indices
-    _add("get_market_movers", 3)
+    # Phase 1B: Gatekeeper universe — 1 bounded yfinance query
+    _add("get_gatekeeper_universe")
+    est.notes.append("Phase 1B (Gatekeeper): 1 bounded yfinance universe query")
+
+    # Phase 1C: Market regime scanner — 1 indices call
     _add("get_market_indices")
-    est.notes.append("Phase 1B (Market Movers): 3 screener calls + 1 indices call")
+    est.notes.append("Phase 1C (Market Regime): 1 indices call")
 
-    # Phase 1C: Sector Scanner — 1 sector performance
+    # Phase 1D: Sector Scanner — 1 sector performance
     _add("get_sector_performance")
-    est.notes.append("Phase 1C (Sector): 1 sector performance call")
+    est.notes.append("Phase 1D (Sector): 1 sector performance call")
 
-    # Phase 1D: Factor Alignment — bounded global revision/sentiment checks
+    # Phase 1E: Factor Alignment — bounded global revision/sentiment checks
     _add("get_topic_news", 2)
     _add("get_earnings_calendar")
-    est.notes.append("Phase 1D (Factor Alignment): ~2 topic news + 1 earnings calendar")
+    est.notes.append("Phase 1E (Factor Alignment): ~2 topic news + 1 earnings calendar")
 
-    # Phase 1E: Drift Scanner — bounded global continuation checks
+    # Phase 1F: Drift Scanner — bounded gap subset + continuation checks
     _add("get_gap_candidates")
     _add("get_topic_news")
     _add("get_earnings_calendar")
-    est.notes.append("Phase 1E (Drift): 1 live gap scan + ~1 topic news + 1 earnings calendar")
+    est.notes.append("Phase 1F (Drift): 1 Finviz gap scan + ~1 topic news + 1 earnings calendar")
 
     # Phase 2: Industry Deep Dive — ~3 industry perf + ~3 topic news
     industry_calls = 3
@@ -295,11 +304,13 @@ def estimate_pipeline(
     est.vendor_calls.yfinance += scan_est.vendor_calls.yfinance
     est.vendor_calls.alpha_vantage += scan_est.vendor_calls.alpha_vantage
     est.vendor_calls.finnhub += scan_est.vendor_calls.finnhub
+    est.vendor_calls.finviz += scan_est.vendor_calls.finviz
 
     # Analyze phase × num_tickers
     est.vendor_calls.yfinance += analyze_est.vendor_calls.yfinance * num_tickers
     est.vendor_calls.alpha_vantage += analyze_est.vendor_calls.alpha_vantage * num_tickers
     est.vendor_calls.finnhub += analyze_est.vendor_calls.finnhub * num_tickers
+    est.vendor_calls.finviz += analyze_est.vendor_calls.finviz * num_tickers
 
     # Merge breakdowns
     merged: dict[str, dict[str, int]] = {}
@@ -342,6 +353,8 @@ def format_estimate(est: UsageEstimate) -> str:
         lines.append(f"    Alpha Vantage:  {vc.alpha_vantage:>3} calls  (free tier: {AV_FREE_DAILY_LIMIT}/day)")
     if vc.finnhub:
         lines.append(f"    Finnhub:        {vc.finnhub:>3} calls  (free tier: 60/min)")
+    if vc.finviz:
+        lines.append(f"    Finviz:         {vc.finviz:>3} calls  (HTML scrape, bounded use)")
     lines.append(f"    Total:         {vc.total:>4} vendor API calls")
 
     # Alpha Vantage assessment
@@ -382,7 +395,7 @@ def format_vendor_breakdown(summary: dict) -> str:
         return ""
 
     parts: list[str] = []
-    for vendor in ("yfinance", "alpha_vantage", "finnhub"):
+    for vendor in ("yfinance", "alpha_vantage", "finnhub", "finviz"):
         counts = vendors_used.get(vendor)
         if counts:
             ok = counts.get("ok", 0)
@@ -391,6 +404,7 @@ def format_vendor_breakdown(summary: dict) -> str:
                 "yfinance": "yfinance",
                 "alpha_vantage": "AV",
                 "finnhub": "Finnhub",
+                "finviz": "Finviz",
             }.get(vendor, vendor)
             parts.append(f"{label}:{ok}ok/{fail}fail")
 

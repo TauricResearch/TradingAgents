@@ -26,6 +26,7 @@ def test_extract_rankable_tickers_filters_noise():
 
 def test_build_candidate_rankings_rewards_overlap():
     state = {
+        "gatekeeper_universe_report": "NVDA AAPL MSFT",
         "market_movers_report": "NVDA AAPL",
         "smart_money_report": "NVDA",
         "factor_alignment_report": "NVDA MSFT",
@@ -36,3 +37,17 @@ def test_build_candidate_rankings_rewards_overlap():
 
     assert ranked[0]["ticker"] == "NVDA"
     assert ranked[0]["score"] > ranked[1]["score"]
+
+
+def test_build_candidate_rankings_excludes_names_outside_gatekeeper():
+    state = {
+        "gatekeeper_universe_report": "NVDA AAPL",
+        "market_movers_report": "NVDA TSLA",
+        "drift_opportunities_report": "TSLA",
+    }
+
+    ranked = _build_candidate_rankings(state)
+
+    tickers = {row["ticker"] for row in ranked}
+    assert "NVDA" in tickers
+    assert "TSLA" not in tickers

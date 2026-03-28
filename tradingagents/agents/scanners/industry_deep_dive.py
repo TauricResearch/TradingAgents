@@ -136,6 +136,9 @@ def create_industry_deep_dive(llm):
 ### Geopolitical Report:
 {state.get("geopolitical_report", "Not available")}
 
+### Gatekeeper Universe Report:
+{state.get("gatekeeper_universe_report", "Not available")}
+
 ### Market Movers Report:
 {state.get("market_movers_report", "Not available")}
 
