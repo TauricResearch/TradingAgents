@@ -281,3 +281,37 @@ def ask_gemini_thinking_config() -> str | None:
             ("pointer", "fg:green noinherit"),
         ]),
     ).ask()
+
+
+def ask_output_language() -> str:
+    """Ask for report output language."""
+    choice = questionary.select(
+        "Select Output Language:",
+        choices=[
+            questionary.Choice("English (default)", "English"),
+            questionary.Choice("Chinese (中文)", "Chinese"),
+            questionary.Choice("Japanese (日本語)", "Japanese"),
+            questionary.Choice("Korean (한국어)", "Korean"),
+            questionary.Choice("Hindi (हिन्दी)", "Hindi"),
+            questionary.Choice("Spanish (Español)", "Spanish"),
+            questionary.Choice("Portuguese (Português)", "Portuguese"),
+            questionary.Choice("French (Français)", "French"),
+            questionary.Choice("German (Deutsch)", "German"),
+            questionary.Choice("Arabic (العربية)", "Arabic"),
+            questionary.Choice("Russian (Русский)", "Russian"),
+            questionary.Choice("Custom language", "custom"),
+        ],
+        style=questionary.Style([
+            ("selected", "fg:yellow noinherit"),
+            ("highlighted", "fg:yellow noinherit"),
+            ("pointer", "fg:yellow noinherit"),
+        ]),
+    ).ask()
+
+    if choice == "custom":
+        return questionary.text(
+            "Enter language name (e.g. Turkish, Vietnamese, Thai, Indonesian):",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a language name.",
+        ).ask().strip()
+
+    return choice
