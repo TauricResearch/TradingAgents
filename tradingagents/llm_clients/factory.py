@@ -1,3 +1,4 @@
+import warnings
 from typing import Optional
 
 from .base_client import BaseLLMClient
@@ -35,15 +36,22 @@ def create_llm_client(
     provider_lower = provider.lower()
 
     if provider_lower in ("openai", "ollama", "openrouter"):
-        return OpenAIClient(model, base_url, provider=provider_lower, **kwargs)
+        client = OpenAIClient(model, base_url, provider=provider_lower, **kwargs)
+    elif provider_lower == "xai":
+        client = OpenAIClient(model, base_url, provider="xai", **kwargs)
+    elif provider_lower == "anthropic":
+        client = AnthropicClient(model, base_url, **kwargs)
+    elif provider_lower == "google":
+        client = GoogleClient(model, base_url, **kwargs)
+    else:
+        raise ValueError(f"Unsupported LLM provider: {provider}")
 
-    if provider_lower == "xai":
-        return OpenAIClient(model, base_url, provider="xai", **kwargs)
+    if not client.validate_model():
+        warnings.warn(
+            f"Model '{model}' is not in the known model list for provider "
+            f"'{provider_lower}'. The request may still work if the provider "
+            "supports it, but mis-typed model names will fail at runtime.",
+            stacklevel=2,
+        )
 
-    if provider_lower == "anthropic":
-        return AnthropicClient(model, base_url, **kwargs)
-
-    if provider_lower == "google":
-        return GoogleClient(model, base_url, **kwargs)
-
-    raise ValueError(f"Unsupported LLM provider: {provider}")
+    return client

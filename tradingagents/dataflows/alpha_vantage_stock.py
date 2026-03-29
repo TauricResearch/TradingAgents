@@ -1,5 +1,6 @@
 from datetime import datetime
 from .alpha_vantage_common import _make_api_request, _filter_csv_by_date_range
+from .utils import normalize_date_range
 
 def get_stock(
     symbol: str,
@@ -18,6 +19,8 @@ def get_stock(
     Returns:
         CSV string containing the daily adjusted time series data filtered to the date range.
     """
+    start_date, end_date = normalize_date_range(start_date, end_date)
+
     # Parse dates to determine the range
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     today = datetime.now()

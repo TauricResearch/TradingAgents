@@ -1,9 +1,12 @@
 # LLM Clients - Consistency Improvements
 
-## Issues to Fix
+## Completed
 
-### 1. `validate_model()` is never called
-- Add validation call in `get_llm()` with warning (not error) for unknown models
+### 1. `validate_model()` warning path
+- `create_llm_client()` now calls `validate_model()` and emits a warning for
+  unknown model names instead of failing immediately.
+
+## Remaining Issues to Fix
 
 ### 2. Inconsistent parameter handling
 | Client | API Key Param | Special Params |

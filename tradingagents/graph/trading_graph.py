@@ -45,7 +45,7 @@ class TradingAgentsGraph:
 
     def __init__(
         self,
-        selected_analysts=["market", "social", "news", "fundamentals"],
+        selected_analysts=None,
         debug=False,
         config: Dict[str, Any] = None,
         callbacks: Optional[List] = None,
@@ -59,6 +59,8 @@ class TradingAgentsGraph:
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
         """
         self.debug = debug
+        if selected_analysts is None:
+            selected_analysts = ["market", "social", "news", "fundamentals"]
         self.config = config or DEFAULT_CONFIG
         self.callbacks = callbacks or []
 
@@ -66,10 +68,7 @@ class TradingAgentsGraph:
         set_config(self.config)
 
         # Create necessary directories
-        os.makedirs(
-            os.path.join(self.config["project_dir"], "dataflows/data_cache"),
-            exist_ok=True,
-        )
+        os.makedirs(self.config["data_cache_dir"], exist_ok=True)
 
         # Initialize LLMs with provider-specific thinking configuration
         llm_kwargs = self._get_provider_kwargs()
@@ -259,11 +258,11 @@ class TradingAgentsGraph:
         }
 
         # Save to file
-        directory = Path(f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/")
+        directory = Path(self.config["results_dir"]) / "TradingAgentsStrategy_logs"
         directory.mkdir(parents=True, exist_ok=True)
 
         with open(
-            f"eval_results/{self.ticker}/TradingAgentsStrategy_logs/full_states_log_{trade_date}.json",
+            directory / f"full_states_log_{trade_date}.json",
             "w",
             encoding="utf-8",
         ) as f:

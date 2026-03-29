@@ -4,6 +4,8 @@ import yfinance as yf
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+from .utils import normalize_date_range, normalize_iso_date
+
 
 def _extract_article_data(article: dict) -> dict:
     """Extract article data from yfinance news format (handles nested 'content' structure)."""
@@ -63,6 +65,7 @@ def get_news_yfinance(
         Formatted string containing news articles
     """
     try:
+        start_date, end_date = normalize_date_range(start_date, end_date)
         stock = yf.Ticker(ticker)
         news = stock.get_news(count=20)
 
@@ -130,6 +133,7 @@ def get_global_news_yfinance(
     seen_titles = set()
 
     try:
+        curr_date = normalize_iso_date(curr_date)
         for query in search_queries:
             search = yf.Search(
                 query=query,
