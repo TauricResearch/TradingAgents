@@ -23,6 +23,11 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .tradier import (
+    get_options_chain as get_tradier_options_chain,
+    get_options_expirations as get_tradier_options_expirations,
+)
+from .tradier_common import TradierRateLimitError
 
 # Configuration and routing logic
 from .config import get_config
@@ -57,12 +62,20 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_transactions",
         ]
+    },
+    "options_chain": {
+        "description": "Options chain data with Greeks and IV",
+        "tools": [
+            "get_options_chain",
+            "get_options_expirations",
+        ]
     }
 }
 
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "tradier",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -106,6 +119,13 @@ VENDOR_METHODS = {
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+    },
+    # options_chain
+    "get_options_chain": {
+        "tradier": get_tradier_options_chain,
+    },
+    "get_options_expirations": {
+        "tradier": get_tradier_options_expirations,
     },
 }
 
@@ -156,7 +176,7 @@ def route_to_vendor(method: str, *args, **kwargs):
 
         try:
             return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
+        except (AlphaVantageRateLimitError, TradierRateLimitError):
             continue  # Only rate limits trigger fallback
 
     raise RuntimeError(f"No available vendor for '{method}'")
