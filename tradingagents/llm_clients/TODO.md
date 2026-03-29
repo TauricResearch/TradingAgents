@@ -7,13 +7,9 @@
 
 ### 2. ~~Inconsistent parameter handling~~ (Fixed)
 - GoogleClient now accepts unified `api_key` and maps it to `google_api_key`
-- Legacy `google_api_key` still works for backward compatibility
 
-### 3. `base_url` accepted but ignored
-- `AnthropicClient`: accepts `base_url` but never uses it
-- `GoogleClient`: accepts `base_url` but never uses it (correct - Google doesn't support it)
+### 3. ~~`base_url` accepted but ignored~~ (Fixed)
+- All clients now pass `base_url` to their respective LLM constructors
 
-**Fix:** Remove unused `base_url` from clients that don't support it
-
-### 4. Update validators.py with models from CLI
-- Sync `VALID_MODELS` dict with CLI model options after Feature 2 is complete
+### 4. ~~Update validators.py with models from CLI~~ (Fixed)
+- Synced in v0.2.2
