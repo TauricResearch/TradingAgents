@@ -104,54 +104,54 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | TBD | Pending |
-| DATA-02 | TBD | Pending |
-| DATA-03 | TBD | Pending |
-| DATA-04 | TBD | Pending |
-| DATA-05 | TBD | Pending |
-| DATA-06 | TBD | Pending |
-| DATA-07 | TBD | Pending |
-| DATA-08 | TBD | Pending |
-| VOL-01 | TBD | Pending |
-| VOL-02 | TBD | Pending |
-| VOL-03 | TBD | Pending |
-| VOL-04 | TBD | Pending |
-| VOL-05 | TBD | Pending |
-| VOL-06 | TBD | Pending |
-| VOL-07 | TBD | Pending |
-| GEX-01 | TBD | Pending |
-| GEX-02 | TBD | Pending |
-| GEX-03 | TBD | Pending |
-| GEX-04 | TBD | Pending |
-| FLOW-01 | TBD | Pending |
-| FLOW-02 | TBD | Pending |
-| STRAT-01 | TBD | Pending |
-| STRAT-02 | TBD | Pending |
-| STRAT-03 | TBD | Pending |
-| STRAT-04 | TBD | Pending |
-| STRAT-05 | TBD | Pending |
-| STRAT-06 | TBD | Pending |
-| AGENT-01 | TBD | Pending |
-| AGENT-02 | TBD | Pending |
-| AGENT-03 | TBD | Pending |
-| AGENT-04 | TBD | Pending |
-| AGENT-05 | TBD | Pending |
-| AGENT-06 | TBD | Pending |
-| AGENT-07 | TBD | Pending |
-| AGENT-08 | TBD | Pending |
-| AGENT-09 | TBD | Pending |
-| AGENT-10 | TBD | Pending |
-| INT-01 | TBD | Pending |
-| INT-02 | TBD | Pending |
-| INT-03 | TBD | Pending |
-| INT-04 | TBD | Pending |
-| INT-05 | TBD | Pending |
+| DATA-01 | Phase 1 | Pending |
+| DATA-02 | Phase 1 | Pending |
+| DATA-03 | Phase 1 | Pending |
+| DATA-04 | Phase 1 | Pending |
+| DATA-05 | Phase 1 | Pending |
+| DATA-06 | Phase 2 | Pending |
+| DATA-07 | Phase 10 | Pending |
+| DATA-08 | Phase 1 | Pending |
+| VOL-01 | Phase 3 | Pending |
+| VOL-02 | Phase 3 | Pending |
+| VOL-03 | Phase 6 | Pending |
+| VOL-04 | Phase 5 | Pending |
+| VOL-05 | Phase 7 | Pending |
+| VOL-06 | Phase 7 | Pending |
+| VOL-07 | Phase 3 | Pending |
+| GEX-01 | Phase 4 | Pending |
+| GEX-02 | Phase 4 | Pending |
+| GEX-03 | Phase 4 | Pending |
+| GEX-04 | Phase 4 | Pending |
+| FLOW-01 | Phase 4 | Pending |
+| FLOW-02 | Phase 4 | Pending |
+| STRAT-01 | Phase 6 | Pending |
+| STRAT-02 | Phase 6 | Pending |
+| STRAT-03 | Phase 6 | Pending |
+| STRAT-04 | Phase 6 | Pending |
+| STRAT-05 | Phase 6 | Pending |
+| STRAT-06 | Phase 6 | Pending |
+| AGENT-01 | Phase 8 | Pending |
+| AGENT-02 | Phase 8 | Pending |
+| AGENT-03 | Phase 8 | Pending |
+| AGENT-04 | Phase 8 | Pending |
+| AGENT-05 | Phase 8 | Pending |
+| AGENT-06 | Phase 8 | Pending |
+| AGENT-07 | Phase 9 | Pending |
+| AGENT-08 | Phase 9 | Pending |
+| AGENT-09 | Phase 8 | Pending |
+| AGENT-10 | Phase 8 | Pending |
+| INT-01 | Phase 9 | Pending |
+| INT-02 | Phase 9 | Pending |
+| INT-03 | Phase 9 | Pending |
+| INT-04 | Phase 9 | Pending |
+| INT-05 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 42 total
-- Mapped to phases: 0
-- Unmapped: 42 ⚠️
+- Mapped to phases: 42
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-29*
-*Last updated: 2026-03-29 after initial definition*
+*Last updated: 2026-03-29 after roadmap creation*
