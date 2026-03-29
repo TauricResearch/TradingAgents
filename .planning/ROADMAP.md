@@ -35,7 +35,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can see implied volatility per contract (bid_iv, mid_iv, ask_iv, smv_vol) from Tradier
   4. User can filter the options chain by DTE range (e.g., 30-60 DTE)
   5. Tradier is registered as a new vendor in the existing data routing layer following the established provider pattern
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 01-01-PLAN.md -- Tradier common module and vendor module with typed dataclasses and chain retrieval
+- [ ] 01-02-PLAN.md -- Vendor routing integration, @tool functions, and comprehensive unit tests
 
 ### Phase 2: Deterministic Math Core
 **Goal**: All deterministic financial math lives in a pure Python module with comprehensive tests, never as LLM tool calls
@@ -148,7 +151,7 @@ Note: Phases 2, 3, and 4 can execute in parallel after Phase 1. Phase 6 depends 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Tradier Data Layer | 0/TBD | Not started | - |
+| 1. Tradier Data Layer | 0/2 | Planning complete | - |
 | 2. Deterministic Math Core | 0/TBD | Not started | - |
 | 3. Volatility Metrics | 0/TBD | Not started | - |
 | 4. GEX & Market Microstructure | 0/TBD | Not started | - |
