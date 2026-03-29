@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe cc_tools.py:*)",
+      "Agent",
+      "Write"
+    ]
+  }
+}
