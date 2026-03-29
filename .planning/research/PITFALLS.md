@@ -33,13 +33,19 @@ Mistakes that cause rewrites or major issues.
 
 ### Pitfall 4: Python Version Incompatibility with tastytrade SDK
 
-**What goes wrong:** The tastytrade community SDK (tastyware/tastytrade v12.3.1) requires Python >=3.11. The project declares `requires-python = ">=3.10"`. If a user installs on Python 3.10, the tastytrade dependency will fail.
-**Why it happens:** The project's minimum Python version is lower than the tastytrade SDK's requirement.
-**Consequences:** Installation failure for Python 3.10 users; confusing error messages.
-**Prevention:** Either bump `requires-python` to `>=3.11` or make tastytrade an optional dependency with graceful degradation (Tradier-only mode). Recommended: bump to >=3.11 since numpy/scipy latest versions also dropped 3.10.
-**Detection:** CI testing on Python 3.10 would catch this immediately.
+**What goes wrong:** The tastytrade community SDK (tastyware/tastytrade v12.3.1) requires Python >=3.11. If `requires-python` drifts below that, installs break for streaming-dependent workflows.
+**Why it happens:** SDK minimum Python is stricter than some legacy project baselines.
+**Consequences:** Installation failure on older interpreters; confusing error messages.
+**Prevention:** Keep `requires-python = ">=3.11"` in `pyproject.toml` (current baseline). Optional: extras group for Tradier-only installs if you ever split optional deps.
+**Detection:** CI on Python 3.11+ matrix; `pip install` smoke test with tastytrade extra.
 
 ## Moderate Pitfalls
+
+### Overfitted Strategy Backtests
+
+**What goes wrong:** Options or equity strategies show unrealistically strong historical performance (curve-fit to noise), so live results collapse.
+**Red flags:** Sharpe above ~2 on daily bars without robustness checks; win rate above ~60% for directional systems; small parameter changes destroy performance.
+**Prevention:** Walk-forward validation, holdout / out-of-sample periods, parameter sensitivity sweeps, stability checks, and alerting when metrics exceed sanity thresholds before promoting a ruleset.
 
 ### Pitfall 1: LLM Hallucinating Option Contract Symbols
 
@@ -95,7 +101,7 @@ Use consistent 252-trading-day lookback. Document the definition in code comment
 | SVI calibration | Convergence failure on illiquid names | Fallback to interpolation, minimum liquidity filters |
 | GEX implementation | Sign convention error | Comprehensive unit tests against known outputs |
 | Flow detection | False positives on unusual activity (earnings, ex-div dates) | Check corporate calendar before flagging activity as "unusual" |
-| Strategy recommendation | LLM recommending strategies inappropriate for IV environment | TastyTrade rules engine as guardrail (e.g., do not sell premium when IVR < 20) |
+| Strategy recommendation | LLM recommending strategies inappropriate for IV environment | **Tastytrade** rules engine as **soft guardrail** by default: surface **non-blocking warnings** when IVR is below a configured threshold (default e.g. 20); **hard block** only if product policy enables `strict_iv_rules`. Thresholds must be **CONFIG-01**-style tunables per user/strategy. |
 | Multi-leg construction | Recommending spreads wider than available liquidity | Check bid-ask spreads on recommended legs; warn if total spread cost is >10% of max profit |
 
 ## Sources

@@ -145,15 +145,19 @@ class OptionsChain:
         return pd.DataFrame([vars(c) for c in self.contracts])
 
     def filter_by_dte(self, min_dte: int = 0, max_dte: int = 50) -> "OptionsChain":
-        """Filter contracts by DTE range."""
+        """Filter contracts by DTE range; skip contracts with bad expiration_date strings."""
         today = date.today()
         filtered = []
         for c in self.contracts:
-            exp = datetime.strptime(c.expiration_date, "%Y-%m-%d").date()
+            try:
+                exp = datetime.strptime(c.expiration_date, "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                # Log/skip malformed c.expiration_date — do not fail whole chain
+                continue
             dte = (exp - today).days
             if min_dte <= dte <= max_dte:
                 filtered.append(c)
-        filtered_exps = list(set(c.expiration_date for c in filtered))
+        filtered_exps = list({c.expiration_date for c in filtered})
         return OptionsChain(
             underlying=self.underlying,
             fetch_timestamp=self.fetch_timestamp,
@@ -206,12 +210,20 @@ def make_tradier_request(path: str, params: dict | None = None) -> dict:
     }
     response = requests.get(url, headers=headers, params=params or {})
 
-    # Check rate limit via headers
-    remaining = response.headers.get("X-Ratelimit-Available")
-    if remaining is not None and int(remaining) <= 0:
-        raise TradierRateLimitError(
-            f"Tradier rate limit exceeded. Resets at: {response.headers.get('X-Ratelimit-Expiry')}"
-        )
+    # Check rate limit via headers (defensive parse — header may be non-numeric)
+    remaining_raw = response.headers.get("X-Ratelimit-Available")
+    expiry = response.headers.get("X-Ratelimit-Expiry")
+    if remaining_raw is not None:
+        try:
+            remaining = int(remaining_raw)
+        except (ValueError, TypeError):
+            raise TradierRateLimitError(
+                f"Invalid X-Ratelimit-Available={remaining_raw!r}; X-Ratelimit-Expiry={expiry!r}"
+            )
+        if remaining <= 0:
+            raise TradierRateLimitError(
+                f"Tradier rate limit exceeded (quota {remaining}). Resets at: {expiry}"
+            )
 
     # Also check HTTP 429
     if response.status_code == 429:
@@ -536,34 +548,36 @@ def make_tradier_request_with_retry(
 ### Test Framework
 | Property | Value |
 |----------|-------|
-| Framework | unittest (stdlib) -- existing test uses unittest. No pytest installed. |
-| Config file | None -- see Wave 0 |
-| Quick run command | `uv run python -m pytest tests/ -x --timeout=10` |
+| Framework | **pytest** (>=8) — Phase 1 adds `tests/unit/data/test_tradier.py` and `pytest` dev dependency; existing `tests/test_ticker_symbol_handling.py` may remain unittest-style until migrated. |
+| Config file | **None in Wave 0** — no `pytest.ini`/`pyproject` test section required for initial Tradier tests; add later if markers/fixtures grow. |
+| Quick run command | `uv run python -m pytest tests/unit/data/test_tradier.py -x --timeout=10` |
 | Full suite command | `uv run python -m pytest tests/ --timeout=30` |
 
 ### Phase Requirements to Test Map
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|-------------|
-| DATA-01 | Retrieve full options chain (strikes, exps, bid/ask, vol, OI) | unit (mock API) | `uv run python -m pytest tests/test_tradier.py::TestGetOptionsChain -x` | No -- Wave 0 |
-| DATA-02 | Retrieve expirations and strikes for any ticker | unit (mock API) | `uv run python -m pytest tests/test_tradier.py::TestGetExpirations -x` | No -- Wave 0 |
-| DATA-03 | 1st-order Greeks displayed per contract with timestamp | unit (mock API) | `uv run python -m pytest tests/test_tradier.py::TestGreeksPresent -x` | No -- Wave 0 |
-| DATA-04 | IV per contract (bid_iv, mid_iv, ask_iv, smv_vol) | unit (mock API) | `uv run python -m pytest tests/test_tradier.py::TestIVPresent -x` | No -- Wave 0 |
-| DATA-05 | Filter options chain by DTE range | unit | `uv run python -m pytest tests/test_tradier.py::TestDTEFilter -x` | No -- Wave 0 |
-| DATA-08 | Tradier registered in vendor routing layer | unit | `uv run python -m pytest tests/test_tradier.py::TestVendorRegistration -x` | No -- Wave 0 |
+| DATA-01 | Retrieve full options chain (strikes, exps, bid/ask, vol, OI) | unit (mock / vcr) | `uv run python -m pytest tests/unit/data/test_tradier.py::TestGetOptionsChain -x` | No -- Wave 0 |
+| DATA-02 | Retrieve expirations and strikes for any ticker | unit (mock / vcr) | `uv run python -m pytest tests/unit/data/test_tradier.py::TestGetExpirations -x` | No -- Wave 0 |
+| DATA-03 | 1st-order Greeks displayed per contract with timestamp | unit (mock / vcr) | `uv run python -m pytest tests/unit/data/test_tradier.py::TestGreeksPresent -x` | No -- Wave 0 |
+| DATA-04 | IV per contract (bid_iv, mid_iv, ask_iv, smv_vol) | unit (mock / vcr) | `uv run python -m pytest tests/unit/data/test_tradier.py::TestIVPresent -x` | No -- Wave 0 |
+| DATA-05 | Filter options chain by DTE range | unit | `uv run python -m pytest tests/unit/data/test_tradier.py::TestDTEFilter -x` | No -- Wave 0 |
+| DATA-06 | (Phase 2) 2nd-order Greeks — not validated in Phase 1 | — | — | N/A |
+| DATA-07 | (Phase 10) Tastytrade streaming — not validated in Phase 1 | — | — | N/A |
+| DATA-08 | Tradier registered in vendor routing layer | unit | `uv run python -m pytest tests/unit/data/test_tradier.py::TestVendorRegistration -x` | No -- Wave 0 |
 
 ### Sampling Rate
-- **Per task commit:** `uv run python -m pytest tests/test_tradier.py -x --timeout=10`
+- **Per task commit:** `uv run python -m pytest tests/unit/data/test_tradier.py -x --timeout=10`
 - **Per wave merge:** `uv run python -m pytest tests/ --timeout=30`
 - **Phase gate:** Full suite green before `/gsd:verify-work`
 
 ### Wave 0 Gaps
-- [ ] `tests/test_tradier.py` -- covers DATA-01 through DATA-05, DATA-08
-- [ ] `tests/conftest.py` -- shared fixtures (mock Tradier API responses)
-- [ ] Install pytest: `uv add --dev pytest>=8.0`
+- [ ] `tests/unit/data/test_tradier.py` -- covers DATA-01 through DATA-05, DATA-08 (Tier 2 data layer; prefer **vcrpy** cassettes under `tests/fixtures/cassettes/tradier/` for realistic HTTP replay)
+- [ ] `tests/conftest.py` (repo root or `tests/unit/data/`) -- shared fixtures + VCR configuration
+- [ ] Install pytest: `uv add --dev pytest>=8.0` and `uv add --dev vcrpy` (or pytest-vcr) when enabling cassettes
 
 ## Project Constraints (from CLAUDE.md)
 
-- **Python >=3.10**, consistent with existing codebase
+- **Python >=3.11**, consistent with `pyproject.toml` and Tastytrade SDK (Phase 10)
 - **snake_case.py** for all module names, no hyphens
 - **Factory functions** use `create_` prefix; getter functions use `get_` prefix
 - **`requests`** for HTTP calls (no new HTTP client dependency)

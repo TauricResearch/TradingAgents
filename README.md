@@ -112,6 +112,8 @@ conda create -n tradingagents python=3.13
 conda activate tradingagents
 ```
 
+The package targets **Python >=3.11** (see `pyproject.toml`).
+
 Install the package and its dependencies:
 ```bash
 pip install .

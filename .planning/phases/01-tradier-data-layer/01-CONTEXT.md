@@ -19,11 +19,11 @@ Integrate Tradier as a new data vendor for options chain retrieval with 1st-orde
 
 ### Data Fetching Strategy
 - **D-03:** Pre-fetch all expirations within DTE range upfront at the start of an analysis run, cache for the session. Do NOT let individual agents make separate API calls for the same data.
-- **D-04:** Default DTE filter range: 0-50 DTE (covers TastyTrade's 30-50 sweet spot plus weeklies and near-term options)
-- **D-05:** Always request `greeks=true` from Tradier — there's no reason to skip Greeks when the whole point is options analysis
+- **D-04:** Default DTE filter range: 0-50 DTE (covers **Tastytrade** methodology sweet spot ~30–50 DTE plus weeklies and near-term options)
+- **D-05:** Always pass `greeks=true` on chain requests. **Sandbox:** Tradier sandbox often returns **no Greeks** (empty/`null` greeks object). Implementations must still call with `greeks=true` and treat missing fields as `None` without failing. **Production:** expect populated Greeks. Do **not** gate `greeks=true` on `TRADIER_SANDBOX` — only the **response handling** differs.
 
 ### Data Structure
-- **D-06:** Dual output format: Pandas DataFrame for bulk operations (consistent with existing yfinance pattern) AND typed dataclass (`OptionsContract`, `OptionsChain`) for individual contract access by downstream agents
+- **D-06:** **Canonical representation:** typed `OptionsContract` / `OptionsChain` in memory; **bulk analysis** uses `OptionsChain.to_dataframe()` (pandas). Optional helpers may add `from_dataframe` / reconstruction utilities if a round-trip is needed; avoid maintaining two divergent sources of truth — derive the DataFrame from the dataclass list.
 
 ### Claude's Discretion
 - **Caching strategy:** Claude picks the best caching approach. In-memory per-session is simpler; disk TTL helps during development. Choose based on what fits the existing architecture best.

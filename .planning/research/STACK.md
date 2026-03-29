@@ -49,7 +49,7 @@
 
 | Technology | Version | Purpose | Why | Confidence |
 |------------|---------|---------|-----|------------|
-| **numpy** | >=2.0.0 | Vectorized GEX calculation across all strikes/expirations | GEX formula is straightforward: `GEX_per_strike = Gamma * OI * 100 * Spot^2 * 0.01`, then `Net_GEX = sum(Call_GEX) - sum(Put_GEX)`. Pure numpy vectorization handles the full chain in microseconds. | HIGH |
+| **numpy** | >=2.0.0 | Vectorized GEX calculation across all strikes/expirations | GEX formula (standard notional form): `GEX_per_strike = Gamma * OI * 100 * Spot^2` (calls positive, puts negative per sign convention), then net across strikes. Pure numpy vectorization handles the full chain in microseconds. | HIGH |
 | **pandas** | >=2.3.0 | Structuring GEX output (strike-level breakdown, flip zones, walls) | Already a core dependency. GEX output is naturally tabular: per-strike gamma, cumulative GEX, call/put walls, flip zones. | HIGH |
 
 **No external library needed.** GEX computation is arithmetic on options chain data. The SpotGamma methodology is documented:
@@ -85,10 +85,7 @@ The complexity is in interpretation (which the LLM agent handles), not computati
 
 ## Python Version Consideration
 
-The project declares `requires-python = ">=3.10"` but the development venv runs Python 3.13. The tastytrade SDK requires `>=3.11`. Two options:
-
-1. **Recommended:** Bump `requires-python` to `>=3.11` when adding the options module. This unlocks the tastytrade SDK and latest numpy/scipy without constraints.
-2. **Alternative:** Keep `>=3.10` and make tastytrade an optional dependency. Tradier alone covers the core use case.
+The project declares `requires-python = ">=3.11"` (aligned with the tastytrade SDK and options module). Development venvs should use 3.11+ (e.g. 3.13).
 
 ## Alternatives Considered
 
@@ -145,5 +142,5 @@ TASTYTRADE_PASSWORD=your_tastytrade_pass
 - [SpotGamma GEX methodology](https://spotgamma.com/gamma-exposure-gex/) -- MEDIUM confidence, proprietary methodology with published formulas
 - [SVI vs SABR comparison (2025 thesis)](https://repositori.upf.edu/items/eceeb187-f169-483e-bf67-416fd9e00d70) -- MEDIUM confidence, academic source
 - [SVI fitting with Python](https://tradingtechai.medium.com/python-volatility-surface-modeling-data-fetching-iv-calculation-svi-fitting-and-visualization-80be58328ac6) -- LOW confidence, blog post but methodology is standard
-- [NumPy 2.4.x release](https://numpy.org/news/) -- HIGH confidence, official
-- [SciPy 1.17.x release](https://docs.scipy.org/doc/scipy/release.html) -- HIGH confidence, official
+- [NumPy 2.0+ release notes](https://numpy.org/news/) -- HIGH confidence, official (minimum stack versions in tables refer to **>=2.0.0** / **>=1.14.0** unless a stricter pin is added later)
+- [SciPy 1.14+ release notes](https://docs.scipy.org/doc/scipy/release.html) -- HIGH confidence, official

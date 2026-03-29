@@ -12,7 +12,7 @@ An options trading analysis module for TradingAgents — a multi-agent AI system
 - **Data providers**: Tradier (REST, 120 req/min, Greeks hourly) and Tastyworks (REST + WebSocket streaming) as primary options data sources
 - **No 2nd-order Greeks from API**: Charm, Vanna, Volga must be calculated from 1st-order Greeks + Black-Scholes
 - **Architecture**: Must follow existing patterns — agent factory functions, vendor routing, LangGraph StateGraph
-- **Python**: >=3.10, consistent with existing codebase
+- **Python**: >=3.11, consistent with `pyproject.toml` and options-module / tastytrade SDK baseline
 - **LLM provider agnostic**: Options agents must work with any supported LLM provider via the client factory
 <!-- GSD:project-end -->
 
@@ -20,10 +20,9 @@ An options trading analysis module for TradingAgents — a multi-agent AI system
 ## Technology Stack
 
 ## Languages
-- Python >=3.10 - Entire codebase (agents, dataflows, CLI, graph orchestration)
-- None detected
+- Python >=3.11 - Entire codebase (agents, dataflows, CLI, graph orchestration)
 ## Runtime
-- Python 3.10+ (compatible up to 3.13 per `uv.lock` resolution markers)
+- Python 3.11+ (compatible up to 3.13+ per `uv.lock` resolution markers)
 - uv (primary - `uv.lock` present at project root)
 - pip/setuptools (build backend, `pyproject.toml` uses `setuptools>=61.0`)
 - Lockfile: `uv.lock` present
@@ -70,7 +69,7 @@ An options trading analysis module for TradingAgents — a multi-agent AI system
 - Maps to `cli.main:app` (Typer application)
 - Fetches announcements from `https://api.tauric.ai/v1/announcements` (`cli/config.py`)
 ## Platform Requirements
-- Python 3.10+
+- Python 3.11+
 - uv package manager (recommended) or pip
 - At least one LLM provider API key (OpenAI, Anthropic, Google, xAI, or OpenRouter)
 - Redis server (if redis-based features are used)
@@ -139,6 +138,9 @@ An options trading analysis module for TradingAgents — a multi-agent AI system
 - Analyst nodes return `{"messages": [result], "<type>_report": report}`
 - Debate nodes return `{"investment_debate_state": {...}}` or `{"risk_debate_state": {...}}`
 ## LLM Prompt Construction
+
+**Patterns:** Analysts often use LangChain `ChatPromptTemplate.from_messages()` with `MessagesPlaceholder` and `.partial()` for tool-calling flows (`tradingagents/agents/analysts/`). Researchers, managers, and the trader frequently use plain f-strings or string prompts with `llm.invoke(...)`. Prefer **ChatPromptTemplate + bind_tools** when tools are required; otherwise f-string prompts are acceptable for simpler nodes. Keep system vs human roles explicit and keep prompts close to the node factory that uses them.
+
 ## Configuration Pattern
 - `tradingagents/dataflows/config.py` holds a module-level `_config` dict
 - `set_config()` and `get_config()` provide access
@@ -228,6 +230,13 @@ An options trading analysis module for TradingAgents — a multi-agent AI system
 - LLM provider validation: `create_llm_client()` raises `ValueError` for unsupported providers (`tradingagents/llm_clients/factory.py`)
 - No structured error handling within agent nodes; LLM failures propagate as exceptions
 ## Cross-Cutting Concerns
+
+- **Logging:** Mostly `print()` and Rich `console.print()`; no centralized log levels yet — see `.planning/codebase/INTEGRATIONS.md` for recommended structured logging path.
+- **Security:** Secrets only via environment / `.env` (gitignored); never commit API keys.
+- **Observability:** `StatsCallbackHandler` tracks LLM/tool/token counts in CLI runs; no external APM.
+- **Caching:** File cache under `tradingagents/dataflows/data_cache/`; Redis dependency declared but unused in code today.
+- **Reliability:** Vendor fallback in `route_to_vendor()` for rate limits; LLM calls generally lack retries (see `.planning/codebase/CONCERNS.md`).
+
 <!-- GSD:architecture-end -->
 
 <!-- GSD:workflow-start source:GSD defaults -->

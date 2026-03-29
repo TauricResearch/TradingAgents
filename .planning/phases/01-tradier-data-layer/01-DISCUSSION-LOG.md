@@ -2,6 +2,8 @@
 
 > **Audit trail only.** Do not use as input to planning, research, or execution agents.
 > Decisions are captured in CONTEXT.md — this log preserves the alternatives considered.
+>
+> **Scope:** Rows marked **“Claude's discretion”** / **“You decide”** are discussion-only until copied into **01-CONTEXT.md** (or another canonical doc). Implementation agents should follow **CONTEXT.md**, not un-promoted discussion rows.
 
 **Date:** 2026-03-29
 **Phase:** 01-tradier-data-layer
@@ -43,8 +45,8 @@
 | Disk with TTL | Cache to disk with configurable TTL | |
 | You decide | Claude picks best approach | ✓ |
 
-**User's choice:** Claude's discretion
-**Notes:** None
+**User's choice:** Claude's discretion — **TODO:** promote chosen approach (memory vs disk, TTL) into **01-CONTEXT.md** before execution if it becomes a hard requirement.
+**Notes:** **Constraints for implementers:** target session scope ≈ one CLI `propagate()` / analysis run; prefer **in-memory** unless persistence is required. If disk cache: document max footprint and TTL (e.g. stale chain tolerance on the order of minutes unless user refreshes). Low-memory environments: in-memory only, no mandatory disk I/O.
 
 ---
 
@@ -68,7 +70,7 @@
 | Queue and throttle | Pre-emptive request queue | |
 | You decide | Claude picks based on existing patterns | ✓ |
 
-**User's choice:** Claude's discretion
+**User's choice:** Claude's discretion — **TODO:** mirror final retry/throttle design in **01-CONTEXT.md** when locked.
 **Notes:** Should follow AlphaVantageRateLimitError pattern
 
 ---
@@ -83,7 +85,7 @@
 | 0-50 DTE (Custom) | User-specified range | ✓ |
 
 **User's choice:** 0-50 DTE
-**Notes:** User specified custom range covering near-term through TastyTrade sweet spot
+**Notes:** User specified custom range covering near-term through **Tastytrade** methodology sweet spot
 
 ---
 
@@ -95,15 +97,15 @@
 | Typed dataclass | Custom OptionsChain dataclass | |
 | Both | DataFrame for bulk, dataclass for individual access | ✓ |
 
-**User's choice:** Both
-**Notes:** Dual format for different consumption patterns
+**User's choice:** Both — **promoted to CONTEXT D-06:** canonical typed `OptionsChain` / `OptionsContract`; DataFrame via `to_dataframe()` for bulk; single source of truth in the dataclass list (see **01-CONTEXT.md**).
+**Notes:** Rationale: dataclasses give validation and clear contracts; DataFrames match existing analyst tooling without duplicating mutable parallel state.
 
 ---
 
 ## Claude's Discretion
 
-- Caching strategy (in-memory vs disk TTL)
-- Rate limit handling approach
+- Caching strategy (in-memory vs disk TTL) — promote to CONTEXT before treating as mandatory
+- Rate limit handling approach — promote to CONTEXT before treating as mandatory
 
 ## Deferred Ideas
 

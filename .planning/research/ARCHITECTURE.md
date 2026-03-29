@@ -64,14 +64,23 @@ def create_volatility_analyst(llm_client, tools):
     system_prompt = VOLATILITY_ANALYST_PROMPT
 
     def volatility_analyst(state):
+        if "options_chain" not in state or "ticker" not in state:
+            return {"volatility_analysis_error": "missing options_chain or ticker in state"}
+        if "compute_iv_rank" not in tools:
+            return {"volatility_analysis_error": "compute_iv_rank tool not registered"}
         chain_data = state["options_chain"]
-        # Compute IV metrics using tools
-        iv_rank = tools["compute_iv_rank"](chain_data, state["ticker"])
-        # LLM interprets the metrics
-        response = llm_client.invoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=format_iv_analysis(iv_rank, chain_data))
-        ])
+        ticker = state["ticker"]
+        try:
+            iv_rank = tools["compute_iv_rank"](chain_data, ticker)
+        except Exception as e:
+            return {"volatility_analysis_error": f"compute_iv_rank failed: {e!s}"}
+        try:
+            response = llm_client.invoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=format_iv_analysis(iv_rank, chain_data))
+            ])
+        except Exception as e:
+            return {"volatility_analysis_error": f"llm invoke failed: {e!s}"}
         return {"volatility_analysis": response.content}
 
     return volatility_analyst
@@ -92,6 +101,7 @@ def get_options_chain(ticker, expiration, config):
         return tradier.get_chain(ticker, expiration)
     elif vendor == "tastytrade":
         return tastytrade.get_chain(ticker, expiration)
+    raise ValueError(f"Unsupported options_vendor={vendor!r}; expected 'tradier' or 'tastytrade'")
 ```
 
 ### Pattern 3: Computation Modules as Pure Functions
@@ -102,9 +112,11 @@ def get_options_chain(ticker, expiration, config):
 ```python
 # tradingagents/options/gex.py
 def compute_gex(chain_df: pd.DataFrame, spot: float) -> pd.DataFrame:
-    """Pure function: chain DataFrame in, GEX DataFrame out."""
-    chain_df["call_gex"] = chain_df["gamma"] * chain_df["open_interest"] * 100 * spot**2 * 0.01
-    chain_df["put_gex"] = -chain_df["gamma"] * chain_df["open_interest"] * 100 * spot**2 * 0.01
+    """Pure function: chain DataFrame in, GEX DataFrame out.
+    Standard notional-scaled GEX: gamma * OI * 100 * spot**2 (per-share gamma → contract multiplier 100).
+    """
+    chain_df["call_gex"] = chain_df["gamma"] * chain_df["open_interest"] * 100 * spot**2
+    chain_df["put_gex"] = -chain_df["gamma"] * chain_df["open_interest"] * 100 * spot**2
     # ... aggregate, find walls, flip zone
     return gex_df
 ```
@@ -153,8 +165,16 @@ def compute_gex(chain_df: pd.DataFrame, spot: float) -> pd.DataFrame:
 | API rate limits | Tradier: ~2 req/ticker (chain + expirations), well within 120 req/min | 20 requests, still fine | 100+ requests, need queuing/throttling |
 | Chain data size | ~200 strikes per expiry, 5-8 expiries = 1000-1600 rows | 10x = 10-16K rows, fine in memory | 50x = manageable but cache aggressively |
 | GEX computation | Sub-second numpy vectorization | Still sub-second | Still sub-second; numpy handles millions of rows |
-| LLM calls per analysis | ~6 agents x 1 call each = 6 LLM calls | 60 LLM calls, significant latency | Need batching or parallel execution |
+| LLM calls per analysis | **~6 + Ndebate** — Volatility, Greeks, GEX, Flow (4 analysis) + Strategy selection + Portfolio manager + **Options debate × rounds (N)** | Scales with debate rounds; 60+ calls multi-ticker | Batch where safe; parallelize independent agents; cap `max_debate_rounds` |
 | Tastytrade WebSocket | Single subscription, minimal overhead | 10 subscriptions, fine | May hit subscription limits |
+
+## Operational Concerns
+
+- **Errors / retries:** Vendor routers (`get_options_chain`, `route_to_vendor`) should map HTTP/rate-limit failures to typed errors, retry with backoff where safe, and return actionable messages to agents (see REL-01/REL-02 in REQUIREMENTS.md).
+- **Testing:** Prefer pure-function unit tests for `tradingagents/options/gex.py`, `greeks.py`, vol math; mock LLMs and external HTTP; integration tests for `options_team` / LangGraph wiring.
+- **Observability:** LangGraph flows (`tradingagents/graph/options_team.py` when added) should emit structured step logs (node name, duration, tool calls) — align with OBS-01.
+- **Cost:** Batch or cache LLM calls; avoid redundant chain fetches across nodes (session cache).
+- **Security:** API keys via env only; rotate keys; least-privilege broker API tokens. Deep-dive docs TBD per subsystem.
 
 ## Sources
 

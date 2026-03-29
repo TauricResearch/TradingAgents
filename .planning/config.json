@@ -1,37 +1,39 @@
 {
   "model_profile": "quality",
   "commit_docs": true,
-  "parallelization": true,
+  "parallelization": false,
   "search_gitignored": false,
   "brave_search": false,
   "firecrawl": false,
   "exa_search": false,
   "git": {
-    "branching_strategy": "none",
-    "phase_branch_template": "gsd/phase-{phase}-{slug}",
-    "milestone_branch_template": "gsd/{milestone}-{slug}",
-    "quick_branch_template": null
+    "branching_strategy": "none"
   },
   "workflow": {
     "research": true,
     "plan_check": true,
     "verifier": true,
     "nyquist_validation": true,
-    "auto_advance": true,
-    "node_repair": true,
+    "auto_advance": false,
+    "node_repair": false,
     "node_repair_budget": 2,
     "ui_phase": true,
     "ui_safety_gate": true,
     "text_mode": false,
     "research_before_questions": false,
     "discuss_mode": "discuss",
-    "skip_discuss": false
+    "skip_discuss": false,
+    "_auto_chain_active": false
   },
   "hooks": {
     "context_warnings": true
   },
   "agent_skills": {},
   "resolve_model_ids": "omit",
-  "mode": "yolo",
-  "granularity": "fine"
+  "mode": "safe",
+  "granularity": "fine",
+  "_planning_notes": {
+    "mode": "Use 'safe' for normal work; only use aggressive/yolo-style settings in disposable sandboxes.",
+    "parallelization_auto_advance_node_repair": "Disabled by default so production-adjacent runs do not auto-execute parallel waves or self-heal nodes without review."
+  }
 }
