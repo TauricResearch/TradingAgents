@@ -5,6 +5,8 @@ import json
 from datetime import datetime
 from io import StringIO
 
+from .utils import normalize_date_range, normalize_iso_date
+
 API_BASE_URL = "https://www.alphavantage.co/query"
 
 def get_api_key() -> str:
@@ -22,7 +24,7 @@ def format_datetime_for_api(date_input) -> str:
             return date_input
         # Try to parse common date formats
         try:
-            dt = datetime.strptime(date_input, "%Y-%m-%d")
+            dt = datetime.strptime(normalize_iso_date(date_input), "%Y-%m-%d")
             return dt.strftime("%Y%m%dT0000")
         except ValueError:
             try:
@@ -100,6 +102,7 @@ def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> 
         return csv_data
 
     try:
+        start_date, end_date = normalize_date_range(start_date, end_date)
         # Parse CSV data
         df = pd.read_csv(StringIO(csv_data))
 

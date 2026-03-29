@@ -939,6 +939,15 @@ def run_analysis():
     selected_set = {analyst.value for analyst in selections["analysts"]}
     selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
 
+    # Create result directory early so graph logging uses the same run-specific base path.
+    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
+    results_dir.mkdir(parents=True, exist_ok=True)
+    report_dir = results_dir / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    log_file = results_dir / "message_tool.log"
+    log_file.touch(exist_ok=True)
+    config["results_dir"] = str(results_dir)
+
     # Initialize the graph with callbacks bound to LLMs
     graph = TradingAgentsGraph(
         selected_analyst_keys,
@@ -952,14 +961,6 @@ def run_analysis():
 
     # Track start time for elapsed display
     start_time = time.time()
-
-    # Create result directory
-    results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
-    results_dir.mkdir(parents=True, exist_ok=True)
-    report_dir = results_dir / "reports"
-    report_dir.mkdir(parents=True, exist_ok=True)
-    log_file = results_dir / "message_tool.log"
-    log_file.touch(exist_ok=True)
 
     def save_message_decorator(obj, func_name):
         func = getattr(obj, func_name)

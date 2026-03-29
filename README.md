@@ -117,6 +117,12 @@ Install the package and its dependencies:
 pip install .
 ```
 
+If you are actively modifying the project, prefer an editable install so the
+`tradingagents` CLI always reflects your local code changes:
+```bash
+pip install -e .
+```
+
 ### Required APIs
 
 TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
@@ -131,6 +137,17 @@ export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.
+
+Example local setup for a default Ollama install running `qwen3:8b`:
+```bash
+export TRADINGAGENTS_LLM_PROVIDER=ollama
+export TRADINGAGENTS_BACKEND_URL=http://localhost:11434/v1
+export TRADINGAGENTS_QUICK_THINK_LLM=qwen3:8b
+export TRADINGAGENTS_DEEP_THINK_LLM=qwen3:8b
+```
+
+The default config in this fork is also set up for Ollama on
+`http://localhost:11434/v1`, with both thinking models pointing to `qwen3:8b`.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
@@ -196,6 +213,16 @@ config["max_debate_rounds"] = 2
 ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 print(decision)
+```
+
+Local Ollama example:
+
+```python
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "ollama"
+config["backend_url"] = "http://localhost:11434/v1"
+config["deep_think_llm"] = "qwen3:8b"
+config["quick_think_llm"] = "qwen3:8b"
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
