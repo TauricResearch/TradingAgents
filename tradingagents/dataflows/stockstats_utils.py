@@ -44,6 +44,64 @@ def _clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
+def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
+    """Fetch OHLCV data with caching, filtered to prevent look-ahead bias.
+
+    Downloads 15 years of data up to today and caches per symbol. On
+    subsequent calls the cache is reused. Rows after curr_date are
+    filtered out so backtests never see future prices.
+    """
+    config = get_config()
+    curr_date_dt = pd.to_datetime(curr_date)
+
+    # Cache uses a fixed window (15y to today) so one file per symbol
+    today_date = pd.Timestamp.today()
+    start_date = today_date - pd.DateOffset(years=5)
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = today_date.strftime("%Y-%m-%d")
+
+    os.makedirs(config["data_cache_dir"], exist_ok=True)
+    data_file = os.path.join(
+        config["data_cache_dir"],
+        f"{symbol}-YFin-data-{start_str}-{end_str}.csv",
+    )
+
+    if os.path.exists(data_file):
+        data = pd.read_csv(data_file, on_bad_lines="skip")
+    else:
+        data = yf_retry(lambda: yf.download(
+            symbol,
+            start=start_str,
+            end=end_str,
+            multi_level_index=False,
+            progress=False,
+            auto_adjust=True,
+        ))
+        data = data.reset_index()
+        data.to_csv(data_file, index=False)
+
+    data = _clean_dataframe(data)
+
+    # Filter to curr_date to prevent look-ahead bias in backtesting
+    data = data[data["Date"] <= curr_date_dt]
+
+    return data
+
+
+def filter_financials_by_date(data: pd.DataFrame, curr_date: str) -> pd.DataFrame:
+    """Drop financial statement columns (fiscal period timestamps) after curr_date.
+
+    yfinance financial statements use fiscal period end dates as columns.
+    Columns after curr_date represent future data and are removed to
+    prevent look-ahead bias.
+    """
+    if not curr_date or data.empty:
+        return data
+    cutoff = pd.Timestamp(curr_date)
+    mask = pd.to_datetime(data.columns, errors="coerce") <= cutoff
+    return data.loc[:, mask]
+
+
 class StockstatsUtils:
     @staticmethod
     def get_stock_stats(
@@ -55,42 +113,10 @@ class StockstatsUtils:
             str, "curr date for retrieving stock price data, YYYY-mm-dd"
         ],
     ):
-        config = get_config()
-
-        today_date = pd.Timestamp.today()
-        curr_date_dt = pd.to_datetime(curr_date)
-
-        end_date = today_date
-        start_date = today_date - pd.DateOffset(years=15)
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
-
-        # Ensure cache directory exists
-        os.makedirs(config["data_cache_dir"], exist_ok=True)
-
-        data_file = os.path.join(
-            config["data_cache_dir"],
-            f"{symbol}-YFin-data-{start_date_str}-{end_date_str}.csv",
-        )
-
-        if os.path.exists(data_file):
-            data = pd.read_csv(data_file, on_bad_lines="skip")
-        else:
-            data = yf_retry(lambda: yf.download(
-                symbol,
-                start=start_date_str,
-                end=end_date_str,
-                multi_level_index=False,
-                progress=False,
-                auto_adjust=True,
-            ))
-            data = data.reset_index()
-            data.to_csv(data_file, index=False)
-
-        data = _clean_dataframe(data)
+        data = load_ohlcv(symbol, curr_date)
         df = wrap(data)
         df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-        curr_date_str = curr_date_dt.strftime("%Y-%m-%d")
+        curr_date_str = pd.to_datetime(curr_date).strftime("%Y-%m-%d")
 
         df[indicator]  # trigger stockstats to calculate the indicator
         matching_rows = df[df["Date"].str.startswith(curr_date_str)]
