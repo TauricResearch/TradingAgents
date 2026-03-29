@@ -4,6 +4,8 @@ import yfinance as yf
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+from .stockstats_utils import yf_retry
+
 
 def _extract_article_data(article: dict) -> dict:
     """Extract article data from yfinance news format (handles nested 'content' structure)."""
@@ -64,7 +66,7 @@ def get_news_yfinance(
     """
     try:
         stock = yf.Ticker(ticker)
-        news = stock.get_news(count=20)
+        news = yf_retry(lambda: stock.get_news(count=20))
 
         if not news:
             return f"No news found for {ticker}"
@@ -131,11 +133,11 @@ def get_global_news_yfinance(
 
     try:
         for query in search_queries:
-            search = yf.Search(
-                query=query,
+            search = yf_retry(lambda q=query: yf.Search(
+                query=q,
                 news_count=limit,
                 enable_fuzzy_query=True,
-            )
+            ))
 
             if search.news:
                 for article in search.news:
