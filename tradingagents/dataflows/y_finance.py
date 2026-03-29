@@ -1,9 +1,24 @@
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import pandas as pd
 import yfinance as yf
 import os
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry
+
+
+def _filter_financials_by_date(data: "pd.DataFrame", curr_date: str) -> "pd.DataFrame":
+    """Drop DataFrame columns (fiscal period timestamps) that exceed curr_date.
+
+    yfinance financial statements are indexed by metric name (rows) and fiscal
+    period end date (columns).  Columns that post-date the simulation's current
+    date represent future data and must be removed to prevent look-ahead bias.
+    """
+    if not curr_date or data.empty:
+        return data
+    cutoff = pd.Timestamp(curr_date)
+    mask = pd.to_datetime(data.columns, errors="coerce") <= cutoff
+    return data.loc[:, mask]
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -365,9 +380,7 @@ def get_balance_sheet(
             data = yf_retry(lambda: ticker_obj.balance_sheet)
 
         # Filter out fiscal periods after curr_date to prevent look-ahead bias.
-        if curr_date and not data.empty:
-            cutoff = pd.Timestamp(curr_date)
-            data = data.loc[:, [c for c in data.columns if pd.Timestamp(c) <= cutoff]]
+        data = _filter_financials_by_date(data, curr_date)
 
         if data.empty:
             return f"No balance sheet data found for symbol '{ticker}'" + (
@@ -402,9 +415,7 @@ def get_cashflow(
             data = yf_retry(lambda: ticker_obj.cashflow)
 
         # Filter out fiscal periods after curr_date to prevent look-ahead bias.
-        if curr_date and not data.empty:
-            cutoff = pd.Timestamp(curr_date)
-            data = data.loc[:, [c for c in data.columns if pd.Timestamp(c) <= cutoff]]
+        data = _filter_financials_by_date(data, curr_date)
 
         if data.empty:
             return f"No cash flow data found for symbol '{ticker}'" + (
@@ -439,9 +450,7 @@ def get_income_statement(
             data = yf_retry(lambda: ticker_obj.income_stmt)
 
         # Filter out fiscal periods after curr_date to prevent look-ahead bias.
-        if curr_date and not data.empty:
-            cutoff = pd.Timestamp(curr_date)
-            data = data.loc[:, [c for c in data.columns if pd.Timestamp(c) <= cutoff]]
+        data = _filter_financials_by_date(data, curr_date)
 
         if data.empty:
             return f"No income statement data found for symbol '{ticker}'" + (
