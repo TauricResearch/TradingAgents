@@ -16,7 +16,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DATA-05**: System can filter options chains by DTE range (e.g., 30-60 DTE for income strategies)
 - [ ] **DATA-06**: System calculates 2nd-order Greeks (Charm, Vanna, Volga/Vomma) via blackscholes library
 - [ ] **DATA-07**: System can retrieve real-time streaming Greeks and quotes via Tastytrade DXLink WebSocket
-- [ ] **DATA-08**: System integrates Tradier and Tastytrade as new vendors in the existing data routing layer
+- [x] **DATA-08**: System integrates Tradier and Tastytrade as new vendors in the existing data routing layer
 
 ### Volatility Analysis
 
@@ -123,7 +123,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-05 | Phase 1 | Complete |
 | DATA-06 | Phase 2 | Pending |
 | DATA-07 | Phase 10 | Pending |
-| DATA-08 | Phase 1 | Pending |
+| DATA-08 | Phase 1 | Complete |
 | VOL-01 | Phase 3 | Pending |
 | VOL-02 | Phase 3 | Pending |
 | VOL-03 | Phase 6 | Pending |

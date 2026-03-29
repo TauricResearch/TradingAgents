@@ -53,7 +53,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 2 plans
 Plans:
 - [x] 01-01-PLAN.md -- Tradier common module and vendor module with typed dataclasses and chain retrieval
-- [ ] 01-02-PLAN.md -- Vendor routing integration, @tool functions, and comprehensive unit tests
+- [x] 01-02-PLAN.md -- Vendor routing integration, @tool functions, and comprehensive unit tests
 
 ### Phase 2: Deterministic Math Core
 **Goal**: All deterministic financial math lives in a pure Python module with comprehensive tests, never as LLM tool calls
