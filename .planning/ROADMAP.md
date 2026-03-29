@@ -2,13 +2,28 @@
 
 ## Overview
 
-This roadmap delivers a parallel options analysis team for TradingAgents, building from data foundation through computation modules, agent wrappers, and full pipeline integration. The build order follows a strict dependency chain: raw data first (Tradier), then deterministic math modules (Greeks, GEX, volatility, strategies), then LLM agent wrappers that interpret pre-computed signals, then debate/synthesis and pipeline integration. Tastyworks streaming is a final enhancement after the batch pipeline proves correct.
+This roadmap delivers a parallel options analysis team for TradingAgents, building from data foundation through computation modules, agent wrappers, and full pipeline integration. The build order follows a strict dependency chain: raw data first (Tradier), then deterministic math modules (Greeks, GEX, volatility, strategies), then LLM agent wrappers that interpret pre-computed signals, then debate/synthesis and pipeline integration. **Tastytrade** streaming (Phase 10) is a final enhancement after the batch pipeline proves correct.
+
+**Canonical requirement IDs** are defined in [.planning/REQUIREMENTS.md](REQUIREMENTS.md). Each phase’s **Requirements:** line lists those IDs; resolve definitions there.
+
+### Requirement ID quick reference
+
+| ID | Meaning |
+|----|---------|
+| DATA-01–08 | Options data retrieval, Greeks, routing, streaming |
+| VOL-01–07 | IV metrics, Tastytrade rules, VRP |
+| GEX-01–04 | Gamma exposure and regime |
+| FLOW-01–02 | Unusual activity / flow |
+| STRAT-01–06 | Strategy construction and reasoning |
+| AGENT-01–10 | Options agents, debate, scoring |
+| INT-01–05 | Pipeline, CLI, validation, pure math module |
+| REL-01–02, VAL-01, OBS-01, CONFIG-01 | Reliability, validation, audit logging, configurable thresholds (see REQUIREMENTS.md) |
 
 ## Phases
 
 **Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+- Integer phases (1, 2, 3, …): Planned milestone work
+- Decimal phases (2.1, 2.2): **Reserved for future urgent insertions** (marked INSERTED when used). They document ad-hoc work between integers and **do not imply missing integer phases**.
 
 Decimal phases appear between their surrounding integers in numeric order.
 
@@ -18,10 +33,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 4: GEX & Market Microstructure** - Gamma exposure, dealer positioning, walls, flow detection
 - [ ] **Phase 5: Volatility Surface** - SVI parametric fitting across strikes and expirations
 - [ ] **Phase 6: Strategy Construction** - Multi-leg strategy building, P/L profiles, PoP estimation
-- [ ] **Phase 7: TastyTrade Rules Engine** - IVR-based strategy selection and position management rules
+- [ ] **Phase 7: Tastytrade Rules Engine** - IVR-based strategy selection and position management rules
 - [ ] **Phase 8: Options Agent Team** - LLM agent factories for all options analyst roles
 - [ ] **Phase 9: Debate, Scoring & Pipeline Integration** - Options debate, portfolio manager, composite score, LangGraph integration, CLI
-- [ ] **Phase 10: Tastyworks Streaming** - Real-time Greeks and quotes via DXLink WebSocket
+- [ ] **Phase 10: Tastytrade Streaming** - Real-time Greeks and quotes via DXLink WebSocket
 
 ## Phase Details
 
@@ -37,7 +52,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. Tradier is registered as a new vendor in the existing data routing layer following the established provider pattern
 **Plans:** 2 plans
 Plans:
-- [ ] 01-01-PLAN.md -- Tradier common module and vendor module with typed dataclasses and chain retrieval
+- [x] 01-01-PLAN.md -- Tradier common module and vendor module with typed dataclasses and chain retrieval
 - [ ] 01-02-PLAN.md -- Vendor routing integration, @tool functions, and comprehensive unit tests
 
 ### Phase 2: Deterministic Math Core
@@ -95,8 +110,8 @@ Plans:
   5. System calculates max profit, max loss, breakeven points, and Probability of Profit for each strategy using deterministic math
 **Plans**: TBD
 
-### Phase 7: TastyTrade Rules Engine
-**Goal**: System applies proven TastyTrade methodology rules to guide strategy selection and position management timing
+### Phase 7: Tastytrade Rules Engine
+**Goal**: System applies proven Tastytrade methodology rules to guide strategy selection and position management timing
 **Depends on**: Phase 3, Phase 6
 **Requirements**: VOL-05, VOL-06
 **Success Criteria** (what must be TRUE):
@@ -133,12 +148,12 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 10: Tastyworks Streaming
-**Goal**: System can receive real-time streaming Greeks and quotes via Tastyworks for sub-minute data freshness
+### Phase 10: Tastytrade Streaming
+**Goal**: System can receive real-time streaming Greeks and quotes via Tastytrade for sub-minute data freshness
 **Depends on**: Phase 1, Phase 9
 **Requirements**: DATA-07
 **Success Criteria** (what must be TRUE):
-  1. System connects to Tastyworks DXLink WebSocket and receives real-time streaming Greeks and quotes
+  1. System connects to Tastytrade DXLink WebSocket and receives real-time streaming Greeks and quotes
   2. Streaming data integrates into the existing vendor routing layer as an alternative to Tradier's hourly ORATS refresh
   3. System gracefully falls back to Tradier REST data when WebSocket connection is unavailable
 **Plans**: TBD
@@ -147,7 +162,8 @@ Plans:
 
 **Execution Order:**
 Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
-Note: Phases 2, 3, and 4 can execute in parallel after Phase 1. Phase 6 depends on Phases 2+3. Phase 7 depends on Phases 3+6. Phase 8 depends on all computation phases (2-7).
+
+**Parallelization:** After **Phase 1** completes, **Phases 2, 3, and 4** may run in parallel (each depends only on Phase 1). **Phase 5** is **not** in that parallel group: it **must follow Phase 3** (and Phase 1) because volatility-surface work depends on volatility metrics from Phase 3. Do not schedule Phase 5 concurrently with Phase 3. Phase 6 depends on Phases 2+3. Phase 7 depends on Phases 3+6. Phase 8 depends on all computation phases (2–7).
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -157,7 +173,7 @@ Note: Phases 2, 3, and 4 can execute in parallel after Phase 1. Phase 6 depends 
 | 4. GEX & Market Microstructure | 0/TBD | Not started | - |
 | 5. Volatility Surface | 0/TBD | Not started | - |
 | 6. Strategy Construction | 0/TBD | Not started | - |
-| 7. TastyTrade Rules Engine | 0/TBD | Not started | - |
+| 7. Tastytrade Rules Engine | 0/TBD | Not started | - |
 | 8. Options Agent Team | 0/TBD | Not started | - |
 | 9. Debate, Scoring & Pipeline Integration | 0/TBD | Not started | - |
-| 10. Tastyworks Streaming | 0/TBD | Not started | - |
+| 10. Tastytrade Streaming | 0/TBD | Not started | - |

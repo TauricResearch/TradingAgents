@@ -9,14 +9,14 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Data Foundation
 
-- [ ] **DATA-01**: System can retrieve full options chain (strikes, expirations, bid/ask, volume, OI) via Tradier API
-- [ ] **DATA-02**: System can retrieve options expirations and available strikes for any ticker via Tradier API
-- [ ] **DATA-03**: System displays 1st-order Greeks (Delta, Gamma, Theta, Vega, Rho) from ORATS via Tradier
-- [ ] **DATA-04**: System displays implied volatility per contract (bid_iv, mid_iv, ask_iv, smv_vol)
-- [ ] **DATA-05**: System can filter options chains by DTE range (e.g., 30-60 DTE for income strategies)
+- [x] **DATA-01**: System can retrieve full options chain (strikes, expirations, bid/ask, volume, OI) via Tradier API
+- [x] **DATA-02**: System can retrieve options expirations and available strikes for any ticker via Tradier API
+- [x] **DATA-03**: System displays 1st-order Greeks (Delta, Gamma, Theta, Vega, Rho) from ORATS via Tradier
+- [x] **DATA-04**: System displays implied volatility per contract (bid_iv, mid_iv, ask_iv, smv_vol)
+- [x] **DATA-05**: System can filter options chains by DTE range (e.g., 30-60 DTE for income strategies)
 - [ ] **DATA-06**: System calculates 2nd-order Greeks (Charm, Vanna, Volga/Vomma) via blackscholes library
-- [ ] **DATA-07**: System can retrieve real-time streaming Greeks and quotes via Tastyworks DXLink WebSocket
-- [ ] **DATA-08**: System integrates Tradier and Tastyworks as new vendors in the existing data routing layer
+- [ ] **DATA-07**: System can retrieve real-time streaming Greeks and quotes via Tastytrade DXLink WebSocket
+- [ ] **DATA-08**: System integrates Tradier and Tastytrade as new vendors in the existing data routing layer
 
 ### Volatility Analysis
 
@@ -24,9 +24,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **VOL-02**: System calculates IV Percentile using 252-day lookback of IV readings
 - [ ] **VOL-03**: System estimates Probability of Profit (PoP) for each recommended strategy
 - [ ] **VOL-04**: System constructs volatility surface via SVI parametric fitting across strikes and expirations
-- [ ] **VOL-05**: System implements TastyTrade rules engine: IVR-based strategy selection (IVR >= 50% = sell premium, IVR < 30% = buy premium)
-- [ ] **VOL-06**: System implements TastyTrade position management rules: 45 DTE entry, 21 DTE management, 50% profit target, 2x credit stop-loss
-- [ ] **VOL-07**: System calculates Volatility Risk Premium (VRP) by comparing IV to historical/realized volatility
+- [ ] **VOL-05**: System implements Tastytrade rules engine: IVR-based strategy selection (IVR >= 50% = sell premium, IVR < 30% = buy premium)
+- [ ] **VOL-06**: System implements Tastytrade position management rules: 45 DTE entry target; **when any leg reaches 21 DTE**, begin **mandatory management**—**close or roll every leg** of the position (exceptions only when explicitly allowed in config); 50% profit target; 2x credit stop-loss (numeric thresholds validated per **CONFIG-01**)
+- [ ] **VOL-07**: System calculates Volatility Risk Premium (VRP) by comparing IV to historical/realized volatility (independent of the 21 DTE management timing in **VOL-06**)
 
 ### Dealer Positioning & Flow
 
@@ -56,7 +56,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AGENT-06**: Position sizing agent calculates risk/reward profiles (max P/L, breakevens, PoP) for recommended strategies
 - [ ] **AGENT-07**: Options debate phase runs bull/bear debate on the options thesis with configurable rounds
 - [ ] **AGENT-08**: Options portfolio manager synthesizes all analysis and debate into final recommendation with reasoning
-- [ ] **AGENT-09**: All options agents follow existing create_*() factory pattern and write to shared AgentState
+- [ ] **AGENT-09**: All options agents follow existing create_*() factory pattern and write to shared AgentState; factories expose hooks for **OBS-01** decision/audit logging and **VAL-01** pre-invocation validation of tool inputs
 - [ ] **AGENT-10**: Composite Options Score (0-5) computed from IV rank, GEX regime, flow signals, and vol skew
 
 ### Integration
@@ -66,6 +66,14 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **INT-03**: CLI updated to support options analysis mode with interactive options-specific prompts
 - [ ] **INT-04**: Deterministic validation layer checks strategy structural validity, risk limits, and liquidity before output
 - [ ] **INT-05**: All deterministic math (Black-Scholes, GEX, 2nd-order Greeks, P/L) in pure Python module, not LLM tool calls
+
+### Reliability & Observability
+
+- [ ] **REL-01**: Graceful handling of external API failures: bounded retries where appropriate, clear user-facing errors (no silent empty success)
+- [ ] **REL-02**: Rate limiting, exponential backoff, and quota awareness for all external APIs used by **DATA-01**–**DATA-08** (and shared HTTP clients)
+- [ ] **VAL-01**: Validate external payloads (schema/range checks) before downstream processing for **DATA-01**–**DATA-08** and **AGENT-01**–**AGENT-06** tool inputs
+- [ ] **OBS-01**: Structured agent decision logging / audit trail for **AGENT-02**, **AGENT-05**, **AGENT-08**, and rationale tied to **STRAT-06**
+- [ ] **CONFIG-01**: **VOL-05** / **VOL-06** numeric thresholds (IVR bands, DTE targets, profit/stop multiples) are configuration-driven, validated at startup, and documented
 
 ## v2 Requirements
 
@@ -83,20 +91,24 @@ Deferred to future release. Tracked but not in current roadmap.
 - **ADV-02**: Custom volatility models (Heston, local vol) for exotic pricing
 - **ADV-03**: Options backtesting engine with historical vol surfaces and fill simulation
 
-## Out of Scope
+## Out of Scope (v1)
 
-Explicitly excluded. Documented to prevent scope creep.
+Permanent exclusions for v1 — not planned for the initial options module release.
 
 | Feature | Reason |
 |---------|--------|
 | Order execution / broker integration | Analysis-only mandate; regulatory complexity |
 | Real-time streaming dashboard | Batch `propagate()` architecture; streaming is for data freshness only |
-| 0DTE strategy support | Requires real-time infrastructure not yet in place |
-| Historical IV surface database | Requires ORATS subscription or building own historical DB |
-| Options backtesting engine | Separate domain requiring historical vol surfaces and fill simulation |
-| Custom vol models (Heston, local vol) | Over-engineering; SVI sufficient for equity options |
-| Portfolio-level Greeks aggregation | No position state in analysis-only module |
 | Mobile/web UI | CLI and Python API only |
+
+## Deferred to v2
+
+Tracked as **v2** requirements (**EDATA-*** / **ADV-***) — not in the current v1 roadmap, but **not** permanently excluded.
+
+| v2 ID | Topic | Note |
+|-------|--------|------|
+| EDATA-01 / EDATA-02 / EDATA-03 | Historical IV storage, 0DTE, multi-ticker batch | See v2 **Enhanced Data** section |
+| ADV-01 / ADV-02 / ADV-03 | Portfolio Greeks aggregation, custom vol models, options backtesting | See v2 **Advanced Analytics** section |
 
 ## Traceability
 
@@ -104,11 +116,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Pending |
-| DATA-02 | Phase 1 | Pending |
-| DATA-03 | Phase 1 | Pending |
-| DATA-04 | Phase 1 | Pending |
-| DATA-05 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
+| DATA-02 | Phase 1 | Complete |
+| DATA-03 | Phase 1 | Complete |
+| DATA-04 | Phase 1 | Complete |
+| DATA-05 | Phase 1 | Complete |
 | DATA-06 | Phase 2 | Pending |
 | DATA-07 | Phase 10 | Pending |
 | DATA-08 | Phase 1 | Pending |
@@ -148,9 +160,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INT-05 | Phase 2 | Pending |
 
 **Coverage:**
-- v1 requirements: 42 total
-- Mapped to phases: 42
-- Unmapped: 0
+- v1 checklist items: 42 core + 5 reliability/observability (**REL-01**–**REL-02**, **VAL-01**, **OBS-01**, **CONFIG-01**); phase mapping for the five to be assigned during Phase 8/9 planning
+- Mapped to phases: 42 (core)
+- Unmapped: REL/VAL/OBS/CONFIG (pending phase assignment)
 
 ---
 *Requirements defined: 2026-03-29*
