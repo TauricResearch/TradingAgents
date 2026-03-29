@@ -7,7 +7,7 @@ name = "tradingagents"
 version = "0.2.2"
 description = "TradingAgents: Multi-Agents LLM Financial Trading Framework"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "langchain-core>=0.3.81",
     "backtrader>=1.9.78.123",
@@ -40,3 +40,8 @@ include = ["tradingagents*", "cli*"]
 
 [tool.setuptools.package-data]
 cli = ["static/*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
