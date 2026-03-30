@@ -67,10 +67,12 @@ MODEL_OPTIONS: ProviderModeOptions = {
         "quick": [
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
+            ("View All Models", "view_all_models")
         ],
         "deep": [
             ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
             ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
+            ("View All Models", "view_all_models")
         ],
     },
     "ollama": {

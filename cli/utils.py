@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import questionary
 from typing import List, Optional, Tuple, Dict
 
@@ -133,6 +135,52 @@ def select_research_depth() -> int:
 
     return choice
 
+@lru_cache
+def fetch_openrouter_models() -> List[Tuple[str, str]]:
+    import openrouter
+    try:
+        client = openrouter.OpenRouter()
+        res = client.models.list()
+        return [(m.name or m.id, m.id) for m in res.data]
+    except openrouter.APIError as e:
+        console.print(f"\n[red]Failed to fetch OpenRouter models: {e}[/red]")
+        exit(1)
+
+def view_all_models(mode: str, provider: str) -> str:
+    """Fetch all models and display them in a searchable list."""
+            
+    fetched_models = []
+    if provider.lower() == "openrouter":
+        fetched_models = fetch_openrouter_models()
+    # Sort models alphabetically by name
+    fetched_models.sort(key=lambda x: x[0].lower() if x[0] else "")
+    
+    choice = questionary.select(
+        f"Select Your [{mode.title()}-Thinking LLM Engine]:",
+        choices=[
+            questionary.Choice(display, value=value)
+            for display, value in fetched_models
+        ],
+        instruction="\n- Start typing to filter models\n- Use arrow keys to navigate\n- Press Enter to select",
+        use_search_filter=True,
+        use_jk_keys=False,
+        style=questionary.Style(
+            [
+                ("selected", "fg:magenta noinherit"),
+                ("highlighted", "fg:magenta noinherit"),
+                ("pointer", "fg:magenta noinherit"),
+            ]
+        ),
+    ).ask()
+    
+    if choice is None:
+        console.print(
+            f"\n[red]No {mode} thinking llm engine selected. Exiting...[/red]"
+        )
+        exit(1)
+        
+    return choice
+
 
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
@@ -159,6 +207,9 @@ def select_shallow_thinking_agent(provider) -> str:
         )
         exit(1)
 
+    if choice == "view_all_models":
+        return view_all_models("Quick", provider)
+
     return choice
 
 
@@ -184,6 +235,9 @@ def select_deep_thinking_agent(provider) -> str:
     if choice is None:
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
         exit(1)
+
+    if choice == "view_all_models":
+        return view_all_models("deep", provider)
 
     return choice
 
