@@ -67,6 +67,24 @@ interface RunParams {
   force: boolean;
 }
 
+const parseTickerInput = (value: string): string[] =>
+  value
+    .split(',')
+    .map((ticker) => ticker.trim().toUpperCase())
+    .filter(Boolean);
+
+const restoreTickerInput = (run: any, fallback: string): string => {
+  const params = run?.params || {};
+  if (run?.type === 'mock' && params.mock_type === 'auto') {
+    const tickers = Array.isArray(params.tickers) ? params.tickers : [];
+    return tickers.join(',');
+  }
+  if (run?.type === 'auto' || run?.type === 'scan' || run?.type === 'portfolio') {
+    return '';
+  }
+  return params.ticker || fallback;
+};
+
 const RUN_TYPE_LABELS: Record<RunType, string> = {
   scan: 'Scan',
   pipeline: 'Pipeline',
@@ -449,26 +467,31 @@ export const Dashboard: React.FC = () => {
     setActiveRunType(type);
     try {
       clearEvents();
-      // For mock auto runs, parse comma-separated tickers into an array
-      const mockTickers = effectiveParams.mock_type === 'auto'
-        ? effectiveParams.ticker.split(',').map((t) => t.trim().toUpperCase()).filter(Boolean)
-        : undefined;
-      const body = type === 'mock'
-        ? {
-            mock_type: effectiveParams.mock_type,
-            ticker: effectiveParams.ticker.split(',')[0].trim().toUpperCase(),
-            ...(mockTickers && mockTickers.length > 1 ? { tickers: mockTickers } : {}),
-            date: effectiveParams.date,
-            speed: parseFloat(effectiveParams.speed) || 3,
-          }
-        : {
-            portfolio_id: effectiveParams.portfolio_id,
-            date: effectiveParams.date,
-            ticker: effectiveParams.ticker,
-            force: effectiveParams.force,
-            continue_on_ticker_failure: effectiveParams.continue_on_ticker_failure,
-            ...(effectiveParams.max_auto_tickers ? { max_tickers: parseInt(effectiveParams.max_auto_tickers, 10) } : {}),
-          };
+      const inputTickers = parseTickerInput(effectiveParams.ticker);
+      let body: Record<string, unknown>;
+      if (type === 'mock') {
+        body = {
+          mock_type: effectiveParams.mock_type,
+          date: effectiveParams.date,
+          speed: parseFloat(effectiveParams.speed) || 3,
+        };
+        if (effectiveParams.mock_type === 'auto') {
+          if (inputTickers.length > 0) body.tickers = inputTickers;
+        } else if (effectiveParams.mock_type === 'pipeline' && inputTickers.length > 0) {
+          body.ticker = inputTickers[0];
+        }
+      } else {
+        body = {
+          portfolio_id: effectiveParams.portfolio_id,
+          date: effectiveParams.date,
+          force: effectiveParams.force,
+          continue_on_ticker_failure: effectiveParams.continue_on_ticker_failure,
+          ...(effectiveParams.max_auto_tickers ? { max_tickers: parseInt(effectiveParams.max_auto_tickers, 10) } : {}),
+        };
+        if (type === 'pipeline' && inputTickers.length > 0) {
+          body.ticker = inputTickers[0];
+        }
+      }
       const res = await axios.post(`${API_BASE}/run/${type}`, body);
       setActiveRunId(res.data.run_id);
     } catch (err) {
@@ -539,11 +562,14 @@ export const Dashboard: React.FC = () => {
       setParams((p) => ({
         ...p,
         date: run.params.date || p.date,
-        ticker: run.params.ticker || p.ticker,
+        ticker: restoreTickerInput(run, p.ticker),
         portfolio_id: run.params.portfolio_id || p.portfolio_id,
         // Restore max_auto_tickers so the ticker cap matches the original run
         max_auto_tickers: run.params.max_tickers?.toString() || run.params.max_auto_tickers?.toString() || '',
         continue_on_ticker_failure: Boolean(run.params.continue_on_ticker_failure),
+        mock_type: run.params.mock_type || p.mock_type,
+        speed: run.params.speed?.toString() || p.speed,
+        force: Boolean(run.params.force),
       }));
     }
     setActiveRunId(null);

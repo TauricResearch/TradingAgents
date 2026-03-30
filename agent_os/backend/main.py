@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from agent_os.backend.routes import portfolios, runs, websocket
+from agent_os.backend.run_metadata import normalize_run_params
 import logging
 
 # Setup logging
@@ -55,7 +56,7 @@ def _hydrate_run_record(meta: dict) -> dict:
         "status": status,
         "created_at": meta.get("created_at", 0),
         "user_id": meta.get("user_id", "anonymous"),
-        "params": meta.get("params", {}),
+        "params": normalize_run_params(meta.get("type", ""), meta.get("params", {})),
         "rerun_seq": meta.get("rerun_seq", 0),
         "events": [],  # loaded lazily on demand
         "hydrated_from_disk": True,

@@ -5,6 +5,7 @@ import time
 import os
 from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
+from agent_os.backend.run_metadata import normalize_run_params
 from agent_os.backend.services.langgraph_engine import LangGraphEngine, NODE_TO_PHASE
 from agent_os.backend.services.mock_engine import MockEngine
 from tradingagents.report_paths import generate_run_id
@@ -68,7 +69,7 @@ async def trigger_scan(
     params: Dict[str, Any] = None,
     user: dict = Depends(get_current_user)
 ):
-    p = params or {}
+    p = normalize_run_params("scan", params or {})
     run_id = generate_run_id()
     runs[run_id] = {
         "id": run_id,
@@ -89,7 +90,7 @@ async def trigger_pipeline(
     params: Dict[str, Any] = None,
     user: dict = Depends(get_current_user)
 ):
-    p = params or {}
+    p = normalize_run_params("pipeline", params or {})
     run_id = generate_run_id()
     runs[run_id] = {
         "id": run_id,
@@ -110,7 +111,7 @@ async def trigger_portfolio(
     params: Dict[str, Any] = None,
     user: dict = Depends(get_current_user)
 ):
-    p = params or {}
+    p = normalize_run_params("portfolio", params or {})
     run_id = generate_run_id()
     runs[run_id] = {
         "id": run_id,
@@ -131,7 +132,7 @@ async def trigger_auto(
     params: Dict[str, Any] = None,
     user: dict = Depends(get_current_user)
 ):
-    p = params or {}
+    p = normalize_run_params("auto", params or {})
     run_id = generate_run_id()
     runs[run_id] = {
         "id": run_id,
@@ -161,7 +162,7 @@ async def trigger_mock(
       date      : analysis date  (default: today)
       speed     : delay divisor — 1.0 = realistic, 5.0 = fast  (default: 1.0)
     """
-    p = params or {}
+    p = normalize_run_params("mock", params or {})
     run_id = generate_run_id()
     runs[run_id] = {
         "id": run_id,
