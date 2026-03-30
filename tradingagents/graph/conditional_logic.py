@@ -1,6 +1,10 @@
 # TradingAgents/graph/conditional_logic.py
 
 from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.utils.critical_abort import (
+    report_has_critical_abort,
+    state_has_critical_abort,
+)
 from tradingagents.constants import CRITICAL_ABORT_NODE
 
 
@@ -25,10 +29,11 @@ class ConditionalLogic:
         report = state.get(report_field, "")
         if not report:
             return False
-        # Deliberately require the explicit marker. Bearish language such as
-        # "sell", "strong sell", or "avoid" must still go through the normal
-        # debate/risk flow unless the analyst emitted a hard-stop abort marker.
-        return "[CRITICAL ABORT]" in report
+        # Deliberately require the explicit leading marker. Bearish language
+        # such as "sell", "strong sell", or "avoid" must still go through the
+        # normal debate/risk flow unless the analyst emitted a hard-stop abort
+        # marker at the start of the report.
+        return report_has_critical_abort(report)
 
     def should_continue_market(self, state: AgentState):
         """Determine if market analysis should continue."""
@@ -66,7 +71,7 @@ class ConditionalLogic:
         """Determine if debate should continue."""
 
         # Only the explicit CRITICAL ABORT marker bypasses debate.
-        if self._check_critical_abort(state, "market_report") or self._check_critical_abort(state, "fundamentals_report"):
+        if state_has_critical_abort(state, "market_report", "fundamentals_report"):
             return CRITICAL_ABORT_NODE
 
         if (
@@ -81,7 +86,7 @@ class ConditionalLogic:
         """Determine if risk analysis should continue."""
 
         # Only the explicit CRITICAL ABORT marker bypasses risk analysis.
-        if self._check_critical_abort(state, "market_report") or self._check_critical_abort(state, "fundamentals_report"):
+        if state_has_critical_abort(state, "market_report", "fundamentals_report"):
             return CRITICAL_ABORT_NODE
 
         if (

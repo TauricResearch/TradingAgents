@@ -21,6 +21,7 @@ def prefetch_tools_parallel(tool_calls: list[dict]) -> dict[str, str]:
         dict mapping ``label`` → result string (or error placeholder)
     """
     results: dict[str, str] = {}
+    completed: dict[str, str] = {}
 
     def _fetch_one(tc: dict) -> tuple[str, str]:
         label: str = tc["label"]
@@ -34,7 +35,11 @@ def prefetch_tools_parallel(tool_calls: list[dict]) -> dict[str, str]:
         futures = {executor.submit(_fetch_one, tc): tc["label"] for tc in tool_calls}
         for future in as_completed(futures):
             label, result = future.result()
-            results[label] = result
+            completed[label] = result
+
+    for tc in tool_calls:
+        label = tc["label"]
+        results[label] = completed[label]
 
     return results
 

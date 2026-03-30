@@ -7,6 +7,7 @@ from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.utils.critical_abort import state_has_critical_abort
 from tradingagents.instruments import is_equity_pipeline_supported, resolve_instrument
 
 from .conditional_logic import ConditionalLogic, CRITICAL_ABORT_NODE
@@ -16,9 +17,7 @@ class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
     def _should_short_circuit_to_critical_abort_terminal(self, state: AgentState) -> bool:
-        return self.conditional_logic._check_critical_abort(
-            state, "market_report"
-        ) or self.conditional_logic._check_critical_abort(state, "fundamentals_report")
+        return state_has_critical_abort(state, "market_report", "fundamentals_report")
 
     @staticmethod
     def _route_after_preflight(state: AgentState, next_node: str) -> str:

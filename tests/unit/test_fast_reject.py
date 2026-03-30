@@ -36,6 +36,24 @@ normal_fundamentals_report = "Company fundamentals are strong with healthy margi
 strong_sell_market_report = "Market view: strong sell due to weak momentum and downside risk, but no hard-stop event detected."
 strong_sell_fundamentals_report = "Fundamentals view: strong sell because margins are compressing, but there is no bankruptcy, delisting, or critical event."
 
+# Real-world false-positive pattern captured from an NVDA run artifact.
+nvda_false_positive_market_report = """# NVDA Technical Analysis Report — Final Update
+
+## Executive Summary
+
+NVDA is currently in a correction mode within a broader bullish structural frame. With VIX elevated at 30.6 and the macro regime in TRANSITION, volatility should be expected.
+
+## Risk Framing
+
+Given the elevated volatility, transition regime uncertainty, and bearish momentum, a cautious approach is warranted. Aggressive entries or unwarranted long exposure in a pullback environment under VIX=30.6 is not aligned with the current macro setup.
+
+[CRITICAL ABORT] No catastrophic conditions detected in the pre-loaded data.
+
+## Final Transaction Recommendation
+
+HOLD / CAUTIOUS DEFENSIVE
+"""
+
 # Macro regime report
 macro_regime_report = "Current macro environment shows stable interest rates and moderate inflation."
 
@@ -97,14 +115,51 @@ class TestConditionalLogicAbortDetection:
         assert result is False
 
     def test_check_critical_abort_partial_match(self):
-        """Verify abort is detected even with partial match."""
+        """Embedded markers must not trigger the terminal abort path."""
         cl = ConditionalLogic()
         state = {
             "market_report": "Some text [CRITICAL ABORT] Reason: Test",
             "fundamentals_report": normal_fundamentals_report,
         }
         result = cl._check_critical_abort(state, "market_report")
+        assert result is False
+
+    def test_check_critical_abort_detected_with_leading_whitespace(self):
+        """Leading whitespace before the marker is allowed."""
+        cl = ConditionalLogic()
+        state = {
+            "market_report": " \n\t[CRITICAL ABORT] Reason: Trading halted pending SEC investigation",
+            "fundamentals_report": normal_fundamentals_report,
+        }
+        result = cl._check_critical_abort(state, "market_report")
         assert result is True
+
+    def test_check_critical_abort_not_detected_for_nvda_false_positive_phrase(self):
+        """A mid-report explanatory sentence must not abort the graph."""
+        cl = ConditionalLogic()
+        state = {
+            "market_report": nvda_false_positive_market_report,
+            "fundamentals_report": normal_fundamentals_report,
+        }
+        result = cl._check_critical_abort(state, "market_report")
+        assert result is False
+
+    def test_nvda_market_report_does_not_bypass_debate_flow(self):
+        """NVDA-style mid-report marker must not short-circuit the graph."""
+        cl = ConditionalLogic()
+        state = {
+            "market_report": nvda_false_positive_market_report,
+            "fundamentals_report": normal_fundamentals_report,
+            "investment_debate_state": {
+                "history": [],
+                "bull_history": [],
+                "bear_history": [],
+                "current_response": "",
+                "judge_decision": "",
+                "count": 0,
+            },
+        }
+        assert cl.should_continue_debate(state) == "Bull Researcher"
 
     def test_check_critical_abort_not_triggered_by_strong_sell_language(self):
         """Sell wording alone must not be treated as a critical abort."""

@@ -398,6 +398,49 @@ class TestAlphaVantageGetNews:
             with pytest.raises(AlphaVantageRateLimitError):
                 get_news("AAPL", "2024-01-01", "2024-01-05")
 
+    def test_ranks_company_news_by_target_ticker_relevance(self):
+        from tradingagents.dataflows.alpha_vantage_news import get_news
+
+        payload = json.dumps({
+            "items": "50",
+            "feed": [
+                {
+                    "title": "Low relevance mention",
+                    "url": "https://example.com/low",
+                    "time_published": "20240105T120000",
+                    "ticker_sentiment": [
+                        {"ticker": "MSFT", "relevance_score": "0.21"},
+                    ],
+                },
+                {
+                    "title": "High relevance feature story",
+                    "url": "https://example.com/high",
+                    "time_published": "20240105T130000",
+                    "ticker_sentiment": [
+                        {"ticker": "MSFT", "relevance_score": "0.91"},
+                    ],
+                },
+                {
+                    "title": "Duplicate high relevance feature story",
+                    "url": "https://example.com/high",
+                    "time_published": "20240105T130000",
+                    "ticker_sentiment": [
+                        {"ticker": "MSFT", "relevance_score": "0.91"},
+                    ],
+                },
+            ],
+        })
+
+        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
+                   return_value=_mock_response(payload)):
+            result = json.loads(get_news("MSFT", "2024-01-01", "2024-01-05"))
+
+        assert result["items"] == "2"
+        assert [article["title"] for article in result["feed"]] == [
+            "High relevance feature story",
+            "Low relevance mention",
+        ]
+
 
 class TestAlphaVantageGetGlobalNews:
     def test_returns_global_news_response_on_success(self):
@@ -425,6 +468,24 @@ class TestAlphaVantageGetGlobalNews:
 
         # time_from should be 7 days before 2024-01-15 → 2024-01-08
         assert "20240108T0000" in captured_params.get("time_from", "")
+
+    def test_limit_is_enforced_locally_when_feed_is_oversized(self):
+        from tradingagents.dataflows.alpha_vantage_news import get_global_news
+
+        payload = json.dumps({
+            "items": "50",
+            "feed": [
+                {"title": f"Article {idx}", "url": f"https://example.com/{idx}"}
+                for idx in range(6)
+            ],
+        })
+
+        with patch("tradingagents.dataflows.alpha_vantage_common.requests.get",
+                   return_value=_mock_response(payload)):
+            result = json.loads(get_global_news("2024-01-15", look_back_days=7, limit=3))
+
+        assert result["items"] == "3"
+        assert len(result["feed"]) == 3
 
 
 class TestAlphaVantageGetInsiderTransactions:

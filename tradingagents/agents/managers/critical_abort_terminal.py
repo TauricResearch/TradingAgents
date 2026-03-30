@@ -1,17 +1,8 @@
 from __future__ import annotations
 
 from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.critical_abort import extract_abort_report
 from tradingagents.constants import CRITICAL_ABORT_NODE
-
-
-def _extract_abort_report(state) -> tuple[str, str]:
-    market_report = state.get("market_report", "")
-    fundamentals_report = state.get("fundamentals_report", "")
-    if market_report and "[CRITICAL ABORT]" in market_report:
-        return "market_report", market_report
-    if fundamentals_report and "[CRITICAL ABORT]" in fundamentals_report:
-        return "fundamentals_report", fundamentals_report
-    return "", ""
 
 
 def create_critical_abort_terminal():
@@ -19,7 +10,9 @@ def create_critical_abort_terminal():
         context = str(state.get("portfolio_context") or "candidate").strip().lower()
         is_holding = context == "holding"
         terminal_action = "SELL" if is_holding else "AVOID"
-        source_field, abort_report = _extract_abort_report(state)
+        source_field, abort_report = extract_abort_report(
+            state, "market_report", "fundamentals_report"
+        )
         source_label = source_field.replace("_", " ") if source_field else "analyst report"
         instrument_context = build_instrument_context(state["company_of_interest"])
 
