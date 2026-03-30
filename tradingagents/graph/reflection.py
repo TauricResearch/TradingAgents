@@ -110,12 +110,12 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         )
         invest_judge_memory.add_situations([(situation, result)])
 
-    def reflect_portfolio_manager(self, current_state, returns_losses, portfolio_manager_memory):
-        """Reflect on portfolio manager's decision and update memory."""
+    def reflect_risk_manager(self, current_state, returns_losses, risk_manager_memory):
+        """Reflect on risk manager's decision and update memory."""
         situation = self._extract_current_situation(current_state)
         judge_decision = current_state["risk_debate_state"]["judge_decision"]
 
         result = self._reflect_on_component(
-            "PORTFOLIO MANAGER", judge_decision, situation, returns_losses
+            "RISK MANAGER", judge_decision, situation, returns_losses
         )
-        portfolio_manager_memory.add_situations([(situation, result)])
+        risk_manager_memory.add_situations([(situation, result)])

@@ -7,6 +7,7 @@ in clean markdown format. No HTML parsing needed.
 - Web Unlocker docs: https://docs.brightdata.com/scraping-automation/web-unlocker/introduction
 """
 
+import json
 import os
 import requests
 from datetime import datetime, timedelta
@@ -294,8 +295,11 @@ def get_social_sentiment(ticker: str, curr_date: str = "") -> str:
         Formatted string containing social media sentiment data.
     """
     try:
+        query = f"{ticker} stock reddit wallstreetbets sentiment discussion"
+        if curr_date:
+            query += f" {curr_date}"
         results = _search_and_fetch(
-            query=f"{ticker} stock reddit wallstreetbets sentiment discussion",
+            query=query,
             num_results=5,
             fetch_content=True,
             max_content_length=3000,

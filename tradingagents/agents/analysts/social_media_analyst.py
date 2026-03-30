@@ -8,7 +8,6 @@ def create_social_media_analyst(llm):
     def social_media_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
-        company_name = state["company_of_interest"]
 
         # Check if bright_data vendor is configured for social sentiment
         config = get_config()
