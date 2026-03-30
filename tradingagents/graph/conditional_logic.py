@@ -1,5 +1,6 @@
 # TradingAgents/graph/conditional_logic.py
 
+from typing import Callable
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.agents.utils.critical_abort import (
     report_has_critical_abort,
@@ -17,15 +18,7 @@ class ConditionalLogic:
         self.max_risk_discuss_rounds = max_risk_discuss_rounds
 
     def _check_critical_abort(self, state: AgentState, report_field: str) -> bool:
-        """Check if a report contains [CRITICAL ABORT] trigger.
-
-        Args:
-            state: The current agent state
-            report_field: The field name to check (e.g., 'market_report', 'fundamentals_report')
-
-        Returns:
-            True if [CRITICAL ABORT] is found in the report, False otherwise
-        """
+        """Check if a report contains [CRITICAL ABORT] trigger."""
         report = state.get(report_field, "")
         if not report:
             return False
@@ -35,48 +28,24 @@ class ConditionalLogic:
         # marker at the start of the report.
         return report_has_critical_abort(report)
 
-    def should_continue_market(self, state: AgentState):
-        """Determine if market analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_market"
-        return "Msg Clear Market"
-
-    def should_continue_social(self, state: AgentState):
-        """Determine if social media analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_social"
-        return "Msg Clear Social"
-
-    def should_continue_news(self, state: AgentState):
-        """Determine if news analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_news"
-        return "Msg Clear News"
-
-    def should_continue_fundamentals(self, state: AgentState):
-        """Determine if fundamentals analysis should continue."""
-        messages = state["messages"]
-        last_message = messages[-1]
-        if last_message.tool_calls:
-            return "tools_fundamentals"
-        return "Msg Clear Fundamentals"
+    @staticmethod
+    def make_should_continue(tool_name: str, msg_clear: str) -> Callable[[AgentState], str]:
+        """Factory for analyzer continuation logic."""
+        def should_continue(state: AgentState) -> str:
+            messages = state["messages"]
+            last_message = messages[-1]
+            if last_message.tool_calls:
+                return tool_name
+            return msg_clear
+        return should_continue
 
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""
-
         # Only the explicit CRITICAL ABORT marker bypasses debate.
         if state_has_critical_abort(state, "market_report", "fundamentals_report"):
             return CRITICAL_ABORT_NODE
 
-        if (
-            state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
-        ):  # 3 rounds of back-and-forth between 2 agents
+        if state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds:
             return "Research Manager"
         if state["investment_debate_state"]["current_response"].startswith("Bull"):
             return "Bear Researcher"
@@ -84,14 +53,11 @@ class ConditionalLogic:
 
     def should_continue_risk_analysis(self, state: AgentState) -> str:
         """Determine if risk analysis should continue."""
-
         # Only the explicit CRITICAL ABORT marker bypasses risk analysis.
         if state_has_critical_abort(state, "market_report", "fundamentals_report"):
             return CRITICAL_ABORT_NODE
 
-        if (
-            state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
-        ):  # 3 rounds of back-and-forth between 3 agents
+        if state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds:
             return "Portfolio Manager"
         if state["risk_debate_state"]["latest_speaker"].startswith("Aggressive"):
             return "Conservative Analyst"
