@@ -16,6 +16,7 @@ dependencies = [
     "langchain-google-genai>=2.1.5",
     "langchain-openai>=0.3.23",
     "langgraph>=0.4.8",
+    "openrouter>=0.8.0",
     "pandas>=2.3.0",
     "parsel>=1.10.0",
     "pytz>=2025.2",
