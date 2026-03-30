@@ -1,10 +1,3 @@
-from dotenv import load_dotenv
-
-# Load environment variables from .env file BEFORE importing any
-# tradingagents modules so TRADINGAGENTS_* vars are visible to
-# DEFAULT_CONFIG at import time.
-load_dotenv()
-
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 

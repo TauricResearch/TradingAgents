@@ -3,7 +3,6 @@ from typing import Dict, Any, List, AsyncGenerator
 import asyncio
 import logging
 import time
-import os
 from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.run_metadata import normalize_run_params
@@ -14,6 +13,7 @@ from agent_os.backend.services.langgraph_engine import (
 )
 from agent_os.backend.services.mock_engine import MockEngine
 from tradingagents.report_paths import generate_run_id
+from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger("agent_os.runs")
 
@@ -466,8 +466,8 @@ async def reset_portfolio_stage(
 
 def _get_mongo_col():
     """Return the run_events collection if MongoDB is configured."""
-    uri = os.getenv("TRADINGAGENTS_MONGO_URI")
-    db_name = os.getenv("TRADINGAGENTS_MONGO_DB", "tradingagents")
+    uri = DEFAULT_CONFIG.get("mongo_uri")
+    db_name = DEFAULT_CONFIG.get("mongo_db", "tradingagents")
     if uri:
         try:
             from pymongo import MongoClient

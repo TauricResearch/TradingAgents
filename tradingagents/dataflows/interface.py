@@ -242,20 +242,22 @@ def get_category_for_method(method: str) -> str:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
 
-def get_vendor(category: str, method: str = None) -> str:
+def get_vendor(category: str, method: str = None, *, config: dict | None = None) -> str:
     """Get the configured vendor for a data category or specific tool method.
     Tool-level configuration takes precedence over category-level.
     """
-    config = get_config()
+    if config is None:
+        config = get_config()
 
     # Check tool-level configuration first (if method provided)
     if method:
         tool_vendors = config.get("tool_vendors", {})
-        if method in tool_vendors:
-            return tool_vendors[method]
+        tool_vendor = tool_vendors.get(method)
+        if tool_vendor:
+            return tool_vendor
 
     # Fall back to category-level configuration
-    return config.get("data_vendors", {}).get(category, "default")
+    return config.get("data_vendors", {}).get(category, "yfinance")
 
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support.
@@ -264,11 +266,15 @@ def route_to_vendor(method: str, *args, **kwargs):
     All others fail-fast on primary vendor failure (see ADR 011).
     """
     category = get_category_for_method(method)
-    vendor_config = get_vendor(category, method)
-    primary_vendors = [v.strip() for v in vendor_config.split(',')]
+    config = get_config()
+    vendor_config = get_vendor(category, method, config=config)
+    primary_vendors = [v.strip() for v in str(vendor_config).split(",") if v.strip()]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
+
+    if not primary_vendors:
+        primary_vendors = list(VENDOR_METHODS[method].keys())
 
     if method in FALLBACK_ALLOWED:
         # Build fallback chain: primary vendors first, then remaining available vendors

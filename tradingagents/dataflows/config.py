@@ -1,31 +1,51 @@
-import tradingagents.default_config as default_config
-from typing import Dict, Optional
+from __future__ import annotations
 
-# Use default config but allow it to be overridden
-_config: Optional[Dict] = None
+from copy import deepcopy
+from typing import Any
+
+from tradingagents.default_config import DEFAULT_CONFIG, build_default_config
+
+# Single in-process runtime config used by vendor routing.
+_config: dict[str, Any] | None = None
 
 
-def initialize_config():
-    """Initialize the configuration with default values."""
+def _base_config() -> dict[str, Any]:
+    return deepcopy(DEFAULT_CONFIG)
+
+
+def initialize_config() -> None:
+    """Initialize runtime config once from DEFAULT_CONFIG."""
     global _config
     if _config is None:
-        _config = default_config.DEFAULT_CONFIG.copy()
+        _config = _base_config()
 
 
-def set_config(config: Dict):
-    """Update the configuration with custom values."""
+def set_config(config: dict[str, Any]) -> None:
+    """Merge a caller-provided config onto a fresh default baseline."""
     global _config
-    if _config is None:
-        _config = default_config.DEFAULT_CONFIG.copy()
-    _config.update(config)
+    base = _base_config()
+    base.update(deepcopy(config))
+    _config = base
 
 
-def get_config() -> Dict:
-    """Get the current configuration."""
+def reset_config(*, load_dotenv: bool | None = None) -> None:
+    """Reset runtime config to defaults.
+
+    Args:
+        load_dotenv:
+            - None: reset from already-built DEFAULT_CONFIG
+            - bool: rebuild defaults explicitly with/without .env
+    """
+    global _config
+    if load_dotenv is None:
+        _config = _base_config()
+        return
+    _config = build_default_config(load_dotenv=load_dotenv)
+
+
+def get_config() -> dict[str, Any]:
+    """Return an isolated copy of current runtime config."""
     if _config is None:
         initialize_config()
-    return _config.copy()
+    return deepcopy(_config)
 
-
-# Initialize with default config
-initialize_config()

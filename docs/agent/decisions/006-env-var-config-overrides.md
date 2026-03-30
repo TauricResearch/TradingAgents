@@ -13,11 +13,11 @@ related_files: [tradingagents/default_config.py, .env.example, pyproject.toml]
 
 ## The Decision
 
-1. **Module-level `.env` loading**: `default_config.py` calls `load_dotenv()` at the top of the module, before `DEFAULT_CONFIG` is evaluated.
-2. **`_env()` / `_env_int()` helpers**: Read `TRADINGAGENTS_<KEY>` from environment. Return the hardcoded default when the env var is unset or empty.
-3. **Restored top-level keys**: `llm_provider` (default: `"openai"`) and `backend_url` (default: `"https://api.openai.com/v1"`) restored as env-overridable keys.
-4. **All config keys overridable**: `TRADINGAGENTS_` prefix + uppercase config key.
-5. **Explicit dependency**: Added `python-dotenv>=1.0.0` to `pyproject.toml`.
+1. **Single config builder**: `default_config.py` owns config resolution via `build_default_config(...)`.
+2. **Explicit precedence**: hardcoded defaults -> `.env` values -> process environment.
+3. **Deterministic test mode**: tests default to `TRADINGAGENTS_LOAD_DOTENV=0` so developer-local `.env` is not consumed implicitly.
+4. **`_env()` / `_env_int()` helpers**: Read `TRADINGAGENTS_<KEY>` from a resolved environment snapshot. Return the hardcoded default when the env var is unset or empty.
+5. **All config keys overridable**: `TRADINGAGENTS_` prefix + uppercase config key.
 
 ## Constraints
 
@@ -27,5 +27,5 @@ related_files: [tradingagents/default_config.py, .env.example, pyproject.toml]
 ## Actionable Rules
 
 - New config keys must follow the `TRADINGAGENTS_<UPPERCASE_KEY>` pattern.
-- `load_dotenv()` runs at module level in `default_config.py` — import-order-independent.
+- `.env` loading is centralized in `build_default_config(...)`; entrypoints must not call `load_dotenv()` directly.
 - Always check actual env var values when debugging auth issues.

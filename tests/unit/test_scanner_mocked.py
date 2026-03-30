@@ -893,10 +893,20 @@ class TestFinvizSmartMoneyTools:
 
     def test_get_gap_candidates_returns_finviz_table(self):
         from tradingagents.agents.utils.scanner_tools import get_gap_candidates
+        from tradingagents.dataflows.config import get_config
 
         mock_cls = self._mock_overview(_make_finviz_df())
-        with patch("finvizfinance.screener.overview.Overview", mock_cls):
-            result = get_gap_candidates.invoke({})
+        original = get_config()
+        patched_config = {
+            **original,
+            "tool_vendors": {
+                **original.get("tool_vendors", {}),
+                "get_gap_candidates": "finviz",
+            },
+        }
+        with patch("tradingagents.dataflows.interface.get_config", return_value=patched_config):
+            with patch("finvizfinance.screener.overview.Overview", mock_cls):
+                result = get_gap_candidates.invoke({})
 
         # Result should come from the Finviz vendor implementation
         assert "Gap Candidates" in result

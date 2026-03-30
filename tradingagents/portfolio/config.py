@@ -1,11 +1,10 @@
 """Portfolio Manager configuration.
 
-Integrates with the existing ``tradingagents/default_config.py`` pattern,
-reading all portfolio settings from ``TRADINGAGENTS_<KEY>`` env vars.
+Integrates with the shared ``tradingagents/default_config.py`` env helpers,
+reading portfolio settings from ``TRADINGAGENTS_<KEY>`` env vars.
 
-All env-var reading is delegated to the shared helpers in
-``tradingagents.default_config`` — that module is the single entry point
-for .env loading and the ``_env*`` helper functions.
+All ``TRADINGAGENTS_*`` reads are delegated to shared helpers in
+``tradingagents.default_config``.
 
 Usage::
 
@@ -20,10 +19,6 @@ from __future__ import annotations
 
 import os
 
-# Importing default_config triggers its module-level load_dotenv() calls,
-# which loads the .env file (CWD first, then project root) before we read
-# any TRADINGAGENTS_* variables below.  This is the single source of truth
-# for .env loading — no separate load_dotenv() call needed here.
 from tradingagents.default_config import _env, _env_float, _env_int
 
 

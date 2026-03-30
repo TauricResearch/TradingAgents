@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+from copy import deepcopy
 from typing import Any, List, Optional
 
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -45,7 +45,7 @@ class PortfolioGraph:
             callbacks: Optional LangChain callback handlers.
             repo: PortfolioRepository instance.  If None, created lazily from DB.
         """
-        self.config = config or DEFAULT_CONFIG.copy()
+        self.config = deepcopy(config or DEFAULT_CONFIG)
         self.debug = debug
         self.callbacks = callbacks or []
         self._repo = repo
@@ -55,7 +55,7 @@ class PortfolioGraph:
 
         portfolio_config = self._get_portfolio_config()
 
-        mongo_uri = self.config.get("mongo_uri") or os.environ.get("TRADINGAGENTS_MONGO_URI")
+        mongo_uri = self.config.get("mongo_uri")
         macro_mem = MacroMemory(mongo_uri=mongo_uri)
         micro_mem = ReflexionMemory(
             mongo_uri=mongo_uri,

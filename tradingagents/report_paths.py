@@ -16,14 +16,14 @@ The canonical identifier is always ``run_id``. There is no separate flow id.
 
 from __future__ import annotations
 
-import os
 import secrets
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Configurable via TRADINGAGENTS_REPORTS_DIR env var.
-REPORTS_ROOT = Path(os.getenv("TRADINGAGENTS_REPORTS_DIR") or "reports")
+from tradingagents.default_config import DEFAULT_CONFIG
+
+REPORTS_ROOT = Path(DEFAULT_CONFIG.get("results_dir", "reports"))
 
 _CROCKFORD32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 

@@ -812,31 +812,28 @@ def test_timeout_raises_correct_exception():
 
 ---
 
-### Pattern 4 — Reload config module to test env var overrides
+### Pattern 4 — Build config explicitly to test env var precedence
 
 Used in: `test_env_override.py`
 
 ```python
-import importlib
-import os
-from unittest.mock import patch
+from pathlib import Path
+from tradingagents.default_config import build_default_config
 
-class TestEnvOverrides:
-    def _reload_config(self):
-        import tradingagents.default_config as mod
-        importlib.reload(mod)
-        return mod.DEFAULT_CONFIG
-
-    def test_llm_provider_override(self):
-        with patch.dict(os.environ, {"TRADINGAGENTS_LLM_PROVIDER": "anthropic"}):
-            cfg = self._reload_config()
-        assert cfg["llm_provider"] == "anthropic"
+def test_process_env_overrides_dotenv(tmp_path: Path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("TRADINGAGENTS_LLM_PROVIDER=google\n", encoding="utf-8")
+    cfg = build_default_config(
+        load_dotenv=True,
+        dotenv_path=env_file,
+        environ={"TRADINGAGENTS_LLM_PROVIDER": "anthropic"},
+    )
+    assert cfg["llm_provider"] == "anthropic"
 ```
 
-> **Why `importlib.reload`?** `DEFAULT_CONFIG` is built at *module import time*.
-> To test different env var values, the module must be re-evaluated.  The
-> `_reload_config` helper also patches `dotenv.load_dotenv` to prevent
-> `.env` files from interfering with isolated env patches.
+> **Why explicit builder calls?** They avoid module-import side effects and let
+> tests control `.env` participation (`load_dotenv=True/False`) and process env
+> precedence deterministically.
 
 ---
 

@@ -99,13 +99,14 @@ def _resolve_vendor(config: dict, method: str) -> str:
         VENDOR_METHODS,
     )
 
-    if method == "get_gap_candidates":
-        return "finviz"
-
     # Tool-level override first
     tool_vendors = config.get("tool_vendors", {})
-    if method in tool_vendors:
-        return tool_vendors[method]
+    tool_override = tool_vendors.get(method)
+    if tool_override:
+        candidates = [v.strip() for v in str(tool_override).split(",") if v.strip()]
+        for vendor in candidates:
+            if vendor in VENDOR_METHODS.get(method, {}):
+                return vendor
 
     # Category-level
     try:
@@ -119,10 +120,12 @@ def _resolve_vendor(config: dict, method: str) -> str:
         )
         return "unknown"
     configured_vendor = config.get("data_vendors", {}).get(category, "yfinance")
-    if configured_vendor in VENDOR_METHODS.get(method, {}):
-        return configured_vendor
+    candidates = [v.strip() for v in str(configured_vendor).split(",") if v.strip()]
+    for vendor in candidates:
+        if vendor in VENDOR_METHODS.get(method, {}):
+            return vendor
     available_vendors = list(VENDOR_METHODS.get(method, {}).keys())
-    return available_vendors[0] if available_vendors else configured_vendor
+    return available_vendors[0] if available_vendors else "unknown"
 
 
 def estimate_analyze(

@@ -2,6 +2,7 @@
 
 import os
 import json
+from copy import deepcopy
 from typing import Dict, Any, List, Optional
 
 from langgraph.prebuilt import ToolNode
@@ -58,7 +59,7 @@ class TradingAgentsGraph:
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
         """
         self.debug = debug
-        self.config = config or DEFAULT_CONFIG
+        self.config = deepcopy(config or DEFAULT_CONFIG)
         self.callbacks = callbacks or []
 
         # Update the interface's config

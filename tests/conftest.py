@@ -3,6 +3,10 @@
 import os
 import pytest
 
+# Keep tests deterministic: do not auto-load developer-local .env
+# unless a specific test explicitly opts in.
+os.environ.setdefault("TRADINGAGENTS_LOAD_DOTENV", "0")
+
 
 _DEMO_KEY = "demo"
 

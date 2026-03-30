@@ -17,6 +17,7 @@ import logging
 import os
 from typing import Union
 
+from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.dual_report_store import DualReportStore
 
@@ -47,12 +48,12 @@ def create_report_store(
     Returns:
         A store instance (either ``ReportStore`` or ``DualReportStore``).
     """
-    uri = mongo_uri or os.getenv("TRADINGAGENTS_MONGO_URI", "")
-    db = mongo_db or os.getenv("TRADINGAGENTS_MONGO_DB", "tradingagents")
+    uri = mongo_uri if mongo_uri is not None else (DEFAULT_CONFIG.get("mongo_uri") or "")
+    db = mongo_db or DEFAULT_CONFIG.get("mongo_db", "tradingagents")
 
     # Filesystem instance (always created as part of Dual or as standalone)
-    _base = base_dir or os.getenv("PORTFOLIO_DATA_DIR") or os.getenv(
-        "TRADINGAGENTS_REPORTS_DIR", "reports"
+    _base = base_dir or os.getenv("PORTFOLIO_DATA_DIR") or DEFAULT_CONFIG.get(
+        "results_dir", "reports"
     )
     local_store = ReportStore(base_dir=_base, run_id=run_id)
 

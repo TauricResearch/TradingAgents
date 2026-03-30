@@ -92,9 +92,7 @@ class TestEstimateAnalyze:
                 "scanner_data": "yfinance",
                 "calendar_data": "finnhub",
             },
-            "tool_vendors": {
-                "get_insider_transactions": "finnhub",
-            },
+            "tool_vendors": {},
         }
         est = estimate_analyze(config=cfg)
         assert est.vendor_calls.alpha_vantage == 0
@@ -108,10 +106,26 @@ class TestEstimateAnalyze:
         # 1 stock data + 4 indicators = 5 calls
         assert est.vendor_calls.total >= 5
 
-    def test_fundamentals_includes_insider(self):
-        """Fundamentals analyst should include insider_transactions (Finnhub default)."""
+    def test_fundamentals_includes_insider_via_news_category_vendor(self):
+        """Fundamentals analyst should route insider calls via news_data vendor by default."""
         est = estimate_analyze(selected_analysts=["fundamentals"])
-        # insider_transactions defaults to finnhub
+        assert est.vendor_calls.yfinance >= 1
+
+    def test_fundamentals_insider_respects_explicit_tool_override(self):
+        cfg = {
+            "data_vendors": {
+                "core_stock_apis": "yfinance",
+                "technical_indicators": "yfinance",
+                "fundamental_data": "yfinance",
+                "news_data": "yfinance",
+                "scanner_data": "yfinance",
+                "calendar_data": "finnhub",
+            },
+            "tool_vendors": {
+                "get_insider_transactions": "finnhub",
+            },
+        }
+        est = estimate_analyze(config=cfg, selected_analysts=["fundamentals"])
         assert est.vendor_calls.finnhub >= 1
 
     def test_num_indicators_varies_total(self):
@@ -157,9 +171,9 @@ class TestEstimateScan:
         est = estimate_scan()
         assert est.vendor_calls.yfinance > 0
 
-    def test_scan_uses_finviz_for_gap_subset(self):
+    def test_scan_gap_candidates_follow_scanner_vendor_by_default(self):
         est = estimate_scan()
-        assert est.vendor_calls.finviz >= 1
+        assert est.method_breakdown.get("yfinance", {}).get("get_gap_candidates", 0) >= 1
 
     def test_finnhub_for_calendars(self):
         """Global bounded scanners should add Finnhub earnings-calendar usage."""

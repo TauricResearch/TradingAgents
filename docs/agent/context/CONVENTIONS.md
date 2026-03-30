@@ -6,7 +6,7 @@
 
 - Env var override pattern: `TRADINGAGENTS_<UPPERCASE_KEY>=value` — empty/unset preserves default. (`default_config.py`)
 - Per-tier overrides: each tier has `{tier}_llm_provider` and `{tier}_backend_url`, falling back to top-level `llm_provider` and `backend_url`. (`default_config.py`)
-- `load_dotenv()` runs at module level in `default_config.py` — import-order-independent. Check actual env var values when debugging auth. (`default_config.py`)
+- `.env` loading is centralized in `build_default_config(...)` in `default_config.py`; entrypoints must not call `load_dotenv()` directly. (`default_config.py`)
 - `llm_provider` and `backend_url` must always exist at top level — `scanner_graph.py` and `trading_graph.py` use them as fallbacks. (ADR 006)
 - `mid_think_llm` defaults to `None`, meaning mid-tier falls back to `quick_think_llm`. (`default_config.py`)
 
@@ -78,7 +78,7 @@
 - Skip integration tests: `pytest tests/ -v -m "not integration"`
 - Skip paid-tier tests: `pytest tests/ -v -m "not paid_tier"`
 - Mocking vendor methods: patch `VENDOR_METHODS` dict entries directly (it stores function refs), not module attributes. (`interface.py`)
-- Env isolation: always mock env vars before `importlib.reload()` — `load_dotenv()` leaks real `.env` values otherwise.
+- Env isolation: build config explicitly via `build_default_config(load_dotenv=False, environ=...)` for deterministic tests.
 - `callable()` returns False on LangChain `@tool` objects — use `hasattr(x, "invoke")` instead.
 
 ## Observability

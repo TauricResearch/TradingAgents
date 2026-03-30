@@ -1,7 +1,9 @@
 """Scanner graph — orchestrates the 4-phase macro scanner pipeline."""
 
+from copy import deepcopy
 from typing import Any, List, Optional
 
+from tradingagents.dataflows.config import set_config
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.llm_clients import create_llm_client
 from tradingagents.agents.scanners import (
@@ -41,9 +43,10 @@ class ScannerGraph:
             debug: Whether to stream and print intermediate states.
             callbacks: Optional LangChain callback handlers (e.g. RunLogger.callback).
         """
-        self.config = config or DEFAULT_CONFIG.copy()
+        self.config = deepcopy(config or DEFAULT_CONFIG)
         self.debug = debug
         self.callbacks = callbacks or []
+        set_config(self.config)
 
         quick_llm = self._create_llm("quick_think")
         mid_llm = self._create_llm("mid_think")
