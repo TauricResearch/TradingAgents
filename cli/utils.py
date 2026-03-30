@@ -240,6 +240,8 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Google", None),  # google-genai SDK manages its own endpoint
         ("Anthropic", "https://api.anthropic.com/"),
         ("xAI", "https://api.x.ai/v1"),
+        ("DeepSeek", "https://api.deepseek.com/v1"),
+        ("Kimi", "https://api.moonshot.cn/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
@@ -261,7 +263,7 @@ def select_llm_provider() -> tuple[str, str | None]:
     ).ask()
     
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
     
     display_name, url = choice

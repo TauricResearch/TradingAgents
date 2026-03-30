@@ -63,6 +63,28 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
         ],
     },
+    "deepseek": {
+        "quick": [
+            ("DeepSeek Chat - Fast non-thinking mode", "deepseek-chat"),
+            ("DeepSeek Reasoner - Strong reasoning mode", "deepseek-reasoner"),
+        ],
+        "deep": [
+            ("DeepSeek Reasoner - Strong reasoning mode", "deepseek-reasoner"),
+            ("DeepSeek Chat - Fast non-thinking mode", "deepseek-chat"),
+        ],
+    },
+    "kimi": {
+        "quick": [
+            ("Kimi K2 Turbo (Preview) - High-throughput responses", "kimi-k2-turbo-preview"),
+            ("Kimi Latest - Rolling latest default", "kimi-latest"),
+            ("Moonshot V1 32K - Stable long-context", "moonshot-v1-32k"),
+        ],
+        "deep": [
+            ("Kimi Thinking (Preview) - Dedicated reasoning model", "kimi-thinking-preview"),
+            ("Kimi K2 0905 (Preview) - Strong coding and agent tasks", "kimi-k2-0905-preview"),
+            ("Moonshot V1 128K - Stable long-context", "moonshot-v1-128k"),
+        ],
+    },
     # OpenRouter models are fetched dynamically at CLI runtime.
     # No static entries needed; any model ID is accepted by the validator.
     "ollama": {
