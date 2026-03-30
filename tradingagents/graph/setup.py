@@ -9,13 +9,13 @@ from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
 from tradingagents.instruments import is_equity_pipeline_supported, resolve_instrument
 
-from .conditional_logic import ConditionalLogic
+from .conditional_logic import ConditionalLogic, CRITICAL_ABORT_NODE
 
 
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
-    def _should_short_circuit_to_portfolio_manager(self, state: AgentState) -> bool:
+    def _should_short_circuit_to_critical_abort_terminal(self, state: AgentState) -> bool:
         return self.conditional_logic._check_critical_abort(
             state, "market_report"
         ) or self.conditional_logic._check_critical_abort(state, "fundamentals_report")
@@ -151,6 +151,7 @@ class GraphSetup:
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+        critical_abort_terminal_node = create_critical_abort_terminal()
         portfolio_manager_node = create_portfolio_manager(
             self.deep_thinking_llm, self.portfolio_manager_memory
         )
@@ -175,6 +176,7 @@ class GraphSetup:
         workflow.add_node("Aggressive Analyst", aggressive_analyst)
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
+        workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
@@ -211,15 +213,15 @@ class GraphSetup:
                 next_node = "Bull Researcher"
 
             def _route_after_clear(state: AgentState, next_node: str = next_node) -> str:
-                if self._should_short_circuit_to_portfolio_manager(state):
-                    return "Portfolio Manager"
+                if self._should_short_circuit_to_critical_abort_terminal(state):
+                    return CRITICAL_ABORT_NODE
                 return next_node
 
             workflow.add_conditional_edges(
                 current_clear,
                 _route_after_clear,
                 {
-                    "Portfolio Manager": "Portfolio Manager",
+                    CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                     next_node: next_node,
                 },
             )
@@ -231,6 +233,7 @@ class GraphSetup:
             {
                 "Bear Researcher": "Bear Researcher",
                 "Research Manager": "Research Manager",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
@@ -240,6 +243,7 @@ class GraphSetup:
             {
                 "Bull Researcher": "Bull Researcher",
                 "Research Manager": "Research Manager",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
@@ -250,6 +254,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Conservative Analyst": "Conservative Analyst",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
@@ -258,6 +263,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Neutral Analyst": "Neutral Analyst",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
@@ -266,10 +272,12 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Aggressive Analyst": "Aggressive Analyst",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
 
+        workflow.add_edge(CRITICAL_ABORT_NODE, END)
         workflow.add_edge("Portfolio Manager", END)
 
         # Compile and return
@@ -296,6 +304,7 @@ class GraphSetup:
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+        critical_abort_terminal_node = create_critical_abort_terminal()
         portfolio_manager_node = create_portfolio_manager(
             self.deep_thinking_llm, self.portfolio_manager_memory
         )
@@ -309,6 +318,7 @@ class GraphSetup:
         workflow.add_node("Aggressive Analyst", aggressive_analyst)
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
+        workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         workflow.add_edge(START, "Bull Researcher")
@@ -318,6 +328,7 @@ class GraphSetup:
             {
                 "Bear Researcher": "Bear Researcher",
                 "Research Manager": "Research Manager",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
             },
         )
         workflow.add_conditional_edges(
@@ -326,6 +337,7 @@ class GraphSetup:
             {
                 "Bull Researcher": "Bull Researcher",
                 "Research Manager": "Research Manager",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
             },
         )
         workflow.add_edge("Research Manager", "Trader")
@@ -335,6 +347,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Conservative Analyst": "Conservative Analyst",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
@@ -343,6 +356,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Neutral Analyst": "Neutral Analyst",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
@@ -351,9 +365,11 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Aggressive Analyst": "Aggressive Analyst",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
+        workflow.add_edge(CRITICAL_ABORT_NODE, END)
         workflow.add_edge("Portfolio Manager", END)
 
         return workflow.compile()
@@ -367,6 +383,7 @@ class GraphSetup:
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+        critical_abort_terminal_node = create_critical_abort_terminal()
         portfolio_manager_node = create_portfolio_manager(
             self.deep_thinking_llm, self.portfolio_manager_memory
         )
@@ -376,6 +393,7 @@ class GraphSetup:
         workflow.add_node("Aggressive Analyst", aggressive_analyst)
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
+        workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         workflow.add_edge(START, "Aggressive Analyst")
@@ -384,6 +402,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Conservative Analyst": "Conservative Analyst",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
@@ -392,6 +411,7 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Neutral Analyst": "Neutral Analyst",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
@@ -400,9 +420,11 @@ class GraphSetup:
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Aggressive Analyst": "Aggressive Analyst",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
         )
+        workflow.add_edge(CRITICAL_ABORT_NODE, END)
         workflow.add_edge("Portfolio Manager", END)
 
         return workflow.compile()

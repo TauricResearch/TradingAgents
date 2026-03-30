@@ -97,6 +97,24 @@ def _tickers_from_decision(decision: dict) -> list[str]:
     return list(tickers)
 
 
+def _analysis_status(analysis: Any) -> str:
+    """Return the normalized analysis status for a saved ticker artifact."""
+    if not isinstance(analysis, dict):
+        return "missing"
+    status = str(analysis.get("analysis_status") or "").strip().lower()
+    if status:
+        return status
+    return "completed" if str(analysis.get("final_trade_decision") or "").strip() else "incomplete"
+
+
+def _analysis_is_completed(analysis: Any) -> bool:
+    return _analysis_status(analysis) == "completed"
+
+
+def _analysis_is_terminal(analysis: Any) -> bool:
+    return _analysis_status(analysis) in {"completed", "aborted"}
+
+
 def _analysis_has_deep_dive(analysis: Any) -> bool:
     """Return True when a ticker analysis contains a completed deep-dive output."""
     if not isinstance(analysis, dict):
@@ -378,7 +396,11 @@ class LangGraphEngine:
             debug=True,
         )
 
-        initial_state = graph_wrapper.propagator.create_initial_state(ticker, date)
+        initial_state = graph_wrapper.propagator.create_initial_state(
+            ticker,
+            date,
+            portfolio_context=params.get("portfolio_context", "candidate"),
+        )
 
         self._node_start_times[execution_key] = {}
         self._run_identifiers[execution_key] = ticker.upper()
@@ -476,6 +498,7 @@ class LangGraphEngine:
                         "trade_date": date,
                         **{k: serializable_state.get(k, "") for k in _analyst_keys},
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
+                        "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                         "messages": serializable_state.get("messages", []),
                     }
                     store.save_analysts_checkpoint(date, ticker, analysts_ckpt)
@@ -487,6 +510,7 @@ class LangGraphEngine:
                         "trade_date": date,
                         **{k: serializable_state.get(k, "") for k in _analyst_keys},
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
+                        "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                         "investment_debate_state": serializable_state.get("investment_debate_state", {}),
                         "investment_plan": serializable_state.get("investment_plan", ""),
                         "trader_investment_plan": serializable_state.get("trader_investment_plan", ""),
@@ -767,19 +791,23 @@ class LangGraphEngine:
 
         if phase == "analysts":
             # Full re-run
-            async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": execution_key}):
+            async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "portfolio_context": params.get("portfolio_context", "candidate"), "_execution_key": execution_key}):
                 yield evt
         elif phase == "debate_and_trader":
             yield self._system_log(f"Loading analysts checkpoint for {ticker}...")
             ckpt = store.load_analysts_checkpoint(date, ticker) or fallback_store.load_analysts_checkpoint(date, ticker)
             if not ckpt:
                 yield self._system_log(f"No analysts checkpoint found for {ticker} — falling back to full re-run")
-                async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": execution_key}):
+                async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "portfolio_context": params.get("portfolio_context", "candidate"), "_execution_key": execution_key}):
                     yield evt
             else:
                 yield self._system_log(f"Running debate + trader + risk for {ticker} from checkpoint...")
                 graph_wrapper = TradingAgentsGraph(config=self.config, debug=True)
-                initial_state = graph_wrapper.propagator.create_initial_state(ticker, date)
+                initial_state = graph_wrapper.propagator.create_initial_state(
+                    ticker,
+                    date,
+                    portfolio_context=ckpt.get("portfolio_context", "candidate"),
+                )
                 # Overlay checkpoint data onto initial state
                 for k, v in ckpt.items():
                     if k in initial_state or k in ("market_report", "sentiment_report", "news_report", "fundamentals_report", "macro_regime_report"):
@@ -808,6 +836,14 @@ class LangGraphEngine:
 
                 if final_state:
                     serializable_state = self._sanitize_for_json(final_state)
+                    serializable_state["analysis_status"] = (
+                        str(serializable_state.get("analysis_status") or "").strip().lower()
+                        or (
+                            "completed"
+                            if str(serializable_state.get("final_trade_decision") or "").strip()
+                            else "incomplete"
+                        )
+                    )
                     writer_store.save_analysis(date, ticker, serializable_state)
                     # Overwrite checkpoints
                     _analyst_keys = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
@@ -817,6 +853,7 @@ class LangGraphEngine:
                             "trade_date": date,
                             **{k: serializable_state.get(k, "") for k in _analyst_keys},
                             "macro_regime_report": serializable_state.get("macro_regime_report", ""),
+                            "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                             "investment_debate_state": serializable_state.get("investment_debate_state", {}),
                             "investment_plan": serializable_state.get("investment_plan", ""),
                             "trader_investment_plan": serializable_state.get("trader_investment_plan", ""),
@@ -830,12 +867,16 @@ class LangGraphEngine:
             ckpt = store.load_trader_checkpoint(date, ticker) or fallback_store.load_trader_checkpoint(date, ticker)
             if not ckpt:
                 yield self._system_log(f"No trader checkpoint found for {ticker} — falling back to full re-run")
-                async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": execution_key}):
+                async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "portfolio_context": params.get("portfolio_context", "candidate"), "_execution_key": execution_key}):
                     yield evt
             else:
                 yield self._system_log(f"Running risk phase for {ticker} from checkpoint...")
                 graph_wrapper = TradingAgentsGraph(config=self.config, debug=True)
-                initial_state = graph_wrapper.propagator.create_initial_state(ticker, date)
+                initial_state = graph_wrapper.propagator.create_initial_state(
+                    ticker,
+                    date,
+                    portfolio_context=ckpt.get("portfolio_context", "candidate"),
+                )
                 if not ckpt.get("investment_plan"):
                     raise ValueError(
                         f"Trader checkpoint for {ticker} on {date} is invalid: "
@@ -868,6 +909,14 @@ class LangGraphEngine:
 
                 if final_state:
                     serializable_state = self._sanitize_for_json(final_state)
+                    serializable_state["analysis_status"] = (
+                        str(serializable_state.get("analysis_status") or "").strip().lower()
+                        or (
+                            "completed"
+                            if str(serializable_state.get("final_trade_decision") or "").strip()
+                            else "incomplete"
+                        )
+                    )
                     writer_store.save_analysis(date, ticker, serializable_state)
 
                 self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
@@ -942,6 +991,7 @@ class LangGraphEngine:
             holding_tickers = [h.ticker.upper() for h in holdings]
         except Exception as exc:
             logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
+        holding_ticker_set = set(holding_tickers)
 
         holding_instruments = [
             resolve_instrument(ticker, source_context="holding")
@@ -1028,7 +1078,7 @@ class LangGraphEngine:
 
                 async with semaphore:
                     existing_analysis = store.load_analysis(date, ticker)
-                    if not force and _analysis_has_deep_dive(existing_analysis):
+                    if not force and _analysis_is_terminal(existing_analysis):
                         await pipeline_queue.put(
                             self._system_log(
                                 f"Phase 2: Analysis for {ticker} on {date} already exists, skipping."
@@ -1051,7 +1101,14 @@ class LangGraphEngine:
                         ):
                             await pipeline_queue.put(evt)
                         saved_analysis = store.load_analysis(date, ticker)
-                        if not _analysis_has_deep_dive(saved_analysis):
+                        saved_status = _analysis_status(saved_analysis)
+                        if saved_status == "aborted":
+                            await pipeline_queue.put(
+                                self._system_log(
+                                    f"Phase 2/3: {ticker} hit terminal critical-abort path ({saved_analysis.get('terminal_action', 'ABORT')})."
+                                )
+                            )
+                        elif saved_status != "completed":
                             reason = "analysis finished without a completed deep-dive decision"
                             _record_failure(reason)
                             await pipeline_queue.put(
@@ -1092,7 +1149,14 @@ class LangGraphEngine:
                                     ):
                                         await pipeline_queue.put(evt)
                                     saved_analysis = store.load_analysis(date, ticker)
-                                    if not _analysis_has_deep_dive(saved_analysis):
+                                    saved_status = _analysis_status(saved_analysis)
+                                    if saved_status == "aborted":
+                                        await pipeline_queue.put(
+                                            self._system_log(
+                                                f"Phase 2/3: {ticker} hit terminal critical-abort path ({saved_analysis.get('terminal_action', 'ABORT')})."
+                                            )
+                                        )
+                                    elif saved_status != "completed":
                                         reason = "fallback finished without a completed deep-dive decision"
                                         _record_failure(reason)
                                         await pipeline_queue.put(

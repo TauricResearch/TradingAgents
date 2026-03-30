@@ -16,7 +16,7 @@ class Propagator:
         self.max_recur_limit = max_recur_limit
 
     def create_initial_state(
-        self, company_name: str, trade_date: str
+        self, company_name: str, trade_date: str, portfolio_context: str = "candidate"
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
         instrument = resolve_instrument(company_name, source_context="trading_graph")
@@ -24,6 +24,7 @@ class Propagator:
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
+            "portfolio_context": portfolio_context,
             "instrument_key": instrument.instrument_key,
             "asset_class": instrument.asset_class,
             "instrument_type": instrument.instrument_type,
@@ -64,6 +65,7 @@ class Propagator:
             "trader_investment_plan": "",
             "final_trade_decision": "",
             "macro_regime_report": "",
+            "critical_abort_reason": "",
         }
 
     def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:

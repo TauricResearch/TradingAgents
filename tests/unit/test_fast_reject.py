@@ -11,8 +11,9 @@ from langchain_core.messages import AIMessage
 
 from tradingagents.agents.analysts.fundamentals_analyst import create_fundamentals_analyst
 from tradingagents.agents.analysts.market_analyst import create_market_analyst
+from tradingagents.agents.managers.critical_abort_terminal import create_critical_abort_terminal
 from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
-from tradingagents.graph.conditional_logic import ConditionalLogic
+from tradingagents.graph.conditional_logic import ConditionalLogic, CRITICAL_ABORT_NODE
 
 
 # ---------------------------------------------------------------------------
@@ -30,6 +31,10 @@ normal_market_report = "Market analysis shows strong bullish trend with positive
 
 # Normal fundamentals report
 normal_fundamentals_report = "Company fundamentals are strong with healthy margins and growth prospects..."
+
+# Bearish but non-terminal reports
+strong_sell_market_report = "Market view: strong sell due to weak momentum and downside risk, but no hard-stop event detected."
+strong_sell_fundamentals_report = "Fundamentals view: strong sell because margins are compressing, but there is no bankruptcy, delisting, or critical event."
 
 # Macro regime report
 macro_regime_report = "Current macro environment shows stable interest rates and moderate inflation."
@@ -101,6 +106,16 @@ class TestConditionalLogicAbortDetection:
         result = cl._check_critical_abort(state, "market_report")
         assert result is True
 
+    def test_check_critical_abort_not_triggered_by_strong_sell_language(self):
+        """Sell wording alone must not be treated as a critical abort."""
+        cl = ConditionalLogic()
+        state = {
+            "market_report": strong_sell_market_report,
+            "fundamentals_report": strong_sell_fundamentals_report,
+        }
+        assert cl._check_critical_abort(state, "market_report") is False
+        assert cl._check_critical_abort(state, "fundamentals_report") is False
+
 
 class TestConditionalLogicFlowControl:
     """Tests for flow control when abort is detected."""
@@ -121,7 +136,7 @@ class TestConditionalLogicFlowControl:
             },
         }
         result = cl.should_continue_debate(state)
-        assert result == "Portfolio Manager"
+        assert result == CRITICAL_ABORT_NODE
 
     def test_should_continue_risk_analysis_with_abort(self):
         """Verify risk analysis is bypassed when abort detected."""
@@ -143,7 +158,7 @@ class TestConditionalLogicFlowControl:
             },
         }
         result = cl.should_continue_risk_analysis(state)
-        assert result == "Portfolio Manager"
+        assert result == CRITICAL_ABORT_NODE
 
     def test_normal_flow_without_abort(self):
         """Verify normal flow continues when no abort detected."""
@@ -197,7 +212,7 @@ class TestConditionalLogicFlowControl:
             },
         }
         result = cl.should_continue_debate(state)
-        assert result == "Portfolio Manager"
+        assert result == CRITICAL_ABORT_NODE
 
     def test_abort_in_fundamentals_bypasses_risk_analysis(self):
         """Verify risk analysis is bypassed when fundamentals report contains abort."""
@@ -219,7 +234,7 @@ class TestConditionalLogicFlowControl:
             },
         }
         result = cl.should_continue_risk_analysis(state)
-        assert result == "Portfolio Manager"
+        assert result == CRITICAL_ABORT_NODE
 
     def test_abort_in_market_bypasses_risk_analysis(self):
         """Verify market abort bypasses risk analysis."""
@@ -241,7 +256,79 @@ class TestConditionalLogicFlowControl:
             },
         }
         result = cl.should_continue_risk_analysis(state)
-        assert result == "Portfolio Manager"
+        assert result == CRITICAL_ABORT_NODE
+
+    def test_strong_sell_language_does_not_bypass_debate(self):
+        """A bearish recommendation without CRITICAL ABORT must continue normal debate flow."""
+        cl = ConditionalLogic()
+        state = {
+            "market_report": strong_sell_market_report,
+            "fundamentals_report": normal_fundamentals_report,
+            "investment_debate_state": {
+                "history": [],
+                "bull_history": [],
+                "bear_history": [],
+                "current_response": "",
+                "judge_decision": "",
+                "count": 0,
+            },
+        }
+        assert cl.should_continue_debate(state) == "Bull Researcher"
+
+    def test_strong_sell_language_does_not_bypass_risk_analysis(self):
+        """A bearish recommendation without CRITICAL ABORT must continue normal risk flow."""
+        cl = ConditionalLogic()
+        state = {
+            "market_report": normal_market_report,
+            "fundamentals_report": strong_sell_fundamentals_report,
+            "risk_debate_state": {
+                "history": [],
+                "aggressive_history": [],
+                "conservative_history": [],
+                "neutral_history": [],
+                "latest_speaker": "Aggressive",
+                "current_aggressive_response": "",
+                "current_conservative_response": "",
+                "current_neutral_response": "",
+                "judge_decision": "",
+                "count": 0,
+            },
+        }
+        assert cl.should_continue_risk_analysis(state) == "Conservative Analyst"
+
+
+class TestCriticalAbortTerminal:
+    """Tests for the dedicated abort terminal node."""
+
+    def test_holding_abort_returns_sell_terminal_action(self):
+        node = create_critical_abort_terminal()
+        result = node(
+            {
+                "company_of_interest": "AAPL",
+                "portfolio_context": "holding",
+                "market_report": market_report_abort,
+                "fundamentals_report": "",
+                "risk_debate_state": {},
+            }
+        )
+        assert result["analysis_status"] == "aborted"
+        assert result["terminal_action"] == "SELL"
+        assert "Terminal Action: SELL" in result["final_trade_decision"]
+
+    def test_candidate_abort_returns_avoid_terminal_action(self):
+        node = create_critical_abort_terminal()
+        result = node(
+            {
+                "company_of_interest": "AAPL",
+                "portfolio_context": "candidate",
+                "market_report": "",
+                "fundamentals_report": fundamentals_report_abort,
+                "risk_debate_state": {},
+            }
+        )
+        assert result["analysis_status"] == "aborted"
+        assert result["terminal_action"] == "AVOID"
+        assert "Terminal Action: AVOID" in result["final_trade_decision"]
 
 
 # ---------------------------------------------------------------------------
@@ -480,22 +567,17 @@ class TestFastRejectFullFlow:
         # Verify market report contains abort
         assert "[CRITICAL ABORT]" in state.get("market_report", "")
 
-        # Run portfolio manager (mock LLM captured by closure)
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: SELL - Trading halted pending SEC investigation"
-        )
-        portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
-        pm_result = portfolio_manager(state)
-        state = {**state, **pm_result}  # merge so market_report is still accessible
+        abort_terminal = create_critical_abort_terminal()
+        abort_result = abort_terminal(state)
+        state = {**state, **abort_result}
 
-        # Verify portfolio manager detected abort
         assert "SELL" in state.get("final_trade_decision", "").upper()
+        assert state.get("analysis_status") == "aborted"
 
         # Verify conditional logic would bypass debate and risk analysis
         cl = ConditionalLogic()
-        assert cl.should_continue_debate(state) == "Portfolio Manager"
-        assert cl.should_continue_risk_analysis(state) == "Portfolio Manager"
+        assert cl.should_continue_debate(state) == CRITICAL_ABORT_NODE
+        assert cl.should_continue_risk_analysis(state) == CRITICAL_ABORT_NODE
 
     def test_fast_reject_fundamentals_flow(self):
         """Test the complete short-circuit flow with fundamentals abort."""
@@ -516,19 +598,16 @@ class TestFastRejectFullFlow:
         # Fundamentals abort must survive the merge
         assert "[CRITICAL ABORT]" in state.get("fundamentals_report", "")
 
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: AVOID - Negative gross margin with bankruptcy filing"
-        )
-        portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
-        pm_result = portfolio_manager(state)
-        state = {**state, **pm_result}
+        abort_terminal = create_critical_abort_terminal()
+        abort_result = abort_terminal({**state, "portfolio_context": "candidate"})
+        state = {**state, **abort_result}
 
         assert "AVOID" in state.get("final_trade_decision", "").upper()
+        assert state.get("analysis_status") == "aborted"
 
         cl = ConditionalLogic()
-        assert cl.should_continue_debate(state) == "Portfolio Manager"
-        assert cl.should_continue_risk_analysis(state) == "Portfolio Manager"
+        assert cl.should_continue_debate(state) == CRITICAL_ABORT_NODE
+        assert cl.should_continue_risk_analysis(state) == CRITICAL_ABORT_NODE
 
     def test_fast_reject_normal_flow(self):
         """Test the complete flow without abort."""

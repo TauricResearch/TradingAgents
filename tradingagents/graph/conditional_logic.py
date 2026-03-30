@@ -1,6 +1,7 @@
 # TradingAgents/graph/conditional_logic.py
 
 from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.constants import CRITICAL_ABORT_NODE
 
 
 class ConditionalLogic:
@@ -24,6 +25,9 @@ class ConditionalLogic:
         report = state.get(report_field, "")
         if not report:
             return False
+        # Deliberately require the explicit marker. Bearish language such as
+        # "sell", "strong sell", or "avoid" must still go through the normal
+        # debate/risk flow unless the analyst emitted a hard-stop abort marker.
         return "[CRITICAL ABORT]" in report
 
     def should_continue_market(self, state: AgentState):
@@ -61,9 +65,9 @@ class ConditionalLogic:
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""
 
-        # Check for critical abort in market_report or fundamentals_report
+        # Only the explicit CRITICAL ABORT marker bypasses debate.
         if self._check_critical_abort(state, "market_report") or self._check_critical_abort(state, "fundamentals_report"):
-            return "Portfolio Manager"
+            return CRITICAL_ABORT_NODE
 
         if (
             state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
@@ -76,9 +80,9 @@ class ConditionalLogic:
     def should_continue_risk_analysis(self, state: AgentState) -> str:
         """Determine if risk analysis should continue."""
 
-        # Check for critical abort in any report
+        # Only the explicit CRITICAL ABORT marker bypasses risk analysis.
         if self._check_critical_abort(state, "market_report") or self._check_critical_abort(state, "fundamentals_report"):
-            return "Portfolio Manager"
+            return CRITICAL_ABORT_NODE
 
         if (
             state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds
