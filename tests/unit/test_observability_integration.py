@@ -86,6 +86,28 @@ class TestRunLoggerLifecycle(unittest.TestCase):
             self.assertEqual(summary["kind"], "summary")
             self.assertEqual(summary["tool_calls"], 1)
 
+    def test_flow_id_does_not_change_run_log_payload(self):
+        """flow_id should only affect destination, not the JSONL schema/content."""
+        rl = self.engine._start_run_logger("test-run-flow", flow_id="flow1234")
+        rl.log_tool_call("get_stock_data", "AAPL", True, 12.3)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_dir = Path(tmpdir) / "2026-01-01" / "flow1234" / "AAPL"
+            self.engine._finish_run_logger("test-run-flow", log_dir)
+
+            log_file = log_dir / "run_log.jsonl"
+            self.assertTrue(log_file.exists())
+
+            lines = log_file.read_text().strip().split("\n")
+            evt = json.loads(lines[0])
+            summary = json.loads(lines[-1])
+
+            self.assertEqual(evt["kind"], "tool")
+            self.assertEqual(evt["tool"], "get_stock_data")
+            self.assertEqual(evt["success"], True)
+            self.assertEqual(summary["kind"], "summary")
+            self.assertEqual(summary["tool_calls"], 1)
+
     def test_finish_noop_for_unknown_run(self):
         """_finish_run_logger should silently do nothing for unknown run IDs."""
         with tempfile.TemporaryDirectory() as tmpdir:

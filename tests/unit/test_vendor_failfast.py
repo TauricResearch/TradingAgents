@@ -195,6 +195,7 @@ class TestFallbackAllowedStillWorks:
             "get_market_indices",
             "get_sector_performance",
             "get_market_movers",
+            "get_gap_candidates",
             "get_industry_performance",
         }
         assert FALLBACK_ALLOWED == expected

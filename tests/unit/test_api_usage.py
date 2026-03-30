@@ -23,8 +23,8 @@ from tradingagents.api_usage import (
 
 class TestVendorEstimate:
     def test_total(self):
-        ve = VendorEstimate(yfinance=10, alpha_vantage=5, finnhub=2)
-        assert ve.total == 17
+        ve = VendorEstimate(yfinance=10, alpha_vantage=5, finnhub=2, finviz=1)
+        assert ve.total == 18
 
     def test_default_zeros(self):
         ve = VendorEstimate()
@@ -76,11 +76,28 @@ class TestUsageEstimate:
 
 
 class TestEstimateAnalyze:
-    def test_default_config_no_av_calls(self):
-        """With default config (yfinance primary), AV calls should be 0."""
+    def test_default_config_uses_yfinance(self):
+        """Default analyze path should materially use yfinance."""
         est = estimate_analyze()
-        assert est.vendor_calls.alpha_vantage == 0
         assert est.vendor_calls.yfinance > 0
+
+    def test_explicit_yfinance_config_has_no_av_calls(self):
+        """A pure yfinance config should keep Alpha Vantage at zero."""
+        cfg = {
+            "data_vendors": {
+                "core_stock_apis": "yfinance",
+                "technical_indicators": "yfinance",
+                "fundamental_data": "yfinance",
+                "news_data": "yfinance",
+                "scanner_data": "yfinance",
+                "calendar_data": "finnhub",
+            },
+            "tool_vendors": {
+                "get_insider_transactions": "finnhub",
+            },
+        }
+        est = estimate_analyze(config=cfg)
+        assert est.vendor_calls.alpha_vantage == 0
 
     def test_all_analysts_nonzero_total(self):
         est = estimate_analyze(selected_analysts=["market", "news", "fundamentals", "social"])
@@ -140,20 +157,28 @@ class TestEstimateScan:
         est = estimate_scan()
         assert est.vendor_calls.yfinance > 0
 
-    def test_finnhub_for_calendars(self):
-        """Calendars should always use Finnhub."""
+    def test_scan_uses_finviz_for_gap_subset(self):
         est = estimate_scan()
-        assert est.vendor_calls.finnhub >= 2  # earnings + economic calendar
+        assert est.vendor_calls.finviz >= 1
+
+    def test_finnhub_for_calendars(self):
+        """Global bounded scanners should add Finnhub earnings-calendar usage."""
+        est = estimate_scan()
+        assert est.vendor_calls.finnhub >= 2
 
     def test_scan_total_reasonable(self):
         est = estimate_scan()
-        # Should be between 15-40 calls total
+        # Global-only scanner remains bounded despite added nodes.
         assert 10 <= est.vendor_calls.total <= 50
 
     def test_notes_have_phases(self):
         est = estimate_scan()
         phase_notes = [n for n in est.notes if "Phase" in n]
-        assert len(phase_notes) >= 3  # Phase 1A, 1B, 1C, 2, 3
+        assert len(phase_notes) >= 5
+
+    def test_macro_synthesis_has_no_external_calls(self):
+        est = estimate_scan()
+        assert any("Macro Synthesis" in note and "no external tool calls" in note for note in est.notes)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -199,12 +224,21 @@ class TestFormatEstimate:
         est = estimate_analyze()
         text = format_estimate(est)
         assert "yfinance" in text
+
+    def test_includes_finviz_when_present(self):
+        est = UsageEstimate(
+            command="scan",
+            description="scan",
+            vendor_calls=VendorEstimate(finviz=1),
+        )
+        text = format_estimate(est)
+        assert "Finviz" in text
         assert "Total:" in text
 
-    def test_no_av_shows_not_needed(self):
-        est = estimate_analyze()  # default config → no AV
+    def test_default_format_includes_av_assessment(self):
+        est = estimate_analyze()
         text = format_estimate(est)
-        assert "NOT needed" in text
+        assert "Alpha Vantage Assessment" in text
 
     def test_av_shows_assessment(self):
         av_config = {
@@ -243,12 +277,14 @@ class TestFormatVendorBreakdown:
                 "yfinance": {"ok": 8, "fail": 1},
                 "alpha_vantage": {"ok": 3, "fail": 0},
                 "finnhub": {"ok": 2, "fail": 0},
+                "finviz": {"ok": 1, "fail": 0},
             }
         }
         text = format_vendor_breakdown(summary)
         assert "yfinance:8ok/1fail" in text
         assert "AV:3ok/0fail" in text
         assert "Finnhub:2ok/0fail" in text
+        assert "Finviz:1ok/0fail" in text
 
 
 # ──────────────────────────────────────────────────────────────────────────────

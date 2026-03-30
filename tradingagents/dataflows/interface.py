@@ -12,7 +12,9 @@ from .y_finance import (
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
 from .yfinance_scanner import (
+    get_gatekeeper_universe_yfinance,
     get_market_movers_yfinance,
+    get_gap_candidates_yfinance,
     get_market_indices_yfinance,
     get_sector_performance_yfinance,
     get_industry_performance_yfinance,
@@ -41,6 +43,7 @@ from .alpha_vantage_scanner import (
 from .alpha_vantage_common import AlphaVantageError, AlphaVantageRateLimitError, RateLimitError
 from .finnhub_common import FinnhubError
 from .stockstats_utils import YFinanceError
+from .finviz_scanner import get_gap_candidates_finviz
 from .finnhub_news import get_insider_transactions as get_finnhub_insider_transactions
 from .finnhub_scanner import (
     get_market_indices_finnhub,
@@ -88,7 +91,9 @@ TOOLS_CATEGORIES = {
     "scanner_data": {
         "description": "Market-wide scanner data (movers, indices, sectors, industries)",
         "tools": [
+            "get_gatekeeper_universe",
             "get_market_movers",
+            "get_gap_candidates",
             "get_market_indices",
             "get_sector_performance",
             "get_industry_performance",
@@ -108,6 +113,7 @@ VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
     "finnhub",
+    "finviz",
 ]
 
 # Methods where cross-vendor fallback is safe (data contracts are fungible).
@@ -117,6 +123,7 @@ FALLBACK_ALLOWED = {
     "get_market_indices",       # SPY/DIA/QQQ quotes are fungible
     "get_sector_performance",   # ETF-based proxy, same approach
     "get_market_movers",        # Approximation acceptable for screening
+    "get_gap_candidates",       # Gap math from market data is fungible enough
     "get_industry_performance", # ETF-based proxy
 }
 
@@ -167,6 +174,13 @@ VENDOR_METHODS = {
     "get_market_movers": {
         "yfinance": get_market_movers_yfinance,
         "alpha_vantage": get_market_movers_alpha_vantage,
+    },
+    "get_gatekeeper_universe": {
+        "yfinance": get_gatekeeper_universe_yfinance,
+    },
+    "get_gap_candidates": {
+        "finviz": get_gap_candidates_finviz,    # primary: native gap filter
+        "yfinance": get_gap_candidates_yfinance, # fallback: OHLC approximation
     },
     "get_market_indices": {
         "finnhub": get_market_indices_finnhub,
@@ -271,4 +285,3 @@ def route_to_vendor(method: str, *args, **kwargs):
 
     error_msg = f"All vendors failed for '{method}' (tried: {', '.join(tried)})"
     raise RuntimeError(error_msg) from last_error
-

@@ -780,6 +780,49 @@ class TestRunAutoTickerSource(unittest.TestCase):
         self.assertIn("portfolio_id", received)
         self.assertNotIn("ticker", received)
 
+    def test_run_auto_finishes_logger_in_flow_dir(self):
+        """run_auto should persist its own run log under the active flow directory."""
+        engine = LangGraphEngine()
+
+        async def fake_run_pipeline(run_id, params):
+            for _ in ():
+                yield {}
+
+        async def fake_run_portfolio(run_id, params):
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+        engine.run_portfolio = fake_run_portfolio
+        engine._start_run_logger("auto1", flow_id="flow1234")
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value={}), \
+             patch.object(engine, "_finish_run_logger") as mock_finish:
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+
+            fake_daily_dir = MagicMock(spec=Path)
+            mock_gdd.return_value = fake_daily_dir
+
+            mock_store = MagicMock()
+            mock_store.load_scan.return_value = {}
+            mock_store.load_execution_result.return_value = None
+            mock_store.load_pm_decision.return_value = None
+            mock_rs_cls.return_value = mock_store
+
+            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01", "flow_id": "flow1234"})))
+
+        mock_gdd.assert_any_call("2026-01-01", flow_id="flow1234")
+        self.assertIn(call("auto1", fake_daily_dir), mock_finish.call_args_list)
+
     def test_run_auto_yields_phase_log_events(self):
         """run_auto should yield log events mentioning Phase 1/3, Phase 2/3, Phase 3/3."""
         engine = LangGraphEngine()

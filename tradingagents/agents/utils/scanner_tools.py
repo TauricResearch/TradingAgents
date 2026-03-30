@@ -40,6 +40,38 @@ def get_market_indices() -> str:
 
 
 @tool
+def get_gatekeeper_universe() -> str:
+    """
+    Get the bounded stock universe used for downstream discovery.
+    Uses the configured scanner_data vendor and currently relies on yfinance's
+    equity screener with the following hardcoded constraints:
+    - US-listed stocks
+    - market cap >= $2B
+    - positive net margin
+    - average daily volume > 2M
+    - price > $5
+
+    Returns:
+        str: Formatted table of gatekeeper-universe candidates
+    """
+    return route_to_vendor("get_gatekeeper_universe")
+
+
+@tool
+def get_gap_candidates() -> str:
+    """
+    Get gap-up candidates from the gatekeeper universe.
+    Primary: Finviz native Gap Up 5% filter (exact, requires finvizfinance).
+    Fallback: yfinance OHLC approximation (open-vs-prev-close, less precise
+    but always available).
+
+    Returns:
+        str: Formatted table of gap candidates with price and volume data
+    """
+    return route_to_vendor("get_gap_candidates")
+
+
+@tool
 def get_sector_performance() -> str:
     """
     Get sector-level performance overview for all 11 GICS sectors.

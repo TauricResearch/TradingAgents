@@ -466,8 +466,11 @@ class LangGraphEngine:
 
         flow_id = params.get("flow_id") or generate_flow_id()
         store = create_report_store(flow_id=flow_id)
-        # A reader store with no flow_id resolves via latest pointer for loading
-        reader_store = create_report_store()
+        # Prefer the active flow when continuing a historical run, but fall back
+        # to the latest pointer for standalone portfolio runs that have no
+        # flow-scoped artifacts yet.
+        reader_store = create_report_store(flow_id=flow_id)
+        fallback_reader_store = create_report_store()
 
         rl = self._start_run_logger(run_id, flow_id=flow_id)
 
@@ -481,30 +484,39 @@ class LangGraphEngine:
 
         portfolio_graph = PortfolioGraph(config=self.config)
 
-        # Load scan summary and per-ticker analyses from the latest report
-        scan_summary = reader_store.load_scan(date) or {}
+        # Load scan summary and per-ticker analyses from the current flow when
+        # available so continuing a loaded history run keeps using the same
+        # folder tree.
+        scan_summary = reader_store.load_scan(date) or fallback_reader_store.load_scan(date) or {}
         ticker_analyses: Dict[str, Any] = {}
 
-        # Search both run-scoped and legacy flat layouts for ticker directories
-        daily_dir = get_daily_dir(date)
+        # Search the active flow first. Only fall back to the legacy/latest
+        # layout when the flow-scoped directory does not exist or contains no
+        # ticker reports.
+        flow_daily_dir = get_daily_dir(date, flow_id=flow_id)
+        fallback_daily_dir = get_daily_dir(date)
         search_dirs: list[Path] = []
-        runs_dir = daily_dir / "runs"
-        if runs_dir.exists():
-            for run_dir in runs_dir.iterdir():
-                if run_dir.is_dir():
-                    search_dirs.append(run_dir)
-        if daily_dir.exists():
-            search_dirs.append(daily_dir)
+        if flow_daily_dir.exists():
+            search_dirs.append(flow_daily_dir)
+        elif fallback_daily_dir.exists():
+            runs_dir = fallback_daily_dir / "runs"
+            if runs_dir.exists():
+                for run_dir in runs_dir.iterdir():
+                    if run_dir.is_dir():
+                        search_dirs.append(run_dir)
+            search_dirs.append(fallback_daily_dir)
 
         seen_tickers: set[str] = set()
         for base in search_dirs:
             for ticker_dir in base.iterdir():
                 if (
                     ticker_dir.is_dir()
-                    and ticker_dir.name not in ("market", "portfolio", "runs")
+                    and ticker_dir.name not in ("market", "portfolio", "runs", "report")
                     and ticker_dir.name.upper() not in seen_tickers
                 ):
                     analysis = reader_store.load_analysis(date, ticker_dir.name)
+                    if analysis is None:
+                        analysis = fallback_reader_store.load_analysis(date, ticker_dir.name)
                     if analysis:
                         ticker_analyses[ticker_dir.name.upper()] = analysis
                         seen_tickers.add(ticker_dir.name.upper())
@@ -694,20 +706,21 @@ class LangGraphEngine:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         portfolio_id = params.get("portfolio_id", "main_portfolio")
 
-        store = create_report_store()
         flow_id = params.get("flow_id") or generate_flow_id()
+        store = create_report_store(flow_id=flow_id)
+        fallback_store = create_report_store()
         writer_store = create_report_store(flow_id=flow_id)
 
         if phase == "analysts":
             # Full re-run
-            async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date}):
+            async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date, "flow_id": flow_id}):
                 yield evt
         elif phase == "debate_and_trader":
             yield self._system_log(f"Loading analysts checkpoint for {ticker}...")
-            ckpt = store.load_analysts_checkpoint(date, ticker)
+            ckpt = store.load_analysts_checkpoint(date, ticker) or fallback_store.load_analysts_checkpoint(date, ticker)
             if not ckpt:
                 yield self._system_log(f"No analysts checkpoint found for {ticker} — falling back to full re-run")
-                async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date}):
+                async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date, "flow_id": flow_id}):
                     yield evt
             else:
                 yield self._system_log(f"Running debate + trader + risk for {ticker} from checkpoint...")
@@ -760,10 +773,10 @@ class LangGraphEngine:
                 self._finish_run_logger(run_id, get_ticker_dir(date, ticker, flow_id=flow_id))
         elif phase == "risk":
             yield self._system_log(f"Loading trader checkpoint for {ticker}...")
-            ckpt = store.load_trader_checkpoint(date, ticker)
+            ckpt = store.load_trader_checkpoint(date, ticker) or fallback_store.load_trader_checkpoint(date, ticker)
             if not ckpt:
                 yield self._system_log(f"No trader checkpoint found for {ticker} — falling back to full re-run")
-                async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date}):
+                async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date, "flow_id": flow_id}):
                     yield evt
             else:
                 yield self._system_log(f"Running risk phase for {ticker} from checkpoint...")
@@ -1023,7 +1036,7 @@ class LangGraphEngine:
                     yield evt
 
         logger.info("Completed AUTO run=%s", run_id)
-        self._finish_run_logger(run_id, get_daily_dir(date, run_id=flow_id[:8]))
+        self._finish_run_logger(run_id, get_daily_dir(date, flow_id=flow_id))
 
     # ------------------------------------------------------------------
     # Report helpers

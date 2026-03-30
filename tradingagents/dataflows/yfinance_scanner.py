@@ -1,10 +1,18 @@
 """yfinance-based scanner data fetching functions for market-wide analysis."""
 
-import yfinance as yf
-import requests
 from datetime import datetime
 from typing import Annotated
+
+import requests
+import yfinance as yf
+from yfinance import EquityQuery
+
+import logging
+
 from .finnhub_common import ThirdPartyTimeoutError
+from .stockstats_utils import YFinanceError
+
+logger = logging.getLogger(__name__)
 
 
 def get_market_movers_yfinance(
@@ -80,6 +88,195 @@ def get_market_movers_yfinance(
         raise
     except Exception as e:
         return f"Error fetching market movers for {category}: {str(e)}"
+
+
+def get_gap_candidates_yfinance() -> str:
+    """
+    Compute real gap candidates from live yfinance screener quotes (fallback approximation).
+
+    NOTE: This is a fallback for when Finviz is unavailable. It uses OHLC math
+    (open-vs-prev-close) rather than a native gap filter, so results are less
+    precise than the Finviz implementation.
+
+    Uses a bounded universe from DAY_GAINERS and MOST_ACTIVES, then calculates
+    gap percentage from today's open versus the previous close.
+
+    Returns:
+        Markdown table of bounded gap candidates with liquidity confirmation.
+    """
+    logger.warning(
+        "get_gap_candidates: falling back to yfinance OHLC approximation — "
+        "results are less precise than Finviz native gap filter"
+    )
+    try:
+        universe = {}
+        for screener_key in ("DAY_GAINERS", "MOST_ACTIVES"):
+            data = yf.screen(screener_key, count=25)
+            if not data or not isinstance(data, dict):
+                continue
+            for quote in data.get("quotes", []):
+                symbol = quote.get("symbol")
+                if symbol:
+                    universe[symbol] = quote
+
+        if not universe:
+            return "No stocks matched the live gap universe today."
+
+        rows = []
+        for symbol, quote in universe.items():
+            prev_close = quote.get("regularMarketPreviousClose")
+            open_price = quote.get("regularMarketOpen")
+            current_price = quote.get("regularMarketPrice")
+            volume = quote.get("regularMarketVolume")
+            avg_volume = quote.get("averageDailyVolume3Month")
+            change_pct = quote.get("regularMarketChangePercent")
+            name = quote.get("shortName", quote.get("displayName", "N/A"))
+
+            if not isinstance(prev_close, (int, float)) or prev_close == 0:
+                continue
+            if not isinstance(open_price, (int, float)):
+                continue
+
+            gap_pct = (open_price - prev_close) / prev_close * 100
+            rel_volume = None
+            if isinstance(volume, (int, float)) and isinstance(avg_volume, (int, float)) and avg_volume > 0:
+                rel_volume = volume / avg_volume
+
+            # Bounded long-bias filter for drift setups.
+            if gap_pct < 2.0:
+                continue
+            if rel_volume is not None and rel_volume < 1.25:
+                continue
+            if isinstance(current_price, (int, float)) and current_price < 5:
+                continue
+
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "name": name[:30],
+                    "open": open_price,
+                    "prev_close": prev_close,
+                    "gap_pct": gap_pct,
+                    "price": current_price,
+                    "change_pct": change_pct,
+                    "rel_volume": rel_volume,
+                }
+            )
+
+        if not rows:
+            return "No stocks matched the live gap criteria today."
+
+        rows.sort(
+            key=lambda row: (
+                row["gap_pct"],
+                row["rel_volume"] if row["rel_volume"] is not None else 0,
+            ),
+            reverse=True,
+        )
+
+        header = "# Gap Candidates\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        lines = [
+            header,
+            "| Symbol | Name | Open | Prev Close | Gap % | Price | Change % | Rel Volume |",
+            "|--------|------|------|------------|-------|-------|----------|------------|",
+        ]
+
+        for row in rows[:10]:
+            open_str = f"${row['open']:.2f}"
+            prev_str = f"${row['prev_close']:.2f}"
+            gap_str = f"{row['gap_pct']:+.2f}%"
+            price = row["price"]
+            price_str = f"${price:.2f}" if isinstance(price, (int, float)) else "N/A"
+            change = row["change_pct"]
+            change_str = f"{change:+.2f}%" if isinstance(change, (int, float)) else "N/A"
+            rel_volume = row["rel_volume"]
+            rel_volume_str = f"{rel_volume:.2f}x" if isinstance(rel_volume, (int, float)) else "N/A"
+            lines.append(
+                f"| {row['symbol']} | {row['name']} | {open_str} | {prev_str} | {gap_str} | "
+                f"{price_str} | {change_str} | {rel_volume_str} |"
+            )
+
+        return "\n".join(lines) + "\n"
+
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError("Request timed out fetching live gap candidates")
+    except ThirdPartyTimeoutError:
+        raise
+    except Exception as e:
+        raise YFinanceError(f"Error fetching live gap candidates: {str(e)}") from e
+
+
+def get_gatekeeper_universe_yfinance(limit: int = 25) -> str:
+    """
+    Build the bounded stock universe for downstream scanners using yfinance's
+    equity screener.
+
+    Mirrors the intended Finviz gatekeeper economics as closely as Yahoo's
+    query model allows:
+    - US listed equities only
+    - market cap >= $2B
+    - positive trailing-twelve-month net income margin
+    - average daily volume (3M) > 2M
+    - price > $5
+
+    Returns:
+        Markdown table of the gatekeeper universe candidates.
+    """
+    try:
+        query = EquityQuery(
+            "and",
+            [
+                EquityQuery("is-in", ["exchange", "NMS", "NYQ", "ASE"]),
+                EquityQuery("gte", ["intradaymarketcap", 2_000_000_000]),
+                EquityQuery("gt", ["netincomemargin.lasttwelvemonths", 0]),
+                EquityQuery("gt", ["avgdailyvol3m", 2_000_000]),
+                EquityQuery("gt", ["intradayprice", 5]),
+            ],
+        )
+
+        data = yf.screen(query, size=max(limit, 1), sortField="dayvolume", sortAsc=False)
+        if not data or not isinstance(data, dict):
+            return "No stocks matched the gatekeeper universe today."
+
+        quotes = data.get("quotes", [])
+        if not quotes:
+            return "No stocks matched the gatekeeper universe today."
+
+        header = "# Gatekeeper Universe\n"
+        header += "# Filters: US-listed, market cap >= $2B, positive net margin, avg volume > 2M, price > $5\n"
+        header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        lines = [
+            header,
+            "| Symbol | Name | Exchange | Price | Avg Vol 3M | Current Vol | Market Cap |",
+            "|--------|------|----------|-------|------------|-------------|------------|",
+        ]
+
+        for quote in quotes[:limit]:
+            symbol = quote.get("symbol", "N/A")
+            name = quote.get("shortName", quote.get("longName", "N/A"))
+            exchange = quote.get("exchange", "N/A")
+            price = quote.get("regularMarketPrice")
+            avg_vol = quote.get("averageDailyVolume3Month")
+            cur_vol = quote.get("regularMarketVolume")
+            market_cap = quote.get("marketCap")
+
+            price_str = f"${price:.2f}" if isinstance(price, (int, float)) else "N/A"
+            avg_vol_str = f"{avg_vol:,.0f}" if isinstance(avg_vol, (int, float)) else "N/A"
+            cur_vol_str = f"{cur_vol:,.0f}" if isinstance(cur_vol, (int, float)) else "N/A"
+            market_cap_str = f"${market_cap:,.0f}" if isinstance(market_cap, (int, float)) else "N/A"
+            lines.append(
+                f"| {symbol} | {name[:30]} | {exchange} | {price_str} | {avg_vol_str} | {cur_vol_str} | {market_cap_str} |"
+            )
+
+        return "\n".join(lines) + "\n"
+
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError("Request timed out fetching gatekeeper universe")
+    except ThirdPartyTimeoutError:
+        raise
+    except Exception as e:
+        raise YFinanceError(f"Error fetching gatekeeper universe: {str(e)}") from e
 
 
 def get_market_indices_yfinance() -> str:
