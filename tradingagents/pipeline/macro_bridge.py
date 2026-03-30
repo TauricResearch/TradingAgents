@@ -11,6 +11,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Literal
+from tradingagents.instruments import (
+    is_equity_pipeline_supported,
+    resolve_instrument,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -18,6 +22,12 @@ logger = logging.getLogger(__name__)
 ConvictionLevel = Literal["high", "medium", "low"]
 
 CONVICTION_RANK: dict[str, int] = {"high": 3, "medium": 2, "low": 1}
+
+
+def _supports_equity_pipeline(candidate: "StockCandidate") -> bool:
+    if candidate.asset_class or candidate.instrument_type:
+        return candidate.asset_class == "equity" and candidate.instrument_type == "common_stock"
+    return is_equity_pipeline_supported(resolve_instrument(candidate.ticker, source_context="candidate"))
 
 
 @dataclass
@@ -47,6 +57,12 @@ class StockCandidate:
     key_catalysts: list[str]
     risks: list[str]
     macro_theme: str = ""  # which macro theme this stock is linked to
+    instrument_key: str = ""
+    asset_class: str = "equity"
+    instrument_type: str = "common_stock"
+    is_etf: bool = False
+    is_inverse: bool = False
+    is_leveraged: bool = False
 
 
 @dataclass
@@ -101,10 +117,11 @@ def parse_macro_output(path: Path) -> tuple[MacroContext, list[StockCandidate]]:
 
     candidates: list[StockCandidate] = []
     for s in data.get("stocks_to_investigate", []):
+        instrument = resolve_instrument(s["ticker"], source_context="scan")
         theme = _match_theme(s.get("sector", ""), data.get("key_themes", []))
         candidates.append(
             StockCandidate(
-                ticker=s["ticker"].upper(),
+                ticker=instrument.canonical_symbol,
                 name=s.get("name", s["ticker"]),
                 sector=s.get("sector", ""),
                 rationale=s.get("rationale", ""),
@@ -113,6 +130,12 @@ def parse_macro_output(path: Path) -> tuple[MacroContext, list[StockCandidate]]:
                 key_catalysts=s.get("key_catalysts", []),
                 risks=s.get("risks", []),
                 macro_theme=theme,
+                instrument_key=instrument.instrument_key,
+                asset_class=instrument.asset_class,
+                instrument_type=instrument.instrument_type,
+                is_etf=instrument.is_etf,
+                is_inverse=instrument.is_inverse,
+                is_leveraged=instrument.is_leveraged,
             )
         )
 
@@ -160,17 +183,20 @@ def candidates_from_holdings(
     Returns:
         List of StockCandidate for holdings that aren't already candidates.
     """
-    existing = {t.upper() for t in (existing_tickers or set())}
+    existing = {
+        t if ":" in t else resolve_instrument(t, source_context="existing").instrument_key
+        for t in (existing_tickers or set())
+    }
     result: list[StockCandidate] = []
     for h in holdings:
-        ticker = h.ticker.upper()
-        if ticker in existing:
+        instrument = resolve_instrument(h.ticker, source_context="holding")
+        if instrument.instrument_key in existing:
             continue
-        existing.add(ticker)
+        existing.add(instrument.instrument_key)
         result.append(
             StockCandidate(
-                ticker=ticker,
-                name=ticker,
+                ticker=instrument.canonical_symbol,
+                name=instrument.canonical_symbol,
                 sector=getattr(h, "sector", None) or "",
                 rationale="Existing portfolio holding — re-analysis for portfolio review.",
                 thesis_angle="portfolio_holding",
@@ -178,6 +204,12 @@ def candidates_from_holdings(
                 key_catalysts=[],
                 risks=[],
                 macro_theme="",
+                instrument_key=instrument.instrument_key,
+                asset_class=instrument.asset_class,
+                instrument_type=instrument.instrument_type,
+                is_etf=instrument.is_etf,
+                is_inverse=instrument.is_inverse,
+                is_leveraged=instrument.is_leveraged,
             )
         )
     return result
@@ -202,7 +234,7 @@ def filter_candidates(
         Filtered and sorted list (high conviction first, then alphabetically).
     """
     min_rank = CONVICTION_RANK[min_conviction]
-    filtered = [c for c in candidates if CONVICTION_RANK[c.conviction] >= min_rank]
+    filtered = [c for c in candidates if CONVICTION_RANK[c.conviction] >= min_rank and _supports_equity_pipeline(c)]
     if ticker_filter:
         tickers_upper = {t.upper() for t in ticker_filter}
         filtered = [c for c in filtered if c.ticker in tickers_upper]

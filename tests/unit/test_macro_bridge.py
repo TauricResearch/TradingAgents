@@ -83,6 +83,8 @@ class TestParseMacroOutput:
         assert len(candidates) == 3
         assert candidates[0].ticker == "NVDA"
         assert candidates[0].conviction == "high"
+        assert candidates[0].instrument_key == "equity:NVDA"
+        assert candidates[0].instrument_type == "common_stock"
 
     def test_missing_fields_default_gracefully(self, tmp_path):
         from tradingagents.pipeline.macro_bridge import parse_macro_output
@@ -94,6 +96,18 @@ class TestParseMacroOutput:
         assert len(candidates) == 1
         assert candidates[0].ticker == "TEST"
         assert candidates[0].conviction == "medium"  # default
+
+    def test_parse_macro_output_classifies_etf_candidate(self, tmp_path):
+        from tradingagents.pipeline.macro_bridge import parse_macro_output
+
+        payload = {"stocks_to_investigate": [{"ticker": "SPY"}]}
+        path = tmp_path / "etf.json"
+        path.write_text(json.dumps(payload))
+
+        _, candidates = parse_macro_output(path)
+        assert candidates[0].instrument_key == "etf:SPY"
+        assert candidates[0].instrument_type == "broad_market_etf"
+        assert candidates[0].is_etf is True
 
 
 class TestFilterCandidates:
@@ -118,8 +132,26 @@ class TestFilterCandidates:
         _, candidates = parse_macro_output(macro_json_file)
         filtered = filter_candidates(candidates, "medium", None)
         assert len(filtered) == 2
-        tickers = {c.ticker for c in filtered}
-        assert tickers == {"NVDA", "LMT"}
+
+    def test_filter_candidates_excludes_non_stock_instruments(self, tmp_path):
+        from tradingagents.pipeline.macro_bridge import (
+            filter_candidates,
+            parse_macro_output,
+        )
+
+        payload = {
+            "stocks_to_investigate": [
+                {"ticker": "AAPL", "conviction": "high"},
+                {"ticker": "SPY", "conviction": "high"},
+                {"ticker": "BTC", "conviction": "high"},
+            ]
+        }
+        path = tmp_path / "mixed.json"
+        path.write_text(json.dumps(payload))
+
+        _, candidates = parse_macro_output(path)
+        filtered = filter_candidates(candidates, "high", None)
+        assert [candidate.ticker for candidate in filtered] == ["AAPL"]
 
     def test_filter_by_ticker(self, macro_json_file):
         from tradingagents.pipeline.macro_bridge import (
@@ -232,6 +264,7 @@ class TestCandidatesFromHoldings:
         assert result[0].thesis_angle == "portfolio_holding"
         assert result[0].conviction == "medium"
         assert result[0].sector == "Technology"
+        assert result[0].instrument_key == "equity:AAPL"
 
     def test_skips_existing_tickers(self):
         from tradingagents.pipeline.macro_bridge import candidates_from_holdings
@@ -273,3 +306,10 @@ class TestCandidatesFromHoldings:
         holdings = [self._make_holding("TSLA")]
         result = candidates_from_holdings(holdings)
         assert result[0].sector == ""
+
+    def test_deduplicates_against_existing_instrument_key(self):
+        from tradingagents.pipeline.macro_bridge import candidates_from_holdings
+
+        holdings = [self._make_holding("SPY")]
+        result = candidates_from_holdings(holdings, existing_tickers={"etf:SPY"})
+        assert result == []

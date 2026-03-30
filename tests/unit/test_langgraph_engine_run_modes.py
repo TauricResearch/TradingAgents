@@ -126,7 +126,12 @@ class TestRunScanReportStorage(unittest.TestCase):
 
             asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
 
-        mock_store.save_scan.assert_called_once_with("2026-01-01", parsed)
+        mock_store.save_scan.assert_called_once()
+        save_args = mock_store.save_scan.call_args[0]
+        self.assertEqual(save_args[0], "2026-01-01")
+        saved_summary = save_args[1]
+        self.assertEqual(saved_summary["stocks_to_investigate"], ["AAPL"])
+        self.assertEqual(saved_summary["equity_candidates"][0]["instrument_key"], "equity:AAPL")
 
     def test_run_scan_appends_digest(self):
         """run_scan should call append_to_digest once with scan/Market Scan."""
@@ -266,7 +271,6 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         """run_pipeline should call ReportStore().save_analysis with correct args."""
         mock_wrapper = self._make_mock_graph_wrapper()
         engine = LangGraphEngine()
-        expected_state = {**self._FINAL_STATE, "analysis_status": "completed"}
 
         with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
@@ -281,7 +285,14 @@ class TestRunPipelineReportStorage(unittest.TestCase):
 
             asyncio.run(_collect(engine.run_pipeline("run1", {"ticker": "AAPL", "date": "2026-01-01"})))
 
-        mock_store.save_analysis.assert_called_once_with("2026-01-01", "AAPL", expected_state)
+        mock_store.save_analysis.assert_called_once()
+        save_args = mock_store.save_analysis.call_args[0]
+        self.assertEqual(save_args[0], "2026-01-01")
+        self.assertEqual(save_args[1], "AAPL")
+        saved_state = save_args[2]
+        self.assertEqual(saved_state["analysis_status"], "completed")
+        self.assertEqual(saved_state["instrument_key"], "equity:AAPL")
+        self.assertEqual(saved_state["instrument_type"], "common_stock")
 
     def test_run_pipeline_writes_complete_report_md(self):
         """run_pipeline should call _write_complete_report_md."""
@@ -344,6 +355,20 @@ class TestRunPipelineReportStorage(unittest.TestCase):
 
         log_events = [e for e in events if e.get("type") == "log"]
         self.assertGreaterEqual(len(log_events), 1)
+
+    def test_run_pipeline_skips_non_stock_instrument(self):
+        """run_pipeline should guard ETFs from entering the common-stock path."""
+        engine = LangGraphEngine()
+
+        with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph") as mock_graph_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd:
+            fake_dir = MagicMock(spec=Path)
+            mock_gtd.return_value = fake_dir
+            events = asyncio.run(_collect(engine.run_pipeline("run1", {"ticker": "SPY", "date": "2026-01-01"})))
+
+        self.assertFalse(mock_graph_cls.called)
+        log_messages = [e.get("message", "") for e in events if e.get("type") == "log"]
+        self.assertTrue(any("classified as broad_market_etf" in m for m in log_messages))
 
     def test_run_pipeline_skips_save_if_empty_final_state(self):
         """When no root chain-end event is emitted, no saves should be called."""
@@ -418,7 +443,8 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
 
             asyncio.run(_collect(engine.run_portfolio("run1", {"date": "2026-01-01", "portfolio_id": "p1"})))
 
-        self.assertEqual(captured_state.get("scan_summary"), scan_data)
+        self.assertEqual(captured_state["scan_summary"]["watchlist"], ["AAPL"])
+        self.assertEqual(captured_state["scan_summary"]["equity_candidates"][0]["instrument_key"], "equity:AAPL")
 
     def test_run_portfolio_loads_ticker_analyses_from_daily_dir(self):
         """run_portfolio should load analyses for AAPL and TSLA (excluding market/portfolio dirs)."""
@@ -466,10 +492,10 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
             asyncio.run(_collect(engine.run_portfolio("run1", {"date": "2026-01-01", "portfolio_id": "p1"})))
 
         ticker_analyses = captured_state.get("ticker_analyses", {})
-        self.assertIn("AAPL", ticker_analyses)
-        self.assertIn("TSLA", ticker_analyses)
-        self.assertEqual(ticker_analyses["AAPL"], aapl_analysis)
-        self.assertEqual(ticker_analyses["TSLA"], tsla_analysis)
+        self.assertIn("equity:AAPL", ticker_analyses)
+        self.assertIn("equity:TSLA", ticker_analyses)
+        self.assertEqual(ticker_analyses["equity:AAPL"], aapl_analysis)
+        self.assertEqual(ticker_analyses["equity:TSLA"], tsla_analysis)
 
     def test_run_portfolio_skips_market_and_portfolio_dirs(self):
         """load_analysis should NOT be called for dirs named 'market' or 'portfolio'."""
@@ -594,7 +620,7 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
             events = asyncio.run(_collect(engine.run_portfolio("run1", {"date": "2026-01-01", "portfolio_id": "p1"})))
 
         ticker_analyses = captured_state.get("ticker_analyses", {})
-        self.assertEqual(set(ticker_analyses.keys()), {"AAPL"})
+        self.assertEqual(set(ticker_analyses.keys()), {"equity:AAPL"})
         log_messages = [e.get("message", "") for e in events if e.get("type") == "log"]
         self.assertTrue(
             any("Ignoring incomplete ticker analyses" in msg and "NVDA" in msg for msg in log_messages),
@@ -1220,6 +1246,97 @@ class TestRunAutoTickerSource(unittest.TestCase):
         self.assertEqual(pipeline_calls.count("AAPL"), 1)
         self.assertIn("TSLA", pipeline_calls)
 
+    def test_run_auto_filters_non_stock_scan_symbols(self):
+        """ETFs and coins from scan output should not enter the stock pipeline queue."""
+        scan_data = {"stocks_to_investigate": ["AAPL", "SPY", "BTC", "TSLA"]}
+        pipeline_calls = []
+        completed_tickers = set()
+
+        engine = LangGraphEngine()
+
+        async def fake_run_pipeline(run_id, params):
+            ticker = params.get("ticker")
+            pipeline_calls.append(ticker)
+            completed_tickers.add(ticker)
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_runtime_analysis_store(scan_data, completed_tickers)
+
+            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        self.assertEqual(sorted(pipeline_calls), ["AAPL", "TSLA"])
+
+    def test_run_auto_filters_non_stock_holdings(self):
+        """ETF holdings should be skipped from the current deep-dive queue."""
+        scan_data = {"stocks_to_investigate": ["AAPL"]}
+        pipeline_calls = []
+        completed_tickers = set()
+
+        engine = LangGraphEngine()
+
+        async def fake_run_pipeline(run_id, params):
+            ticker = params.get("ticker")
+            pipeline_calls.append(ticker)
+            completed_tickers.add(ticker)
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+
+        mock_holding = MagicMock()
+        mock_holding.ticker = "SPY"
+
+        mock_repo = MagicMock()
+        mock_repo.get_portfolio_with_holdings.return_value = (MagicMock(), [mock_holding])
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data), \
+             patch("tradingagents.portfolio.repository.PortfolioRepository", return_value=mock_repo):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_runtime_analysis_store(scan_data, completed_tickers)
+
+            events = asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        self.assertEqual(pipeline_calls, ["AAPL"])
+        log_messages = [e.get("message", "") for e in events if e.get("type") == "log"]
+        self.assertTrue(any("skipping non-stock holdings" in m and "SPY" in m for m in log_messages))
+
     def test_run_auto_proceeds_when_holdings_load_fails(self):
         """Pipeline should still run scan tickers even if holdings fail to load."""
         scan_data = {"stocks_to_investigate": ["AAPL"]}
@@ -1311,6 +1428,10 @@ class TestExtractTickersFromScanData(unittest.TestCase):
         self.assertIn("MSFT", result)
         # Non-string/non-dict items should not produce entries
         self.assertEqual(len(result), 2)
+
+    def test_non_stock_symbols_are_filtered(self):
+        scan = {"stocks_to_investigate": ["AAPL", "SPY", "BTC", "TSLA"]}
+        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
 
 
 class TestRunPipelineFromPhase(unittest.TestCase):

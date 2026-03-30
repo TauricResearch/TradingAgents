@@ -24,6 +24,7 @@ from tradingagents.portfolio.candidate_prioritizer import prioritize_candidates
 from tradingagents.portfolio.portfolio_states import PortfolioManagerState
 from tradingagents.portfolio.risk_evaluator import compute_portfolio_risk
 from tradingagents.portfolio.trade_executor import TradeExecutor
+from tradingagents.instruments import resolve_instrument
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,8 @@ def _analysis_has_deep_dive(analysis: Any) -> bool:
 def _completed_scan_candidates(scan_summary: dict, ticker_analyses: dict[str, Any]) -> list[dict[str, Any]]:
     """Return only scan candidates with completed ticker deep-dive analyses."""
     completed: list[dict[str, Any]] = []
-    for raw_candidate in (scan_summary.get("stocks_to_investigate") or []):
+    raw_candidates = scan_summary.get("equity_candidates") or scan_summary.get("stocks_to_investigate") or []
+    for raw_candidate in raw_candidates:
         if isinstance(raw_candidate, dict):
             candidate = dict(raw_candidate)
             ticker = (candidate.get("ticker") or candidate.get("symbol") or "").upper()
@@ -58,10 +60,12 @@ def _completed_scan_candidates(scan_summary: dict, ticker_analyses: dict[str, An
             candidate = {"ticker": ticker}
         if not ticker:
             continue
-        analysis = ticker_analyses.get(ticker, {}) if isinstance(ticker_analyses, dict) else {}
+        instrument_key = candidate.get("instrument_key") or resolve_instrument(ticker, source_context="scan").instrument_key
+        analysis = ticker_analyses.get(instrument_key, {}) if isinstance(ticker_analyses, dict) else {}
         if not _analysis_has_deep_dive(analysis):
             continue
         candidate["ticker"] = ticker
+        candidate["instrument_key"] = instrument_key
         candidate["deep_dive_summary"] = str(analysis.get("final_trade_decision") or "").strip()
         completed.append(candidate)
     return completed

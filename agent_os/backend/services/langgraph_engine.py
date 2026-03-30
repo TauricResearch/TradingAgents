@@ -14,6 +14,11 @@ from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.store_factory import create_report_store
 from tradingagents.daily_digest import append_to_digest
 from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.instruments import (
+    CanonicalInstrument,
+    is_equity_pipeline_supported,
+    resolve_instrument,
+)
 from tradingagents.observability import RunLogger, set_run_logger
 
 logger = logging.getLogger("agent_os.engine")
@@ -304,7 +309,7 @@ class LangGraphEngine:
                 summary_text = final_state.get("macro_scan_summary", "")
                 if summary_text:
                     try:
-                        summary_data = extract_json(summary_text)
+                        summary_data = self._normalize_scan_summary(extract_json(summary_text))
                         store.save_scan(date, summary_data)
                     except (ValueError, KeyError, TypeError):
                         logger.warning(
@@ -341,7 +346,8 @@ class LangGraphEngine:
         self, run_id: str, params: Dict[str, Any]
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Run per-ticker analysis pipeline and stream events."""
-        ticker = params.get("ticker", "AAPL")
+        instrument = resolve_instrument(params.get("ticker", "AAPL"), source_context="pipeline")
+        ticker = instrument.canonical_symbol or "AAPL"
         date = params.get("date", time.strftime("%Y-%m-%d"))
         analysts = params.get("analysts", ["market", "news", "fundamentals"])
         root_run_id = self._root_run_id(run_id, params)
@@ -351,6 +357,18 @@ class LangGraphEngine:
         rl = self._start_run_logger(root_run_id, logger_key=execution_key)
 
         logger.info("Starting PIPELINE run=%s ticker=%s date=%s", root_run_id, ticker, date)
+
+        if not is_equity_pipeline_supported(instrument):
+            yield self._system_log(
+                f"Skipping stock deep-dive for {ticker}: "
+                f"classified as {instrument.instrument_type} ({instrument.asset_class})."
+            )
+            logger.info(
+                "Skipping unsupported pipeline instrument run=%s ticker=%s type=%s",
+                root_run_id, ticker, instrument.instrument_type,
+            )
+            self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
+            return
 
         yield self._system_log(f"Starting analysis pipeline for {ticker} on {date}")
 
@@ -424,10 +442,15 @@ class LangGraphEngine:
                 # Sanitize final_state to remove non-JSON-serializable objects
                 # (e.g. LangChain HumanMessage, AIMessage objects in "messages")
                 serializable_state = self._sanitize_for_json(final_state)
+                serializable_state.update(instrument.to_metadata())
+                serializable_state["ticker"] = ticker
                 serializable_state["analysis_status"] = (
-                    "completed"
-                    if str(serializable_state.get("final_trade_decision") or "").strip()
-                    else "incomplete"
+                    str(serializable_state.get("analysis_status") or "").strip().lower()
+                    or (
+                        "completed"
+                        if str(serializable_state.get("final_trade_decision") or "").strip()
+                        else "incomplete"
+                    )
                 )
 
                 # Save JSON via store (complete_report.json)
@@ -504,7 +527,9 @@ class LangGraphEngine:
 
         portfolio_graph = PortfolioGraph(config=self.config)
 
-        scan_summary = reader_store.load_scan(date) or fallback_reader_store.load_scan(date) or {}
+        scan_summary = self._normalize_scan_summary(
+            reader_store.load_scan(date) or fallback_reader_store.load_scan(date) or {}
+        )
         ticker_analyses: Dict[str, Any] = {}
 
         search_dirs: list[Path] = []
@@ -527,11 +552,15 @@ class LangGraphEngine:
                     analysis = reader_store.load_analysis(date, ticker_dir.name)
                     if analysis is None:
                         analysis = fallback_reader_store.load_analysis(date, ticker_dir.name)
+                    instrument_key = (
+                        (analysis or {}).get("instrument_key")
+                        or resolve_instrument(ticker_dir.name, source_context="analysis").instrument_key
+                    )
                     if _analysis_has_deep_dive(analysis):
-                        ticker_analyses[ticker_dir.name.upper()] = analysis
-                        seen_tickers.add(ticker_dir.name.upper())
+                        ticker_analyses[instrument_key] = analysis
+                        seen_tickers.add(instrument_key)
                     elif analysis:
-                        incomplete_tickers.append(ticker_dir.name.upper())
+                        incomplete_tickers.append(instrument_key)
 
         if scan_summary:
             yield self._system_log(f"Loaded macro scan summary for {date}")
@@ -561,7 +590,10 @@ class LangGraphEngine:
             holding_tickers = [h.ticker for h in holdings]
         except Exception as exc:
             logger.warning("run_portfolio: could not load holdings for price fetch: %s", exc)
-        analysis_tickers = list(ticker_analyses.keys())
+        analysis_tickers = [
+            str(analysis.get("canonical_symbol") or analysis.get("ticker") or "").upper()
+            for analysis in ticker_analyses.values()
+        ]
         all_tickers = list({t.upper() for t in holding_tickers + analysis_tickers if t})
         prices = _fetch_prices(all_tickers) if all_tickers else {}
 
@@ -717,6 +749,7 @@ class LangGraphEngine:
         decision reflects the updated ticker analysis.
         """
         ticker = params.get("ticker", params.get("identifier", "AAPL"))
+        instrument = resolve_instrument(ticker, source_context="pipeline_rerun")
         date = params.get("date", time.strftime("%Y-%m-%d"))
         portfolio_id = params.get("portfolio_id", "main_portfolio")
         root_run_id = self._root_run_id(run_id, params)
@@ -724,6 +757,13 @@ class LangGraphEngine:
         store = create_report_store(run_id=root_run_id)
         fallback_store = create_report_store()
         writer_store = create_report_store(run_id=root_run_id)
+
+        if not is_equity_pipeline_supported(instrument):
+            yield self._system_log(
+                f"Skipping {phase} re-run for {ticker}: "
+                f"classified as {instrument.instrument_type} ({instrument.asset_class})."
+            )
+            return
 
         if phase == "analysts":
             # Full re-run
@@ -874,12 +914,22 @@ class LangGraphEngine:
 
         # Phase 2: Pipeline analysis — get tickers from scan report + portfolio holdings
         yield self._system_log("Phase 2/3: Loading stocks from scan report…")
-        scan_data = store.load_scan(date)
-        scan_tickers = self._extract_tickers_from_scan_data(scan_data)
+        scan_data = self._normalize_scan_summary(store.load_scan(date) or {})
+        scan_instruments = self._extract_pipeline_instruments_from_scan_data(scan_data)
+        tracked_market_symbols = [
+            str(item.get("ticker") or "")
+            for item in (scan_data.get("tracked_market_instruments") or [])
+            if isinstance(item, dict)
+        ]
+        tracked_crypto_symbols = [
+            str(item.get("ticker") or "")
+            for item in (scan_data.get("tracked_crypto_instruments") or [])
+            if isinstance(item, dict)
+        ]
 
         # Safety cap: truncate scan candidates to max_auto_tickers (portfolio holdings added after)
         max_t = int(params.get("max_tickers") or self.config.get("max_auto_tickers") or 10)
-        scan_tickers = scan_tickers[:max_t]
+        scan_instruments = scan_instruments[:max_t]
 
         # Also include tickers from current portfolio holdings so the PM agent
         # has fresh analysis for existing positions (hold/sell/add decisions).
@@ -893,34 +943,65 @@ class LangGraphEngine:
         except Exception as exc:
             logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
 
+        holding_instruments = [
+            resolve_instrument(ticker, source_context="holding")
+            for ticker in holding_tickers
+        ]
+        holding_instrument_keys = {
+            instrument.instrument_key
+            for instrument in holding_instruments
+            if is_equity_pipeline_supported(instrument)
+        }
+        skipped_holding_symbols = [
+            instrument.canonical_symbol
+            for instrument in holding_instruments
+            if instrument.canonical_symbol and not is_equity_pipeline_supported(instrument)
+        ]
+
         # Merge & deduplicate (scan candidates first, then holdings-only tickers)
         seen: set[str] = set()
-        tickers: list[str] = []
-        for t in scan_tickers:
-            up = t.upper()
-            if up not in seen:
-                seen.add(up)
-                tickers.append(up)
+        queued_instruments: list[CanonicalInstrument] = []
+        for instrument in scan_instruments:
+            if instrument.instrument_key not in seen:
+                seen.add(instrument.instrument_key)
+                queued_instruments.append(instrument)
         holdings_only: list[str] = []
-        for t in holding_tickers:
-            if t not in seen:
-                seen.add(t)
-                tickers.append(t)
-                holdings_only.append(t)
+        for instrument in holding_instruments:
+            if not is_equity_pipeline_supported(instrument):
+                continue
+            if instrument.instrument_key not in seen:
+                seen.add(instrument.instrument_key)
+                queued_instruments.append(instrument)
+                holdings_only.append(instrument.canonical_symbol)
 
-        if scan_tickers:
+        if scan_instruments:
             yield self._system_log(
-                f"Phase 2/3: {len(scan_tickers)} ticker(s) from scan report"
+                f"Phase 2/3: {len(scan_instruments)} equity ticker(s) from scan report"
+            )
+        if tracked_market_symbols:
+            yield self._system_log(
+                "Phase 2/3: tracked market instruments kept out of stock deep-dive queue: "
+                + ", ".join(tracked_market_symbols)
+            )
+        if tracked_crypto_symbols:
+            yield self._system_log(
+                "Phase 2/3: tracked crypto instruments kept out of stock deep-dive queue: "
+                + ", ".join(tracked_crypto_symbols)
             )
         if holdings_only:
             yield self._system_log(
                 f"Phase 2/3: {len(holdings_only)} additional ticker(s) from portfolio holdings: "
                 + ", ".join(holdings_only)
             )
-
-        if not tickers:
+        if skipped_holding_symbols:
             yield self._system_log(
-                "Warning: no stocks found in scan summary and no portfolio holdings — "
+                "Phase 2/3: skipping non-stock holdings for the current deep-dive path: "
+                + ", ".join(sorted(set(skipped_holding_symbols)))
+            )
+
+        if not queued_instruments:
+            yield self._system_log(
+                "Warning: no common-stock candidates found in scan summary and no supported portfolio holdings — "
                 "ensure the scan completed successfully and produced a "
                 "'stocks_to_investigate' list. Skipping pipeline phase."
             )
@@ -928,7 +1009,7 @@ class LangGraphEngine:
             max_concurrent = int(self.config.get("max_concurrent_pipelines", 2))
             failed_tickers: dict[str, str] = {}
             yield self._system_log(
-                f"Phase 2/3: Queuing {len(tickers)} ticker(s) "
+                f"Phase 2/3: Queuing {len(queued_instruments)} ticker(s) "
                 f"(max {max_concurrent} concurrent)…"
             )
 
@@ -939,7 +1020,9 @@ class LangGraphEngine:
             pipeline_queue: asyncio.Queue = asyncio.Queue()
             semaphore = asyncio.Semaphore(max_concurrent)
 
-            async def _run_one_ticker(ticker: str) -> None:
+            async def _run_one_ticker(instrument: CanonicalInstrument) -> None:
+                ticker = instrument.canonical_symbol
+
                 def _record_failure(reason: str) -> None:
                     failed_tickers[ticker] = reason
 
@@ -958,7 +1041,13 @@ class LangGraphEngine:
                     try:
                         async for evt in self.run_pipeline(
                             f"{root_run_id}:pipeline:{ticker}",
-                            {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:pipeline:{ticker}"},
+                            {
+                                "ticker": ticker,
+                                "date": date,
+                                "run_id": root_run_id,
+                                "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
+                                "_execution_key": f"{root_run_id}:pipeline:{ticker}",
+                            },
                         ):
                             await pipeline_queue.put(evt)
                         saved_analysis = store.load_analysis(date, ticker)
@@ -993,7 +1082,13 @@ class LangGraphEngine:
                                 try:
                                     async for evt in self.run_pipeline(
                                         f"{root_run_id}:fallback:{ticker}",
-                                        {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:fallback:{ticker}"},
+                                        {
+                                            "ticker": ticker,
+                                            "date": date,
+                                            "run_id": root_run_id,
+                                            "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
+                                            "_execution_key": f"{root_run_id}:fallback:{ticker}",
+                                        },
                                     ):
                                         await pipeline_queue.put(evt)
                                     saved_analysis = store.load_analysis(date, ticker)
@@ -1041,7 +1136,7 @@ class LangGraphEngine:
                             )
 
             async def _pipeline_producer() -> None:
-                await asyncio.gather(*[_run_one_ticker(t) for t in tickers])
+                await asyncio.gather(*[_run_one_ticker(instrument) for instrument in queued_instruments])
                 await pipeline_queue.put(_sentinel)
 
             asyncio.create_task(_pipeline_producer())
@@ -1176,15 +1271,11 @@ class LangGraphEngine:
         * List of strings: ``['AAPL', 'TSLA', ...]``
 
         Also checks both ``stocks_to_investigate`` and ``watchlist`` keys.
-        Returns an uppercase, deduplicated list in original order.
+        Returns a deduplicated list of common-stock symbols in original order.
         """
         if not scan_data:
             return []
-        raw_stocks = (
-            scan_data.get("stocks_to_investigate")
-            or scan_data.get("watchlist")
-            or []
-        )
+        raw_stocks = scan_data.get("equity_candidates") or scan_data.get("stocks_to_investigate") or scan_data.get("watchlist") or []
         seen: set[str] = set()
         tickers: list[str] = []
         for item in raw_stocks:
@@ -1194,11 +1285,70 @@ class LangGraphEngine:
                 sym = item
             else:
                 continue
-            sym = sym.strip().upper()
-            if sym and sym not in seen:
-                seen.add(sym)
-                tickers.append(sym)
+            instrument = resolve_instrument(sym, source_context="scan")
+            if not is_equity_pipeline_supported(instrument):
+                continue
+            if instrument.canonical_symbol and instrument.canonical_symbol not in seen:
+                seen.add(instrument.canonical_symbol)
+                tickers.append(instrument.canonical_symbol)
         return tickers
+
+    @staticmethod
+    def _extract_pipeline_instruments_from_scan_data(scan_data: Dict[str, Any] | None) -> list[CanonicalInstrument]:
+        if not scan_data:
+            return []
+        raw_stocks = scan_data.get("equity_candidates") or scan_data.get("stocks_to_investigate") or scan_data.get("watchlist") or []
+        seen: set[str] = set()
+        instruments: list[CanonicalInstrument] = []
+        for item in raw_stocks:
+            if isinstance(item, dict):
+                sym = item.get("ticker") or item.get("symbol") or ""
+            elif isinstance(item, str):
+                sym = item
+            else:
+                continue
+            instrument = resolve_instrument(sym, source_context="scan")
+            if not is_equity_pipeline_supported(instrument):
+                continue
+            if instrument.instrument_key in seen:
+                continue
+            seen.add(instrument.instrument_key)
+            instruments.append(instrument)
+        return instruments
+
+    @staticmethod
+    def _normalize_scan_summary(scan_data: Dict[str, Any] | None) -> Dict[str, Any]:
+        if not isinstance(scan_data, dict):
+            return {}
+        normalized = dict(scan_data)
+        raw_stocks = normalized.get("stocks_to_investigate") or normalized.get("watchlist")
+        if raw_stocks is None:
+            raw_stocks = normalized.get("equity_candidates") or []
+        equity_candidates: list[dict[str, Any]] = []
+        tracked_market_instruments: list[dict[str, Any]] = []
+        tracked_crypto_instruments: list[dict[str, Any]] = []
+        for item in raw_stocks:
+            if isinstance(item, dict):
+                candidate = dict(item)
+                sym = candidate.get("ticker") or candidate.get("symbol") or ""
+            elif isinstance(item, str):
+                sym = item
+                candidate = {"ticker": str(item).strip().upper()}
+            else:
+                continue
+            instrument = resolve_instrument(sym, source_context="scan")
+            candidate.update(instrument.to_metadata())
+            candidate["ticker"] = instrument.canonical_symbol
+            if is_equity_pipeline_supported(instrument):
+                equity_candidates.append(candidate)
+            elif instrument.asset_class in {"etf", "index"}:
+                tracked_market_instruments.append(candidate)
+            elif instrument.asset_class == "crypto":
+                tracked_crypto_instruments.append(candidate)
+        normalized["equity_candidates"] = equity_candidates
+        normalized["tracked_market_instruments"] = tracked_market_instruments
+        normalized["tracked_crypto_instruments"] = tracked_crypto_instruments
+        return normalized
 
     # ------------------------------------------------------------------
     # Event mapping

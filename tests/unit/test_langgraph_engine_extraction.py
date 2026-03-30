@@ -256,6 +256,10 @@ class TestLangGraphEngineExtraction(unittest.TestCase):
         scan = {"stocks_to_investigate": [{"symbol": "META"}]}
         self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["META"])
 
+    def test_extract_tickers_filters_out_etfs_and_coins(self):
+        scan = {"stocks_to_investigate": ["AAPL", "SPY", "BTC", "TSLA"]}
+        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
+
 
 if __name__ == "__main__":
     unittest.main()

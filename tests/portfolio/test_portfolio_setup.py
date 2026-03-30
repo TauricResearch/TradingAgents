@@ -37,8 +37,8 @@ def test_prioritize_candidates_only_uses_completed_ticker_analyses():
             ]
         },
         "ticker_analyses": {
-            "AAPL": {"final_trade_decision": "Rating: Buy"},
-            "NVDA": {"analysis_status": "incomplete", "investment_plan": "partial"},
+            "equity:AAPL": {"final_trade_decision": "Rating: Buy"},
+            "equity:NVDA": {"analysis_status": "incomplete", "investment_plan": "partial"},
         },
         "prices": {},
     }

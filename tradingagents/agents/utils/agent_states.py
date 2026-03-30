@@ -50,6 +50,14 @@ class RiskDebateState(TypedDict):
 class AgentState(MessagesState):
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     trade_date: Annotated[str, "What date we are trading at"]
+    instrument_key: Annotated[str, "Canonical instrument identity key"]
+    asset_class: Annotated[str, "Canonical asset class"]
+    instrument_type: Annotated[str, "Canonical instrument type"]
+    is_etf: Annotated[bool, "Whether the instrument is an ETF"]
+    is_inverse: Annotated[bool, "Whether the instrument is inverse"]
+    is_leveraged: Annotated[bool, "Whether the instrument is leveraged"]
+    analysis_status: Annotated[str, "Pipeline analysis status"]
+    terminal_action: Annotated[str, "Terminal action for deterministic aborts"]
 
     sender: Annotated[str, "Agent that sent this message"]
 

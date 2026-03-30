@@ -7,6 +7,7 @@ from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.instruments import is_equity_pipeline_supported, resolve_instrument
 
 from .conditional_logic import ConditionalLogic
 
@@ -18,6 +19,48 @@ class GraphSetup:
         return self.conditional_logic._check_critical_abort(
             state, "market_report"
         ) or self.conditional_logic._check_critical_abort(state, "fundamentals_report")
+
+    @staticmethod
+    def _route_after_preflight(state: AgentState, next_node: str) -> str:
+        if str(state.get("analysis_status") or "").strip().lower() == "aborted":
+            return "END"
+        return next_node
+
+    @staticmethod
+    def _make_instrument_preflight_node():
+        def instrument_preflight_node(state: AgentState) -> dict:
+            instrument = resolve_instrument(
+                state["company_of_interest"], source_context="trading_graph"
+            )
+            if is_equity_pipeline_supported(instrument):
+                return {
+                    "instrument_key": instrument.instrument_key,
+                    "asset_class": instrument.asset_class,
+                    "instrument_type": instrument.instrument_type,
+                    "is_etf": instrument.is_etf,
+                    "is_inverse": instrument.is_inverse,
+                    "is_leveraged": instrument.is_leveraged,
+                    "sender": "instrument_preflight",
+                }
+
+            return {
+                "instrument_key": instrument.instrument_key,
+                "asset_class": instrument.asset_class,
+                "instrument_type": instrument.instrument_type,
+                "is_etf": instrument.is_etf,
+                "is_inverse": instrument.is_inverse,
+                "is_leveraged": instrument.is_leveraged,
+                "analysis_status": "aborted",
+                "terminal_action": "UNSUPPORTED_INSTRUMENT_TYPE",
+                "market_report": (
+                    "[CRITICAL ABORT] Unsupported instrument type for stock deep-dive: "
+                    f"{instrument.canonical_symbol} classified as "
+                    f"{instrument.instrument_type} ({instrument.asset_class})."
+                ),
+                "sender": "instrument_preflight",
+            }
+
+        return instrument_preflight_node
 
     def __init__(
         self,
@@ -124,6 +167,7 @@ class GraphSetup:
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
         # Add other nodes
+        workflow.add_node("Instrument Preflight", self._make_instrument_preflight_node())
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
@@ -134,9 +178,17 @@ class GraphSetup:
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
-        # Start with the first analyst
+        # Start with deterministic instrument preflight
         first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+        workflow.add_edge(START, "Instrument Preflight")
+        workflow.add_conditional_edges(
+            "Instrument Preflight",
+            lambda state, next_node=f"{first_analyst.capitalize()} Analyst": self._route_after_preflight(state, next_node),
+            {
+                f"{first_analyst.capitalize()} Analyst": f"{first_analyst.capitalize()} Analyst",
+                "END": END,
+            },
+        )
 
         # Connect analysts in sequence
         for i, analyst_type in enumerate(selected_analysts):

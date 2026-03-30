@@ -5,6 +5,7 @@ from tradingagents.agents.utils.agent_states import (
     InvestDebateState,
     RiskDebateState,
 )
+from tradingagents.instruments import resolve_instrument
 
 
 class Propagator:
@@ -18,10 +19,19 @@ class Propagator:
         self, company_name: str, trade_date: str
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
+        instrument = resolve_instrument(company_name, source_context="trading_graph")
         return {
             "messages": [("human", company_name)],
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
+            "instrument_key": instrument.instrument_key,
+            "asset_class": instrument.asset_class,
+            "instrument_type": instrument.instrument_type,
+            "is_etf": instrument.is_etf,
+            "is_inverse": instrument.is_inverse,
+            "is_leveraged": instrument.is_leveraged,
+            "analysis_status": "pending",
+            "terminal_action": "",
             "investment_debate_state": InvestDebateState(
                 {
                     "bull_history": "",
@@ -50,6 +60,10 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "investment_plan": "",
+            "trader_investment_plan": "",
+            "final_trade_decision": "",
+            "macro_regime_report": "",
         }
 
     def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:
