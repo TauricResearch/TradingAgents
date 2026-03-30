@@ -5,11 +5,35 @@ All tests mock the pymongo Collection so no real MongoDB is needed.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import importlib
+import sys
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+
+def _load_mongo_module(mock_client_cls: MagicMock):
+    pymongo = types.ModuleType("pymongo")
+    pymongo.DESCENDING = -1
+    pymongo.MongoClient = mock_client_cls
+
+    collection = types.ModuleType("pymongo.collection")
+    collection.Collection = object
+
+    database = types.ModuleType("pymongo.database")
+    database.Database = object
+
+    with patch.dict(
+        sys.modules,
+        {
+            "pymongo": pymongo,
+            "pymongo.collection": collection,
+            "pymongo.database": database,
+        },
+    ):
+        sys.modules.pop("tradingagents.portfolio.mongo_report_store", None)
+        return importlib.import_module("tradingagents.portfolio.mongo_report_store")
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -24,23 +48,22 @@ def mock_col():
 @pytest.fixture
 def mongo_store(mock_col):
     """Return a MongoReportStore with a mocked Collection."""
-    with patch("tradingagents.portfolio.mongo_report_store.MongoClient") as mock_client_cls:
-        mock_db = MagicMock()
-        mock_db.__getitem__ = MagicMock(return_value=mock_col)
-        mock_client = MagicMock()
-        mock_client.__getitem__ = MagicMock(return_value=mock_db)
-        mock_client_cls.return_value = mock_client
+    mock_client_cls = MagicMock()
+    mock_db = MagicMock()
+    mock_db.__getitem__ = MagicMock(return_value=mock_col)
+    mock_client = MagicMock()
+    mock_client.__getitem__ = MagicMock(return_value=mock_db)
+    mock_client_cls.return_value = mock_client
 
-        from tradingagents.portfolio.mongo_report_store import MongoReportStore
-
-        store = MongoReportStore(
-            connection_string="mongodb://localhost:27017",
-            db_name="test_db",
-            run_id="test_run",
-        )
-        # Replace the internal collection with our mock
-        store._col = mock_col
-        return store
+    mongo_report_store = _load_mongo_module(mock_client_cls)
+    store = mongo_report_store.MongoReportStore(
+        connection_string="mongodb://localhost:27017",
+        db_name="test_db",
+        run_id="test_run",
+    )
+    # Replace the internal collection with our mock
+    store._col = mock_col
+    return store
 
 
 # ---------------------------------------------------------------------------
@@ -65,8 +88,6 @@ def test_save_scan_inserts_document(mongo_store, mock_col):
 
 def test_load_scan_finds_latest(mongo_store, mock_col):
     """load_scan should call find_one with date and report_type, sorted by created_at."""
-    from pymongo import DESCENDING
-
     mock_col.find_one.return_value = {"data": {"watchlist": ["AAPL"]}}
 
     result = mongo_store.load_scan("2026-03-20")

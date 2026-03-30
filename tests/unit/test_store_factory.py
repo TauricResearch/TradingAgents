@@ -9,12 +9,32 @@ Covers:
 
 from __future__ import annotations
 
+import sys
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.store_factory import create_report_store
+
+
+def _stub_pymongo(mongo_client: object) -> dict[str, types.ModuleType]:
+    pymongo = types.ModuleType("pymongo")
+    pymongo.DESCENDING = -1
+    pymongo.MongoClient = mongo_client
+
+    collection = types.ModuleType("pymongo.collection")
+    collection.Collection = object
+
+    database = types.ModuleType("pymongo.database")
+    database.Database = object
+
+    return {
+        "pymongo": pymongo,
+        "pymongo.collection": collection,
+        "pymongo.database": database,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -39,16 +59,6 @@ def test_default_passes_run_id():
     assert store.run_id == "abc123"
 
 
-def test_default_passes_flow_id():
-    """flow_id should be forwarded to the filesystem store."""
-    with patch.dict("os.environ", {}, clear=True):
-        store = create_report_store(flow_id="flow001")
-
-    assert isinstance(store, ReportStore)
-    assert store.flow_id == "flow001"
-    assert store.run_id == "flow001"  # flow_id takes precedence
-
-
 def test_base_dir_forwarded():
     """base_dir should be forwarded to the filesystem store."""
     with patch.dict("os.environ", {}, clear=True):
@@ -64,28 +74,16 @@ def test_base_dir_forwarded():
 
 def test_explicit_mongo_uri_returns_mongo_store():
     """When mongo_uri is provided, the factory returns MongoReportStore."""
-    with patch(
-        "tradingagents.portfolio.store_factory.MongoReportStore",
-        create=True,
-    ) as MockMongo, \
-         patch("tradingagents.portfolio.mongo_report_store.MongoClient") as mock_client_cls:
-        mock_store = MagicMock()
-        mock_store.run_id = "abc"
+    mock_mc = MagicMock()
+    with patch.dict(sys.modules, _stub_pymongo(mock_mc)):
+        sys.modules.pop("tradingagents.portfolio.mongo_report_store", None)
+        mock_mc.return_value = MagicMock()
+        store = create_report_store(
+            run_id="abc",
+            mongo_uri="mongodb://localhost:27017",
+        )
 
-        # Import the real module so the factory can import it
-        from tradingagents.portfolio.mongo_report_store import MongoReportStore
-
-        with patch(
-            "tradingagents.portfolio.mongo_report_store.MongoClient"
-        ) as mock_mc:
-            mock_mc.return_value = MagicMock()
-            store = create_report_store(
-                run_id="abc",
-                mongo_uri="mongodb://localhost:27017",
-            )
-            # It should be a MongoReportStore or fall back to ReportStore
-            # Since MongoDB might fail in tests, just check it returns something
-            assert store is not None
+    assert store is not None
 
 
 # ---------------------------------------------------------------------------
@@ -95,10 +93,9 @@ def test_explicit_mongo_uri_returns_mongo_store():
 
 def test_mongo_failure_falls_back_to_filesystem():
     """When MongoDB connection fails, the factory falls back to ReportStore."""
-    with patch(
-        "tradingagents.portfolio.mongo_report_store.MongoClient",
-        side_effect=Exception("connection refused"),
-    ):
+    mock_mc = MagicMock(side_effect=Exception("connection refused"))
+    with patch.dict(sys.modules, _stub_pymongo(mock_mc)):
+        sys.modules.pop("tradingagents.portfolio.mongo_report_store", None)
         store = create_report_store(
             run_id="test",
             mongo_uri="mongodb://bad-host:27017",
@@ -115,13 +112,12 @@ def test_mongo_failure_falls_back_to_filesystem():
 
 def test_env_var_mongo_uri():
     """TRADINGAGENTS_MONGO_URI env var should trigger MongoDB store."""
+    mock_mc = MagicMock(side_effect=Exception("connection refused"))
     with patch.dict(
         "os.environ",
         {"TRADINGAGENTS_MONGO_URI": "mongodb://envhost:27017"},
-    ), patch(
-        "tradingagents.portfolio.mongo_report_store.MongoClient",
-        side_effect=Exception("connection refused"),
-    ):
+    ), patch.dict(sys.modules, _stub_pymongo(mock_mc)):
+        sys.modules.pop("tradingagents.portfolio.mongo_report_store", None)
         # Will fail to connect, but should try and then fall back
         store = create_report_store()
 

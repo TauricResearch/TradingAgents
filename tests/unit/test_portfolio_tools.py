@@ -309,7 +309,7 @@ class TestComputePortfolioRiskMetrics:
 
 class TestLoadPortfolioRiskMetrics:
     def test_returns_metrics_when_file_exists(self, tmp_reports):
-        store = ReportStore(base_dir=tmp_reports)
+        store = ReportStore(base_dir=tmp_reports, run_id="01ARZ3NDEKTSV4RRFFQ69G5FAV")
         metrics = {"sharpe": 1.23, "sortino": 1.87, "var_95": 0.018}
         store.save_risk_metrics(DATE, PORTFOLIO_ID, metrics)
 
@@ -337,7 +337,7 @@ class TestLoadPortfolioRiskMetrics:
         assert "nonexistent-id" in result["error"]
 
     def test_loaded_metrics_match_saved(self, tmp_reports):
-        store = ReportStore(base_dir=tmp_reports)
+        store = ReportStore(base_dir=tmp_reports, run_id="01ARZ3NDEKTSV4RRFFQ69G5FAV")
         full_metrics = {
             "sharpe": 0.85,
             "sortino": 1.10,
@@ -368,7 +368,7 @@ class TestLoadPortfolioRiskMetrics:
 
 class TestLoadPortfolioDecision:
     def test_returns_decision_when_file_exists(self, tmp_reports):
-        store = ReportStore(base_dir=tmp_reports)
+        store = ReportStore(base_dir=tmp_reports, run_id="01ARZ3NDEKTSV4RRFFQ69G5FAV")
         decision = {
             "sells": [{"ticker": "XYZ", "shares": 50, "rationale": "Stop loss triggered"}],
             "buys": [{"ticker": "AAPL", "shares": 10, "rationale": "Strong momentum"}],
@@ -402,7 +402,7 @@ class TestLoadPortfolioDecision:
         assert "no-such-portfolio" in result["error"]
 
     def test_decision_fields_preserved(self, tmp_reports):
-        store = ReportStore(base_dir=tmp_reports)
+        store = ReportStore(base_dir=tmp_reports, run_id="01ARZ3NDEKTSV4RRFFQ69G5FAV")
         decision = {
             "sells": [],
             "buys": [],

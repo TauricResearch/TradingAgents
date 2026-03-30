@@ -65,14 +65,12 @@ class RunLogger:
         run_id: str | None = None,
         mongo_uri: str | None = None,
         mongo_db: str | None = "tradingagents",
-        flow_id: str | None = None,
     ) -> None:
         self._lock = threading.Lock()
         self.events: list[_Event] = []
         self.callback = _LLMCallbackHandler(self)
         self._start = time.time()
         self.run_id = run_id
-        self.flow_id = flow_id
         self._mongo_col = None
 
         if mongo_uri and run_id:
@@ -82,7 +80,7 @@ class RunLogger:
                 # of blocking every LLM callback for pymongo's 30s default.
                 client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
                 self._mongo_col = client[mongo_db]["run_events"]
-                _py_logger.info("RunLogger: persisting events to MongoDB (run_id=%s, flow_id=%s)", run_id, flow_id)
+                _py_logger.info("RunLogger: persisting events to MongoDB (run_id=%s)", run_id)
             except Exception as exc:
                 _py_logger.warning("RunLogger: MongoDB connection failed: %s", exc)
 
@@ -221,8 +219,6 @@ class RunLogger:
             try:
                 doc = evt.to_dict()
                 doc["run_id"] = self.run_id
-                if self.flow_id:
-                    doc["flow_id"] = self.flow_id
                 self._mongo_col.insert_one(doc)
             except Exception as exc:
                 _py_logger.warning("RunLogger: MongoDB insert failed: %s", exc)

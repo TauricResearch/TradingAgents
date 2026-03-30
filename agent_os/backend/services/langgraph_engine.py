@@ -9,7 +9,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.scanner_graph import ScannerGraph
 from tradingagents.graph.portfolio_graph import PortfolioGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.report_paths import get_market_dir, get_ticker_dir, get_daily_dir, generate_flow_id, generate_run_id
+from tradingagents.report_paths import get_market_dir, get_ticker_dir, get_daily_dir
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.store_factory import create_report_store
 from tradingagents.daily_digest import append_to_digest
@@ -175,27 +175,35 @@ class LangGraphEngine:
     # Run logger lifecycle
     # ------------------------------------------------------------------
 
-    def _start_run_logger(self, run_id: str, flow_id: str | None = None) -> RunLogger:
-        """Create and register a ``RunLogger`` for the given run."""
+    def _start_run_logger(self, run_id: str, *, logger_key: str | None = None) -> RunLogger:
+        """Create and register a ``RunLogger`` for the given canonical run id."""
         uri = self.config.get("mongo_uri")
         db = self.config.get("mongo_db") or "tradingagents"
-        rl = RunLogger(run_id=run_id, mongo_uri=uri, mongo_db=db, flow_id=flow_id)
-        self._run_loggers[run_id] = rl
+        rl = RunLogger(run_id=run_id, mongo_uri=uri, mongo_db=db)
+        self._run_loggers[logger_key or run_id] = rl
         set_run_logger(rl)
         return rl
 
-    def _finish_run_logger(self, run_id: str, log_dir: Path) -> None:
+    def _finish_run_logger(self, logger_key: str, log_dir: Path) -> None:
         """Persist the run log to *log_dir*/run_log.jsonl and clean up."""
-        rl = self._run_loggers.pop(run_id, None)
+        rl = self._run_loggers.pop(logger_key, None)
         if rl is None:
             return
         try:
             log_dir.mkdir(parents=True, exist_ok=True)
             rl.write_log(log_dir / "run_log.jsonl")
         except Exception:
-            logger.exception("Failed to write run log for run=%s", run_id)
+            logger.exception("Failed to write run log for logger_key=%s", logger_key)
         finally:
             set_run_logger(None)
+
+    @staticmethod
+    def _root_run_id(run_id: str, params: Dict[str, Any]) -> str:
+        return params.get("run_id") or run_id
+
+    @staticmethod
+    def _execution_key(run_id: str, params: Dict[str, Any]) -> str:
+        return params.get("_execution_key") or run_id
 
     # ------------------------------------------------------------------
     # Run helpers
@@ -206,17 +214,17 @@ class LangGraphEngine:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Run the 3-phase macro scanner and stream events."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
+        root_run_id = self._root_run_id(run_id, params)
+        execution_key = self._execution_key(run_id, params)
+        store = create_report_store(run_id=root_run_id)
 
-        flow_id = params.get("flow_id") or generate_flow_id()
-        store = create_report_store(flow_id=flow_id)
-
-        rl = self._start_run_logger(run_id, flow_id=flow_id)
+        rl = self._start_run_logger(root_run_id, logger_key=execution_key)
         scan_config = {**self.config}
         if params.get("max_tickers"):
             scan_config["max_auto_tickers"] = int(params["max_tickers"])
         scanner = ScannerGraph(config=scan_config)
 
-        logger.info("Starting SCAN run=%s date=%s flow_id=%s", run_id, date, flow_id)
+        logger.info("Starting SCAN run=%s date=%s", root_run_id, date)
         yield self._system_log(f"Starting macro scan for {date}")
 
         initial_state = {
@@ -230,8 +238,8 @@ class LangGraphEngine:
             "sender": "",
         }
 
-        self._node_start_times[run_id] = {}
-        self._run_identifiers[run_id] = "MARKET"
+        self._node_start_times[execution_key] = {}
+        self._run_identifiers[execution_key] = "MARKET"
         final_state: Dict[str, Any] = {}
 
         async for event in scanner.graph.astream_events(
@@ -244,31 +252,31 @@ class LangGraphEngine:
                 output = (event.get("data") or {}).get("output")
                 if isinstance(output, dict):
                     final_state = output
-            mapped = self._map_langgraph_event(run_id, event)
+            mapped = self._map_langgraph_event(execution_key, event)
             if mapped:
                 yield mapped
 
-        self._node_start_times.pop(run_id, None)
-        self._node_prompts.pop(run_id, None)
-        self._run_identifiers.pop(run_id, None)
+        self._node_start_times.pop(execution_key, None)
+        self._node_prompts.pop(execution_key, None)
+        self._run_identifiers.pop(execution_key, None)
 
         # Fallback: if the root on_chain_end event was never captured (can happen
         # with deeply nested sub-graphs), re-invoke to get the complete final state.
         if not final_state:
             logger.warning(
                 "SCAN run=%s: root on_chain_end not captured — falling back to ainvoke",
-                run_id,
+                root_run_id,
             )
             try:
                 final_state = await scanner.graph.ainvoke(initial_state)
             except Exception as exc:
-                logger.warning("SCAN fallback ainvoke failed run=%s: %s", run_id, exc)
+                logger.warning("SCAN fallback ainvoke failed run=%s: %s", root_run_id, exc)
 
         # Save scan reports
         if final_state:
             yield self._system_log("Saving scan reports…")
             try:
-                save_dir = get_market_dir(date, flow_id=flow_id)
+                save_dir = get_market_dir(date, root_run_id)
                 save_dir.mkdir(parents=True, exist_ok=True)
 
                 for key in (
@@ -311,13 +319,13 @@ class LangGraphEngine:
                     append_to_digest(date, "scan", "Market Scan", "\n\n".join(scan_parts))
 
                 yield self._system_log(f"Scan reports saved to {save_dir}")
-                logger.info("Saved scan reports run=%s date=%s dir=%s", run_id, date, save_dir)
+                logger.info("Saved scan reports run=%s date=%s dir=%s", root_run_id, date, save_dir)
             except Exception as exc:
-                logger.exception("Failed to save scan reports run=%s", run_id)
+                logger.exception("Failed to save scan reports run=%s", root_run_id)
                 yield self._system_log(f"Warning: could not save scan reports: {exc}")
 
-        logger.info("Completed SCAN run=%s", run_id)
-        self._finish_run_logger(run_id, get_market_dir(date, flow_id=flow_id))
+        logger.info("Completed SCAN run=%s", root_run_id)
+        self._finish_run_logger(execution_key, get_market_dir(date, root_run_id))
 
     async def run_pipeline(
         self, run_id: str, params: Dict[str, Any]
@@ -326,13 +334,13 @@ class LangGraphEngine:
         ticker = params.get("ticker", "AAPL")
         date = params.get("date", time.strftime("%Y-%m-%d"))
         analysts = params.get("analysts", ["market", "news", "fundamentals"])
+        root_run_id = self._root_run_id(run_id, params)
+        execution_key = self._execution_key(run_id, params)
+        store = create_report_store(run_id=root_run_id)
 
-        flow_id = params.get("flow_id") or generate_flow_id()
-        store = create_report_store(flow_id=flow_id)
+        rl = self._start_run_logger(root_run_id, logger_key=execution_key)
 
-        rl = self._start_run_logger(run_id, flow_id=flow_id)
-
-        logger.info("Starting PIPELINE run=%s ticker=%s date=%s flow_id=%s", run_id, ticker, date, flow_id)
+        logger.info("Starting PIPELINE run=%s ticker=%s date=%s", root_run_id, ticker, date)
 
         yield self._system_log(f"Starting analysis pipeline for {ticker} on {date}")
 
@@ -344,8 +352,8 @@ class LangGraphEngine:
 
         initial_state = graph_wrapper.propagator.create_initial_state(ticker, date)
 
-        self._node_start_times[run_id] = {}
-        self._run_identifiers[run_id] = ticker.upper()
+        self._node_start_times[execution_key] = {}
+        self._run_identifiers[execution_key] = ticker.upper()
         final_state: Dict[str, Any] = {}
 
         try:
@@ -362,7 +370,7 @@ class LangGraphEngine:
                     output = (event.get("data") or {}).get("output")
                     if isinstance(output, dict):
                         final_state = output
-                mapped = self._map_langgraph_event(run_id, event)
+                mapped = self._map_langgraph_event(execution_key, event)
                 if mapped:
                     yield mapped
         except Exception as exc:
@@ -376,9 +384,9 @@ class LangGraphEngine:
                 ) from exc
             raise
 
-        self._node_start_times.pop(run_id, None)
-        self._node_prompts.pop(run_id, None)
-        self._run_identifiers.pop(run_id, None)
+        self._node_start_times.pop(execution_key, None)
+        self._node_prompts.pop(execution_key, None)
+        self._run_identifiers.pop(execution_key, None)
 
         # Fallback: if the root on_chain_end event was never captured (can happen
         # with deeply nested sub-graphs), re-invoke to get the complete final state.
@@ -386,7 +394,7 @@ class LangGraphEngine:
             logger.warning(
                 "PIPELINE run=%s ticker=%s: root on_chain_end not captured — "
                 "falling back to ainvoke",
-                run_id, ticker,
+                root_run_id, ticker,
             )
             try:
                 final_state = await graph_wrapper.graph.ainvoke(
@@ -394,13 +402,13 @@ class LangGraphEngine:
                     config={"recursion_limit": graph_wrapper.propagator.max_recur_limit},
                 )
             except Exception as exc:
-                logger.warning("PIPELINE fallback ainvoke failed run=%s: %s", run_id, exc)
+                logger.warning("PIPELINE fallback ainvoke failed run=%s: %s", root_run_id, exc)
 
         # Save pipeline reports
         if final_state:
             yield self._system_log(f"Saving analysis report for {ticker}…")
             try:
-                save_dir = get_ticker_dir(date, ticker, flow_id=flow_id)
+                save_dir = get_ticker_dir(date, ticker, root_run_id)
                 save_dir.mkdir(parents=True, exist_ok=True)
 
                 # Sanitize final_state to remove non-JSON-serializable objects
@@ -449,13 +457,13 @@ class LangGraphEngine:
                     store.save_trader_checkpoint(date, ticker, trader_ckpt)
 
                 yield self._system_log(f"Analysis report for {ticker} saved to {save_dir}")
-                logger.info("Saved pipeline report run=%s ticker=%s dir=%s", run_id, ticker, save_dir)
+                logger.info("Saved pipeline report run=%s ticker=%s dir=%s", root_run_id, ticker, save_dir)
             except Exception as exc:
-                logger.exception("Failed to save pipeline reports run=%s ticker=%s", run_id, ticker)
+                logger.exception("Failed to save pipeline reports run=%s ticker=%s", root_run_id, ticker)
                 yield self._system_log(f"Warning: could not save analysis report for {ticker}: {exc}")
 
-        logger.info("Completed PIPELINE run=%s", run_id)
-        self._finish_run_logger(run_id, get_ticker_dir(date, ticker, flow_id=flow_id))
+        logger.info("Completed PIPELINE run=%s", root_run_id)
+        self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
 
     async def run_portfolio(
         self, run_id: str, params: Dict[str, Any]
@@ -463,20 +471,17 @@ class LangGraphEngine:
         """Run the portfolio manager workflow and stream events."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         portfolio_id = params.get("portfolio_id", "main_portfolio")
-
-        flow_id = params.get("flow_id") or generate_flow_id()
-        store = create_report_store(flow_id=flow_id)
-        # Prefer the active flow when continuing a historical run, but fall back
-        # to the latest pointer for standalone portfolio runs that have no
-        # flow-scoped artifacts yet.
-        reader_store = create_report_store(flow_id=flow_id)
+        root_run_id = self._root_run_id(run_id, params)
+        execution_key = self._execution_key(run_id, params)
+        store = create_report_store(run_id=root_run_id)
+        reader_store = create_report_store(run_id=root_run_id)
         fallback_reader_store = create_report_store()
 
-        rl = self._start_run_logger(run_id, flow_id=flow_id)
+        rl = self._start_run_logger(root_run_id, logger_key=execution_key)
 
         logger.info(
-            "Starting PORTFOLIO run=%s portfolio=%s date=%s flow_id=%s",
-            run_id, portfolio_id, date, flow_id,
+            "Starting PORTFOLIO run=%s portfolio=%s date=%s",
+            root_run_id, portfolio_id, date,
         )
         yield self._system_log(
             f"Starting portfolio manager for {portfolio_id} on {date}"
@@ -484,34 +489,23 @@ class LangGraphEngine:
 
         portfolio_graph = PortfolioGraph(config=self.config)
 
-        # Load scan summary and per-ticker analyses from the current flow when
-        # available so continuing a loaded history run keeps using the same
-        # folder tree.
         scan_summary = reader_store.load_scan(date) or fallback_reader_store.load_scan(date) or {}
         ticker_analyses: Dict[str, Any] = {}
 
-        # Search the active flow first. Only fall back to the legacy/latest
-        # layout when the flow-scoped directory does not exist or contains no
-        # ticker reports.
-        flow_daily_dir = get_daily_dir(date, flow_id=flow_id)
-        fallback_daily_dir = get_daily_dir(date)
         search_dirs: list[Path] = []
-        if flow_daily_dir.exists():
-            search_dirs.append(flow_daily_dir)
-        elif fallback_daily_dir.exists():
-            runs_dir = fallback_daily_dir / "runs"
-            if runs_dir.exists():
-                for run_dir in runs_dir.iterdir():
-                    if run_dir.is_dir():
-                        search_dirs.append(run_dir)
-            search_dirs.append(fallback_daily_dir)
+        run_daily_dir = get_daily_dir(date, root_run_id)
+        all_daily_dir = get_daily_dir(date)
+        if run_daily_dir.exists():
+            search_dirs.append(run_daily_dir)
+        elif all_daily_dir.exists():
+            search_dirs.extend(sorted((p for p in all_daily_dir.iterdir() if p.is_dir()), reverse=True))
 
         seen_tickers: set[str] = set()
         for base in search_dirs:
             for ticker_dir in base.iterdir():
                 if (
                     ticker_dir.is_dir()
-                    and ticker_dir.name not in ("market", "portfolio", "runs", "report")
+                    and ticker_dir.name not in ("market", "portfolio", "report")
                     and ticker_dir.name.upper() not in seen_tickers
                 ):
                     analysis = reader_store.load_analysis(date, ticker_dir.name)
@@ -567,8 +561,8 @@ class LangGraphEngine:
             "sender": "",
         }
 
-        self._node_start_times[run_id] = {}
-        self._run_identifiers[run_id] = portfolio_id
+        self._node_start_times[execution_key] = {}
+        self._run_identifiers[execution_key] = portfolio_id
         final_state: Dict[str, Any] = {}
 
         async for event in portfolio_graph.graph.astream_events(
@@ -578,24 +572,24 @@ class LangGraphEngine:
                 output = (event.get("data") or {}).get("output")
                 if isinstance(output, dict):
                     final_state = output
-            mapped = self._map_langgraph_event(run_id, event)
+            mapped = self._map_langgraph_event(execution_key, event)
             if mapped:
                 yield mapped
 
-        self._node_start_times.pop(run_id, None)
-        self._node_prompts.pop(run_id, None)
-        self._run_identifiers.pop(run_id, None)
+        self._node_start_times.pop(execution_key, None)
+        self._node_prompts.pop(execution_key, None)
+        self._run_identifiers.pop(execution_key, None)
 
         # Fallback: if the root on_chain_end event was never captured, re-invoke.
         if not final_state:
             logger.warning(
                 "PORTFOLIO run=%s: root on_chain_end not captured — falling back to ainvoke",
-                run_id,
+                root_run_id,
             )
             try:
                 final_state = await portfolio_graph.graph.ainvoke(initial_state)
             except Exception as exc:
-                logger.warning("PORTFOLIO fallback ainvoke failed run=%s: %s", run_id, exc)
+                logger.warning("PORTFOLIO fallback ainvoke failed run=%s: %s", root_run_id, exc)
 
         # Save portfolio reports (Holding Reviews, Risk Metrics, PM Decision, Execution Result)
         if final_state:
@@ -609,9 +603,9 @@ class LangGraphEngine:
                             for ticker, review_data in reviews.items():
                                 store.save_holding_review(date, ticker, review_data)
                         else:
-                            logger.warning("Unexpected holding_reviews format run=%s: %s", run_id, type(reviews))
+                            logger.warning("Unexpected holding_reviews format run=%s: %s", root_run_id, type(reviews))
                     except Exception as exc:
-                        logger.warning("Failed to save holding_reviews run=%s: %s", run_id, exc)
+                        logger.warning("Failed to save holding_reviews run=%s: %s", root_run_id, exc)
 
                 # 2. Risk Metrics
                 risk_metrics_str = final_state.get("risk_metrics")
@@ -620,7 +614,7 @@ class LangGraphEngine:
                         metrics = json.loads(risk_metrics_str) if isinstance(risk_metrics_str, str) else risk_metrics_str
                         store.save_risk_metrics(date, portfolio_id, metrics)
                     except Exception as exc:
-                        logger.warning("Failed to save risk_metrics run=%s: %s", run_id, exc)
+                        logger.warning("Failed to save risk_metrics run=%s: %s", root_run_id, exc)
 
                 # 3. PM Decision
                 pm_decision_str = final_state.get("pm_decision")
@@ -629,7 +623,7 @@ class LangGraphEngine:
                         decision = json.loads(pm_decision_str) if isinstance(pm_decision_str, str) else pm_decision_str
                         store.save_pm_decision(date, portfolio_id, decision)
                     except Exception as exc:
-                        logger.warning("Failed to save pm_decision run=%s: %s", run_id, exc)
+                        logger.warning("Failed to save pm_decision run=%s: %s", root_run_id, exc)
 
                 # 4. Execution Result
                 execution_result_str = final_state.get("execution_result")
@@ -638,15 +632,15 @@ class LangGraphEngine:
                         execution = json.loads(execution_result_str) if isinstance(execution_result_str, str) else execution_result_str
                         store.save_execution_result(date, portfolio_id, execution)
                     except Exception as exc:
-                        logger.warning("Failed to save execution_result run=%s: %s", run_id, exc)
+                        logger.warning("Failed to save execution_result run=%s: %s", root_run_id, exc)
 
                 yield self._system_log(f"Portfolio stage reports (decision & execution) saved for {portfolio_id} on {date}")
             except Exception as exc:
-                logger.exception("Failed to save portfolio reports run=%s", run_id)
+                logger.exception("Failed to save portfolio reports run=%s", root_run_id)
                 yield self._system_log(f"Warning: could not save portfolio reports: {exc}")
 
-        logger.info("Completed PORTFOLIO run=%s", run_id)
-        self._finish_run_logger(run_id, get_daily_dir(date, flow_id=flow_id) / "portfolio")
+        logger.info("Completed PORTFOLIO run=%s", root_run_id)
+        self._finish_run_logger(execution_key, get_daily_dir(date, root_run_id) / "portfolio")
 
     async def run_trade_execution(
         self, run_id: str, date: str, portfolio_id: str, decision: dict, prices: dict,
@@ -669,7 +663,7 @@ class LangGraphEngine:
                 logger.warning("TRADE_EXECUTION run=%s: no prices available — execution may produce incomplete results", run_id)
                 yield self._system_log(f"Warning: no prices found for {portfolio_id} on {date} — trade execution may be incomplete.")
 
-        _store = store or create_report_store()
+        _store = store or create_report_store(run_id=run_id)
 
         try:
             repo = PortfolioRepository()
@@ -705,22 +699,22 @@ class LangGraphEngine:
         ticker = params.get("ticker", params.get("identifier", "AAPL"))
         date = params.get("date", time.strftime("%Y-%m-%d"))
         portfolio_id = params.get("portfolio_id", "main_portfolio")
-
-        flow_id = params.get("flow_id") or generate_flow_id()
-        store = create_report_store(flow_id=flow_id)
+        root_run_id = self._root_run_id(run_id, params)
+        execution_key = self._execution_key(run_id, params)
+        store = create_report_store(run_id=root_run_id)
         fallback_store = create_report_store()
-        writer_store = create_report_store(flow_id=flow_id)
+        writer_store = create_report_store(run_id=root_run_id)
 
         if phase == "analysts":
             # Full re-run
-            async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date, "flow_id": flow_id}):
+            async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": execution_key}):
                 yield evt
         elif phase == "debate_and_trader":
             yield self._system_log(f"Loading analysts checkpoint for {ticker}...")
             ckpt = store.load_analysts_checkpoint(date, ticker) or fallback_store.load_analysts_checkpoint(date, ticker)
             if not ckpt:
                 yield self._system_log(f"No analysts checkpoint found for {ticker} — falling back to full re-run")
-                async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date, "flow_id": flow_id}):
+                async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": execution_key}):
                     yield evt
             else:
                 yield self._system_log(f"Running debate + trader + risk for {ticker} from checkpoint...")
@@ -731,9 +725,9 @@ class LangGraphEngine:
                     if k in initial_state or k in ("market_report", "sentiment_report", "news_report", "fundamentals_report", "macro_regime_report"):
                         initial_state[k] = v
 
-                rl = self._start_run_logger(run_id)
-                self._node_start_times[run_id] = {}
-                self._run_identifiers[run_id] = ticker.upper()
+                rl = self._start_run_logger(root_run_id, logger_key=execution_key)
+                self._node_start_times[execution_key] = {}
+                self._run_identifiers[execution_key] = ticker.upper()
                 final_state: Dict[str, Any] = {}
 
                 async for event in graph_wrapper.debate_graph.astream_events(
@@ -744,13 +738,13 @@ class LangGraphEngine:
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
-                    mapped = self._map_langgraph_event(run_id, event)
+                    mapped = self._map_langgraph_event(execution_key, event)
                     if mapped:
                         yield mapped
 
-                self._node_start_times.pop(run_id, None)
-                self._node_prompts.pop(run_id, None)
-                self._run_identifiers.pop(run_id, None)
+                self._node_start_times.pop(execution_key, None)
+                self._node_prompts.pop(execution_key, None)
+                self._run_identifiers.pop(execution_key, None)
 
                 if final_state:
                     serializable_state = self._sanitize_for_json(final_state)
@@ -770,25 +764,30 @@ class LangGraphEngine:
                         }
                         writer_store.save_trader_checkpoint(date, ticker, trader_ckpt)
 
-                self._finish_run_logger(run_id, get_ticker_dir(date, ticker, flow_id=flow_id))
+                self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
         elif phase == "risk":
             yield self._system_log(f"Loading trader checkpoint for {ticker}...")
             ckpt = store.load_trader_checkpoint(date, ticker) or fallback_store.load_trader_checkpoint(date, ticker)
             if not ckpt:
                 yield self._system_log(f"No trader checkpoint found for {ticker} — falling back to full re-run")
-                async for evt in self.run_pipeline(run_id, {"ticker": ticker, "date": date, "flow_id": flow_id}):
+                async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": execution_key}):
                     yield evt
             else:
                 yield self._system_log(f"Running risk phase for {ticker} from checkpoint...")
                 graph_wrapper = TradingAgentsGraph(config=self.config, debug=True)
                 initial_state = graph_wrapper.propagator.create_initial_state(ticker, date)
+                if not ckpt.get("investment_plan"):
+                    raise ValueError(
+                        f"Trader checkpoint for {ticker} on {date} is invalid: "
+                        "missing required 'investment_plan'"
+                    )
                 for k, v in ckpt.items():
                     if k != "messages":
                         initial_state[k] = v
 
-                rl = self._start_run_logger(run_id)
-                self._node_start_times[run_id] = {}
-                self._run_identifiers[run_id] = ticker.upper()
+                rl = self._start_run_logger(root_run_id, logger_key=execution_key)
+                self._node_start_times[execution_key] = {}
+                self._run_identifiers[execution_key] = ticker.upper()
                 final_state: Dict[str, Any] = {}
 
                 async for event in graph_wrapper.risk_graph.astream_events(
@@ -799,19 +798,19 @@ class LangGraphEngine:
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
-                    mapped = self._map_langgraph_event(run_id, event)
+                    mapped = self._map_langgraph_event(execution_key, event)
                     if mapped:
                         yield mapped
 
-                self._node_start_times.pop(run_id, None)
-                self._node_prompts.pop(run_id, None)
-                self._run_identifiers.pop(run_id, None)
+                self._node_start_times.pop(execution_key, None)
+                self._node_prompts.pop(execution_key, None)
+                self._run_identifiers.pop(execution_key, None)
 
                 if final_state:
                     serializable_state = self._sanitize_for_json(final_state)
                     writer_store.save_analysis(date, ticker, serializable_state)
 
-                self._finish_run_logger(run_id, get_ticker_dir(date, ticker, flow_id=flow_id))
+                self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
         else:
             yield self._system_log(f"Unknown phase '{phase}' — skipping")
             return
@@ -819,7 +818,8 @@ class LangGraphEngine:
         # Cascade: re-run portfolio manager with updated data
         yield self._system_log(f"Cascading: re-running portfolio manager after {ticker} {phase} re-run...")
         async for evt in self.run_portfolio(
-            f"{run_id}_cascade_pm", {"date": date, "portfolio_id": portfolio_id}
+            f"{root_run_id}:cascade_pm:{ticker}:{phase}",
+            {"date": date, "portfolio_id": portfolio_id, "run_id": root_run_id, "_execution_key": f"{root_run_id}:cascade_pm:{ticker}:{phase}"},
         ):
             yield evt
 
@@ -829,28 +829,26 @@ class LangGraphEngine:
         """Run the full auto pipeline: scan → pipeline → portfolio."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = params.get("force", False)
-        flow_id = params.get("flow_id") or generate_flow_id()
+        root_run_id = self._root_run_id(run_id, params)
+        execution_key = self._execution_key(run_id, params)
 
-        # Thread the flow_id into params so all sub-phases share the same flow.
-        params = {**params, "flow_id": flow_id}
+        params = {**params, "run_id": root_run_id}
+        store = create_report_store(run_id=root_run_id)
 
-        # Reader store scoped to this flow for skip-if-exists checks.
-        store = create_report_store(flow_id=flow_id)
+        self._start_run_logger(root_run_id, logger_key=execution_key)
 
-        self._start_run_logger(run_id, flow_id=flow_id)  # auto-run's own logger; sub-phases create their own
-
-        logger.info("Starting AUTO run=%s flow=%s date=%s force=%s", run_id, flow_id, date, force)
-        yield self._system_log(f"Starting full auto workflow for {date} (force={force}, flow={flow_id})")
+        logger.info("Starting AUTO run=%s date=%s force=%s", root_run_id, date, force)
+        yield self._system_log(f"Starting full auto workflow for {date} (force={force}, run={root_run_id})")
 
         # Phase 1: Market scan
         yield self._system_log("Phase 1/3: Running market scan…")
         if not force and store.load_scan(date):
             yield self._system_log(f"Phase 1: Macro scan for {date} already exists, skipping.")
         else:
-            scan_params = {"date": date, "flow_id": flow_id}
+            scan_params = {"date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:scan"}
             if params.get("max_tickers"):
                 scan_params["max_tickers"] = params["max_tickers"]
-            async for evt in self.run_scan(f"{run_id}_scan", scan_params):
+            async for evt in self.run_scan(f"{root_run_id}:scan", scan_params):
                 yield evt
 
         # Phase 2: Pipeline analysis — get tickers from scan report + portfolio holdings
@@ -933,8 +931,8 @@ class LangGraphEngine:
                     )
                     try:
                         async for evt in self.run_pipeline(
-                            f"{run_id}_pipeline_{ticker}",
-                            {"ticker": ticker, "date": date, "flow_id": flow_id},
+                            f"{root_run_id}:pipeline:{ticker}",
+                            {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:pipeline:{ticker}"},
                         ):
                             await pipeline_queue.put(evt)
                     except Exception as exc:
@@ -959,8 +957,8 @@ class LangGraphEngine:
                                 self.config = fallback_config
                                 try:
                                     async for evt in self.run_pipeline(
-                                        f"{run_id}_fallback_{ticker}",
-                                        {"ticker": ticker, "date": date, "flow_id": flow_id},
+                                        f"{root_run_id}:fallback:{ticker}",
+                                        {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:fallback:{ticker}"},
                                     ):
                                         await pipeline_queue.put(evt)
                                 except Exception as fallback_exc:
@@ -1010,7 +1008,7 @@ class LangGraphEngine:
         # Phase 3: Portfolio management
         yield self._system_log("Phase 3/3: Running portfolio manager…")
         portfolio_params = {k: v for k, v in params.items() if k != "ticker"}
-        portfolio_params["flow_id"] = flow_id
+        portfolio_params["run_id"] = root_run_id
         portfolio_id = params.get("portfolio_id", "main_portfolio")
 
         # Check if portfolio stage is fully complete (execution result exists)
@@ -1024,19 +1022,19 @@ class LangGraphEngine:
                 # Fetch live prices for all tickers referenced in the decision
                 prices = _fetch_prices(_tickers_from_decision(saved_decision))
                 async for evt in self.run_trade_execution(
-                    f"{run_id}_resume_trades", date, portfolio_id, saved_decision, prices,
+                    root_run_id, date, portfolio_id, saved_decision, prices,
                     store=store,
                 ):
                     yield evt
             else:
                 # Run full portfolio graph (Decision + Execution)
                 async for evt in self.run_portfolio(
-                    f"{run_id}_portfolio", {"date": date, **portfolio_params}
+                    f"{root_run_id}:portfolio", {"date": date, **portfolio_params, "_execution_key": f"{root_run_id}:portfolio"}
                 ):
                     yield evt
 
-        logger.info("Completed AUTO run=%s", run_id)
-        self._finish_run_logger(run_id, get_daily_dir(date, flow_id=flow_id))
+        logger.info("Completed AUTO run=%s", root_run_id)
+        self._finish_run_logger(execution_key, get_daily_dir(date, root_run_id))
 
     # ------------------------------------------------------------------
     # Report helpers

@@ -1,214 +1,65 @@
-"""Tests for run_id support in report_paths.py.
-
-Covers:
-- generate_run_id uniqueness and format
-- latest.json pointer mechanism (write + read)
-- path helpers with and without run_id
-"""
+"""Tests for canonical run_id support in report_paths.py."""
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
+import re
+import time as _time
 from unittest.mock import patch
-
-import pytest
 
 from tradingagents import report_paths
 from tradingagents.report_paths import (
-    generate_flow_id,
     generate_run_id,
     get_daily_dir,
     get_digest_path,
     get_eval_dir,
     get_market_dir,
     get_ticker_dir,
-    read_latest_pointer,
     ts_now,
-    write_latest_pointer,
 )
 
 
-# ---------------------------------------------------------------------------
-# generate_run_id
-# ---------------------------------------------------------------------------
-
-
-def test_generate_run_id_format():
-    """Run IDs should be 8-char lowercase hex strings."""
+def test_generate_run_id_returns_ulid():
     rid = generate_run_id()
-    assert len(rid) == 8
-    assert all(c in "0123456789abcdef" for c in rid)
+    assert len(rid) == 26
+    assert re.fullmatch(r"[0-9A-HJKMNP-TV-Z]{26}", rid)
 
 
-def test_generate_run_id_unique():
-    """Consecutive run IDs should not collide."""
+def test_generate_run_id_is_unique():
     ids = {generate_run_id() for _ in range(100)}
     assert len(ids) == 100
 
 
-# ---------------------------------------------------------------------------
-# latest.json pointer
-# ---------------------------------------------------------------------------
-
-
-def test_write_and_read_latest_pointer(tmp_path):
-    """write_latest_pointer then read_latest_pointer must round-trip."""
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        write_latest_pointer("2026-03-20", "abc12345")
-        result = read_latest_pointer("2026-03-20")
-
-    assert result == "abc12345"
-    pointer = tmp_path / "daily" / "2026-03-20" / "latest.json"
-    assert pointer.exists()
-    data = json.loads(pointer.read_text())
-    assert data["run_id"] == "abc12345"
-    assert "updated_at" in data
-
-
-def test_read_latest_pointer_returns_none_when_missing(tmp_path):
-    """read_latest_pointer returns None when no pointer file exists."""
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        assert read_latest_pointer("2026-01-01") is None
-
-
-def test_write_latest_pointer_overwrites(tmp_path):
-    """Writing a new pointer should overwrite the old one."""
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        write_latest_pointer("2026-03-20", "first")
-        write_latest_pointer("2026-03-20", "second")
-        result = read_latest_pointer("2026-03-20")
-
-    assert result == "second"
-
-
-# ---------------------------------------------------------------------------
-# Path helpers — no run_id (backward compatible)
-# ---------------------------------------------------------------------------
-
-
-def test_get_daily_dir_no_run_id(tmp_path):
-    """Without run_id, get_daily_dir returns the flat date path."""
+def test_get_daily_dir_without_run_id(tmp_path):
     with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
         result = get_daily_dir("2026-03-20")
     assert result == tmp_path / "daily" / "2026-03-20"
 
 
-def test_get_market_dir_no_run_id(tmp_path):
+def test_get_daily_dir_with_run_id(tmp_path):
     with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_market_dir("2026-03-20")
-    assert result == tmp_path / "daily" / "2026-03-20" / "market"
+        result = get_daily_dir("2026-03-20", run_id="01ARZ3NDEKTSV4RRFFQ69G5FAV")
+    assert result == tmp_path / "daily" / "2026-03-20" / "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
 
-def test_get_ticker_dir_no_run_id(tmp_path):
+def test_nested_path_helpers_use_run_id_directory(tmp_path):
+    run_id = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
     with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_ticker_dir("2026-03-20", "AAPL")
-    assert result == tmp_path / "daily" / "2026-03-20" / "AAPL"
+        assert get_market_dir("2026-03-20", run_id) == tmp_path / "daily" / "2026-03-20" / run_id / "market"
+        assert get_ticker_dir("2026-03-20", "AAPL", run_id) == tmp_path / "daily" / "2026-03-20" / run_id / "AAPL"
+        assert get_eval_dir("2026-03-20", "AAPL", run_id) == tmp_path / "daily" / "2026-03-20" / run_id / "AAPL" / "eval"
 
 
-def test_get_eval_dir_no_run_id(tmp_path):
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_eval_dir("2026-03-20", "msft")
-    assert result == tmp_path / "daily" / "2026-03-20" / "MSFT" / "eval"
-
-
-def test_get_digest_path_always_at_date_level(tmp_path):
-    """Digest path is always at the date level, not scoped by run_id."""
+def test_get_digest_path_stays_at_date_level(tmp_path):
     with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
         result = get_digest_path("2026-03-20")
     assert result == tmp_path / "daily" / "2026-03-20" / "daily_digest.md"
 
 
-# ---------------------------------------------------------------------------
-# Path helpers — with run_id
-# ---------------------------------------------------------------------------
-
-
-def test_get_daily_dir_with_run_id(tmp_path):
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_daily_dir("2026-03-20", run_id="abc12345")
-    assert result == tmp_path / "daily" / "2026-03-20" / "runs" / "abc12345"
-
-
-def test_get_market_dir_with_run_id(tmp_path):
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_market_dir("2026-03-20", run_id="abc12345")
-    assert result == tmp_path / "daily" / "2026-03-20" / "runs" / "abc12345" / "market"
-
-
-def test_get_ticker_dir_with_run_id(tmp_path):
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_ticker_dir("2026-03-20", "AAPL", run_id="abc12345")
-    assert result == tmp_path / "daily" / "2026-03-20" / "runs" / "abc12345" / "AAPL"
-
-
-def test_get_eval_dir_with_run_id(tmp_path):
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_eval_dir("2026-03-20", "AAPL", run_id="abc12345")
-    assert result == tmp_path / "daily" / "2026-03-20" / "runs" / "abc12345" / "AAPL" / "eval"
-
-
-# ---------------------------------------------------------------------------
-# generate_flow_id + ts_now
-# ---------------------------------------------------------------------------
-
-
-def test_generate_flow_id_format():
-    """Flow IDs should be 8-char lowercase hex strings."""
-    fid = generate_flow_id()
-    assert len(fid) == 8
-    assert all(c in "0123456789abcdef" for c in fid)
-
-
-def test_generate_flow_id_unique():
-    """Consecutive flow IDs should not collide."""
-    ids = {generate_flow_id() for _ in range(100)}
-    assert len(ids) == 100
-
-
-def test_ts_now_format():
-    """ts_now should return a sortable 19-char ISO UTC string with ms precision."""
-    ts = ts_now()
-    assert len(ts) == 19  # YYYYMMDDTHHMMSSxxxZ
-    assert ts.endswith("Z")
-    assert "T" in ts
-
-
-def test_ts_now_is_sortable():
-    """Two successive ts_now() calls should be lexicographically ordered."""
-    import time as _time
+def test_ts_now_format_and_sortability():
     t1 = ts_now()
     _time.sleep(0.002)
     t2 = ts_now()
+    assert len(t1) == 19
+    assert t1.endswith("Z")
+    assert "T" in t1
     assert t2 >= t1
-
-
-# ---------------------------------------------------------------------------
-# Path helpers — with flow_id (new layout, no 'runs/' prefix)
-# ---------------------------------------------------------------------------
-
-
-def test_get_daily_dir_with_flow_id(tmp_path):
-    """flow_id places output directly under date/, without runs/ prefix."""
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_daily_dir("2026-03-20", flow_id="abc12345")
-    assert result == tmp_path / "daily" / "2026-03-20" / "abc12345"
-
-
-def test_get_market_dir_with_flow_id(tmp_path):
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_market_dir("2026-03-20", flow_id="abc12345")
-    assert result == tmp_path / "daily" / "2026-03-20" / "abc12345" / "market"
-
-
-def test_get_ticker_dir_with_flow_id(tmp_path):
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_ticker_dir("2026-03-20", "AAPL", flow_id="abc12345")
-    assert result == tmp_path / "daily" / "2026-03-20" / "abc12345" / "AAPL"
-
-
-def test_flow_id_takes_precedence_over_run_id(tmp_path):
-    """When both flow_id and run_id are supplied, flow_id wins."""
-    with patch.object(report_paths, "REPORTS_ROOT", tmp_path):
-        result = get_daily_dir("2026-03-20", run_id="old", flow_id="new")
-    assert result == tmp_path / "daily" / "2026-03-20" / "new"

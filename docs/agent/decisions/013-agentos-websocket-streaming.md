@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — extended by ADR 018 (adds lazy-loading, run history, phase re-run)
+Accepted — later extended with lazy-loading, run history, and phase re-run behavior
 
 ## Context
 
@@ -39,7 +39,7 @@ Portfolio models use different field names than the frontend expects. The `/late
 
 `run_pipeline()` passes `config={"recursion_limit": propagator.max_recur_limit}` (default 100) to `astream_events()`. Without this, LangGraph defaults to 25, which is insufficient for the debate + risk cycles (up to ~10 iterations).
 
-## Updated Architecture (see ADR 018 for full detail)
+## Updated Architecture
 
 The original "WebSocket is the sole executor" model was revised. REST endpoints
 now start a `BackgroundTask` that drives the engine generator and caches events

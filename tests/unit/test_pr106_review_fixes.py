@@ -5,14 +5,14 @@ Covers:
 - Fix 2: contextvars-based RunLogger isolation
 - Fix 3: list_pm_decisions excludes _id (ObjectId)
 - Fix 4: ReflexionMemory created_at is native datetime for MongoDB
-- Fix 5: write/read_latest_pointer respects base_dir parameter
-- Fix 6: RunLogger callback wired into astream_events config
-- Fix 7: ensure_indexes called in MongoReportStore.__init__
+- Fix 5: RunLogger callback wired into astream_events config
+- Fix 6: ensure_indexes called in MongoReportStore.__init__
 """
 
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
 import os
 import sys
@@ -197,11 +197,14 @@ class TestContextVarRunLogger(unittest.TestCase):
 # Fix 3: list_pm_decisions excludes _id
 # ---------------------------------------------------------------------------
 
+@unittest.skipUnless(importlib.util.find_spec("pymongo"), "pymongo not installed")
 class TestListPmDecisionsExcludesId(unittest.TestCase):
     """Verify list_pm_decisions uses {_id: 0} projection."""
 
     def test_projection_excludes_object_id(self):
-        with patch("tradingagents.portfolio.mongo_report_store.MongoClient") as mock_client_cls:
+        import tradingagents.portfolio.mongo_report_store as mongo_report_store
+
+        with patch.object(mongo_report_store, "MongoClient") as mock_client_cls:
             mock_col = MagicMock()
             mock_db = MagicMock()
             mock_db.__getitem__ = MagicMock(return_value=mock_col)
@@ -269,61 +272,7 @@ class TestReflexionCreatedAtType(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Fix 5: write/read_latest_pointer respects base_dir parameter
-# ---------------------------------------------------------------------------
-
-class TestLatestPointerBaseDir(unittest.TestCase):
-    """Verify write_latest_pointer/read_latest_pointer use base_dir."""
-
-    def test_pointer_uses_custom_base_dir(self):
-        from tradingagents.report_paths import read_latest_pointer, write_latest_pointer
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            base = Path(tmpdir) / "custom_reports"
-            write_latest_pointer("2026-03-20", "run123", base_dir=base)
-
-            # Should be written under the custom base, not REPORTS_ROOT
-            pointer = base / "daily" / "2026-03-20" / "latest.json"
-            self.assertTrue(pointer.exists())
-            data = json.loads(pointer.read_text())
-            self.assertEqual(data["run_id"], "run123")
-
-            # read_latest_pointer should use the same base
-            result = read_latest_pointer("2026-03-20", base_dir=base)
-            self.assertEqual(result, "run123")
-
-    def test_read_returns_none_with_wrong_base(self):
-        from tradingagents.report_paths import read_latest_pointer, write_latest_pointer
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            base_a = Path(tmpdir) / "a"
-            base_b = Path(tmpdir) / "b"
-            write_latest_pointer("2026-03-20", "run_a", base_dir=base_a)
-
-            # Reading from a different base should not find it
-            result = read_latest_pointer("2026-03-20", base_dir=base_b)
-            self.assertIsNone(result)
-
-    def test_report_store_passes_base_dir(self):
-        """ReportStore should pass its _base_dir to pointer functions."""
-        from tradingagents.portfolio.report_store import ReportStore
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            base = Path(tmpdir) / "custom"
-            store = ReportStore(base_dir=base, run_id="abc123")
-
-            # Trigger a save which calls _update_latest
-            store.save_scan("2026-03-20", {"test": True})
-
-            # Pointer should be under the custom base
-            pointer = base / "daily" / "2026-03-20" / "latest.json"
-            self.assertTrue(pointer.exists())
-            data = json.loads(pointer.read_text())
-            self.assertEqual(data["run_id"], "abc123")
-
-
-# ---------------------------------------------------------------------------
-# Fix 6: RunLogger callback wired into astream_events config
+# Fix 5: RunLogger callback wired into astream_events config
 # ---------------------------------------------------------------------------
 
 class TestRunLoggerCallbackWiring(unittest.TestCase):
@@ -435,14 +384,17 @@ class TestRunLoggerCallbackWiring(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Fix 7: ensure_indexes called in MongoReportStore.__init__
+# Fix 6: ensure_indexes called in MongoReportStore.__init__
 # ---------------------------------------------------------------------------
 
+@unittest.skipUnless(importlib.util.find_spec("pymongo"), "pymongo not installed")
 class TestEnsureIndexesInInit(unittest.TestCase):
     """Verify ensure_indexes is called during __init__, not just via factory."""
 
     def test_init_calls_ensure_indexes(self):
-        with patch("tradingagents.portfolio.mongo_report_store.MongoClient") as mock_client_cls:
+        import tradingagents.portfolio.mongo_report_store as mongo_report_store
+
+        with patch.object(mongo_report_store, "MongoClient") as mock_client_cls:
             mock_col = MagicMock()
             mock_db = MagicMock()
             mock_db.__getitem__ = MagicMock(return_value=mock_col)

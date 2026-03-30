@@ -40,7 +40,7 @@ class MongoReportStore:
     Each report is a document in the ``reports`` collection with the schema::
 
         {
-            "run_id":        str,          # short hex id for the run
+            "run_id":        str,          # canonical ULID for the process
             "date":          str,          # ISO date string "2026-03-20"
             "report_type":   str,          # scan | analysis | holding_review
                                            #   | risk_metrics | pm_decision
@@ -68,9 +68,7 @@ class MongoReportStore:
         connection_string: str,
         db_name: str = "tradingagents",
         run_id: str | None = None,
-        flow_id: str | None = None,
     ) -> None:
-        self._flow_id = flow_id
         self._run_id = run_id
         self._indexes_ensured: bool = False
         try:
@@ -87,29 +85,9 @@ class MongoReportStore:
         # you need them to exist before the first write (e.g. in tests).
 
     @property
-    def flow_id(self) -> str | None:
-        """The flow identifier set on this store, if any."""
-        return self._flow_id
-
-    @property
-    def flow_id(self) -> str | None:
-        """The flow identifier set on this store, if any."""
-        return self._flow_id
-
-    @property
-    def flow_id(self) -> str | None:
-        """The flow identifier set on this store, if any."""
-        return self._flow_id
-
-    @property
-    def flow_id(self) -> str | None:
-        """The flow identifier set on this store, if any."""
-        return self._flow_id
-
-    @property
     def run_id(self) -> str | None:
-        """The run/flow identifier (flow_id takes precedence for backward compat)."""
-        return self._flow_id or self._run_id
+        """The canonical run identifier."""
+        return self._run_id
 
     def ensure_indexes(self) -> None:
         """Create indexes for efficient querying (idempotent).
@@ -126,7 +104,6 @@ class MongoReportStore:
         self._col.create_index(
             [("date", DESCENDING), ("report_type", 1), ("portfolio_id", 1)]
         )
-        self._col.create_index("flow_id")
         self._col.create_index("run_id")
         self._col.create_index("created_at")
         self._indexes_ensured = True
@@ -146,10 +123,11 @@ class MongoReportStore:
         markdown: str | None = None,
     ) -> str:
         """Insert a report document.  Returns the inserted document's _id."""
+        if not self._run_id:
+            raise ReportStoreError("run_id is required for report-store writes")
         self.ensure_indexes()
         doc = {
-            "flow_id": self._flow_id,
-            "run_id": self._run_id or self._flow_id,  # backward compat
+            "run_id": self._run_id,
             "date": date,
             "report_type": report_type,
             "ticker": ticker.upper() if ticker else None,
@@ -187,8 +165,8 @@ class MongoReportStore:
             query["portfolio_id"] = portfolio_id
         if run_id:
             query["run_id"] = run_id
-        elif self._flow_id:
-            query["flow_id"] = self._flow_id
+        elif self._run_id:
+            query["run_id"] = self._run_id
 
         doc = self._col.find_one(query, sort=[("created_at", DESCENDING)])
         if doc is None:

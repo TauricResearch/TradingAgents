@@ -6,12 +6,12 @@ def create_portfolio_manager(llm, memory):
 
         instrument_context = build_instrument_context(state["company_of_interest"])
 
-        history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
-        market_research_report = state["market_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
-        sentiment_report = state["sentiment_report"]
+        history = risk_debate_state.get("history", "")
+        market_research_report = state.get("market_report", "")
+        news_report = state.get("news_report", "")
+        fundamentals_report = state.get("fundamentals_report", "")
+        sentiment_report = state.get("sentiment_report", "")
         trader_plan = state["investment_plan"]
         macro_regime_report = state.get("macro_regime_report", "")
 
@@ -106,15 +106,15 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
 
         new_risk_debate_state = {
             "judge_decision": response.content,
-            "history": risk_debate_state["history"],
-            "aggressive_history": risk_debate_state["aggressive_history"],
-            "conservative_history": risk_debate_state["conservative_history"],
-            "neutral_history": risk_debate_state["neutral_history"],
+            "history": risk_debate_state.get("history", ""),
+            "aggressive_history": risk_debate_state.get("aggressive_history", ""),
+            "conservative_history": risk_debate_state.get("conservative_history", ""),
+            "neutral_history": risk_debate_state.get("neutral_history", ""),
             "latest_speaker": "Judge",
-            "current_aggressive_response": risk_debate_state["current_aggressive_response"],
-            "current_conservative_response": risk_debate_state["current_conservative_response"],
-            "current_neutral_response": risk_debate_state["current_neutral_response"],
-            "count": risk_debate_state["count"],
+            "current_aggressive_response": risk_debate_state.get("current_aggressive_response", ""),
+            "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),
+            "current_neutral_response": risk_debate_state.get("current_neutral_response", ""),
+            "count": risk_debate_state.get("count", 0),
         }
 
         return {

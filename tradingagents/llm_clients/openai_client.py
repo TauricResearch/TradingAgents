@@ -1,10 +1,51 @@
 import os
+import time
 from typing import Any, Optional
 
+import httpx
+import openai
 from langchain_openai import ChatOpenAI
+from pydantic import PrivateAttr
 
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
+
+
+def _is_transient_openai_error(exc: Exception) -> bool:
+    """Return True for retryable transport-level failures.
+
+    Keep this intentionally narrow: connection loss, timeouts, and other
+    transport interruptions should retry; request/model/policy errors should
+    still fail immediately.
+    """
+    if isinstance(
+        exc,
+        (
+            openai.APIConnectionError,
+            openai.APITimeoutError,
+            httpx.ConnectError,
+            httpx.ReadTimeout,
+            httpx.WriteTimeout,
+            httpx.RemoteProtocolError,
+        ),
+    ):
+        return True
+
+    if isinstance(exc, openai.APIError):
+        msg = str(exc).lower()
+        return any(
+            token in msg
+            for token in (
+                "network connection lost",
+                "connection reset",
+                "connection aborted",
+                "timed out",
+                "timeout",
+                "temporarily unavailable",
+            )
+        )
+
+    return isinstance(exc, (ConnectionError, TimeoutError))
 
 
 class NormalizedChatOpenAI(ChatOpenAI):
@@ -17,15 +58,28 @@ class NormalizedChatOpenAI(ChatOpenAI):
     Also strips temperature/top_p for GPT-5 family models which use
     reasoning natively and reject these params.
     """
+    _manual_retry_attempts: int = PrivateAttr(default=2)
+    _manual_retry_base_delay_s: float = PrivateAttr(default=1.0)
 
     def __init__(self, **kwargs):
         if "gpt-5" in kwargs.get("model", "").lower():
             kwargs.pop("temperature", None)
             kwargs.pop("top_p", None)
+        manual_retry_attempts = max(int(kwargs.get("max_retries", 2) or 0), 0)
+        manual_retry_base_delay_s = float(kwargs.pop("retry_base_delay_s", 1.0))
         super().__init__(**kwargs)
+        self._manual_retry_attempts = manual_retry_attempts
+        self._manual_retry_base_delay_s = manual_retry_base_delay_s
 
     def invoke(self, input, config=None, **kwargs):
-        return normalize_content(super().invoke(input, config, **kwargs))
+        attempts = self._manual_retry_attempts + 1
+        for attempt in range(1, attempts + 1):
+            try:
+                return normalize_content(super().invoke(input, config, **kwargs))
+            except Exception as exc:
+                if attempt >= attempts or not _is_transient_openai_error(exc):
+                    raise
+                time.sleep(self._manual_retry_base_delay_s * attempt)
 
 # Kwargs forwarded from user config to ChatOpenAI
 _PASSTHROUGH_KWARGS = (

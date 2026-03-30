@@ -35,6 +35,35 @@ app.include_router(portfolios.router)
 app.include_router(runs.router)
 app.include_router(websocket.router)
 
+
+def _hydrate_run_record(meta: dict) -> dict:
+    """Convert persisted run metadata into an in-memory run record.
+
+    A persisted ``running`` status cannot be resumed after process restart because
+    the producer task is gone. Normalize those runs to ``failed`` so the UI sees
+    an explicit incomplete state instead of waiting forever for live events.
+    """
+    status = meta.get("status", "completed")
+    error = None
+    if status == "running":
+        status = "failed"
+        error = "Run did not complete (server restarted)"
+
+    record = {
+        "id": meta.get("id", ""),
+        "type": meta.get("type", ""),
+        "status": status,
+        "created_at": meta.get("created_at", 0),
+        "user_id": meta.get("user_id", "anonymous"),
+        "params": meta.get("params", {}),
+        "rerun_seq": meta.get("rerun_seq", 0),
+        "events": [],  # loaded lazily on demand
+        "hydrated_from_disk": True,
+    }
+    if error:
+        record["error"] = error
+    return record
+
 @app.on_event("startup")
 async def hydrate_runs_from_disk():
     """Populate the in-memory runs store from persisted run_meta.json files."""
@@ -45,17 +74,7 @@ async def hydrate_runs_from_disk():
         for meta in metas:
             rid = meta.get("id", "")
             if rid and rid not in runs:
-                runs[rid] = {
-                    "id": rid,
-                    "short_rid": meta.get("short_rid", rid[:8]),
-                    "type": meta.get("type", ""),
-                    "status": meta.get("status", "completed"),
-                    "created_at": meta.get("created_at", 0),
-                    "user_id": meta.get("user_id", "anonymous"),
-                    "params": meta.get("params", {}),
-                    "rerun_seq": meta.get("rerun_seq", 0),
-                    "events": [],  # loaded lazily on demand
-                }
+                runs[rid] = _hydrate_run_record(meta)
         if metas:
             logger.info("Hydrated %d historical runs from disk", len(metas))
     except Exception:

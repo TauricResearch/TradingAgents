@@ -780,8 +780,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
         self.assertIn("portfolio_id", received)
         self.assertNotIn("ticker", received)
 
-    def test_run_auto_finishes_logger_in_flow_dir(self):
-        """run_auto should persist its own run log under the active flow directory."""
+    def test_run_auto_finishes_logger_in_run_dir(self):
+        """run_auto should persist its own run log under the canonical run directory."""
         engine = LangGraphEngine()
 
         async def fake_run_pipeline(run_id, params):
@@ -794,7 +794,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
 
         engine.run_pipeline = fake_run_pipeline
         engine.run_portfolio = fake_run_portfolio
-        engine._start_run_logger("auto1", flow_id="flow1234")
+        engine._start_run_logger("auto1")
 
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
                    return_value=self._make_noop_scanner()), \
@@ -818,9 +818,9 @@ class TestRunAutoTickerSource(unittest.TestCase):
             mock_store.load_pm_decision.return_value = None
             mock_rs_cls.return_value = mock_store
 
-            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01", "flow_id": "flow1234"})))
+            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
 
-        mock_gdd.assert_any_call("2026-01-01", flow_id="flow1234")
+        mock_gdd.assert_any_call("2026-01-01", "auto1")
         self.assertIn(call("auto1", fake_daily_dir), mock_finish.call_args_list)
 
     def test_run_auto_yields_phase_log_events(self):
@@ -1174,6 +1174,161 @@ class TestExtractTickersFromScanData(unittest.TestCase):
         self.assertIn("MSFT", result)
         # Non-string/non-dict items should not produce entries
         self.assertEqual(len(result), 2)
+
+
+class TestRunPipelineFromPhase(unittest.TestCase):
+    """Tests for partial pipeline reruns."""
+
+    def test_risk_rerun_rejects_checkpoint_missing_investment_plan(self):
+        mock_risk_graph = MagicMock()
+        mock_risk_graph.astream_events = MagicMock()
+
+        mock_propagator = MagicMock()
+        mock_propagator.create_initial_state.return_value = {
+            "company_of_interest": "AAPL",
+            "trade_date": "2026-03-27",
+            "risk_debate_state": {
+                "history": "",
+                "aggressive_history": "",
+                "conservative_history": "",
+                "neutral_history": "",
+                "latest_speaker": "",
+                "current_aggressive_response": "",
+                "current_conservative_response": "",
+                "current_neutral_response": "",
+                "judge_decision": "",
+                "count": 0,
+            },
+        }
+        mock_propagator.max_recur_limit = 100
+
+        mock_wrapper = MagicMock()
+        mock_wrapper.propagator = mock_propagator
+        mock_wrapper.risk_graph = mock_risk_graph
+
+        flow_store = MagicMock()
+        flow_store.load_trader_checkpoint.return_value = {
+            "company_of_interest": "AAPL",
+            "trade_date": "2026-03-27",
+            "market_report": "market report",
+            "sentiment_report": "sentiment report",
+            "news_report": "news report",
+            "fundamentals_report": "fundamentals report",
+            "trader_investment_plan": "Trader says SELL",
+        }
+        fallback_store = MagicMock()
+        fallback_store.load_trader_checkpoint.return_value = None
+        writer_store = MagicMock()
+
+        engine = LangGraphEngine()
+
+        with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store", side_effect=[flow_store, fallback_store, writer_store]), \
+             patch.object(engine, "_start_run_logger", return_value=MagicMock(callback=None)), \
+             patch.object(engine, "_finish_run_logger"), \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir", return_value=MagicMock(spec=Path)):
+            with self.assertRaisesRegex(ValueError, "missing required 'investment_plan'"):
+                asyncio.run(
+                    _collect(
+                        engine.run_pipeline_from_phase(
+                            "run1",
+                            {
+                                "ticker": "AAPL",
+                                "date": "2026-03-27",
+                                "portfolio_id": "main_portfolio",
+                            },
+                            "risk",
+                        )
+                    )
+                )
+
+        mock_risk_graph.astream_events.assert_not_called()
+        writer_store.save_analysis.assert_not_called()
+
+    def test_risk_rerun_cascades_same_run(self):
+        captured_initial_state = {}
+        captured_cascade = {}
+
+        async def mock_astream_events(initial_state, *args, **kwargs):
+            captured_initial_state.update(initial_state)
+            yield _root_chain_end_event({"final_trade_decision": "SELL"})
+
+        mock_risk_graph = MagicMock()
+        mock_risk_graph.astream_events = mock_astream_events
+
+        mock_propagator = MagicMock()
+        mock_propagator.create_initial_state.return_value = {
+            "company_of_interest": "AAPL",
+            "trade_date": "2026-03-27",
+            "risk_debate_state": {
+                "history": "",
+                "aggressive_history": "",
+                "conservative_history": "",
+                "neutral_history": "",
+                "latest_speaker": "",
+                "current_aggressive_response": "",
+                "current_conservative_response": "",
+                "current_neutral_response": "",
+                "judge_decision": "",
+                "count": 0,
+            },
+            "investment_plan": "",
+            "trader_investment_plan": "",
+        }
+        mock_propagator.max_recur_limit = 100
+
+        mock_wrapper = MagicMock()
+        mock_wrapper.propagator = mock_propagator
+        mock_wrapper.risk_graph = mock_risk_graph
+
+        flow_store = MagicMock()
+        flow_store.load_trader_checkpoint.return_value = {
+            "company_of_interest": "AAPL",
+            "trade_date": "2026-03-27",
+            "market_report": "market report",
+            "sentiment_report": "sentiment report",
+            "news_report": "news report",
+            "fundamentals_report": "fundamentals report",
+            "investment_plan": "Research manager says SELL",
+            "trader_investment_plan": "Trader says SELL",
+        }
+        fallback_store = MagicMock()
+        fallback_store.load_trader_checkpoint.return_value = None
+        writer_store = MagicMock()
+
+        engine = LangGraphEngine()
+
+        async def fake_run_portfolio(self, run_id, params):
+            captured_cascade["run_id"] = run_id
+            captured_cascade["params"] = params
+            if False:
+                yield {}
+
+        with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store", side_effect=[flow_store, fallback_store, writer_store]), \
+             patch.object(engine, "_start_run_logger", return_value=MagicMock(callback=None)), \
+             patch.object(engine, "_finish_run_logger"), \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir", return_value=MagicMock(spec=Path)), \
+             patch.object(LangGraphEngine, "run_portfolio", fake_run_portfolio):
+            events = asyncio.run(
+                _collect(
+                    engine.run_pipeline_from_phase(
+                        "run1",
+                        {
+                            "ticker": "AAPL",
+                            "date": "2026-03-27",
+                            "portfolio_id": "main_portfolio",
+                        },
+                        "risk",
+                    )
+                )
+            )
+
+        self.assertEqual(captured_initial_state["investment_plan"], "Research manager says SELL")
+        self.assertEqual(captured_cascade["params"]["run_id"], "run1")
+        self.assertEqual(captured_cascade["params"]["_execution_key"], "run1:cascade_pm:AAPL:risk")
+        writer_store.save_analysis.assert_called_once()
+        self.assertTrue(any(evt.get("type") == "log" for evt in events))
 
 
 if __name__ == "__main__":

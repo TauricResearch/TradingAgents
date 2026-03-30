@@ -86,14 +86,14 @@ class TestRunLoggerLifecycle(unittest.TestCase):
             self.assertEqual(summary["kind"], "summary")
             self.assertEqual(summary["tool_calls"], 1)
 
-    def test_flow_id_does_not_change_run_log_payload(self):
-        """flow_id should only affect destination, not the JSONL schema/content."""
-        rl = self.engine._start_run_logger("test-run-flow", flow_id="flow1234")
+    def test_logger_key_does_not_change_run_log_payload(self):
+        """The internal logger key should not affect the JSONL schema/content."""
+        rl = self.engine._start_run_logger("test-run-flow", logger_key="test-run-flow:scan")
         rl.log_tool_call("get_stock_data", "AAPL", True, 12.3)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            log_dir = Path(tmpdir) / "2026-01-01" / "flow1234" / "AAPL"
-            self.engine._finish_run_logger("test-run-flow", log_dir)
+            log_dir = Path(tmpdir) / "2026-01-01" / "01ARZ3NDEKTSV4RRFFQ69G5FAV" / "AAPL"
+            self.engine._finish_run_logger("test-run-flow:scan", log_dir)
 
             log_file = log_dir / "run_log.jsonl"
             self.assertTrue(log_file.exists())

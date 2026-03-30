@@ -27,6 +27,7 @@ from tradingagents.portfolio.exceptions import (
     HoldingNotFoundError,
     InsufficientCashError,
     InsufficientSharesError,
+    PortfolioError,
 )
 from tradingagents.portfolio.models import (
     Holding,

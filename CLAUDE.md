@@ -90,14 +90,15 @@ OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
 - Graph setup (scanner): `tradingagents/graph/scanner_setup.py`
 - Inline tool loop: `tradingagents/agents/utils/tool_runner.py`
 
-## AgentOS — Storage, Events & Phase Re-run (see ADR 018 for full detail)
+## AgentOS — Storage, Events & Phase Re-run
 
 ### Storage Layout
 
-Reports are scoped by `flow_id` (8-char hex), NOT `run_id` (UUID):
+Reports are scoped by one canonical `run_id` (ULID). There is no separate
+legacy process id:
 
 ```
-reports/daily/{date}/{flow_id}/
+reports/daily/{date}/{run_id}/
   run_meta.json           ← run metadata persisted on completion
   run_events.jsonl        ← all WebSocket events, newline-delimited JSON
   {TICKER}/report/        ← e.g. RIG/report/
@@ -108,23 +109,27 @@ reports/daily/{date}/{flow_id}/
   portfolio/report/       ← PM decisions, execution results
 ```
 
-- **`flow_id`** = stable disk key, shared across all sub-phases of one auto run
-- **`run_id`** = ephemeral in-memory UUID (WebSocket endpoint key only)
+- **`run_id`** = canonical process id, shared across API, WebSocket, storage,
+  history, scan, pipeline, portfolio, and re-runs
+- Internal phase/ticker separation uses metadata like `_execution_key`,
+  `phase`, `ticker`, and `rerun_seq`, not child run ids
 
 ### Store Factory — Always Use It
 
 ```python
 from tradingagents.portfolio.store_factory import create_report_store
 
-# Writing: always pass flow_id
-writer = create_report_store(flow_id=flow_id)
+# Writing: always pass run_id
+writer = create_report_store(run_id=run_id)
 
-# Reading / checkpoint lookup: always pass the ORIGINAL flow_id
-reader = create_report_store(flow_id=original_flow_id)
+# Reading a specific run: pass the original run_id
+reader = create_report_store(run_id=run_id)
 
-# Reading latest (skip-if-exists checks): omit flow_id
+# Reading latest across runs: omit run_id
 reader = create_report_store()
 ```
+
+Store writes are strict: omitting `run_id` for `save_*` operations raises.
 
 **Never** instantiate `ReportStore()` or `MongoReportStore()` directly in engine code.
 
@@ -138,7 +143,8 @@ Node → phase mapping lives in `NODE_TO_PHASE` (langgraph_engine.py):
 | Bull/Bear Researcher, Research Manager, Trader | `debate_and_trader` | analysts_checkpoint |
 | Aggressive/Conservative/Neutral Analyst, Portfolio Manager | `risk` | trader_checkpoint |
 
-- **Checkpoint lookup requires the original `flow_id`** — pass it through `rerun_params["flow_id"]`
+- **Checkpoint lookup requires the original `run_id`** — keep the re-run inside
+  the same process id
 - **Analysts checkpoint**: saved when `any()` analyst report is populated (Social Analyst is optional — never use `all()`)
 - **Selective event filtering**: re-run preserves events from other tickers and earlier phases; only clears nodes in the re-run scope
 - **Cascade**: every phase re-run ends with a `run_portfolio()` call to update the PM decision
@@ -171,8 +177,10 @@ Orphaned "running" run with disk events → auto-marked "failed"
 - **Rate limiter locks**: Never hold a lock during `sleep()` or IO. Release, sleep, re-acquire.
 - **LLM policy errors**: `_is_policy_error(exc)` detects 404 from any provider (checks `status_code` attribute or message content). `_build_fallback_config(config)` substitutes per-tier fallback models. Both live in `agent_os/backend/services/langgraph_engine.py`.
 - **Config fallback keys**: `llm_provider` and `backend_url` must always exist at top level — `scanner_graph.py` and `trading_graph.py` use them as fallbacks.
-- **Report store writes**: always pass `flow_id` to `create_report_store(flow_id=…)`. Omitting it writes to the flat legacy path and overwrites across runs.
-- **Checkpoint lookup on re-run**: pass the original run's `flow_id` (from `run.get("flow_id") or run.get("short_rid") or run["params"]["flow_id"]`). Without it, `_date_root()` falls back to flat layout and finds nothing.
+- **Report store writes**: always pass `run_id` to `create_report_store(run_id=…)`.
+  Writes without `run_id` now fail fast.
+- **Checkpoint lookup on re-run**: keep the original `run_id` all the way
+  through the re-run and cascade flow.
 - **Analysts checkpoint condition**: use `any()` not `all()` over analyst keys — Social Analyst is not in the default analysts list, so `sentiment_report` is empty in typical runs.
 - **Re-run event filtering**: use `_filter_rerun_events(events, ticker, phase)` — never clear all events on re-run. Clearing all loses scan nodes and other tickers from the graph.
 
