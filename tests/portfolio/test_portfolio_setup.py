@@ -48,4 +48,4 @@ def test_prioritize_candidates_only_uses_completed_ticker_analyses():
 
     prioritized = json.loads(result["prioritized_candidates"])
     assert [candidate["ticker"] for candidate in prioritized] == ["AAPL"]
-    assert prioritized[0]["deep_dive_summary"] == "Rating: Buy"
+    assert prioritized[0]["candidate_final_trade_decision_summary"] == "Rating: Buy"

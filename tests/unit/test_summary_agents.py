@@ -23,6 +23,10 @@ from tradingagents.agents.portfolio.macro_summary_agent import (
 from tradingagents.agents.portfolio.micro_summary_agent import (
     create_micro_summary_agent,
 )
+from tradingagents.agents.portfolio.pm_decision_agent import (
+    PMDecisionSchema,
+    create_pm_decision_agent,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -49,6 +53,39 @@ def _make_runnable_llm(content: str = "MACRO REGIME: risk-off\nKEY NUMBERS: VIX=
 def _make_chain_mock(content: str = "MACRO REGIME: risk-off\nKEY NUMBERS: VIX=25"):
     """Return (llm_runnable, None) — second element kept for API compatibility."""
     return _make_runnable_llm(content), None
+
+
+def _valid_pm_payload() -> dict:
+    return {
+        "macro_regime": "risk-off",
+        "regime_alignment_note": "Elevated volatility favors selective exposure",
+        "sells": [],
+        "buys": [
+            {
+                "ticker": "AAPL",
+                "shares": 2.0,
+                "price_target": 240.0,
+                "stop_loss": 205.0,
+                "take_profit": 260.0,
+                "sector": "Technology",
+                "rationale": "Deep dive supports durable earnings quality",
+                "thesis": "High-quality compounder",
+                "macro_alignment": "Quality balance sheet fits the regime",
+                "memory_note": "Held up well in prior slowdowns",
+                "position_sizing_logic": "1% starter position",
+            }
+        ],
+        "holds": [],
+        "cash_reserve_pct": 0.1,
+        "portfolio_thesis": "Selective quality exposure with cash buffer",
+        "risk_summary": "Moderate portfolio risk",
+        "forensic_report": {
+            "regime_alignment": "Defensive growth is acceptable",
+            "key_risks": ["multiple compression"],
+            "decision_confidence": "medium",
+            "position_sizing_rationale": "Keep exposure below hard caps",
+        },
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -337,3 +374,43 @@ class TestMicroSummaryAgentMemory:
         result = agent(state)
         # micro_memory_context is JSON-serialised dict — AAPL should appear
         assert "AAPL" in result["micro_memory_context"]
+
+
+class _StructuredLLMCapture:
+    """Minimal structured-output LLM stub that captures the PM prompt text."""
+
+    def __init__(self, payload: dict):
+        self.payload = payload
+        self.captured_prompt = ""
+
+    def with_structured_output(self, schema):
+        def _invoke(prompt_value):
+            self.captured_prompt = prompt_value.to_string()
+            return schema(**self.payload)
+
+        return RunnableLambda(_invoke)
+
+
+class TestPMDecisionAgentInputs:
+    def test_pm_prompt_includes_direct_candidate_deep_dive_summaries(self):
+        """PM agent receives direct deep-dive summaries from prioritized candidates."""
+        llm = _StructuredLLMCapture(_valid_pm_payload())
+        agent = create_pm_decision_agent(llm)
+        state = {
+            "macro_brief": "MACRO REGIME: risk-off",
+            "micro_brief": "Micro brief placeholder",
+            "prioritized_candidates": (
+                '[{"ticker":"AAPL","conviction":"high","thesis_angle":"growth",'
+                '"priority_score":0.92,"candidate_final_trade_decision_summary":"Rating: Buy\\nExecutive Summary: durable moat"}]'
+            ),
+            "portfolio_data": '{"portfolio":{"cash":1000,"total_value":10000},"holdings":[]}',
+            "messages": [],
+            "analysis_date": "2026-03-30",
+        }
+
+        result = agent(state)
+
+        assert isinstance(result["pm_decision"], str)
+        assert "Input B — Direct Candidate Final Trade Decision Summaries" in llm.captured_prompt
+        assert "durable moat" in llm.captured_prompt
+        assert "AAPL" in llm.captured_prompt

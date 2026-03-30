@@ -326,7 +326,7 @@ These rules trigger specific actions and are part of the PM Agent's system promp
 | 4 | Portfolio Manager Decision Agent (LLM, structured output) | ✅ Done | `tradingagents/agents/portfolio/pm_decision_agent.py` |
 | 5 | Trade execution engine | ✅ Done | `tradingagents/portfolio/trade_executor.py` |
 | 6 | Full orchestration graph (LangGraph) | ✅ Done | `tradingagents/graph/portfolio_graph.py`, `portfolio_setup.py` |
-| 7 | CLI commands (`portfolio`, `check-portfolio`, `auto`) | ✅ Done | `cli/main.py` |
+| 7 | Runtime entrypoints (CLI + AgentOS orchestration) | ✅ Done | `cli/main.py`, `agent_os/backend/services/langgraph_engine.py` |
 | 8 | Candidate prioritizer | ✅ Done | `tradingagents/portfolio/candidate_prioritizer.py` |
 | 9 | Portfolio state for LangGraph | ✅ Done | `tradingagents/portfolio/portfolio_states.py` |
 | 10 | Tests (models, report_store, risk, trade, candidates) | ✅ Done | `tests/portfolio/` (588 tests total, 14 skipped) |
@@ -349,12 +349,12 @@ assume default models (`quick_think` = gpt-5-mini, `deep_think` = gpt-5.2,
 | Fundamentals Analyst | quick_think | get_ttm_analysis, get_fundamentals, etc. | 4–6 | ~4,000–8,000 | ~2,000–4,000 |
 | Bull Researcher | mid_think | — | 1–2 per round | ~4,000–8,000 | ~1,500–3,000 |
 | Bear Researcher | mid_think | — | 1–2 per round | ~4,000–8,000 | ~1,500–3,000 |
-| Research Manager (Judge) | deep_think | — | 1 | ~6,000–12,000 | ~2,000–4,000 |
+| Research Manager | deep_think | — | 1 | ~6,000–12,000 | ~2,000–4,000 |
 | Trader | mid_think | — | 1 | ~3,000–5,000 | ~1,000–2,000 |
 | Aggressive Risk Analyst | quick_think | — | 1–2 per round | ~3,000–6,000 | ~1,000–2,000 |
 | Neutral Risk Analyst | quick_think | — | 1–2 per round | ~3,000–6,000 | ~1,000–2,000 |
 | Conservative Risk Analyst | quick_think | — | 1–2 per round | ~3,000–6,000 | ~1,000–2,000 |
-| Risk Judge | deep_think | — | 1 | ~6,000–12,000 | ~2,000–4,000 |
+| Portfolio Manager | deep_think | — | 1 | ~6,000–12,000 | ~2,000–4,000 |
 
 **Trading workflow totals** (with `max_debate_rounds=2`):
 - **LLM calls**: ~19–27
@@ -367,7 +367,7 @@ assume default models (`quick_think` = gpt-5-mini, `deep_think` = gpt-5.2,
 | Agent | LLM Tier | Tools | LLM Calls | Est. Input Tokens | Est. Output Tokens |
 |-------|----------|-------|-----------|-------------------|-------------------|
 | Geopolitical Scanner | quick_think | get_topic_news | 2–3 | ~2,000–4,000 | ~1,000–2,500 |
-| Market Movers Scanner | quick_think | get_market_movers, get_market_indices | 2–3 | ~2,000–4,000 | ~1,000–2,500 |
+| Market Movers Scanner | quick_think | get_market_indices | 2–3 | ~2,000–4,000 | ~1,000–2,500 |
 | Sector Scanner | quick_think | get_sector_performance | 1–2 | ~1,500–3,000 | ~800–2,000 |
 | Industry Deep Dive | mid_think | get_industry_performance, get_topic_news | 5–7 | ~6,000–10,000 | ~3,000–5,000 |
 | Macro Synthesis | deep_think | — | 1 | ~8,000–15,000 | ~3,000–5,000 |
@@ -428,4 +428,5 @@ assume default models (`quick_think` = gpt-5-mini, `deep_think` = gpt-5.2,
 - `tradingagents/report_paths.py` — Filesystem path conventions
 - `tradingagents/default_config.py` — Config pattern and LLM tier defaults
 - `tradingagents/graph/scanner_graph.py` — Scanner pipeline (runs before portfolio)
-- `cli/main.py` — CLI commands: `portfolio`, `check-portfolio`, `auto`
+- `cli/main.py` — CLI entrypoints
+- `agent_os/backend/services/langgraph_engine.py` — AgentOS runtime orchestration for `scan`, `pipeline`, `portfolio`, and `auto`

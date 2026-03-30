@@ -274,91 +274,91 @@ class LangGraphEngine:
         self._node_start_times[execution_key] = {}
         self._run_identifiers[execution_key] = "MARKET"
         final_state: Dict[str, Any] = {}
+        captured_root_state = False
 
-        async for event in scanner.graph.astream_events(
-            initial_state, version="v2", config={"callbacks": [rl.callback]}
-        ):
-            # Capture the complete final state from the root graph's terminal event.
-            # LangGraph v2 emits one root-level on_chain_end (parent_ids=[], no
-            # langgraph_node in metadata) whose data.output is the full accumulated state.
-            if self._is_root_chain_end(event):
-                output = (event.get("data") or {}).get("output")
-                if isinstance(output, dict):
-                    final_state = output
-            mapped = self._map_langgraph_event(execution_key, event)
-            if mapped:
-                yield mapped
+        try:
+            async for event in scanner.graph.astream_events(
+                initial_state, version="v2", config={"callbacks": [rl.callback]}
+            ):
+                # Capture the complete final state from the root graph's terminal event.
+                # LangGraph v2 emits one root-level on_chain_end (parent_ids=[], no
+                # langgraph_node in metadata) whose data.output is the full accumulated state.
+                if self._is_root_chain_end(event):
+                    output = (event.get("data") or {}).get("output")
+                    if isinstance(output, dict):
+                        captured_root_state = True
+                        final_state = output
+                mapped = self._map_langgraph_event(execution_key, event)
+                if mapped:
+                    yield mapped
 
-        self._node_start_times.pop(execution_key, None)
-        self._node_prompts.pop(execution_key, None)
-        self._run_identifiers.pop(execution_key, None)
+            if not captured_root_state:
+                message = (
+                    f"Scan for {date} completed without a root final state; "
+                    "refusing to re-run the graph because that can duplicate expensive work."
+                )
+                logger.error("SCAN run=%s: %s", root_run_id, message)
+                yield self._system_log(f"Error: {message}")
+                raise RuntimeError(message)
 
-        # Fallback: if the root on_chain_end event was never captured (can happen
-        # with deeply nested sub-graphs), re-invoke to get the complete final state.
-        if not final_state:
-            logger.warning(
-                "SCAN run=%s: root on_chain_end not captured — falling back to ainvoke",
-                root_run_id,
-            )
-            try:
-                final_state = await scanner.graph.ainvoke(initial_state)
-            except Exception as exc:
-                logger.warning("SCAN fallback ainvoke failed run=%s: %s", root_run_id, exc)
+            # Save scan reports
+            if final_state:
+                yield self._system_log("Saving scan reports…")
+                try:
+                    save_dir = get_market_dir(date, root_run_id)
+                    save_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save scan reports
-        if final_state:
-            yield self._system_log("Saving scan reports…")
-            try:
-                save_dir = get_market_dir(date, root_run_id)
-                save_dir.mkdir(parents=True, exist_ok=True)
+                    for key in (
+                        "geopolitical_report",
+                        "market_movers_report",
+                        "sector_performance_report",
+                        "industry_deep_dive_report",
+                        "macro_scan_summary",
+                    ):
+                        content = final_state.get(key, "")
+                        if content:
+                            (save_dir / f"{key}.md").write_text(content)
 
-                for key in (
-                    "geopolitical_report",
-                    "market_movers_report",
-                    "sector_performance_report",
-                    "industry_deep_dive_report",
-                    "macro_scan_summary",
-                ):
-                    content = final_state.get(key, "")
-                    if content:
-                        (save_dir / f"{key}.md").write_text(content)
+                    # Parse and save macro_scan_summary.json via store for downstream use
+                    summary_text = final_state.get("macro_scan_summary", "")
+                    if summary_text:
+                        try:
+                            summary_data = self._normalize_scan_summary(extract_json(summary_text))
+                            store.save_scan(date, summary_data)
+                        except (ValueError, KeyError, TypeError):
+                            logger.warning(
+                                "macro_scan_summary for date=%s is not valid JSON "
+                                "(summary already saved as .md — downstream loads may fail)",
+                                date,
+                            )
 
-                # Parse and save macro_scan_summary.json via store for downstream use
-                summary_text = final_state.get("macro_scan_summary", "")
-                if summary_text:
-                    try:
-                        summary_data = self._normalize_scan_summary(extract_json(summary_text))
-                        store.save_scan(date, summary_data)
-                    except (ValueError, KeyError, TypeError):
-                        logger.warning(
-                            "macro_scan_summary for date=%s is not valid JSON "
-                            "(summary already saved as .md — downstream loads may fail)",
-                            date,
-                        )
+                    # Append to daily digest
+                    scan_parts = []
+                    for key, label in (
+                        ("geopolitical_report", "Geopolitical & Macro"),
+                        ("market_movers_report", "Market Movers"),
+                        ("sector_performance_report", "Sector Performance"),
+                        ("industry_deep_dive_report", "Industry Deep Dive"),
+                        ("macro_scan_summary", "Macro Scan Summary"),
+                    ):
+                        content = final_state.get(key, "")
+                        if content:
+                            scan_parts.append(f"### {label}\n{content}")
+                    if scan_parts:
+                        append_to_digest(date, "scan", "Market Scan", "\n\n".join(scan_parts))
 
-                # Append to daily digest
-                scan_parts = []
-                for key, label in (
-                    ("geopolitical_report", "Geopolitical & Macro"),
-                    ("market_movers_report", "Market Movers"),
-                    ("sector_performance_report", "Sector Performance"),
-                    ("industry_deep_dive_report", "Industry Deep Dive"),
-                    ("macro_scan_summary", "Macro Scan Summary"),
-                ):
-                    content = final_state.get(key, "")
-                    if content:
-                        scan_parts.append(f"### {label}\n{content}")
-                if scan_parts:
-                    append_to_digest(date, "scan", "Market Scan", "\n\n".join(scan_parts))
+                    yield self._system_log(f"Scan reports saved to {save_dir}")
+                    logger.info("Saved scan reports run=%s date=%s dir=%s", root_run_id, date, save_dir)
+                except Exception as exc:
+                    logger.exception("Failed to save scan reports run=%s", root_run_id)
+                    yield self._system_log(f"Warning: could not save scan reports: {exc}")
 
-                yield self._system_log(f"Scan reports saved to {save_dir}")
-                logger.info("Saved scan reports run=%s date=%s dir=%s", root_run_id, date, save_dir)
-            except Exception as exc:
-                logger.exception("Failed to save scan reports run=%s", root_run_id)
-                yield self._system_log(f"Warning: could not save scan reports: {exc}")
-
-        logger.info("Completed SCAN run=%s", root_run_id)
-        self._finish_run_logger(execution_key, get_market_dir(date, root_run_id))
+            logger.info("Completed SCAN run=%s", root_run_id)
+        finally:
+            self._node_start_times.pop(execution_key, None)
+            self._node_prompts.pop(execution_key, None)
+            self._run_identifiers.pop(execution_key, None)
+            self._finish_run_logger(execution_key, get_market_dir(date, root_run_id))
 
     async def run_pipeline(
         self, run_id: str, params: Dict[str, Any]

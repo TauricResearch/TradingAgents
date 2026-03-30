@@ -5,6 +5,11 @@ The system now uses a single canonical ULID `run_id` across runtime and storage.
 
 # Recent Progress
 
+- `codex/scan-fallback-duplication-cleanup` (current docs refresh):
+  - Added a code-derived graph execution reference covering scanner, per-ticker pipeline, portfolio, and auto orchestration
+  - Corrected stale docs that still described parallel analysts and outdated scanner topology
+  - Linked overview docs to the new runtime reference so graph/tool behavior is documented in one place
+
 - **feat/fe-max-tickers-load-run** (merged base):
   - `max_auto_tickers` config + macro synthesis prompt injection + frontend input
   - Run persistence: `run_meta.json` + `run_events.jsonl`

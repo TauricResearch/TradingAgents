@@ -209,8 +209,8 @@ class TestRunScanReportStorage(unittest.TestCase):
         # .md files should still have been written
         self.assertGreater(len(written), 0, "Expected .md files to be written even when JSON fails")
 
-    def test_run_scan_no_report_if_empty_final_state(self):
-        """When astream_events yields no root chain-end event, save_scan and append_to_digest are NOT called."""
+    def test_run_scan_fails_if_root_final_state_is_missing(self):
+        """When the root chain-end event is missing, run_scan fails instead of re-invoking the graph."""
         async def mock_astream(*args, **kwargs):
             # no root on_chain_end event
             for _ in ():
@@ -218,21 +218,28 @@ class TestRunScanReportStorage(unittest.TestCase):
 
         mock_graph = MagicMock()
         mock_graph.astream_events = mock_astream
+        mock_graph.ainvoke = AsyncMock(return_value=self._FINAL_STATE)
         mock_scanner = MagicMock()
         mock_scanner.graph = mock_graph
 
         engine = LangGraphEngine()
+        fake_dir = MagicMock(spec=Path)
+        fake_dir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+        fake_dir.mkdir = MagicMock()
 
         with patch("agent_os.backend.services.langgraph_engine.ScannerGraph", return_value=mock_scanner), \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
-             patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest:
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest, \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir", return_value=fake_dir):
             mock_store = MagicMock()
             mock_rs_cls.return_value = mock_store
 
-            asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
+            with self.assertRaisesRegex(RuntimeError, "refusing to re-run the graph"):
+                asyncio.run(_collect(engine.run_scan("run1", {"date": "2026-01-01"})))
 
         mock_store.save_scan.assert_not_called()
         mock_digest.assert_not_called()
+        mock_graph.ainvoke.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

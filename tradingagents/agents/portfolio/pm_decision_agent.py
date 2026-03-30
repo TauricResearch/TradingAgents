@@ -21,6 +21,48 @@ from tradingagents.agents.utils.json_utils import extract_json
 logger = logging.getLogger(__name__)
 
 
+def _parse_candidates_safely(raw: str) -> list[dict]:
+    """Parse prioritized candidates JSON, returning an empty list on failure."""
+    if not raw or not raw.strip():
+        return []
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning(
+            "pm_decision_agent: could not parse prioritized_candidates (first 100): %s",
+            raw[:100],
+        )
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _build_candidate_deep_dive_context(prioritized_candidates_raw: str) -> str:
+    """Build a compact JSON block of candidate final trade decisions for the PM."""
+    candidates = _parse_candidates_safely(prioritized_candidates_raw)
+    summarized: list[dict[str, object]] = []
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        candidate_final_trade_decision_summary = str(
+            candidate.get("candidate_final_trade_decision_summary") or ""
+        ).strip()
+        if not candidate_final_trade_decision_summary:
+            continue
+        summarized.append(
+            {
+                "ticker": candidate.get("ticker", ""),
+                "instrument_key": candidate.get("instrument_key", ""),
+                "conviction": candidate.get("conviction", ""),
+                "thesis_angle": candidate.get("thesis_angle", ""),
+                "priority_score": candidate.get("priority_score"),
+                "candidate_final_trade_decision_summary": candidate_final_trade_decision_summary,
+            }
+        )
+    if not summarized:
+        return "No direct candidate final trade decision summaries available."
+    return json.dumps(summarized, indent=2)
+
+
 # ---------------------------------------------------------------------------
 # Pydantic output schema
 # ---------------------------------------------------------------------------
@@ -126,6 +168,9 @@ def create_pm_decision_agent(
         else:
             macro_brief = _macro_brief_raw
         micro_brief = state.get("micro_brief") or "No micro brief available."
+        candidate_deep_dive_context = _build_candidate_deep_dive_context(
+            state.get("prioritized_candidates") or "[]"
+        )
 
         # Build compressed portfolio summary — avoid passing the full blob
         portfolio_data_str = state.get("portfolio_data") or "{}"
@@ -147,17 +192,21 @@ def create_pm_decision_agent(
             f"## Portfolio Constraints\n{constraints_str}\n\n"
             f"## Portfolio Summary\n{compressed_str}\n\n"
             f"## Input A — Macro Context & Memory\n{macro_brief}\n\n"
-            f"## Input B — Micro Context & Memory\n{micro_brief}\n"
+            f"## Input B — Direct Candidate Final Trade Decision Summaries\n{candidate_deep_dive_context}\n\n"
+            f"## Input C — Micro Context & Memory\n{micro_brief}\n"
         )
 
         system_message = (
             "You are a portfolio manager making final, risk-adjusted investment decisions. "
-            "You receive two inputs: (A) a macro regime brief with memory, and (B) a micro brief "
-            "with per-ticker signals and memory. Synthesize A and B into a Forensic Execution "
+            "You receive three inputs: (A) a macro regime brief with memory, "
+            "(B) direct candidate final trade decision summaries extracted from completed ticker analyses, "
+            "and (C) a micro brief with per-ticker signals and memory. Synthesize these inputs into a Forensic Execution "
             "Dashboard — a fully auditable decision plan where every trade is justified by both "
             "macro alignment and micro thesis.\n\n"
+            "The direct candidate final trade decision summaries are the most authoritative source for new candidate buys. "
+            "Use them explicitly when evaluating candidate entries, and ensure your rationale reflects that evidence. "
             "The micro brief is built from completed ticker deep-dive analyses and current holdings context. "
-            "Use that deep-dive input as the authoritative basis for buy, hold, and sell decisions. "
+            "Use both the direct candidate final trade decision summaries and the micro brief as the authoritative basis for buy, hold, and sell decisions. "
             "Do not recommend a new buy for any ticker that is not supported by the completed deep-dive input.\n\n"
             "## CONSTRAINTS COMPLIANCE:\n"
             "You MUST ensure all buys adhere to the portfolio constraints. "

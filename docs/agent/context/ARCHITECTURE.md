@@ -1,4 +1,4 @@
-<!-- Last verified: 2026-03-24 -->
+<!-- Last verified: 2026-03-30 -->
 
 # Architecture
 
@@ -42,42 +42,61 @@ Routing: 2-level dispatch — category-level (`data_vendors` config) + tool-leve
 
 Source: `tradingagents/dataflows/interface.py`
 
+## Graph Runtime Reference
+
+Detailed runtime documentation now lives in:
+
+- `docs/graph_execution_reference.md`
+- `docs/graph_flows.md`
+- `docs/agent_dataflow.md`
+
+Use those docs for node order, tool usage, and state writes. The summaries below are intentionally shorter.
+
 ## Trading Pipeline
 
 ```
-START ──┬── Market Analyst (quick) ── tools_market ──┐
-        ├── Social Analyst (quick) ── tools_social ──┤
-        ├── News Analyst (quick) ── tools_news ───────┼── Bull Researcher (mid) ⇄ Bear Researcher (mid)
-        └── Fundamentals Analyst (quick) ── tools_fund─┘         │ (max_debate_rounds)
-                                                          Research Manager (deep)
-                                                                  │
-                                                            Trader (mid)
-                                                                  │
-                                                  Aggressive ⇄ Neutral ⇄ Conservative (quick)
-                                                         (max_risk_discuss_rounds)
-                                                                  │
-                                                            Risk Judge (deep)
+START
+  -> Market Analyst -> Msg Clear Market
+  -> Social Analyst -> Msg Clear Social
+  -> News Analyst -> Msg Clear News
+  -> Fundamentals Analyst -> Msg Clear Fundamentals
+  -> Bull Researcher <-> Bear Researcher
+  -> Research Manager
+  -> Trader
+  -> Aggressive -> Conservative -> Neutral (loop)
+  -> Portfolio Manager
+  -> END
 ```
 
-Analysts run in parallel → investment debate → trading plan → risk debate → final decision.
+Notes:
 
-Source: `tradingagents/graph/trading_graph.py`, `tradingagents/graph/setup.py`
+- Analysts run sequentially in the compiled graph, not in parallel.
+- `tools_*` nodes still exist in the graph builder, but the current analyst implementations mostly resolve tools inline via prefetch or `run_tool_loop()`.
+- Critical abort in `market_report` or `fundamentals_report` can short-circuit directly to `Portfolio Manager`.
+
+Source: `tradingagents/graph/setup.py`, `tradingagents/graph/conditional_logic.py`
 
 ## Scanner Pipeline
 
 ```
-START ──┬── Geopolitical Scanner (quick) ──────────────────────┐
-        ├── Market Movers Scanner (quick) ─────────────────────┤
-        └── Sector Scanner (quick) ── Smart Money Scanner ─────┴── Industry Deep Dive (mid) ── Macro Synthesis (deep) ── END
-                                         (quick, Finviz)
+START
+  -> gatekeeper_scanner
+  -> geopolitical_scanner
+  -> market_movers_scanner
+  -> sector_scanner
+  -> factor_alignment_scanner / smart_money_scanner / drift_scanner
+  -> industry_deep_dive
+  -> macro_synthesis
+  -> END
 ```
 
-- **Phase 1a** (parallel): geopolitical, market_movers, sector scanners
-- **Phase 1b** (sequential after sector): smart_money_scanner — uses sector rotation context when running Finviz screeners (insider buys, unusual volume, breakout accumulation)
-- **Phase 2**: Industry deep dive cross-references all 4 Phase 1 outputs
-- **Phase 3**: Macro synthesis applies **Golden Overlap** — cross-references smart money tickers with top-down macro thesis to assign high/medium/low conviction; produces top 8-10 watchlist as JSON
+Notes:
 
-Source: `tradingagents/graph/scanner_graph.py`, `tradingagents/graph/scanner_setup.py`
+- `gatekeeper_scanner` is part of the phase-1 fan-out and constrains downstream candidate selection.
+- `factor_alignment_scanner`, `smart_money_scanner`, and `drift_scanner` are the bounded follow-on scans after sector context exists.
+- `macro_synthesis` performs deterministic candidate ranking before the final LLM synthesis step.
+
+Source: `tradingagents/graph/scanner_setup.py`, `tradingagents/agents/scanners/macro_synthesis.py`
 
 ## Pipeline Bridge
 
@@ -163,7 +182,7 @@ Full-stack web UI for monitoring and controlling agent execution in real-time.
 
 | Type | REST Trigger | WebSocket Executor | Description |
 |------|-------------|-------------------|-------------|
-| `scan` | `POST /api/run/scan` | `run_scan()` | 4-node macro scanner (3 parallel + smart money) |
+| `scan` | `POST /api/run/scan` | `run_scan()` | multi-phase macro scanner with gatekeeper, factor, drift, and synthesis |
 | `pipeline` | `POST /api/run/pipeline` | `run_pipeline()` | Per-ticker trading analysis |
 | `portfolio` | `POST /api/run/portfolio` | `run_portfolio()` | Portfolio manager workflow |
 | `auto` | `POST /api/run/auto` | `run_auto()` | Sequential: scan → pipeline → portfolio |

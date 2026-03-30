@@ -66,7 +66,9 @@ def _completed_scan_candidates(scan_summary: dict, ticker_analyses: dict[str, An
             continue
         candidate["ticker"] = ticker
         candidate["instrument_key"] = instrument_key
-        candidate["deep_dive_summary"] = str(analysis.get("final_trade_decision") or "").strip()
+        candidate["candidate_final_trade_decision_summary"] = str(
+            analysis.get("final_trade_decision") or ""
+        ).strip()
         completed.append(candidate)
     return completed
 
