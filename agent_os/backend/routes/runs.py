@@ -218,17 +218,8 @@ _RISK_NODES = frozenset({
 })
 # Portfolio-level cascade nodes always re-run after any phase re-run
 _PORTFOLIO_NODES = frozenset({"review_holdings", "make_pm_decision"})
-_SCAN_RERUN_DESCENDANTS = {
-    "gatekeeper_scanner": frozenset({"gatekeeper_scanner", "drift_scanner", "industry_deep_dive", "macro_synthesis"}),
-    "geopolitical_scanner": frozenset({"geopolitical_scanner", "industry_deep_dive", "macro_synthesis"}),
-    "market_movers_scanner": frozenset({"market_movers_scanner", "drift_scanner", "industry_deep_dive", "macro_synthesis"}),
-    "sector_scanner": frozenset({"sector_scanner", "factor_alignment_scanner", "smart_money_scanner", "drift_scanner", "industry_deep_dive", "macro_synthesis"}),
-    "factor_alignment_scanner": frozenset({"factor_alignment_scanner", "industry_deep_dive", "macro_synthesis"}),
-    "smart_money_scanner": frozenset({"smart_money_scanner", "industry_deep_dive", "macro_synthesis"}),
-    "drift_scanner": frozenset({"drift_scanner", "industry_deep_dive", "macro_synthesis"}),
-    "industry_deep_dive": frozenset({"industry_deep_dive", "macro_synthesis"}),
-    "macro_synthesis": frozenset({"macro_synthesis"}),
-}
+
+from tradingagents.graph.scanner_setup import get_scanner_descendants
 
 
 def _filter_rerun_events(events: list, ticker: str, phase: str) -> list:
@@ -266,7 +257,7 @@ def _filter_rerun_events(events: list, ticker: str, phase: str) -> list:
 
 def _filter_scan_rerun_events(events: list, start_node: str) -> list:
     """Remove stale market-scan events for *start_node* and its downstream nodes."""
-    nodes_to_clear = _SCAN_RERUN_DESCENDANTS.get(start_node)
+    nodes_to_clear = get_scanner_descendants(start_node)
     if not nodes_to_clear:
         return events
 

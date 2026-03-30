@@ -30,6 +30,28 @@ SCANNER_PREDECESSORS: dict[str, tuple[str, ...]] = {
 SCANNER_NODES: tuple[str, ...] = SCANNER_START_NODES + tuple(SCANNER_PREDECESSORS.keys())
 
 
+def get_scanner_descendants(start_node: str) -> frozenset[str]:
+    """Return the node and all its downstream descendants in the scanner graph."""
+    if start_node not in SCANNER_NODES:
+        return frozenset()
+
+    adjacency: dict[str, set[str]] = {}
+    for node, predecessors in SCANNER_PREDECESSORS.items():
+        for predecessor in predecessors:
+            adjacency.setdefault(predecessor, set()).add(node)
+
+    reachable = {start_node}
+    stack = [start_node]
+    while stack:
+        node = stack.pop()
+        for child in adjacency.get(node, set()):
+            if child not in reachable:
+                reachable.add(child)
+                stack.append(child)
+    
+    return frozenset(reachable)
+
+
 class ScannerGraphSetup:
     """Sets up the scanner graph with LLM agent nodes.
 
