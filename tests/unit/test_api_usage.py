@@ -176,6 +176,13 @@ class TestEstimateScan:
         phase_notes = [n for n in est.notes if "Phase" in n]
         assert len(phase_notes) >= 5
 
+    def test_scan_counts_market_price_checks(self):
+        est = estimate_scan()
+        breakdown = est.method_breakdown.get("yfinance", {})
+        assert breakdown.get("get_gold_price", 0) >= 1
+        assert breakdown.get("get_oil_prices", 0) >= 1
+        assert breakdown.get("get_bitcoin_price", 0) >= 1
+
     def test_macro_synthesis_has_no_external_calls(self):
         est = estimate_scan()
         assert any("Macro Synthesis" in note and "no external tool calls" in note for note in est.notes)

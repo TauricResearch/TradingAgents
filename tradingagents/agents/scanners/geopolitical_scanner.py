@@ -1,5 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from tradingagents.agents.utils.scanner_tools import get_topic_news
+from tradingagents.agents.utils.scanner_tools import (
+    get_bitcoin_price,
+    get_gold_price,
+    get_oil_prices,
+    get_todays_sovereign_cds,
+    get_topic_news,
+)
 from tradingagents.agents.utils.tool_runner import run_tool_loop
 
 
@@ -7,17 +13,30 @@ def create_geopolitical_scanner(llm):
     def geopolitical_scanner_node(state):
         scan_date = state["scan_date"]
 
-        tools = [get_topic_news]
+        tools = [
+            get_topic_news,
+            get_todays_sovereign_cds,
+            get_gold_price,
+            get_oil_prices,
+            get_bitcoin_price,
+        ]
 
         system_message = (
             "You are a geopolitical analyst scanning global news for risks and opportunities affecting financial markets. "
             "Use get_topic_news to search for news on: geopolitics, trade policy, sanctions, central bank decisions, "
-            "energy markets, and military conflicts. Analyze the results and write a concise report covering: "
+            "energy markets, and military conflicts. Also call get_todays_sovereign_cds, get_gold_price, "
+            "get_oil_prices, and get_bitcoin_price to validate the news against sovereign credit stress and "
+            "market pricing. Analyze the results and write a concise report covering: "
             "(1) Major geopolitical events and their market impact, "
             "(2) Central bank policy signals, "
             "(3) Trade/sanctions developments, "
-            "(4) Energy and commodity supply risks. "
-            "Include a risk assessment table at the end."
+            "(4) Energy and commodity supply risks, "
+            "(5) Whether gold, oil, bitcoin, and major-country CDS confirm, contradict, or fail to confirm the headline narrative. "
+            "Include a risk assessment table at the end. "
+            "Treat the tool output as the only source of truth. Do not introduce dates, durations, troop movements, "
+            "price targets, company profits, or policy statements unless they are explicitly present in the returned "
+            "articles. If the CDS tool reports stale data and skips itself, explicitly state that CDS confirmation "
+            "is unavailable today. If the evidence is mixed, weak, or anecdotal, say that clearly instead of turning it into a hard fact."
         )
 
         prompt = ChatPromptTemplate.from_messages(

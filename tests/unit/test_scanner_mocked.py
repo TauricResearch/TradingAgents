@@ -801,7 +801,6 @@ class TestScannerRouting:
 
         assert isinstance(result, str)
 
-
 # ---------------------------------------------------------------------------
 # Finviz smart-money screener tools
 # ---------------------------------------------------------------------------

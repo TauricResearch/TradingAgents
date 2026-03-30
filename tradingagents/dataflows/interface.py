@@ -40,6 +40,11 @@ from .alpha_vantage_scanner import (
     get_industry_performance_alpha_vantage,
     get_topic_news_alpha_vantage,
 )
+from .alpha_vantage_market_prices import (
+    get_bitcoin_price_alpha_vantage,
+    get_gold_price_alpha_vantage,
+    get_oil_prices_alpha_vantage,
+)
 from .alpha_vantage_common import AlphaVantageError, AlphaVantageRateLimitError, RateLimitError
 from .finnhub_common import FinnhubError
 from .stockstats_utils import YFinanceError
@@ -51,6 +56,11 @@ from .finnhub_scanner import (
     get_topic_news_finnhub,
     get_earnings_calendar_finnhub,
     get_economic_calendar_finnhub,
+)
+from .market_prices import (
+    get_bitcoin_price_snapshot,
+    get_gold_price_snapshot,
+    get_oil_prices_snapshot,
 )
 
 # Configuration and routing logic
@@ -95,6 +105,9 @@ TOOLS_CATEGORIES = {
             "get_market_movers",
             "get_gap_candidates",
             "get_market_indices",
+            "get_gold_price",
+            "get_oil_prices",
+            "get_bitcoin_price",
             "get_sector_performance",
             "get_industry_performance",
             "get_topic_news",
@@ -186,6 +199,18 @@ VENDOR_METHODS = {
         "finnhub": get_market_indices_finnhub,
         "alpha_vantage": get_market_indices_alpha_vantage,
         "yfinance": get_market_indices_yfinance,
+    },
+    "get_gold_price": {
+        "alpha_vantage": get_gold_price_alpha_vantage,
+        "yfinance": get_gold_price_snapshot,
+    },
+    "get_oil_prices": {
+        "alpha_vantage": get_oil_prices_alpha_vantage,
+        "yfinance": get_oil_prices_snapshot,
+    },
+    "get_bitcoin_price": {
+        "alpha_vantage": get_bitcoin_price_alpha_vantage,
+        "yfinance": get_bitcoin_price_snapshot,
     },
     "get_sector_performance": {
         "finnhub": get_sector_performance_finnhub,

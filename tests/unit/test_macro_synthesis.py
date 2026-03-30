@@ -2,6 +2,8 @@ from tradingagents.agents.scanners.macro_synthesis import (
     _build_candidate_rankings,
     _extract_rankable_tickers,
     _format_horizon_label,
+    _parse_gatekeeper_rows,
+    _repair_macro_summary,
 )
 
 
@@ -51,3 +53,51 @@ def test_build_candidate_rankings_excludes_names_outside_gatekeeper():
     tickers = {row["ticker"] for row in ranked}
     assert "NVDA" in tickers
     assert "TSLA" not in tickers
+
+
+def test_parse_gatekeeper_rows_extracts_symbol_and_name():
+    rows = _parse_gatekeeper_rows(
+        """
+| Symbol | Name | Exchange | Price |
+|--------|------|----------|-------|
+| NVDA | NVIDIA Corporation | NMS | $100 |
+| MSFT | Microsoft Corporation | NMS | $200 |
+"""
+    )
+
+    assert rows == [
+        {"ticker": "NVDA", "name": "NVIDIA Corporation"},
+        {"ticker": "MSFT", "name": "Microsoft Corporation"},
+    ]
+
+
+def test_repair_macro_summary_filters_and_backfills_to_requested_count():
+    state = {
+        "gatekeeper_universe_report": """
+| Symbol | Name | Exchange | Price |
+|--------|------|----------|-------|
+| NVDA | NVIDIA Corporation | NMS | $100 |
+| AAPL | Apple Inc. | NMS | $200 |
+| MSFT | Microsoft Corporation | NMS | $300 |
+| AMZN | Amazon.com, Inc. | NMS | $400 |
+""",
+        "market_movers_report": "NVDA AAPL",
+        "smart_money_report": "MSFT",
+        "factor_alignment_report": "NVDA MSFT",
+        "drift_opportunities_report": "AAPL",
+        "industry_deep_dive_report": "AMZN",
+    }
+    parsed = {
+        "executive_summary": "Summary",
+        "stocks_to_investigate": [
+            {"ticker": "NVDA", "name": "NVIDIA Corporation", "sector": "Technology"},
+            {"ticker": "TSLA", "name": "Tesla, Inc.", "sector": "Auto"},
+        ],
+    }
+
+    repaired = _repair_macro_summary(parsed, state, max_scan_tickers=4, horizon_label="1 month")
+
+    tickers = [row["ticker"] for row in repaired["stocks_to_investigate"]]
+    assert tickers == ["NVDA", "MSFT", "AAPL", "AMZN"]
+    assert repaired["timeframe"] == "1 month"
+    assert repaired["stocks_to_investigate"][2]["name"] == "Apple Inc."

@@ -25,6 +25,8 @@ def _analysis_has_deep_dive(analysis: dict) -> bool:
     if not isinstance(analysis, dict):
         return False
     status = str(analysis.get("analysis_status") or "").strip().lower()
+    if status == "aborted":
+        return False
     if status == "completed":
         return True
     return bool(str(analysis.get("final_trade_decision") or "").strip())

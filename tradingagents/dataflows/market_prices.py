@@ -1,0 +1,125 @@
+"""Standalone market-price client for geopolitical scanner tools."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+
+import requests
+import yfinance as yf
+
+from .finnhub_common import ThirdPartyTimeoutError
+from .stockstats_utils import YFinanceError
+
+
+_MARKET_PRICE_SYMBOLS = {
+    "Gold": "GC=F",
+    "WTI Crude": "CL=F",
+    "Brent Crude": "BZ=F",
+    "Bitcoin": "BTC-USD",
+}
+
+
+@dataclass(frozen=True)
+class MarketPriceRow:
+    asset: str
+    symbol: str
+    current_price: float
+    absolute_change: float
+    percent_change: float
+
+
+class MarketPricesClient:
+    """Fetch live gold, oil, and bitcoin prices from yfinance."""
+
+    def fetch_rows(self) -> dict[str, MarketPriceRow]:
+        symbols = list(_MARKET_PRICE_SYMBOLS.values())
+        try:
+            prices_df = yf.download(
+                symbols,
+                period="5d",
+                auto_adjust=False,
+                progress=False,
+                threads=True,
+            )
+        except requests.exceptions.Timeout as exc:
+            raise ThirdPartyTimeoutError("Request timed out fetching market prices") from exc
+        except ThirdPartyTimeoutError:
+            raise
+        except Exception as exc:
+            raise YFinanceError(f"Failed to fetch market prices: {exc}") from exc
+
+        rows: dict[str, MarketPriceRow] = {}
+        for asset, symbol in _MARKET_PRICE_SYMBOLS.items():
+            closes = self._extract_latest_closes(prices_df, symbol)
+            if closes is None:
+                raise YFinanceError(f"Insufficient price history for {asset} ({symbol}).")
+
+            current_price = float(closes.iloc[-1])
+            prev_close = float(closes.iloc[-2])
+            absolute_change = current_price - prev_close
+            percent_change = (absolute_change / prev_close * 100) if prev_close else 0.0
+
+            rows[asset] = MarketPriceRow(
+                asset=asset,
+                symbol=symbol,
+                current_price=current_price,
+                absolute_change=absolute_change,
+                percent_change=percent_change,
+            )
+
+        return rows
+
+    @staticmethod
+    def _extract_latest_closes(download_df, symbol: str):
+        if download_df is None or getattr(download_df, "empty", True):
+            return None
+
+        try:
+            closes = download_df["Close"][symbol].dropna()
+        except Exception:
+            try:
+                closes = download_df["Close"].dropna()
+            except Exception:
+                return None
+
+        if len(closes) < 2:
+            return None
+        return closes
+
+
+def _format_market_price_table(title: str, rows: list[MarketPriceRow]) -> str:
+    lines = [
+        title,
+        f"_Data retrieved on: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}_",
+        "",
+        "| Asset | Symbol | Current Price | Change | Change % |",
+        "|---|---|---:|---:|---:|",
+    ]
+    for row in rows:
+        price_str = f"${row.current_price:,.2f}"
+        change_str = f"{row.absolute_change:+.2f}"
+        pct_str = f"{row.percent_change:+.2f}%"
+        lines.append(f"| {row.asset} | {row.symbol} | {price_str} | {change_str} | {pct_str} |")
+    return "\n".join(lines)
+
+
+def get_gold_price_snapshot() -> str:
+    client = MarketPricesClient()
+    rows = client.fetch_rows()
+    return _format_market_price_table("# Gold Price Snapshot", [rows["Gold"]])
+
+
+def get_oil_prices_snapshot() -> str:
+    client = MarketPricesClient()
+    rows = client.fetch_rows()
+    return _format_market_price_table(
+        "# Oil Price Snapshot",
+        [rows["WTI Crude"], rows["Brent Crude"]],
+    )
+
+
+def get_bitcoin_price_snapshot() -> str:
+    client = MarketPricesClient()
+    rows = client.fetch_rows()
+    return _format_market_price_table("# Bitcoin Price Snapshot", [rows["Bitcoin"]])

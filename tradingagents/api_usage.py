@@ -43,6 +43,9 @@ _AV_CALLS_PER_METHOD: dict[str, int] = {
     "get_insider_transactions": 1,   # INSIDER_TRANSACTIONS
     "get_market_movers": 1,          # TOP_GAINERS_LOSERS
     "get_market_indices": 1,         # multiple quote calls
+    "get_gold_price": 1,             # GOLD_SILVER_SPOT
+    "get_oil_prices": 2,             # WTI + BRENT
+    "get_bitcoin_price": 1,          # CURRENCY_EXCHANGE_RATE
     "get_sector_performance": 1,     # SECTOR
     "get_industry_performance": 1,   # sector ETF lookup
     "get_topic_news": 1,             # NEWS_SENTIMENT (topic filter)
@@ -93,6 +96,7 @@ def _resolve_vendor(config: dict, method: str) -> str:
     """Determine which vendor a method will use given the config."""
     from tradingagents.dataflows.interface import (
         get_category_for_method,
+        VENDOR_METHODS,
     )
 
     if method == "get_gap_candidates":
@@ -114,7 +118,11 @@ def _resolve_vendor(config: dict, method: str) -> str:
             "Method %r not found in TOOLS_CATEGORIES — skipping vendor resolution", method
         )
         return "unknown"
-    return config.get("data_vendors", {}).get(category, "yfinance")
+    configured_vendor = config.get("data_vendors", {}).get(category, "yfinance")
+    if configured_vendor in VENDOR_METHODS.get(method, {}):
+        return configured_vendor
+    available_vendors = list(VENDOR_METHODS.get(method, {}).keys())
+    return available_vendors[0] if available_vendors else configured_vendor
 
 
 def estimate_analyze(
@@ -230,11 +238,16 @@ def estimate_scan(config: dict | None = None) -> UsageEstimate:
             breakdown[vendor] = {}
         breakdown[vendor][method] = breakdown[vendor].get(method, 0) + count
 
-    # Phase 1A: Geopolitical Scanner — ~4 topic news calls
+    # Phase 1A: Geopolitical Scanner — ~4 topic news calls + 1 market-signal snapshot
     topic_news_calls = 4
     for _ in range(topic_news_calls):
         _add("get_topic_news")
-    est.notes.append(f"Phase 1A (Geopolitical): ~{topic_news_calls} topic news calls")
+    _add("get_gold_price")
+    _add("get_oil_prices")
+    _add("get_bitcoin_price")
+    est.notes.append(
+        f"Phase 1A (Geopolitical): ~{topic_news_calls} topic news calls + gold/oil/bitcoin price checks"
+    )
 
     # Phase 1B: Gatekeeper universe — 1 bounded yfinance query
     _add("get_gatekeeper_universe")

@@ -102,9 +102,14 @@ def _analysis_status(analysis: Any) -> str:
     if not isinstance(analysis, dict):
         return "missing"
     status = str(analysis.get("analysis_status") or "").strip().lower()
+    has_final_decision = bool(str(analysis.get("final_trade_decision") or "").strip())
+    if status == "aborted":
+        return status
+    if has_final_decision:
+        return "completed"
     if status:
         return status
-    return "completed" if str(analysis.get("final_trade_decision") or "").strip() else "incomplete"
+    return "incomplete"
 
 
 def _analysis_is_completed(analysis: Any) -> bool:
@@ -120,9 +125,23 @@ def _analysis_has_deep_dive(analysis: Any) -> bool:
     if not isinstance(analysis, dict):
         return False
     status = str(analysis.get("analysis_status") or "").strip().lower()
+    if status == "aborted":
+        return False
     if status == "completed":
         return True
     return bool(str(analysis.get("final_trade_decision") or "").strip())
+
+
+def _normalize_analysis_status(analysis: dict[str, Any]) -> str:
+    """Persist a terminal status whenever a final trade decision is present."""
+    status = str(analysis.get("analysis_status") or "").strip().lower()
+    if status == "aborted":
+        return status
+    if str(analysis.get("final_trade_decision") or "").strip():
+        return "completed"
+    if status:
+        return status
+    return "incomplete"
 
 # Maximum characters of prompt/response for the full fields (generous limit)
 _MAX_FULL_LEN = 50_000
@@ -466,14 +485,7 @@ class LangGraphEngine:
                 serializable_state = self._sanitize_for_json(final_state)
                 serializable_state.update(instrument.to_metadata())
                 serializable_state["ticker"] = ticker
-                serializable_state["analysis_status"] = (
-                    str(serializable_state.get("analysis_status") or "").strip().lower()
-                    or (
-                        "completed"
-                        if str(serializable_state.get("final_trade_decision") or "").strip()
-                        else "incomplete"
-                    )
-                )
+                serializable_state["analysis_status"] = _normalize_analysis_status(serializable_state)
 
                 # Save JSON via store (complete_report.json)
                 store.save_analysis(date, ticker, serializable_state)
@@ -836,14 +848,7 @@ class LangGraphEngine:
 
                 if final_state:
                     serializable_state = self._sanitize_for_json(final_state)
-                    serializable_state["analysis_status"] = (
-                        str(serializable_state.get("analysis_status") or "").strip().lower()
-                        or (
-                            "completed"
-                            if str(serializable_state.get("final_trade_decision") or "").strip()
-                            else "incomplete"
-                        )
-                    )
+                    serializable_state["analysis_status"] = _normalize_analysis_status(serializable_state)
                     writer_store.save_analysis(date, ticker, serializable_state)
                     # Overwrite checkpoints
                     _analyst_keys = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
@@ -909,14 +914,7 @@ class LangGraphEngine:
 
                 if final_state:
                     serializable_state = self._sanitize_for_json(final_state)
-                    serializable_state["analysis_status"] = (
-                        str(serializable_state.get("analysis_status") or "").strip().lower()
-                        or (
-                            "completed"
-                            if str(serializable_state.get("final_trade_decision") or "").strip()
-                            else "incomplete"
-                        )
-                    )
+                    serializable_state["analysis_status"] = _normalize_analysis_status(serializable_state)
                     writer_store.save_analysis(date, ticker, serializable_state)
 
                 self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))

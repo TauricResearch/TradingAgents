@@ -5,6 +5,7 @@ from typing import Annotated
 
 from langchain_core.tools import tool
 
+from tradingagents.dataflows.sovereign_cds import get_todays_sovereign_cds_snapshot
 from tradingagents.dataflows.interface import route_to_vendor
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,51 @@ def get_market_indices() -> str:
         str: Formatted table of index values with current price, daily change, 52W high/low
     """
     return route_to_vendor("get_market_indices")
+
+
+@tool
+def get_todays_sovereign_cds() -> str:
+    """
+    Get today's sovereign CDS snapshot from World Government Bonds.
+
+    Returns:
+        str: Markdown table of major-country 5Y CDS levels, or a skip message
+        when the source has not updated for today yet.
+    """
+    return get_todays_sovereign_cds_snapshot()
+
+
+@tool
+def get_gold_price() -> str:
+    """
+    Get the latest gold futures price snapshot.
+
+    Returns:
+        str: Markdown table containing gold price and daily move.
+    """
+    return route_to_vendor("get_gold_price")
+
+
+@tool
+def get_oil_prices() -> str:
+    """
+    Get the latest WTI and Brent crude oil price snapshot.
+
+    Returns:
+        str: Markdown table containing oil prices and daily moves.
+    """
+    return route_to_vendor("get_oil_prices")
+
+
+@tool
+def get_bitcoin_price() -> str:
+    """
+    Get the latest bitcoin spot price snapshot.
+
+    Returns:
+        str: Markdown table containing bitcoin price and daily move.
+    """
+    return route_to_vendor("get_bitcoin_price")
 
 
 @tool

@@ -99,6 +99,34 @@ class TestEnvOverridesDefaults:
             cfg = self._reload_config()
             assert cfg["data_vendors"]["scanner_data"] == "alpha_vantage"
 
+    def test_market_price_tool_vendor_overrides(self):
+        with patch.dict(
+            os.environ,
+            {
+                "TRADINGAGENTS_VENDOR_GOLD_PRICE": "alpha_vantage",
+                "TRADINGAGENTS_VENDOR_OIL_PRICES": "alpha_vantage",
+                "TRADINGAGENTS_VENDOR_BITCOIN_PRICE": "alpha_vantage",
+            },
+        ):
+            cfg = self._reload_config()
+            assert cfg["tool_vendors"]["get_gold_price"] == "alpha_vantage"
+            assert cfg["tool_vendors"]["get_oil_prices"] == "alpha_vantage"
+            assert cfg["tool_vendors"]["get_bitcoin_price"] == "alpha_vantage"
+
+    def test_market_price_tools_inherit_scanner_vendor_by_default(self):
+        env_clean = {
+            k: v for k, v in os.environ.items()
+            if not k.startswith("TRADINGAGENTS_VENDOR_GOLD_PRICE")
+            and not k.startswith("TRADINGAGENTS_VENDOR_OIL_PRICES")
+            and not k.startswith("TRADINGAGENTS_VENDOR_BITCOIN_PRICE")
+        }
+        with patch.dict(os.environ, env_clean, clear=True):
+            with patch("dotenv.load_dotenv"):
+                cfg = self._reload_config()
+                assert "get_gold_price" not in cfg["tool_vendors"]
+                assert "get_oil_prices" not in cfg["tool_vendors"]
+                assert "get_bitcoin_price" not in cfg["tool_vendors"]
+
     def test_defaults_unchanged_when_no_env_set(self):
         """Without any TRADINGAGENTS_* vars, defaults are the original hardcoded values.
 

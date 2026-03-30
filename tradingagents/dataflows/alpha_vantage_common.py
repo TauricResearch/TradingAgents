@@ -132,12 +132,17 @@ def _make_api_request(function_name: str, params: dict, timeout: int = 30) -> di
         ThirdPartyTimeoutError: Request timed out.
         ThirdPartyParseError: Response could not be parsed.
     """
+    api_key = get_api_key()
     api_params = params.copy()
     api_params.update({
         "function": function_name,
-        "apikey": get_api_key(),
-        "source": "trading_agents",
+        "apikey": api_key,
     })
+    # Alpha Vantage's demo key returns reduced datasets and rejects some
+    # requests when extra metadata params are present. Keep the runtime helper
+    # compatible with demo so tests exercise the same code path.
+    if api_key != "demo":
+        api_params["source"] = "trading_agents"
 
     # Handle entitlement parameter
     current_entitlement = globals().get('_current_entitlement')

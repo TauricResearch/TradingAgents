@@ -50,6 +50,26 @@ def _env_float(key: str, default=None):
         return default
 
 
+def _tool_vendor_overrides() -> dict:
+    overrides = {
+        # Finnhub free tier provides same data + MSPR aggregate bonus signal
+        "get_insider_transactions": "finnhub",
+        # Finviz has a native Gap Up filter; yfinance is OHLC approximation only
+        "get_gap_candidates": "finviz",
+    }
+
+    market_price_overrides = {
+        "get_gold_price": _env("VENDOR_GOLD_PRICE"),
+        "get_oil_prices": _env("VENDOR_OIL_PRICES"),
+        "get_bitcoin_price": _env("VENDOR_BITCOIN_PRICE"),
+    }
+    for method, vendor in market_price_overrides.items():
+        if vendor:
+            overrides[method] = vendor
+
+    return overrides
+
+
 DEFAULT_CONFIG = {
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
     "results_dir": _env("RESULTS_DIR", "./reports"),
@@ -124,12 +144,7 @@ DEFAULT_CONFIG = {
         "calendar_data": _env("VENDOR_CALENDAR_DATA", "finnhub"),
     },
     # Tool-level configuration (takes precedence over category-level)
-    "tool_vendors": {
-        # Finnhub free tier provides same data + MSPR aggregate bonus signal
-        "get_insider_transactions": "finnhub",
-        # Finviz has a native Gap Up filter; yfinance is OHLC approximation only
-        "get_gap_candidates": "finviz",
-    },
+    "tool_vendors": _tool_vendor_overrides(),
     # Report storage backend
     # When mongo_uri is set, reports are persisted in MongoDB (never overwritten).
     # Otherwise, the filesystem store is used (run_id prevents same-day overwrites).
