@@ -5,6 +5,31 @@ from langgraph.graph import StateGraph, START, END
 from tradingagents.agents.utils.scanner_states import ScannerState
 
 
+SCANNER_START_NODES: tuple[str, ...] = (
+    "gatekeeper_scanner",
+    "geopolitical_scanner",
+    "market_movers_scanner",
+    "sector_scanner",
+)
+
+SCANNER_PREDECESSORS: dict[str, tuple[str, ...]] = {
+    "factor_alignment_scanner": ("sector_scanner",),
+    "smart_money_scanner": ("sector_scanner",),
+    "drift_scanner": ("sector_scanner", "market_movers_scanner", "gatekeeper_scanner"),
+    "industry_deep_dive": (
+        "gatekeeper_scanner",
+        "geopolitical_scanner",
+        "market_movers_scanner",
+        "factor_alignment_scanner",
+        "drift_scanner",
+        "smart_money_scanner",
+    ),
+    "macro_synthesis": ("industry_deep_dive",),
+}
+
+SCANNER_NODES: tuple[str, ...] = SCANNER_START_NODES + tuple(SCANNER_PREDECESSORS.keys())
+
+
 class ScannerGraphSetup:
     """Sets up the scanner graph with LLM agent nodes.
 
@@ -46,29 +71,62 @@ class ScannerGraphSetup:
         for name, node_fn in self.agents.items():
             workflow.add_node(name, node_fn)
 
-        # Phase 1a: parallel fan-out from START
-        workflow.add_edge(START, "gatekeeper_scanner")
-        workflow.add_edge(START, "geopolitical_scanner")
-        workflow.add_edge(START, "market_movers_scanner")
-        workflow.add_edge(START, "sector_scanner")
+        for node in SCANNER_START_NODES:
+            workflow.add_edge(START, node)
 
-        # Phase 1b: bounded global follow-ons that require sector context
-        workflow.add_edge("sector_scanner", "factor_alignment_scanner")
-        workflow.add_edge("sector_scanner", "smart_money_scanner")
-        workflow.add_edge("sector_scanner", "drift_scanner")
-        workflow.add_edge("market_movers_scanner", "drift_scanner")
-        workflow.add_edge("gatekeeper_scanner", "drift_scanner")
+        for node, predecessors in SCANNER_PREDECESSORS.items():
+            if len(predecessors) == 1:
+                workflow.add_edge(predecessors[0], node)
+            else:
+                workflow.add_edge(list(predecessors), node)
 
-        # Fan-in: all Phase 1 nodes must complete before Phase 2
-        workflow.add_edge("gatekeeper_scanner", "industry_deep_dive")
-        workflow.add_edge("geopolitical_scanner", "industry_deep_dive")
-        workflow.add_edge("market_movers_scanner", "industry_deep_dive")
-        workflow.add_edge("factor_alignment_scanner", "industry_deep_dive")
-        workflow.add_edge("drift_scanner", "industry_deep_dive")
-        workflow.add_edge("smart_money_scanner", "industry_deep_dive")
-
-        # Phase 2 -> Phase 3 -> END
-        workflow.add_edge("industry_deep_dive", "macro_synthesis")
         workflow.add_edge("macro_synthesis", END)
+
+        return workflow.compile()
+
+    def setup_graph_from(self, start_node: str):
+        """Build and compile a partial scanner workflow from *start_node* onward.
+
+        The returned graph starts at ``start_node`` and keeps only downstream
+        nodes. Missing predecessor data must already be present in the seeded
+        state supplied by the caller.
+        """
+        if start_node not in self.agents:
+            raise ValueError(f"Unknown scanner node: {start_node}")
+
+        adjacency: dict[str, set[str]] = {}
+        for node, predecessors in SCANNER_PREDECESSORS.items():
+            for predecessor in predecessors:
+                adjacency.setdefault(predecessor, set()).add(node)
+
+        reachable = {start_node}
+        stack = [start_node]
+        while stack:
+            node = stack.pop()
+            for child in adjacency.get(node, set()):
+                if child not in reachable:
+                    reachable.add(child)
+                    stack.append(child)
+
+        workflow = StateGraph(ScannerState)
+        for name, node_fn in self.agents.items():
+            if name in reachable:
+                workflow.add_node(name, node_fn)
+
+        workflow.add_edge(START, start_node)
+
+        for node, predecessors in SCANNER_PREDECESSORS.items():
+            if node not in reachable:
+                continue
+            live_predecessors = [pred for pred in predecessors if pred in reachable]
+            if not live_predecessors:
+                continue
+            if len(live_predecessors) == 1:
+                workflow.add_edge(live_predecessors[0], node)
+            else:
+                workflow.add_edge(live_predecessors, node)
+
+        if "macro_synthesis" in reachable:
+            workflow.add_edge("macro_synthesis", END)
 
         return workflow.compile()

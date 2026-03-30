@@ -90,6 +90,11 @@ async def websocket_endpoint(
             logger.info("Run completed run=%s type=%s", run_id, run_type)
         else:
             logger.info("Run ended with status=%s run=%s type=%s", run_info.get("status"), run_id, run_type)
+
+        try:
+            await websocket.close()
+        except Exception:
+            logger.debug("WebSocket already closed run=%s", run_id)
         
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected run=%s", run_id)

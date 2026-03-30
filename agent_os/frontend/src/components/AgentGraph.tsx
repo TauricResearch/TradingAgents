@@ -380,6 +380,7 @@ const nodeTypes = { agentNode: AgentNode, tickerHeader: TickerHeaderNode };
 
 interface AgentGraphProps {
   events: AgentEvent[];
+  runStatus?: 'idle' | 'connecting' | 'streaming' | 'completed' | 'error';
   onNodeClick?: (nodeId: string, identifier?: string) => void;
   onNodeRerun?: (identifier: string, nodeId: string) => void;
 }
@@ -391,12 +392,16 @@ function centeredX(index: number, count: number, maxColumns: number): number {
   return offset + index * COL_WIDTH;
 }
 
-function buildGraph(events: AgentEvent[], onNodeRerun?: AgentGraphProps['onNodeRerun']): GraphBuild {
+function buildGraph(
+  events: AgentEvent[],
+  runStatus?: AgentGraphProps['runStatus'],
+  onNodeRerun?: AgentGraphProps['onNodeRerun'],
+): GraphBuild {
   const records = new Map<string, GraphRecord>();
   const edgeKeys = new Set<string>();
   const edges: Edge[] = [];
   const deferredEdges: Array<{ source: string; target: string }> = [];
-  const tickerHeaders = new Map<string, { firstSeen: number; agentCount: number; completedCount: number; status: 'running' | 'completed' }>();
+  const tickerHeaders = new Map<string, { firstSeen: number; agentCount: number; completedCount: number; status: 'running' | 'completed' | 'error' }>();
 
   const pushEdge = (source: string, target: string, color = '#4fd1c5', dashed = false) => {
     if (source === target) return;
@@ -496,6 +501,19 @@ function buildGraph(events: AgentEvent[], onNodeRerun?: AgentGraphProps['onNodeR
       pushEdge(source, target);
     }
   });
+
+  if (runStatus === 'error') {
+    for (const record of records.values()) {
+      if (record.status === 'running') {
+        record.status = 'error';
+      }
+    }
+    for (const header of tickerHeaders.values()) {
+      if (header.status === 'running') {
+        header.status = 'error';
+      }
+    }
+  }
 
   for (const record of records.values()) {
     if (record.kind === 'scan') {
@@ -688,8 +706,11 @@ function buildGraph(events: AgentEvent[], onNodeRerun?: AgentGraphProps['onNodeR
   return { nodes, edges };
 }
 
-export const AgentGraph: React.FC<AgentGraphProps> = ({ events, onNodeClick, onNodeRerun }) => {
-  const { nodes: layoutNodes, edges } = useMemo(() => buildGraph(events, onNodeRerun), [events, onNodeRerun]);
+export const AgentGraph: React.FC<AgentGraphProps> = ({ events, runStatus, onNodeClick, onNodeRerun }) => {
+  const { nodes: layoutNodes, edges } = useMemo(
+    () => buildGraph(events, runStatus, onNodeRerun),
+    [events, runStatus, onNodeRerun],
+  );
   const [positionOverrides, setPositionOverrides] = useState<PositionOverrides>({});
 
   useEffect(() => {

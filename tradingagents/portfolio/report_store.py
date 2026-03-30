@@ -107,6 +107,7 @@ class ReportStore:
         except (TypeError, ValueError):
             return str(obj)
 
+
     def _write_json(self, path: Path, data: dict[str, Any]) -> Path:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)

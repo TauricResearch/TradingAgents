@@ -56,6 +56,104 @@ def test_scanner_setup_compiles_graph():
     assert graph is not None
 
 
+def test_scanner_setup_runs_fan_in_nodes_once():
+    """Barrier edges should prevent duplicate drift/deep-dive executions."""
+    from tradingagents.graph.scanner_setup import ScannerGraphSetup
+
+    counts: dict[str, int] = {}
+    report_fields = {
+        "gatekeeper_scanner": "gatekeeper_universe_report",
+        "geopolitical_scanner": "geopolitical_report",
+        "market_movers_scanner": "market_movers_report",
+        "sector_scanner": "sector_performance_report",
+        "factor_alignment_scanner": "factor_alignment_report",
+        "drift_scanner": "drift_opportunities_report",
+        "smart_money_scanner": "smart_money_report",
+        "industry_deep_dive": "industry_deep_dive_report",
+        "macro_synthesis": "macro_scan_summary",
+    }
+
+    def make_node(name: str):
+        field = report_fields[name]
+
+        def _node(_state):
+            counts[name] = counts.get(name, 0) + 1
+            return {"messages": [], "sender": name, field: name}
+
+        return _node
+
+    setup = ScannerGraphSetup({name: make_node(name) for name in report_fields})
+    graph = setup.setup_graph()
+
+    result = graph.invoke(
+        {
+            "scan_date": "2026-03-30",
+            "messages": [],
+            "gatekeeper_universe_report": "",
+            "geopolitical_report": "",
+            "market_movers_report": "",
+            "sector_performance_report": "",
+            "factor_alignment_report": "",
+            "drift_opportunities_report": "",
+            "smart_money_report": "",
+            "industry_deep_dive_report": "",
+            "macro_scan_summary": "",
+            "sender": "",
+        }
+    )
+
+    assert all(counts.get(name) == 1 for name in report_fields)
+    assert result["macro_scan_summary"] == "macro_synthesis"
+
+
+def test_scanner_partial_graph_runs_selected_node_only_when_terminal():
+    """Partial scanner reruns should allow starting directly at macro_synthesis."""
+    from tradingagents.graph.scanner_setup import ScannerGraphSetup
+
+    counts: dict[str, int] = {}
+
+    def make_node(name: str):
+        def _node(_state):
+            counts[name] = counts.get(name, 0) + 1
+            return {"messages": [], "sender": name, "macro_scan_summary": name}
+
+        return _node
+
+    mock_agents = {
+        "gatekeeper_scanner": make_node("gatekeeper_scanner"),
+        "geopolitical_scanner": make_node("geopolitical_scanner"),
+        "market_movers_scanner": make_node("market_movers_scanner"),
+        "sector_scanner": make_node("sector_scanner"),
+        "factor_alignment_scanner": make_node("factor_alignment_scanner"),
+        "drift_scanner": make_node("drift_scanner"),
+        "smart_money_scanner": make_node("smart_money_scanner"),
+        "industry_deep_dive": make_node("industry_deep_dive"),
+        "macro_synthesis": make_node("macro_synthesis"),
+    }
+    setup = ScannerGraphSetup(mock_agents)
+    graph = setup.setup_graph_from("macro_synthesis")
+
+    result = graph.invoke(
+        {
+            "scan_date": "2026-03-30",
+            "messages": [],
+            "gatekeeper_universe_report": "seeded",
+            "geopolitical_report": "seeded",
+            "market_movers_report": "seeded",
+            "sector_performance_report": "seeded",
+            "factor_alignment_report": "seeded",
+            "drift_opportunities_report": "seeded",
+            "smart_money_report": "seeded",
+            "industry_deep_dive_report": "seeded",
+            "macro_scan_summary": "",
+            "sender": "",
+        }
+    )
+
+    assert counts == {"macro_synthesis": 1}
+    assert result["macro_scan_summary"] == "macro_synthesis"
+
+
 def test_scanner_states_import():
     """Verify that ScannerState can be imported."""
     from tradingagents.agents.utils.scanner_states import ScannerState

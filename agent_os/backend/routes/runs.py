@@ -1,12 +1,17 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from typing import Dict, Any, List, AsyncGenerator
+import asyncio
 import logging
 import time
 import os
 from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.run_metadata import normalize_run_params
-from agent_os.backend.services.langgraph_engine import LangGraphEngine, NODE_TO_PHASE
+from agent_os.backend.services.langgraph_engine import (
+    LangGraphEngine,
+    NODE_TO_PHASE,
+    SCAN_NODE_TO_REPORT_FIELD,
+)
 from agent_os.backend.services.mock_engine import MockEngine
 from tradingagents.report_paths import generate_run_id
 
@@ -18,7 +23,7 @@ engine = LangGraphEngine()
 mock_engine = MockEngine()
 
 
-def _persist_run_to_disk(run_id: str) -> None:
+def _persist_run_to_disk(run_id: str, *, include_meta: bool = True) -> None:
     """Persist run metadata and events to the report store."""
     run = runs.get(run_id)
     if not run:
@@ -40,11 +45,22 @@ def _persist_run_to_disk(run_id: str) -> None:
             "params": run.get("params", {}),
             "rerun_seq": run.get("rerun_seq", 0),
         }
-        store.save_run_meta(date, meta)
         store.save_run_events(date, run.get("events", []))
-        logger.info("Persisted run to disk run=%s", run_id)
+        if include_meta:
+            store.save_run_meta(date, meta)
+            logger.info("Persisted run to disk run=%s", run_id)
+        else:
+            logger.debug("Checkpointed run events to disk run=%s", run_id)
     except Exception:
         logger.exception("Failed to persist run to disk run=%s", run_id)
+
+
+def _checkpoint_run_events(run_id: str) -> None:
+    run = runs.get(run_id)
+    if not run:
+        return
+    if run.get("events"):
+        _persist_run_to_disk(run_id, include_meta=False)
 
 
 async def _run_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None]) -> None:
@@ -54,7 +70,12 @@ async def _run_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None])
     try:
         async for event in gen:
             runs[run_id]["events"].append(event)
+            _checkpoint_run_events(run_id)
         runs[run_id]["status"] = "completed"
+    except asyncio.CancelledError:
+        runs[run_id]["status"] = "failed"
+        runs[run_id]["error"] = "Run cancelled"
+        logger.warning("Run cancelled run=%s", run_id)
     except Exception as exc:
         runs[run_id]["status"] = "failed"
         runs[run_id]["error"] = str(exc)
@@ -80,6 +101,7 @@ async def trigger_scan(
         "params": p,
         "rerun_seq": 0,
     }
+    _persist_run_to_disk(run_id)
     logger.info("Queued SCAN run=%s user=%s", run_id, user["user_id"])
     background_tasks.add_task(_run_and_store, run_id, engine.run_scan(run_id, runs[run_id]["params"]))
     return {"run_id": run_id, "status": "queued"}
@@ -101,6 +123,7 @@ async def trigger_pipeline(
         "params": p,
         "rerun_seq": 0,
     }
+    _persist_run_to_disk(run_id)
     logger.info("Queued PIPELINE run=%s user=%s", run_id, user["user_id"])
     background_tasks.add_task(_run_and_store, run_id, engine.run_pipeline(run_id, runs[run_id]["params"]))
     return {"run_id": run_id, "status": "queued"}
@@ -122,6 +145,7 @@ async def trigger_portfolio(
         "params": p,
         "rerun_seq": 0,
     }
+    _persist_run_to_disk(run_id)
     logger.info("Queued PORTFOLIO run=%s user=%s", run_id, user["user_id"])
     background_tasks.add_task(_run_and_store, run_id, engine.run_portfolio(run_id, runs[run_id]["params"]))
     return {"run_id": run_id, "status": "queued"}
@@ -143,6 +167,7 @@ async def trigger_auto(
         "params": p,
         "rerun_seq": 0,
     }
+    _persist_run_to_disk(run_id)
     logger.info("Queued AUTO run=%s user=%s", run_id, user["user_id"])
     background_tasks.add_task(_run_and_store, run_id, engine.run_auto(run_id, runs[run_id]["params"]))
     return {"run_id": run_id, "status": "queued"}
@@ -173,6 +198,7 @@ async def trigger_mock(
         "params": p,
         "rerun_seq": 0,
     }
+    _persist_run_to_disk(run_id)
     logger.info(
         "Queued MOCK run=%s mock_type=%s user=%s",
         run_id, p.get("mock_type", "pipeline"), user["user_id"],
@@ -192,6 +218,17 @@ _RISK_NODES = frozenset({
 })
 # Portfolio-level cascade nodes always re-run after any phase re-run
 _PORTFOLIO_NODES = frozenset({"review_holdings", "make_pm_decision"})
+_SCAN_RERUN_DESCENDANTS = {
+    "gatekeeper_scanner": frozenset({"gatekeeper_scanner", "drift_scanner", "industry_deep_dive", "macro_synthesis"}),
+    "geopolitical_scanner": frozenset({"geopolitical_scanner", "industry_deep_dive", "macro_synthesis"}),
+    "market_movers_scanner": frozenset({"market_movers_scanner", "drift_scanner", "industry_deep_dive", "macro_synthesis"}),
+    "sector_scanner": frozenset({"sector_scanner", "factor_alignment_scanner", "smart_money_scanner", "drift_scanner", "industry_deep_dive", "macro_synthesis"}),
+    "factor_alignment_scanner": frozenset({"factor_alignment_scanner", "industry_deep_dive", "macro_synthesis"}),
+    "smart_money_scanner": frozenset({"smart_money_scanner", "industry_deep_dive", "macro_synthesis"}),
+    "drift_scanner": frozenset({"drift_scanner", "industry_deep_dive", "macro_synthesis"}),
+    "industry_deep_dive": frozenset({"industry_deep_dive", "macro_synthesis"}),
+    "macro_synthesis": frozenset({"macro_synthesis"}),
+}
 
 
 def _filter_rerun_events(events: list, ticker: str, phase: str) -> list:
@@ -227,6 +264,54 @@ def _filter_rerun_events(events: list, ticker: str, phase: str) -> list:
     return kept
 
 
+def _filter_scan_rerun_events(events: list, start_node: str) -> list:
+    """Remove stale market-scan events for *start_node* and its downstream nodes."""
+    nodes_to_clear = _SCAN_RERUN_DESCENDANTS.get(start_node)
+    if not nodes_to_clear:
+        return events
+
+    kept = []
+    for e in events:
+        ident = e.get("identifier", "")
+        node_id = e.get("node_id", "")
+        parent = e.get("parent_node_id", "")
+        if ident != "MARKET":
+            kept.append(e)
+            continue
+        if node_id in nodes_to_clear or parent in nodes_to_clear:
+            continue
+        kept.append(e)
+    return kept
+
+
+def _build_scan_rerun_state(events: list) -> Dict[str, Any]:
+    """Reconstruct the latest market-scan state from cached run events."""
+    state = {
+        "messages": [],
+        "gatekeeper_universe_report": "",
+        "geopolitical_report": "",
+        "market_movers_report": "",
+        "sector_performance_report": "",
+        "factor_alignment_report": "",
+        "drift_opportunities_report": "",
+        "smart_money_report": "",
+        "industry_deep_dive_report": "",
+        "macro_scan_summary": "",
+        "sender": "",
+    }
+    for event in events or []:
+        if event.get("identifier") != "MARKET" or event.get("type") != "result":
+            continue
+        field = SCAN_NODE_TO_REPORT_FIELD.get(event.get("node_id", ""))
+        if not field:
+            continue
+        content = event.get("response") or event.get("message") or ""
+        if content:
+            state[field] = content
+            state["sender"] = event.get("node_id", "")
+    return state
+
+
 async def _append_and_store(run_id: str, gen, ticker: str = None, phase: str = None) -> None:
     """Drive a re-run generator, preserving events from other tickers/phases."""
     run = runs.get(run_id)
@@ -244,11 +329,42 @@ async def _append_and_store(run_id: str, gen, ticker: str = None, phase: str = N
         async for event in gen:
             event["rerun_seq"] = run["rerun_seq"]
             run["events"].append(event)
+            _checkpoint_run_events(run_id)
         run["status"] = "completed"
+    except asyncio.CancelledError:
+        run["status"] = "failed"
+        run["error"] = "Run cancelled"
+        logger.warning("Rerun cancelled run=%s", run_id)
     except Exception as exc:
         run["status"] = "failed"
         run["error"] = str(exc)
         logger.exception("Rerun failed run=%s", run_id)
+    finally:
+        _persist_run_to_disk(run_id)
+
+
+async def _append_scan_rerun_and_store(run_id: str, gen, start_node: str) -> None:
+    """Drive a market-scan rerun while preserving unaffected node events."""
+    run = runs.get(run_id)
+    if not run:
+        return
+    run["rerun_seq"] = run.get("rerun_seq", 0) + 1
+    run["status"] = "running"
+    run["events"] = _filter_scan_rerun_events(run.get("events") or [], start_node)
+    try:
+        async for event in gen:
+            event["rerun_seq"] = run["rerun_seq"]
+            run["events"].append(event)
+            _checkpoint_run_events(run_id)
+        run["status"] = "completed"
+    except asyncio.CancelledError:
+        run["status"] = "failed"
+        run["error"] = "Run cancelled"
+        logger.warning("Scan rerun cancelled run=%s", run_id)
+    except Exception as exc:
+        run["status"] = "failed"
+        run["error"] = str(exc)
+        logger.exception("Scan rerun failed run=%s", run_id)
     finally:
         _persist_run_to_disk(run_id)
 
@@ -271,16 +387,41 @@ async def trigger_rerun_node(
 
     if run_id not in runs:
         raise HTTPException(status_code=404, detail="Run not found")
+    _run = runs[run_id]
+    rerun_date = date or (_run.get("params") or {}).get("date", "")
+
+    if identifier == "MARKET":
+        if node_id not in SCAN_NODE_TO_REPORT_FIELD:
+            raise HTTPException(status_code=422, detail=f"Unknown scan node_id: {node_id}")
+        rerun_state = _build_scan_rerun_state(_run.get("events") or [])
+        rerun_params = {
+            "date": rerun_date,
+            "portfolio_id": portfolio_id,
+            "run_id": run_id,
+            "max_tickers": (_run.get("params") or {}).get("max_tickers"),
+        }
+        logger.info(
+            "Queued SCAN RERUN run=%s node=%s user=%s",
+            run_id, node_id, user["user_id"],
+        )
+        runs[run_id]["status"] = "running"
+        background_tasks.add_task(
+            _append_scan_rerun_and_store,
+            run_id,
+            engine.run_scan_from_node(f"{run_id}_rerun_{node_id}", rerun_params, node_id, rerun_state),
+            start_node=node_id,
+        )
+        return {"run_id": run_id, "phase": node_id, "status": "queued"}
+
     if node_id not in NODE_TO_PHASE:
         raise HTTPException(status_code=422, detail=f"Unknown node_id: {node_id}")
     if not identifier:
         raise HTTPException(status_code=422, detail="identifier (ticker) is required")
 
     phase = NODE_TO_PHASE[node_id]
-    _run = runs[run_id]
     rerun_params = {
         "ticker": identifier,
-        "date": date or (_run.get("params") or {}).get("date", ""),
+        "date": rerun_date,
         "portfolio_id": portfolio_id,
         "run_id": run_id,
     }

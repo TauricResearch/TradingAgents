@@ -37,19 +37,21 @@ export interface AgentEvent {
   };
 }
 
-export const useAgentStream = (runId: string | null) => {
+export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = true) => {
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [status, setStatus] = useState<'idle' | 'connecting' | 'streaming' | 'completed' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   // Track status in a ref to avoid stale closures and infinite reconnect loops
   const statusRef = useRef(status);
   statusRef.current = status;
+  const terminalStatusRef = useRef<'completed' | 'error' | null>(null);
 
   const connect = useCallback(() => {
-    if (!runId) return;
+    if (!enabled || !runId) return;
 
     setStatus('connecting');
     setError(null);
+    terminalStatusRef.current = null;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = '127.0.0.1:8088'; // Hardcoded for local dev to match backend
@@ -64,16 +66,30 @@ export const useAgentStream = (runId: string | null) => {
       const data = JSON.parse(event.data);
       
       if (data.type === 'system' && data.message === 'Run completed.') {
+        terminalStatusRef.current = 'completed';
         setStatus('completed');
+        socket.close();
       } else if (data.type === 'system' && data.message?.startsWith('Error:')) {
+        terminalStatusRef.current = 'error';
         setStatus('error');
         setError(data.message);
+        socket.close();
       } else {
         setEvents((prev) => [...prev, data as AgentEvent]);
       }
     };
 
     socket.onclose = () => {
+      if (terminalStatusRef.current === 'completed') {
+        setStatus('completed');
+        console.log(`Disconnected from run: ${runId}`);
+        return;
+      }
+      if (terminalStatusRef.current === 'error') {
+        setStatus('error');
+        console.log(`Disconnected from run: ${runId}`);
+        return;
+      }
       // Only transition to idle if we weren't already in a terminal state
       if (statusRef.current !== 'completed' && statusRef.current !== 'error') {
         setStatus('idle');
@@ -90,16 +106,21 @@ export const useAgentStream = (runId: string | null) => {
     return () => {
       socket.close();
     };
-  }, [runId]); // Removed `status` from deps to prevent reconnection loops
+  }, [runId, reloadKey, enabled]); // reconnect when caller explicitly bumps reloadKey
 
   useEffect(() => {
-    if (runId) {
+    if (enabled && runId) {
       const cleanup = connect();
       return cleanup;
     }
-  }, [runId, connect]);
+  }, [runId, reloadKey, enabled, connect]);
 
   const clearEvents = () => setEvents([]);
+  const replaceEvents = (nextEvents: AgentEvent[]) => setEvents(nextEvents);
+  const setTerminalStatus = (nextStatus: 'idle' | 'connecting' | 'streaming' | 'completed' | 'error', nextError: string | null = null) => {
+    setStatus(nextStatus);
+    setError(nextError);
+  };
 
-  return { events, status, error, clearEvents };
+  return { events, status, error, clearEvents, replaceEvents, setTerminalStatus };
 };

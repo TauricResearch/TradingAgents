@@ -3,7 +3,7 @@ import logging
 import re
 from collections import defaultdict
 
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.prompts import ChatPromptTemplate
 
 from tradingagents.agents.utils.json_utils import extract_json
 
@@ -332,7 +332,10 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
                     " You have access to the following tools: {tool_names}.\n{system_message}"
                     " For your reference, the current date is {current_date}.",
                 ),
-                MessagesPlaceholder(variable_name="messages"),
+                (
+                    "human",
+                    "Produce the final macro synthesis now as JSON only.",
+                ),
             ]
         )
 
@@ -340,8 +343,12 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
         prompt = prompt.partial(tool_names="none")
         prompt = prompt.partial(current_date=scan_date)
 
+        # This node already embeds every upstream report in the system prompt, so
+        # forwarding prior assistant/tool messages is redundant. Some
+        # OpenAI-compatible providers reject those rich message objects even when
+        # native OpenAI accepts them, so keep the final synthesis prompt minimal.
         chain = prompt | llm
-        result = chain.invoke(state["messages"])
+        result = chain.invoke({})
 
         report = result.content
 

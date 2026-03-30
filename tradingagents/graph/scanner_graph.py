@@ -52,7 +52,7 @@ class ScannerGraph:
         max_scan_tickers = int(self.config.get("max_auto_tickers", 10))
         scan_horizon_days = int(self.config.get("scan_horizon_days", 30))
 
-        agents = {
+        self.agents = {
             "gatekeeper_scanner": create_gatekeeper_scanner(quick_llm),
             "geopolitical_scanner": create_geopolitical_scanner(quick_llm),
             "market_movers_scanner": create_market_movers_scanner(quick_llm),
@@ -68,7 +68,8 @@ class ScannerGraph:
             ),
         }
 
-        setup = ScannerGraphSetup(agents)
+        setup = ScannerGraphSetup(self.agents)
+        self.setup = setup
         self.graph = setup.setup_graph()
 
     def _create_llm(self, tier: str) -> Any:
@@ -177,3 +178,7 @@ class ScannerGraph:
             # Fall through to invoke() for the correct accumulated result
 
         return self.graph.invoke(initial_state)
+
+    def graph_from(self, start_node: str):
+        """Return a compiled partial scanner graph that starts at *start_node*."""
+        return self.setup.setup_graph_from(start_node)

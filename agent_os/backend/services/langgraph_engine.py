@@ -207,6 +207,18 @@ NODE_TO_PHASE = {
     "Portfolio Manager": "risk",
 }
 
+SCAN_NODE_TO_REPORT_FIELD = {
+    "gatekeeper_scanner": "gatekeeper_universe_report",
+    "geopolitical_scanner": "geopolitical_report",
+    "market_movers_scanner": "market_movers_report",
+    "sector_scanner": "sector_performance_report",
+    "factor_alignment_scanner": "factor_alignment_report",
+    "drift_scanner": "drift_opportunities_report",
+    "smart_money_scanner": "smart_money_report",
+    "industry_deep_dive": "industry_deep_dive_report",
+    "macro_synthesis": "macro_scan_summary",
+}
+
 
 class LangGraphEngine:
     """Orchestrates LangGraph pipeline executions and streams events."""
@@ -320,59 +332,139 @@ class LangGraphEngine:
                 yield self._system_log(f"Error: {message}")
                 raise RuntimeError(message)
 
-            # Save scan reports
             if final_state:
-                yield self._system_log("Saving scan reports…")
-                try:
-                    save_dir = get_market_dir(date, root_run_id)
-                    save_dir.mkdir(parents=True, exist_ok=True)
-
-                    for key in (
-                        "geopolitical_report",
-                        "market_movers_report",
-                        "sector_performance_report",
-                        "industry_deep_dive_report",
-                        "macro_scan_summary",
-                    ):
-                        content = final_state.get(key, "")
-                        if content:
-                            (save_dir / f"{key}.md").write_text(content)
-
-                    # Parse and save macro_scan_summary.json via store for downstream use
-                    summary_text = final_state.get("macro_scan_summary", "")
-                    if summary_text:
-                        try:
-                            summary_data = self._normalize_scan_summary(extract_json(summary_text))
-                            store.save_scan(date, summary_data)
-                        except (ValueError, KeyError, TypeError):
-                            logger.warning(
-                                "macro_scan_summary for date=%s is not valid JSON "
-                                "(summary already saved as .md — downstream loads may fail)",
-                                date,
-                            )
-
-                    # Append to daily digest
-                    scan_parts = []
-                    for key, label in (
-                        ("geopolitical_report", "Geopolitical & Macro"),
-                        ("market_movers_report", "Market Movers"),
-                        ("sector_performance_report", "Sector Performance"),
-                        ("industry_deep_dive_report", "Industry Deep Dive"),
-                        ("macro_scan_summary", "Macro Scan Summary"),
-                    ):
-                        content = final_state.get(key, "")
-                        if content:
-                            scan_parts.append(f"### {label}\n{content}")
-                    if scan_parts:
-                        append_to_digest(date, "scan", "Market Scan", "\n\n".join(scan_parts))
-
-                    yield self._system_log(f"Scan reports saved to {save_dir}")
-                    logger.info("Saved scan reports run=%s date=%s dir=%s", root_run_id, date, save_dir)
-                except Exception as exc:
-                    logger.exception("Failed to save scan reports run=%s", root_run_id)
-                    yield self._system_log(f"Warning: could not save scan reports: {exc}")
+                async for evt in self._save_scan_outputs(final_state, date, root_run_id, store):
+                    yield evt
 
             logger.info("Completed SCAN run=%s", root_run_id)
+        finally:
+            self._node_start_times.pop(execution_key, None)
+            self._node_prompts.pop(execution_key, None)
+            self._run_identifiers.pop(execution_key, None)
+            self._finish_run_logger(execution_key, get_market_dir(date, root_run_id))
+
+    async def _save_scan_outputs(
+        self,
+        final_state: Dict[str, Any],
+        date: str,
+        root_run_id: str,
+        store,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Persist scan artifacts and emit system log events."""
+        yield self._system_log("Saving scan reports…")
+        try:
+            save_dir = get_market_dir(date, root_run_id)
+            save_dir.mkdir(parents=True, exist_ok=True)
+
+            for key in SCAN_NODE_TO_REPORT_FIELD.values():
+                content = final_state.get(key, "")
+                if content:
+                    (save_dir / f"{key}.md").write_text(content)
+
+            summary_text = final_state.get("macro_scan_summary", "")
+            if summary_text:
+                try:
+                    summary_data = self._normalize_scan_summary(extract_json(summary_text))
+                    store.save_scan(date, summary_data)
+                except (ValueError, KeyError, TypeError):
+                    logger.warning(
+                        "macro_scan_summary for date=%s is not valid JSON "
+                        "(summary already saved as .md — downstream loads may fail)",
+                        date,
+                    )
+
+            scan_parts = []
+            for key, label in (
+                ("geopolitical_report", "Geopolitical & Macro"),
+                ("market_movers_report", "Market Movers"),
+                ("sector_performance_report", "Sector Performance"),
+                ("industry_deep_dive_report", "Industry Deep Dive"),
+                ("macro_scan_summary", "Macro Scan Summary"),
+            ):
+                content = final_state.get(key, "")
+                if content:
+                    scan_parts.append(f"### {label}\n{content}")
+            if scan_parts:
+                append_to_digest(date, "scan", "Market Scan", "\n\n".join(scan_parts))
+
+            yield self._system_log(f"Scan reports saved to {save_dir}")
+            logger.info("Saved scan reports run=%s date=%s dir=%s", root_run_id, date, save_dir)
+        except Exception as exc:
+            logger.exception("Failed to save scan reports run=%s", root_run_id)
+            yield self._system_log(f"Warning: could not save scan reports: {exc}")
+
+    async def run_scan_from_node(
+        self,
+        run_id: str,
+        params: Dict[str, Any],
+        start_node: str,
+        initial_state: Dict[str, Any],
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Continue a market scan from *start_node* using a seeded state."""
+        if start_node not in SCAN_NODE_TO_REPORT_FIELD:
+            yield self._system_log(f"Unknown scan node '{start_node}' — skipping")
+            return
+
+        date = params.get("date", time.strftime("%Y-%m-%d"))
+        root_run_id = self._root_run_id(run_id, params)
+        execution_key = self._execution_key(run_id, params)
+        store = create_report_store(run_id=root_run_id)
+
+        rl = self._start_run_logger(root_run_id, logger_key=execution_key)
+        scan_config = {**self.config}
+        if params.get("max_tickers"):
+            scan_config["max_auto_tickers"] = int(params["max_tickers"])
+        scanner = ScannerGraph(config=scan_config)
+        graph = scanner.graph_from(start_node)
+
+        logger.info("Starting SCAN rerun run=%s node=%s date=%s", root_run_id, start_node, date)
+        yield self._system_log(f"Continuing macro scan from {start_node} for {date}")
+
+        seeded_state = {
+            "scan_date": date,
+            "messages": [],
+            "gatekeeper_universe_report": "",
+            "geopolitical_report": "",
+            "market_movers_report": "",
+            "sector_performance_report": "",
+            "factor_alignment_report": "",
+            "drift_opportunities_report": "",
+            "smart_money_report": "",
+            "industry_deep_dive_report": "",
+            "macro_scan_summary": "",
+            "sender": "",
+            **initial_state,
+        }
+
+        self._node_start_times[execution_key] = {}
+        self._run_identifiers[execution_key] = "MARKET"
+        final_state: Dict[str, Any] = {}
+        captured_root_state = False
+
+        try:
+            async for event in graph.astream_events(
+                seeded_state, version="v2", config={"callbacks": [rl.callback]}
+            ):
+                if self._is_root_chain_end(event):
+                    output = (event.get("data") or {}).get("output")
+                    if isinstance(output, dict):
+                        captured_root_state = True
+                        final_state = output
+                mapped = self._map_langgraph_event(execution_key, event)
+                if mapped:
+                    yield mapped
+
+            if not captured_root_state:
+                message = f"Scan continuation from {start_node} for {date} completed without a root final state."
+                logger.error("SCAN rerun run=%s: %s", root_run_id, message)
+                yield self._system_log(f"Error: {message}")
+                raise RuntimeError(message)
+
+            if final_state:
+                async for evt in self._save_scan_outputs(final_state, date, root_run_id, store):
+                    yield evt
+
+            logger.info("Completed SCAN rerun run=%s node=%s", root_run_id, start_node)
         finally:
             self._node_start_times.pop(execution_key, None)
             self._node_prompts.pop(execution_key, None)

@@ -397,9 +397,11 @@ type Page = 'dashboard' | 'portfolio';
 export const Dashboard: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [activeRunReloadKey, setActiveRunReloadKey] = useState(0);
+  const [streamEnabled, setStreamEnabled] = useState(true);
   const [activeRunType, setActiveRunType] = useState<RunType | null>(null);
   const [isTriggering, setIsTriggering] = useState(false);
-  const { events, status, clearEvents } = useAgentStream(activeRunId);
+  const { events, status, clearEvents, replaceEvents, setTerminalStatus } = useAgentStream(activeRunId, activeRunReloadKey, streamEnabled);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
 
@@ -466,6 +468,7 @@ export const Dashboard: React.FC = () => {
     setIsTriggering(true);
     setActiveRunType(type);
     try {
+      setStreamEnabled(true);
       clearEvents();
       const inputTickers = parseTickerInput(effectiveParams.ticker);
       let body: Record<string, unknown>;
@@ -504,18 +507,21 @@ export const Dashboard: React.FC = () => {
 
   /** Re-run triggered from a graph node's Re-run button. */
   const handleNodeRerun = useCallback((identifier: string, nodeId: string) => {
-    // If we have an active loaded run and the node is in NODE_TO_PHASE, use phase-level rerun
-    if (activeRunId && nodeId && identifier && identifier !== 'MARKET' && identifier !== '') {
+    // If we have an active loaded run, re-run the selected node within that run.
+    if (activeRunId && nodeId && identifier) {
       triggerNodeRerun(activeRunId, identifier, nodeId);
       return;
     }
-    if (identifier === 'MARKET' || identifier === '') {
-      startRun('scan');
-    } else {
-      startRun('pipeline', { ticker: identifier });
-    }
+    toast({
+      title: 'Load a run before re-running a node',
+      description: 'Select the historical run first, then use the node re-run action.',
+      status: 'warning',
+      duration: 4000,
+      isClosable: true,
+      position: 'top',
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning, params, activeRunId]);
+  }, [activeRunId, toast]);
 
   const resetPortfolioStage = async () => {
     if (!params.date || !params.portfolio_id) {
@@ -555,7 +561,7 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const loadRun = (run: any) => {
+  const loadRun = async (run: any) => {
     clearEvents();
     // Pre-fill params from run
     if (run.params) {
@@ -572,13 +578,34 @@ export const Dashboard: React.FC = () => {
         force: Boolean(run.params.force),
       }));
     }
-    setActiveRunId(null);
-    setTimeout(() => setActiveRunId(run.id), 0);
+    try {
+      const res = await axios.get(`${API_BASE}/run/${run.id}`);
+      const snapshot = res.data as any;
+      replaceEvents((snapshot.events || []) as AgentEvent[]);
+      if (snapshot.status === 'completed') {
+        setTerminalStatus('completed');
+        setStreamEnabled(false);
+      } else if (snapshot.status === 'failed') {
+        setTerminalStatus('error', snapshot.error ? `Error: Run failed: ${snapshot.error}` : 'Error: Run failed');
+        setStreamEnabled(false);
+      } else {
+        setStreamEnabled(true);
+        setTerminalStatus('idle');
+        setActiveRunReloadKey((k) => k + 1);
+      }
+    } catch (err) {
+      console.error('Failed to load run details', err);
+      setStreamEnabled(true);
+      setTerminalStatus('idle');
+      setActiveRunReloadKey((k) => k + 1);
+    }
+    setActiveRunId(run.id);
   };
 
   /** Trigger a phase-level re-run for a specific node on the active run. */
   const triggerNodeRerun = async (runId: string, identifier: string, nodeId: string) => {
     try {
+      setStreamEnabled(true);
       const res = await axios.post(`${API_BASE}/run/rerun-node`, {
         run_id: runId,
         node_id: nodeId,
@@ -588,8 +615,8 @@ export const Dashboard: React.FC = () => {
       });
       // Clear terminal and reconnect WebSocket to stream only the new phase's events
       clearEvents();
-      setActiveRunId(null);
-      setTimeout(() => setActiveRunId(res.data.run_id), 0);
+      setActiveRunId(res.data.run_id);
+      setActiveRunReloadKey((k) => k + 1);
       toast({
         title: `Re-running ${res.data.phase} phase for ${identifier}`,
         status: 'info',
@@ -684,7 +711,7 @@ export const Dashboard: React.FC = () => {
           <Flex flex="1" overflow="hidden">
             {/* Left Side: Graph Area */}
             <Box flex="1" position="relative" borderRight="1px solid" borderColor="whiteAlpha.100">
-               <AgentGraph events={events} onNodeClick={openNodeDetail} onNodeRerun={handleNodeRerun} />
+               <AgentGraph events={events} runStatus={status} onNodeClick={openNodeDetail} onNodeRerun={handleNodeRerun} />
                
                {/* Floating Control Panel */}
                <VStack position="absolute" top={4} left={4} spacing={2} align="stretch">
