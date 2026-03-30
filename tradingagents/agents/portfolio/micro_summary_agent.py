@@ -11,12 +11,48 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.memory.reflexion import ReflexionMemory
 
 logger = logging.getLogger(__name__)
+
+
+def _analysis_has_deep_dive(analysis: dict) -> bool:
+    """Return True when the analysis contains a completed deep-dive decision."""
+    if not isinstance(analysis, dict):
+        return False
+    status = str(analysis.get("analysis_status") or "").strip().lower()
+    if status == "completed":
+        return True
+    return bool(str(analysis.get("final_trade_decision") or "").strip())
+
+
+def _extract_rating(decision_text: str) -> str:
+    """Extract the PM-style rating from a saved final_trade_decision string."""
+    if not decision_text:
+        return ""
+    match = re.search(r"rating\s*:\s*([A-Za-z -]+)", decision_text, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return ""
+
+
+def _analysis_snapshot(analysis: dict) -> dict[str, str]:
+    """Build a compact deep-dive snapshot for PM consumption."""
+    if not _analysis_has_deep_dive(analysis):
+        return {}
+    final_decision = str(analysis.get("final_trade_decision") or "").strip()
+    return {
+        "rating": _extract_rating(final_decision),
+        "final_trade_decision": final_decision[:500],
+        "trader_plan": str(analysis.get("trader_investment_plan") or "").strip()[:280],
+        "research_plan": str(analysis.get("investment_plan") or "").strip()[:280],
+        "market_report": str(analysis.get("market_report") or "").strip()[:220],
+        "fundamentals_report": str(analysis.get("fundamentals_report") or "").strip()[:220],
+    }
 
 
 def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None):
@@ -61,6 +97,12 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
                 ticker_memory_dict[ticker] = micro_memory.build_context(ticker, limit=2)
 
         ticker_memory_str = json.dumps(ticker_memory_dict)
+        deep_dive_context: dict[str, dict[str, str]] = {}
+        if isinstance(ticker_analyses, dict):
+            for ticker in all_tickers:
+                snapshot = _analysis_snapshot(ticker_analyses.get(ticker, {}))
+                if snapshot:
+                    deep_dive_context[ticker] = snapshot
 
         # ------------------------------------------------------------------
         # Build concise per-ticker input table
@@ -74,10 +116,9 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
             rec = review.get("recommendation", "?")
             confidence = review.get("confidence", "")
             label = f"HOLDING | {rec} | conf:{confidence}" if confidence else f"HOLDING | {rec}"
-            # Enrich with trading graph analysis if available
-            analysis = ticker_analyses.get(ticker, {}) if isinstance(ticker_analyses, dict) else {}
-            key_number = analysis.get("final_trade_decision", "")[:80] if isinstance(analysis, dict) else ""
-            key_number = key_number or "-"
+            analysis = deep_dive_context.get(ticker, {})
+            rating = analysis.get("rating") or "NO DATA"
+            key_number = f"rating:{rating}"
             memory_snippet = (ticker_memory_dict.get(ticker, "")[:100] or "no memory")
             table_rows.append(f"{ticker} | {label} | {key_number} | {memory_snippet}")
 
@@ -87,8 +128,11 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
             ticker = c.get("ticker", "?")
             conviction = c.get("conviction", "?")
             thesis = c.get("thesis_angle", "?")
-            score = c.get("score", "")
-            key_number = f"score:{score}" if score != "" else "-"
+            priority_score = c.get("priority_score", "")
+            analysis = deep_dive_context.get(ticker, {})
+            rating = analysis.get("rating", "")
+            score_text = f"priority_score:{priority_score}" if priority_score != "" else "priority_score:NO DATA"
+            key_number = f"{score_text} | rating:{rating}" if rating else score_text
             label = f"CANDIDATE | {conviction} | {thesis}"
             memory_snippet = (ticker_memory_dict.get(ticker, "")[:100] or "no memory")
             table_rows.append(f"{ticker} | {label} | {key_number} | {memory_snippet}")
@@ -106,6 +150,11 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
             if candidates
             else "No candidates available."
         )
+        deep_dive_str = (
+            json.dumps(deep_dive_context, indent=2)
+            if deep_dive_context
+            else "No completed deep-dive ticker analyses available."
+        )
 
         # ------------------------------------------------------------------
         # Build system message
@@ -115,6 +164,8 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
             "for a portfolio manager.\n\n"
             "## Per-Ticker Data\n"
             f"{ticker_table}\n\n"
+            "## Completed Deep Dive Analyses (authoritative)\n"
+            f"{deep_dive_str}\n\n"
             "## Holding Reviews (full detail)\n"
             f"{holding_reviews_str}\n\n"
             "## Prioritized Candidates (full detail)\n"
@@ -132,6 +183,8 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
             "— cite exact numbers]\n"
             "GREEN FLAGS: [list tickers with strong momentum, insider buying, or positive memory "
             "— cite exact numbers]\n\n"
+            "Use the completed deep-dive analyses as the primary source for per-ticker investment context. "
+            "Do not invent evidence for tickers that are missing from that deep-dive input.\n\n"
             "IMPORTANT: Retain exact debt ratios, P/E multiples, EPS values, and unrealized P&L "
             "percentages. Never round or omit a numeric value. If a ticker has no data, write "
             "\"NO DATA\" — do not guess."

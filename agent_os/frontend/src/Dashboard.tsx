@@ -61,6 +61,7 @@ interface RunParams {
   ticker: string;
   portfolio_id: string;
   max_auto_tickers: string;
+  continue_on_ticker_failure: boolean;
   mock_type: MockType;
   speed: string;
   force: boolean;
@@ -401,6 +402,7 @@ export const Dashboard: React.FC = () => {
     ticker: 'AAPL',
     portfolio_id: 'main_portfolio',
     max_auto_tickers: '',
+    continue_on_ticker_failure: false,
     mock_type: 'pipeline',
     speed: '3',
     force: false,
@@ -464,6 +466,7 @@ export const Dashboard: React.FC = () => {
             date: effectiveParams.date,
             ticker: effectiveParams.ticker,
             force: effectiveParams.force,
+            continue_on_ticker_failure: effectiveParams.continue_on_ticker_failure,
             ...(effectiveParams.max_auto_tickers ? { max_tickers: parseInt(effectiveParams.max_auto_tickers, 10) } : {}),
           };
       const res = await axios.post(`${API_BASE}/run/${type}`, body);
@@ -540,6 +543,7 @@ export const Dashboard: React.FC = () => {
         portfolio_id: run.params.portfolio_id || p.portfolio_id,
         // Restore max_auto_tickers so the ticker cap matches the original run
         max_auto_tickers: run.params.max_tickers?.toString() || run.params.max_auto_tickers?.toString() || '',
+        continue_on_ticker_failure: Boolean(run.params.continue_on_ticker_failure),
       }));
     }
     setActiveRunId(null);
@@ -861,6 +865,16 @@ export const Dashboard: React.FC = () => {
                          </HStack>
                        </HStack>
                        <Box height="1px" bg="whiteAlpha.100" />
+                       <HStack>
+                         <Checkbox
+                           size="sm"
+                           colorScheme="orange"
+                           isChecked={params.continue_on_ticker_failure}
+                           onChange={(e) => setParams((p) => ({ ...p, continue_on_ticker_failure: e.target.checked }))}
+                         >
+                           <Text fontSize="xs" color="orange.300">Auto only: continue to Phase 3 and skip failed tickers</Text>
+                         </Checkbox>
+                       </HStack>
                        <HStack>
                          <Checkbox
                            size="sm"

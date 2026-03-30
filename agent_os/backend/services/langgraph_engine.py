@@ -91,6 +91,16 @@ def _tickers_from_decision(decision: dict) -> list[str]:
                 tickers.add(t.upper())
     return list(tickers)
 
+
+def _analysis_has_deep_dive(analysis: Any) -> bool:
+    """Return True when a ticker analysis contains a completed deep-dive output."""
+    if not isinstance(analysis, dict):
+        return False
+    status = str(analysis.get("analysis_status") or "").strip().lower()
+    if status == "completed":
+        return True
+    return bool(str(analysis.get("final_trade_decision") or "").strip())
+
 # Maximum characters of prompt/response for the full fields (generous limit)
 _MAX_FULL_LEN = 50_000
 
@@ -414,6 +424,11 @@ class LangGraphEngine:
                 # Sanitize final_state to remove non-JSON-serializable objects
                 # (e.g. LangChain HumanMessage, AIMessage objects in "messages")
                 serializable_state = self._sanitize_for_json(final_state)
+                serializable_state["analysis_status"] = (
+                    "completed"
+                    if str(serializable_state.get("final_trade_decision") or "").strip()
+                    else "incomplete"
+                )
 
                 # Save JSON via store (complete_report.json)
                 store.save_analysis(date, ticker, serializable_state)
@@ -501,6 +516,7 @@ class LangGraphEngine:
             search_dirs.extend(sorted((p for p in all_daily_dir.iterdir() if p.is_dir()), reverse=True))
 
         seen_tickers: set[str] = set()
+        incomplete_tickers: list[str] = []
         for base in search_dirs:
             for ticker_dir in base.iterdir():
                 if (
@@ -511,9 +527,11 @@ class LangGraphEngine:
                     analysis = reader_store.load_analysis(date, ticker_dir.name)
                     if analysis is None:
                         analysis = fallback_reader_store.load_analysis(date, ticker_dir.name)
-                    if analysis:
+                    if _analysis_has_deep_dive(analysis):
                         ticker_analyses[ticker_dir.name.upper()] = analysis
                         seen_tickers.add(ticker_dir.name.upper())
+                    elif analysis:
+                        incomplete_tickers.append(ticker_dir.name.upper())
 
         if scan_summary:
             yield self._system_log(f"Loaded macro scan summary for {date}")
@@ -523,6 +541,11 @@ class LangGraphEngine:
             yield self._system_log(f"Loaded analyses for: {', '.join(sorted(ticker_analyses.keys()))}")
         else:
             yield self._system_log("No per-ticker analyses found for this date")
+        if incomplete_tickers:
+            yield self._system_log(
+                "Ignoring incomplete ticker analyses without deep-dive decisions: "
+                + ", ".join(sorted(set(incomplete_tickers)))
+            )
 
         # Merge ticker_analyses into scan_summary so portfolio graph nodes can access
         # per-ticker analysis data (PortfolioManagerState has no ticker_analyses field).
@@ -538,11 +561,8 @@ class LangGraphEngine:
             holding_tickers = [h.ticker for h in holdings]
         except Exception as exc:
             logger.warning("run_portfolio: could not load holdings for price fetch: %s", exc)
-        candidate_tickers = [
-            c if isinstance(c, str) else (c.get("ticker") or c.get("symbol") or "")
-            for c in (scan_summary.get("stocks_to_investigate") or [])
-        ]
-        all_tickers = list({t.upper() for t in holding_tickers + candidate_tickers if t})
+        analysis_tickers = list(ticker_analyses.keys())
+        all_tickers = list({t.upper() for t in holding_tickers + analysis_tickers if t})
         prices = _fetch_prices(all_tickers) if all_tickers else {}
 
         initial_state = {
@@ -829,6 +849,7 @@ class LangGraphEngine:
         """Run the full auto pipeline: scan → pipeline → portfolio."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = params.get("force", False)
+        continue_on_ticker_failure = bool(params.get("continue_on_ticker_failure"))
         root_run_id = self._root_run_id(run_id, params)
         execution_key = self._execution_key(run_id, params)
 
@@ -905,6 +926,7 @@ class LangGraphEngine:
             )
         else:
             max_concurrent = int(self.config.get("max_concurrent_pipelines", 2))
+            failed_tickers: dict[str, str] = {}
             yield self._system_log(
                 f"Phase 2/3: Queuing {len(tickers)} ticker(s) "
                 f"(max {max_concurrent} concurrent)…"
@@ -918,8 +940,12 @@ class LangGraphEngine:
             semaphore = asyncio.Semaphore(max_concurrent)
 
             async def _run_one_ticker(ticker: str) -> None:
+                def _record_failure(reason: str) -> None:
+                    failed_tickers[ticker] = reason
+
                 async with semaphore:
-                    if not force and store.load_analysis(date, ticker):
+                    existing_analysis = store.load_analysis(date, ticker)
+                    if not force and _analysis_has_deep_dive(existing_analysis):
                         await pipeline_queue.put(
                             self._system_log(
                                 f"Phase 2: Analysis for {ticker} on {date} already exists, skipping."
@@ -935,6 +961,15 @@ class LangGraphEngine:
                             {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:pipeline:{ticker}"},
                         ):
                             await pipeline_queue.put(evt)
+                        saved_analysis = store.load_analysis(date, ticker)
+                        if not _analysis_has_deep_dive(saved_analysis):
+                            reason = "analysis finished without a completed deep-dive decision"
+                            _record_failure(reason)
+                            await pipeline_queue.put(
+                                self._system_log(
+                                    f"Warning: pipeline for {ticker} produced no deep-dive decision; skipping ticker in portfolio stage."
+                                )
+                            )
                     except Exception as exc:
                         if _is_policy_error(exc):
                             logger.error(
@@ -961,11 +996,21 @@ class LangGraphEngine:
                                         {"ticker": ticker, "date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:fallback:{ticker}"},
                                     ):
                                         await pipeline_queue.put(evt)
+                                    saved_analysis = store.load_analysis(date, ticker)
+                                    if not _analysis_has_deep_dive(saved_analysis):
+                                        reason = "fallback finished without a completed deep-dive decision"
+                                        _record_failure(reason)
+                                        await pipeline_queue.put(
+                                            self._system_log(
+                                                f"Warning: fallback pipeline for {ticker} produced no deep-dive decision; skipping ticker in portfolio stage."
+                                            )
+                                        )
                                 except Exception as fallback_exc:
                                     logger.error(
                                         "Fallback pipeline failed ticker=%s: %s",
                                         ticker, fallback_exc,
                                     )
+                                    _record_failure(str(fallback_exc))
                                     await pipeline_queue.put(
                                         self._system_log(
                                             f"Warning: pipeline for {ticker} failed "
@@ -975,6 +1020,7 @@ class LangGraphEngine:
                                 finally:
                                     self.config = original_config
                             else:
+                                _record_failure(str(exc))
                                 await pipeline_queue.put(
                                     self._system_log(
                                         f"Warning: pipeline for {ticker} blocked by LLM provider policy. "
@@ -987,6 +1033,7 @@ class LangGraphEngine:
                             logger.exception(
                                 "Pipeline failed ticker=%s run=%s", ticker, run_id
                             )
+                            _record_failure(str(exc))
                             await pipeline_queue.put(
                                 self._system_log(
                                     f"Warning: pipeline for {ticker} failed: {exc}"
@@ -1004,6 +1051,26 @@ class LangGraphEngine:
                 if item is _sentinel:
                     break
                 yield item
+
+            if failed_tickers:
+                failed_summary = ", ".join(
+                    f"{ticker} ({reason})" for ticker, reason in sorted(failed_tickers.items())
+                )
+                if continue_on_ticker_failure:
+                    yield self._system_log(
+                        "Phase 2/3: continuing to portfolio stage without failed tickers: "
+                        + failed_summary
+                    )
+                else:
+                    yield self._system_log(
+                        "Phase 2/3: paused before portfolio stage because ticker analyses failed: "
+                        + failed_summary
+                    )
+                    raise RuntimeError(
+                        "Ticker analyses failed before Phase 3. "
+                        "Retry the failed ticker pipelines or enable continue_on_ticker_failure. "
+                        f"Failed tickers: {failed_summary}"
+                    )
 
         # Phase 3: Portfolio management
         yield self._system_log("Phase 3/3: Running portfolio manager…")

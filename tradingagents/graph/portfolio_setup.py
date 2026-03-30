@@ -36,6 +36,37 @@ _EMPTY_PORTFOLIO_DICT = {
 }
 
 
+def _analysis_has_deep_dive(analysis: Any) -> bool:
+    """Return True when a ticker analysis has a completed deep-dive decision."""
+    if not isinstance(analysis, dict):
+        return False
+    status = str(analysis.get("analysis_status") or "").strip().lower()
+    if status == "completed":
+        return True
+    return bool(str(analysis.get("final_trade_decision") or "").strip())
+
+
+def _completed_scan_candidates(scan_summary: dict, ticker_analyses: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return only scan candidates with completed ticker deep-dive analyses."""
+    completed: list[dict[str, Any]] = []
+    for raw_candidate in (scan_summary.get("stocks_to_investigate") or []):
+        if isinstance(raw_candidate, dict):
+            candidate = dict(raw_candidate)
+            ticker = (candidate.get("ticker") or candidate.get("symbol") or "").upper()
+        else:
+            ticker = str(raw_candidate).upper()
+            candidate = {"ticker": ticker}
+        if not ticker:
+            continue
+        analysis = ticker_analyses.get(ticker, {}) if isinstance(ticker_analyses, dict) else {}
+        if not _analysis_has_deep_dive(analysis):
+            continue
+        candidate["ticker"] = ticker
+        candidate["deep_dive_summary"] = str(analysis.get("final_trade_decision") or "").strip()
+        completed.append(candidate)
+    return completed
+
+
 class PortfolioGraphSetup:
     """Builds the Portfolio Manager workflow graph with parallel summary fan-out.
 
@@ -151,6 +182,7 @@ class PortfolioGraphSetup:
         def prioritize_candidates_node(state):
             portfolio_data_str = state.get("portfolio_data") or "{}"
             scan_summary = state.get("scan_summary") or {}
+            ticker_analyses = state.get("ticker_analyses") or {}
             try:
                 portfolio_data = json.loads(portfolio_data_str)
                 from tradingagents.portfolio.models import Holding, Portfolio
@@ -159,7 +191,7 @@ class PortfolioGraphSetup:
                 holdings = [
                     Holding.from_dict(h) for h in (portfolio_data.get("holdings") or [])
                 ]
-                candidates = scan_summary.get("stocks_to_investigate") or []
+                candidates = _completed_scan_candidates(scan_summary, ticker_analyses)
                 prices = state.get("prices") or {}
                 if prices:
                     equity = sum(prices.get(h.ticker, 0.0) * h.shares for h in holdings)
