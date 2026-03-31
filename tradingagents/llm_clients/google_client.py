@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -31,6 +32,12 @@ class GoogleClient(BaseLLMClient):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
 
+        # Explicitly fallback to environment variable if google_api_key is missing
+        if "google_api_key" not in llm_kwargs:
+            env_key = os.getenv("GOOGLE_API_KEY")
+            if env_key:
+                llm_kwargs["google_api_key"] = env_key
+
         # Map thinking_level to appropriate API param based on model
         # Gemini 3 Pro: low, high
         # Gemini 3 Flash: minimal, low, medium, high
@@ -39,10 +46,9 @@ class GoogleClient(BaseLLMClient):
         if thinking_level:
             model_lower = self.model.lower()
             if "gemini-3" in model_lower:
-                # Gemini 3 Pro doesn't support "minimal", use "low" instead
-                if "pro" in model_lower and thinking_level == "minimal":
-                    thinking_level = "low"
-                llm_kwargs["thinking_level"] = thinking_level
+                # Use thinking_budget as Gemini 3 Pro/Flash SDK expects it
+                # Mapping: low/minimal -> small budget, high -> large budget
+                llm_kwargs["thinking_budget"] = 2000 if thinking_level == "high" else 1000
             else:
                 # Gemini 2.5: map to thinking_budget
                 llm_kwargs["thinking_budget"] = -1 if thinking_level == "high" else 0

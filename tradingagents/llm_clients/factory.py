@@ -1,4 +1,8 @@
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from .base_client import BaseLLMClient
 from .openai_client import OpenAIClient

@@ -7,6 +7,7 @@ from datetime import date
 from typing import Dict, Any, Tuple, List, Optional
 
 from langgraph.prebuilt import ToolNode
+from dotenv import load_dotenv
 
 from tradingagents.llm_clients import create_llm_client
 
@@ -290,3 +291,12 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+
+if __name__ == "__main__":
+    load_dotenv()
+    ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
+
+    # forward propagate
+    _, decision = ta.propagate("NVDA", "2026-01-15")
+    print(decision)
