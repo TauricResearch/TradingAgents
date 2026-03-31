@@ -8,12 +8,12 @@ if no ``NOTEBOOK_ID`` is configured the function is a silent no-op.
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
 from pathlib import Path
 
 from rich.console import Console
+from tradingagents.default_config import get_env_value
 
 console = Console()
 
@@ -42,7 +42,7 @@ def sync_to_notebooklm(digest_path: Path, date: str, notebook_id: str | None = N
         environment variable when *None*.
     """
     if notebook_id is None:
-        notebook_id = os.environ.get("NOTEBOOKLM_ID")
+        notebook_id = get_env_value("NOTEBOOKLM_ID")
     if not notebook_id:
         return  # opt-in — silently skip when not configured
 

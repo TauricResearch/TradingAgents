@@ -2,6 +2,8 @@ from typing import Any, Optional
 
 from langchain_anthropic import ChatAnthropic
 
+from tradingagents.default_config import get_env_value
+
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
 
@@ -32,6 +34,10 @@ class AnthropicClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return configured ChatAnthropic instance."""
         llm_kwargs = {"model": self.model}
+
+        api_key = self.kwargs.get("api_key") or get_env_value("ANTHROPIC_API_KEY")
+        if api_key:
+            llm_kwargs["api_key"] = api_key
 
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:

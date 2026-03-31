@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tradingagents.default_config import build_default_config
+from tradingagents.default_config import build_default_config, get_env_value
 
 
 def _build(
@@ -73,6 +73,34 @@ def test_process_env_overrides_dotenv(tmp_path: Path):
     assert cfg["backend_url"] == "http://process"
 
 
+def test_get_env_value_reads_plain_dotenv_key(tmp_path: Path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENROUTER_API_KEY=dotenv-secret\n", encoding="utf-8")
+
+    value = get_env_value(
+        "OPENROUTER_API_KEY",
+        load_dotenv=True,
+        dotenv_path=env_file,
+        environ={},
+    )
+
+    assert value == "dotenv-secret"
+
+
+def test_get_env_value_process_env_overrides_dotenv(tmp_path: Path):
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENROUTER_API_KEY=dotenv-secret\n", encoding="utf-8")
+
+    value = get_env_value(
+        "OPENROUTER_API_KEY",
+        load_dotenv=True,
+        dotenv_path=env_file,
+        environ={"OPENROUTER_API_KEY": "process-secret"},
+    )
+
+    assert value == "process-secret"
+
+
 def test_empty_env_var_keeps_default():
     cfg = _build(environ={"TRADINGAGENTS_LLM_PROVIDER": ""})
     assert cfg["llm_provider"] == "openai"
@@ -103,4 +131,3 @@ def test_tool_vendor_override_only_when_explicitly_set():
     assert cfg["tool_vendors"]["get_gap_candidates"] == "finviz"
     assert cfg["tool_vendors"]["get_insider_transactions"] == "finnhub"
     assert cfg["tool_vendors"]["get_gold_price"] == "alpha_vantage"
-

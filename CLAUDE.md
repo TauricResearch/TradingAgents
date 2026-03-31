@@ -1,247 +1,148 @@
-# TradingAgents Framework - Project Knowledge
+# TradingAgents
 
-## Project Overview
+Short project context for Claude at conversation start. Keep this file practical: commands, architecture truths, workflow rules, and where to find docs.
 
-Multi-agent LLM trading framework using LangGraph for financial analysis and decision making.
+## What This Repo Is
 
-## Development Environment
+TradingAgents is a multi-agent trading research system built with:
 
-**Conda Environment**: `tradingagents`
+- Python
+- LangGraph
+- Typer CLI
+- FastAPI backend for AgentOS
+- React frontend for AgentOS
+- PostgreSQL-backed portfolio persistence
 
-Before starting any development work, activate the conda environment:
+## Bash Commands
 
-```bash
-conda activate tradingagents
-```
-
-## Architecture
-
-- **Agent Factory Pattern**: `create_X(llm)` → closure pattern
-- **3-Tier LLM System**:
-  - Quick thinking (fast responses)
-  - Mid thinking (balanced analysis)
-  - Deep thinking (complex reasoning)
-- **Data Vendor Routing**: yfinance (primary), Alpha Vantage (fallback)
-- **Graph-Based Workflows**: LangGraph for agent coordination
-
-## Key Directories
-
-- `tradingagents/agents/` - Agent implementations
-- `tradingagents/graph/` - Workflow graphs and setup
-- `tradingagents/dataflows/` - Data access layer
-- `tradingagents/portfolio/` - Portfolio models, report stores, store factory
-- `cli/` - Command-line interface
-- `agent_os/backend/` - FastAPI backend (routes, engine, services)
-- `agent_os/frontend/` - React + Chakra UI + ReactFlow dashboard
-
-## Agent Flow (Existing Trading Analysis)
-
-1. Analysts (parallel): Fundamentals, Market, News, Social Media
-2. Bull/Bear Debate
-3. Research Manager
-4. Trader
-5. Risk Debate
-6. Risk Judge
-
-## Scanner Flow (New Market-Wide Analysis)
-
-```
-START ──┬── Geopolitical Scanner (quick_think) ──┐
-        ├── Market Movers Scanner (quick_think) ──┼── Industry Deep Dive (mid_think) ── Macro Synthesis (deep_think) ── END
-        └── Sector Scanner (quick_think) ─────────┘
-```
-
-- Phase 1: Parallel execution of 3 scanners
-- Phase 2: Industry Deep Dive cross-references all outputs
-- Phase 3: Macro Synthesis produces top-10 watchlist
-
-## Data Vendors
-
-- **yfinance** (primary, free): Screener(), Sector(), Industry(), index tickers
-- **Alpha Vantage** (alternative, API key required): TOP_GAINERS_LOSERS endpoint only (fallback for market movers)
-
-## LLM Providers
-
-OpenAI, Anthropic, Google, xAI, OpenRouter, Ollama
-
-## CLI Entry Point
-
-`cli/main.py` with Typer:
-
-- `analyze` (per-ticker analysis)
-- `scan` (new, market-wide scan)
-
-## Configuration
-
-`tradingagents/default_config.py`:
-
-- LLM tiers configuration
-- Vendor routing
-- Debate rounds settings
-- All values overridable via `TRADINGAGENTS_<KEY>` env vars (see `.env.example`)
-
-## Patterns to Follow
-
-- Agent creation (trading): `tradingagents/agents/analysts/news_analyst.py`
-- Agent creation (scanner): `tradingagents/agents/scanners/geopolitical_scanner.py`
-- Tools: `tradingagents/agents/utils/news_data_tools.py`
-- Scanner tools: `tradingagents/agents/utils/scanner_tools.py`
-- Graph setup (trading): `tradingagents/graph/setup.py`
-- Graph setup (scanner): `tradingagents/graph/scanner_setup.py`
-- Inline tool loop: `tradingagents/agents/utils/tool_runner.py`
-
-## AgentOS — Storage, Events & Phase Re-run
-
-### Storage Layout
-
-Reports are scoped by one canonical `run_id` (ULID). There is no separate
-legacy process id:
-
-```
-reports/daily/{date}/{run_id}/
-  run_meta.json           ← run metadata persisted on completion
-  run_events.jsonl        ← all WebSocket events, newline-delimited JSON
-  {TICKER}/report/        ← e.g. RIG/report/
-    {ts}_complete_report.json
-    {ts}_analysts_checkpoint.json   ← written after analysts phase
-    {ts}_trader_checkpoint.json     ← written after trader phase
-  market/report/          ← scan output
-  portfolio/report/       ← PM decisions, execution results
-```
-
-- **`run_id`** = canonical process id, shared across API, WebSocket, storage,
-  history, scan, pipeline, portfolio, and re-runs
-- Internal phase/ticker separation uses metadata like `_execution_key`,
-  `phase`, `ticker`, and `rerun_seq`, not child run ids
-
-### Store Factory — Always Use It
-
-```python
-from tradingagents.portfolio.store_factory import create_report_store
-
-# Writing: always pass run_id
-writer = create_report_store(run_id=run_id)
-
-# Reading a specific run: pass the original run_id
-reader = create_report_store(run_id=run_id)
-
-# Reading latest across runs: omit run_id
-reader = create_report_store()
-```
-
-Store writes are strict: omitting `run_id` for `save_*` operations raises.
-
-**Never** instantiate `ReportStore()` or `MongoReportStore()` directly in engine code.
-
-### Phase Re-run
-
-Node → phase mapping lives in `NODE_TO_PHASE` (langgraph_engine.py):
-
-| Nodes | Phase | Checkpoint loaded |
-|-------|-------|-------------------|
-| Market/News/Fundamentals/Social Analyst | `analysts` | none |
-| Bull/Bear Researcher, Research Manager, Trader | `debate_and_trader` | analysts_checkpoint |
-| Aggressive/Conservative/Neutral Analyst, Portfolio Manager | `risk` | trader_checkpoint |
-
-- **Checkpoint lookup requires the original `run_id`** — keep the re-run inside
-  the same process id
-- **Analysts checkpoint**: saved when `any()` analyst report is populated (Social Analyst is optional — never use `all()`)
-- **Selective event filtering**: re-run preserves events from other tickers and earlier phases; only clears nodes in the re-run scope
-- **Cascade**: every phase re-run ends with a `run_portfolio()` call to update the PM decision
-
-### WebSocket Event Flow
-
-```
-POST /api/run/{type} → BackgroundTask drives engine → caches events in runs[run_id]
-WS /ws/stream/{run_id} → replays cached events (polling 50ms) → streams new ones
-On reconnect (history) → lazy-loads run_events.jsonl from disk if events == []
-Orphaned "running" run with disk events → auto-marked "failed"
-```
-
-### MongoDB vs Local Storage
-
-- **Local (default)**: development, single-machine, offline. Set via `TRADINGAGENTS_REPORTS_DIR`.
-- **MongoDB**: multi-process, production, reflexion memory. Set `TRADINGAGENTS_MONGO_URI`.
-- `DualReportStore` writes to both when Mongo is configured; reads Mongo first, falls back to disk.
-- Mongo failures always fall back gracefully — never crash on missing Mongo.
-
-## Critical Patterns (see `docs/agent/decisions/008-lessons-learned.md` for full details)
-
-- **Tool execution**: Trading graph uses `ToolNode` in graph. Scanner agents use `run_tool_loop()` inline. If `bind_tools()` is used, there MUST be a tool execution path.
-- **yfinance DataFrames**: `top_companies` has ticker as INDEX, not column. Always check `.index` and `.columns`.
-- **yfinance Sector/Industry**: `Sector.overview` has NO performance data. Use ETF proxies for performance.
-- **Vendor fallback**: Functions inside `route_to_vendor` must RAISE on failure, not embed errors in return values. Catch `(AlphaVantageError, ConnectionError, TimeoutError)`, not just `RateLimitError`.
-- **LangGraph parallel writes**: Any state field written by parallel nodes MUST have a reducer (`Annotated[str, reducer_fn]`).
-- **Ollama remote host**: Never hardcode `localhost:11434`. Use configured `base_url`.
-- **.env loading**: `load_dotenv()` runs at module level in `default_config.py` — import-order-independent. Check actual env var values when debugging auth.
-- **Rate limiter locks**: Never hold a lock during `sleep()` or IO. Release, sleep, re-acquire.
-- **LLM policy errors**: `_is_policy_error(exc)` detects 404 from any provider (checks `status_code` attribute or message content). `_build_fallback_config(config)` substitutes per-tier fallback models. Both live in `agent_os/backend/services/langgraph_engine.py`.
-- **Config fallback keys**: `llm_provider` and `backend_url` must always exist at top level — `scanner_graph.py` and `trading_graph.py` use them as fallbacks.
-- **Report store writes**: always pass `run_id` to `create_report_store(run_id=…)`.
-  Writes without `run_id` now fail fast.
-- **Checkpoint lookup on re-run**: keep the original `run_id` all the way
-  through the re-run and cascade flow.
-- **Analysts checkpoint condition**: use `any()` not `all()` over analyst keys — Social Analyst is not in the default analysts list, so `sentiment_report` is empty in typical runs.
-- **Re-run event filtering**: use `_filter_rerun_events(events, ticker, phase)` — never clear all events on re-run. Clearing all loses scan nodes and other tickers from the graph.
-
-## Agentic Memory (docs/agent/)
-
-Agent workflows use the `docs/agent/` scaffold for structured memory:
-
-- `docs/agent/CURRENT_STATE.md` — Live state tracker (milestone, progress, blockers). Read at session start.
-- `docs/agent/decisions/` — Architecture decision records (ADR-style, numbered `001-...`)
-- `docs/agent/plans/` — Implementation plans with checkbox progress tracking
-- `docs/agent/logs/` — Agent run logs
-- `docs/agent/templates/` — Commit, PR, and decision templates
-
-Before starting work, always read `docs/agent/CURRENT_STATE.md`. Before committing, update it.
-
-## LLM Configuration
-
-Per-tier provider overrides in `tradingagents/default_config.py`:
-- Each tier (`quick_think`, `mid_think`, `deep_think`) can have its own `_llm_provider` and `_backend_url`
-- Falls back to top-level `llm_provider` and `backend_url` when per-tier values are None
-- All config values overridable via `TRADINGAGENTS_<KEY>` env vars
-- Keys for LLM providers: `.env` file (e.g., `OPENROUTER_API_KEY`, `ALPHA_VANTAGE_API_KEY`)
-
-### Env Var Override Convention
-
-```env
-# Pattern: TRADINGAGENTS_<UPPERCASE_KEY>=value
-TRADINGAGENTS_LLM_PROVIDER=openrouter
-TRADINGAGENTS_DEEP_THINK_LLM=deepseek/deepseek-r1-0528
-TRADINGAGENTS_MAX_DEBATE_ROUNDS=3
-TRADINGAGENTS_VENDOR_SCANNER_DATA=alpha_vantage
-```
-
-Empty or unset vars preserve the hardcoded default. `None`-default fields (like `mid_think_llm`) stay `None` when unset, preserving fallback semantics.
-
-### Per-Tier Fallback LLM
-
-When a model returns HTTP 404 (blocked by provider guardrail/policy), the engine
-auto-detects it via `_is_policy_error()` and retries with a per-tier fallback:
-
-```env
-TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM=gpt-5-mini
-TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM_PROVIDER=openai
-TRADINGAGENTS_MID_THINK_FALLBACK_LLM=gpt-5-mini
-TRADINGAGENTS_MID_THINK_FALLBACK_LLM_PROVIDER=openai
-TRADINGAGENTS_DEEP_THINK_FALLBACK_LLM=gpt-5.2
-TRADINGAGENTS_DEEP_THINK_FALLBACK_LLM_PROVIDER=openai
-```
-
-Leave unset to disable auto-retry (pipeline emits a clear actionable error instead).
-
-## Running the Scanner
+Activate env:
 
 ```bash
 conda activate tradingagents
-python -m cli.main scan --date 2026-03-17
 ```
 
-## Running Tests
+Run tests:
 
 ```bash
-conda activate tradingagents
 pytest tests/ -v
 ```
+
+Skip live/integration tests:
+
+```bash
+pytest tests/ -v -m "not integration"
+```
+
+Run scanner:
+
+```bash
+python -m cli.main scan --date 2026-03-31
+```
+
+Run CLI analysis:
+
+```bash
+python -m cli.main analyze
+```
+
+Run AgentOS backend:
+
+```bash
+uvicorn agent_os.backend.main:app --reload --port 8088
+```
+
+## Code Style
+
+- Prefer small explicit changes over broad rewrites.
+- Keep graph ownership in `tradingagents/graph/`.
+- Keep vendor routing rules in `tradingagents/dataflows/interface.py`.
+- Keep persistence and path rules in `report_paths.py`, `report_store.py`, and `store_factory.py`.
+- If an agent uses `bind_tools()`, it must have a real tool execution path.
+- Do not silently add vendor fallback.
+- Do not hardcode report paths or provider URLs.
+- Check actual vendor output shapes before coding against pandas objects.
+
+## Workflow Rules
+
+- Use `run_id` as the single canonical runtime identifier.
+- Report-store writes require `create_report_store(run_id=...)`.
+- Re-runs keep the original root `run_id`.
+- Analysts in the trading graph run sequentially.
+- Scanner agents use inline tool execution with `run_tool_loop()`.
+- Portfolio flow includes parallel `macro_summary` and `micro_summary` before PM decision.
+- REST endpoints start background execution; WebSocket streams cached and persisted events.
+
+## Main Architecture
+
+Trading graph:
+
+1. Market Analyst
+2. Social Analyst
+3. News Analyst
+4. Fundamentals Analyst
+5. Bull/Bear debate
+6. Research Manager
+7. Trader
+8. Risk loop
+9. Portfolio Manager
+
+Scanner graph:
+
+1. gatekeeper, geopolitical, market movers, sector
+2. factor alignment, smart money, drift
+3. industry deep dive
+4. macro synthesis
+
+Portfolio graph:
+
+1. load portfolio
+2. compute risk
+3. review holdings
+4. prioritize candidates
+5. macro summary + micro summary
+6. PM decision
+7. cash sweep
+8. execute trades
+
+## Docs Map
+
+Start here:
+
+- `docs/README.md`: index of the docs folder
+- `docs/graph_flows.md`: shortest flow overview
+- `docs/graph_execution_reference.md`: exact runtime behavior
+- `docs/agent_dataflow.md`: agent, tool, and memory summary
+
+Architecture and rules:
+
+- `docs/architecture_learnings.md`: dos, don’ts, avoids
+- `docs/agent/context/ARCHITECTURE.md`: internal architecture summary
+- `docs/agent/context/CONVENTIONS.md`: implementation conventions
+- `docs/agent/context/COMPONENTS.md`: where code lives
+
+Portfolio:
+
+- `docs/portfolio/00_overview.md`: current portfolio architecture
+- `docs/portfolio/03_database_schema.md`: DB schema
+- `docs/portfolio/04_repository_api.md`: repository and report-store API
+
+Project memory:
+
+- `docs/agent/CURRENT_STATE.md`: active milestone and recent progress
+- `docs/agent/decisions/`: ADRs and architectural decisions
+- `docs/agent/plans/`: implementation plans
+
+## Important Code Entry Points
+
+- `tradingagents/default_config.py`
+- `tradingagents/report_paths.py`
+- `tradingagents/dataflows/interface.py`
+- `tradingagents/graph/setup.py`
+- `tradingagents/graph/scanner_setup.py`
+- `tradingagents/graph/portfolio_setup.py`
+- `agent_os/backend/services/langgraph_engine.py`
+- `agent_os/backend/routes/runs.py`
+
+## Note
+
+`/init` gives Claude a good starting read of the codebase, but this file should hold the persistent project rules and navigation hints that are easy to lose across sessions.

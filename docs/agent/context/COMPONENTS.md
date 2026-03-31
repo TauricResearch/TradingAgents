@@ -1,253 +1,108 @@
-<!-- Last verified: 2026-03-24 -->
+<!-- Last verified: 2026-03-31 -->
 
 # Components
 
-## Directory Tree
+This is the current component map for navigating the codebase.
+It is intentionally shorter than a raw directory dump and focuses on where important responsibilities live.
 
-```
-tradingagents/
-├── __init__.py
-├── default_config.py              # All config keys, defaults, env var overrides
-├── report_paths.py                # Unified report path helpers (reports/daily/{date}/)
-├── daily_digest.py                # append_to_digest() — consolidates runs into daily_digest.md
-├── notebook_sync.py               # sync_to_notebooklm() — uploads digest to NotebookLM via nlm CLI
-├── observability.py               # RunLogger, _LLMCallbackHandler, structured event logging
-├── agents/
-│   ├── __init__.py
-│   ├── analysts/
-│   │   ├── fundamentals_analyst.py  # create_fundamentals_analyst(llm)
-│   │   ├── market_analyst.py        # create_market_analyst(llm)
-│   │   ├── news_analyst.py          # create_news_analyst(llm)
-│   │   └── social_media_analyst.py  # create_social_media_analyst(llm)
-│   ├── managers/
-│   │   ├── research_manager.py      # create_research_manager(llm, memory)
-│   │   └── risk_manager.py          # create_risk_manager(llm, memory)
-│   ├── researchers/
-│   │   ├── bear_researcher.py       # create_bear_researcher(llm, memory)
-│   │   └── bull_researcher.py       # create_bull_researcher(llm, memory)
-│   ├── risk_mgmt/
-│   │   ├── aggressive_debator.py    # create_aggressive_debator(llm)
-│   │   ├── conservative_debator.py  # create_conservative_debator(llm)
-│   │   └── neutral_debator.py       # create_neutral_debator(llm)
-│   ├── scanners/
-│   │   ├── __init__.py
-│   │   ├── geopolitical_scanner.py  # create_geopolitical_scanner(llm)
-│   │   ├── market_movers_scanner.py # create_market_movers_scanner(llm)
-│   │   ├── sector_scanner.py        # create_sector_scanner(llm)
-│   │   ├── smart_money_scanner.py   # create_smart_money_scanner(llm)  ← NEW
-│   │   ├── industry_deep_dive.py    # create_industry_deep_dive(llm)
-│   │   └── macro_synthesis.py       # create_macro_synthesis(llm)
-│   ├── trader/
-│   │   └── trader.py                # create_trader(llm, memory)
-│   └── utils/
-│       ├── agent_states.py          # AgentState, InvestDebateState, RiskDebateState
-│       ├── agent_utils.py           # Tool re-exports, create_msg_delete()
-│       ├── core_stock_tools.py      # get_stock_data, get_indicators, get_macro_regime
-│       ├── fundamental_data_tools.py # get_fundamentals, get_balance_sheet, etc.
-│       ├── json_utils.py            # extract_json()
-│       ├── memory.py                # FinancialSituationMemory
-│       ├── news_data_tools.py       # get_news, get_global_news, get_insider_transactions
-│       ├── scanner_states.py        # ScannerState, _last_value reducer
-│       ├── scanner_tools.py         # Scanner @tool definitions (10 tools: 7 routed + 3 Finviz direct)
-│       ├── technical_indicators_tools.py
-│       └── tool_runner.py           # run_tool_loop(), MAX_TOOL_ROUNDS, MIN_REPORT_LENGTH
-├── dataflows/
-│   ├── __init__.py
-│   ├── config.py                    # set_config(), get_config(), initialize_config()
-│   ├── interface.py                 # route_to_vendor, VENDOR_METHODS, FALLBACK_ALLOWED
-│   ├── alpha_vantage.py             # Re-export facade
-│   ├── alpha_vantage_common.py      # Exception hierarchy, rate limiter
-│   ├── alpha_vantage_fundamentals.py
-│   ├── alpha_vantage_indicator.py
-│   ├── alpha_vantage_news.py
-│   ├── alpha_vantage_scanner.py
-│   ├── alpha_vantage_stock.py
-│   ├── finnhub.py
-│   ├── finnhub_common.py            # Exception hierarchy, rate limiter
-│   ├── finnhub_fundamentals.py
-│   ├── finnhub_indicators.py
-│   ├── finnhub_news.py
-│   ├── finnhub_scanner.py
-│   ├── finnhub_stock.py
-│   ├── macro_regime.py
-│   ├── peer_comparison.py
-│   ├── stockstats_utils.py
-│   ├── ttm_analysis.py
-│   ├── utils.py
-│   ├── y_finance.py                 # Core yfinance data functions
-│   ├── yfinance_news.py
-│   └── yfinance_scanner.py
-├── graph/
-│   ├── trading_graph.py             # TradingAgentsGraph class
-│   ├── scanner_graph.py             # ScannerGraph class
-│   ├── setup.py                     # GraphSetup — trading graph builder
-│   ├── scanner_setup.py             # ScannerGraphSetup — scanner graph builder
-│   ├── conditional_logic.py         # ConditionalLogic — debate/risk routing
-│   ├── propagation.py               # Propagator
-│   ├── reflection.py                # Reflector
-│   └── signal_processing.py         # SignalProcessor
-├── llm_clients/                     # Multi-provider LLM factory
-│   └── (create_llm_client dispatch)
-└── pipeline/
-    ├── __init__.py
-    └── macro_bridge.py              # MacroBridge, data classes, pipeline orchestration
+## Core Runtime Packages
 
-cli/
-└── main.py                          # Typer app, MessageBuffer, Rich UI, 3 commands
+### `tradingagents/`
 
-agent_os/
-├── __init__.py
-├── DESIGN.md                          # Visual observability design document
-├── README.md                          # AgentOS overview and setup instructions
-├── backend/
-│   ├── __init__.py
-│   ├── main.py                        # FastAPI app, CORS, route mounting (port 8088)
-│   ├── dependencies.py                # get_current_user() (V1 hardcoded), get_db_client()
-│   ├── store.py                       # In-memory run store (Dict[str, Dict])
-│   ├── routes/
-│   │   ├── __init__.py
-│   │   ├── runs.py                    # POST /api/run/{scan,pipeline,portfolio,auto}
-│   │   ├── websocket.py               # WS /ws/stream/{run_id} — sole executor
-│   │   └── portfolios.py             # GET /api/portfolios/* — CRUD + summary + latest
-│   └── services/
-│       ├── __init__.py
-│       └── langgraph_engine.py        # LangGraphEngine: run_scan/pipeline/portfolio/auto, event mapping
-└── frontend/
-    ├── package.json                   # React 18 + Vite 8 + Chakra UI + ReactFlow
-    ├── tsconfig.json
-    ├── vite.config.ts
-    ├── index.html
-    └── src/
-        ├── main.tsx                   # React entry point
-        ├── App.tsx                    # ChakraProvider wrapper
-        ├── Dashboard.tsx              # 2-page layout: dashboard (graph+terminal) / portfolio
-        ├── theme.ts                   # Dark theme customization
-        ├── index.css                  # Global styles
-        ├── hooks/
-        │   └── useAgentStream.ts      # WebSocket hook, AgentEvent type, status ref
-        └── components/
-            ├── AgentGraph.tsx          # ReactFlow live graph with incremental nodes
-            ├── MetricHeader.tsx        # Top-3 metrics: Sharpe, regime, drawdown
-            └── PortfolioViewer.tsx     # Holdings table, trade history, snapshot view
-```
+- `default_config.py`: shared config model and env overrides
+- `report_paths.py`: canonical `run_id` and report path helpers
+- `observability.py`: `RunLogger` and callback-based event logging
+- `daily_digest.py`: shared per-date digest writing
+- `notebook_sync.py`: optional NotebookLM sync
 
-## Agent Factory Inventory (18 factories + 1 utility)
+### `tradingagents/agents/`
 
-| Factory | File | LLM Tier | Extra Params |
-|---------|------|----------|-------------|
-| `create_fundamentals_analyst` | `agents/analysts/fundamentals_analyst.py` | quick | — |
-| `create_market_analyst` | `agents/analysts/market_analyst.py` | quick | — |
-| `create_news_analyst` | `agents/analysts/news_analyst.py` | quick | — |
-| `create_social_media_analyst` | `agents/analysts/social_media_analyst.py` | quick | — |
-| `create_bull_researcher` | `agents/researchers/bull_researcher.py` | mid | `memory` |
-| `create_bear_researcher` | `agents/researchers/bear_researcher.py` | mid | `memory` |
-| `create_research_manager` | `agents/managers/research_manager.py` | deep | `memory` |
-| `create_trader` | `agents/trader/trader.py` | mid | `memory` |
-| `create_aggressive_debator` | `agents/risk_mgmt/aggressive_debator.py` | quick | — |
-| `create_conservative_debator` | `agents/risk_mgmt/conservative_debator.py` | quick | — |
-| `create_neutral_debator` | `agents/risk_mgmt/neutral_debator.py` | quick | — |
-| `create_risk_manager` | `agents/managers/risk_manager.py` | deep | `memory` |
-| `create_geopolitical_scanner` | `agents/scanners/geopolitical_scanner.py` | quick | — |
-| `create_market_movers_scanner` | `agents/scanners/market_movers_scanner.py` | quick | — |
-| `create_sector_scanner` | `agents/scanners/sector_scanner.py` | quick | — |
-| `create_smart_money_scanner` | `agents/scanners/smart_money_scanner.py` | quick | — |
-| `create_industry_deep_dive` | `agents/scanners/industry_deep_dive.py` | mid | — |
-| `create_macro_synthesis` | `agents/scanners/macro_synthesis.py` | deep | — |
-| `create_msg_delete` | `agents/utils/agent_utils.py` | — | No LLM param |
+Agent factories grouped by role:
 
-## Extension Guides
+- `analysts/`: market, social, news, fundamentals
+- `researchers/`: bull and bear
+- `managers/`: research manager, portfolio manager, context helpers
+- `risk_mgmt/`: aggressive, conservative, neutral
+- `scanners/`: gatekeeper, geopolitical, market movers, sector, factor alignment, smart money, drift, industry deep dive, macro synthesis
+- `portfolio/`: holding reviewer, macro summary, micro summary, PM decision
+- `utils/`: tool runners, state models, memory helpers, data-tool wrappers, JSON parsing
 
-### Adding a New Analyst
-1. Create `tradingagents/agents/analysts/new_analyst.py` with `create_new_analyst(llm)`
-2. Add tools to `tradingagents/agents/utils/` and register in `agent_utils.py`
-3. Register tool node in `trading_graph.py:_create_tool_nodes()`
-4. Add node and edges in `graph/setup.py:setup_graph()`
-5. Add conditional routing in `graph/conditional_logic.py`
-6. Add to `cli/main.py` `ANALYST_MAPPING` and `REPORT_SECTIONS`
+### `tradingagents/dataflows/`
 
-### Adding a New Scanner
-1. Create `tradingagents/agents/scanners/new_scanner.py` with `create_new_scanner(llm)`
-2. Export from `agents/scanners/__init__.py`
-3. Add to `scanner_graph.py` agents dict
-4. Add node and edges in `graph/scanner_setup.py`
-5. Add state field with `_last_value` reducer to `scanner_states.py`
+Vendor and derived data layers:
 
-### Adding a New Data Vendor
-1. Create `tradingagents/dataflows/newvendor_common.py` (exception hierarchy, rate limiter)
-2. Create per-domain modules (`newvendor_stock.py`, `newvendor_scanner.py`, etc.)
-3. Add vendor functions to `VENDOR_METHODS` in `interface.py`
-4. Add vendor to `VENDOR_LIST` in `interface.py`
-5. Add exception types to the catch tuple in `route_to_vendor`
-6. Add config category in `default_config.py` `data_vendors`
+- `interface.py`: routing and fallback policy
+- `y_finance.py`, `alpha_vantage_*`, `finnhub_*`, `finviz_*`-style helpers
+- derived analysis modules such as `macro_regime.py`, `peer_comparison.py`, `ttm_analysis.py`
 
-### Adding a New LLM Provider
-1. Add client creation logic to `tradingagents/llm_clients/`
-2. Add provider-specific kwargs handling in `trading_graph.py:_get_provider_kwargs()` and `scanner_graph.py:_get_provider_kwargs()`
-3. Add API key to `.env.example`
+### `tradingagents/graph/`
 
-### Adding a New Config Key
-1. Add to `DEFAULT_CONFIG` dict in `default_config.py` with `_env()` or `_env_int()` override
-2. Add to `.env.example` with documentation
-3. Update `CLAUDE.md` if it's a frequently-used key
+Graph assembly and orchestration:
 
-## CLI Commands
+- `setup.py`: per-ticker trading graph builder
+- `scanner_setup.py`: scanner graph builder
+- `portfolio_setup.py`: portfolio graph builder
+- `trading_graph.py`, `scanner_graph.py`, `portfolio_graph.py`: orchestrator classes
+- `conditional_logic.py`: debate/risk routing
+- `propagation.py`: pipeline state bootstrapping
+- `reflection.py`: reflexion update helpers
 
-| Command | Function | Description |
-|---------|----------|-------------|
-| `analyze` | `run_analysis()` | Interactive per-ticker multi-agent analysis with Rich live UI |
-| `scan` | `run_scan(date)` | Macro scanner (4 Phase-1 nodes + deep dive + synthesis), saves 5 report files |
-| `pipeline` | `run_pipeline()` | Full pipeline: scan JSON → filter by conviction → per-ticker deep dive |
+### `tradingagents/portfolio/`
 
-## AgentOS Frontend Components
+Portfolio storage and execution layer:
 
-| Component | File | Description |
-|-----------|------|-------------|
-| `Dashboard` | `agent_os/frontend/src/Dashboard.tsx` | 2-page layout with sidebar (dashboard/portfolio), run buttons, param panel |
-| `AgentGraph` | `agent_os/frontend/src/components/AgentGraph.tsx` | ReactFlow live graph — incremental node addition via useRef(Set) dedup |
-| `MetricHeader` | `agent_os/frontend/src/components/MetricHeader.tsx` | Top-3 metrics: Sharpe ratio, market regime+beta, drawdown+VaR |
-| `PortfolioViewer` | `agent_os/frontend/src/components/PortfolioViewer.tsx` | 3-tab view: holdings table, trade history, snapshot summary |
-| `useAgentStream` | `agent_os/frontend/src/hooks/useAgentStream.ts` | WebSocket hook with `statusRef` to avoid stale closures |
+- `models.py`: portfolio, holding, trade, snapshot models
+- `config.py`: portfolio-specific config
+- `supabase_client.py`: direct PostgreSQL CRUD client
+- `repository.py`: business-logic facade
+- `report_store.py`: run-scoped artifact persistence
+- `store_factory.py`: store selection and `run_id` wiring
+- `risk_evaluator.py`, `risk_metrics.py`: deterministic portfolio analytics
+- `candidate_prioritizer.py`: candidate ranking
+- `trade_executor.py`: execution and constraint enforcement
+- `lesson_store.py`, `memory_loader.py`: selection-memory support
 
-## AgentOS Backend Services
+### `tradingagents/memory/`
 
-| Service | File | Description |
-|---------|------|-------------|
-| `LangGraphEngine` | `agent_os/backend/services/langgraph_engine.py` | Orchestrates 4 run types, maps LangGraph v2 events to frontend events |
-| `runs` router | `agent_os/backend/routes/runs.py` | REST triggers: `POST /api/run/{type}` — queues runs in memory store |
-| `websocket` router | `agent_os/backend/routes/websocket.py` | `WS /ws/stream/{run_id}` — sole executor, streams events to frontend |
-| `portfolios` router | `agent_os/backend/routes/portfolios.py` | Portfolio CRUD, summary metrics, holdings/trades with field mapping |
-| `dependencies` | `agent_os/backend/dependencies.py` | `get_current_user()` (V1 hardcoded), `get_db_client()` |
-| `store` | `agent_os/backend/store.py` | In-memory `Dict[str, Dict]` run store (demo, not persisted) |
+- `reflexion.py`: per-ticker reflexion memory
+- `macro_memory.py`: regime-level memory
 
-## Test Organization
+## User Interfaces
 
-| Test File | Type | What It Covers | Markers |
-|-----------|------|---------------|---------|
-| `test_alpha_vantage_exceptions.py` | Mixed | AV exception hierarchy, `_make_api_request` errors | `integration` on HTTP tests |
-| `test_alpha_vantage_integration.py` | Unit | Full AV data layer (all mocked) | — |
-| `test_alpha_vantage_scanner.py` | Integration | Live AV scanner functions | `integration` |
-| `test_config_wiring.py` | Unit | `AgentState` fields, tool exports, debate wiring | — |
-| `test_debate_rounds.py` | Unit | `ConditionalLogic` routing at various round counts | — |
-| `test_e2e_api_integration.py` | Unit | Vendor routing layer (all mocked) | — |
-| `test_env_override.py` | Unit | `TRADINGAGENTS_*` env var overrides | — |
-| `test_finnhub_integration.py` | Unit | Full Finnhub data layer (all mocked) | — |
-| `test_finnhub_live_integration.py` | Integration | Live Finnhub endpoints | `integration`, `paid_tier` |
-| `test_industry_deep_dive.py` | Mixed | `_extract_top_sectors`, nudge mechanism, enriched output | — |
-| `test_json_utils.py` | Unit | `extract_json()` — markdown, think blocks, edge cases | — |
-| `test_macro_bridge.py` | Unit | Pipeline: parse, filter, render, save | — |
-| `test_macro_regime.py` | Mixed | Macro signals, regime classification, report format | `integration` on live test |
-| `test_nlm_live.py` | Integration | Live NLM CLI tests for NotebookLM sync | — |
-| `test_notebook_sync.py` | Unit | `notebook_sync.py` logic, `nlm` subprocess mocking | — |
-| `test_peer_comparison.py` | Mixed | Peer comparison functions | `integration` on live test |
-| `test_scanner_comprehensive.py` | Integration | All 5 scanner tools + CLI output naming | — |
-| `test_scanner_fallback.py` | Mixed | yfinance perf, AV failure mode, fallback routing | `integration` on some |
-| `test_scanner_graph.py` | Unit | `ScannerGraph` import/instantiation, graph compilation | — |
-| `test_scanner_mocked.py` | Unit | All yfinance + AV scanner functions (all mocked) | — |
-| `test_scanner_routing.py` | Integration | Live routing with AV config | `integration` |
-| `test_scanner_tools.py` | Integration | Scanner tool imports + live invocation | — |
-| `test_ttm_analysis.py` | Mixed | TTM metrics computation, report format | `integration` on live test |
-| `test_vendor_failfast.py` | Unit | ADR 011 fail-fast behavior, error chaining | — |
-| `test_yfinance_integration.py` | Unit | Full yfinance data layer (all mocked) | — |
-| `test_langgraph_engine_extraction.py` | Unit | LangGraph event mapping, model/prompt extraction, _safe_dict helper | — |
+### CLI
 
-Pytest markers: `integration` (live API), `paid_tier` (Finnhub paid subscription), `slow` (long-running). Defined in `conftest.py`.
+- `cli/main.py`: Typer entrypoints and interactive flows
+- `cli/stats_handler.py`: runtime stats display
+- `cli/config.py`, `cli/models.py`, `cli/utils.py`: CLI support code
+
+### AgentOS
+
+- `agent_os/backend/main.py`: FastAPI app
+- `agent_os/backend/routes/runs.py`: run creation, history, and rerun endpoints
+- `agent_os/backend/routes/websocket.py`: run event stream endpoint
+- `agent_os/backend/routes/portfolios.py`: portfolio API
+- `agent_os/backend/services/langgraph_engine.py`: run orchestration and event mapping
+- `agent_os/backend/store.py`: in-memory run cache
+- `agent_os/backend/run_metadata.py`: persisted run metadata normalization
+- `agent_os/frontend/src/Dashboard.tsx`: main dashboard
+- `agent_os/frontend/src/hooks/useAgentStream.ts`: WebSocket client hook
+- `agent_os/frontend/src/components/AgentGraph.tsx`: live graph renderer
+- `agent_os/frontend/src/components/PortfolioViewer.tsx`: portfolio views
+
+## Entry-Point Guide
+
+If you need to work on:
+
+- graph topology: start in `tradingagents/graph/`
+- vendor routing or fallback: start in `tradingagents/dataflows/interface.py`
+- agent prompts and tool loops: start in `tradingagents/agents/`
+- run persistence or reruns: start in `agent_os/backend/routes/runs.py` and `tradingagents/portfolio/report_store.py`
+- event streaming or frontend graph behavior: start in `agent_os/backend/services/langgraph_engine.py` and `agent_os/frontend/src/`
+- portfolio execution: start in `tradingagents/portfolio/` and `tradingagents/agents/portfolio/`
+
+## Related Docs
+
+- `docs/README.md`
+- `docs/graph_execution_reference.md`
+- `docs/agent_dataflow.md`
+- `docs/portfolio/00_overview.md`

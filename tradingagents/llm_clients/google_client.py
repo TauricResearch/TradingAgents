@@ -2,6 +2,8 @@ from typing import Any, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from tradingagents.default_config import get_env_value
+
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
 
@@ -26,6 +28,10 @@ class GoogleClient(BaseLLMClient):
     def get_llm(self) -> Any:
         """Return configured ChatGoogleGenerativeAI instance."""
         llm_kwargs = {"model": self.model}
+
+        google_api_key = self.kwargs.get("google_api_key") or get_env_value("GOOGLE_API_KEY")
+        if google_api_key:
+            llm_kwargs["google_api_key"] = google_api_key
 
         for key in ("timeout", "max_retries", "google_api_key", "callbacks", "http_client", "http_async_client"):
             if key in self.kwargs:

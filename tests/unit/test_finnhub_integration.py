@@ -290,6 +290,16 @@ class TestGetApiKey:
         # autouse fixture already sets FINNHUB_API_KEY=test_key
         assert get_api_key() == "test_key"
 
+    def test_returns_key_from_dotenv_when_process_env_missing(self, monkeypatch, tmp_path):
+        from tradingagents.dataflows.finnhub_common import get_api_key
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("TRADINGAGENTS_LOAD_DOTENV", "1")
+        monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+        (tmp_path / ".env").write_text("FINNHUB_API_KEY=dotenv-finnhub-key\n", encoding="utf-8")
+
+        assert get_api_key() == "dotenv-finnhub-key"
+
     def test_raises_when_env_var_missing(self, monkeypatch):
         from tradingagents.dataflows.finnhub_common import APIKeyInvalidError, get_api_key
 

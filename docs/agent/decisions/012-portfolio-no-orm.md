@@ -1,9 +1,9 @@
 ---
 type: decision
 status: active
-date: 2026-03-20
-agent_author: "claude"
-tags: [portfolio, database, supabase, orm, prisma]
+date: 2026-03-31
+agent_author: "codex"
+tags: [portfolio, database, postgres, psycopg2, orm]
 related_files:
   - tradingagents/portfolio/supabase_client.py
   - tradingagents/portfolio/repository.py
@@ -12,81 +12,36 @@ related_files:
 
 ## Context
 
-When designing the Portfolio Manager data layer (Phase 1), the question arose:
-should we use an ORM (specifically **Prisma**) or keep the raw `supabase-py`
-client that the scaffolding already plans to use?
+The current portfolio implementation persists transactional state in a Supabase-hosted PostgreSQL database, but it does so through a direct PostgreSQL connection string and `psycopg2`, not through `supabase-py` or an ORM.
 
-The options considered were:
-
-| Option | Description |
-|--------|-------------|
-| **Raw `supabase-py`** (chosen) | Direct Supabase PostgREST client, builder-pattern API |
-| **Prisma Python** (`prisma-client-py`) | Code-generated type-safe ORM backed by Node.js |
-| **SQLAlchemy** | Full ORM with Core + ORM layers, Alembic migrations |
+This ADR records the implementation reality and the intended rule going forward.
 
 ## The Decision
 
-**Use raw `supabase-py` without an ORM for the portfolio data layer.**
+Use direct PostgreSQL access via `psycopg2` for the portfolio data layer, without adding an ORM.
 
-The data access layer (`supabase_client.py`) wraps the Supabase client directly.
-Our own `Portfolio`, `Holding`, `Trade`, and `PortfolioSnapshot` dataclasses
-provide the type-safety layer; serialisation is handled by `to_dict()` /
-`from_dict()` on each model.
+The layering is:
 
-## Why Not Prisma
+- `SupabaseClient` for low-level CRUD
+- `PortfolioRepository` for business logic
+- plain SQL migrations in `tradingagents/portfolio/migrations/`
+- dataclass-style models in `tradingagents/portfolio/models.py`
 
-1. **Node.js runtime dependency** — `prisma-client-py` uses Prisma's Node.js
-   engine at code-generation time.  This adds a non-Python runtime requirement
-   to a Python-only project.
+## Why
 
-2. **Conflicts with Supabase's migration tooling** — the project already uses
-   Supabase's SQL migration files (`migrations/001_initial_schema.sql`) and the
-   Supabase dashboard for schema changes.  Prisma's `prisma migrate` maintains
-   its own shadow database and migration state, creating two competing systems.
-
-3. **Code generation build step** — every schema change requires running
-   `prisma generate` before the Python code works.  This complicates CI, local
-   setup, and agent-driven development.
-
-4. **Overkill for 4 tables** — the portfolio schema has exactly 4 tables with
-   straightforward CRUD.  Prisma's relationship traversal and complex query
-   features offer no benefit here.
-
-## Why Not SQLAlchemy
-
-1. **Not using a local database** — the database is managed by Supabase (hosted
-   PostgreSQL).  SQLAlchemy's connection-pooling and engine management are
-   designed for direct database connections, which bypass Supabase's PostgREST
-   API and Row Level Security.
-
-2. **Extra dependency** — SQLAlchemy + Alembic would be significant new
-   dependencies for a non-DB-heavy app.
-
-## Why Raw `supabase-py` Is Sufficient
-
-- `supabase-py` provides a clean builder-pattern API:
-  `client.table("holdings").select("*").eq("portfolio_id", id).execute()`
-- Our dataclasses already provide compile-time type safety and lossless
-  serialisation; the client only handles transport.
-- Migrations are plain SQL files — readable, versionable, Supabase-native.
-- `SupabaseClient` is a thin singleton wrapper that translates HTTP errors into
-  domain exceptions — this gives us the ORM-like error-handling benefit without
-  the complexity.
+1. The schema is still small and straightforward.
+2. Direct SQL gives explicit control over inserts, updates, upserts, and snapshots.
+3. The project stays Python-only and avoids ORM code-generation or extra runtime dependencies.
+4. The business-logic boundary already exists in `PortfolioRepository`, so an ORM would add complexity without solving a real problem today.
 
 ## Constraints
 
-- **Do not** add an ORM dependency (`prisma-client-py`, `sqlalchemy`, `tortoise-orm`)
-  to `pyproject.toml` without revisiting this decision.
-- **Do not** bypass `SupabaseClient` by importing `supabase` directly in other
-  modules — always go through `PortfolioRepository`.
-- If the schema grows beyond ~10 tables or requires complex multi-table joins,
-  revisit this decision and consider SQLAlchemy Core (not the ORM layer) with
-  direct `asyncpg` connections.
+- Do not add an ORM to the portfolio layer without revisiting this decision.
+- Keep transactional database access behind `SupabaseClient` and `PortfolioRepository`.
+- Keep schema evolution in SQL migrations.
 
 ## Actionable Rules
 
-- All DB access goes through `PortfolioRepository` → `SupabaseClient`.
-- Migrations are `.sql` files in `tradingagents/portfolio/migrations/`, run via
-  the Supabase SQL Editor or `supabase db push`.
-- Type safety comes from dataclass `to_dict()` / `from_dict()` — not from a
-  code-generated ORM schema.
+- Use `SUPABASE_CONNECTION_STRING` for portfolio DB access.
+- Prefer explicit SQL and typed model conversion over ORM abstractions.
+- Keep portfolio business logic in `PortfolioRepository`, not in API handlers or graph nodes.

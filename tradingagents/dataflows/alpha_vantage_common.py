@@ -1,5 +1,4 @@
 import logging
-import os
 import requests
 import pandas as pd
 import json
@@ -8,6 +7,8 @@ import time as _time
 from datetime import datetime
 from io import StringIO
 
+from tradingagents.default_config import get_env_value
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,7 +16,7 @@ API_BASE_URL = "https://www.alphavantage.co/query"
 
 def get_api_key() -> str:
     """Retrieve the API key for Alpha Vantage from environment variables."""
-    api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
+    api_key = get_env_value("ALPHA_VANTAGE_API_KEY")
     if not api_key:
         raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
     return api_key

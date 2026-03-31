@@ -15,9 +15,9 @@ def _last_value(existing: str, new: str) -> str:
 class PortfolioManagerState(MessagesState):
     """State for the Portfolio Manager workflow.
 
-    Sequential workflow — no parallel nodes — but all string JSON fields use
-    the ``_last_value`` reducer for defensive consistency (prevents any future
-    INVALID_CONCURRENT_GRAPH_UPDATE if parallelism is added later).
+    The workflow includes a parallel macro_summary/micro_summary fan-out, so
+    reducer-backed string fields remain important for summary outputs and
+    sender-style state writes.
 
     ``prices`` and ``scan_summary`` are plain dicts — written only by the
     caller (initial state) and never mutated by nodes, so no reducer needed.

@@ -4,7 +4,7 @@ from unittest.mock import patch
 import openai
 import pytest
 
-from tradingagents.llm_clients.openai_client import NormalizedChatOpenAI
+from tradingagents.llm_clients.openai_client import NormalizedChatOpenAI, OpenAIClient
 
 
 def _make_client(retries: int = 2) -> NormalizedChatOpenAI:
@@ -48,3 +48,39 @@ def test_invoke_does_not_retry_non_transient_api_error():
             client.invoke(["hello"])
 
     assert mock_invoke.call_count == 1
+
+
+def test_openrouter_api_key_loaded_from_dotenv(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TRADINGAGENTS_LOAD_DOTENV", "1")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    (tmp_path / ".env").write_text("OPENROUTER_API_KEY=dotenv-openrouter-key\n", encoding="utf-8")
+
+    client = OpenAIClient(model="openrouter/test-model", provider="openrouter")
+
+    with patch(
+        "tradingagents.llm_clients.openai_client.NormalizedChatOpenAI",
+        side_effect=lambda **kwargs: kwargs,
+    ):
+        llm_kwargs = client.get_llm()
+
+    assert llm_kwargs["api_key"] == "dotenv-openrouter-key"
+    assert llm_kwargs["base_url"] == "https://openrouter.ai/api/v1"
+
+
+def test_openai_api_key_loaded_from_dotenv(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("TRADINGAGENTS_LOAD_DOTENV", "1")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    (tmp_path / ".env").write_text("OPENAI_API_KEY=dotenv-openai-key\n", encoding="utf-8")
+
+    client = OpenAIClient(model="gpt-5-mini", provider="openai")
+
+    with patch(
+        "tradingagents.llm_clients.openai_client.NormalizedChatOpenAI",
+        side_effect=lambda **kwargs: kwargs,
+    ):
+        llm_kwargs = client.get_llm()
+
+    assert llm_kwargs["api_key"] == "dotenv-openai-key"
+    assert llm_kwargs["use_responses_api"] is True

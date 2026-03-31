@@ -1,7 +1,9 @@
-# TradingAgents Graph Flows
+<!-- Last verified: 2026-03-31 -->
 
-This is the short overview of the current graph topology.
-For the node-by-node runtime reference, tool surface, and orchestration details, see [graph_execution_reference.md](./graph_execution_reference.md).
+# Graph Flows
+
+This is the shortest current overview of the runtime topology.
+For exact node behavior, tool usage, and state writes, use [`graph_execution_reference.md`](./graph_execution_reference.md).
 
 ## Scanner
 
@@ -20,18 +22,17 @@ flowchart TD
     C --> I
     D --> I
     F --> I
-    H --> I
     G --> I
+    H --> I
     I --> J["macro_synthesis"]
     J --> K([END])
 ```
 
 - Phase 1 fan-out: `gatekeeper_scanner`, `geopolitical_scanner`, `market_movers_scanner`, `sector_scanner`
-- Phase 1 follow-ons: `factor_alignment_scanner`, `smart_money_scanner`, `drift_scanner`
-- Phase 2 fan-in: `industry_deep_dive`
-- Phase 3 final synthesis: `macro_synthesis`
+- Bounded follow-ons: `factor_alignment_scanner`, `smart_money_scanner`, `drift_scanner`
+- Fan-in synthesis path: `industry_deep_dive -> macro_synthesis`
 
-## Per-Ticker Pipeline
+## Per-Ticker Trading Pipeline
 
 ```mermaid
 flowchart TD
@@ -63,9 +64,9 @@ flowchart TD
 ```
 
 - Analysts run sequentially in the compiled graph.
-- Critical abort in `market_report` or `fundamentals_report` can jump directly to `Portfolio Manager`.
-- Debate loop alternates bull/bear until `max_debate_rounds`.
-- Risk loop rotates aggressive/conservative/neutral until `max_risk_discuss_rounds`.
+- Debate alternates bull and bear until `max_debate_rounds`.
+- Risk rotates aggressive, conservative, and neutral until `max_risk_discuss_rounds`.
+- Critical aborts can short-circuit directly to `Portfolio Manager`.
 
 ## Portfolio
 
@@ -85,14 +86,25 @@ flowchart TD
 ```
 
 - `load_portfolio`, `compute_risk`, `prioritize_candidates`, `cash_sweep`, and `execute_trades` are Python closure nodes.
-- `review_holdings`, `macro_summary`, `micro_summary`, and `make_pm_decision` are LLM nodes.
+- `review_holdings` is the only portfolio node with inline tool usage.
+- `macro_summary` and `micro_summary` run in parallel and fan in to `make_pm_decision`.
 
 ## Auto
 
-`auto` is imperative orchestration in `agent_os/backend/services/langgraph_engine.py`, not its own LangGraph DAG:
+`auto` is imperative orchestration in `agent_os/backend/services/langgraph_engine.py`, not its own LangGraph DAG.
 
-1. run or skip scan
-2. load scan summary
-3. merge scan tickers with holdings
-4. run per-ticker pipelines concurrently
-5. run portfolio phase or resume execution from saved PM decision
+```mermaid
+flowchart TD
+    A["run_auto()"] --> B["run or reuse scan"]
+    B --> C["load scan summary"]
+    C --> D["merge scan candidates with holdings"]
+    D --> E["run per-ticker pipelines with bounded concurrency"]
+    E --> F["load completed ticker analyses"]
+    F --> G["run portfolio or resume from saved PM decision"]
+```
+
+## Runtime Notes
+
+- The root identifier is always `run_id`.
+- All run-scoped artifacts live under `reports/daily/{date}/{run_id}/`.
+- Background tasks execute runs; WebSocket streams cached and persisted events for the same run.

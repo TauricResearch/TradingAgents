@@ -14,10 +14,9 @@ Usage::
 from __future__ import annotations
 
 import logging
-import os
 from typing import Union
 
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.default_config import DEFAULT_CONFIG, get_env_value
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.dual_report_store import DualReportStore
 
@@ -52,7 +51,7 @@ def create_report_store(
     db = mongo_db or DEFAULT_CONFIG.get("mongo_db", "tradingagents")
 
     # Filesystem instance (always created as part of Dual or as standalone)
-    _base = base_dir or os.getenv("PORTFOLIO_DATA_DIR") or DEFAULT_CONFIG.get(
+    _base = base_dir or get_env_value("PORTFOLIO_DATA_DIR") or DEFAULT_CONFIG.get(
         "results_dir", "reports"
     )
     local_store = ReportStore(base_dir=_base, run_id=run_id)

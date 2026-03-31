@@ -12,6 +12,8 @@ from datetime import datetime
 
 import requests
 
+from tradingagents.default_config import get_env_value
+
 API_BASE_URL = "https://finnhub.io/api/v1"
 
 
@@ -29,7 +31,7 @@ def get_api_key() -> str:
     Raises:
         APIKeyInvalidError: When FINNHUB_API_KEY is missing or empty.
     """
-    api_key = os.environ.get("FINNHUB_API_KEY")
+    api_key = get_env_value("FINNHUB_API_KEY")
     if not api_key:
         raise APIKeyInvalidError(
             "FINNHUB_API_KEY environment variable is not set or is empty."

@@ -90,6 +90,33 @@ def _build_env_snapshot(
     return merged
 
 
+def get_env_value(
+    key: str,
+    default=None,
+    *,
+    load_dotenv: bool | None = None,
+    dotenv_path: str | Path | None = None,
+    environ: Mapping[str, str] | None = None,
+):
+    """Read an arbitrary environment variable with optional .env overlay.
+
+    This preserves the config module's non-mutating dotenv behavior while
+    allowing runtime integrations that still rely on standard env var names
+    (for example ``OPENROUTER_API_KEY``) to resolve values from ``.env``.
+    """
+    if load_dotenv is None:
+        load_dotenv = _should_load_dotenv_by_default()
+    env = _build_env_snapshot(
+        load_dotenv=load_dotenv,
+        dotenv_path=dotenv_path,
+        environ=environ,
+    )
+    value = env.get(key)
+    if not value:  # None or empty string
+        return default
+    return value
+
+
 def _env(key: str, default=None, *, env: Mapping[str, str] | None = None):
     """Read TRADINGAGENTS_<KEY> from the provided environment mapping."""
     source = (
@@ -244,4 +271,3 @@ def build_default_config(
 DEFAULT_CONFIG = build_default_config(
     load_dotenv=_should_load_dotenv_by_default(),
 )
-

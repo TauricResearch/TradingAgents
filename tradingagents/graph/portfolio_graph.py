@@ -21,13 +21,15 @@ from .portfolio_setup import PortfolioGraphSetup
 class PortfolioGraph:
     """Orchestrates the Portfolio Manager workflow.
 
-    Sequential phases:
+    Current phases:
     1. load_portfolio — fetch portfolio + holdings from DB
     2. compute_risk — compute portfolio risk metrics
     3. review_holdings — LLM reviews all open positions (mid_think)
     4. prioritize_candidates — score and rank scanner candidates
-    5. pm_decision — LLM produces BUY/SELL/HOLD decisions (deep_think)
-    6. execute_trades — execute decisions and take EOD snapshot
+    5. macro_summary + micro_summary — parallel summary fan-out
+    6. pm_decision — LLM produces BUY/SELL/HOLD decisions (deep_think)
+    7. cash_sweep — deterministic post-processing step
+    8. execute_trades — execute decisions and take EOD snapshot
     """
 
     def __init__(

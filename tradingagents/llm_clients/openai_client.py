@@ -1,4 +1,3 @@
-import os
 import time
 from typing import Any, Optional
 
@@ -6,6 +5,8 @@ import httpx
 import openai
 from langchain_openai import ChatOpenAI
 from pydantic import PrivateAttr
+
+from tradingagents.default_config import get_env_value
 
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
@@ -125,11 +126,17 @@ class OpenAIClient(BaseLLMClient):
                 host = host.rstrip("/") + "/v1"
             llm_kwargs["base_url"] = host
             llm_kwargs["api_key"] = "ollama"
+        elif self.provider == "openai":
+            api_key = get_env_value("OPENAI_API_KEY")
+            if api_key:
+                llm_kwargs["api_key"] = api_key
+            if self.base_url:
+                llm_kwargs["base_url"] = self.base_url
         elif self.provider in _PROVIDER_CONFIG:
             base_url, api_key_env = _PROVIDER_CONFIG[self.provider]
             llm_kwargs["base_url"] = base_url
             if api_key_env:
-                api_key = os.environ.get(api_key_env)
+                api_key = get_env_value(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
         elif self.base_url:
