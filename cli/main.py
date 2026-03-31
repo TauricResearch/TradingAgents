@@ -547,15 +547,26 @@ def get_user_selections():
     )
     selected_research_depth = select_research_depth()
 
-    # Step 6: LLM Provider
+    # Step 5: LLM Provider
     console.print(
         create_question_box(
-            "Step 6: LLM Provider", "Select your LLM provider"
+            "Step 5: LLM Provider", "Select which service to talk to"
         )
     )
     selected_llm_provider, backend_url = select_llm_provider()
 
-    # Step 7: Thinking agents
+    # GitHub Copilot: run OAuth before proceeding
+    if selected_llm_provider.lower() == "copilot":
+        console.print(
+            create_question_box(
+                "Step 5b: Copilot Auth",
+                "Authenticate with the GitHub CLI to use GitHub Copilot",
+            )
+        )
+        if not perform_copilot_oauth():
+            exit(1)
+    
+    # Step 6: Thinking agents
     console.print(
         create_question_box(
             "Step 7: Thinking Agents", "Select your thinking agents for analysis"
