@@ -267,7 +267,7 @@ class TradingAgentsGraph:
             "w",
             encoding="utf-8",
         ) as f:
-            json.dump(self.log_states_dict, f, indent=4)
+            json.dump(self.log_states_dict, f, indent=4, ensure_ascii=False)
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
