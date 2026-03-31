@@ -414,3 +414,23 @@ class TestPMDecisionAgentInputs:
         assert "Input B — Direct Candidate Final Trade Decision Summaries" in llm.captured_prompt
         assert "durable moat" in llm.captured_prompt
         assert "AAPL" in llm.captured_prompt
+
+    def test_pm_prompt_ignores_prior_message_history(self):
+        """PM agent should rebuild its prompt from state data, not replay prior chat history."""
+        llm = _StructuredLLMCapture(_valid_pm_payload())
+        agent = create_pm_decision_agent(llm)
+        state = {
+            "macro_brief": "macro",
+            "micro_brief": "micro",
+            "prioritized_candidates": "[]",
+            "portfolio_data": "{}",
+            "messages": [AIMessage(content="prior message that should not be replayed")],
+            "analysis_date": "2026-03-31",
+        }
+
+        result = agent(state)
+
+        assert isinstance(result["pm_decision"], str)
+        assert "prior message that should not be replayed" not in llm.captured_prompt
+        assert "macro" in llm.captured_prompt
+        assert "micro" in llm.captured_prompt
