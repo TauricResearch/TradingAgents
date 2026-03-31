@@ -1,3 +1,5 @@
+from __future__ import annotations
+import json
 """Tests for Macro_Summary_Agent and Micro_Summary_Agent.
 
 Strategy:
@@ -9,7 +11,6 @@ Strategy:
   returns a fixed AIMessage, making it fully compatible with the chain.
 """
 
-from __future__ import annotations
 
 from unittest.mock import MagicMock
 
@@ -23,6 +24,7 @@ from tradingagents.agents.portfolio.macro_summary_agent import (
 from tradingagents.agents.portfolio.micro_summary_agent import (
     create_micro_summary_agent,
 )
+from tradingagents.agents.portfolio.holding_reviewer import create_holding_reviewer
 from tradingagents.agents.portfolio.pm_decision_agent import (
     PMDecisionSchema,
     create_pm_decision_agent,
@@ -414,3 +416,95 @@ class TestPMDecisionAgentInputs:
         assert "Input B — Direct Candidate Final Trade Decision Summaries" in llm.captured_prompt
         assert "durable moat" in llm.captured_prompt
         assert "AAPL" in llm.captured_prompt
+
+    def test_pm_prompt_ignores_prior_message_history(self):
+        """PM agent should rebuild its prompt from state data, not replay prior chat history."""
+        llm = _StructuredLLMCapture(_valid_pm_payload())
+        agent = create_pm_decision_agent(llm)
+        state = {
+            "macro_brief": "macro",
+            "micro_brief": "micro",
+            "prioritized_candidates": "[]",
+            "portfolio_data": "{}",
+            "messages": [AIMessage(content="prior message that should not be replayed")],
+            "analysis_date": "2026-03-31",
+        }
+
+        result = agent(state)
+
+        assert isinstance(result["pm_decision"], str)
+        assert "prior message that should not be replayed" not in llm.captured_prompt
+        assert "macro" in llm.captured_prompt
+        assert "micro" in llm.captured_prompt
+
+class TestSummaryAgentsRobustness:
+    def test_macro_summary_agent_ignores_prior_message_history(self):
+        captured = []
+        def _invoke(input, config=None, **kwargs):
+            captured.append(input)
+            return AIMessage(content="MACRO REGIME: neutral")
+        
+        llm = RunnableLambda(_invoke)
+        agent = create_macro_summary_agent(llm)
+        state = {
+            "messages": [AIMessage(content="This prior message should be ignored.")],
+            "scan_summary": {"executive_summary": "Flat markets"},
+            "analysis_date": "2026-03-31",
+        }
+
+        agent(state)
+
+        # The chain passes a ChatPromptValue to the LLM
+        messages = captured[0].to_messages()
+        assert len(messages) == 1
+        assert messages[0].type == "system"
+        assert "This prior message should be ignored." not in messages[0].content
+
+    def test_micro_summary_agent_ignores_prior_message_history(self):
+        captured = []
+        def _invoke(input, config=None, **kwargs):
+            captured.append(input)
+            return AIMessage(content="Micro brief")
+        
+        llm = RunnableLambda(_invoke)
+        agent = create_micro_summary_agent(llm)
+        state = {
+            "messages": [AIMessage(content="This prior message should be ignored.")],
+            "holding_reviews": "{}",
+            "prioritized_candidates": "[]",
+            "analysis_date": "2026-03-31",
+        }
+
+        agent(state)
+
+        messages = captured[0].to_messages()
+        assert len(messages) == 1
+        assert messages[0].type == "system"
+        assert "This prior message should be ignored." not in messages[0].content
+    def test_holding_reviewer_ignores_prior_message_history(self):
+        captured = []
+        def _invoke(input, config=None, **kwargs):
+            captured.append(input)
+            return AIMessage(content="{}")
+        
+        class MockLLM:
+            def __init__(self):
+                self.runnable = RunnableLambda(_invoke)
+            def bind_tools(self, tools):
+                return self.runnable
+        
+        llm = MockLLM()
+        agent = create_holding_reviewer(llm)
+        state = {
+            "messages": [AIMessage(content="This prior message should be ignored.")],
+            "portfolio_data": json.dumps({"holdings": [{"ticker": "AAPL"}]}),
+            "analysis_date": "2026-03-31",
+        }
+
+        agent(state)
+
+        messages = captured[0].to_messages()
+        assert len(messages) == 1
+        assert messages[0].type == "system"
+        assert "This prior message should be ignored." not in messages[0].content
+

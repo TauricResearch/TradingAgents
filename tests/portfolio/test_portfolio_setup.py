@@ -49,3 +49,42 @@ def test_prioritize_candidates_only_uses_completed_ticker_analyses():
     prioritized = json.loads(result["prioritized_candidates"])
     assert [candidate["ticker"] for candidate in prioritized] == ["AAPL"]
     assert prioritized[0]["candidate_final_trade_decision_summary"] == "Rating: Buy"
+
+
+def test_prioritize_candidates_ignores_running_analyses_even_with_stray_decisions():
+    setup = PortfolioGraphSetup(agents={}, config={})
+    node = setup._make_prioritize_candidates_node()
+
+    state = {
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {
+                    "portfolio_id": "p1",
+                    "name": "Main",
+                    "cash": 100000.0,
+                    "initial_cash": 100000.0,
+                },
+                "holdings": [],
+            }
+        ),
+        "scan_summary": {
+            "stocks_to_investigate": [
+                {"ticker": "AAPL"},
+                {"ticker": "NVDA"},
+            ]
+        },
+        "ticker_analyses": {
+            "equity:AAPL": {"analysis_status": "completed", "final_trade_decision": "Rating: Buy"},
+            "equity:NVDA": {
+                "analysis_status": "running",
+                "final_trade_decision": "Stray partial output should not count.",
+            },
+        },
+        "prices": {},
+    }
+
+    with patch("tradingagents.portfolio.memory_loader.build_selection_memory", return_value=None):
+        result = node(state)
+
+    prioritized = json.loads(result["prioritized_candidates"])
+    assert [candidate["ticker"] for candidate in prioritized] == ["AAPL"]

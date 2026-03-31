@@ -25,10 +25,8 @@ def _analysis_has_deep_dive(analysis: dict) -> bool:
     if not isinstance(analysis, dict):
         return False
     status = str(analysis.get("analysis_status") or "").strip().lower()
-    if status == "aborted":
-        return False
-    if status == "completed":
-        return True
+    if status:
+        return status == "completed"
     return bool(str(analysis.get("final_trade_decision") or "").strip())
 
 
@@ -209,7 +207,7 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
         prompt = prompt.partial(current_date=analysis_date)
 
         chain = prompt | llm
-        result = chain.invoke(state["messages"])
+        result = chain.invoke([])
 
         return {
             "messages": [result],

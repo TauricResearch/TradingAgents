@@ -238,7 +238,7 @@ def create_pm_decision_agent(
         chain = prompt | structured_llm
 
         try:
-            result = chain.invoke(state["messages"])
+            result = chain.invoke([])
             decision_str = result.model_dump_json()
         except Exception as exc:
             logger.warning(
@@ -246,7 +246,7 @@ def create_pm_decision_agent(
             )
             # Fallback: plain LLM + extract_json
             chain_raw = prompt | llm
-            raw_result = chain_raw.invoke(state["messages"])
+            raw_result = chain_raw.invoke([])
             raw = raw_result.content or "{}"
             try:
                 parsed = extract_json(raw)

@@ -29,10 +29,8 @@ def _analysis_has_deep_dive(analysis: Any) -> bool:
     if not isinstance(analysis, dict):
         return False
     status = str(analysis.get("analysis_status") or "").strip().lower()
-    if status == "aborted":
-        return False
-    if status == "completed":
-        return True
+    if status:
+        return status == "completed"
     return bool(str(analysis.get("final_trade_decision") or "").strip())
 
 
@@ -163,7 +161,7 @@ def create_holding_reviewer(llm):
         prompt = prompt.partial(current_date=analysis_date)
 
         chain = prompt | llm.bind_tools(tools)
-        result = run_tool_loop(chain, state["messages"], tools)
+        result = run_tool_loop(chain, [], tools)
 
         raw = result.content or "{}"
         try:
