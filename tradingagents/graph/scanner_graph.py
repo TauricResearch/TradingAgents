@@ -16,6 +16,7 @@ from tradingagents.agents.scanners import (
     create_smart_money_scanner,
     create_industry_deep_dive,
     create_macro_synthesis,
+    create_scanner_summarizer,
 )
 from .scanner_setup import ScannerGraphSetup
 

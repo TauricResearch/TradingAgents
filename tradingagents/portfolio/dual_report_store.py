@@ -144,28 +144,18 @@ class DualReportStore:
     # ------------------------------------------------------------------
 
     def save_run_meta(self, date: str, data: dict[str, Any]) -> Any:
-        local_result = self._local.save_run_meta(date, data)
-        self._try_mongo(lambda: self._mongo.save_run_meta(date, data), None)
-        return local_result
+        return self._local.save_run_meta(date, data)
 
     def load_run_meta(self, date: str) -> dict[str, Any] | None:
-        return self._try_mongo(lambda: self._mongo.load_run_meta(date), None) or self._local.load_run_meta(date)
+        return self._local.load_run_meta(date)
 
     def save_run_events(self, date: str, events: list[dict[str, Any]]) -> Any:
-        local_result = self._local.save_run_events(date, events)
-        self._try_mongo(lambda: self._mongo.save_run_events(date, events), None)
-        return local_result
+        return self._local.save_run_events(date, events)
 
     def load_run_events(self, date: str) -> list[dict[str, Any]]:
-        mongo_events = self._try_mongo(lambda: self._mongo.load_run_events(date), None)
-        if mongo_events:
-            return mongo_events
         return self._local.load_run_events(date)
 
     def list_run_metas(self) -> list[dict[str, Any]]:
-        mongo_metas = self._try_mongo(lambda: self._mongo.list_run_metas(), None)
-        if mongo_metas:
-            return mongo_metas
         return self._local.list_run_metas()
 
     # ------------------------------------------------------------------
@@ -173,20 +163,16 @@ class DualReportStore:
     # ------------------------------------------------------------------
 
     def save_analysts_checkpoint(self, date: str, ticker: str, data: dict[str, Any]) -> Any:
-        local_result = self._local.save_analysts_checkpoint(date, ticker, data)
-        self._try_mongo(lambda: self._mongo.save_analysts_checkpoint(date, ticker, data), None)
-        return local_result
+        return self._local.save_analysts_checkpoint(date, ticker, data)
 
     def load_analysts_checkpoint(self, date: str, ticker: str) -> dict[str, Any] | None:
-        return self._try_mongo(lambda: self._mongo.load_analysts_checkpoint(date, ticker), None) or self._local.load_analysts_checkpoint(date, ticker)
+        return self._local.load_analysts_checkpoint(date, ticker)
 
     def save_trader_checkpoint(self, date: str, ticker: str, data: dict[str, Any]) -> Any:
-        local_result = self._local.save_trader_checkpoint(date, ticker, data)
-        self._try_mongo(lambda: self._mongo.save_trader_checkpoint(date, ticker, data), None)
-        return local_result
+        return self._local.save_trader_checkpoint(date, ticker, data)
 
     def load_trader_checkpoint(self, date: str, ticker: str) -> dict[str, Any] | None:
-        return self._try_mongo(lambda: self._mongo.load_trader_checkpoint(date, ticker), None) or self._local.load_trader_checkpoint(date, ticker)
+        return self._local.load_trader_checkpoint(date, ticker)
 
     # ------------------------------------------------------------------
     # Utility
