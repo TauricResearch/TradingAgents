@@ -331,6 +331,11 @@ class LangGraphEngine:
             async for event in scanner.graph.astream_events(
                 initial_state, version="v2", config={"callbacks": [rl.callback]}
             ):
+                if _run_should_stop(root_run_id):
+                    logger.info("SCAN run=%s: graceful stop requested, aborting early", root_run_id)
+                    yield self._system_log("Aborting macro scan due to graceful stop request.")
+                    raise asyncio.CancelledError()
+
                 # Capture the complete final state from the root graph's terminal event.
                 # LangGraph v2 emits one root-level on_chain_end (parent_ids=[], no
                 # langgraph_node in metadata) whose data.output is the full accumulated state.
@@ -546,6 +551,11 @@ class LangGraphEngine:
                     "callbacks": [rl.callback],
                 },
             ):
+                if _run_should_stop(root_run_id):
+                    logger.info("PIPELINE run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
+                    yield self._system_log(f"Aborting analysis for {ticker} due to graceful stop request.")
+                    raise asyncio.CancelledError()
+
                 # Capture the complete final state from the root graph's terminal event.
                 if self._is_root_chain_end(event):
                     output = (event.get("data") or {}).get("output")
@@ -768,6 +778,11 @@ class LangGraphEngine:
         async for event in portfolio_graph.graph.astream_events(
             initial_state, version="v2", config={"callbacks": [rl.callback]}
         ):
+            if _run_should_stop(root_run_id):
+                logger.info("PORTFOLIO run=%s: graceful stop requested, aborting early", root_run_id)
+                yield self._system_log("Aborting portfolio management due to graceful stop request.")
+                raise asyncio.CancelledError()
+
             if self._is_root_chain_end(event):
                 output = (event.get("data") or {}).get("output")
                 if isinstance(output, dict):
@@ -946,6 +961,11 @@ class LangGraphEngine:
                     initial_state, version="v2",
                     config={"recursion_limit": graph_wrapper.propagator.max_recur_limit, "callbacks": [rl.callback]},
                 ):
+                    if _run_should_stop(root_run_id):
+                        logger.info("PIPELINE_RERUN run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
+                        yield self._system_log(f"Aborting rerun for {ticker} due to graceful stop request.")
+                        raise asyncio.CancelledError()
+
                     if self._is_root_chain_end(event):
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
@@ -1012,6 +1032,11 @@ class LangGraphEngine:
                     initial_state, version="v2",
                     config={"recursion_limit": graph_wrapper.propagator.max_recur_limit, "callbacks": [rl.callback]},
                 ):
+                    if _run_should_stop(root_run_id):
+                        logger.info("PIPELINE_RERUN_RISK run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
+                        yield self._system_log(f"Aborting risk rerun for {ticker} due to graceful stop request.")
+                        raise asyncio.CancelledError()
+
                     if self._is_root_chain_end(event):
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
@@ -1526,6 +1551,11 @@ class LangGraphEngine:
                     + ", ".join(sorted(retry_tickers))
                 )
                 for ticker in retry_tickers:
+                    if _run_should_stop(root_run_id):
+                        logger.info("AUTO_PHASE3_DECISION run=%s: graceful stop requested, aborting early", root_run_id)
+                        yield self._system_log("Aborting retry due to graceful stop request.")
+                        raise asyncio.CancelledError()
+
                     item = incomplete_map[ticker]
                     async for evt in self.run_pipeline(
                         f"{root_run_id}:decision-retry:{ticker}",
