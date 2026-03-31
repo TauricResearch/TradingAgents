@@ -35,3 +35,24 @@ def test_websocket_endpoint_swallows_cancelled_error(monkeypatch):
         websocket_route.runs.pop(run_id, None)
 
     assert fake_ws.accepted is True
+
+
+def test_websocket_endpoint_emits_heartbeat_during_quiet_run(monkeypatch):
+    run_id = "heartbeat-run"
+    fake_ws = _FakeWebSocket()
+    websocket_route.runs[run_id] = {"status": "running", "events": []}
+    monkeypatch.setattr(websocket_route, "_HEARTBEAT_INTERVAL_SECONDS", 0.0)
+
+    async def _sleep(_: float) -> None:
+        websocket_route.runs[run_id]["status"] = "completed"
+
+    monkeypatch.setattr(websocket_route.asyncio, "sleep", _sleep)
+
+    try:
+        asyncio.run(websocket_route.websocket_endpoint(fake_ws, run_id))
+    finally:
+        websocket_route.runs.pop(run_id, None)
+
+    assert fake_ws.accepted is True
+    assert any(payload.get("message") == "__heartbeat__" for payload in fake_ws.sent)
+    assert fake_ws.sent[-1]["message"] == "Run completed."

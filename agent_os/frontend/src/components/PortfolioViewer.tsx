@@ -24,8 +24,7 @@ import {
 } from '@chakra-ui/react';
 import { Wallet, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
 import axios from 'axios';
-
-const API_BASE = 'http://127.0.0.1:8088/api';
+import { API_BASE } from '../config/api';
 
 interface Holding {
   ticker: string;

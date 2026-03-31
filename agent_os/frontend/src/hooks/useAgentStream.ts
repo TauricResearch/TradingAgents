@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { buildWebSocketUrl } from '../config/api';
 
 export interface AgentEvent {
   id: string;
@@ -45,75 +46,142 @@ export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = tr
   const statusRef = useRef(status);
   statusRef.current = status;
   const terminalStatusRef = useRef<'completed' | 'error' | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const sessionTokenRef = useRef(0);
 
-  const connect = useCallback(() => {
-    if (!enabled || !runId) return;
-
-    setStatus('connecting');
-    setError(null);
-    terminalStatusRef.current = null;
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = '127.0.0.1:8088'; // Hardcoded for local dev to match backend
-    const socket = new WebSocket(`${protocol}//${host}/ws/stream/${runId}`);
-
-    socket.onopen = () => {
-      setStatus('streaming');
-      console.log(`Connected to run: ${runId}`);
-    };
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'system' && data.message === 'Run completed.') {
-        terminalStatusRef.current = 'completed';
-        setStatus('completed');
-        socket.close();
-      } else if (data.type === 'system' && data.message?.startsWith('Error:')) {
-        terminalStatusRef.current = 'error';
-        setStatus('error');
-        setError(data.message);
-        socket.close();
-      } else {
-        setEvents((prev) => [...prev, data as AgentEvent]);
-      }
-    };
-
-    socket.onclose = () => {
-      if (terminalStatusRef.current === 'completed') {
-        setStatus('completed');
-        console.log(`Disconnected from run: ${runId}`);
-        return;
-      }
-      if (terminalStatusRef.current === 'error') {
-        setStatus('error');
-        console.log(`Disconnected from run: ${runId}`);
-        return;
-      }
-      // Only transition to idle if we weren't already in a terminal state
-      if (statusRef.current !== 'completed' && statusRef.current !== 'error') {
-        setStatus('idle');
-      }
-      console.log(`Disconnected from run: ${runId}`);
-    };
-
-    socket.onerror = (err) => {
-      setStatus('error');
-      setError('WebSocket error occurred');
-      console.error(err);
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [runId, reloadKey, enabled]); // reconnect when caller explicitly bumps reloadKey
+  const clearReconnectTimer = () => {
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  };
 
   useEffect(() => {
-    if (enabled && runId) {
-      const cleanup = connect();
-      return cleanup;
+    const invalidateSession = () => {
+      sessionTokenRef.current += 1;
+    };
+
+    const closeSocket = () => {
+      clearReconnectTimer();
+      const currentSocket = socketRef.current;
+      socketRef.current = null;
+      if (currentSocket && (currentSocket.readyState === WebSocket.CONNECTING || currentSocket.readyState === WebSocket.OPEN)) {
+        currentSocket.close();
+      }
+    };
+
+    invalidateSession();
+    closeSocket();
+
+    if (!enabled || !runId) {
+      terminalStatusRef.current = null;
+      if (statusRef.current !== 'completed' && statusRef.current !== 'error') {
+        setStatus('idle');
+        setError(null);
+      }
+      return () => {
+        invalidateSession();
+        closeSocket();
+      };
     }
-  }, [runId, reloadKey, enabled, connect]);
+
+    const sessionToken = ++sessionTokenRef.current;
+    terminalStatusRef.current = null;
+    setStatus('connecting');
+    setError(null);
+
+    const openSocket = (attempt: number) => {
+      if (sessionToken !== sessionTokenRef.current || !runId || !enabled) return;
+
+      const socket = new WebSocket(buildWebSocketUrl(runId));
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        if (sessionToken !== sessionTokenRef.current) {
+          socket.close();
+          return;
+        }
+        clearReconnectTimer();
+        setStatus('streaming');
+        setError(null);
+        console.log(`Connected to run: ${runId}`);
+      };
+
+      socket.onmessage = (event) => {
+        if (sessionToken !== sessionTokenRef.current) return;
+
+        let data: any;
+        try {
+          data = JSON.parse(event.data);
+        } catch (parseError) {
+          console.error('Failed to parse WebSocket payload', parseError);
+          return;
+        }
+
+        if (data.type === 'system' && data.message === '__heartbeat__') {
+          return;
+        }
+
+        if (data.type === 'system' && data.message === 'Run completed.') {
+          terminalStatusRef.current = 'completed';
+          setStatus('completed');
+          socket.close();
+          return;
+        }
+
+        if (data.type === 'system' && data.message?.startsWith('Error:')) {
+          terminalStatusRef.current = 'error';
+          setStatus('error');
+          setError(data.message);
+          socket.close();
+          return;
+        }
+
+        setEvents((prev) => [...prev, data as AgentEvent]);
+      };
+
+      socket.onclose = () => {
+        if (socketRef.current === socket) {
+          socketRef.current = null;
+        }
+        if (sessionToken !== sessionTokenRef.current) {
+          return;
+        }
+        if (terminalStatusRef.current === 'completed') {
+          setStatus('completed');
+          console.log(`Disconnected from run: ${runId}`);
+          return;
+        }
+        if (terminalStatusRef.current === 'error') {
+          setStatus('error');
+          console.log(`Disconnected from run: ${runId}`);
+          return;
+        }
+
+        const reconnectDelayMs = Math.min(1000 * Math.max(attempt + 1, 1), 5000);
+        setStatus('connecting');
+        setError('Connection lost. Reconnecting…');
+        clearReconnectTimer();
+        reconnectTimerRef.current = window.setTimeout(() => {
+          openSocket(attempt + 1);
+        }, reconnectDelayMs);
+        console.warn(`Disconnected from run: ${runId}. Reconnecting in ${reconnectDelayMs}ms.`);
+      };
+
+      socket.onerror = (err) => {
+        if (sessionToken !== sessionTokenRef.current) return;
+        console.error(err);
+      };
+    };
+
+    openSocket(0);
+
+    return () => {
+      invalidateSession();
+      closeSocket();
+    };
+  }, [runId, reloadKey, enabled]);
 
   const clearEvents = () => setEvents([]);
   const replaceEvents = (nextEvents: AgentEvent[]) => setEvents(nextEvents);
