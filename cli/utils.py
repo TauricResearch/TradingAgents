@@ -192,7 +192,7 @@ def select_llm_provider() -> tuple[str, str | None]:
     # Define LLM provider options with their corresponding endpoints
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
-        ("Google", None),  # google-genai SDK manages its own endpoint internally
+        ("Google", None),  # google-generativeai SDK manages its own endpoint internally
         ("Anthropic", "https://api.anthropic.com/"),
         ("xAI", "https://api.x.ai/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
