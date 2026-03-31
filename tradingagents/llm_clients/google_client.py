@@ -28,8 +28,10 @@ class GoogleClient(BaseLLMClient):
         self.warn_if_unknown_model()
         llm_kwargs = {"model": self.model}
 
-        if self.base_url:
-            llm_kwargs["base_url"] = self.base_url
+        # base_url is intentionally NOT passed to ChatGoogleGenerativeAI.
+        # The google-genai SDK manages its own endpoint and API versioning internally.
+        # Passing a base_url (e.g. https://generativelanguage.googleapis.com/v1)
+        # causes 404s because the SDK appends its own paths onto the override URL.
 
         for key in ("timeout", "max_retries", "callbacks", "http_client", "http_async_client"):
             if key in self.kwargs:
