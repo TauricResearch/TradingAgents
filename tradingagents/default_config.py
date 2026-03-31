@@ -246,7 +246,7 @@ def build_default_config(
         "max_risk_discuss_rounds": _env_int("MAX_RISK_DISCUSS_ROUNDS", 2, env=env),
         "max_recur_limit": _env_int("MAX_RECUR_LIMIT", 100, env=env),
         # Concurrency settings
-        "max_concurrent_pipelines": _env_int("MAX_CONCURRENT_PIPELINES", 2, env=env),
+        "max_concurrent_pipelines": _env_int("MAX_CONCURRENT_PIPELINES", 5, env=env),
         "max_auto_tickers": _env_int("MAX_AUTO_TICKERS", 10, env=env),
         "scan_horizon_days": _env_int("SCAN_HORIZON_DAYS", 30, env=env),
         # Data vendor configuration
