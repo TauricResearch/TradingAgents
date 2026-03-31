@@ -18,6 +18,28 @@ The agent map is a directed graph (DAG) representing the LangGraph workflow in r
 - **Interrupts:** Use LangGraph's `interrupt_before` features to halt execution at specific nodes (e.g., `trader_node`).
 - **Control API:** `POST /api/run/{run_id}/resume` to signal the graph to continue.
 
+### Phase 3 Decision Gate
+
+Auto runs now have a separate pause mode before portfolio execution:
+
+- **Backend state:** `awaiting_decision`
+- **Persistence contract:** `pending_phase3_decision` is written into run metadata and rehydrated on startup
+- **WebSocket contract:** a system payload with `run_status="awaiting_decision"` and the pending decision payload ends the live stream cleanly
+- **Frontend behavior:** open a modal listing incomplete tickers with:
+  - checkbox per ticker
+  - reason for incompleteness
+  - portfolio context badge (`holding` vs `candidate`)
+- **User actions:**
+  - select one or more tickers and retry only those
+  - leave all unchecked and continue to Phase 3
+  - if retries still leave incomplete tickers, reopen the same decision flow
+
+### Warnings
+
+- This is not just a modal. Any future change must preserve the backend state machine, websocket signal, and frontend paused-state handling together.
+- Closing or refreshing the UI must not discard the decision payload. The source of truth is persisted run metadata, not local component state.
+- `awaiting_decision` should be treated as terminal for the stream transport but resumable for the run lifecycle.
+
 ---
 
 ## 2. The "Top 3" Metrics Consensus

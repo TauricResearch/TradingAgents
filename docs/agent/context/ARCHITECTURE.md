@@ -128,7 +128,8 @@ Current AgentOS behavior:
 
 - REST run endpoints create a new `run_id`, initialize in-memory run state, persist initial metadata, and start a background task.
 - The background task drives `LangGraphEngine` and appends streamed events into `runs[run_id]["events"]`.
-- The WebSocket endpoint streams cached events, polls for new ones, and lazy-loads history from disk when needed.
+- The background task can now move a run into `awaiting_decision` for auto-mode Phase 3 gating; this state is persisted with `pending_phase3_decision`.
+- The WebSocket endpoint streams cached events, polls for new ones, lazy-loads history from disk when needed, and treats `awaiting_decision` as a terminal transport state with a resumable run lifecycle.
 - Startup hydration rebuilds run metadata from persisted `run_meta.json` files.
 
 This means WebSocket is the event stream transport, not the sole executor.
