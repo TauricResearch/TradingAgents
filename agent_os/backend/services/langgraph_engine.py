@@ -1439,6 +1439,54 @@ class LangGraphEngine:
         finally:
             self._finish_run_logger(execution_key, get_daily_dir(date, root_run_id))
 
+    async def _run_auto_phase_three(
+        self,
+        *,
+        root_run_id: str,
+        date: str,
+        force: bool,
+        params: Dict[str, Any],
+        store,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Run or resume the portfolio stage for an auto workflow."""
+        yield self._system_log("Phase 3/3: Running portfolio manager…")
+        portfolio_params = {k: v for k, v in params.items() if k != "ticker"}
+        portfolio_params["run_id"] = root_run_id
+        portfolio_id = params.get("portfolio_id", "main_portfolio")
+
+        # Check if portfolio stage is fully complete (execution result exists)
+        if not force and store.load_execution_result(date, portfolio_id):
+            yield self._system_log(
+                f"Phase 3: Portfolio execution for {portfolio_id} on {date} already exists, skipping."
+            )
+        else:
+            # Check if we can resume from a saved decision
+            saved_decision = store.load_pm_decision(date, portfolio_id)
+            if not force and saved_decision:
+                yield self._system_log(
+                    f"Phase 3: Found saved PM decision for {portfolio_id}, resuming trade execution…"
+                )
+                prices = _fetch_prices(_tickers_from_decision(saved_decision))
+                async for evt in self.run_trade_execution(
+                    root_run_id,
+                    date,
+                    portfolio_id,
+                    saved_decision,
+                    prices,
+                    store=store,
+                ):
+                    yield evt
+            else:
+                async for evt in self.run_portfolio(
+                    f"{root_run_id}:portfolio",
+                    {
+                        "date": date,
+                        **portfolio_params,
+                        "_execution_key": f"{root_run_id}:portfolio",
+                    },
+                ):
+                    yield evt
+
     async def run_auto_phase3_decision(
         self,
         run_id: str,
