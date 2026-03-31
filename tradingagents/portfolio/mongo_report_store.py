@@ -80,9 +80,9 @@ class MongoReportStore:
             self._col: Collection = self._db[_REPORTS_COLLECTION]
         except Exception as exc:
             raise ReportStoreError(f"MongoDB connection failed: {exc}") from exc
-        # Indexes are created lazily on the first write so that __init__ never
-        # blocks on a live network call.  Call ensure_indexes() explicitly if
-        # you need them to exist before the first write (e.g. in tests).
+
+        # Ensure indexes exist on startup as per ADR 016.
+        self.ensure_indexes()
 
     @property
     def run_id(self) -> str | None:
@@ -92,8 +92,9 @@ class MongoReportStore:
     def ensure_indexes(self) -> None:
         """Create indexes for efficient querying (idempotent).
 
-        Called automatically on the first write so that ``__init__`` never
-        blocks on a live network call.  Safe to call multiple times.
+        Called automatically in ``__init__`` as per ADR 016 so that indexes
+        are always present regardless of how the store was created.
+        Safe to call multiple times.
         """
         if self._indexes_ensured:
             return

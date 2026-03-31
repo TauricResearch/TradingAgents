@@ -332,9 +332,14 @@ class LangGraphEngine:
                 initial_state, version="v2", config={"callbacks": [rl.callback]}
             ):
                 if _run_should_stop(root_run_id):
+<<<<<<< HEAD
                     logger.info("SCAN run=%s: graceful stop requested, aborting early", root_run_id)
                     yield self._system_log("Aborting macro scan due to graceful stop request.")
                     raise asyncio.CancelledError()
+=======
+                    yield self._system_log("Graceful stop requested — aborting market scan.")
+                    raise RuntimeError("Run stopped by user")
+>>>>>>> f1807fa (fix: ensure immediate stop interruption and fix MongoDB indexing)
 
                 # Capture the complete final state from the root graph's terminal event.
                 # LangGraph v2 emits one root-level on_chain_end (parent_ids=[], no
@@ -552,9 +557,14 @@ class LangGraphEngine:
                 },
             ):
                 if _run_should_stop(root_run_id):
+<<<<<<< HEAD
                     logger.info("PIPELINE run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
                     yield self._system_log(f"Aborting analysis for {ticker} due to graceful stop request.")
                     raise asyncio.CancelledError()
+=======
+                    yield self._system_log(f"Graceful stop requested — aborting pipeline for {ticker}.")
+                    raise RuntimeError("Run stopped by user")
+>>>>>>> f1807fa (fix: ensure immediate stop interruption and fix MongoDB indexing)
 
                 # Capture the complete final state from the root graph's terminal event.
                 if self._is_root_chain_end(event):
@@ -779,9 +789,14 @@ class LangGraphEngine:
             initial_state, version="v2", config={"callbacks": [rl.callback]}
         ):
             if _run_should_stop(root_run_id):
+<<<<<<< HEAD
                 logger.info("PORTFOLIO run=%s: graceful stop requested, aborting early", root_run_id)
                 yield self._system_log("Aborting portfolio management due to graceful stop request.")
                 raise asyncio.CancelledError()
+=======
+                yield self._system_log(f"Graceful stop requested — aborting portfolio management for {portfolio_id}.")
+                raise RuntimeError("Run stopped by user")
+>>>>>>> f1807fa (fix: ensure immediate stop interruption and fix MongoDB indexing)
 
             if self._is_root_chain_end(event):
                 output = (event.get("data") or {}).get("output")

@@ -56,7 +56,7 @@ def test_infer_scan_resume_node_picks_sector_when_other_phase_one_branches_finis
     assert runs_route._infer_scan_resume_node(events) == "sector_scanner"
 
 
-def test_stop_run_sets_graceful_stop_without_cancelling_task(monkeypatch):
+def test_stop_run_cancels_task(monkeypatch):
     run_id = "run-stop"
 
     class _Task:
@@ -89,7 +89,7 @@ def test_stop_run_sets_graceful_stop_without_cancelling_task(monkeypatch):
         runs_route.run_tasks.pop(run_id, None)
 
     assert result == {"run_id": run_id, "status": "stopping", "stopped": True}
-    assert task.cancel_called is False
+    assert task.cancel_called is True
 
 
 def test_stop_run_does_not_corrupt_completed_run_when_task_disappears():

@@ -734,8 +734,9 @@ async def stop_run(
     task = run_tasks.get(run_id)
     if task and not task.done():
         run["stop_requested"] = True
-        _append_system_event(run_id, "Graceful stop requested — current work will finish, but no new work will be queued.")
-        logger.info("Stop requested run=%s user=%s", run_id, user["user_id"])
+        _append_system_event(run_id, "Immediate stop requested — terminating active tasks.")
+        task.cancel()
+        logger.info("Stop requested run=%s user=%s (task cancelled)", run_id, user["user_id"])
         return {"run_id": run_id, "status": "stopping", "stopped": True}
 
     current_status = run.get("status")

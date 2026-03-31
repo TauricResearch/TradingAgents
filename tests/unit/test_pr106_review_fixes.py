@@ -202,9 +202,7 @@ class TestListPmDecisionsExcludesId(unittest.TestCase):
     """Verify list_pm_decisions uses {_id: 0} projection."""
 
     def test_projection_excludes_object_id(self):
-        import tradingagents.portfolio.mongo_report_store as mongo_report_store
-
-        with patch.object(mongo_report_store, "MongoClient") as mock_client_cls:
+        with patch("tradingagents.portfolio.mongo_report_store.MongoClient") as mock_client_cls:
             mock_col = MagicMock()
             mock_db = MagicMock()
             mock_db.__getitem__ = MagicMock(return_value=mock_col)
@@ -392,9 +390,7 @@ class TestEnsureIndexesInInit(unittest.TestCase):
     """Verify ensure_indexes is called during __init__, not just via factory."""
 
     def test_init_calls_ensure_indexes(self):
-        import tradingagents.portfolio.mongo_report_store as mongo_report_store
-
-        with patch.object(mongo_report_store, "MongoClient") as mock_client_cls:
+        with patch("tradingagents.portfolio.mongo_report_store.MongoClient") as mock_client_cls:
             mock_col = MagicMock()
             mock_db = MagicMock()
             mock_db.__getitem__ = MagicMock(return_value=mock_col)
@@ -404,11 +400,8 @@ class TestEnsureIndexesInInit(unittest.TestCase):
 
             from tradingagents.portfolio.mongo_report_store import MongoReportStore
 
-            store = MongoReportStore("mongodb://localhost:27017", run_id="test")
-
-            # Indexes are now created lazily, not in __init__.
-            # Explicitly call ensure_indexes() to test index creation logic.
-            store.ensure_indexes()
+            # Should call ensure_indexes() automatically
+            MongoReportStore("mongodb://localhost:27017", run_id="test")
 
             # create_index should have been called at least 4 times
             # (the indexes from ensure_indexes)
