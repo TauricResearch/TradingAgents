@@ -1,9 +1,33 @@
-from typing import Any, Optional
+from typing import Any, Optional, List
 
+from langchain_core.messages import BaseMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
+
+# Dummy value sanctioned by Google to skip thought_signature validation.
+# See https://ai.google.dev/gemini-api/docs/thought-signatures#faqs
+_SKIP_THOUGHT_SIG = b"skip_thought_signature_validator"
+
+
+def _inject_thought_signatures(request: Any) -> Any:
+    """Add dummy thought_signature to function-call parts in Gemini 3 requests.
+
+    langchain-google-genai <=2.x does not preserve thought_signature fields
+    returned by the API, causing 400 errors on the next turn.  Google's FAQ
+    allows a well-known dummy value to bypass server-side validation.
+    """
+    for content in request.contents:
+        if content.role != "model":
+            continue
+        first_fc = True
+        for part in content.parts:
+            if part.function_call.name:  # has a function call
+                if first_fc:
+                    part.thought_signature = _SKIP_THOUGHT_SIG
+                    first_fc = False
+    return request
 
 
 class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
@@ -11,7 +35,18 @@ class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
 
     Gemini 3 models return content as list of typed blocks.
     This normalizes to string for consistent downstream handling.
+    Also injects dummy thought signatures for Gemini 3 function calling.
     """
+
+    def _prepare_request(
+        self,
+        messages: List[BaseMessage],
+        **kwargs: Any,
+    ) -> Any:
+        request = super()._prepare_request(messages, **kwargs)
+        if "gemini-3" in (self.model or "").lower():
+            _inject_thought_signatures(request)
+        return request
 
     def invoke(self, input, config=None, **kwargs):
         return normalize_content(super().invoke(input, config, **kwargs))
