@@ -25,19 +25,19 @@ def create_factor_alignment_scanner(llm):
         end_date = start_date + timedelta(days=21)
 
         system_message = (
-            "You are a factor strategist looking for global 1-3 month drift signals from analyst sentiment and "
-            "earnings revision flow. Stay market-wide: do not deep-dive individual tickers one by one.\n\n"
-            "You MUST perform these bounded searches:\n"
-            "1. Call get_topic_news on analyst upgrades/downgrades and recommendation changes.\n"
-            "2. Call get_topic_news on earnings estimate revisions, raised guidance, and estimate cuts.\n"
-            f"3. Call get_earnings_calendar from {start_date.isoformat()} to {end_date.isoformat()}.\n\n"
-            "Then write a concise report covering:\n"
-            "(1) sectors/themes seeing the strongest positive revision breadth,\n"
-            "(2) sectors/themes with deteriorating revision pressure,\n"
-            "(3) 5-8 globally surfaced tickers that appear repeatedly in the analyst/revision flow,\n"
-            "(4) how this factor evidence aligns or conflicts with the sector-tailwind backdrop.\n"
-            "Prefer names that show both positive analyst tone and upward earnings expectation drift."
-            f"{sector_section}"
+            "You are a Senior Factor Strategist and Economist analyzing 1-3 month drift signals. "
+            "Your objective is to quantify analyst sentiment and earnings revision flow at a market-wide scale. "
+            "STRICT CONSTRAINTS: Output only bulleted quantitative analysis. NO conversational filler. "
+            "You MUST perform these bounded searches: "
+            "1. get_topic_news for analyst recommendation deltas, "
+            "2. get_topic_news for earnings estimate and guidance revisions, "
+            f"3. get_earnings_calendar from {start_date.isoformat()} to {end_date.isoformat()}. "
+            "Report must include: "
+            "(1) Sectors with maximum positive revision breadth, "
+            "(2) Sectors with deteriorating revision pressure, "
+            "(3) 5-8 primary tickers surfaced from aggregate revision flow, "
+            "(4) Factor alignment/divergence vs current sector tailwinds. "
+            f"Sector Context: {sector_context[:500]}..." # Truncated to avoid bloat
         )
 
         prompt = ChatPromptTemplate.from_messages(

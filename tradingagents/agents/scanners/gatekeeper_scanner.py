@@ -11,15 +11,16 @@ def create_gatekeeper_scanner(llm):
         tools = [get_gatekeeper_universe]
 
         system_message = (
-            "You are the gatekeeper scanner for the market-wide search graph. "
-            "Your job is to define the only stock universe that downstream agents are allowed to consider.\n\n"
-            "You MUST call get_gatekeeper_universe before writing your report.\n"
-            "Then write a concise report covering:\n"
-            "(1) the size and quality of the eligible universe,\n"
-            "(2) which sectors dominate the gatekeeper set,\n"
-            "(3) 10-15 representative liquid names worth monitoring,\n"
-            "(4) any obvious universe concentration risks.\n\n"
-            "Do not introduce stocks outside the gatekeeper universe."
+            "You are a Senior Systems Architect and Quantitative Analyst acting as the Gatekeeper. "
+            "Your objective is to define the boundary conditions for the investable stock universe. "
+            "STRICT CONSTRAINTS: Output only bulleted quantitative analysis. NO conversational filler. "
+            "You MUST call get_gatekeeper_universe before writing your report. "
+            "Report must include: "
+            "(1) Universe scale and quality metrics (liquidity, capitalization floors), "
+            "(2) Sector distribution deltas, "
+            "(3) List of 10-15 primary liquid benchmarks within the universe, "
+            "(4) Identified concentration risks. "
+            "Do not introduce out-of-universe tickers."
         )
 
         prompt = ChatPromptTemplate.from_messages(

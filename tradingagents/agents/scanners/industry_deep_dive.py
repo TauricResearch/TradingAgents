@@ -130,50 +130,28 @@ def create_industry_deep_dive(llm):
         sector_report = state.get("sector_performance_report", "")
         top_sectors = _extract_top_sectors(sector_report, top_n=3)
 
-        # Inject Phase 1 context so the LLM can decide which sectors to drill into
-        phase1_context = f"""## Phase 1 Scanner Reports (for your reference)
-
-### Geopolitical Report:
-{state.get("geopolitical_report", "Not available")}
-
-### Gatekeeper Universe Report:
-{state.get("gatekeeper_universe_report", "Not available")}
-
-### Market Movers Report:
-{state.get("market_movers_report", "Not available")}
-
-### Sector Performance Report:
-{sector_report or "Not available"}
-
-### Factor Alignment Report:
-{state.get("factor_alignment_report", "Not available")}
-
-### Drift Opportunities Report:
-{state.get("drift_opportunities_report", "Not available")}
-
-### Smart Money Report:
-{state.get("smart_money_report", "Not available")}
+        # Inject Phase 1 context — keep it concise
+        phase1_context = f"""## Phase 1 Context
+- Geopolitical: {state.get("geopolitical_report", "N/A")[:300]}...
+- Market Movers: {state.get("market_movers_report", "N/A")[:300]}...
+- Sector Perf: {sector_report[:300] if sector_report else "N/A"}...
+- Factor Alignment: {state.get("factor_alignment_report", "N/A")[:300]}...
+- Drift Opts: {state.get("drift_opportunities_report", "N/A")[:300]}...
+- Smart Money: {state.get("smart_money_report", "N/A")[:300]}...
 """
 
-        sector_list_str = ", ".join(f"'{s}'" for s in top_sectors)
-        all_keys_str = ", ".join(f"'{s}'" for s in VALID_SECTOR_KEYS)
-
         system_message = (
-            "You are a senior research analyst performing an industry deep dive.\n\n"
-            "## Your task\n"
-            "Based on the Phase 1 reports below, drill into the most interesting sectors "
-            "using the tools provided and write a detailed analysis.\n\n"
-            "## IMPORTANT — You MUST call tools before writing your report\n"
-            f"1. Call get_industry_performance for EACH of these top sectors: {sector_list_str}\n"
-            "2. Call get_topic_news for at least 2 sector-specific topics "
-            "(e.g., 'semiconductor industry', 'renewable energy stocks').\n"
-            "3. After receiving tool results, write your detailed report.\n\n"
-            f"Valid sector_key values for get_industry_performance: {all_keys_str}\n\n"
-            "## Report structure\n"
-            "(1) Why these industries were selected (link to Phase 1 findings)\n"
-            "(2) Top companies within each industry and their recent performance\n"
-            "(3) Industry-specific catalysts and risks\n"
-            "(4) Cross-references between geopolitical events and sector opportunities\n\n"
+            "You are a Senior Research Analyst and Economist performing an industry deep dive. "
+            "Your objective is to drill into high-conviction sectors using clinical, quantitative analysis. "
+            "STRICT CONSTRAINTS: Output only bulleted quantitative analysis. NO conversational filler. "
+            "You MUST call these tools: "
+            f"1. get_industry_performance for: {sector_list_str}, "
+            "2. get_topic_news for at least 2 specific industry themes. "
+            "Report must include: "
+            "(1) Industry selection rationale linked to Phase 1 deltas, "
+            "(2) Top-tier constituents and recent performance metrics, "
+            "(3) Industry-specific catalysts and structural risks, "
+            "(4) Macro-Industry cross-reference opportunities. "
             f"{phase1_context}"
         )
 

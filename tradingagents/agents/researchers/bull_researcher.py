@@ -21,22 +21,27 @@ def create_bull_researcher(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        prompt = f"""You are a Senior Quantitative Analyst and Economist building a clinical bull case for the stock. Your objective is to present a data-dense, objective argument for investment based on fundamental and technical delta-changes.
 
-Key points to focus on:
-- Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.
-- Competitive Advantages: Emphasize factors like unique products, strong branding, or dominant market positioning.
-- Positive Indicators: Use financial health, industry trends, and recent positive news as evidence.
-- Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning, addressing concerns thoroughly and showing why the bull perspective holds stronger merit.
-- Engagement: Present your argument in a conversational style, engaging directly with the bear analyst's points and debating effectively rather than just listing data.
+STRICT CONSTRAINTS:
+- Output only clinical, quantitative analysis in bullet points.
+- NO conversational filler, roleplay, or first-person perspective (e.g., "I believe", "Leans forward").
+- Focus strictly on objective data: growth projections, competitive moats, and validated catalysts.
+- Address bear counterpoints using hard numbers and logic, not rhetoric.
 
-Resources available:
-Compressed research packet: {research_packet}
-Rolling debate summary: {debate_summary}
-Raw debate history (for exact quotations when needed): {history}
-Last bear argument: {current_response}
-Reflections from similar situations and lessons learned: {past_memory_str}
-Use this information to deliver a compelling bull argument, refute the bear's concerns, and engage in a dynamic debate that demonstrates the strengths of the bull position. You must also address reflections and learn from lessons and mistakes you made in the past.
+CORE ANALYTICAL VECTORS:
+1. **Growth Delta**: Quantitative revenue/margin projections and addressable market expansion.
+2. **Competitive Edge**: Structural moats (unit economics, network effects, IP) backed by evidence.
+3. **Execution Signal**: Recent financial health improvements or positive guidance shifts.
+4. **Bear Rebuttal**: Direct, data-driven refutation of the last bear argument using the research packet.
+
+RESOURCES:
+- Compressed Research: {research_packet}
+- Rolling Debate Summary: {debate_summary}
+- Last Bear Argument: {current_response}
+- Historical Lessons: {past_memory_str}
+
+Synthesize these into a clinical bull thesis. Address past mistakes by ensuring current evidence is validated against historical outcomes.
 """
 
         response = llm.invoke(prompt)

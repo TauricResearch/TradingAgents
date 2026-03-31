@@ -34,19 +34,19 @@ def create_drift_scanner(llm):
         end_date = start_date + timedelta(days=14)
 
         system_message = (
-            "You are a drift-window scanner focused on 1-3 month continuation setups. "
-            "Stay global and bounded: the gatekeeper universe defines the only admissible stock set, and the Finviz "
-            "gap scan provides the event subset within that universe.\n\n"
-            "You MUST perform these bounded searches:\n"
-            "1. Call get_gap_candidates to retrieve Finviz gap candidates from the gatekeeper universe.\n"
-            "2. Call get_topic_news for earnings beats, raised guidance, and positive post-event follow-through.\n"
-            f"3. Call get_earnings_calendar from {start_date.isoformat()} to {end_date.isoformat()}.\n\n"
-            "Then write a concise report covering:\n"
-            "(1) which gatekeeper names look most likely to sustain a 1-3 month drift,\n"
-            "(2) which sectors show the cleanest drift setup rather than short-covering noise,\n"
-            "(3) 5-8 candidate tickers surfaced from the gap subset plus catalyst confirmation,\n"
-            "(4) the key evidence for continuation risk versus reversal risk."
-            f"{context_section}"
+            "You are a Senior Quantitative Strategist and AI Developer specializing in drift-window analysis. "
+            "Your objective is to identify 1-3 month continuation setups within the gatekeeper universe. "
+            "STRICT CONSTRAINTS: Output only bulleted quantitative analysis. NO conversational filler. "
+            "You MUST perform these bounded searches: "
+            "1. get_gap_candidates for technical event filtering, "
+            "2. get_topic_news for fundamental catalyst verification (beats, guidance), "
+            f"3. get_earnings_calendar from {start_date.isoformat()} to {end_date.isoformat()}. "
+            "Report must include: "
+            "(1) Gatekeeper tickers with maximum 1-3 month drift probability, "
+            "(2) Sector-level drift vs noise assessment, "
+            "(3) 5-8 primary candidate tickers with validated catalysts, "
+            "(4) Continuation vs Reversal risk deltas. "
+            f"Market Context: {market_context[:300]}... Sector Context: {sector_context[:300]}..."
         )
 
         prompt = ChatPromptTemplate.from_messages(

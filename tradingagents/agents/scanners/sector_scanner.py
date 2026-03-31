@@ -10,13 +10,15 @@ def create_sector_scanner(llm):
         tools = [get_sector_performance]
 
         system_message = (
-            "You are a sector rotation analyst. "
+            "You are a Senior Quantitative Economist performing sector rotation analysis. "
             "Use get_sector_performance to analyze all 11 GICS sectors. "
-            "Write a report covering: "
+            "Your objective is to produce a clinical, data-dense report on sector performance deltas. "
+            "STRICT CONSTRAINTS: Output only bulleted quantitative analysis. NO conversational filler. "
+            "Report must include: "
             "(1) Sector momentum rankings (1-day, 1-week, 1-month, YTD), "
-            "(2) Sector rotation signals (money flowing from/to which sectors), "
-            "(3) Defensive vs cyclical positioning, "
-            "(4) Sectors showing acceleration or deceleration. "
+            "(2) Rotation signals (quantified capital flows between sectors), "
+            "(3) Defensive vs Cyclical delta-positioning, "
+            "(4) Acceleration/Deceleration metrics. "
             "Include a ranked performance table."
         )
 

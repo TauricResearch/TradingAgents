@@ -17,17 +17,30 @@ def create_conservative_debator(llm):
         risk_summary = get_risk_debate_summary(state)
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains. Here is the trader's decision:
+        prompt = f"""You are a Senior Risk Manager and Economist acting as the Conservative Risk Analyst. Your objective is to clinically identify systemic risks, volatility threats, and capital preservation requirements in the trader's plan.
 
-{trader_decision}
+Trader's Decision: {trader_decision}
 
-Your task is to actively counter the arguments of the Aggressive and Neutral Analysts, highlighting where their views may overlook potential threats or fail to prioritize sustainability. Respond directly to their points, drawing from the following data sources to build a convincing case for a low-risk approach adjustment to the trader's decision:
+STRICT CONSTRAINTS:
+- Output only clinical, quantitative analysis in bullet points.
+- NO conversational filler, roleplay, or first-person perspective.
+- Prioritize asset protection, volatility minimization, and tail-risk assessment.
+- Directly refute aggressive/neutral optimism using quantitative risk metrics and historical parallels.
 
-Compressed research packet: {research_packet}
-Rolling risk debate summary: {risk_summary}
-Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the neutral analyst: {current_neutral_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
+CORE ANALYTICAL VECTORS:
+1. **Risk Exposure**: Quantitative assessment of potential drawdowns and market volatility.
+2. **Structural Fragility**: Identification of overlooked threats or unsustainable assumptions in the plan.
+3. **Defensive Synthesis**: Data-driven rebuttal of the last aggressive and neutral arguments.
 
-Engage by questioning their optimism and emphasizing the potential downsides they may have overlooked. Address each of their counterpoints to showcase why a conservative stance is ultimately the safest path for the firm's assets. Focus on debating and critiquing their arguments to demonstrate the strength of a low-risk strategy over their approaches. Output conversationally as if you are speaking without any special formatting."""
+RESOURCES:
+- Compressed Research: {research_packet}
+- Rolling Risk Summary: {risk_summary}
+- Conversation History: {history}
+- Last Aggressive Argument: {current_aggressive_response}
+- Last Neutral Argument: {current_neutral_response}
+
+Synthesize these into a clinical conservative risk thesis. Focus on why capital preservation must take precedence in the current regime.
+"""
 
         response = llm.invoke(prompt)
 

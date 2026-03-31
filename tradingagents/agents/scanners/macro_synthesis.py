@@ -249,7 +249,7 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
         scan_date = state["scan_date"]
         horizon_label = _format_horizon_label(scan_horizon_days)
 
-        # Inject all previous reports for synthesis — no tools, pure LLM reasoning
+        # Inject all previous reports for synthesis — keep it concise to avoid token bloat
         smart_money = state.get("smart_money_report", "") or "Not available"
         candidate_rankings = _build_candidate_rankings(state)
         ranking_section = ""
@@ -258,58 +258,25 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
                 f"- {row['ticker']}: score={row['score']} sources={', '.join(row['sources'])}"
                 for row in candidate_rankings
             ]
-            ranking_section = "\n\n### Deterministic Candidate Ranking:\n" + "\n".join(ranking_lines)
-        all_reports_context = f"""## All Scanner and Research Reports
-
-### Gatekeeper Universe Report:
-{state.get("gatekeeper_universe_report", "Not available")}
-
-### Geopolitical Report:
-{state.get("geopolitical_report", "Not available")}
-
-### Market Movers Report:
-{state.get("market_movers_report", "Not available")}
-
-### Sector Performance Report:
-{state.get("sector_performance_report", "Not available")}
-
-### Factor Alignment Report:
-{state.get("factor_alignment_report", "Not available")}
-
-### Drift Opportunities Report:
-{state.get("drift_opportunities_report", "Not available")}
-
-### Smart Money Report (Finviz institutional screeners):
-{smart_money}
-
-### Industry Deep Dive Report:
-{state.get("industry_deep_dive_report", "Not available")}
+            ranking_section = "\n\n### Deterministic Rankings:\n" + "\n".join(ranking_lines)
+        
+        all_reports_context = f"""## Previous Reports Context
+- Geo: {state.get("geopolitical_report", "N/A")[:300]}...
+- Market: {state.get("market_movers_report", "N/A")[:300]}...
+- Sector: {state.get("sector_performance_report", "N/A")[:300]}...
+- Factor: {state.get("factor_alignment_report", "N/A")[:300]}...
+- Drift: {state.get("drift_opportunities_report", "N/A")[:300]}...
+- Smart Money: {smart_money[:300]}...
+- Industry: {state.get("industry_deep_dive_report", "N/A")[:300]}...
 {ranking_section}
 """
 
         system_message = (
-            "You are a macro strategist synthesizing all scanner and research reports into a final investment thesis. "
-            "You have received: gatekeeper universe analysis, geopolitical analysis, market regime analysis, sector performance analysis, "
-            "smart money institutional screener results, and industry deep dive analysis. "
-            "A deterministic candidate-ranking snapshot is also provided when available. Treat higher-ranked "
-            "candidates as preferred because they appeared across more independent scanner streams. "
-            "Do not recommend stocks outside the gatekeeper universe. "
-            "Treat the upstream reports as the only source of truth. Do not add partnerships, price targets, "
-            "product details, geopolitical timelines, or company-specific catalysts unless they already appear "
-            "in the provided reports. If the evidence for a candidate is thin, keep the rationale generic and "
-            "say so instead of fabricating specifics. "
-            "## THE GOLDEN OVERLAP (apply when Smart Money Report is available and not 'Not available'):\n"
-            "Cross-reference the Smart Money tickers with your macro regime thesis. "
-            "If a Smart Money ticker fits your top-down macro narrative (e.g., an Energy stock with heavy insider "
-            "buying during an oil shortage), prioritize it as a top candidate and label its conviction as 'high'. "
-            "If no Smart Money tickers fit the macro narrative, proceed with the best candidates from other reports.\n\n"
-            "Synthesize all reports into a structured output with: "
-            "(1) Executive summary of the macro environment, "
-            "(2) Top macro themes with conviction levels, "
-            f"(3) A list of exactly {max_scan_tickers} specific stocks worth investigating with ticker, name, sector, rationale, "
-            "thesis_angle (growth/value/catalyst/turnaround/defensive/momentum), conviction (high/medium/low), "
-            "key_catalysts, and risks. "
-            "Output your response as valid JSON matching this schema:\n"
+            "You are a Senior Macro Strategist and Systems Architect synthesizing research into a clinical investment thesis. "
+            "Your objective is to produce a data-dense macro summary and identify top-tier ticker candidates. "
+            "STRICT CONSTRAINTS: Output ONLY valid JSON. NO preamble or conversational filler. "
+            "Apply the 'Golden Overlap': prioritize Smart Money tickers that align with the top-down macro regime. "
+            "Synthesize all evidence into a structured output following this schema: "
             "{\n"
             f'  "timeframe": "{horizon_label}",\n'
             '  "executive_summary": "...",\n'
@@ -318,10 +285,8 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
             '  "stocks_to_investigate": [{ "ticker": "...", "name": "...", "sector": "...", "rationale": "...", '
             '"thesis_angle": "...", "conviction": "high|medium|low", "key_catalysts": [...], "risks": [...] }],\n'
             '  "risk_factors": ["..."]\n'
-            "}"
-            "\n\nIMPORTANT: Output ONLY valid JSON. Start your response with '{' and end with '}'. "
-            "Do NOT use markdown code fences. Do NOT include any explanation or preamble before or after the JSON."
-            f"\n\n{all_reports_context}"
+            "}\n"
+            f"{all_reports_context}"
         )
 
         prompt = ChatPromptTemplate.from_messages(

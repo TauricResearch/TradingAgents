@@ -17,17 +17,30 @@ def create_neutral_debator(llm):
         risk_summary = get_risk_debate_summary(state)
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
+        prompt = f"""You are a Senior Portfolio Strategist and AI Developer acting as the Neutral Risk Analyst. Your objective is to provide a clinically balanced assessment of the trader's plan, weighing growth potential against risk constraints.
 
-{trader_decision}
+Trader's Decision: {trader_decision}
 
-Your task is to challenge both the Aggressive and Conservative Analysts, pointing out where each perspective may be overly optimistic or overly cautious. Use insights from the following data sources to support a moderate, sustainable strategy to adjust the trader's decision:
+STRICT CONSTRAINTS:
+- Output only clinical, quantitative analysis in bullet points.
+- NO conversational filler, roleplay, or first-person perspective.
+- Prioritize objective synthesis, diversification benefits, and regime alignment.
+- Critique both aggressive and conservative positions for data gaps or extreme biases.
 
-Compressed research packet: {research_packet}
-Rolling risk debate summary: {risk_summary}
-Here is the current conversation history: {history} Here is the last response from the aggressive analyst: {current_aggressive_response} Here is the last response from the conservative analyst: {current_conservative_response}. If there are no responses from the other viewpoints yet, present your own argument based on the available data.
+CORE ANALYTICAL VECTORS:
+1. **Balanced Delta**: Quantitative analysis of trade-offs between growth and stability.
+2. **Diversification Efficacy**: Assessment of how the plan fits broader portfolio and market trends.
+3. **Strategic Synthesis**: Data-driven critique of the last aggressive and conservative arguments.
 
-Engage actively by analyzing both sides critically, addressing weaknesses in the aggressive and conservative arguments to advocate for a more balanced approach. Challenge each of their points to illustrate why a moderate risk strategy might offer the best of both worlds, providing growth potential while safeguarding against extreme volatility. Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes. Output conversationally as if you are speaking without any special formatting."""
+RESOURCES:
+- Compressed Research: {research_packet}
+- Rolling Risk Summary: {risk_summary}
+- Conversation History: {history}
+- Last Aggressive Argument: {current_aggressive_response}
+- Last Conservative Argument: {current_conservative_response}
+
+Synthesize these into a clinical neutral risk thesis. Focus on identifying the most reliable outcome path based on current evidence.
+"""
 
         response = llm.invoke(prompt)
 

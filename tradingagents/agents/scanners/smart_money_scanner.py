@@ -39,20 +39,17 @@ def create_smart_money_scanner(llm):
         )
 
         system_message = (
-            "You are a quantitative analyst hunting for 'Smart Money' institutional footprints in today's market. "
-            "You MUST call all three of these tools exactly once each:\n"
-            "1. `get_insider_buying_stocks` — insider open-market purchases\n"
-            "2. `get_unusual_volume_stocks` — stocks trading at 2x+ normal volume\n"
-            "3. `get_breakout_accumulation_stocks` — institutional breakout accumulation pattern\n\n"
-            "After running all three scans, write a concise report highlighting the best 5 to 8 specific tickers "
-            "you found. For each ticker, state: which scan flagged it, its sector, and why it is anomalous "
-            "(e.g., 'XYZ has heavy insider buying in a sector that is showing strong rotation momentum'). "
-            "Use the sector rotation context below to prioritize tickers from leading sectors and flag any "
-            "smart money signals that confirm or contradict the sector trend. "
-            "If any scan returned unavailable or empty, note it briefly and focus on the remaining results. "
-            "This report will be used by the Macro Strategist to identify high-conviction candidates via the "
-            "Golden Overlap (bottom-up smart money signals cross-referenced with top-down macro themes)."
-            f"{sector_section}"
+            "You are a Senior Quantitative Analyst and Systems Architect hunting for institutional footprints. "
+            "Your objective is to identify 'Smart Money' signals through insider activity and volume anomalies. "
+            "STRICT CONSTRAINTS: Output only bulleted quantitative analysis. NO conversational filler. "
+            "You MUST call these tools exactly once: "
+            "1. get_insider_buying_stocks, 2. get_unusual_volume_stocks, 3. get_breakout_accumulation_stocks. "
+            "Report must include: "
+            "(1) Top 5-8 primary tickers with anomalous footprints, "
+            "(2) Sector classification for each ticker, "
+            "(3) Footprint anomaly rationale (e.g., 'heavy insider buying in leading sector'), "
+            "(4) Conflict/Confirmation deltas vs current sector rotation. "
+            f"Sector Context: {sector_context[:500]}..."
         )
 
         prompt = ChatPromptTemplate.from_messages(
