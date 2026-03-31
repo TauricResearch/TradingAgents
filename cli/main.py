@@ -28,6 +28,11 @@ from rich.align import Align
 from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.graph.analyst_execution import (
+    AnalystWallTimeTracker,
+    build_analyst_execution_plan,
+    sync_analyst_tracker_from_chunk,
+)
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.dataflows.progress import progress_sink
 from tradingagents.llm_clients.api_key_env import get_api_key_env
@@ -900,7 +905,7 @@ ANALYST_REPORT_MAP = {
 }
 
 
-def update_analyst_statuses(message_buffer, chunk):
+def update_analyst_statuses(message_buffer, chunk, wall_time_tracker=None):
     """Update analyst statuses based on accumulated report state.
 
     Logic:
@@ -913,6 +918,9 @@ def update_analyst_statuses(message_buffer, chunk):
     """
     selected = message_buffer.selected_analysts
     found_active = False
+
+    if wall_time_tracker is not None:
+        sync_analyst_tracker_from_chunk(wall_time_tracker, chunk)
 
     for analyst_key in ANALYST_ORDER:
         if analyst_key not in selected:
@@ -1049,6 +1057,11 @@ def run_analysis(checkpoint: bool = False, config_path: Path | None = None):
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
     selected_set = {analyst.value for analyst in selections["analysts"]}
     selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
+    analyst_execution_plan = build_analyst_execution_plan(
+        selected_analyst_keys,
+        concurrency_limit=config["analyst_concurrency_limit"],
+    )
+    analyst_wall_time_tracker = AnalystWallTimeTracker(analyst_execution_plan)
 
     # Initialize the graph with callbacks bound to LLMs
     graph = TradingAgentsGraph(
@@ -1134,8 +1147,9 @@ def run_analysis(checkpoint: bool = False, config_path: Path | None = None):
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         # Update agent status to in_progress for the first analyst
-        first_analyst = f"{selections['analysts'][0].value.capitalize()} Analyst"
+        first_analyst = f"{selected_analyst_keys[0].capitalize()} Analyst"
         message_buffer.update_agent_status(first_analyst, "in_progress")
+        analyst_wall_time_tracker.mark_started(selected_analyst_keys[0])
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
         # Create spinner text
@@ -1184,7 +1198,11 @@ def run_analysis(checkpoint: bool = False, config_path: Path | None = None):
                             message_buffer.add_tool_call(tool_call.name, tool_call.args)
 
             # Update analyst statuses based on report state (runs on every chunk)
-            update_analyst_statuses(message_buffer, chunk)
+            update_analyst_statuses(
+                message_buffer,
+                chunk,
+                wall_time_tracker=analyst_wall_time_tracker,
+            )
 
             # Research Team - Handle Investment Debate State
             if chunk.get("investment_debate_state"):
@@ -1273,6 +1291,7 @@ def run_analysis(checkpoint: bool = False, config_path: Path | None = None):
         message_buffer.add_message(
             "System", f"已完成 {selections['analysis_date']} 的分析"
         )
+        message_buffer.add_message("System", analyst_wall_time_tracker.format_summary())
 
         # Update final report sections
         for section in message_buffer.report_sections.keys():
@@ -1283,6 +1302,7 @@ def run_analysis(checkpoint: bool = False, config_path: Path | None = None):
 
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]分析完成。[/bold cyan]\n")
+    console.print(f"[dim]{analyst_wall_time_tracker.format_summary()}[/dim]")
 
     # Prompt to save report
     should_save = bool(selections.get("save_report", True))
