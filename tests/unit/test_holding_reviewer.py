@@ -128,3 +128,27 @@ def test_holding_reviewer_calls_out_missing_deep_dive_context():
 
     assert "No completed deep-dive ticker analyses available for current holdings." in full_text
     assert "If a holding has no completed deep-dive analysis, say that prior thesis context is missing" in full_text
+
+def test_holding_reviewer_ignores_prior_message_history():
+    llm = _CapturingLLM(_review_payload())
+    node = create_holding_reviewer(llm)
+    state = {
+        "messages": [HumanMessage(content="This prior message should be ignored.")],
+        "analysis_date": "2026-03-30",
+        "portfolio_data": json.dumps(
+            {
+                "portfolio": {"name": "Core"},
+                "holdings": [{"ticker": "AAPL", "shares": 10, "avg_cost": 180.0, "sector": "Technology"}],
+            }
+        ),
+        "ticker_analyses": {},
+    }
+
+    node(state)
+
+    messages = llm.runnable.captured_inputs[0]
+    full_text = " ".join(
+        message.content if hasattr(message, "content") else str(message)
+        for message in messages
+    )
+    assert "This prior message should be ignored." not in full_text

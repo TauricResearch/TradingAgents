@@ -434,3 +434,48 @@ class TestPMDecisionAgentInputs:
         assert "prior message that should not be replayed" not in llm.captured_prompt
         assert "macro" in llm.captured_prompt
         assert "micro" in llm.captured_prompt
+
+class TestSummaryAgentsRobustness:
+    def test_macro_summary_agent_ignores_prior_message_history(self):
+        captured = []
+        def _invoke(input, config=None, **kwargs):
+            captured.append(input)
+            return AIMessage(content="MACRO REGIME: neutral")
+        
+        llm = RunnableLambda(_invoke)
+        agent = create_macro_summary_agent(llm)
+        state = {
+            "messages": [AIMessage(content="This prior message should be ignored.")],
+            "scan_summary": {"executive_summary": "Flat markets"},
+            "analysis_date": "2026-03-31",
+        }
+
+        agent(state)
+
+        # The chain passes a ChatPromptValue to the LLM
+        messages = captured[0].to_messages()
+        assert len(messages) == 1
+        assert messages[0].type == "system"
+        assert "This prior message should be ignored." not in messages[0].content
+
+    def test_micro_summary_agent_ignores_prior_message_history(self):
+        captured = []
+        def _invoke(input, config=None, **kwargs):
+            captured.append(input)
+            return AIMessage(content="Micro brief")
+        
+        llm = RunnableLambda(_invoke)
+        agent = create_micro_summary_agent(llm)
+        state = {
+            "messages": [AIMessage(content="This prior message should be ignored.")],
+            "holding_reviews": "{}",
+            "prioritized_candidates": "[]",
+            "analysis_date": "2026-03-31",
+        }
+
+        agent(state)
+
+        messages = captured[0].to_messages()
+        assert len(messages) == 1
+        assert messages[0].type == "system"
+        assert "This prior message should be ignored." not in messages[0].content
