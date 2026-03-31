@@ -5,6 +5,7 @@ import logging
 import time
 from pathlib import Path
 from typing import Dict, Any, AsyncGenerator
+from agent_os.backend.store import runs as live_runs
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.scanner_graph import ScannerGraph
 from tradingagents.graph.portfolio_graph import PortfolioGraph
@@ -130,6 +131,11 @@ def _analysis_has_deep_dive(analysis: Any) -> bool:
     if status == "completed":
         return True
     return bool(str(analysis.get("final_trade_decision") or "").strip())
+
+
+def _run_should_stop(run_id: str) -> bool:
+    """Return True when a graceful stop has been requested for the root run."""
+    return bool((live_runs.get(run_id) or {}).get("stop_requested"))
 
 
 def _normalize_analysis_status(analysis: dict[str, Any]) -> str:
@@ -1050,6 +1056,9 @@ class LangGraphEngine:
                 scan_params["max_tickers"] = params["max_tickers"]
             async for evt in self.run_scan(f"{root_run_id}:scan", scan_params):
                 yield evt
+        if _run_should_stop(root_run_id):
+            yield self._system_log("Graceful stop requested — finishing after the market scan phase.")
+            return
 
         # Phase 2: Pipeline analysis — get tickers from scan report + portfolio holdings
         yield self._system_log("Phase 2/3: Loading stocks from scan report…")
@@ -1290,7 +1299,31 @@ class LangGraphEngine:
                             )
 
             async def _pipeline_producer() -> None:
-                await asyncio.gather(*[_run_one_ticker(instrument) for instrument in queued_instruments])
+                pending: set[asyncio.Task] = set()
+                iterator = iter(queued_instruments)
+
+                while True:
+                    while len(pending) < max_concurrent:
+                        if _run_should_stop(root_run_id):
+                            await pipeline_queue.put(
+                                self._system_log(
+                                    "Graceful stop requested — no new ticker pipelines will be queued."
+                                )
+                            )
+                            break
+                        try:
+                            instrument = next(iterator)
+                        except StopIteration:
+                            break
+                        pending.add(asyncio.create_task(_run_one_ticker(instrument)))
+
+                    if not pending:
+                        break
+
+                    done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                    for task in done:
+                        await task
+
                 await pipeline_queue.put(_sentinel)
 
             asyncio.create_task(_pipeline_producer())
@@ -1320,6 +1353,9 @@ class LangGraphEngine:
                         "Retry the failed ticker pipelines or enable continue_on_ticker_failure. "
                         f"Failed tickers: {failed_summary}"
                     )
+        if _run_should_stop(root_run_id):
+            yield self._system_log("Graceful stop requested — finishing after Phase 2 without starting portfolio management.")
+            return
 
         # Phase 3: Portfolio management
         yield self._system_log("Phase 3/3: Running portfolio manager…")

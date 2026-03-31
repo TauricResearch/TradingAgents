@@ -14,6 +14,10 @@ from agent_os.backend.services.langgraph_engine import (
 from agent_os.backend.services.mock_engine import MockEngine
 from tradingagents.report_paths import generate_run_id
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.scanner_setup import (
+    SCANNER_START_NODES,
+    get_scanner_descendants,
+)
 
 logger = logging.getLogger("agent_os.runs")
 
@@ -21,6 +25,106 @@ router = APIRouter(prefix="/api/run", tags=["runs"])
 
 engine = LangGraphEngine()
 mock_engine = MockEngine()
+run_tasks: dict[str, asyncio.Task] = {}
+
+
+def _set_run_task(run_id: str, coro) -> None:
+    existing = run_tasks.get(run_id)
+    if existing and not existing.done():
+        existing.cancel()
+    run_tasks[run_id] = asyncio.create_task(coro)
+
+
+def _clear_run_task(run_id: str) -> None:
+    run_tasks.pop(run_id, None)
+
+
+def _append_system_event(run_id: str, message: str) -> None:
+    run = runs.get(run_id)
+    if not run:
+        return
+    run.setdefault("events", []).append(
+        {
+            "id": f"log_{time.time_ns()}",
+            "node_id": "__system__",
+            "type": "log",
+            "agent": "SYSTEM",
+            "message": message,
+            "metrics": {},
+            "timestamp": time.strftime("%H:%M:%S"),
+        }
+    )
+    _checkpoint_run_events(run_id)
+
+
+def _ensure_run_events_loaded(run_id: str) -> None:
+    run = runs.get(run_id)
+    if not run or run.get("events"):
+        return
+    try:
+        from tradingagents.portfolio.store_factory import create_report_store
+
+        date = (run.get("params") or {}).get("date", "")
+        if not date:
+            return
+        store = create_report_store(run_id=run_id)
+        events = store.load_run_events(date)
+        if events:
+            run["events"] = events
+    except Exception:
+        logger.warning("Failed to lazy-load events for run=%s", run_id)
+
+
+def _final_scan_results(events: list[dict[str, Any]]) -> dict[str, str]:
+    """Return the latest completed report per scan node.
+
+    Scanner nodes can emit an early placeholder ``result`` before they finish
+    their tool loop. We only treat a result as final when it appears after the
+    node's last child tool/tool_result event.
+    """
+    last_child_idx: dict[str, int] = {}
+    for idx, event in enumerate(events or []):
+        parent = event.get("parent_node_id", "")
+        if parent in SCAN_NODE_TO_REPORT_FIELD and event.get("type") in {"tool", "tool_result"}:
+            last_child_idx[parent] = idx
+
+    final_results: dict[str, str] = {}
+    for idx, event in enumerate(events or []):
+        node_id = event.get("node_id", "")
+        if event.get("identifier") != "MARKET" or event.get("type") != "result":
+            continue
+        if node_id not in SCAN_NODE_TO_REPORT_FIELD:
+            continue
+        if idx <= last_child_idx.get(node_id, -1):
+            continue
+        content = str(event.get("response") or event.get("message") or "").strip()
+        if content:
+            final_results[node_id] = content
+    return final_results
+
+
+def _infer_scan_resume_node(events: list[dict[str, Any]]) -> str | None:
+    """Pick the safest single-node resume point for an interrupted scan."""
+    completed = set(_final_scan_results(events))
+    if "macro_synthesis" in completed:
+        return None
+
+    missing_start_nodes = [node for node in SCANNER_START_NODES if node not in completed]
+    if len(missing_start_nodes) > 1:
+        return None
+    if len(missing_start_nodes) == 1:
+        return missing_start_nodes[0]
+
+    if any(
+        node not in completed
+        for node in ("sector_scanner", "factor_alignment_scanner", "smart_money_scanner", "drift_scanner")
+    ):
+        return "sector_scanner"
+    if "industry_deep_dive" not in completed:
+        return "industry_deep_dive"
+    if "macro_synthesis" not in completed:
+        return "macro_synthesis"
+    return None
 
 
 def _persist_run_to_disk(run_id: str, *, include_meta: bool = True) -> None:
@@ -67,6 +171,7 @@ async def _run_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None])
     """Drive an engine generator, updating run status and caching events."""
     runs[run_id]["status"] = "running"
     runs[run_id]["events"] = []
+    runs[run_id].pop("error", None)
     try:
         async for event in gen:
             runs[run_id]["events"].append(event)
@@ -74,14 +179,46 @@ async def _run_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None])
         runs[run_id]["status"] = "completed"
     except asyncio.CancelledError:
         runs[run_id]["status"] = "failed"
-        runs[run_id]["error"] = "Run cancelled"
+        runs[run_id]["error"] = (
+            "Run stopped by user" if runs[run_id].get("stop_requested") else "Run cancelled"
+        )
         logger.warning("Run cancelled run=%s", run_id)
     except Exception as exc:
         runs[run_id]["status"] = "failed"
         runs[run_id]["error"] = str(exc)
         logger.exception("Run failed run=%s", run_id)
     finally:
+        runs[run_id].pop("stop_requested", None)
         _persist_run_to_disk(run_id)
+        _clear_run_task(run_id)
+
+
+async def _resume_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None]) -> None:
+    """Drive a whole-run resume while preserving already-streamed events."""
+    run = runs.get(run_id)
+    if not run:
+        return
+    run["rerun_seq"] = run.get("rerun_seq", 0) + 1
+    run["status"] = "running"
+    run.pop("error", None)
+    try:
+        async for event in gen:
+            event["rerun_seq"] = run["rerun_seq"]
+            run.setdefault("events", []).append(event)
+            _checkpoint_run_events(run_id)
+        run["status"] = "completed"
+    except asyncio.CancelledError:
+        run["status"] = "failed"
+        run["error"] = "Run stopped by user" if run.get("stop_requested") else "Run cancelled"
+        logger.warning("Run resume cancelled run=%s", run_id)
+    except Exception as exc:
+        run["status"] = "failed"
+        run["error"] = str(exc)
+        logger.exception("Run resume failed run=%s", run_id)
+    finally:
+        run.pop("stop_requested", None)
+        _persist_run_to_disk(run_id)
+        _clear_run_task(run_id)
 
 
 @router.post("/scan")
@@ -103,7 +240,7 @@ async def trigger_scan(
     }
     _persist_run_to_disk(run_id)
     logger.info("Queued SCAN run=%s user=%s", run_id, user["user_id"])
-    background_tasks.add_task(_run_and_store, run_id, engine.run_scan(run_id, runs[run_id]["params"]))
+    _set_run_task(run_id, _run_and_store(run_id, engine.run_scan(run_id, runs[run_id]["params"])))
     return {"run_id": run_id, "status": "queued"}
 
 @router.post("/pipeline")
@@ -125,7 +262,7 @@ async def trigger_pipeline(
     }
     _persist_run_to_disk(run_id)
     logger.info("Queued PIPELINE run=%s user=%s", run_id, user["user_id"])
-    background_tasks.add_task(_run_and_store, run_id, engine.run_pipeline(run_id, runs[run_id]["params"]))
+    _set_run_task(run_id, _run_and_store(run_id, engine.run_pipeline(run_id, runs[run_id]["params"])))
     return {"run_id": run_id, "status": "queued"}
 
 @router.post("/portfolio")
@@ -147,7 +284,7 @@ async def trigger_portfolio(
     }
     _persist_run_to_disk(run_id)
     logger.info("Queued PORTFOLIO run=%s user=%s", run_id, user["user_id"])
-    background_tasks.add_task(_run_and_store, run_id, engine.run_portfolio(run_id, runs[run_id]["params"]))
+    _set_run_task(run_id, _run_and_store(run_id, engine.run_portfolio(run_id, runs[run_id]["params"])))
     return {"run_id": run_id, "status": "queued"}
 
 @router.post("/auto")
@@ -169,7 +306,7 @@ async def trigger_auto(
     }
     _persist_run_to_disk(run_id)
     logger.info("Queued AUTO run=%s user=%s", run_id, user["user_id"])
-    background_tasks.add_task(_run_and_store, run_id, engine.run_auto(run_id, runs[run_id]["params"]))
+    _set_run_task(run_id, _run_and_store(run_id, engine.run_auto(run_id, runs[run_id]["params"])))
     return {"run_id": run_id, "status": "queued"}
 
 @router.post("/mock")
@@ -203,9 +340,7 @@ async def trigger_mock(
         "Queued MOCK run=%s mock_type=%s user=%s",
         run_id, p.get("mock_type", "pipeline"), user["user_id"],
     )
-    background_tasks.add_task(
-        _run_and_store, run_id, mock_engine.run_mock(run_id, p)
-    )
+    _set_run_task(run_id, _run_and_store(run_id, mock_engine.run_mock(run_id, p)))
     return {"run_id": run_id, "status": "queued"}
 
 # Nodes produced by each phase (used to selectively remove stale events on re-run)
@@ -218,8 +353,6 @@ _RISK_NODES = frozenset({
 })
 # Portfolio-level cascade nodes always re-run after any phase re-run
 _PORTFOLIO_NODES = frozenset({"review_holdings", "make_pm_decision"})
-
-from tradingagents.graph.scanner_setup import get_scanner_descendants
 
 
 def _filter_rerun_events(events: list, ticker: str, phase: str) -> list:
@@ -290,16 +423,11 @@ def _build_scan_rerun_state(events: list) -> Dict[str, Any]:
         "macro_scan_summary": "",
         "sender": "",
     }
-    for event in events or []:
-        if event.get("identifier") != "MARKET" or event.get("type") != "result":
-            continue
-        field = SCAN_NODE_TO_REPORT_FIELD.get(event.get("node_id", ""))
-        if not field:
-            continue
-        content = event.get("response") or event.get("message") or ""
+    for node_id, content in _final_scan_results(events).items():
+        field = SCAN_NODE_TO_REPORT_FIELD.get(node_id, "")
         if content:
             state[field] = content
-            state["sender"] = event.get("node_id", "")
+            state["sender"] = node_id
     return state
 
 
@@ -310,6 +438,7 @@ async def _append_and_store(run_id: str, gen, ticker: str = None, phase: str = N
         return
     run["rerun_seq"] = run.get("rerun_seq", 0) + 1
     run["status"] = "running"
+    run.pop("error", None)
     # Preserve events for other tickers and earlier phases; remove only the stale
     # nodes that the re-run will replace.
     if ticker and phase:
@@ -324,14 +453,16 @@ async def _append_and_store(run_id: str, gen, ticker: str = None, phase: str = N
         run["status"] = "completed"
     except asyncio.CancelledError:
         run["status"] = "failed"
-        run["error"] = "Run cancelled"
+        run["error"] = "Run stopped by user" if run.get("stop_requested") else "Run cancelled"
         logger.warning("Rerun cancelled run=%s", run_id)
     except Exception as exc:
         run["status"] = "failed"
         run["error"] = str(exc)
         logger.exception("Rerun failed run=%s", run_id)
     finally:
+        run.pop("stop_requested", None)
         _persist_run_to_disk(run_id)
+        _clear_run_task(run_id)
 
 
 async def _append_scan_rerun_and_store(run_id: str, gen, start_node: str) -> None:
@@ -341,6 +472,7 @@ async def _append_scan_rerun_and_store(run_id: str, gen, start_node: str) -> Non
         return
     run["rerun_seq"] = run.get("rerun_seq", 0) + 1
     run["status"] = "running"
+    run.pop("error", None)
     run["events"] = _filter_scan_rerun_events(run.get("events") or [], start_node)
     try:
         async for event in gen:
@@ -350,14 +482,16 @@ async def _append_scan_rerun_and_store(run_id: str, gen, start_node: str) -> Non
         run["status"] = "completed"
     except asyncio.CancelledError:
         run["status"] = "failed"
-        run["error"] = "Run cancelled"
+        run["error"] = "Run stopped by user" if run.get("stop_requested") else "Run cancelled"
         logger.warning("Scan rerun cancelled run=%s", run_id)
     except Exception as exc:
         run["status"] = "failed"
         run["error"] = str(exc)
         logger.exception("Scan rerun failed run=%s", run_id)
     finally:
+        run.pop("stop_requested", None)
         _persist_run_to_disk(run_id)
+        _clear_run_task(run_id)
 
 
 @router.post("/rerun-node")
@@ -396,11 +530,13 @@ async def trigger_rerun_node(
             run_id, node_id, user["user_id"],
         )
         runs[run_id]["status"] = "running"
-        background_tasks.add_task(
-            _append_scan_rerun_and_store,
+        _set_run_task(
             run_id,
-            engine.run_scan_from_node(f"{run_id}_rerun_{node_id}", rerun_params, node_id, rerun_state),
-            start_node=node_id,
+            _append_scan_rerun_and_store(
+                run_id,
+                engine.run_scan_from_node(f"{run_id}_rerun_{node_id}", rerun_params, node_id, rerun_state),
+                start_node=node_id,
+            ),
         )
         return {"run_id": run_id, "phase": node_id, "status": "queued"}
 
@@ -424,14 +560,124 @@ async def trigger_rerun_node(
     # Set status synchronously so the WebSocket that reconnects immediately after
     # this response sees "running" and enters the polling loop instead of closing.
     runs[run_id]["status"] = "running"
-    background_tasks.add_task(
-        _append_and_store,
+    _set_run_task(
         run_id,
-        engine.run_pipeline_from_phase(f"{run_id}_rerun_{phase}", rerun_params, phase),
-        ticker=identifier,
-        phase=phase,
+        _append_and_store(
+            run_id,
+            engine.run_pipeline_from_phase(f"{run_id}_rerun_{phase}", rerun_params, phase),
+            ticker=identifier,
+            phase=phase,
+        ),
     )
     return {"run_id": run_id, "phase": phase, "status": "queued"}
+
+
+@router.post("/{run_id}/resume")
+async def resume_run(
+    run_id: str,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user),
+):
+    if run_id not in runs:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    _ensure_run_events_loaded(run_id)
+    run = runs[run_id]
+    status = run.get("status")
+    if status == "completed":
+        raise HTTPException(status_code=409, detail="Run already completed")
+    if status == "running":
+        return {"run_id": run_id, "status": "running"}
+
+    params = dict(run.get("params") or {})
+    date = params.get("date", "")
+    run_type = run.get("type", "")
+    portfolio_id = params.get("portfolio_id", "main_portfolio")
+
+    logger.info("Queued RESUME run=%s type=%s user=%s", run_id, run_type, user["user_id"])
+
+    if run_type == "scan":
+        resume_node = _infer_scan_resume_node(run.get("events") or [])
+        if resume_node:
+            rerun_params = {
+                "date": date,
+                "portfolio_id": portfolio_id,
+                "run_id": run_id,
+                "max_tickers": params.get("max_tickers"),
+            }
+            rerun_state = _build_scan_rerun_state(run.get("events") or [])
+            run["status"] = "running"
+            run.pop("error", None)
+            _append_system_event(run_id, f"Resume requested — continuing scan from {resume_node}.")
+            _set_run_task(
+                run_id,
+                _append_scan_rerun_and_store(
+                    run_id,
+                    engine.run_scan_from_node(f"{run_id}_resume_{resume_node}", rerun_params, resume_node, rerun_state),
+                    start_node=resume_node,
+                ),
+            )
+            return {"run_id": run_id, "status": "queued", "mode": "partial_scan", "phase": resume_node}
+
+        resume_params = {"date": date, "run_id": run_id, "_execution_key": f"{run_id}:resume:scan"}
+        if params.get("max_tickers"):
+            resume_params["max_tickers"] = params["max_tickers"]
+        run["status"] = "running"
+        run.pop("error", None)
+        _append_system_event(run_id, "Resume requested — restarting scan on the same run.")
+        _set_run_task(
+            run_id,
+            _resume_and_store(run_id, engine.run_scan(f"{run_id}:resume:scan", resume_params)),
+        )
+        return {"run_id": run_id, "status": "queued", "mode": "full_scan"}
+
+    run["status"] = "running"
+    run.pop("error", None)
+    _append_system_event(run_id, f"Resume requested — continuing {run_type} run on the same run id.")
+    resume_params = {**params, "run_id": run_id, "_execution_key": f"{run_id}:resume:{run_type}"}
+
+    if run_type == "auto":
+        gen = engine.run_auto(f"{run_id}:resume:auto", resume_params)
+    elif run_type == "pipeline":
+        gen = engine.run_pipeline(f"{run_id}:resume:pipeline", resume_params)
+    elif run_type == "portfolio":
+        gen = engine.run_portfolio(f"{run_id}:resume:portfolio", resume_params)
+    elif run_type == "mock":
+        gen = mock_engine.run_mock(f"{run_id}:resume:mock", resume_params)
+    else:
+        raise HTTPException(status_code=422, detail=f"Unsupported run type: {run_type}")
+
+    _set_run_task(run_id, _resume_and_store(run_id, gen))
+    return {"run_id": run_id, "status": "queued", "mode": "same_run"}
+
+
+@router.post("/{run_id}/stop")
+async def stop_run(
+    run_id: str,
+    user: dict = Depends(get_current_user),
+):
+    if run_id not in runs:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    run = runs[run_id]
+    if run.get("status") in {"completed", "failed"}:
+        return {"run_id": run_id, "status": run.get("status"), "stopped": False}
+    if run.get("stop_requested"):
+        return {"run_id": run_id, "status": "stopping", "stopped": True}
+
+    task = run_tasks.get(run_id)
+    if task and not task.done():
+        run["stop_requested"] = True
+        _append_system_event(run_id, "Graceful stop requested — current work will finish, but no new work will be queued.")
+        logger.info("Stop requested run=%s user=%s", run_id, user["user_id"])
+        return {"run_id": run_id, "status": "stopping", "stopped": True}
+
+    current_status = run.get("status")
+    if current_status in {"completed", "failed"}:
+        return {"run_id": run_id, "status": current_status, "stopped": False}
+
+    logger.info("Stop requested but no active task was found run=%s user=%s", run_id, user["user_id"])
+    return {"run_id": run_id, "status": current_status or "running", "stopped": False}
 
 
 @router.delete("/portfolio-stage")

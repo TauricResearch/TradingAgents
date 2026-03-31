@@ -399,7 +399,11 @@ type Page = 'dashboard' | 'portfolio';
 export const Dashboard: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('dashboard');
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
+  const [activeRunRecord, setActiveRunRecord] = useState<any | null>(null);
   const [activeRunReloadKey, setActiveRunReloadKey] = useState(0);
+  const [stopRequestedRunId, setStopRequestedRunId] = useState<string | null>(null);
+  const [actionRunId, setActionRunId] = useState<string | null>(null);
+  const [actionKind, setActionKind] = useState<'resume' | 'stop' | null>(null);
   const [streamEnabled, setStreamEnabled] = useState(true);
   const [activeRunType, setActiveRunType] = useState<RunType | null>(null);
   const [isTriggering, setIsTriggering] = useState(false);
@@ -470,10 +474,28 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     if (status === 'completed' || status === 'error') {
       setActiveRunType(null);
+      setStopRequestedRunId(null);
+      setActiveRunRecord((prev: any) => (prev ? { ...prev, status: status === 'completed' ? 'completed' : 'failed' } : prev));
     }
   }, [status]);
 
   const isRunning = isTriggering || status === 'streaming' || status === 'connecting';
+  const isActiveRunStopping = Boolean(activeRunId && stopRequestedRunId === activeRunId && isRunning);
+
+  const syncParamsFromRun = useCallback((run: any) => {
+    if (!run?.params) return;
+    setParams((p) => ({
+      ...p,
+      date: run.params.date || p.date,
+      ticker: restoreTickerInput(run, p.ticker),
+      portfolio_id: run.params.portfolio_id || p.portfolio_id,
+      max_auto_tickers: run.params.max_tickers?.toString() || run.params.max_auto_tickers?.toString() || '',
+      continue_on_ticker_failure: Boolean(run.params.continue_on_ticker_failure),
+      mock_type: run.params.mock_type || p.mock_type,
+      speed: run.params.speed?.toString() || p.speed,
+      force: Boolean(run.params.force),
+    }));
+  }, []);
 
   const startRun = async (type: RunType, overrideParams?: Partial<RunParams>) => {
     if (isRunning) return;
@@ -528,6 +550,8 @@ export const Dashboard: React.FC = () => {
       }
       const res = await axios.post(`${API_BASE}/run/${type}`, body);
       setActiveRunId(res.data.run_id);
+      setActiveRunRecord({ id: res.data.run_id, type, status: 'running', params: body });
+      setStopRequestedRunId(null);
     } catch (err) {
       console.error("Failed to start run:", err);
       setActiveRunType(null);
@@ -594,25 +618,13 @@ export const Dashboard: React.FC = () => {
 
   const loadRun = async (run: any) => {
     clearEvents();
-    // Pre-fill params from run
-    if (run.params) {
-      setParams((p) => ({
-        ...p,
-        date: run.params.date || p.date,
-        ticker: restoreTickerInput(run, p.ticker),
-        portfolio_id: run.params.portfolio_id || p.portfolio_id,
-        // Restore max_auto_tickers so the ticker cap matches the original run
-        max_auto_tickers: run.params.max_tickers?.toString() || run.params.max_auto_tickers?.toString() || '',
-        continue_on_ticker_failure: Boolean(run.params.continue_on_ticker_failure),
-        mock_type: run.params.mock_type || p.mock_type,
-        speed: run.params.speed?.toString() || p.speed,
-        force: Boolean(run.params.force),
-      }));
-    }
+    syncParamsFromRun(run);
     try {
       const res = await axios.get(`${API_BASE}/run/${run.id}`);
       const snapshot = res.data as any;
       replaceEvents((snapshot.events || []) as AgentEvent[]);
+      setActiveRunRecord({ ...run, ...snapshot });
+      setStopRequestedRunId(null);
       if (snapshot.status === 'completed') {
         setTerminalStatus('completed');
         setStreamEnabled(false);
@@ -622,15 +634,94 @@ export const Dashboard: React.FC = () => {
       } else {
         setStreamEnabled(true);
         setTerminalStatus('idle');
+        setActiveRunId(run.id);
         setActiveRunReloadKey((k) => k + 1);
       }
     } catch (err) {
       console.error('Failed to load run details', err);
+      setActiveRunRecord(run);
+      setStopRequestedRunId(null);
       setStreamEnabled(true);
       setTerminalStatus('idle');
+      setActiveRunId(run.id);
       setActiveRunReloadKey((k) => k + 1);
     }
-    setActiveRunId(run.id);
+  };
+
+  const resumeRun = async (run: any) => {
+    const targetRun = run || activeRunRecord;
+    if (!targetRun?.id) return;
+
+    syncParamsFromRun(targetRun);
+    setActionRunId(targetRun.id);
+    setActionKind('resume');
+    try {
+      await axios.post(`${API_BASE}/run/${targetRun.id}/resume`);
+      clearEvents();
+      setStreamEnabled(true);
+      setTerminalStatus('idle');
+      setActiveRunId(targetRun.id);
+      setActiveRunType((targetRun.type || null) as RunType | null);
+      setActiveRunRecord({ ...targetRun, status: 'running' });
+      setStopRequestedRunId(null);
+      setActiveRunReloadKey((k) => k + 1);
+      toast({
+        title: `Resumed run ${targetRun.id.slice(-8)}`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
+      loadHistory();
+    } catch (err: any) {
+      toast({
+        title: 'Resume failed',
+        description: err?.response?.data?.detail || String(err),
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top',
+      });
+    } finally {
+      setActionRunId(null);
+      setActionKind(null);
+    }
+  };
+
+  const stopRun = async (run: any) => {
+    const targetRun = run || activeRunRecord;
+    if (!targetRun?.id) return;
+
+    setActionRunId(targetRun.id);
+    setActionKind('stop');
+    try {
+      await axios.post(`${API_BASE}/run/${targetRun.id}/stop`);
+      setStopRequestedRunId(targetRun.id);
+      if (activeRunId === targetRun.id) {
+        setActiveRunRecord((prev: any) => (prev ? { ...prev, status: 'running' } : prev));
+      }
+      toast({
+        title: 'Graceful stop requested',
+        description: 'Current work will finish, but no new work will be queued.',
+        status: 'info',
+        duration: 3500,
+        isClosable: true,
+        position: 'top',
+      });
+      loadHistory();
+    } catch (err: any) {
+      toast({
+        title: 'Stop failed',
+        description: err?.response?.data?.detail || String(err),
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top',
+      });
+    } finally {
+      setActionRunId(null);
+      setActionKind(null);
+    }
   };
 
   /** Trigger a phase-level re-run for a specific node on the active run. */
@@ -807,6 +898,29 @@ export const Dashboard: React.FC = () => {
                         Reset Decision
                       </Button>
                     </Tooltip>
+                    {activeRunRecord?.status === 'failed' && !isRunning && (
+                      <Button
+                        size="sm"
+                        colorScheme="blue"
+                        variant="outline"
+                        onClick={() => resumeRun(activeRunRecord)}
+                        isLoading={actionRunId === activeRunRecord.id && actionKind === 'resume'}
+                      >
+                        Resume Loaded Run
+                      </Button>
+                    )}
+                    {activeRunId && isRunning && (
+                      <Button
+                        size="sm"
+                        colorScheme="orange"
+                        variant={isActiveRunStopping ? 'solid' : 'outline'}
+                        onClick={() => stopRun(activeRunRecord)}
+                        isDisabled={isActiveRunStopping}
+                        isLoading={actionRunId === activeRunId && actionKind === 'stop'}
+                      >
+                        {isActiveRunStopping ? 'Stopping…' : 'Graceful Stop'}
+                      </Button>
+                    )}
                     <Divider orientation="vertical" h="20px" />
                     <Tag size="sm" colorScheme={status === 'streaming' ? 'green' : status === 'completed' ? 'blue' : status === 'error' ? 'red' : 'gray'}>
                       {status.toUpperCase()}
@@ -851,6 +965,35 @@ export const Dashboard: React.FC = () => {
                                 <Text fontSize="2xs" color="whiteAlpha.400">
                                   {r.created_at ? new Date(r.created_at * 1000).toLocaleTimeString() : ''}
                                 </Text>
+                                {r.status === 'failed' && (
+                                  <Button
+                                    size="xs"
+                                    colorScheme="blue"
+                                    variant="ghost"
+                                    isLoading={actionRunId === r.id && actionKind === 'resume'}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      resumeRun(r);
+                                    }}
+                                  >
+                                    Resume
+                                  </Button>
+                                )}
+                                {r.status === 'running' && (
+                                  <Button
+                                    size="xs"
+                                    colorScheme="orange"
+                                    variant="ghost"
+                                    isLoading={actionRunId === r.id && actionKind === 'stop'}
+                                    isDisabled={stopRequestedRunId === r.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      stopRun(r);
+                                    }}
+                                  >
+                                    {stopRequestedRunId === r.id ? 'Stopping…' : 'Stop'}
+                                  </Button>
+                                )}
                               </Flex>
                             ))}
                           </VStack>
