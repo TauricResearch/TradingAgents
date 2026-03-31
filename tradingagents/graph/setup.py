@@ -157,7 +157,7 @@ class GraphSetup:
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
         risk_debate_summary_node = create_risk_debate_summary(
-            self.quick_thinking_llm
+            self.mid_thinking_llm
         )
         critical_abort_terminal_node = create_critical_abort_terminal()
         portfolio_manager_node = create_portfolio_manager(
@@ -307,7 +307,7 @@ class GraphSetup:
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
         risk_debate_summary_node = create_risk_debate_summary(
-            self.quick_thinking_llm
+            self.mid_thinking_llm
         )
         critical_abort_terminal_node = create_critical_abort_terminal()
         portfolio_manager_node = create_portfolio_manager(
@@ -377,7 +377,7 @@ class GraphSetup:
             self.quick_thinking_llm
         )
         risk_debate_summary_node = create_risk_debate_summary(
-            self.quick_thinking_llm
+            self.mid_thinking_llm
         )
         critical_abort_terminal_node = create_critical_abort_terminal()
         portfolio_manager_node = create_portfolio_manager(
