@@ -233,4 +233,4 @@ agent_os/frontend/dist/
 
 .DS_Store
 
-.claude/worktrees
+.claude/worktrees.worktrees/
