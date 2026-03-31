@@ -265,6 +265,7 @@ def build_default_config(
         # Report storage backend
         "mongo_uri": _env("MONGO_URI", env=env),
         "mongo_db": _env("MONGO_DB", "tradingagents", env=env),
+        "default_portfolio_id": _env("DEFAULT_PORTFOLIO_ID", "main_portfolio", env=env),
     }
 
 

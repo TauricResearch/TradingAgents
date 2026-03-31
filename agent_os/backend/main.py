@@ -82,6 +82,13 @@ async def hydrate_runs_from_disk():
         logger.exception("Failed to hydrate runs from disk on startup")
 
 
+@app.get("/api/config")
+async def get_config():
+    from tradingagents.default_config import DEFAULT_CONFIG
+    return {
+        "default_portfolio_id": DEFAULT_CONFIG.get("default_portfolio_id", "main_portfolio")
+    }
+
 @app.get("/")
 async def health_check():
     return {"status": "ok", "service": "AgentOS API"}

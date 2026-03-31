@@ -447,6 +447,21 @@ export const Dashboard: React.FC = () => {
   // Auto-scroll the terminal to the bottom as new events arrive
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
+  // Fetch initial config
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/config`);
+        if (res.data.default_portfolio_id) {
+          setParams((p) => ({ ...p, portfolio_id: res.data.default_portfolio_id }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch config:", err);
+      }
+    };
+    fetchConfig();
+  }, []);
+
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [events.length]);
