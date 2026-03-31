@@ -108,6 +108,138 @@ def get_news_yfinance(
         return f"Error fetching news for {ticker}: {str(e)}"
 
 
+def get_social_sentiment_yfinance(
+    ticker: str,
+    start_date: str,
+    end_date: str,
+) -> str:
+    """
+    Retrieve headline-level sentiment signals for a stock ticker using yfinance.
+
+    Extracts article titles, publishers, and publish timestamps, then scores each
+    headline with a simple keyword-based polarity score.  Aggregates into overall
+    sentiment distribution, publisher breakdown, and a first-half vs second-half
+    sentiment trend for the requested period.
+
+    Args:
+        ticker: Stock ticker symbol (e.g., "AAPL")
+        start_date: Start date in yyyy-mm-dd format
+        end_date: End date in yyyy-mm-dd format
+
+    Returns:
+        Formatted string with headline list, sentiment scores, aggregate stats,
+        publisher distribution, and sentiment trend.
+    """
+    POSITIVE_KEYWORDS = {
+        "surge", "jump", "beat", "strong", "growth", "upgrade", "rally",
+        "gain", "profit", "breakthrough", "record", "soar", "boom",
+        "outperform", "bullish",
+    }
+    NEGATIVE_KEYWORDS = {
+        "fall", "drop", "miss", "weak", "decline", "downgrade", "crash",
+        "loss", "risk", "warning", "cut", "plunge", "slump",
+        "underperform", "bearish",
+    }
+
+    def _score_headline(title: str) -> int:
+        words = title.lower().split()
+        pos = sum(1 for w in words if w.strip(".,!?;:\"'") in POSITIVE_KEYWORDS)
+        neg = sum(1 for w in words if w.strip(".,!?;:\"'") in NEGATIVE_KEYWORDS)
+        return pos - neg
+
+    try:
+        stock = yf.Ticker(ticker)
+        news = stock.get_news(count=20)
+
+        if not news:
+            return f"No social sentiment data available for {ticker}"
+
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+
+        articles = []
+        for article in news:
+            data = _extract_article_data(article)
+
+            # Filter by date if available
+            if data["pub_date"]:
+                pub_date_naive = data["pub_date"].replace(tzinfo=None)
+                if not (start_dt <= pub_date_naive <= end_dt + relativedelta(days=1)):
+                    continue
+
+            score = _score_headline(data["title"])
+            articles.append({
+                "title": data["title"],
+                "publisher": data["publisher"],
+                "pub_date": data["pub_date"],
+                "score": score,
+            })
+
+        if not articles:
+            return f"No social sentiment data available for {ticker} between {start_date} and {end_date}"
+
+        # ── Headline list ──────────────────────────────────────────────────────
+        headline_lines = []
+        for a in articles:
+            date_str = a["pub_date"].strftime("%Y-%m-%d") if a["pub_date"] else "unknown date"
+            polarity = "+" if a["score"] > 0 else ("-" if a["score"] < 0 else "~")
+            headline_lines.append(
+                f"  [{polarity}{abs(a['score'])}] {a['title']}  |  {a['publisher']}  |  {date_str}"
+            )
+
+        # ── Aggregate sentiment distribution ──────────────────────────────────
+        positive = sum(1 for a in articles if a["score"] > 0)
+        negative = sum(1 for a in articles if a["score"] < 0)
+        neutral = len(articles) - positive - negative
+        total = len(articles)
+        pct_pos = round(100 * positive / total)
+        pct_neg = round(100 * negative / total)
+        pct_neu = round(100 * neutral / total)
+
+        # ── Publisher distribution ─────────────────────────────────────────────
+        publisher_counts: dict = {}
+        for a in articles:
+            publisher_counts[a["publisher"]] = publisher_counts.get(a["publisher"], 0) + 1
+        publisher_lines = [
+            f"  {pub}: {cnt} article{'s' if cnt > 1 else ''}"
+            for pub, cnt in sorted(publisher_counts.items(), key=lambda x: -x[1])
+        ]
+
+        # ── Sentiment trend: first half vs second half ────────────────────────
+        mid = len(articles) // 2
+        first_half = articles[:mid] if mid else articles
+        second_half = articles[mid:] if mid else articles
+        avg_first = sum(a["score"] for a in first_half) / len(first_half) if first_half else 0
+        avg_second = sum(a["score"] for a in second_half) / len(second_half) if second_half else 0
+        trend_direction = (
+            "improving" if avg_second > avg_first
+            else "deteriorating" if avg_second < avg_first
+            else "stable"
+        )
+
+        output = (
+            f"## {ticker} Social Sentiment Signals, {start_date} to {end_date}\n\n"
+            f"### Headlines & Polarity Scores  (+ positive / - negative / ~ neutral)\n"
+            + "\n".join(headline_lines)
+            + f"\n\n### Aggregate Sentiment Distribution  ({total} articles)\n"
+            f"  Positive: {pct_pos}%  |  Negative: {pct_neg}%  |  Neutral: {pct_neu}%\n"
+            f"\n### Publisher Distribution\n"
+            + "\n".join(publisher_lines)
+            + f"\n\n### Sentiment Trend (first half vs second half of period)\n"
+            f"  First-half avg score:  {avg_first:.2f}\n"
+            f"  Second-half avg score: {avg_second:.2f}\n"
+            f"  Trend: {trend_direction}\n"
+        )
+        return output
+
+    except requests.exceptions.Timeout:
+        raise ThirdPartyTimeoutError(f"Request timed out fetching sentiment data for {ticker}")
+    except ThirdPartyTimeoutError:
+        raise
+    except Exception as e:
+        return f"No social sentiment data available for {ticker}: {str(e)}"
+
+
 def get_global_news_yfinance(
     curr_date: str,
     look_back_days: int = 7,

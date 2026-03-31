@@ -85,6 +85,15 @@ class AgentState(MessagesState):
     risk_debate_state: Annotated[
         RiskDebateState, "Current state of the debate on evaluating risk"
     ]
+
+    # Parallel risk debate round responses
+    risk_r1_aggressive: Annotated[str, "Round 1 aggressive analyst position"]
+    risk_r1_conservative: Annotated[str, "Round 1 conservative analyst position"]
+    risk_r1_neutral: Annotated[str, "Round 1 neutral analyst position"]
+    risk_r2_aggressive: Annotated[str, "Round 2 aggressive analyst rebuttal"]
+    risk_r2_conservative: Annotated[str, "Round 2 conservative analyst rebuttal"]
+    risk_r2_neutral: Annotated[str, "Round 2 neutral analyst rebuttal"]
+
     final_trade_decision: Annotated[str, "Final decision made by the Risk Analysts"]
     analysis_status: Annotated[str, "Terminal pipeline status"]
     terminal_action: Annotated[str, "Explicit terminal action for abort and completion paths"]

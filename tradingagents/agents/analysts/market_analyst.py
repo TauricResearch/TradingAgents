@@ -7,10 +7,11 @@ from tradingagents.agents.utils.agent_utils import (
     format_prefetched_context,
     prefetch_tools_parallel,
 )
-from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.dataflows.y_finance import get_stock_data as _get_stock_data_yf
+from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def create_market_analyst(llm):
@@ -25,7 +26,10 @@ def create_market_analyst(llm):
         # trips and lets the LLM focus its single tool-call budget on choosing
         # the right indicators based on the macro regime it sees.
         trade_date = datetime.strptime(current_date, "%Y-%m-%d")
+        # Always fetch a full year so get_stock_data can compute 200-day SMA
+        # and 52-week levels; the function truncates the CSV to lookback_days.
         stock_start = (trade_date - timedelta(days=365)).strftime("%Y-%m-%d")
+        lookback_days = DEFAULT_CONFIG.get("trading_lookback_days", 90)
 
         prefetched = prefetch_tools_parallel(
             [
@@ -35,11 +39,12 @@ def create_market_analyst(llm):
                     "label": "Macro Regime Classification",
                 },
                 {
-                    "tool": get_stock_data,
+                    "tool": _get_stock_data_yf,
                     "args": {
                         "symbol": ticker,
                         "start_date": stock_start,
                         "end_date": current_date,
+                        "lookback_days": lookback_days,
                     },
                     "label": "Stock Price Data",
                 },

@@ -44,6 +44,16 @@ def create_news_analyst(llm):
         )
         prefetched_context = format_prefetched_context(prefetched)
 
+        macro_regime_report = state.get("macro_regime_report", "")
+        macro_regime_section = (
+            "\n## Current Macro Regime\n"
+            f"{macro_regime_report}\n\n"
+            "In risk-off regimes, prioritize regulatory and macroeconomic news over earnings "
+            "surprises. In risk-on regimes, prioritize growth catalysts and expansion news.\n"
+            if macro_regime_report
+            else ""
+        )
+
         system_message = (
             "You are a news researcher tasked with analyzing recent news and trends over "
             "the past week.\n\n"
@@ -51,6 +61,7 @@ def create_news_analyst(llm):
             "Both company-specific news and global macroeconomic news for the past 7 days "
             "have already been fetched and are provided in the **Pre-loaded Context** section "
             "below. Do NOT call `get_news` or `get_global_news` — the data is already available.\n\n"
+            f"{macro_regime_section}"
             "## Your Task\n\n"
             "STRICT CONSTRAINTS:\n"
             "- Output ONLY bulleted quantitative analysis with a summary table.\n"

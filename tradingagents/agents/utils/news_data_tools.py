@@ -39,6 +39,27 @@ def get_global_news(
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
 @tool
+def get_social_sentiment(
+    ticker: Annotated[str, "Ticker symbol"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Retrieve headline-level sentiment signals for a given ticker symbol.
+    Extracts article titles, publishers, timestamps, and keyword-based polarity
+    scores; aggregates into overall sentiment distribution, publisher breakdown,
+    and a sentiment trend (first half vs second half of the period).
+    Args:
+        ticker (str): Ticker symbol
+        start_date (str): Start date in yyyy-mm-dd format
+        end_date (str): End date in yyyy-mm-dd format
+    Returns:
+        str: A formatted string with headline scores, aggregate stats, and trend
+    """
+    return route_to_vendor("get_social_sentiment", ticker, start_date, end_date)
+
+
+@tool
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol"],
 ) -> str:

@@ -1,4 +1,5 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
     get_investment_debate_summary,
@@ -7,7 +8,8 @@ from tradingagents.agents.utils.summary_context import (
 
 def create_research_manager(llm, memory):
     def research_manager_node(state) -> dict:
-        instrument_context = build_instrument_context(state["company_of_interest"])
+        ticker = state["company_of_interest"]
+        instrument_context = build_instrument_context(ticker)
         history = state["investment_debate_state"].get("history", "")
         debate_summary = get_investment_debate_summary(state)
         market_research_report = state["market_report"]
@@ -29,6 +31,12 @@ def create_research_manager(llm, memory):
 
         macro_context = f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nWeight your decision in line with this macro environment — a risk-off regime raises the bar for BUY decisions, while risk-on supports them.\n" if macro_regime_report else ""
 
+        # Anonymize data variables to prevent training-data bias
+        anon_research_packet = anonymize_ticker(research_packet, ticker)
+        anon_debate_summary = anonymize_ticker(debate_summary, ticker)
+        anon_history = anonymize_ticker(history, ticker)
+        anon_past_memory_str = anonymize_ticker(past_memory_str, ticker)
+
         prompt = f"""As the Research Manager and debate facilitator, critically evaluate this round of debate and make a definitive decision: Buy, Sell, or Hold.
 {macro_context}
 
@@ -46,33 +54,37 @@ YOUR TASK:
 5. **Strategic Actions**: Concrete implementation steps for the trader.
 
 Take into account past mistakes on similar situations:
-\"{past_memory_str}\"
+\"{anon_past_memory_str}\"
 
 {instrument_context}
 
 Compressed research packet:
-{research_packet}
+{anon_research_packet}
 
 Rolling debate summary:
-{debate_summary}
+{anon_debate_summary}
 
 Here is the debate:
 Debate History:
-{history}"""
+{anon_history}"""
         response = llm.invoke(prompt)
 
+        # De-anonymize: replace TICKER_A back with the real ticker so downstream
+        # nodes (Trader, Portfolio Manager) receive the correct symbol.
+        output_content = response.content.replace("TICKER_A", ticker)
+
         new_investment_debate_state = {
-            "judge_decision": response.content,
+            "judge_decision": output_content,
             "history": investment_debate_state.get("history", ""),
             "bear_history": investment_debate_state.get("bear_history", ""),
             "bull_history": investment_debate_state.get("bull_history", ""),
-            "current_response": response.content,
+            "current_response": output_content,
             "count": investment_debate_state["count"],
         }
 
         return {
             "investment_debate_state": new_investment_debate_state,
-            "investment_plan": response.content,
+            "investment_plan": output_content,
         }
 
     return research_manager_node

@@ -7,7 +7,7 @@ from tradingagents.agents.utils.agent_utils import (
     format_prefetched_context,
     prefetch_tools_parallel,
 )
-from tradingagents.agents.utils.news_data_tools import get_news
+from tradingagents.agents.utils.news_data_tools import get_social_sentiment
 
 
 def create_social_media_analyst(llm):
@@ -16,33 +16,47 @@ def create_social_media_analyst(llm):
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
 
-        # ── Pre-fetch company news for the past 7 days ────────────────────────
+        # ── Pre-fetch headline sentiment signals for the past 7 days ─────────
         trade_date = datetime.strptime(current_date, "%Y-%m-%d")
         start_date = (trade_date - timedelta(days=7)).strftime("%Y-%m-%d")
 
         prefetched = prefetch_tools_parallel(
             [
                 {
-                    "tool": get_news,
+                    "tool": get_social_sentiment,
                     "args": {
                         "ticker": ticker,
                         "start_date": start_date,
                         "end_date": current_date,
                     },
-                    "label": "Company News & Social Media (Last 7 Days)",
+                    "label": "Headline Sentiment Signals (Last 7 Days)",
                 },
             ]
         )
         prefetched_context = format_prefetched_context(prefetched)
 
+        macro_regime_report = state.get("macro_regime_report", "")
+        macro_regime_section = (
+            "\n## Current Macro Regime\n"
+            f"{macro_regime_report}\n\n"
+            "Weight sentiment signals differently based on the current regime. In risk-off "
+            "environments, negative sentiment carries more weight. In risk-on environments, "
+            "positive momentum signals are more actionable.\n"
+            if macro_regime_report
+            else ""
+        )
+
         system_message = (
-            "You are a social media and company-specific news researcher/analyst tasked with "
-            "analyzing social media posts, recent company news, and public sentiment for a "
-            "specific company over the past week.\n\n"
+            "You are analyzing market sentiment signals from headline patterns and publisher "
+            "coverage for a specific company over the past week.\n\n"
             "## Pre-loaded Data\n\n"
-            "Company-specific news and social media discussions for the past 7 days have already "
-            "been fetched and are provided in the **Pre-loaded Context** section below. "
-            "Do NOT call `get_news` — the data is already available.\n\n"
+            "Headline-level sentiment signals for the past 7 days have already been fetched and "
+            "are provided in the **Pre-loaded Context** section below. The data includes each "
+            "article headline with a polarity score (positive keywords minus negative keywords), "
+            "the publishing outlet, an overall sentiment distribution, a publisher breakdown, "
+            "and a first-half vs second-half trend. "
+            "Do NOT call any news tool — the data is already available.\n\n"
+            f"{macro_regime_section}"
             "## Your Task\n\n"
             "STRICT CONSTRAINTS:\n"
             "- Output ONLY bulleted quantitative analysis with a summary table.\n"

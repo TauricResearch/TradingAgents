@@ -58,6 +58,17 @@ def create_fundamentals_analyst(llm):
         # ── Only the raw statement tools remain iterative ─────────────────────
         tools = [get_balance_sheet, get_cashflow, get_income_statement]
 
+        macro_regime_report = state.get("macro_regime_report", "")
+        macro_regime_section = (
+            "\n## Current Macro Regime\n"
+            f"{macro_regime_report}\n\n"
+            "In risk-off regimes, raise the bar for growth-stock valuations. Weight free cash "
+            "flow generation and balance sheet strength higher. In risk-on regimes, growth "
+            "metrics and market opportunity size deserve more weight.\n"
+            if macro_regime_report
+            else ""
+        )
+
         system_message = (
             "You are a researcher tasked with performing deep fundamental analysis of a company "
             "over the last 8 quarters (2 years) to support medium-term investment decisions.\n\n"
@@ -74,6 +85,7 @@ def create_fundamentals_analyst(llm):
             "- **Peer Comparison**: How the company ranks against sector peers over 1-week, "
             "1-month, 3-month, and 6-month periods.\n"
             "- **Sector Relative Performance**: The company's alpha vs its sector ETF benchmark.\n\n"
+            f"{macro_regime_section}"
             "## Your Task\n\n"
             "Interpret the pre-loaded data analytically. Look for:\n"
             "- Revenue and margin inflection points — acceleration, deceleration, or trend reversals\n"

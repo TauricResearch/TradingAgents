@@ -10,7 +10,7 @@ from .y_finance import (
     get_income_statement as get_yfinance_income_statement,
     get_insider_transactions as get_yfinance_insider_transactions,
 )
-from .yfinance_news import get_news_yfinance, get_global_news_yfinance
+from .yfinance_news import get_news_yfinance, get_global_news_yfinance, get_social_sentiment_yfinance
 from .yfinance_scanner import (
     get_gatekeeper_universe_yfinance,
     get_market_movers_yfinance,
@@ -177,6 +177,9 @@ VENDOR_METHODS = {
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+    },
+    "get_social_sentiment": {
+        "yfinance": get_social_sentiment_yfinance,
     },
     "get_insider_transactions": {
         "finnhub": get_finnhub_insider_transactions,

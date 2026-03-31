@@ -249,6 +249,7 @@ def build_default_config(
         "max_concurrent_pipelines": _env_int("MAX_CONCURRENT_PIPELINES", 5, env=env),
         "max_auto_tickers": _env_int("MAX_AUTO_TICKERS", 10, env=env),
         "scan_horizon_days": _env_int("SCAN_HORIZON_DAYS", 30, env=env),
+        "trading_lookback_days": _env_int("TRADING_LOOKBACK_DAYS", 90, env=env),
         # Data vendor configuration
         "data_vendors": {
             "core_stock_apis": _env("VENDOR_CORE_STOCK_APIS", "yfinance", env=env),

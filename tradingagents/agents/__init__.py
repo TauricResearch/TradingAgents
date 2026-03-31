@@ -13,6 +13,8 @@ from .researchers.bull_researcher import create_bull_researcher
 from .risk_mgmt.aggressive_debator import create_aggressive_debator
 from .risk_mgmt.conservative_debator import create_conservative_debator
 from .risk_mgmt.neutral_debator import create_neutral_debator
+from .risk_mgmt.risk_round_barrier import create_risk_round_barrier
+from .risk_mgmt.risk_synthesis import create_risk_synthesis
 
 from .managers.research_manager import create_research_manager
 from .managers.critical_abort_terminal import create_critical_abort_terminal
@@ -42,6 +44,8 @@ __all__ = [
     "create_aggressive_debator",
     "create_portfolio_manager",
     "create_conservative_debator",
+    "create_risk_round_barrier",
+    "create_risk_synthesis",
     "create_investment_debate_summary",
     "create_research_packet_summary",
     "create_risk_debate_summary",

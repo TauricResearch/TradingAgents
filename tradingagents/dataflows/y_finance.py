@@ -51,6 +51,84 @@ def get_YFin_data_online(
 
     return header + csv_string
 
+def get_stock_data(
+    symbol: Annotated[str, "ticker symbol of the company"],
+    start_date: Annotated[str, "Start date in yyyy-mm-dd format"],
+    end_date: Annotated[str, "End date in yyyy-mm-dd format"],
+    lookback_days: int = 90,
+) -> str:
+    """Fetch OHLCV data and append key reference levels.
+
+    Fetches the full date range (start_date to end_date) to compute reference
+    statistics, then truncates the CSV output to the last ``lookback_days``
+    trading days. The reference levels are appended as a text block after the
+    CSV to preserve context without the token cost of the full price history.
+    """
+    datetime.strptime(start_date, "%Y-%m-%d")
+    datetime.strptime(end_date, "%Y-%m-%d")
+
+    ticker = yf.Ticker(symbol.upper())
+    data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+
+    if data.empty:
+        return (
+            f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
+        )
+
+    if data.index.tz is not None:
+        data.index = data.index.tz_localize(None)
+
+    numeric_columns = ["Open", "High", "Low", "Close", "Adj Close"]
+    for col in numeric_columns:
+        if col in data.columns:
+            data[col] = data[col].round(2)
+
+    # ── Compute reference levels from the full dataset ────────────────────────
+    close = data["Close"]
+    week52_high = round(float(close.max()), 2)
+    week52_low = round(float(close.min()), 2)
+
+    stats_lines: list[str] = [
+        f"52-Week High: {week52_high}",
+        f"52-Week Low:  {week52_low}",
+    ]
+
+    current_price = round(float(close.iloc[-1]), 2)
+    stats_lines.append(f"Current Price: {current_price}")
+
+    if len(close) >= 50:
+        sma50 = round(float(close.iloc[-50:].mean()), 2)
+        pct_vs_50 = round((current_price - sma50) / sma50 * 100, 2)
+        direction_50 = "above" if current_price >= sma50 else "below"
+        stats_lines.append(
+            f"50-Day SMA: {sma50}  ({direction_50} by {abs(pct_vs_50):.2f}%)"
+        )
+    else:
+        stats_lines.append("50-Day SMA: insufficient data")
+
+    if len(close) >= 200:
+        sma200 = round(float(close.iloc[-200:].mean()), 2)
+        pct_vs_200 = round((current_price - sma200) / sma200 * 100, 2)
+        direction_200 = "above" if current_price >= sma200 else "below"
+        stats_lines.append(
+            f"200-Day SMA: {sma200}  ({direction_200} by {abs(pct_vs_200):.2f}%)"
+        )
+    else:
+        stats_lines.append("200-Day SMA: insufficient data (< 200 trading days)")
+
+    # ── Truncate to lookback_days ─────────────────────────────────────────────
+    truncated = data.tail(lookback_days)
+    csv_string = truncated.to_csv()
+
+    header = f"# Stock data for {symbol.upper()} (last {lookback_days} days ending {end_date})\n"
+    header += f"# Rows shown: {len(truncated)} of {len(data)} available\n"
+    header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+    reference_block = "\n\n--- Key Reference Levels ---\n" + "\n".join(stats_lines)
+
+    return header + csv_string + reference_block
+
+
 def get_stock_stats_indicators_window(
     symbol: Annotated[str, "ticker symbol of the company"],
     indicator: Annotated[str, "technical indicator to get the analysis and report of"],
