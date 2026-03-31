@@ -40,12 +40,12 @@ export interface AgentEvent {
 
 export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = true) => {
   const [events, setEvents] = useState<AgentEvent[]>([]);
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'streaming' | 'completed' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'streaming' | 'completed' | 'paused' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   // Track status in a ref to avoid stale closures and infinite reconnect loops
   const statusRef = useRef(status);
   statusRef.current = status;
-  const terminalStatusRef = useRef<'completed' | 'error' | null>(null);
+  const terminalStatusRef = useRef<'completed' | 'paused' | 'error' | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const sessionTokenRef = useRef(0);
@@ -76,7 +76,7 @@ export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = tr
 
     if (!enabled || !runId) {
       terminalStatusRef.current = null;
-      if (statusRef.current !== 'completed' && statusRef.current !== 'error') {
+      if (statusRef.current !== 'completed' && statusRef.current !== 'paused' && statusRef.current !== 'error') {
         setStatus('idle');
         setError(null);
       }
@@ -130,6 +130,14 @@ export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = tr
           return;
         }
 
+        if (data.type === 'system' && data.run_status === 'awaiting_decision') {
+          terminalStatusRef.current = 'paused';
+          setStatus('paused');
+          setError(null);
+          socket.close();
+          return;
+        }
+
         if (data.type === 'system' && data.message?.startsWith('Error:')) {
           terminalStatusRef.current = 'error';
           setStatus('error');
@@ -150,6 +158,11 @@ export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = tr
         }
         if (terminalStatusRef.current === 'completed') {
           setStatus('completed');
+          console.log(`Disconnected from run: ${runId}`);
+          return;
+        }
+        if (terminalStatusRef.current === 'paused') {
+          setStatus('paused');
           console.log(`Disconnected from run: ${runId}`);
           return;
         }
@@ -185,7 +198,7 @@ export const useAgentStream = (runId: string | null, reloadKey = 0, enabled = tr
 
   const clearEvents = () => setEvents([]);
   const replaceEvents = (nextEvents: AgentEvent[]) => setEvents(nextEvents);
-  const setTerminalStatus = (nextStatus: 'idle' | 'connecting' | 'streaming' | 'completed' | 'error', nextError: string | null = null) => {
+  const setTerminalStatus = (nextStatus: 'idle' | 'connecting' | 'streaming' | 'completed' | 'paused' | 'error', nextError: string | null = null) => {
     setStatus(nextStatus);
     setError(nextError);
   };

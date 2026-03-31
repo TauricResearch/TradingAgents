@@ -243,8 +243,16 @@ flowchart TD
     B --> C["Load scan summary from ReportStore"]
     C --> D["Merge scan tickers with current portfolio holdings"]
     D --> E["Phase 2: run_pipeline() per ticker, bounded by semaphore"]
-    E --> F["Reload saved ticker analyses"]
-    F --> G["Phase 3: run_portfolio() or resume trade execution from saved PM decision"]
+    E --> F["Reload saved ticker analyses and classify terminal states"]
+    F --> G{"Incomplete tickers remain?"}
+    G -->|No| H["Phase 3: run_portfolio() or resume trade execution from saved PM decision"]
+    G -->|Yes and continue_on_ticker_failure=true| H
+    G -->|Yes and continue_on_ticker_failure=false| I["Raise AwaitPhase3Decision and persist pending_phase3_decision"]
+    I --> J["UI shows checkbox per incomplete ticker"]
+    J --> K{"Retry any?"}
+    K -->|Yes| L["run_auto_phase3_decision(): retry selected tickers"]
+    L --> F
+    K -->|No| H
 ```
 
 ### Auto Rules
@@ -252,9 +260,22 @@ flowchart TD
 - `run_auto()` uses `create_report_store(run_id=root_run_id)` for all phases.
 - If a scan already exists and `force` is false, phase 1 is skipped.
 - Phase 2 is concurrent but bounded by `max_concurrent_pipelines`.
-- If a ticker pipeline finishes without a completed deep-dive decision, that ticker is excluded from portfolio selection.
-- If failed tickers exist and `continue_on_ticker_failure` is false, auto raises before phase 3.
+- Phase 2 now validates persisted ticker artifacts after dispatch completes. A ticker is only safe for portfolio-stage loading when its saved analysis is terminal (`completed` or `aborted`).
+- If a ticker pipeline finishes without a completed deep-dive decision, that ticker is marked incomplete and surfaced to the auto orchestrator.
+- If incomplete tickers exist and `continue_on_ticker_failure` is false, auto raises `AwaitPhase3Decision` before phase 3 and persists:
+  - `incomplete_tickers`
+  - `completed_tickers`
+  - `aborted_tickers`
+  - `scheduler_error`
+- `run_auto_phase3_decision()` reuses the same root `run_id`. It retries only the user-selected tickers, recomputes the incomplete set, and either pauses again or continues to phase 3.
+- If the user selects no retry checkboxes and continues, auto proceeds to phase 3 with the currently completed analyses only.
 - If a saved PM decision exists, auto can resume directly into trade execution instead of re-running the full portfolio graph.
+
+### Auto Warnings
+
+- The portfolio graph does not decide whether Phase 2 was complete. That boundary belongs to auto orchestration.
+- Scheduler completion is not enough. Future refactors must preserve the post-phase persisted-artifact verification step.
+- `awaiting_decision` is a first-class run state, not a UI-only convenience. Removing it from persistence or websocket handling will break resume semantics.
 
 ## 5. Observability Mapping
 

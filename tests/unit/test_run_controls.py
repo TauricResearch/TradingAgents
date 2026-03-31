@@ -158,3 +158,98 @@ def test_resume_run_auto_reuses_same_run_id(monkeypatch):
     assert result["run_id"] == run_id
     assert result["mode"] == "same_run"
     assert captured["run_id"] == run_id
+
+
+def test_submit_phase3_decision_retries_selected_tickers(monkeypatch):
+    run_id = "run-phase3"
+    captured: dict[str, object] = {}
+
+    async def _gen():
+        if False:
+            yield {}
+
+    def _fake_set_run_task(target_run_id: str, coro) -> None:
+        captured["run_id"] = target_run_id
+        coro.close()
+
+    def _fake_run_auto_phase3_decision(execution_run_id: str, params: dict, retry_tickers: list[str]):
+        captured["execution_run_id"] = execution_run_id
+        captured["params"] = params
+        captured["retry_tickers"] = retry_tickers
+        return _gen()
+
+    monkeypatch.setattr(runs_route, "_set_run_task", _fake_set_run_task)
+    monkeypatch.setattr(runs_route, "_append_system_event", lambda *args, **kwargs: None)
+    monkeypatch.setattr(runs_route.engine, "run_auto_phase3_decision", _fake_run_auto_phase3_decision)
+
+    runs_route.runs[run_id] = {
+        "id": run_id,
+        "type": "auto",
+        "status": "awaiting_decision",
+        "created_at": 1,
+        "user_id": "u",
+        "params": {"date": "2026-03-31", "portfolio_id": "p1"},
+        "events": [],
+        "rerun_seq": 0,
+        "pending_phase3_decision": {
+            "date": "2026-03-31",
+            "portfolio_id": "p1",
+            "incomplete_tickers": [
+                {"ticker": "NVDA", "reason": "missing", "portfolio_context": "candidate"},
+                {"ticker": "MSFT", "reason": "missing", "portfolio_context": "holding"},
+            ],
+        },
+    }
+
+    try:
+        result = asyncio.run(
+            runs_route.submit_phase3_decision(
+                run_id,
+                params={"retry_tickers": [" nvda ", "MSFT", "nvda"]},
+                user={"user_id": "u"},
+            )
+        )
+    finally:
+        runs_route.runs.pop(run_id, None)
+
+    assert result == {
+        "run_id": run_id,
+        "status": "queued",
+        "retry_tickers": ["NVDA", "MSFT"],
+    }
+    assert runs_route.runs.get(run_id) is None
+    assert captured["run_id"] == run_id
+    assert captured["execution_run_id"] == f"{run_id}:phase3-decision"
+    assert captured["retry_tickers"] == ["NVDA", "MSFT"]
+    assert captured["params"] == {"date": "2026-03-31", "portfolio_id": "p1", "run_id": run_id}
+
+
+def test_submit_phase3_decision_rejects_non_waiting_run():
+    run_id = "run-not-waiting"
+    runs_route.runs[run_id] = {
+        "id": run_id,
+        "type": "auto",
+        "status": "running",
+        "created_at": 1,
+        "user_id": "u",
+        "params": {"date": "2026-03-31", "portfolio_id": "p1"},
+        "events": [],
+        "rerun_seq": 0,
+    }
+
+    try:
+        try:
+            asyncio.run(
+                runs_route.submit_phase3_decision(
+                    run_id,
+                    params={"retry_tickers": ["NVDA"]},
+                    user={"user_id": "u"},
+                )
+            )
+        except Exception as exc:
+            assert exc.status_code == 409
+            assert exc.detail == "Run is not waiting for a Phase 3 decision"
+        else:
+            raise AssertionError("Expected submit_phase3_decision to reject non-waiting runs")
+    finally:
+        runs_route.runs.pop(run_id, None)

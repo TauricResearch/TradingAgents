@@ -410,10 +410,17 @@ export const Dashboard: React.FC = () => {
   const { events, status, clearEvents, replaceEvents, setTerminalStatus } = useAgentStream(activeRunId, activeRunReloadKey, streamEnabled);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
+  const {
+    isOpen: isPhase3DecisionOpen,
+    onOpen: onPhase3DecisionOpen,
+    onClose: onPhase3DecisionClose,
+  } = useDisclosure();
 
   // Event detail modal state
   const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();
   const [modalEvent, setModalEvent] = useState<AgentEvent | null>(null);
+  const [phase3DecisionSelection, setPhase3DecisionSelection] = useState<Record<string, boolean>>({});
+  const [phase3DecisionSubmitting, setPhase3DecisionSubmitting] = useState(false);
 
   // What's shown in the drawer: either a single event or all events for a node
   const [drawerMode, setDrawerMode] = useState<'event' | 'node'>('event');
@@ -472,15 +479,47 @@ export const Dashboard: React.FC = () => {
 
   // Clear activeRunType when run completes
   useEffect(() => {
-    if (status === 'completed' || status === 'error') {
+    if (status === 'completed' || status === 'error' || status === 'paused') {
       setActiveRunType(null);
       setStopRequestedRunId(null);
-      setActiveRunRecord((prev: any) => (prev ? { ...prev, status: status === 'completed' ? 'completed' : 'failed' } : prev));
+      if (status === 'completed' || status === 'error') {
+        setActiveRunRecord((prev: any) => (prev ? { ...prev, status: status === 'completed' ? 'completed' : 'failed' } : prev));
+      }
     }
   }, [status]);
 
+  useEffect(() => {
+    if (status !== 'paused' || !activeRunId) return;
+    const loadPausedRun = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/run/${activeRunId}`);
+        setActiveRunRecord(res.data);
+        setStreamEnabled(false);
+        loadHistory();
+      } catch (err) {
+        console.error('Failed to refresh paused run details', err);
+      }
+    };
+    loadPausedRun();
+  }, [status, activeRunId]);
+
   const isRunning = isTriggering || status === 'streaming' || status === 'connecting';
   const isActiveRunStopping = Boolean(activeRunId && stopRequestedRunId === activeRunId && isRunning);
+  const pendingPhase3Decision = activeRunRecord?.pending_phase3_decision || null;
+  const incompletePhase3Tickers = pendingPhase3Decision?.incomplete_tickers || [];
+  const selectedRetryTickers = incompletePhase3Tickers
+    .filter((item: any) => phase3DecisionSelection[item.ticker])
+    .map((item: any) => item.ticker);
+
+  useEffect(() => {
+    if (activeRunRecord?.status !== 'awaiting_decision' || !pendingPhase3Decision) return;
+    setPhase3DecisionSelection(
+      Object.fromEntries(
+        (pendingPhase3Decision.incomplete_tickers || []).map((item: any) => [item.ticker, false]),
+      ),
+    );
+    onPhase3DecisionOpen();
+  }, [activeRunRecord?.status, pendingPhase3Decision, onPhase3DecisionOpen]);
 
   const syncParamsFromRun = useCallback((run: any) => {
     if (!run?.params) return;
@@ -628,6 +667,10 @@ export const Dashboard: React.FC = () => {
       if (snapshot.status === 'completed') {
         setTerminalStatus('completed');
         setStreamEnabled(false);
+      } else if (snapshot.status === 'awaiting_decision') {
+        setTerminalStatus('paused');
+        setStreamEnabled(false);
+        setActiveRunId(run.id);
       } else if (snapshot.status === 'failed') {
         setTerminalStatus('error', snapshot.error ? `Error: Run failed: ${snapshot.error}` : 'Error: Run failed');
         setStreamEnabled(false);
@@ -721,6 +764,41 @@ export const Dashboard: React.FC = () => {
     } finally {
       setActionRunId(null);
       setActionKind(null);
+    }
+  };
+
+  const submitPhase3Decision = async () => {
+    if (!activeRunRecord?.id) return;
+    setPhase3DecisionSubmitting(true);
+    try {
+      await axios.post(`${API_BASE}/run/${activeRunRecord.id}/phase3-decision`, {
+        retry_tickers: selectedRetryTickers,
+      });
+      onPhase3DecisionClose();
+      setStreamEnabled(true);
+      setTerminalStatus('idle');
+      setActiveRunId(activeRunRecord.id);
+      setActiveRunRecord((prev: any) => (prev ? { ...prev, status: 'running' } : prev));
+      setActiveRunReloadKey((k) => k + 1);
+      loadHistory();
+      toast({
+        title: selectedRetryTickers.length > 0 ? 'Retrying selected tickers' : 'Continuing to Phase 3',
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+        position: 'top',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Phase 3 decision failed',
+        description: err?.response?.data?.detail || String(err),
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+        position: 'top',
+      });
+    } finally {
+      setPhase3DecisionSubmitting(false);
     }
   };
 
@@ -909,6 +987,16 @@ export const Dashboard: React.FC = () => {
                         Resume Loaded Run
                       </Button>
                     )}
+                    {activeRunRecord?.status === 'awaiting_decision' && !isRunning && (
+                      <Button
+                        size="sm"
+                        colorScheme="orange"
+                        variant="outline"
+                        onClick={onPhase3DecisionOpen}
+                      >
+                        Review Incomplete Tickers
+                      </Button>
+                    )}
                     {activeRunId && isRunning && (
                       <Button
                         size="sm"
@@ -922,7 +1010,7 @@ export const Dashboard: React.FC = () => {
                       </Button>
                     )}
                     <Divider orientation="vertical" h="20px" />
-                    <Tag size="sm" colorScheme={status === 'streaming' ? 'green' : status === 'completed' ? 'blue' : status === 'error' ? 'red' : 'gray'}>
+                    <Tag size="sm" colorScheme={status === 'streaming' ? 'green' : status === 'completed' ? 'blue' : status === 'paused' ? 'orange' : status === 'error' ? 'red' : 'gray'}>
                       {status.toUpperCase()}
                     </Tag>
                     <Popover placement="bottom-end" onOpen={loadHistory}>
@@ -959,7 +1047,7 @@ export const Dashboard: React.FC = () => {
                                   {r.type}
                                 </Badge>
                                 <Text fontSize="xs" color="whiteAlpha.700">{(r.params || {}).date || '—'}</Text>
-                                <Tag size="sm" colorScheme={r.status === 'completed' ? 'blue' : r.status === 'running' ? 'green' : r.status === 'failed' ? 'red' : 'gray'} ml="auto">
+                                <Tag size="sm" colorScheme={r.status === 'completed' ? 'blue' : r.status === 'running' ? 'green' : r.status === 'awaiting_decision' ? 'orange' : r.status === 'failed' ? 'red' : 'gray'} ml="auto">
                                   {r.status}
                                 </Tag>
                                 <Text fontSize="2xs" color="whiteAlpha.400">
@@ -977,6 +1065,20 @@ export const Dashboard: React.FC = () => {
                                     }}
                                   >
                                     Resume
+                                  </Button>
+                                )}
+                                {r.status === 'awaiting_decision' && (
+                                  <Button
+                                    size="xs"
+                                    colorScheme="orange"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      loadRun(r);
+                                      onPhase3DecisionOpen();
+                                    }}
+                                  >
+                                    Review
                                   </Button>
                                 )}
                                 {r.status === 'running' && (
@@ -1212,6 +1314,70 @@ export const Dashboard: React.FC = () => {
           </DrawerBody>
         </DrawerContent>
       </Drawer>
+
+      <Modal
+        isOpen={isPhase3DecisionOpen}
+        onClose={onPhase3DecisionClose}
+        size="xl"
+        closeOnOverlayClick={!phase3DecisionSubmitting}
+      >
+        <ModalOverlay backdropFilter="blur(6px)" />
+        <ModalContent bg="slate.900" color="white" border="1px solid" borderColor="whiteAlpha.200">
+          <ModalCloseButton isDisabled={phase3DecisionSubmitting} />
+          <ModalHeader borderBottomWidth="1px" borderColor="whiteAlpha.100">
+            Incomplete Tickers Before Phase 3
+          </ModalHeader>
+          <ModalBody py={4}>
+            <VStack align="stretch" spacing={4}>
+              <Text fontSize="sm" color="whiteAlpha.800">
+                Select the incomplete tickers you want to retry. If you leave all boxes unchecked and continue, the run will proceed to Phase 3 with the current completed analyses only.
+              </Text>
+              {(incompletePhase3Tickers as any[]).map((item: any) => (
+                <Box
+                  key={item.ticker}
+                  p={3}
+                  borderRadius="md"
+                  bg="whiteAlpha.50"
+                  border="1px solid"
+                  borderColor="whiteAlpha.100"
+                >
+                  <Checkbox
+                    colorScheme="orange"
+                    isChecked={Boolean(phase3DecisionSelection[item.ticker])}
+                    onChange={(e) =>
+                      setPhase3DecisionSelection((prev) => ({
+                        ...prev,
+                        [item.ticker]: e.target.checked,
+                      }))
+                    }
+                  >
+                    <Text as="span" fontWeight="bold">{item.ticker}</Text>
+                  </Checkbox>
+                  <Text mt={2} ml={6} fontSize="xs" color="whiteAlpha.700">
+                    {item.reason}
+                  </Text>
+                  <Badge ml={6} mt={2} colorScheme={item.portfolio_context === 'holding' ? 'purple' : 'cyan'}>
+                    {item.portfolio_context === 'holding' ? 'holding' : 'candidate'}
+                  </Badge>
+                </Box>
+              ))}
+              <HStack justify="flex-end" pt={2}>
+                <Button variant="ghost" onClick={onPhase3DecisionClose} isDisabled={phase3DecisionSubmitting}>
+                  Close
+                </Button>
+                <Button
+                  colorScheme="orange"
+                  onClick={submitPhase3Decision}
+                  isLoading={phase3DecisionSubmitting}
+                  loadingText="Submitting…"
+                >
+                  {selectedRetryTickers.length > 0 ? 'Retry Selected' : 'Continue To Phase 3'}
+                </Button>
+              </HStack>
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
 
       {/* Full event detail modal */}
       <EventDetailModal event={modalEvent} isOpen={isModalOpen} onClose={onModalClose} />
