@@ -23,7 +23,7 @@ def create_conservative_debator(llm, round_num=1):
 Trader's Decision: {anon_trader_decision}
 
 STRICT CONSTRAINTS:
-- Output ONLY bulleted quantitative analysis.
+- Output only clinical, quantitative analysis in bullet points.
 - Cite exact values in standard format: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.
 - NO conversational filler, roleplay, or first-person perspective.
 - Prioritize asset protection, volatility minimization, and tail-risk assessment.
@@ -60,7 +60,7 @@ Output in two sections:
 Trader's Decision: {anon_trader_decision}
 
 STRICT CONSTRAINTS:
-- Output ONLY bulleted quantitative analysis.
+- Output only clinical, quantitative analysis in bullet points.
 - Cite exact values in standard format: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.
 - NO conversational filler, roleplay, or first-person perspective.
 - Prioritize asset protection, volatility minimization, and tail-risk assessment.
