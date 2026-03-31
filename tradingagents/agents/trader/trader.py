@@ -1,12 +1,13 @@
 import functools
 
 from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.anonymization import anonymize_ticker
 
 
 def create_trader(llm, memory):
     def trader_node(state, name):
-        company_name = state["company_of_interest"]
-        instrument_context = build_instrument_context(company_name)
+        ticker = state["company_of_interest"]
+        instrument_context = build_instrument_context(ticker)
         investment_plan = state["investment_plan"]
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
@@ -23,9 +24,13 @@ def create_trader(llm, memory):
         else:
             past_memory_str = "No past memories found."
 
+        # Anonymize data variables to prevent training-data bias
+        anon_investment_plan = anonymize_ticker(investment_plan, ticker)
+        anon_past_memory_str = anonymize_ticker(past_memory_str, ticker)
+
         context = {
             "role": "user",
-            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for {company_name}. {instrument_context} This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {investment_plan}\n\nLeverage these insights to make an informed and strategic decision.",
+            "content": f"Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for the stock. {instrument_context} This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: {anon_investment_plan}\n\nLeverage these insights to make an informed and strategic decision.",
         }
 
         messages = [
@@ -46,16 +51,19 @@ YOUR TASK:
 5. **FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL****
 
 Apply lessons from past decisions:
-{past_memory_str}""",
+{anon_past_memory_str}""",
             },
             context,
         ]
 
         result = llm.invoke(messages)
 
+        # De-anonymize: replace TICKER_A back with the real ticker.
+        output_content = result.content.replace("TICKER_A", ticker)
+
         return {
             "messages": [result],
-            "trader_investment_plan": result.content,
+            "trader_investment_plan": output_content,
             "sender": name,
         }
 

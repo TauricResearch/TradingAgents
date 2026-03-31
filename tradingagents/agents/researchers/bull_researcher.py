@@ -33,7 +33,7 @@ def create_bull_researcher(llm, memory):
         prompt = f"""You are a Senior Quantitative Analyst and Economist building a clinical bull case for the stock. Your objective is to present a data-dense, objective argument for investment based on fundamental and technical delta-changes.
 
 STRICT CONSTRAINTS:
-- Output only clinical, quantitative analysis in bullet points.
+- Output ONLY bulleted quantitative analysis.
 - Cite exact values in standard format: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.
 - NO conversational filler, roleplay, or first-person perspective (e.g., "I believe", "Leans forward").
 - Focus strictly on objective data: growth projections, competitive moats, and validated catalysts.
