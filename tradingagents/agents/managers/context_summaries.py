@@ -89,27 +89,29 @@ def create_research_packet_summary(llm):
 def create_investment_debate_summary(llm):
     def investment_debate_summary_node(state) -> dict:
         debate_state = state["investment_debate_state"]
-        prior_summary = str(debate_state.get("summary") or "").strip()
-        current_response = str(debate_state.get("current_response") or "").strip()
+        
+        # FAST PATH: Heuristic aggregation of summary points instead of LLM call.
+        
+        sections = []
+        
+        bull_sum = debate_state.get("current_bull_summary")
+        if bull_sum:
+            sections.append(f"### Bull Analyst Points\n{bull_sum}")
+        elif debate_state.get("bull_history"):
+            sections.append(f"### Bull Analyst Points\n(No specific summary provided)")
 
-        if not current_response:
-            return {
-                "investment_debate_state": {
-                    **debate_state,
-                    "summary": prior_summary,
-                },
-                "sender": "investment_debate_summary",
-            }
+        bear_sum = debate_state.get("current_bear_summary")
+        if bear_sum:
+            sections.append(f"### Bear Analyst Points\n{bear_sum}")
+        elif debate_state.get("bear_history"):
+            sections.append(f"### Bear Analyst Points\n(No specific summary provided)")
 
-        prompt = generate_summary_prompt(
-            INVESTMENT_DEBATE_SUMMARY,
-            _build_investment_debate_input(prior_summary, current_response),
-        )
-        response = llm.invoke(prompt)
+        summary = "\n\n".join(sections) if sections else "Investment debate in progress..."
+
         return {
             "investment_debate_state": {
                 **debate_state,
-                "summary": str(response.content).strip(),
+                "summary": summary,
             },
             "sender": "investment_debate_summary",
         }
@@ -120,35 +122,36 @@ def create_investment_debate_summary(llm):
 def create_risk_debate_summary(llm):
     def risk_debate_summary_node(state) -> dict:
         debate_state = state["risk_debate_state"]
-        prior_summary = str(debate_state.get("summary") or "").strip()
-        latest_speaker = str(debate_state.get("latest_speaker") or "").strip()
+        
+        # FAST PATH: Heuristic aggregation of summary points instead of LLM call.
+        # This removes the single biggest sequential bottleneck in the pipeline.
+        
+        sections = []
+        
+        agg_sum = debate_state.get("current_aggressive_summary")
+        if agg_sum:
+            sections.append(f"### Aggressive Analyst Points\n{agg_sum}")
+        elif debate_state.get("current_aggressive_response"):
+            sections.append(f"### Aggressive Analyst Points\n(No specific summary provided)")
 
-        current_response = ""
-        if latest_speaker.startswith("Aggressive"):
-            current_response = str(debate_state.get("current_aggressive_response") or "").strip()
-        elif latest_speaker.startswith("Conservative"):
-            current_response = str(debate_state.get("current_conservative_response") or "").strip()
-        elif latest_speaker.startswith("Neutral"):
-            current_response = str(debate_state.get("current_neutral_response") or "").strip()
+        con_sum = debate_state.get("current_conservative_summary")
+        if con_sum:
+            sections.append(f"### Conservative Analyst Points\n{con_sum}")
+        elif debate_state.get("current_conservative_response"):
+            sections.append(f"### Conservative Analyst Points\n(No specific summary provided)")
 
-        if not current_response:
-            return {
-                "risk_debate_state": {
-                    **debate_state,
-                    "summary": prior_summary,
-                },
-                "sender": "risk_debate_summary",
-            }
+        neu_sum = debate_state.get("current_neutral_summary")
+        if neu_sum:
+            sections.append(f"### Neutral Analyst Points\n{neu_sum}")
+        elif debate_state.get("current_neutral_response"):
+            sections.append(f"### Neutral Analyst Points\n(No specific summary provided)")
 
-        prompt = generate_summary_prompt(
-            RISK_DEBATE_SUMMARY,
-            _build_risk_debate_input(prior_summary, latest_speaker, current_response),
-        )
-        response = llm.invoke(prompt)
+        summary = "\n\n".join(sections) if sections else "Risk debate in progress..."
+
         return {
             "risk_debate_state": {
                 **debate_state,
-                "summary": str(response.content).strip(),
+                "summary": summary,
             },
             "sender": "risk_debate_summary",
         }
