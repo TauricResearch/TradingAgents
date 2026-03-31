@@ -1,20 +1,26 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.summary_context import (
+    build_research_packet,
+    get_investment_debate_summary,
+)
 
 
 def create_research_manager(llm, memory):
     def research_manager_node(state) -> dict:
         instrument_context = build_instrument_context(state["company_of_interest"])
         history = state["investment_debate_state"].get("history", "")
+        debate_summary = get_investment_debate_summary(state)
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
         fundamentals_report = state["fundamentals_report"]
         macro_regime_report = state.get("macro_regime_report", "")
+        research_packet = build_research_packet(state)
 
         investment_debate_state = state["investment_debate_state"]
 
         macro_section = f"\n\nMacro Regime:\n{macro_regime_report}" if macro_regime_report else ""
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}{macro_section}"
+        curr_situation = f"{research_packet}{macro_section}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -39,6 +45,12 @@ Here are your past reflections on mistakes:
 \"{past_memory_str}\"
 
 {instrument_context}
+
+Compressed research packet:
+{research_packet}
+
+Rolling debate summary:
+{debate_summary}
 
 Here is the debate:
 Debate History:

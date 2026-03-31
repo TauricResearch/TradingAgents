@@ -16,6 +16,7 @@ class InvestDebateState(TypedDict):
         str, "Bearish Conversation history"
     ]  # Bullish Conversation history
     history: Annotated[str, "Conversation history"]  # Conversation history
+    summary: Annotated[str, "Rolling compressed summary of the debate"]
     current_response: Annotated[str, "Latest response"]  # Last response
     judge_decision: Annotated[str, "Final judge decision"]  # Last response
     count: Annotated[int, "Length of the current conversation"]  # Conversation length
@@ -33,6 +34,7 @@ class RiskDebateState(TypedDict):
         str, "Neutral Agent's Conversation history"
     ]  # Conversation history
     history: Annotated[str, "Conversation history"]  # Conversation history
+    summary: Annotated[str, "Rolling compressed summary of the risk debate"]
     latest_speaker: Annotated[str, "Analyst that spoke last"]
     current_aggressive_response: Annotated[
         str, "Latest response by the aggressive analyst"
@@ -67,6 +69,9 @@ class AgentState(MessagesState):
         str, "Report from the News Researcher of current world affairs"
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
+    research_packet_summary: Annotated[
+        str, "Compressed cross-analyst briefing for downstream debate and risk nodes"
+    ]
 
     # researcher team discussion step
     investment_debate_state: Annotated[

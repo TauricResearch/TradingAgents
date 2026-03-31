@@ -315,10 +315,12 @@ class TradingAgentsGraph:
             "sentiment_report": final_state["sentiment_report"],
             "news_report": final_state["news_report"],
             "fundamentals_report": final_state["fundamentals_report"],
+            "research_packet_summary": final_state.get("research_packet_summary", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
                 "history": final_state["investment_debate_state"]["history"],
+                "summary": final_state["investment_debate_state"].get("summary", ""),
                 "current_response": final_state["investment_debate_state"][
                     "current_response"
                 ],
@@ -332,6 +334,7 @@ class TradingAgentsGraph:
                 "conservative_history": final_state["risk_debate_state"]["conservative_history"],
                 "neutral_history": final_state["risk_debate_state"]["neutral_history"],
                 "history": final_state["risk_debate_state"]["history"],
+                "summary": final_state["risk_debate_state"].get("summary", ""),
                 "judge_decision": final_state["risk_debate_state"]["judge_decision"],
             },
             "investment_plan": final_state["investment_plan"],

@@ -141,6 +141,12 @@ class GraphSetup:
         bear_researcher_node = create_bear_researcher(
             self.mid_thinking_llm, self.bear_memory
         )
+        research_packet_summary_node = create_research_packet_summary(
+            self.quick_thinking_llm
+        )
+        investment_debate_summary_node = create_investment_debate_summary(
+            self.quick_thinking_llm
+        )
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
         )
@@ -150,6 +156,9 @@ class GraphSetup:
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+        risk_debate_summary_node = create_risk_debate_summary(
+            self.quick_thinking_llm
+        )
         critical_abort_terminal_node = create_critical_abort_terminal()
         portfolio_manager_node = create_portfolio_manager(
             self.deep_thinking_llm, self.portfolio_manager_memory
@@ -168,13 +177,16 @@ class GraphSetup:
 
         # Add other nodes
         workflow.add_node("Instrument Preflight", self._make_instrument_preflight_node())
+        workflow.add_node("Research Packet Summary", research_packet_summary_node)
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
+        workflow.add_node("Investment Debate Summary", investment_debate_summary_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
         workflow.add_node("Aggressive Analyst", aggressive_analyst)
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
+        workflow.add_node("Risk Debate Summary", risk_debate_summary_node)
         workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
@@ -209,7 +221,7 @@ class GraphSetup:
             if i < len(selected_analysts) - 1:
                 next_node = f"{selected_analysts[i+1].capitalize()} Analyst"
             else:
-                next_node = "Bull Researcher"
+                next_node = "Research Packet Summary"
 
             def _route_after_clear(state: AgentState, next_node: str = next_node) -> str:
                 if self._should_short_circuit_to_critical_abort_terminal(state):
@@ -227,20 +239,18 @@ class GraphSetup:
 
         # Add remaining edges
         workflow.add_conditional_edges(
-            "Bull Researcher",
-            self.conditional_logic.should_continue_debate,
-            {
-                "Bear Researcher": "Bear Researcher",
-                "Research Manager": "Research Manager",
-                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                "Portfolio Manager": "Portfolio Manager",
-            },
+            "Research Packet Summary",
+            lambda _state: "Bull Researcher",
+            {"Bull Researcher": "Bull Researcher"},
         )
+        workflow.add_edge("Bull Researcher", "Investment Debate Summary")
+        workflow.add_edge("Bear Researcher", "Investment Debate Summary")
         workflow.add_conditional_edges(
-            "Bear Researcher",
+            "Investment Debate Summary",
             self.conditional_logic.should_continue_debate,
             {
                 "Bull Researcher": "Bull Researcher",
+                "Bear Researcher": "Bear Researcher",
                 "Research Manager": "Research Manager",
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
@@ -248,29 +258,16 @@ class GraphSetup:
         )
         workflow.add_edge("Research Manager", "Trader")
         workflow.add_edge("Trader", "Aggressive Analyst")
+        workflow.add_edge("Aggressive Analyst", "Risk Debate Summary")
+        workflow.add_edge("Conservative Analyst", "Risk Debate Summary")
+        workflow.add_edge("Neutral Analyst", "Risk Debate Summary")
         workflow.add_conditional_edges(
-            "Aggressive Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Conservative Analyst": "Conservative Analyst",
-                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Conservative Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Neutral Analyst": "Neutral Analyst",
-                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Neutral Analyst",
+            "Risk Debate Summary",
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Aggressive Analyst": "Aggressive Analyst",
+                "Conservative Analyst": "Conservative Analyst",
+                "Neutral Analyst": "Neutral Analyst",
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
@@ -295,6 +292,12 @@ class GraphSetup:
         bear_researcher_node = create_bear_researcher(
             self.mid_thinking_llm, self.bear_memory
         )
+        research_packet_summary_node = create_research_packet_summary(
+            self.quick_thinking_llm
+        )
+        investment_debate_summary_node = create_investment_debate_summary(
+            self.quick_thinking_llm
+        )
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
         )
@@ -303,6 +306,9 @@ class GraphSetup:
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+        risk_debate_summary_node = create_risk_debate_summary(
+            self.quick_thinking_llm
+        )
         critical_abort_terminal_node = create_critical_abort_terminal()
         portfolio_manager_node = create_portfolio_manager(
             self.deep_thinking_llm, self.portfolio_manager_memory
@@ -310,60 +316,45 @@ class GraphSetup:
 
         workflow = StateGraph(AgentState)
 
+        workflow.add_node("Research Packet Summary", research_packet_summary_node)
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
+        workflow.add_node("Investment Debate Summary", investment_debate_summary_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
         workflow.add_node("Aggressive Analyst", aggressive_analyst)
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
+        workflow.add_node("Risk Debate Summary", risk_debate_summary_node)
         workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
-        workflow.add_edge(START, "Bull Researcher")
+        workflow.add_edge(START, "Research Packet Summary")
+        workflow.add_edge("Research Packet Summary", "Bull Researcher")
+        workflow.add_edge("Bull Researcher", "Investment Debate Summary")
+        workflow.add_edge("Bear Researcher", "Investment Debate Summary")
         workflow.add_conditional_edges(
-            "Bull Researcher",
-            self.conditional_logic.should_continue_debate,
-            {
-                "Bear Researcher": "Bear Researcher",
-                "Research Manager": "Research Manager",
-                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-            },
-        )
-        workflow.add_conditional_edges(
-            "Bear Researcher",
+            "Investment Debate Summary",
             self.conditional_logic.should_continue_debate,
             {
                 "Bull Researcher": "Bull Researcher",
+                "Bear Researcher": "Bear Researcher",
                 "Research Manager": "Research Manager",
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
             },
         )
         workflow.add_edge("Research Manager", "Trader")
         workflow.add_edge("Trader", "Aggressive Analyst")
+        workflow.add_edge("Aggressive Analyst", "Risk Debate Summary")
+        workflow.add_edge("Conservative Analyst", "Risk Debate Summary")
+        workflow.add_edge("Neutral Analyst", "Risk Debate Summary")
         workflow.add_conditional_edges(
-            "Aggressive Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Conservative Analyst": "Conservative Analyst",
-                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Conservative Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Neutral Analyst": "Neutral Analyst",
-                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Neutral Analyst",
+            "Risk Debate Summary",
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Aggressive Analyst": "Aggressive Analyst",
+                "Conservative Analyst": "Conservative Analyst",
+                "Neutral Analyst": "Neutral Analyst",
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },
@@ -382,6 +373,12 @@ class GraphSetup:
         aggressive_analyst = create_aggressive_debator(self.quick_thinking_llm)
         neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
         conservative_analyst = create_conservative_debator(self.quick_thinking_llm)
+        research_packet_summary_node = create_research_packet_summary(
+            self.quick_thinking_llm
+        )
+        risk_debate_summary_node = create_risk_debate_summary(
+            self.quick_thinking_llm
+        )
         critical_abort_terminal_node = create_critical_abort_terminal()
         portfolio_manager_node = create_portfolio_manager(
             self.deep_thinking_llm, self.portfolio_manager_memory
@@ -389,36 +386,26 @@ class GraphSetup:
 
         workflow = StateGraph(AgentState)
 
+        workflow.add_node("Research Packet Summary", research_packet_summary_node)
         workflow.add_node("Aggressive Analyst", aggressive_analyst)
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
+        workflow.add_node("Risk Debate Summary", risk_debate_summary_node)
         workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
-        workflow.add_edge(START, "Aggressive Analyst")
+        workflow.add_edge(START, "Research Packet Summary")
+        workflow.add_edge("Research Packet Summary", "Aggressive Analyst")
+        workflow.add_edge("Aggressive Analyst", "Risk Debate Summary")
+        workflow.add_edge("Conservative Analyst", "Risk Debate Summary")
+        workflow.add_edge("Neutral Analyst", "Risk Debate Summary")
         workflow.add_conditional_edges(
-            "Aggressive Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Conservative Analyst": "Conservative Analyst",
-                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Conservative Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {
-                "Neutral Analyst": "Neutral Analyst",
-                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                "Portfolio Manager": "Portfolio Manager",
-            },
-        )
-        workflow.add_conditional_edges(
-            "Neutral Analyst",
+            "Risk Debate Summary",
             self.conditional_logic.should_continue_risk_analysis,
             {
                 "Aggressive Analyst": "Aggressive Analyst",
+                "Conservative Analyst": "Conservative Analyst",
+                "Neutral Analyst": "Neutral Analyst",
                 CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
                 "Portfolio Manager": "Portfolio Manager",
             },

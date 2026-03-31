@@ -3,6 +3,10 @@ from tradingagents.agents.utils.critical_abort import (
     extract_abort_report,
     state_has_critical_abort,
 )
+from tradingagents.agents.utils.summary_context import (
+    build_research_packet,
+    get_risk_debate_summary,
+)
 
 
 def create_portfolio_manager(llm, memory):
@@ -12,12 +16,14 @@ def create_portfolio_manager(llm, memory):
 
         risk_debate_state = state["risk_debate_state"]
         history = risk_debate_state.get("history", "")
+        risk_summary = get_risk_debate_summary(state)
         market_research_report = state.get("market_report", "")
         news_report = state.get("news_report", "")
         fundamentals_report = state.get("fundamentals_report", "")
         sentiment_report = state.get("sentiment_report", "")
         trader_plan = state.get("investment_plan", "")
         macro_regime_report = state.get("macro_regime_report", "")
+        research_packet = build_research_packet(state)
 
         # Check for critical abort in market_report or fundamentals_report
         is_critical_abort = state_has_critical_abort(
@@ -26,7 +32,7 @@ def create_portfolio_manager(llm, memory):
 
         # Build current situation with all reports
         macro_section = f"\n\nMacro Regime:\n{macro_regime_report}" if macro_regime_report else ""
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}{macro_section}"
+        curr_situation = f"{research_packet}{macro_section}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -55,6 +61,7 @@ def create_portfolio_manager(llm, memory):
 **Context:**
 - Trader's proposed plan: **{trader_plan}**
 - Lessons from past decisions: **{past_memory_str}**
+- Compressed research packet: **{research_packet}**
 
 **Required Output Structure:**
 1. **Rating**: State one of Buy / Overweight / Hold / Underweight / Sell.
@@ -85,6 +92,7 @@ def create_portfolio_manager(llm, memory):
 **Context:**
 - Trader's proposed plan: **{trader_plan}**
 - Lessons from past decisions: **{past_memory_str}**
+- Compressed research packet: **{research_packet}**
 
 **Required Output Structure:**
 1. **Rating**: State one of Buy / Overweight / Hold / Underweight / Sell.
@@ -95,6 +103,9 @@ def create_portfolio_manager(llm, memory):
 
 **Risk Analysts Debate History:**
 {history}
+
+**Rolling Risk Debate Summary:**
+{risk_summary}
 
 ---
 
@@ -108,6 +119,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
             "aggressive_history": risk_debate_state.get("aggressive_history", ""),
             "conservative_history": risk_debate_state.get("conservative_history", ""),
             "neutral_history": risk_debate_state.get("neutral_history", ""),
+            "summary": risk_debate_state.get("summary", ""),
             "latest_speaker": "Judge",
             "current_aggressive_response": risk_debate_state.get("current_aggressive_response", ""),
             "current_conservative_response": risk_debate_state.get("current_conservative_response", ""),

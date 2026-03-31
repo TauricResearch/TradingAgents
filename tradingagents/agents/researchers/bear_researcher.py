@@ -1,3 +1,9 @@
+from tradingagents.agents.utils.summary_context import (
+    build_research_packet,
+    get_investment_debate_summary,
+)
+
+
 def create_bear_researcher(llm, memory):
     def bear_node(state) -> dict:
         investment_debate_state = state["investment_debate_state"]
@@ -5,12 +11,10 @@ def create_bear_researcher(llm, memory):
         bear_history = investment_debate_state.get("bear_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
+        research_packet = build_research_packet(state)
+        debate_summary = get_investment_debate_summary(state)
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = research_packet
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -29,11 +33,9 @@ Key points to focus on:
 
 Resources available:
 
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest world affairs news: {news_report}
-Company fundamentals report: {fundamentals_report}
-Conversation history of the debate: {history}
+Compressed research packet: {research_packet}
+Rolling debate summary: {debate_summary}
+Raw debate history (for exact quotations when needed): {history}
 Last bull argument: {current_response}
 Reflections from similar situations and lessons learned: {past_memory_str}
 Use this information to deliver a compelling bear argument, refute the bull's claims, and engage in a dynamic debate that demonstrates the risks and weaknesses of investing in the stock. You must also address reflections and learn from lessons and mistakes you made in the past.
@@ -44,9 +46,9 @@ Use this information to deliver a compelling bear argument, refute the bull's cl
         argument = f"Bear Analyst: {response.content}"
 
         new_investment_debate_state = {
+            **investment_debate_state,
             "history": history + "\n" + argument,
             "bear_history": bear_history + "\n" + argument,
-            "bull_history": investment_debate_state.get("bull_history", ""),
             "current_response": argument,
             "count": investment_debate_state["count"] + 1,
         }

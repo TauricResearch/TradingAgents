@@ -38,6 +38,7 @@ class Propagator:
                     "bull_history": "",
                     "bear_history": "",
                     "history": "",
+                    "summary": "",
                     "current_response": "",
                     "judge_decision": "",
                     "count": 0,
@@ -49,6 +50,7 @@ class Propagator:
                     "conservative_history": "",
                     "neutral_history": "",
                     "history": "",
+                    "summary": "",
                     "latest_speaker": "",
                     "current_aggressive_response": "",
                     "current_conservative_response": "",
@@ -65,6 +67,7 @@ class Propagator:
             "trader_investment_plan": "",
             "final_trade_decision": "",
             "macro_regime_report": "",
+            "research_packet_summary": "",
             "critical_abort_reason": "",
         }
 

@@ -63,6 +63,9 @@ def test_propagator_initial_state_includes_instrument_metadata():
     assert state["asset_class"] == "etf"
     assert state["instrument_type"] == "broad_market_etf"
     assert state["analysis_status"] == "pending"
+    assert state["research_packet_summary"] == ""
+    assert state["investment_debate_state"]["summary"] == ""
+    assert state["risk_debate_state"]["summary"] == ""
 
 
 def test_instrument_preflight_aborts_non_stock():
