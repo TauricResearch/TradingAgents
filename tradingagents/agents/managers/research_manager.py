@@ -29,19 +29,23 @@ def create_research_manager(llm, memory):
 
         macro_context = f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nWeight your decision in line with this macro environment — a risk-off regime raises the bar for BUY decisions, while risk-on supports them.\n" if macro_regime_report else ""
 
-        prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
+        prompt = f"""As the Research Manager and debate facilitator, critically evaluate this round of debate and make a definitive decision: Buy, Sell, or Hold.
 {macro_context}
 
-Summarize the key points from both sides concisely, focusing on the most compelling evidence or reasoning. Your recommendation—Buy, Sell, or Hold—must be clear and actionable. Avoid defaulting to Hold simply because both sides have valid points; commit to a stance grounded in the debate's strongest arguments.
+STRICT CONSTRAINTS:
+- Output ONLY bulleted quantitative analysis. NO conversational filler or narrative.
+- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives.
+- Weight HIGH-confidence claims from the debate over MED/LOW claims.
+- Do NOT default to Hold simply because both sides have valid points. Commit to a stance grounded in the debate's strongest evidence.
 
-Additionally, develop a detailed investment plan for the trader. This should include:
+YOUR TASK:
+1. **Strongest Bull Evidence**: List the top 3 data-backed bull arguments with confidence tags.
+2. **Strongest Bear Evidence**: List the top 3 data-backed bear arguments with confidence tags.
+3. **Recommendation**: Buy, Sell, or Hold — decisive, grounded in the highest-confidence evidence.
+4. **Rationale**: Why the winning evidence outweighs the opposing side.
+5. **Strategic Actions**: Concrete implementation steps for the trader.
 
-Your Recommendation: A decisive stance supported by the most convincing arguments.
-Rationale: An explanation of why these arguments lead to your conclusion.
-Strategic Actions: Concrete steps for implementing the recommendation.
-Take into account your past mistakes on similar situations. Use these insights to refine your decision-making and ensure you are learning and improving. Present your analysis conversationally, as if speaking naturally, without special formatting. 
-
-Here are your past reflections on mistakes:
+Take into account past mistakes on similar situations:
 \"{past_memory_str}\"
 
 {instrument_context}

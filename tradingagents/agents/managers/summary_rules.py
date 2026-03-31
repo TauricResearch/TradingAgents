@@ -17,7 +17,7 @@ class SummaryRuleSet:
 RESEARCH_PACKET_SUMMARY = SummaryRuleSet(
     name="research_packet_summary",
     objective="Compress multi-analyst trading research into a short downstream briefing.",
-    max_words=350,
+    max_words=300,
     sections=(
         "Market setup",
         "Fundamentals",
@@ -32,6 +32,7 @@ RESEARCH_PACKET_SUMMARY = SummaryRuleSet(
         "Prefer concrete facts, levels, catalysts, dates, and risks over commentary.",
         "Do not invent missing evidence.",
         "If a section has no evidence, write 'None noted.'",
+        "Cite exact values as $X.XX (+Y.Y% YoY). No superlatives or hedge words.",
     ),
 )
 
@@ -53,6 +54,7 @@ INVESTMENT_DEBATE_SUMMARY = SummaryRuleSet(
         "Keep tone neutral and decision-ready.",
         "Track unresolved factual disputes separately.",
         "Do not claim consensus unless both sides explicitly converge.",
+        "Cite exact values as $X.XX (+Y.Y% YoY). No superlatives or hedge words.",
     ),
 )
 
@@ -74,6 +76,7 @@ RISK_DEBATE_SUMMARY = SummaryRuleSet(
         "Keep tone neutral and decision-ready.",
         "Prefer sizing, hedging, stop, and scenario language.",
         "Separate open disagreements from agreed controls.",
+        "Cite exact values as $X.XX (+Y.Y% YoY). No superlatives or hedge words.",
     ),
 )
 
@@ -94,6 +97,7 @@ SCANNER_REPORT_SUMMARY = SummaryRuleSet(
         "Retain all exact numeric values, percentages, and price levels.",
         "Prioritize evidence that contradicts or confirms existing macro themes.",
         "Ensure the summary is ready for algorithmic/quantitative synthesis.",
+        "Cite exact values as $X.XX (+Y.Y% YoY). No superlatives or hedge words.",
     ),
 )
 
@@ -109,7 +113,7 @@ def generate_summary_prompt(ruleset: SummaryRuleSet, input_text: str) -> str:
     sections_formatted = "\n".join(f"- **{section}**" for section in ruleset.sections)
     rules_formatted = "\n".join(f"- {rule}" for rule in ruleset.rules)
 
-    return f"""You are a ruthless, highly precise quantitative financial summarizer.
+    return f"""You are a ruthless, highly precise quantitative financial summarizer. No superlatives, hedge words, or filler.
 
 ## OBJECTIVE
 {ruleset.objective}
