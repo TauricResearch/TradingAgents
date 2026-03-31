@@ -52,7 +52,7 @@ async def websocket_endpoint(
     try:
         status = run_info.get("status", "queued")
 
-        if status in ("running", "completed", "failed"):
+        if status in ("running", "completed", "failed", "awaiting_decision"):
             # Background task is already executing (or finished) — stream its cached events
             # then wait for completion if still running.
             logger.info(
@@ -70,7 +70,7 @@ async def websocket_endpoint(
                     sent += 1
                     last_send_monotonic = time.monotonic()
                 current_status = run_info.get("status")
-                if current_status in ("completed", "failed"):
+                if current_status in ("completed", "failed", "awaiting_decision"):
                     break
                 if time.monotonic() - last_send_monotonic >= _HEARTBEAT_INTERVAL_SECONDS:
                     await websocket.send_json(
@@ -88,6 +88,15 @@ async def websocket_endpoint(
                 await websocket.send_json(
                     {"type": "system", "message": f"Error: Run failed: {run_info.get('error', 'unknown error')}"}
                 )
+            elif run_info.get("status") == "awaiting_decision":
+                await websocket.send_json(
+                    {
+                        "type": "system",
+                        "message": "Run paused awaiting Phase 3 decision.",
+                        "run_status": "awaiting_decision",
+                        "pending_phase3_decision": run_info.get("pending_phase3_decision"),
+                    }
+                )
         else:
             msg = (
                 f"Run {run_id} is in unexpected status '{status}'. "
@@ -101,6 +110,8 @@ async def websocket_endpoint(
         if run_info.get("status") == "completed":
             await websocket.send_json({"type": "system", "message": "Run completed."})
             logger.info("Run completed run=%s type=%s", run_id, run_type)
+        elif run_info.get("status") == "awaiting_decision":
+            logger.info("Run paused awaiting decision run=%s type=%s", run_id, run_type)
         else:
             logger.info("Run ended with status=%s run=%s type=%s", run_info.get("status"), run_id, run_type)
 

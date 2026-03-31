@@ -61,6 +61,8 @@ def _hydrate_run_record(meta: dict) -> dict:
         "events": [],  # loaded lazily on demand
         "hydrated_from_disk": True,
     }
+    if meta.get("pending_phase3_decision"):
+        record["pending_phase3_decision"] = meta["pending_phase3_decision"]
     if error:
         record["error"] = error
     return record

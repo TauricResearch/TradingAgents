@@ -7,6 +7,7 @@ from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.run_metadata import normalize_run_params
 from agent_os.backend.services.langgraph_engine import (
+    AwaitPhase3Decision,
     LangGraphEngine,
     NODE_TO_PHASE,
     SCAN_NODE_TO_REPORT_FIELD,
@@ -149,6 +150,8 @@ def _persist_run_to_disk(run_id: str, *, include_meta: bool = True) -> None:
             "params": run.get("params", {}),
             "rerun_seq": run.get("rerun_seq", 0),
         }
+        if run.get("pending_phase3_decision"):
+            meta["pending_phase3_decision"] = run["pending_phase3_decision"]
         store.save_run_events(date, run.get("events", []))
         if include_meta:
             store.save_run_meta(date, meta)
@@ -172,11 +175,15 @@ async def _run_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None])
     runs[run_id]["status"] = "running"
     runs[run_id]["events"] = []
     runs[run_id].pop("error", None)
+    runs[run_id].pop("pending_phase3_decision", None)
     try:
         async for event in gen:
             runs[run_id]["events"].append(event)
             _checkpoint_run_events(run_id)
         runs[run_id]["status"] = "completed"
+    except AwaitPhase3Decision as exc:
+        runs[run_id]["status"] = "awaiting_decision"
+        runs[run_id]["pending_phase3_decision"] = exc.payload
     except asyncio.CancelledError:
         runs[run_id]["status"] = "failed"
         runs[run_id]["error"] = (
@@ -201,12 +208,16 @@ async def _resume_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], Non
     run["rerun_seq"] = run.get("rerun_seq", 0) + 1
     run["status"] = "running"
     run.pop("error", None)
+    run.pop("pending_phase3_decision", None)
     try:
         async for event in gen:
             event["rerun_seq"] = run["rerun_seq"]
             run.setdefault("events", []).append(event)
             _checkpoint_run_events(run_id)
         run["status"] = "completed"
+    except AwaitPhase3Decision as exc:
+        run["status"] = "awaiting_decision"
+        run["pending_phase3_decision"] = exc.payload
     except asyncio.CancelledError:
         run["status"] = "failed"
         run["error"] = "Run stopped by user" if run.get("stop_requested") else "Run cancelled"
@@ -649,6 +660,61 @@ async def resume_run(
 
     _set_run_task(run_id, _resume_and_store(run_id, gen))
     return {"run_id": run_id, "status": "queued", "mode": "same_run"}
+
+
+@router.post("/{run_id}/phase3-decision")
+async def submit_phase3_decision(
+    run_id: str,
+    params: Dict[str, Any] | None = None,
+    user: dict = Depends(get_current_user),
+):
+    run = runs.get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.get("type") != "auto":
+        raise HTTPException(status_code=422, detail="Phase 3 decisions are only supported for auto runs")
+    if run.get("status") != "awaiting_decision":
+        raise HTTPException(status_code=409, detail="Run is not waiting for a Phase 3 decision")
+    pending = run.get("pending_phase3_decision")
+    if not pending:
+        raise HTTPException(status_code=409, detail="No pending Phase 3 decision found for this run")
+
+    raw_retry = (params or {}).get("retry_tickers") or []
+    if isinstance(raw_retry, str):
+        raw_retry = raw_retry.split(",")
+    retry_tickers: list[str] = []
+    seen: set[str] = set()
+    for item in raw_retry:
+        ticker = str(item).strip().upper()
+        if ticker and ticker not in seen:
+            retry_tickers.append(ticker)
+            seen.add(ticker)
+
+    logger.info(
+        "Queued PHASE3_DECISION run=%s retry_tickers=%s user=%s",
+        run_id, retry_tickers, user["user_id"],
+    )
+    run["status"] = "running"
+    run.pop("error", None)
+    decision_message = (
+        "Phase 2 decision received — retrying selected ticker(s): " + ", ".join(retry_tickers)
+        if retry_tickers
+        else "Phase 2 decision received — continuing to Phase 3 without retrying incomplete tickers."
+    )
+    _append_system_event(run_id, decision_message)
+    decision_params = {**(run.get("params") or {}), "run_id": run_id}
+    _set_run_task(
+        run_id,
+        _resume_and_store(
+            run_id,
+            engine.run_auto_phase3_decision(f"{run_id}:phase3-decision", decision_params, retry_tickers),
+        ),
+    )
+    return {
+        "run_id": run_id,
+        "status": "queued",
+        "retry_tickers": retry_tickers,
+    }
 
 
 @router.post("/{run_id}/stop")

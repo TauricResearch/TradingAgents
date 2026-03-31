@@ -24,6 +24,20 @@ from tradingagents.observability import RunLogger, set_run_logger
 
 logger = logging.getLogger("agent_os.engine")
 
+
+class AwaitPhase3Decision(RuntimeError):
+    """Raised when auto mode must pause for a user decision before Phase 3."""
+
+    def __init__(self, payload: dict[str, Any]):
+        self.payload = payload
+        incomplete = payload.get("incomplete_tickers") or []
+        summary = ", ".join(
+            f"{item.get('ticker')} ({item.get('reason')})"
+            for item in incomplete
+            if isinstance(item, dict)
+        ) or "unknown ticker state"
+        super().__init__(f"Ticker analyses require a decision before Phase 3: {summary}")
+
 # ---------------------------------------------------------------------------
 # LLM policy / 404 error helpers
 # ---------------------------------------------------------------------------
@@ -1043,320 +1057,415 @@ class LangGraphEngine:
 
         self._start_run_logger(root_run_id, logger_key=execution_key)
 
-        logger.info("Starting AUTO run=%s date=%s force=%s", root_run_id, date, force)
-        yield self._system_log(f"Starting full auto workflow for {date} (force={force}, run={root_run_id})")
-
-        # Phase 1: Market scan
-        yield self._system_log("Phase 1/3: Running market scan…")
-        if not force and store.load_scan(date):
-            yield self._system_log(f"Phase 1: Macro scan for {date} already exists, skipping.")
-        else:
-            scan_params = {"date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:scan"}
-            if params.get("max_tickers"):
-                scan_params["max_tickers"] = params["max_tickers"]
-            async for evt in self.run_scan(f"{root_run_id}:scan", scan_params):
-                yield evt
-        if _run_should_stop(root_run_id):
-            yield self._system_log("Graceful stop requested — finishing after the market scan phase.")
-            return
-
-        # Phase 2: Pipeline analysis — get tickers from scan report + portfolio holdings
-        yield self._system_log("Phase 2/3: Loading stocks from scan report…")
-        scan_data = self._normalize_scan_summary(store.load_scan(date) or {})
-        scan_instruments = self._extract_pipeline_instruments_from_scan_data(scan_data)
-        tracked_market_symbols = [
-            str(item.get("ticker") or "")
-            for item in (scan_data.get("tracked_market_instruments") or [])
-            if isinstance(item, dict)
-        ]
-        tracked_crypto_symbols = [
-            str(item.get("ticker") or "")
-            for item in (scan_data.get("tracked_crypto_instruments") or [])
-            if isinstance(item, dict)
-        ]
-
-        # Safety cap: truncate scan candidates to max_auto_tickers (portfolio holdings added after)
-        max_t = int(params.get("max_tickers") or self.config.get("max_auto_tickers") or 10)
-        scan_instruments = scan_instruments[:max_t]
-
-        # Also include tickers from current portfolio holdings so the PM agent
-        # has fresh analysis for existing positions (hold/sell/add decisions).
-        portfolio_id = params.get("portfolio_id", "main_portfolio")
-        holding_tickers: list[str] = []
         try:
-            from tradingagents.portfolio.repository import PortfolioRepository
-            _repo = PortfolioRepository()
-            _, holdings = _repo.get_portfolio_with_holdings(portfolio_id)
-            holding_tickers = [h.ticker.upper() for h in holdings]
-        except Exception as exc:
-            logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
-        holding_ticker_set = set(holding_tickers)
+            logger.info("Starting AUTO run=%s date=%s force=%s", root_run_id, date, force)
+            yield self._system_log(f"Starting full auto workflow for {date} (force={force}, run={root_run_id})")
 
-        holding_instruments = [
-            resolve_instrument(ticker, source_context="holding")
-            for ticker in holding_tickers
-        ]
-        holding_instrument_keys = {
-            instrument.instrument_key
-            for instrument in holding_instruments
-            if is_equity_pipeline_supported(instrument)
-        }
-        skipped_holding_symbols = [
-            instrument.canonical_symbol
-            for instrument in holding_instruments
-            if instrument.canonical_symbol and not is_equity_pipeline_supported(instrument)
-        ]
+            # Phase 1: Market scan
+            yield self._system_log("Phase 1/3: Running market scan…")
+            if not force and store.load_scan(date):
+                yield self._system_log(f"Phase 1: Macro scan for {date} already exists, skipping.")
+            else:
+                scan_params = {"date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:scan"}
+                if params.get("max_tickers"):
+                    scan_params["max_tickers"] = params["max_tickers"]
+                async for evt in self.run_scan(f"{root_run_id}:scan", scan_params):
+                    yield evt
+            if _run_should_stop(root_run_id):
+                yield self._system_log("Graceful stop requested — finishing after the market scan phase.")
+                return
 
-        # Merge & deduplicate (scan candidates first, then holdings-only tickers)
-        seen: set[str] = set()
-        queued_instruments: list[CanonicalInstrument] = []
-        for instrument in scan_instruments:
-            if instrument.instrument_key not in seen:
-                seen.add(instrument.instrument_key)
-                queued_instruments.append(instrument)
-        holdings_only: list[str] = []
-        for instrument in holding_instruments:
-            if not is_equity_pipeline_supported(instrument):
-                continue
-            if instrument.instrument_key not in seen:
-                seen.add(instrument.instrument_key)
-                queued_instruments.append(instrument)
-                holdings_only.append(instrument.canonical_symbol)
+            # Phase 2: Pipeline analysis — get tickers from scan report + portfolio holdings
+            yield self._system_log("Phase 2/3: Loading stocks from scan report…")
+            scan_data = self._normalize_scan_summary(store.load_scan(date) or {})
+            scan_instruments = self._extract_pipeline_instruments_from_scan_data(scan_data)
+            tracked_market_symbols = [
+                str(item.get("ticker") or "")
+                for item in (scan_data.get("tracked_market_instruments") or [])
+                if isinstance(item, dict)
+            ]
+            tracked_crypto_symbols = [
+                str(item.get("ticker") or "")
+                for item in (scan_data.get("tracked_crypto_instruments") or [])
+                if isinstance(item, dict)
+            ]
 
-        if scan_instruments:
-            yield self._system_log(
-                f"Phase 2/3: {len(scan_instruments)} equity ticker(s) from scan report"
-            )
-        if tracked_market_symbols:
-            yield self._system_log(
-                "Phase 2/3: tracked market instruments kept out of stock deep-dive queue: "
-                + ", ".join(tracked_market_symbols)
-            )
-        if tracked_crypto_symbols:
-            yield self._system_log(
-                "Phase 2/3: tracked crypto instruments kept out of stock deep-dive queue: "
-                + ", ".join(tracked_crypto_symbols)
-            )
-        if holdings_only:
-            yield self._system_log(
-                f"Phase 2/3: {len(holdings_only)} additional ticker(s) from portfolio holdings: "
-                + ", ".join(holdings_only)
-            )
-        if skipped_holding_symbols:
-            yield self._system_log(
-                "Phase 2/3: skipping non-stock holdings for the current deep-dive path: "
-                + ", ".join(sorted(set(skipped_holding_symbols)))
-            )
+            # Safety cap: truncate scan candidates to max_auto_tickers (portfolio holdings added after)
+            max_t = int(params.get("max_tickers") or self.config.get("max_auto_tickers") or 10)
+            scan_instruments = scan_instruments[:max_t]
 
-        if not queued_instruments:
-            yield self._system_log(
-                "Warning: no common-stock candidates found in scan summary and no supported portfolio holdings — "
-                "ensure the scan completed successfully and produced a "
-                "'stocks_to_investigate' list. Skipping pipeline phase."
-            )
-        else:
-            max_concurrent = int(self.config.get("max_concurrent_pipelines", 2))
-            failed_tickers: dict[str, str] = {}
-            yield self._system_log(
-                f"Phase 2/3: Queuing {len(queued_instruments)} ticker(s) "
-                f"(max {max_concurrent} concurrent)…"
-            )
+            # Also include tickers from current portfolio holdings so the PM agent
+            # has fresh analysis for existing positions (hold/sell/add decisions).
+            portfolio_id = params.get("portfolio_id", "main_portfolio")
+            holding_tickers: list[str] = []
+            try:
+                from tradingagents.portfolio.repository import PortfolioRepository
+                _repo = PortfolioRepository()
+                _, holdings = _repo.get_portfolio_with_holdings(portfolio_id)
+                holding_tickers = [h.ticker.upper() for h in holdings]
+            except Exception as exc:
+                logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
+            holding_ticker_set = set(holding_tickers)
 
-            # Run all tickers concurrently, bounded by a semaphore.
-            # Events from all pipelines are funnelled through a shared queue
-            # so this async generator can yield them as they arrive.
-            _sentinel = object()
-            pipeline_queue: asyncio.Queue = asyncio.Queue()
-            semaphore = asyncio.Semaphore(max_concurrent)
+            holding_instruments = [
+                resolve_instrument(ticker, source_context="holding")
+                for ticker in holding_tickers
+            ]
+            holding_instrument_keys = {
+                instrument.instrument_key
+                for instrument in holding_instruments
+                if is_equity_pipeline_supported(instrument)
+            }
+            skipped_holding_symbols = [
+                instrument.canonical_symbol
+                for instrument in holding_instruments
+                if instrument.canonical_symbol and not is_equity_pipeline_supported(instrument)
+            ]
 
-            async def _run_one_ticker(instrument: CanonicalInstrument) -> None:
-                ticker = instrument.canonical_symbol
+            # Merge & deduplicate (scan candidates first, then holdings-only tickers)
+            seen: set[str] = set()
+            queued_instruments: list[CanonicalInstrument] = []
+            for instrument in scan_instruments:
+                if instrument.instrument_key not in seen:
+                    seen.add(instrument.instrument_key)
+                    queued_instruments.append(instrument)
+            holdings_only: list[str] = []
+            for instrument in holding_instruments:
+                if not is_equity_pipeline_supported(instrument):
+                    continue
+                if instrument.instrument_key not in seen:
+                    seen.add(instrument.instrument_key)
+                    queued_instruments.append(instrument)
+                    holdings_only.append(instrument.canonical_symbol)
 
-                def _record_failure(reason: str) -> None:
-                    failed_tickers[ticker] = reason
+            if scan_instruments:
+                yield self._system_log(
+                    f"Phase 2/3: {len(scan_instruments)} equity ticker(s) from scan report"
+                )
+            if tracked_market_symbols:
+                yield self._system_log(
+                    "Phase 2/3: tracked market instruments kept out of stock deep-dive queue: "
+                    + ", ".join(tracked_market_symbols)
+                )
+            if tracked_crypto_symbols:
+                yield self._system_log(
+                    "Phase 2/3: tracked crypto instruments kept out of stock deep-dive queue: "
+                    + ", ".join(tracked_crypto_symbols)
+                )
+            if holdings_only:
+                yield self._system_log(
+                    f"Phase 2/3: {len(holdings_only)} additional ticker(s) from portfolio holdings: "
+                    + ", ".join(holdings_only)
+                )
+            if skipped_holding_symbols:
+                yield self._system_log(
+                    "Phase 2/3: skipping non-stock holdings for the current deep-dive path: "
+                    + ", ".join(sorted(set(skipped_holding_symbols)))
+                )
 
-                async with semaphore:
-                    existing_analysis = store.load_analysis(date, ticker)
-                    if not force and _analysis_is_terminal(existing_analysis):
+            if not queued_instruments:
+                yield self._system_log(
+                    "Warning: no common-stock candidates found in scan summary and no supported portfolio holdings — "
+                    "ensure the scan completed successfully and produced a "
+                    "'stocks_to_investigate' list. Skipping pipeline phase."
+                )
+            else:
+                max_concurrent = int(self.config.get("max_concurrent_pipelines", 2))
+                failed_tickers: dict[str, str] = {}
+                queued_tickers = [instrument.canonical_symbol for instrument in queued_instruments]
+                yield self._system_log(
+                    f"Phase 2/3: Queuing {len(queued_instruments)} ticker(s) "
+                    f"(max {max_concurrent} concurrent)…"
+                )
+
+                # Run all tickers concurrently, bounded by a semaphore.
+                # Events from all pipelines are funnelled through a shared queue
+                # so this async generator can yield them as they arrive.
+                _sentinel = object()
+                pipeline_queue: asyncio.Queue = asyncio.Queue()
+                semaphore = asyncio.Semaphore(max_concurrent)
+                scheduler_error: str | None = None
+                dispatched_tickers: set[str] = set()
+
+                async def _run_one_ticker(instrument: CanonicalInstrument) -> None:
+                    ticker = instrument.canonical_symbol
+                    dispatched_tickers.add(ticker)
+
+                    def _record_failure(reason: str) -> None:
+                        failed_tickers[ticker] = reason
+
+                    async with semaphore:
+                        existing_analysis = store.load_analysis(date, ticker)
+                        if not force and _analysis_is_terminal(existing_analysis):
+                            await pipeline_queue.put(
+                                self._system_log(
+                                    f"Phase 2: Analysis for {ticker} on {date} already exists, skipping."
+                                )
+                            )
+                            return
                         await pipeline_queue.put(
-                            self._system_log(
-                                f"Phase 2: Analysis for {ticker} on {date} already exists, skipping."
-                            )
+                            self._system_log(f"Phase 2/3: Running analysis pipeline for {ticker}…")
                         )
-                        return
-                    await pipeline_queue.put(
-                        self._system_log(f"Phase 2/3: Running analysis pipeline for {ticker}…")
-                    )
-                    try:
-                        async for evt in self.run_pipeline(
-                            f"{root_run_id}:pipeline:{ticker}",
-                            {
-                                "ticker": ticker,
-                                "date": date,
-                                "run_id": root_run_id,
-                                "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
-                                "_execution_key": f"{root_run_id}:pipeline:{ticker}",
-                            },
-                        ):
-                            await pipeline_queue.put(evt)
-                        saved_analysis = store.load_analysis(date, ticker)
-                        saved_status = _analysis_status(saved_analysis)
-                        if saved_status == "aborted":
-                            await pipeline_queue.put(
-                                self._system_log(
-                                    f"Phase 2/3: {ticker} hit terminal critical-abort path ({saved_analysis.get('terminal_action', 'ABORT')})."
-                                )
-                            )
-                        elif saved_status != "completed":
-                            reason = "analysis finished without a completed deep-dive decision"
-                            _record_failure(reason)
-                            await pipeline_queue.put(
-                                self._system_log(
-                                    f"Warning: pipeline for {ticker} produced no deep-dive decision; skipping ticker in portfolio stage."
-                                )
-                            )
-                    except Exception as exc:
-                        if _is_policy_error(exc):
-                            logger.error(
-                                "Pipeline blocked ticker=%s run=%s: %s", ticker, run_id, exc
-                            )
-                            fallback_config = _build_fallback_config(self.config)
-                            if fallback_config:
-                                fallback_models = ", ".join(
-                                    f"{t}={fallback_config.get(f'{t}_llm', 'same')}"
-                                    for t in ("quick_think", "mid_think", "deep_think")
-                                    if fallback_config.get(f"{t}_llm") != self.config.get(f"{t}_llm")
-                                )
+                        try:
+                            async for evt in self.run_pipeline(
+                                f"{root_run_id}:pipeline:{ticker}",
+                                {
+                                    "ticker": ticker,
+                                    "date": date,
+                                    "run_id": root_run_id,
+                                    "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
+                                    "_execution_key": f"{root_run_id}:pipeline:{ticker}",
+                                },
+                            ):
+                                await pipeline_queue.put(evt)
+                            saved_analysis = store.load_analysis(date, ticker)
+                            saved_status = _analysis_status(saved_analysis)
+                            if saved_status == "aborted":
                                 await pipeline_queue.put(
                                     self._system_log(
-                                        f"Primary model blocked for {ticker} — retrying with "
-                                        f"fallback: {fallback_models}…"
+                                        f"Phase 2/3: {ticker} hit terminal critical-abort path ({saved_analysis.get('terminal_action', 'ABORT')})."
                                     )
                                 )
-                                original_config = self.config
-                                self.config = fallback_config
-                                try:
-                                    async for evt in self.run_pipeline(
-                                        f"{root_run_id}:fallback:{ticker}",
-                                        {
-                                            "ticker": ticker,
-                                            "date": date,
-                                            "run_id": root_run_id,
-                                            "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
-                                            "_execution_key": f"{root_run_id}:fallback:{ticker}",
-                                        },
-                                    ):
-                                        await pipeline_queue.put(evt)
-                                    saved_analysis = store.load_analysis(date, ticker)
-                                    saved_status = _analysis_status(saved_analysis)
-                                    if saved_status == "aborted":
-                                        await pipeline_queue.put(
-                                            self._system_log(
-                                                f"Phase 2/3: {ticker} hit terminal critical-abort path ({saved_analysis.get('terminal_action', 'ABORT')})."
-                                            )
-                                        )
-                                    elif saved_status != "completed":
-                                        reason = "fallback finished without a completed deep-dive decision"
-                                        _record_failure(reason)
-                                        await pipeline_queue.put(
-                                            self._system_log(
-                                                f"Warning: fallback pipeline for {ticker} produced no deep-dive decision; skipping ticker in portfolio stage."
-                                            )
-                                        )
-                                except Exception as fallback_exc:
-                                    logger.error(
-                                        "Fallback pipeline failed ticker=%s: %s",
-                                        ticker, fallback_exc,
+                            elif saved_status != "completed":
+                                reason = "analysis finished without a completed deep-dive decision"
+                                _record_failure(reason)
+                                await pipeline_queue.put(
+                                    self._system_log(
+                                        f"Warning: pipeline for {ticker} produced no deep-dive decision; skipping ticker in portfolio stage."
                                     )
-                                    _record_failure(str(fallback_exc))
+                                )
+                        except Exception as exc:
+                            if _is_policy_error(exc):
+                                logger.error(
+                                    "Pipeline blocked ticker=%s run=%s: %s", ticker, run_id, exc
+                                )
+                                fallback_config = _build_fallback_config(self.config)
+                                if fallback_config:
+                                    fallback_models = ", ".join(
+                                        f"{t}={fallback_config.get(f'{t}_llm', 'same')}"
+                                        for t in ("quick_think", "mid_think", "deep_think")
+                                        if fallback_config.get(f"{t}_llm") != self.config.get(f"{t}_llm")
+                                    )
                                     await pipeline_queue.put(
                                         self._system_log(
-                                            f"Warning: pipeline for {ticker} failed "
-                                            f"(fallback also failed): {fallback_exc}"
+                                            f"Primary model blocked for {ticker} — retrying with "
+                                            f"fallback: {fallback_models}…"
                                         )
                                     )
-                                finally:
-                                    self.config = original_config
+                                    original_config = self.config
+                                    self.config = fallback_config
+                                    try:
+                                        async for evt in self.run_pipeline(
+                                            f"{root_run_id}:fallback:{ticker}",
+                                            {
+                                                "ticker": ticker,
+                                                "date": date,
+                                                "run_id": root_run_id,
+                                                "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
+                                                "_execution_key": f"{root_run_id}:fallback:{ticker}",
+                                            },
+                                        ):
+                                            await pipeline_queue.put(evt)
+                                        saved_analysis = store.load_analysis(date, ticker)
+                                        saved_status = _analysis_status(saved_analysis)
+                                        if saved_status == "aborted":
+                                            await pipeline_queue.put(
+                                                self._system_log(
+                                                    f"Phase 2/3: {ticker} hit terminal critical-abort path ({saved_analysis.get('terminal_action', 'ABORT')})."
+                                                )
+                                            )
+                                        elif saved_status != "completed":
+                                            reason = "fallback finished without a completed deep-dive decision"
+                                            _record_failure(reason)
+                                            await pipeline_queue.put(
+                                                self._system_log(
+                                                    f"Warning: fallback pipeline for {ticker} produced no deep-dive decision; skipping ticker in portfolio stage."
+                                                )
+                                            )
+                                    except Exception as fallback_exc:
+                                        logger.error(
+                                            "Fallback pipeline failed ticker=%s: %s",
+                                            ticker, fallback_exc,
+                                        )
+                                        _record_failure(str(fallback_exc))
+                                        await pipeline_queue.put(
+                                            self._system_log(
+                                                f"Warning: pipeline for {ticker} failed "
+                                                f"(fallback also failed): {fallback_exc}"
+                                            )
+                                        )
+                                    finally:
+                                        self.config = original_config
+                                else:
+                                    _record_failure(str(exc))
+                                    await pipeline_queue.put(
+                                        self._system_log(
+                                            f"Warning: pipeline for {ticker} blocked by LLM provider policy. "
+                                            f"{exc} — "
+                                            f"Set TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM (and MID/DEEP) "
+                                            f"to auto-retry with a different model."
+                                        )
+                                    )
                             else:
+                                logger.exception(
+                                    "Pipeline failed ticker=%s run=%s", ticker, run_id
+                                )
                                 _record_failure(str(exc))
                                 await pipeline_queue.put(
                                     self._system_log(
-                                        f"Warning: pipeline for {ticker} blocked by LLM provider policy. "
-                                        f"{exc} — "
-                                        f"Set TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM (and MID/DEEP) "
-                                        f"to auto-retry with a different model."
+                                        f"Warning: pipeline for {ticker} failed: {exc}"
                                     )
                                 )
-                        else:
-                            logger.exception(
-                                "Pipeline failed ticker=%s run=%s", ticker, run_id
-                            )
-                            _record_failure(str(exc))
-                            await pipeline_queue.put(
-                                self._system_log(
-                                    f"Warning: pipeline for {ticker} failed: {exc}"
-                                )
-                            )
 
-            async def _pipeline_producer() -> None:
-                pending: set[asyncio.Task] = set()
-                iterator = iter(queued_instruments)
+                async def _pipeline_producer() -> None:
+                    nonlocal scheduler_error
+                    pending: set[asyncio.Task] = set()
+                    iterator = iter(queued_instruments)
+
+                    try:
+                        while True:
+                            while len(pending) < max_concurrent:
+                                if _run_should_stop(root_run_id):
+                                    await pipeline_queue.put(
+                                        self._system_log(
+                                            "Graceful stop requested — no new ticker pipelines will be queued."
+                                        )
+                                    )
+                                    break
+                                try:
+                                    instrument = next(iterator)
+                                except StopIteration:
+                                    break
+                                pending.add(asyncio.create_task(_run_one_ticker(instrument)))
+
+                            if not pending:
+                                break
+
+                            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                            for task in done:
+                                await task
+                    except Exception as exc:
+                        scheduler_error = str(exc)
+                        logger.exception("AUTO pipeline scheduler failed run=%s", root_run_id)
+                        await pipeline_queue.put(
+                            self._system_log(
+                                "Warning: pipeline scheduler failed before all queued tickers were dispatched: "
+                                f"{exc}"
+                            )
+                        )
+                    finally:
+                        await pipeline_queue.put(_sentinel)
+
+                asyncio.create_task(_pipeline_producer())
 
                 while True:
-                    while len(pending) < max_concurrent:
-                        if _run_should_stop(root_run_id):
-                            await pipeline_queue.put(
-                                self._system_log(
-                                    "Graceful stop requested — no new ticker pipelines will be queued."
-                                )
-                            )
-                            break
-                        try:
-                            instrument = next(iterator)
-                        except StopIteration:
-                            break
-                        pending.add(asyncio.create_task(_run_one_ticker(instrument)))
-
-                    if not pending:
+                    item = await pipeline_queue.get()
+                    if item is _sentinel:
                         break
+                    yield item
 
-                    done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-                    for task in done:
-                        await task
+                stop_requested = _run_should_stop(root_run_id)
+                completed_tickers: list[str] = []
+                aborted_tickers: list[str] = []
+                for ticker in queued_tickers:
+                    analysis = store.load_analysis(date, ticker)
+                    status = _analysis_status(analysis)
+                    if status == "completed":
+                        completed_tickers.append(ticker)
+                        continue
+                    if status == "aborted":
+                        aborted_tickers.append(ticker)
+                        continue
+                    if ticker in failed_tickers:
+                        continue
+                    if stop_requested and ticker not in dispatched_tickers:
+                        continue
+                    if analysis is None:
+                        failed_tickers[ticker] = "no persisted terminal analysis artifact"
+                    else:
+                        failed_tickers[ticker] = f"analysis artifact remained {status}"
 
-                await pipeline_queue.put(_sentinel)
+                if completed_tickers or aborted_tickers:
+                    status_parts: list[str] = []
+                    if completed_tickers:
+                        status_parts.append(
+                            f"completed {len(completed_tickers)} ticker(s): "
+                            + ", ".join(sorted(completed_tickers))
+                        )
+                    if aborted_tickers:
+                        status_parts.append(
+                            f"terminal aborts {len(aborted_tickers)} ticker(s): "
+                            + ", ".join(sorted(aborted_tickers))
+                        )
+                    yield self._system_log("Phase 2/3: " + " | ".join(status_parts))
 
-            asyncio.create_task(_pipeline_producer())
+                if scheduler_error:
+                    failed_tickers.setdefault("<scheduler>", scheduler_error)
 
-            while True:
-                item = await pipeline_queue.get()
-                if item is _sentinel:
-                    break
-                yield item
-
-            if failed_tickers:
-                failed_summary = ", ".join(
-                    f"{ticker} ({reason})" for ticker, reason in sorted(failed_tickers.items())
-                )
-                if continue_on_ticker_failure:
-                    yield self._system_log(
-                        "Phase 2/3: continuing to portfolio stage without failed tickers: "
-                        + failed_summary
+                if failed_tickers:
+                    failed_summary = ", ".join(
+                        f"{ticker} ({reason})" for ticker, reason in sorted(failed_tickers.items())
                     )
-                else:
-                    yield self._system_log(
-                        "Phase 2/3: paused before portfolio stage because ticker analyses failed: "
-                        + failed_summary
-                    )
-                    raise RuntimeError(
-                        "Ticker analyses failed before Phase 3. "
-                        "Retry the failed ticker pipelines or enable continue_on_ticker_failure. "
-                        f"Failed tickers: {failed_summary}"
-                    )
-        if _run_should_stop(root_run_id):
-            yield self._system_log("Graceful stop requested — finishing after Phase 2 without starting portfolio management.")
-            return
+                    if continue_on_ticker_failure:
+                        yield self._system_log(
+                            "Phase 2/3: continuing to portfolio stage without failed tickers: "
+                            + failed_summary
+                        )
+                    else:
+                        yield self._system_log(
+                            "Phase 2/3: paused before portfolio stage because ticker analyses failed: "
+                            + failed_summary
+                        )
+                        ticker_contexts = {
+                            instrument.canonical_symbol: (
+                                "holding" if instrument.instrument_key in holding_instrument_keys else "candidate"
+                            )
+                            for instrument in queued_instruments
+                        }
+                        raise AwaitPhase3Decision(
+                            {
+                                "date": date,
+                                "portfolio_id": portfolio_id,
+                                "incomplete_tickers": [
+                                    {
+                                        "ticker": ticker,
+                                        "reason": reason,
+                                        "portfolio_context": ticker_contexts.get(ticker, "candidate"),
+                                    }
+                                    for ticker, reason in sorted(failed_tickers.items())
+                                    if ticker != "<scheduler>"
+                                ],
+                                "completed_tickers": sorted(completed_tickers),
+                                "aborted_tickers": sorted(aborted_tickers),
+                                "scheduler_error": scheduler_error,
+                            }
+                        )
+            if _run_should_stop(root_run_id):
+                yield self._system_log("Graceful stop requested — finishing after Phase 2 without starting portfolio management.")
+                return
 
+            async for evt in self._run_auto_phase_three(
+                root_run_id=root_run_id,
+                date=date,
+                force=force,
+                params=params,
+                store=store,
+            ):
+                yield evt
+
+            logger.info("Completed AUTO run=%s", root_run_id)
+        finally:
+            self._finish_run_logger(execution_key, get_daily_dir(date, root_run_id))
+
+    async def _run_auto_phase_three(
+        self,
+        *,
+        root_run_id: str,
+        date: str,
+        force: bool,
+        params: Dict[str, Any],
+        store,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
         # Phase 3: Portfolio management
         yield self._system_log("Phase 3/3: Running portfolio manager…")
         portfolio_params = {k: v for k, v in params.items() if k != "ticker"}
@@ -1385,8 +1494,113 @@ class LangGraphEngine:
                 ):
                     yield evt
 
-        logger.info("Completed AUTO run=%s", root_run_id)
-        self._finish_run_logger(execution_key, get_daily_dir(date, root_run_id))
+    async def run_auto_phase3_decision(
+        self,
+        run_id: str,
+        params: Dict[str, Any],
+        retry_tickers: list[str],
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Resolve an auto-run Phase 2 pause by retrying selected tickers or continuing."""
+        root_run_id = self._root_run_id(run_id, params)
+        execution_key = self._execution_key(run_id, params)
+        date = params.get("date", time.strftime("%Y-%m-%d"))
+        force = bool(params.get("force", False))
+        store = create_report_store(run_id=root_run_id)
+        run_record = live_runs.get(root_run_id) or {}
+        pending = run_record.get("pending_phase3_decision") or {}
+        incomplete = pending.get("incomplete_tickers") or []
+        portfolio_id = pending.get("portfolio_id") or params.get("portfolio_id", "main_portfolio")
+        self._start_run_logger(root_run_id, logger_key=execution_key)
+
+        try:
+            if not incomplete:
+                raise ValueError("No incomplete ticker analyses are waiting for a Phase 3 decision.")
+
+            incomplete_map = {
+                str(item.get("ticker") or "").upper(): item
+                for item in incomplete
+                if isinstance(item, dict) and item.get("ticker")
+            }
+            invalid = [ticker for ticker in retry_tickers if ticker not in incomplete_map]
+            if invalid:
+                raise ValueError(
+                    "Retry tickers are not in the current incomplete set: " + ", ".join(sorted(invalid))
+                )
+
+            if retry_tickers:
+                yield self._system_log(
+                    "Phase 2/3: retrying selected incomplete ticker(s): "
+                    + ", ".join(sorted(retry_tickers))
+                )
+                for ticker in retry_tickers:
+                    item = incomplete_map[ticker]
+                    async for evt in self.run_pipeline(
+                        f"{root_run_id}:decision-retry:{ticker}",
+                        {
+                            "ticker": ticker,
+                            "date": date,
+                            "run_id": root_run_id,
+                            "portfolio_context": item.get("portfolio_context", "candidate"),
+                            "_execution_key": f"{root_run_id}:decision-retry:{ticker}",
+                        },
+                    ):
+                        yield evt
+
+                remaining_incomplete: list[dict[str, str]] = []
+                completed_tickers: list[str] = []
+                aborted_tickers: list[str] = []
+                for ticker, item in sorted(incomplete_map.items()):
+                    analysis = store.load_analysis(date, ticker)
+                    status = _analysis_status(analysis)
+                    if status == "completed":
+                        completed_tickers.append(ticker)
+                    elif status == "aborted":
+                        aborted_tickers.append(ticker)
+                    else:
+                        remaining_incomplete.append(
+                            {
+                                "ticker": ticker,
+                                "reason": "analysis finished without a completed deep-dive decision"
+                                if status == "missing"
+                                else f"analysis artifact remained {status}",
+                                "portfolio_context": item.get("portfolio_context", "candidate"),
+                            }
+                        )
+
+                if remaining_incomplete:
+                    failed_summary = ", ".join(
+                        f"{item['ticker']} ({item['reason']})" for item in remaining_incomplete
+                    )
+                    yield self._system_log(
+                        "Phase 2/3: paused again before portfolio stage because ticker analyses are still incomplete: "
+                        + failed_summary
+                    )
+                    raise AwaitPhase3Decision(
+                        {
+                            "date": date,
+                            "portfolio_id": portfolio_id,
+                            "incomplete_tickers": remaining_incomplete,
+                            "completed_tickers": sorted(set((pending.get("completed_tickers") or []) + completed_tickers)),
+                            "aborted_tickers": sorted(set((pending.get("aborted_tickers") or []) + aborted_tickers)),
+                            "scheduler_error": None,
+                        }
+                    )
+
+            else:
+                yield self._system_log(
+                    "Phase 2/3: continuing to Phase 3 without retrying incomplete tickers."
+                )
+
+            async for evt in self._run_auto_phase_three(
+                root_run_id=root_run_id,
+                date=date,
+                force=force,
+                params={**params, "portfolio_id": portfolio_id, "run_id": root_run_id},
+                store=store,
+            ):
+                yield evt
+        finally:
+            self._finish_run_logger(execution_key, get_daily_dir(date, root_run_id))
 
     # ------------------------------------------------------------------
     # Report helpers

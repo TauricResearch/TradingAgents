@@ -1205,6 +1205,103 @@ class TestRunAutoTickerSource(unittest.TestCase):
             f"Expected a log about skipping failed tickers. Got: {log_messages}",
         )
 
+    def test_run_auto_missing_persisted_ticker_pauses_before_phase_three_by_default(self):
+        """Phase 3 should not start when a queued ticker never produces a terminal artifact."""
+        scan_data = {"stocks_to_investigate": ["AAPL", "TSLA"]}
+        portfolio_called = []
+
+        engine = LangGraphEngine()
+        completed_tickers = {"AAPL"}
+
+        async def fake_run_pipeline(run_id, params):
+            for _ in ():
+                yield {}
+
+        async def fake_run_portfolio(run_id, params):
+            portfolio_called.append(params)
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+        engine.run_portfolio = fake_run_portfolio
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_runtime_analysis_store(scan_data, completed_tickers)
+
+            with self.assertRaisesRegex(RuntimeError, "TSLA"):
+                asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        self.assertEqual(portfolio_called, [])
+
+    def test_run_auto_can_continue_when_ticker_artifact_is_missing(self):
+        """continue_on_ticker_failure should allow Phase 3 even when a ticker never persisted."""
+        scan_data = {"stocks_to_investigate": ["AAPL", "TSLA"]}
+        portfolio_called = []
+
+        engine = LangGraphEngine()
+        completed_tickers = {"AAPL"}
+
+        async def fake_run_pipeline(run_id, params):
+            for _ in ():
+                yield {}
+
+        async def fake_run_portfolio(run_id, params):
+            portfolio_called.append(params)
+            for _ in ():
+                yield {}
+
+        engine.run_pipeline = fake_run_pipeline
+        engine.run_portfolio = fake_run_portfolio
+
+        with patch("agent_os.backend.services.langgraph_engine.ScannerGraph",
+                   return_value=self._make_noop_scanner()), \
+             patch("agent_os.backend.services.langgraph_engine.PortfolioGraph",
+                   return_value=self._make_noop_portfolio_graph()), \
+             patch("agent_os.backend.services.langgraph_engine.get_market_dir") as mock_gmd, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir"), \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir") as mock_gdd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data):
+            fake_mdir = MagicMock(spec=Path)
+            fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
+            fake_mdir.mkdir = MagicMock()
+            mock_gmd.return_value = fake_mdir
+            fake_daily = MagicMock(spec=Path)
+            fake_daily.exists.return_value = False
+            mock_gdd.return_value = fake_daily
+
+            mock_rs_cls.return_value = self._make_runtime_analysis_store(scan_data, completed_tickers)
+
+            events = asyncio.run(_collect(engine.run_auto("auto1", {
+                "date": "2026-01-01",
+                "continue_on_ticker_failure": True,
+            })))
+
+        self.assertEqual(len(portfolio_called), 1)
+        log_messages = [e.get("message", "") for e in events if e.get("type") == "log"]
+        self.assertTrue(
+            any("TSLA (analysis finished without a completed deep-dive decision)" in m for m in log_messages),
+            f"Expected a missing-artifact failure log. Got: {log_messages}",
+        )
+
     def test_run_auto_allows_terminal_abort_without_failure_toggle(self):
         """A terminal aborted ticker should continue to Phase 3 without being counted as a failure."""
         scan_data = {"stocks_to_investigate": ["AAPL"]}

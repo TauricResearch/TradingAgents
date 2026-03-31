@@ -380,7 +380,7 @@ const nodeTypes = { agentNode: AgentNode, tickerHeader: TickerHeaderNode };
 
 interface AgentGraphProps {
   events: AgentEvent[];
-  runStatus?: 'idle' | 'connecting' | 'streaming' | 'completed' | 'error';
+  runStatus?: 'idle' | 'connecting' | 'streaming' | 'completed' | 'paused' | 'error';
   onNodeClick?: (nodeId: string, identifier?: string) => void;
   onNodeRerun?: (identifier: string, nodeId: string) => void;
 }
