@@ -148,6 +148,7 @@ activemq-data/
 *.sage.py
 
 # Environments
+.DS_Store
 .env
 .envrc
 .venv
@@ -156,6 +157,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+
 
 # Spyder project settings
 .spyderproject
@@ -230,7 +232,5 @@ Y/
 # Frontend
 node_modules/
 agent_os/frontend/dist/
-
-.DS_Store
 
 .claude/worktrees.worktrees/
