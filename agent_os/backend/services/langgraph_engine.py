@@ -333,6 +333,7 @@ class LangGraphEngine:
             ):
                 if _run_should_stop(root_run_id):
 <<<<<<< HEAD
+<<<<<<< HEAD
                     logger.info("SCAN run=%s: graceful stop requested, aborting early", root_run_id)
                     yield self._system_log("Aborting macro scan due to graceful stop request.")
                     raise asyncio.CancelledError()
@@ -340,6 +341,15 @@ class LangGraphEngine:
                     yield self._system_log("Graceful stop requested — aborting market scan.")
                     raise RuntimeError("Run stopped by user")
 >>>>>>> f1807fa (fix: ensure immediate stop interruption and fix MongoDB indexing)
+=======
+                    yield self._system_log("Graceful stop requested — aborting market scan.")
+                    raise RuntimeError("Run stopped by user")
+=======
+                    logger.info("SCAN run=%s: graceful stop requested, aborting early", root_run_id)
+                    yield self._system_log("Aborting macro scan due to graceful stop request.")
+                    raise asyncio.CancelledError()
+>>>>>>> 407bfd1 (fix: ensure graceful stop immediately cancels in-flight LLM tasks)
+>>>>>>> 4d44cd6 (fix: ensure graceful stop immediately cancels in-flight LLM tasks)
 
                 # Capture the complete final state from the root graph's terminal event.
                 # LangGraph v2 emits one root-level on_chain_end (parent_ids=[], no
@@ -558,6 +568,7 @@ class LangGraphEngine:
             ):
                 if _run_should_stop(root_run_id):
 <<<<<<< HEAD
+<<<<<<< HEAD
                     logger.info("PIPELINE run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
                     yield self._system_log(f"Aborting analysis for {ticker} due to graceful stop request.")
                     raise asyncio.CancelledError()
@@ -565,6 +576,15 @@ class LangGraphEngine:
                     yield self._system_log(f"Graceful stop requested — aborting pipeline for {ticker}.")
                     raise RuntimeError("Run stopped by user")
 >>>>>>> f1807fa (fix: ensure immediate stop interruption and fix MongoDB indexing)
+=======
+                    yield self._system_log(f"Graceful stop requested — aborting pipeline for {ticker}.")
+                    raise RuntimeError("Run stopped by user")
+=======
+                    logger.info("PIPELINE run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
+                    yield self._system_log(f"Aborting analysis for {ticker} due to graceful stop request.")
+                    raise asyncio.CancelledError()
+>>>>>>> 407bfd1 (fix: ensure graceful stop immediately cancels in-flight LLM tasks)
+>>>>>>> 4d44cd6 (fix: ensure graceful stop immediately cancels in-flight LLM tasks)
 
                 # Capture the complete final state from the root graph's terminal event.
                 if self._is_root_chain_end(event):
@@ -790,6 +810,7 @@ class LangGraphEngine:
         ):
             if _run_should_stop(root_run_id):
 <<<<<<< HEAD
+<<<<<<< HEAD
                 logger.info("PORTFOLIO run=%s: graceful stop requested, aborting early", root_run_id)
                 yield self._system_log("Aborting portfolio management due to graceful stop request.")
                 raise asyncio.CancelledError()
@@ -797,6 +818,15 @@ class LangGraphEngine:
                 yield self._system_log(f"Graceful stop requested — aborting portfolio management for {portfolio_id}.")
                 raise RuntimeError("Run stopped by user")
 >>>>>>> f1807fa (fix: ensure immediate stop interruption and fix MongoDB indexing)
+=======
+                yield self._system_log(f"Graceful stop requested — aborting portfolio management for {portfolio_id}.")
+                raise RuntimeError("Run stopped by user")
+=======
+                logger.info("PORTFOLIO run=%s: graceful stop requested, aborting early", root_run_id)
+                yield self._system_log("Aborting portfolio management due to graceful stop request.")
+                raise asyncio.CancelledError()
+>>>>>>> 407bfd1 (fix: ensure graceful stop immediately cancels in-flight LLM tasks)
+>>>>>>> 4d44cd6 (fix: ensure graceful stop immediately cancels in-flight LLM tasks)
 
             if self._is_root_chain_end(event):
                 output = (event.get("data") or {}).get("output")
@@ -1858,13 +1888,19 @@ class LangGraphEngine:
                 )
                 for ticker in retry_tickers:
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 4d44cd6 (fix: ensure graceful stop immediately cancels in-flight LLM tasks)
                     if _run_should_stop(root_run_id):
                         logger.info("AUTO_PHASE3_DECISION run=%s: graceful stop requested, aborting early", root_run_id)
                         yield self._system_log("Aborting retry due to graceful stop request.")
                         raise asyncio.CancelledError()
 
+<<<<<<< HEAD
 =======
 >>>>>>> 7d35575 (Add Phase 3 decision flow for incomplete auto tickers)
+=======
+>>>>>>> 4d44cd6 (fix: ensure graceful stop immediately cancels in-flight LLM tasks)
                     item = incomplete_map[ticker]
                     async for evt in self.run_pipeline(
                         f"{root_run_id}:decision-retry:{ticker}",
