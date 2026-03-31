@@ -74,15 +74,10 @@ class RunLogger:
         self._mongo_col = None
 
         if mongo_uri and run_id:
-            try:
-                from pymongo import MongoClient
-                # Short timeout so a dead/unreachable cluster fails fast instead
-                # of blocking every LLM callback for pymongo's 30s default.
-                client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
-                self._mongo_col = client[mongo_db]["run_events"]
-                _py_logger.info("RunLogger: persisting events to MongoDB (run_id=%s)", run_id)
-            except Exception as exc:
-                _py_logger.warning("RunLogger: MongoDB connection failed: %s", exc)
+            # MongoDB event persistence disabled to reduce overhead and quota usage.
+            # Reports continue to be persisted via MongoReportStore.
+            self._mongo_col = None
+            _py_logger.info("RunLogger: MongoDB event persistence is DISABLED (local file only)")
 
     # -- public helpers to record events from non-callback code ----------------
 
