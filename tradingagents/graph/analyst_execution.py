@@ -70,6 +70,10 @@ def build_analyst_execution_plan(
     return AnalystExecutionPlan(specs=specs, concurrency_limit=concurrency_limit)
 
 
+def get_initial_analyst_node(plan: AnalystExecutionPlan) -> str:
+    return plan.specs[0].agent_node
+
+
 class AnalystWallTimeTracker:
     def __init__(self, plan: AnalystExecutionPlan):
         self.plan = plan
