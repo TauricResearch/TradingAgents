@@ -129,6 +129,7 @@ def create_industry_deep_dive(llm):
 
         sector_report = state.get("sector_performance_report", "")
         top_sectors = _extract_top_sectors(sector_report, top_n=3)
+        sector_list_str = ", ".join(top_sectors)
 
         # Inject Phase 1 summaries for token efficiency
         phase1_context = f"""## Phase 1 Summaries
