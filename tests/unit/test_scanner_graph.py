@@ -50,6 +50,14 @@ def test_scanner_setup_compiles_graph():
         "smart_money_scanner": MagicMock(),
         "industry_deep_dive": MagicMock(),
         "macro_synthesis": MagicMock(),
+        "summarize_gatekeeper": MagicMock(),
+        "summarize_geopolitical": MagicMock(),
+        "summarize_market_movers": MagicMock(),
+        "summarize_sector": MagicMock(),
+        "summarize_factor_alignment": MagicMock(),
+        "summarize_drift": MagicMock(),
+        "summarize_smart_money": MagicMock(),
+        "summarize_industry_deep_dive": MagicMock(),
     }
     setup = ScannerGraphSetup(mock_agents)
     graph = setup.setup_graph()
@@ -71,6 +79,14 @@ def test_scanner_setup_runs_fan_in_nodes_once():
         "smart_money_scanner": "smart_money_report",
         "industry_deep_dive": "industry_deep_dive_report",
         "macro_synthesis": "macro_scan_summary",
+        "summarize_gatekeeper": "gatekeeper_summary",
+        "summarize_geopolitical": "geopolitical_summary",
+        "summarize_market_movers": "market_movers_summary",
+        "summarize_sector": "sector_summary",
+        "summarize_factor_alignment": "factor_alignment_summary",
+        "summarize_drift": "drift_opportunities_summary",
+        "summarize_smart_money": "smart_money_summary",
+        "summarize_industry_deep_dive": "industry_deep_dive_summary",
     }
 
     def make_node(name: str):
@@ -98,6 +114,14 @@ def test_scanner_setup_runs_fan_in_nodes_once():
             "smart_money_report": "",
             "industry_deep_dive_report": "",
             "macro_scan_summary": "",
+            "gatekeeper_summary": "",
+            "geopolitical_summary": "",
+            "market_movers_summary": "",
+            "sector_summary": "",
+            "factor_alignment_summary": "",
+            "drift_opportunities_summary": "",
+            "smart_money_summary": "",
+            "industry_deep_dive_summary": "",
             "sender": "",
         }
     )
@@ -129,6 +153,14 @@ def test_scanner_partial_graph_runs_selected_node_only_when_terminal():
         "smart_money_scanner": make_node("smart_money_scanner"),
         "industry_deep_dive": make_node("industry_deep_dive"),
         "macro_synthesis": make_node("macro_synthesis"),
+        "summarize_gatekeeper": make_node("summarize_gatekeeper"),
+        "summarize_geopolitical": make_node("summarize_geopolitical"),
+        "summarize_market_movers": make_node("summarize_market_movers"),
+        "summarize_sector": make_node("summarize_sector"),
+        "summarize_factor_alignment": make_node("summarize_factor_alignment"),
+        "summarize_drift": make_node("summarize_drift"),
+        "summarize_smart_money": make_node("summarize_smart_money"),
+        "summarize_industry_deep_dive": make_node("summarize_industry_deep_dive"),
     }
     setup = ScannerGraphSetup(mock_agents)
     graph = setup.setup_graph_from("macro_synthesis")

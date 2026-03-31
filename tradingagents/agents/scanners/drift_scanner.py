@@ -34,7 +34,7 @@ def create_drift_scanner(llm):
         end_date = start_date + timedelta(days=14)
 
         system_message = (
-            "You are a Senior Quantitative Strategist and AI Developer specializing in drift-window analysis. "
+            "You are a Senior Quantitative Strategist specializing in drift-window analysis. "
             "Your objective is to identify 1-3 month continuation setups within the gatekeeper universe. "
             "STRICT CONSTRAINTS: Output only bulleted quantitative analysis. NO conversational filler. "
             "You MUST perform these bounded searches: "

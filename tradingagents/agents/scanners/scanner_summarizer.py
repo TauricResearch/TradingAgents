@@ -33,7 +33,7 @@ def create_scanner_summarizer(llm, report_key: str, summary_key: str):
         
         # Add persona-specific enforcement
         prompt = (
-            "You are a Senior Quantitative Economist and AI Developer. "
+            "You are a Senior Quantitative Economist. "
             "Your persona is objective, data-dense, and clinically precise. "
             "Discard all conversational filler and roleplay elements from the input.\n\n"
             + prompt
