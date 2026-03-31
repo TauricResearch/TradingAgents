@@ -3,6 +3,7 @@ import asyncio
 import logging
 import time
 from agent_os.backend.store import runs
+from agent_os.backend.routes.runs import _ensure_run_events_loaded
 
 logger = logging.getLogger("agent_os.websocket")
 
@@ -33,21 +34,10 @@ async def websocket_endpoint(
     # Lazy-load events from disk when not in memory.
     # Covers hydrated completed/failed runs and orphaned historical runs that
     # were persisted as "running" before the server stopped.
-    if not run_info.get("events"):
-        try:
-            from tradingagents.portfolio.store_factory import create_report_store
-            store = create_report_store(run_id=run_id)
-            date = (run_info.get("params") or {}).get("date", "")
-            if date:
-                disk_events = store.load_run_events(date)
-                if disk_events:
-                    run_info["events"] = disk_events
-                    logger.info("Lazy-loaded %d events from disk run=%s", len(disk_events), run_id)
-                if run_info.get("hydrated_from_disk") and run_info.get("status") == "running":
-                    run_info["status"] = "failed"
-                    run_info["error"] = "Run did not complete (server restarted)"
-        except Exception:
-            logger.warning("Failed to lazy-load events for run=%s", run_id)
+    _ensure_run_events_loaded(run_id)
+    if run_info.get("hydrated_from_disk") and run_info.get("status") == "running":
+        run_info["status"] = "failed"
+        run_info["error"] = "Run did not complete (server restarted)"
 
     try:
         status = run_info.get("status", "queued")

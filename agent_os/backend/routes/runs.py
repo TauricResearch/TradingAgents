@@ -60,20 +60,39 @@ def _append_system_event(run_id: str, message: str) -> None:
 
 def _ensure_run_events_loaded(run_id: str) -> None:
     run = runs.get(run_id)
-    if not run or run.get("events"):
+    if not run:
         return
-    try:
-        from tradingagents.portfolio.store_factory import create_report_store
+    # If hydrated_from_disk is True, we may need to load even if 'events' is present
+    # (to merge historical data with new resume-request logs).
+    if not run.get("events") or run.get("hydrated_from_disk"):
+        try:
+            from tradingagents.portfolio.store_factory import create_report_store
 
-        date = (run.get("params") or {}).get("date", "")
-        if not date:
-            return
-        store = create_report_store(run_id=run_id)
-        events = store.load_run_events(date)
-        if events:
-            run["events"] = events
-    except Exception:
-        logger.warning("Failed to lazy-load events for run=%s", run_id)
+            date = (run.get("params") or {}).get("date", "")
+            if not date:
+                return
+            store = create_report_store(run_id=run_id)
+            disk_events = store.load_run_events(date)
+            if disk_events:
+                # Deduplicate by 'id' to avoid doubling up on refresh/resume
+                current_events = run.get("events") or []
+                seen_ids = {e.get("id") for e in current_events if e.get("id")}
+                
+                merged = list(current_events)
+                for de in disk_events:
+                    if de.get("id") not in seen_ids:
+                        merged.append(de)
+                
+                # Sort by timestamp if available
+                # (events are usually appended, but sort is safer)
+                # merged.sort(key=lambda x: x.get("ts", 0))
+                
+                run["events"] = merged
+            
+            # Clear the flag so we don't keep doing expensive disk reads
+            run.pop("hydrated_from_disk", None)
+        except Exception:
+            logger.warning("Failed to lazy-load events for run=%s", run_id)
 
 
 def _final_scan_results(events: list[dict[str, Any]]) -> dict[str, str]:
@@ -825,21 +844,10 @@ async def list_runs(user: dict = Depends(get_current_user)):
 async def get_run_status(run_id: str, user: dict = Depends(get_current_user)):
     if run_id in runs:
         run = runs[run_id]
-        # Lazy-load events from disk if they were not kept in memory
-        if (
-            not run.get("events")
-            and run.get("status") in ("completed", "failed")
-        ):
-            try:
-                from tradingagents.portfolio.store_factory import create_report_store
-                store = create_report_store(run_id=run_id)
-                date = (run.get("params") or {}).get("date", "")
-                if date:
-                    events = store.load_run_events(date)
-                    if events:
-                        run["events"] = events
-            except Exception:
-                logger.warning("Failed to lazy-load events for run=%s", run_id)
+        _ensure_run_events_loaded(run_id)
+        if run.get("hydrated_from_disk") and run.get("status") == "running":
+            run["status"] = "failed"
+            run["error"] = "Run did not complete (server restarted)"
         return run
 
     # Not in memory — try MongoDB
