@@ -3,6 +3,7 @@ import unittest
 from tradingagents.graph.analyst_execution import (
     AnalystWallTimeTracker,
     build_analyst_execution_plan,
+    get_initial_analyst_node,
     sync_analyst_tracker_from_chunk,
 )
 
@@ -24,6 +25,14 @@ class AnalystExecutionPlanTests(unittest.TestCase):
     def test_requires_positive_concurrency_limit(self):
         with self.assertRaises(ValueError):
             build_analyst_execution_plan(["market"], concurrency_limit=0)
+
+    def test_get_initial_analyst_node_uses_plan_metadata(self):
+        plan = build_analyst_execution_plan(["fundamentals", "news"])
+
+        self.assertEqual(
+            get_initial_analyst_node(plan),
+            "Fundamentals Analyst",
+        )
 
 
 class AnalystWallTimeTrackerTests(unittest.TestCase):
