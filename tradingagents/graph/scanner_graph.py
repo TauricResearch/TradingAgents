@@ -69,6 +69,31 @@ class ScannerGraph:
                 max_scan_tickers=max_scan_tickers,
                 scan_horizon_days=scan_horizon_days,
             ),
+            # Summarizers
+            "summarize_gatekeeper": create_scanner_summarizer(
+                quick_llm, "gatekeeper_universe_report", "gatekeeper_summary"
+            ),
+            "summarize_geopolitical": create_scanner_summarizer(
+                quick_llm, "geopolitical_report", "geopolitical_summary"
+            ),
+            "summarize_market_movers": create_scanner_summarizer(
+                quick_llm, "market_movers_report", "market_movers_summary"
+            ),
+            "summarize_sector": create_scanner_summarizer(
+                quick_llm, "sector_performance_report", "sector_summary"
+            ),
+            "summarize_factor_alignment": create_scanner_summarizer(
+                quick_llm, "factor_alignment_report", "factor_alignment_summary"
+            ),
+            "summarize_drift": create_scanner_summarizer(
+                quick_llm, "drift_opportunities_report", "drift_opportunities_summary"
+            ),
+            "summarize_smart_money": create_scanner_summarizer(
+                quick_llm, "smart_money_report", "smart_money_summary"
+            ),
+            "summarize_industry_deep_dive": create_scanner_summarizer(
+                quick_llm, "industry_deep_dive_report", "industry_deep_dive_summary"
+            ),
         }
 
         setup = ScannerGraphSetup(self.agents)

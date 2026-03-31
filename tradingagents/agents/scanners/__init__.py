@@ -7,3 +7,4 @@ from .drift_scanner import create_drift_scanner
 from .smart_money_scanner import create_smart_money_scanner
 from .industry_deep_dive import create_industry_deep_dive
 from .macro_synthesis import create_macro_synthesis
+from .scanner_summarizer import create_scanner_summarizer

@@ -78,10 +78,31 @@ RISK_DEBATE_SUMMARY = SummaryRuleSet(
 )
 
 
+SCANNER_REPORT_SUMMARY = SummaryRuleSet(
+    name="scanner_report_summary",
+    objective="Compress a market-wide scanner report into a data-dense clinical summary for downstream synthesis.",
+    max_words=250,
+    sections=(
+        "Primary Alpha Signals",
+        "Quantified Macro Impact",
+        "Ticker/Sector Outliers",
+        "Systemic Risk Deltas",
+    ),
+    rules=(
+        "Output ONLY clinical, quantitative analysis in bullet points.",
+        "NO conversational filler, narrative, or roleplay.",
+        "Retain all exact numeric values, percentages, and price levels.",
+        "Prioritize evidence that contradicts or confirms existing macro themes.",
+        "Ensure the summary is ready for algorithmic/quantitative synthesis.",
+    ),
+)
+
+
 # Backward-compatible aliases while the rest of the codebase migrates.
 RESEARCH_PACKET_SUMMARY_RULES = RESEARCH_PACKET_SUMMARY
 INVESTMENT_DEBATE_SUMMARY_RULES = INVESTMENT_DEBATE_SUMMARY
 RISK_DEBATE_SUMMARY_RULES = RISK_DEBATE_SUMMARY
+SCANNER_REPORT_SUMMARY_RULES = SCANNER_REPORT_SUMMARY
 
 
 def generate_summary_prompt(ruleset: SummaryRuleSet, input_text: str) -> str:

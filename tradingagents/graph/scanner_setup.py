@@ -13,18 +13,40 @@ SCANNER_START_NODES: tuple[str, ...] = (
 )
 
 SCANNER_PREDECESSORS: dict[str, tuple[str, ...]] = {
-    "factor_alignment_scanner": ("sector_scanner",),
-    "smart_money_scanner": ("sector_scanner",),
-    "drift_scanner": ("sector_scanner", "market_movers_scanner", "gatekeeper_scanner"),
+    # Summaries for Phase 1a
+    "summarize_gatekeeper": ("gatekeeper_scanner",),
+    "summarize_geopolitical": ("geopolitical_scanner",),
+    "summarize_market_movers": ("market_movers_scanner",),
+    "summarize_sector": ("sector_scanner",),
+    # Phase 1b/c
+    "factor_alignment_scanner": ("summarize_sector",),
+    "smart_money_scanner": ("summarize_sector",),
+    "drift_scanner": ("summarize_sector", "summarize_market_movers", "summarize_gatekeeper"),
+    # Summaries for Phase 1b/c
+    "summarize_factor_alignment": ("factor_alignment_scanner",),
+    "summarize_smart_money": ("smart_money_scanner",),
+    "summarize_drift": ("drift_scanner",),
+    # Phase 2
     "industry_deep_dive": (
-        "gatekeeper_scanner",
-        "geopolitical_scanner",
-        "market_movers_scanner",
-        "factor_alignment_scanner",
-        "drift_scanner",
-        "smart_money_scanner",
+        "summarize_gatekeeper",
+        "summarize_geopolitical",
+        "summarize_market_movers",
+        "summarize_factor_alignment",
+        "summarize_drift",
+        "summarize_smart_money",
     ),
-    "macro_synthesis": ("industry_deep_dive",),
+    "summarize_industry_deep_dive": ("industry_deep_dive",),
+    # Phase 3
+    "macro_synthesis": (
+        "summarize_gatekeeper",
+        "summarize_geopolitical",
+        "summarize_market_movers",
+        "summarize_sector",
+        "summarize_factor_alignment",
+        "summarize_drift",
+        "summarize_smart_money",
+        "summarize_industry_deep_dive",
+    ),
 }
 
 SCANNER_NODES: tuple[str, ...] = SCANNER_START_NODES + tuple(SCANNER_PREDECESSORS.keys())

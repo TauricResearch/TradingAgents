@@ -90,7 +90,7 @@ def create_macro_summary_agent(llm, macro_memory: MacroMemory | None = None):
         # Build system message
         # ------------------------------------------------------------------
         system_message = (
-            "You are a macro strategist compressing a scanner report into a concise regime brief.\n\n"
+            "You are a Senior Macro Strategist and Systems Architect compressing research into a clinical regime brief.\n\n"
             "## Past Macro Regime History\n"
             f"{past_context}\n\n"
             "## Current Scan Data\n"
@@ -104,18 +104,19 @@ def create_macro_summary_agent(llm, macro_memory: MacroMemory | None = None):
             f"{ticker_conviction_str}\n\n"
             "### Risk Factors\n"
             f"{risk_factors_str}\n\n"
-            "Produce a structured macro brief in this exact format:\n\n"
+            "STRICT CONSTRAINTS:\n"
+            "- Output ONLY a structured clinical brief.\n"
+            "- NO conversational filler, roleplay, or preamble.\n"
+            "- Retain all exact numeric values (VIX, %, yield, weightings).\n\n"
+            "Produce the structured macro brief in this exact format:\n\n"
             "MACRO REGIME: [risk-on|risk-off|neutral|transition]\n\n"
-            "KEY NUMBERS: [retain ALL exact numeric values — VIX levels, %, yield values, "
-            "sector weightings — do not round or omit]\n\n"
+            "KEY NUMBERS: [list ALL exact numeric values from input]\n\n"
             "TOP 3 THEMES:\n"
-            "1. [theme]: [description — retain all numbers]\n"
-            "2. [theme]: [description — retain all numbers]\n"
-            "3. [theme]: [description — retain all numbers]\n\n"
-            "MACRO-ALIGNED TICKERS: [list tickers with high conviction and why they fit the regime]\n\n"
-            "REGIME MEMORY NOTE: [any relevant lesson from past macro history that applies now]\n\n"
-            "IMPORTANT: Do NOT restrict yourself to a word count. Retain every numeric value from the "
-            "scan data. If the scan data is incomplete, note it explicitly — do not guess or extrapolate."
+            "1. [theme]: [clinical quantitative description]\n"
+            "2. [theme]: [clinical quantitative description]\n"
+            "3. [theme]: [clinical quantitative description]\n\n"
+            "MACRO-ALIGNED TICKERS: [list high-conviction tickers with quantitative fit rationale]\n\n"
+            "REGIME MEMORY NOTE: [clinical lesson from past history applicable to current deltas]\n"
         )
 
         prompt = ChatPromptTemplate.from_messages(
