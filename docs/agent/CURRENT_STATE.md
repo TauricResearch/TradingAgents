@@ -5,6 +5,12 @@ The system now uses a single canonical ULID `run_id` across runtime and storage.
 
 # Recent Progress
 
+- `codex/auto-run-lifecycle-fix`:
+  - Reworked `run_auto()` Phase 2 concurrency to use structured `TaskGroup` ownership for producer and per-ticker pipelines
+  - Fixed the root auto-run logger lifecycle so cleanup now happens in `finally`
+  - Added regression coverage for failure-path logger finalization and async-generator close while a ticker pipeline is in flight
+  - Documented the architectural rule that child ticker work must not outlive the parent auto run
+
 - `codex/scan-fallback-duplication-cleanup` (current docs refresh):
   - Added a code-derived graph execution reference covering scanner, per-ticker pipeline, portfolio, and auto orchestration
   - Corrected stale docs that still described parallel analysts and outdated scanner topology
@@ -53,3 +59,4 @@ The system now uses a single canonical ULID `run_id` across runtime and storage.
 | 016 | PR#106 review findings | accepted |
 | 017 | LLM policy fallback | accepted |
 | 018 | Storage layout, events, checkpoints, MongoDB vs local | accepted but partially outdated after run-id unification |
+| 021 | Auto-run task lifecycle must be structured | accepted |

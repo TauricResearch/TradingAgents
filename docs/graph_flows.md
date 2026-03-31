@@ -98,7 +98,7 @@ flowchart TD
     A["run_auto()"] --> B["run or reuse scan"]
     B --> C["load scan summary"]
     C --> D["merge scan candidates with holdings"]
-    D --> E["run per-ticker pipelines with bounded concurrency"]
+    D --> E["run per-ticker pipelines with bounded concurrency and structured task ownership"]
     E --> F["load completed ticker analyses"]
     F --> G["run portfolio or resume from saved PM decision"]
 ```
@@ -108,3 +108,5 @@ flowchart TD
 - The root identifier is always `run_id`.
 - All run-scoped artifacts live under `reports/daily/{date}/{run_id}/`.
 - Background tasks execute runs; WebSocket streams cached and persisted events for the same run.
+- Auto Phase 2 uses structured `TaskGroup` ownership so queued ticker pipelines are cancelled if the parent run closes or fails.
+- Future auto-run concurrency changes should avoid detached child tasks; otherwise run status and backend activity can diverge.
