@@ -1,3 +1,5 @@
+from __future__ import annotations
+import json
 """Tests for Macro_Summary_Agent and Micro_Summary_Agent.
 
 Strategy:
@@ -9,7 +11,6 @@ Strategy:
   returns a fixed AIMessage, making it fully compatible with the chain.
 """
 
-from __future__ import annotations
 
 from unittest.mock import MagicMock
 
@@ -23,6 +24,7 @@ from tradingagents.agents.portfolio.macro_summary_agent import (
 from tradingagents.agents.portfolio.micro_summary_agent import (
     create_micro_summary_agent,
 )
+from tradingagents.agents.portfolio.holding_reviewer import create_holding_reviewer
 from tradingagents.agents.portfolio.pm_decision_agent import (
     PMDecisionSchema,
     create_pm_decision_agent,
@@ -479,3 +481,30 @@ class TestSummaryAgentsRobustness:
         assert len(messages) == 1
         assert messages[0].type == "system"
         assert "This prior message should be ignored." not in messages[0].content
+    def test_holding_reviewer_ignores_prior_message_history(self):
+        captured = []
+        def _invoke(input, config=None, **kwargs):
+            captured.append(input)
+            return AIMessage(content="{}")
+        
+        class MockLLM:
+            def __init__(self):
+                self.runnable = RunnableLambda(_invoke)
+            def bind_tools(self, tools):
+                return self.runnable
+        
+        llm = MockLLM()
+        agent = create_holding_reviewer(llm)
+        state = {
+            "messages": [AIMessage(content="This prior message should be ignored.")],
+            "portfolio_data": json.dumps({"holdings": [{"ticker": "AAPL"}]}),
+            "analysis_date": "2026-03-31",
+        }
+
+        agent(state)
+
+        messages = captured[0].to_messages()
+        assert len(messages) == 1
+        assert messages[0].type == "system"
+        assert "This prior message should be ignored." not in messages[0].content
+
