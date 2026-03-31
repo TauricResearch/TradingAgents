@@ -135,7 +135,7 @@ def create_macro_summary_agent(llm, macro_memory: MacroMemory | None = None):
         prompt = prompt.partial(current_date=state.get("analysis_date", ""))
 
         chain = prompt | llm
-        result = chain.invoke(state["messages"])
+        result = chain.invoke([])
 
         # ------------------------------------------------------------------
         # Persist macro regime call to memory

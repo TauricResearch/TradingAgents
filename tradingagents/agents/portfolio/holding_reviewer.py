@@ -163,7 +163,7 @@ def create_holding_reviewer(llm):
         prompt = prompt.partial(current_date=analysis_date)
 
         chain = prompt | llm.bind_tools(tools)
-        result = run_tool_loop(chain, state["messages"], tools)
+        result = run_tool_loop(chain, [], tools)
 
         raw = result.content or "{}"
         try:

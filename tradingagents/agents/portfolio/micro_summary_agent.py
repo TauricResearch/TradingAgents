@@ -209,7 +209,7 @@ def create_micro_summary_agent(llm, micro_memory: ReflexionMemory | None = None)
         prompt = prompt.partial(current_date=analysis_date)
 
         chain = prompt | llm
-        result = chain.invoke(state["messages"])
+        result = chain.invoke([])
 
         return {
             "messages": [result],
