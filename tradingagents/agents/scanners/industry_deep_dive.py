@@ -130,14 +130,14 @@ def create_industry_deep_dive(llm):
         sector_report = state.get("sector_performance_report", "")
         top_sectors = _extract_top_sectors(sector_report, top_n=3)
 
-        # Inject Phase 1 context — keep it concise
-        phase1_context = f"""## Phase 1 Context
-- Geopolitical: {state.get("geopolitical_report", "N/A")[:300]}...
-- Market Movers: {state.get("market_movers_report", "N/A")[:300]}...
-- Sector Perf: {sector_report[:300] if sector_report else "N/A"}...
-- Factor Alignment: {state.get("factor_alignment_report", "N/A")[:300]}...
-- Drift Opts: {state.get("drift_opportunities_report", "N/A")[:300]}...
-- Smart Money: {state.get("smart_money_report", "N/A")[:300]}...
+        # Inject Phase 1 summaries for token efficiency
+        phase1_context = f"""## Phase 1 Summaries
+- Geopolitical: {state.get("geopolitical_summary", "N/A")}
+- Market Movers: {state.get("market_movers_summary", "N/A")}
+- Sector Analysis: {state.get("sector_summary", "N/A")}
+- Factor Alignment: {state.get("factor_alignment_summary", "N/A")}
+- Drift Opportunities: {state.get("drift_opportunities_summary", "N/A")}
+- Smart Money: {state.get("smart_money_summary", "N/A")}
 """
 
         system_message = (
