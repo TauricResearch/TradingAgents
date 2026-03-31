@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Flex, Text, Badge, Icon, Spinner } from '@chakra-ui/react';
 import { Activity, ShieldAlert, TrendingUp } from 'lucide-react';
 import axios from 'axios';
+import { API_BASE } from '../config/api';
 
 interface SummaryData {
   sharpe_ratio: number;
@@ -26,7 +27,7 @@ export const MetricHeader: React.FC<MetricHeaderProps> = ({ portfolioId }) => {
     const fetchSummary = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`http://127.0.0.1:8088/api/portfolios/${portfolioId}/summary`);
+        const res = await axios.get(`${API_BASE}/portfolios/${portfolioId}/summary`);
         setData(res.data);
       } catch (err) {
         console.error("Failed to fetch summary:", err);

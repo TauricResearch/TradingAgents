@@ -10,6 +10,8 @@ router = APIRouter(prefix="/ws", tags=["websocket"])
 
 # Polling interval when streaming cached events from a background-task-driven run
 _EVENT_POLL_INTERVAL_SECONDS = 0.05
+# Send a lightweight keepalive when a run is active but temporarily quiet.
+_HEARTBEAT_INTERVAL_SECONDS = 10.0
 
 @router.websocket("/stream/{run_id}")
 async def websocket_endpoint(
@@ -57,6 +59,7 @@ async def websocket_endpoint(
                 "WebSocket streaming from cache run=%s status=%s", run_id, status
             )
             sent = 0
+            last_send_monotonic = time.monotonic()
             while True:
                 cached = run_info.get("events") or []
                 while sent < len(cached):
@@ -65,9 +68,19 @@ async def websocket_endpoint(
                         payload["timestamp"] = time.strftime("%H:%M:%S")
                     await websocket.send_json(payload)
                     sent += 1
+                    last_send_monotonic = time.monotonic()
                 current_status = run_info.get("status")
                 if current_status in ("completed", "failed"):
                     break
+                if time.monotonic() - last_send_monotonic >= _HEARTBEAT_INTERVAL_SECONDS:
+                    await websocket.send_json(
+                        {
+                            "type": "system",
+                            "message": "__heartbeat__",
+                            "timestamp": time.strftime("%H:%M:%S"),
+                        }
+                    )
+                    last_send_monotonic = time.monotonic()
                 # Yield to the event loop so the background task can produce more events
                 await asyncio.sleep(_EVENT_POLL_INTERVAL_SECONDS)
 
