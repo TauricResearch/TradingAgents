@@ -4,6 +4,8 @@ import yfinance as yf
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+from .stockstats_utils import yf_retry
+
 
 def _extract_article_data(article: dict) -> dict:
     """Extract article data from yfinance news format (handles nested 'content' structure)."""
@@ -64,7 +66,7 @@ def get_news_yfinance(
     """
     try:
         stock = yf.Ticker(ticker)
-        news = stock.get_news(count=20)
+        news = yf_retry(lambda: stock.get_news(count=20))
 
         if not news:
             return f"No news found for {ticker}"
@@ -131,11 +133,11 @@ def get_global_news_yfinance(
 
     try:
         for query in search_queries:
-            search = yf.Search(
-                query=query,
+            search = yf_retry(lambda q=query: yf.Search(
+                query=q,
                 news_count=limit,
                 enable_fuzzy_query=True,
-            )
+            ))
 
             if search.news:
                 for article in search.news:
@@ -167,6 +169,11 @@ def get_global_news_yfinance(
             # Handle both flat and nested structures
             if "content" in article:
                 data = _extract_article_data(article)
+                # Skip articles published after curr_date (look-ahead guard)
+                if data.get("pub_date"):
+                    pub_naive = data["pub_date"].replace(tzinfo=None) if hasattr(data["pub_date"], "replace") else data["pub_date"]
+                    if pub_naive > curr_dt + relativedelta(days=1):
+                        continue
                 title = data["title"]
                 publisher = data["publisher"]
                 link = data["link"]
