@@ -8,6 +8,8 @@ import {
   IconButton, 
   Button, 
   Input,
+  InputGroup,
+  InputLeftElement,
   Checkbox,
   useDisclosure,
   Drawer,
@@ -417,6 +419,20 @@ export const Dashboard: React.FC = () => {
 
   // Parameter inputs
   const [showParams, setShowParams] = useState(false);
+
+  // Terminal search filter
+  const [terminalSearchTerm, setTerminalSearchTerm] = useState('');
+
+  const filteredEvents = useMemo(() => {
+    if (!terminalSearchTerm.trim()) return events;
+    const term = terminalSearchTerm.toLowerCase();
+    return events.filter(evt => 
+      evt.agent?.toLowerCase().includes(term) ||
+      evt.node_id?.toLowerCase().includes(term) ||
+      evt.service?.toLowerCase().includes(term) ||
+      evt.message?.toLowerCase().includes(term)
+    );
+  }, [events, terminalSearchTerm]);
   const [params, setParams] = useState<RunParams>({
     date: new Date().toISOString().split('T')[0],
     ticker: 'AAPL',
@@ -949,10 +965,25 @@ export const Dashboard: React.FC = () => {
 
             {/* Right Side: Live Terminal */}
             <VStack w="400px" bg="blackAlpha.400" align="stretch" spacing={0}>
-              <Flex p={3} bg="whiteAlpha.50" align="center" gap={2} borderBottom="1px solid" borderColor="whiteAlpha.100">
+              <Flex p={2} bg="whiteAlpha.50" align="center" gap={2} borderBottom="1px solid" borderColor="whiteAlpha.100">
                  <TerminalIcon size={16} color="#4fd1c5" />
-                 <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="wider">Live Terminal</Text>
-                 <Text fontSize="2xs" color="whiteAlpha.400" ml="auto">{events.length} events</Text>
+                 <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" display={{ base: 'none', lg: 'block' }}>Terminal</Text>
+                 <InputGroup size="xs" maxW="200px" ml="auto">
+                    <InputLeftElement pointerEvents="none">
+                      <Search size={12} color="gray.500" />
+                    </InputLeftElement>
+                    <Input 
+                      placeholder="Filter..." 
+                      variant="filled" 
+                      bg="whiteAlpha.100" 
+                      _hover={{ bg: 'whiteAlpha.200' }}
+                      value={terminalSearchTerm}
+                      onChange={(e) => setTerminalSearchTerm(e.target.value)}
+                    />
+                 </InputGroup>
+                 <Text fontSize="2xs" color="whiteAlpha.400" ml={2} minW="40px" textAlign="right">
+                   {filteredEvents.length} / {events.length}
+                 </Text>
               </Flex>
               
               <Box flex="1" overflowY="auto" p={4} sx={{
@@ -960,7 +991,7 @@ export const Dashboard: React.FC = () => {
                 '&::-webkit-scrollbar-track': { background: 'transparent' },
                 '&::-webkit-scrollbar-thumb': { background: 'whiteAlpha.300' }
               }}>
-                 {events.map((evt) => (
+                 {filteredEvents.map((evt) => (
                    <Box
                      key={evt.id}
                      mb={2}
