@@ -2,6 +2,7 @@ from langchain_core.tools import tool
 from typing import Annotated
 from tradingagents.dataflows.interface import route_to_vendor
 
+
 @tool
 def get_news(
     ticker: Annotated[str, "Ticker symbol"],
@@ -19,6 +20,7 @@ def get_news(
         str: A formatted string containing news data
     """
     return route_to_vendor("get_news", ticker, start_date, end_date)
+
 
 @tool
 def get_global_news(
@@ -38,6 +40,7 @@ def get_global_news(
     """
     return route_to_vendor("get_global_news", curr_date, look_back_days, limit)
 
+
 @tool
 def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol"],
@@ -51,3 +54,20 @@ def get_insider_transactions(
         str: A report of insider transaction data
     """
     return route_to_vendor("get_insider_transactions", ticker)
+
+
+@tool
+def get_social_sentiment(
+    ticker: Annotated[str, "Ticker symbol"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"] = "",
+) -> str:
+    """
+    Retrieve social media sentiment for a stock from Reddit, Twitter/X, and forums.
+    Only available with the bright_data vendor.
+    Args:
+        ticker (str): Ticker symbol
+        curr_date (str): Current date in yyyy-mm-dd format (optional)
+    Returns:
+        str: A formatted string containing social media sentiment data
+    """
+    return route_to_vendor("get_social_sentiment", ticker, curr_date)

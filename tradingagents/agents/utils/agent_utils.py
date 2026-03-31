@@ -1,24 +1,37 @@
 from langchain_core.messages import HumanMessage, RemoveMessage
 
-# Import tools from separate utility files
-from tradingagents.agents.utils.core_stock_tools import (
-    get_stock_data
-)
+# Re-export all tool functions so analysts can import from agent_utils directly.
+# These imports are intentional public re-exports, NOT unused imports.
+from tradingagents.agents.utils.core_stock_tools import get_stock_data as get_stock_data
 from tradingagents.agents.utils.technical_indicators_tools import (
-    get_indicators
+    get_indicators as get_indicators,
 )
 from tradingagents.agents.utils.fundamental_data_tools import (
-    get_fundamentals,
-    get_balance_sheet,
-    get_cashflow,
-    get_income_statement
+    get_fundamentals as get_fundamentals,
+    get_balance_sheet as get_balance_sheet,
+    get_cashflow as get_cashflow,
+    get_income_statement as get_income_statement,
 )
 from tradingagents.agents.utils.news_data_tools import (
-    get_news,
-    get_insider_transactions,
-    get_global_news
+    get_news as get_news,
+    get_global_news as get_global_news,
+    get_insider_transactions as get_insider_transactions,
+    get_social_sentiment as get_social_sentiment,
 )
 
+__all__ = [
+    "create_msg_delete",
+    "get_stock_data",
+    "get_indicators",
+    "get_fundamentals",
+    "get_balance_sheet",
+    "get_cashflow",
+    "get_income_statement",
+    "get_news",
+    "get_global_news",
+    "get_insider_transactions",
+    "get_social_sentiment",
+]
 
 def get_language_instruction() -> str:
     """Return a prompt instruction for the configured output language.
@@ -56,6 +69,3 @@ def create_msg_delete():
         return {"messages": removal_operations + [placeholder]}
 
     return delete_messages
-
-
-        
