@@ -129,7 +129,7 @@ class GraphSetup:
 
         if "fundamentals" in selected_analysts:
             analyst_nodes["fundamentals"] = create_fundamentals_analyst(
-                self.quick_thinking_llm
+                self.mid_thinking_llm
             )
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
