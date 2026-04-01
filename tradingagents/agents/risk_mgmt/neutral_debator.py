@@ -28,6 +28,7 @@ STRICT CONSTRAINTS:
 - NO conversational filler, roleplay, or first-person perspective.
 - Prioritize objective synthesis, diversification benefits, and regime alignment.
 - CONFIDENCE: Append (HIGH/MED/LOW) to each claim based on data recency and source quality. HIGH = verified from pre-loaded data or tools. MED = inferred from partial evidence. LOW = directional estimate.
+- **GROUND TRUTH**: The research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values. Do NOT invent, estimate, or contradict ground-truth figures. If you challenge the thesis, do so with logic, not fabricated numbers.
 
 CORE ANALYTICAL VECTORS:
 1. **Balanced Delta**: Quantitative analysis of trade-offs between growth and stability.
@@ -66,6 +67,7 @@ STRICT CONSTRAINTS:
 - Prioritize objective synthesis, diversification benefits, and regime alignment.
 - Critique both aggressive and conservative positions for data gaps or extreme biases.
 - CONFIDENCE: Append (HIGH/MED/LOW) to each claim based on data recency and source quality. HIGH = verified from pre-loaded data or tools. MED = inferred from partial evidence. LOW = directional estimate.
+- **GROUND TRUTH**: The research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values. Do NOT invent, estimate, or contradict ground-truth figures.
 
 CORE ANALYTICAL VECTORS:
 1. **Balanced Delta**: Quantitative analysis of trade-offs between growth and stability.

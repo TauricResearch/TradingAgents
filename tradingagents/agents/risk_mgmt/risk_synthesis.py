@@ -35,6 +35,14 @@ def create_risk_synthesis(llm):
 
         prompt = f"""You are the Risk Synthesis Analyst. Two rounds of risk debate have concluded between Aggressive, Conservative, and Neutral analysts. Your task is to produce a concise, balanced synthesis.
 
+STRICT CONSTRAINTS:
+- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives.
+- **GROUND TRUTH**: The research packet below contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. If any debator cited a price or date that contradicts the Scanner Context, flag it and use the Scanner Context value.
+- Do NOT introduce statistics (e.g., drawdown probabilities, median drawdowns) that are not sourced from the research packet or debate positions.
+
+**Research Packet (includes Scanner Context ground truth):**
+{research_packet}
+
 **Trader's Plan:**
 {trader_decision}
 

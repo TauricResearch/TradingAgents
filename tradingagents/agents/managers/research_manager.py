@@ -45,6 +45,7 @@ STRICT CONSTRAINTS:
 - Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives.
 - Weight HIGH-confidence claims from the debate over MED/LOW claims.
 - Do NOT default to Hold simply because both sides have valid points. Commit to a stance grounded in the debate's strongest evidence.
+- **GROUND TRUTH**: The compressed research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values when citing oil, gold, bitcoin prices, FX levels, or event dates. Do NOT invent, estimate, or contradict these ground-truth figures. If an analyst report contradicts the Scanner Context numbers, flag the discrepancy and use the Scanner Context value.
 
 YOUR TASK:
 1. **Strongest Bull Evidence**: List the top 3 data-backed bull arguments with confidence tags.

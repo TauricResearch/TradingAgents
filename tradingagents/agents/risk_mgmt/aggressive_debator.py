@@ -28,6 +28,7 @@ STRICT CONSTRAINTS:
 - NO conversational filler, roleplay, or first-person perspective.
 - Identify specific asymmetric upside opportunities and innovative benefits.
 - CONFIDENCE: Append (HIGH/MED/LOW) to each claim based on data recency and source quality. HIGH = verified from pre-loaded data or tools. MED = inferred from partial evidence. LOW = directional estimate.
+- **GROUND TRUTH**: The research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values. Do NOT invent, estimate, or contradict ground-truth figures. If you challenge the thesis, do so with logic, not fabricated numbers.
 
 CORE ANALYTICAL VECTORS:
 1. **Upside Delta**: Quantitative analysis of potential growth and innovative benefits.
@@ -66,6 +67,7 @@ STRICT CONSTRAINTS:
 - Identify specific asymmetric upside opportunities and innovative benefits.
 - Directly refute conservative/neutral points using hard data and quantitative reasoning.
 - CONFIDENCE: Append (HIGH/MED/LOW) to each claim based on data recency and source quality. HIGH = verified from pre-loaded data or tools. MED = inferred from partial evidence. LOW = directional estimate.
+- **GROUND TRUTH**: The research packet contains a "Scanner Context (Phase 1)" section with verified commodity prices, FX rates, and calendar dates. Use ONLY those values. Do NOT invent, estimate, or contradict ground-truth figures.
 
 CORE ANALYTICAL VECTORS:
 1. **Upside Delta**: Quantitative analysis of potential growth and innovative benefits.
