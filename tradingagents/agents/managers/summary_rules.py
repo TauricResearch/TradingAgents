@@ -29,6 +29,8 @@ RESEARCH_PACKET_SUMMARY = SummaryRuleSet(
     ),
     rules=(
         "Keep only evidence that is useful for downstream debate and portfolio decisions.",
+        "Strictly preserve all exact commodity prices and FX rates from the 'Scanner Context'.",
+        "Strictly preserve all specific dates for earnings, dividends, or macro events (CPI, FOMC).",
         "Remove repetitive narrative, filler, and rhetorical phrasing.",
         "Prefer concrete facts, levels, catalysts, dates, and risks over commentary.",
         "Do not invent missing evidence.",

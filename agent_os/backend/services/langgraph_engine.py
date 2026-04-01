@@ -20,6 +20,16 @@ from tradingagents.instruments import (
     is_equity_pipeline_supported,
     resolve_instrument,
 )
+from tradingagents.agents.utils.scanner_tools import (
+    get_gold_price,
+    get_oil_prices,
+    get_bitcoin_price,
+    get_eur_usd_rate,
+    get_jpy_usd_rate,
+    get_cny_usd_rate,
+    get_earnings_calendar,
+    get_economic_calendar,
+)
 from tradingagents.observability import RunLogger, set_run_logger
 
 logger = logging.getLogger("agent_os.engine")
@@ -1856,29 +1866,71 @@ class LangGraphEngine:
         sector_performance = scan_state.get("sector_performance_report", "N/A")
         drift_report = scan_state.get("drift_opportunities_report", "N/A")
 
+        # 3. Fetch structured live data to prevent hallucinations
+        gold = "N/A"
+        oil = "N/A"
+        btc = "N/A"
+        fx = "N/A"
+        earnings = "N/A"
+        economics = "N/A"
+
+        try:
+            gold = get_gold_price.invoke({})
+            oil = get_oil_prices.invoke({})
+            btc = get_bitcoin_price.invoke({})
+            eur = get_eur_usd_rate.invoke({})
+            jpy = get_jpy_usd_rate.invoke({})
+            cny = get_cny_usd_rate.invoke({})
+            fx = f"{eur}\n{jpy}\n{cny}"
+            
+            scan_date_str = scan_state.get('scan_date', time.strftime("%Y-%m-%d"))
+            scan_dt = _dt.datetime.strptime(scan_date_str, "%Y-%m-%d")
+            from_date = (scan_dt - _dt.timedelta(days=7)).strftime("%Y-%m-%d")
+            to_date = (scan_dt + _dt.timedelta(days=14)).strftime("%Y-%m-%d")
+            
+            earnings = get_earnings_calendar.invoke({"from_date": from_date, "to_date": to_date})
+            economics = get_economic_calendar.invoke({"from_date": from_date, "to_date": to_date})
+        except Exception as e:
+            logger.warning(f"Failed to fetch structured data for scanner context packet: {e}")
+
         packet = f"""# SCANNER CONTEXT PACKET: {ticker}
 Date: {scan_state.get('scan_date', 'N/A')}
 
 ## I. TICKER-SPECIFIC SCANNER THESIS
 {ticker_thesis}
 
-## II. SMART MONEY & FLOW SIGNALS
+## II. STRUCTURED LIVE DATA (GROUND TRUTH)
+### Commodity Prices
+{gold}
+{oil}
+{btc}
+
+### FX Rates
+{fx}
+
+### Earnings Calendar (7d lookback, 14d lookahead)
+{earnings}
+
+### Economic Calendar (7d lookback, 14d lookahead)
+{economics}
+
+## III. SMART MONEY & FLOW SIGNALS
 {smart_money}
 
-## III. FACTOR ALIGNMENT & DRIFT
+## IV. FACTOR ALIGNMENT & DRIFT
 {factor_alignment}
 {drift_report}
 
-## IV. MACRO & GEOPOLITICAL CONTEXT (COMMODITIES/CDS/FX)
+## V. MACRO & GEOPOLITICAL CONTEXT
 {geo_report}
 
-## V. SECTOR ROTATION & MARKET REGIME
+## VI. SECTOR ROTATION & MARKET REGIME
 {sector_performance}
 
-## VI. KEY GLOBAL THEMES
+## VII. KEY GLOBAL THEMES
 {key_themes}
 
-## VII. MACRO RISK FACTORS
+## VIII. MACRO RISK FACTORS
 {risk_factors}
 """
         return packet
