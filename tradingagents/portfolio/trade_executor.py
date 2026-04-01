@@ -11,6 +11,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from tradingagents.instruments import TRACKED_MARKET_INSTRUMENTS
 from tradingagents.portfolio.exceptions import (
     InsufficientCashError,
     PortfolioError,
@@ -136,6 +137,10 @@ class TradeExecutor:
             ticker = (buy.get("ticker") or "").upper()
             shares = float(buy.get("shares") or 0)
             sector = buy.get("sector")
+            # Override sector from instrument registry for known ETFs
+            etf_meta = TRACKED_MARKET_INSTRUMENTS.get(ticker)
+            if etf_meta and etf_meta.get("sector"):
+                sector = etf_meta["sector"]
             rationale = buy.get("rationale") or ""
             raw_sl = buy.get("stop_loss")
             raw_tp = buy.get("take_profit")

@@ -31,6 +31,8 @@ TRACKED_MARKET_INSTRUMENTS: dict[str, dict[str, Any]] = {
     "PSQ": {"instrument_type": "inverse_etf", "is_inverse": True},
     "TQQQ": {"instrument_type": "leveraged_etf", "is_leveraged": True},
     "SQQQ": {"instrument_type": "leveraged_etf", "is_inverse": True, "is_leveraged": True},
+    "TSDD": {"instrument_type": "inverse_etf", "is_inverse": True, "sector": "Inverse ETF"},
+    "TSLL": {"instrument_type": "leveraged_etf", "is_leveraged": True, "sector": "Leveraged ETF"},
 }
 
 TRACKED_CRYPTO_INSTRUMENTS: dict[str, dict[str, Any]] = {

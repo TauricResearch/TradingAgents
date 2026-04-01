@@ -782,7 +782,11 @@ class LangGraphEngine:
             str(analysis.get("canonical_symbol") or analysis.get("ticker") or "").upper()
             for analysis in ticker_analyses.values()
         ]
-        all_tickers = list({t.upper() for t in holding_tickers + analysis_tickers if t})
+        # Always include the cash-sweep ETF so the trade executor can price it
+        CASH_SWEEP_ETF = "SGOV"
+        all_tickers = list(
+            {t.upper() for t in holding_tickers + analysis_tickers if t} | {CASH_SWEEP_ETF}
+        )
         prices = _fetch_prices(all_tickers) if all_tickers else {}
 
         initial_state = {
