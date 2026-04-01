@@ -16,7 +16,11 @@ class Propagator:
         self.max_recur_limit = max_recur_limit
 
     def create_initial_state(
-        self, company_name: str, trade_date: str, portfolio_context: str = "candidate"
+        self,
+        company_name: str,
+        trade_date: str,
+        portfolio_context: str = "candidate",
+        scanner_context_packet: str = "",
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
         instrument = resolve_instrument(company_name, source_context="trading_graph")
@@ -25,6 +29,7 @@ class Propagator:
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
             "portfolio_context": portfolio_context,
+            "scanner_context_packet": scanner_context_packet,
             "instrument_key": instrument.instrument_key,
             "asset_class": instrument.asset_class,
             "instrument_type": instrument.instrument_type,

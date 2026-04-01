@@ -11,6 +11,7 @@ def build_research_packet(state: dict) -> str:
 
     parts = []
     labeled_reports = (
+        ("Scanner Context (Phase 1)", state.get("scanner_context_packet", "")),
         ("Market Research Report", state.get("market_report", "")),
         ("Social Media Sentiment Report", state.get("sentiment_report", "")),
         ("Latest World Affairs Report", state.get("news_report", "")),

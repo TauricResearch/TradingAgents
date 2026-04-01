@@ -1,7 +1,10 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.scanner_tools import (
     get_bitcoin_price,
+    get_cny_usd_rate,
+    get_eur_usd_rate,
     get_gold_price,
+    get_jpy_usd_rate,
     get_oil_prices,
     get_todays_sovereign_cds,
     get_topic_news,
@@ -19,6 +22,9 @@ def create_geopolitical_scanner(llm):
             get_gold_price,
             get_oil_prices,
             get_bitcoin_price,
+            get_eur_usd_rate,
+            get_jpy_usd_rate,
+            get_cny_usd_rate,
         ]
 
         system_message = (
@@ -33,6 +39,9 @@ def create_geopolitical_scanner(llm):
             "(3) Trade/sanctions developments and structural friction, "
             "(4) Energy/commodity supply chain risks, "
             "(5) Asset validation: state whether Gold, Oil, Bitcoin, and Sovereign CDS confirm or contradict the news narrative. "
+            "(6) FX Analysis: evaluate EUR/USD, JPY/USD, and CNY/USD trends and their geopolitical drivers. "
+            "(7) Macro Predictions: Based on current data, provide specific 30-day directional predictions for "
+            "Gold, Oil, and major FX pairs (EUR, JPY, CNY) with conviction levels. "
             "If CDS data is stale, state 'CDS confirmation unavailable'. "
             "Include a quantitative risk assessment table."
         )

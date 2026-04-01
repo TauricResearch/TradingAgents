@@ -19,6 +19,7 @@ RESEARCH_PACKET_SUMMARY = SummaryRuleSet(
     objective="Compress multi-analyst trading research into a short downstream briefing.",
     max_words=300,
     sections=(
+        "Scanner Context (Phase 1)",
         "Market setup",
         "Fundamentals",
         "Sentiment and news",

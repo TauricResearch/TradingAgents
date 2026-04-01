@@ -61,6 +61,9 @@ from .market_prices import (
     get_bitcoin_price_snapshot,
     get_gold_price_snapshot,
     get_oil_prices_snapshot,
+    get_eur_usd_rate_snapshot,
+    get_jpy_usd_rate_snapshot,
+    get_cny_usd_rate_snapshot,
 )
 
 # Configuration and routing logic
@@ -108,6 +111,9 @@ TOOLS_CATEGORIES = {
             "get_gold_price",
             "get_oil_prices",
             "get_bitcoin_price",
+            "get_eur_usd_rate",
+            "get_jpy_usd_rate",
+            "get_cny_usd_rate",
             "get_sector_performance",
             "get_industry_performance",
             "get_topic_news",
@@ -214,6 +220,15 @@ VENDOR_METHODS = {
     "get_bitcoin_price": {
         "alpha_vantage": get_bitcoin_price_alpha_vantage,
         "yfinance": get_bitcoin_price_snapshot,
+    },
+    "get_eur_usd_rate": {
+        "yfinance": get_eur_usd_rate_snapshot,
+    },
+    "get_jpy_usd_rate": {
+        "yfinance": get_jpy_usd_rate_snapshot,
+    },
+    "get_cny_usd_rate": {
+        "yfinance": get_cny_usd_rate_snapshot,
     },
     "get_sector_performance": {
         "finnhub": get_sector_performance_finnhub,

@@ -15,8 +15,10 @@ def _build_research_packet_input(
     news_report: str,
     fundamentals_report: str,
     macro_regime_report: str,
+    scanner_context_packet: str = "",
 ) -> str:
-    return f"""Market report:
+    scanner_section = f"Scanner Context (Phase 1):\n{scanner_context_packet}\n\n" if scanner_context_packet else ""
+    return f"""{scanner_section}Market report:
 {market_report}
 
 Sentiment report:
@@ -58,9 +60,10 @@ def create_research_packet_summary(llm):
         news_report = str(state.get("news_report") or "").strip()
         fundamentals_report = str(state.get("fundamentals_report") or "").strip()
         macro_regime_report = str(state.get("macro_regime_report") or "").strip()
+        scanner_context_packet = str(state.get("scanner_context_packet") or "").strip()
 
         if not any(
-            (market_report, sentiment_report, news_report, fundamentals_report, macro_regime_report)
+            (market_report, sentiment_report, news_report, fundamentals_report, macro_regime_report, scanner_context_packet)
         ):
             return {
                 "research_packet_summary": "",
@@ -75,6 +78,7 @@ def create_research_packet_summary(llm):
                 news_report,
                 fundamentals_report,
                 macro_regime_report,
+                scanner_context_packet,
             ),
         )
         response = llm.invoke(prompt)

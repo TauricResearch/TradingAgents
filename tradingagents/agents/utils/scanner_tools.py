@@ -86,6 +86,39 @@ def get_bitcoin_price() -> str:
 
 
 @tool
+def get_eur_usd_rate() -> str:
+    """
+    Get the latest EUR/USD exchange rate snapshot.
+
+    Returns:
+        str: Markdown table containing EUR/USD rate and daily move.
+    """
+    return route_to_vendor("get_eur_usd_rate")
+
+
+@tool
+def get_jpy_usd_rate() -> str:
+    """
+    Get the latest JPY/USD exchange rate snapshot.
+
+    Returns:
+        str: Markdown table containing JPY/USD rate and daily move.
+    """
+    return route_to_vendor("get_jpy_usd_rate")
+
+
+@tool
+def get_cny_usd_rate() -> str:
+    """
+    Get the latest CNY/USD exchange rate (Yuan/USD) snapshot.
+
+    Returns:
+        str: Markdown table containing CNY/USD rate and daily move.
+    """
+    return route_to_vendor("get_cny_usd_rate")
+
+
+@tool
 def get_gatekeeper_universe() -> str:
     """
     Get the bounded stock universe used for downstream discovery.

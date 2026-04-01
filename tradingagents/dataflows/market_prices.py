@@ -17,6 +17,9 @@ _MARKET_PRICE_SYMBOLS = {
     "WTI Crude": "CL=F",
     "Brent Crude": "BZ=F",
     "Bitcoin": "BTC-USD",
+    "EUR/USD": "EURUSD=X",
+    "JPY/USD": "JPYUSD=X",
+    "CNY/USD": "CNYUSD=X",
 }
 
 
@@ -30,11 +33,13 @@ class MarketPriceRow:
 
 
 class MarketPricesClient:
-    """Fetch live gold, oil, and bitcoin prices from yfinance."""
+    """Fetch live gold, oil, bitcoin, and currency prices from yfinance."""
 
     def fetch_rows(self) -> dict[str, MarketPriceRow]:
         symbols = list(_MARKET_PRICE_SYMBOLS.values())
         try:
+            # period="5d" to ensure we have enough data for prev_close calculation
+            # even across weekends or low-volume assets.
             prices_df = yf.download(
                 symbols,
                 period="5d",
@@ -53,7 +58,8 @@ class MarketPricesClient:
         for asset, symbol in _MARKET_PRICE_SYMBOLS.items():
             closes = self._extract_latest_closes(prices_df, symbol)
             if closes is None:
-                raise YFinanceError(f"Insufficient price history for {asset} ({symbol}).")
+                logger.warning("Insufficient price history for %s (%s); skipping asset.", asset, symbol)
+                continue
 
             current_price = float(closes.iloc[-1])
             prev_close = float(closes.iloc[-2])
@@ -123,3 +129,24 @@ def get_bitcoin_price_snapshot() -> str:
     client = MarketPricesClient()
     rows = client.fetch_rows()
     return _format_market_price_table("# Bitcoin Price Snapshot", [rows["Bitcoin"]])
+
+
+def get_eur_usd_rate_snapshot() -> str:
+    """Snapshot of EUR/USD FX rate."""
+    client = MarketPricesClient()
+    rows = client.fetch_rows()
+    return _format_market_price_table("# EUR/USD Exchange Rate", [rows["EUR/USD"]])
+
+
+def get_jpy_usd_rate_snapshot() -> str:
+    """Snapshot of JPY/USD FX rate."""
+    client = MarketPricesClient()
+    rows = client.fetch_rows()
+    return _format_market_price_table("# JPY/USD Exchange Rate", [rows["JPY/USD"]])
+
+
+def get_cny_usd_rate_snapshot() -> str:
+    """Snapshot of CNY/USD FX rate (Yuan/USD)."""
+    client = MarketPricesClient()
+    rows = client.fetch_rows()
+    return _format_market_price_table("# CNY/USD Exchange Rate", [rows["CNY/USD"]])

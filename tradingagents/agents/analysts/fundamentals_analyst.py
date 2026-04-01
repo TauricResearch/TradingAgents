@@ -22,6 +22,7 @@ def create_fundamentals_analyst(llm):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
+        scanner_context = state.get("scanner_context_packet", "")
 
         # ── Pre-fetch the four mandatory foundational datasets in parallel ────
         # get_ttm_analysis, get_fundamentals, get_peer_comparison, and
@@ -147,6 +148,7 @@ def create_fundamentals_analyst(llm):
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}\n\n"
+                    "## Scanner Context\n\n{scanner_context}\n\n"
                     "## Pre-loaded Context\n\n{prefetched_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
@@ -157,6 +159,7 @@ def create_fundamentals_analyst(llm):
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
+        prompt = prompt.partial(scanner_context=scanner_context)
         prompt = prompt.partial(prefetched_context=prefetched_context)
 
         chain = prompt | llm.bind_tools(tools)

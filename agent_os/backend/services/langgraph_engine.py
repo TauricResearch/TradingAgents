@@ -536,6 +536,7 @@ class LangGraphEngine:
             ticker,
             date,
             portfolio_context=params.get("portfolio_context", "candidate"),
+            scanner_context_packet=params.get("scanner_context_packet", ""),
         )
 
         self._node_start_times[execution_key] = {}
@@ -1091,14 +1092,43 @@ class LangGraphEngine:
 
             # Phase 1: Market scan
             yield self._system_log("Phase 1/3: Running market scan…")
+            scan_state: Dict[str, Any] = {}
             if not force and store.load_scan(date):
                 yield self._system_log(f"Phase 1: Macro scan for {date} already exists, skipping.")
+                # Load the full state from saved reports if scan already exists
+                scan_state = {"scan_date": date}
+                for key in SCAN_NODE_TO_REPORT_FIELD.values():
+                    save_dir = get_market_dir(date, root_run_id)
+                    report_file = save_dir / f"{key}.md"
+                    if report_file.exists():
+                        scan_state[key] = report_file.read_text()
+                
+                scan_summary = store.load_scan(date)
+                if scan_summary:
+                    scan_state["macro_scan_summary"] = scan_summary
             else:
                 scan_params = {"date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:scan"}
                 if params.get("max_tickers"):
                     scan_params["max_tickers"] = params["max_tickers"]
+                
+                # We need to capture the final_state from the scan
+                # The run_scan method itself doesn't return it, but we can wrap it or re-read it.
+                # Actually, run_scan saves it to store. Let's re-read from store after scan.
                 async for evt in self.run_scan(f"{root_run_id}:scan", scan_params):
                     yield evt
+                
+                # After scan, load reports into scan_state
+                scan_state = {"scan_date": date}
+                for key in SCAN_NODE_TO_REPORT_FIELD.values():
+                    save_dir = get_market_dir(date, root_run_id)
+                    report_file = save_dir / f"{key}.md"
+                    if report_file.exists():
+                        scan_state[key] = report_file.read_text()
+                
+                scan_summary = store.load_scan(date)
+                if scan_summary:
+                    scan_state["macro_scan_summary"] = scan_summary
+
             if _run_should_stop(root_run_id):
                 yield self._system_log("Graceful stop requested — finishing after the market scan phase.")
                 return
@@ -1231,6 +1261,9 @@ class LangGraphEngine:
                     await pipeline_queue.put(
                         self._system_log(f"Phase 2/3: Running analysis pipeline for {ticker}…")
                     )
+                    # Build the scanner context packet
+                    scanner_packet = self._build_scanner_context_packet(scan_state, ticker)
+                    
                     try:
                         async for evt in self.run_pipeline(
                             f"{root_run_id}:pipeline:{ticker}",
@@ -1239,6 +1272,7 @@ class LangGraphEngine:
                                 "date": date,
                                 "run_id": root_run_id,
                                 "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
+                                "scanner_context_packet": scanner_packet,
                                 "_execution_key": f"{root_run_id}:pipeline:{ticker}",
                             },
                         ):
@@ -1290,6 +1324,7 @@ class LangGraphEngine:
                                             "date": date,
                                             "run_id": root_run_id,
                                             "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
+                                            "scanner_context_packet": scanner_packet,
                                             "_execution_key": f"{root_run_id}:fallback:{ticker}",
                                         },
                                     ):
@@ -1776,6 +1811,77 @@ class LangGraphEngine:
         normalized["tracked_market_instruments"] = tracked_market_instruments
         normalized["tracked_crypto_instruments"] = tracked_crypto_instruments
         return normalized
+
+    @staticmethod
+    def _build_scanner_context_packet(scan_state: Dict[str, Any], ticker: str) -> str:
+        """Consolidate Phase 1 scanner output into a clinical context packet for Phase 2."""
+        ticker = ticker.upper()
+        
+        # 1. Ticker-specific thesis from synthesis
+        macro_summary = scan_state.get("macro_scan_summary", "")
+        ticker_thesis = "No specific scanner thesis found for this ticker."
+        key_themes = "None"
+        risk_factors = "None"
+        
+        try:
+            summary_data = extract_json(macro_summary) if isinstance(macro_summary, str) else macro_summary
+            if isinstance(summary_data, dict):
+                candidates = summary_data.get("stocks_to_investigate") or summary_data.get("equity_candidates") or []
+                for c in candidates:
+                    c_ticker = (c.get("ticker") or c.get("symbol") or "").upper()
+                    if c_ticker == ticker:
+                        ticker_thesis = (
+                            f"Rationale: {c.get('rationale', 'N/A')}\n"
+                            f"Thesis Angle: {c.get('thesis_angle', 'N/A')}\n"
+                            f"Conviction: {c.get('conviction', 'N/A')}\n"
+                            f"Key Catalysts: {', '.join(c.get('key_catalysts', []))}\n"
+                            f"Specific Risks: {', '.join(c.get('risks', []))}"
+                        )
+                        break
+                
+                themes = summary_data.get("key_themes", [])
+                if themes:
+                    key_themes = "\n".join([f"- {t.get('theme')}: {t.get('description')} (Conviction: {t.get('conviction')})" for t in themes])
+                
+                risks = summary_data.get("risk_factors", [])
+                if risks:
+                    risk_factors = "\n".join([f"- {r}" for r in risks])
+        except Exception:
+            logger.warning("Failed to parse macro_scan_summary for scanner context packet")
+
+        # 2. Extract specific reports
+        geo_report = scan_state.get("geopolitical_report", "N/A")
+        smart_money = scan_state.get("smart_money_report", "N/A")
+        factor_alignment = scan_state.get("factor_alignment_report", "N/A")
+        sector_performance = scan_state.get("sector_performance_report", "N/A")
+        drift_report = scan_state.get("drift_opportunities_report", "N/A")
+
+        packet = f"""# SCANNER CONTEXT PACKET: {ticker}
+Date: {scan_state.get('scan_date', 'N/A')}
+
+## I. TICKER-SPECIFIC SCANNER THESIS
+{ticker_thesis}
+
+## II. SMART MONEY & FLOW SIGNALS
+{smart_money}
+
+## III. FACTOR ALIGNMENT & DRIFT
+{factor_alignment}
+{drift_report}
+
+## IV. MACRO & GEOPOLITICAL CONTEXT (COMMODITIES/CDS/FX)
+{geo_report}
+
+## V. SECTOR ROTATION & MARKET REGIME
+{sector_performance}
+
+## VI. KEY GLOBAL THEMES
+{key_themes}
+
+## VII. MACRO RISK FACTORS
+{risk_factors}
+"""
+        return packet
 
     # ------------------------------------------------------------------
     # Event mapping

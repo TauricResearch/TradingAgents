@@ -60,6 +60,8 @@ class AgentState(MessagesState):
     is_inverse: Annotated[bool, "Whether the instrument is inverse"]
     is_leveraged: Annotated[bool, "Whether the instrument is leveraged"]
 
+    scanner_context_packet: Annotated[str, "Consolidated context from the scanner phase"]
+
     sender: Annotated[str, "Agent that sent this message"]
 
     # research step
