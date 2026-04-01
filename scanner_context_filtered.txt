@@ -1,0 +1,178 @@
+# SCANNER CONTEXT PACKET: RIG
+Date: 2026-04-01
+## I. TICKER-SPECIFIC SCANNER THESIS
+ationale: Energy sector recovery play
+Thesis Angle: Offshore drilling rebound  
+Conviction: Medium
+Key Catalyst: Oil price stability above $70/bbl
+## II. STRUCTURED LIVE DATA (GROUND TRUTH)
+### Commodity Prices
+- WTI Crude: $72.50 (+2.3%)
+- Brent: $76.20 (+1.8%)
+- Natural Gas: $2.85 (-0.5%)
+
+### FX Rates
+- EUR/USD: 1.0850
+- GBP/USD: 1.2640
+- USD/JPY: 151.20
+
+### Earnings Calendar (Filtered: Ticker + Top 10 Same Sector)
+[Filtered to 19 entries: RIG + same-sector + largest companies]
+
+- RIG: Q4 earnings (Market Cap: 6.2B, Sector: Energy)
+- XOM: Exxon Mobil (500B cap, Energy)
+- CVX: Chevron (280B cap, Energy)
+- COP: ConocoPhillips (140B cap, Energy)
+- SLB: Schlumberger (65B cap, Energy)
+- EOG: EOG Resources (70B cap, Energy)
+- MPC: Marathon Petroleum (55B cap, Energy)
+- PSX: Phillips 66 (50B cap, Energy)
+- VLO: Valero Energy (45B cap, Energy)
+- OXY: Occidental Petroleum (48B cap, Energy)
+- HAL: Halliburton (28B cap, Energy)
+- AAPL: Apple Inc (3000B cap, Technology)
+- MSFT: Microsoft Corp (2800B cap, Technology)
+- GOOGL: Alphabet Inc (1800B cap, Technology)
+- AMZN: Amazon.com Inc (1600B cap, Consumer Cyclical)
+- NVDA: NVIDIA Corp (2200B cap, Technology)
+- META: Meta Platforms (1200B cap, Communication Services)
+- TSLA: Tesla Inc (800B cap, Consumer Cyclical)
+- JPM: JPMorgan Chase (550B cap, Financial Services)
+
+### Economic Calendar (Top 10 High-Importance Events)
+[Filtered to 10 high-priority events]
+
+- FOMC Meeting Minutes (Mar 20, High Impact)
+- Core CPI m/m (Mar 22, High Impact)  
+- Retail Sales m/m (Mar 23, High Impact)
+- GDP Growth Rate (Mar 28, High Impact)
+- Unemployment Rate (Mar 29, High Impact)
+- ISM Manufacturing PMI (Apr 1, High Impact)
+- Nonfarm Payrolls (Apr 5, High Impact)
+- Core PCE Price Index (Apr 6, High Impact)
+- Fed Chair Powell Speech (Apr 10, High Impact)
+- Producer Price Index (Apr 12, High Impact)
+## III. SMART MONEY & FLOW SIGNALS
+[Filtered to RIG-specific signals]
+
+### Dark Pool & Block Activity
+- RIG: Unusual dark pool volume (2.5M shares at $45.20)
+- RIG: Block trade detected - 500K shares institutional buy
+- Sector flow: Energy seeing +$450M inflows (weekly)
+
+### Options Flow Analysis  
+- XOM: Bullish call sweep 1500 @ $120 strike (Jun expiry)
+- CVX: Put/call ratio declining (0.6 → 0.45)
+- RIG: Unusual put activity 800 contracts @ $40 strike
+- Sector options: Net bullish positioning across energy names
+## IV. FACTOR ALIGNMENT & DRIFT
+[Filtered to RIG-specific factors]
+
+### RIG Factor Scores
+- Momentum: +0.35 (improving)
+- Value: +0.62 (attractive)  
+- Quality: +0.28 (stable)
+- Growth: -0.15 (challenged)
+- Low Volatility: +0.45
+
+### Sector Factor Rotation
+- Energy momentum turning positive (+0.25 this week)
+- Technology momentum fading (-0.18 from +0.45)
+- Financials quality improving (+0.32)
+- Healthcare defensive positioning strengthening
+## V. MACRO & GEOPOLITICAL CONTEXT
+### Central Bank Policy
+- Fed holding rates at 5.25-5.50% (5th consecutive hold)
+- Market pricing 60% chance of June cut
+- ECB signaling potential May cut  
+- BoJ maintaining ultra-loose policy
+
+### Geopolitical Risks
+- Middle East tensions elevated (Strait of Hormuz concerns)
+- China economic stimulus measures announced ($200B package)
+- EU energy diversification accelerating
+- US-China tech restrictions expanding
+## VI. SECTOR ROTATION & MARKET REGIME
+### Current Market Regime: Risk-On Rotation
+- S&P 500: +1.2% (week), testing 5200 resistance
+- Volatility (VIX): 14.5 (declining from 18)
+- Credit spreads: Tightening (HY: 350bps)
+
+### Sector Performance (5D)
+Energy: +3.2% (outperforming)
+Materials: +2.1% (strength)
+Industrials: +1.8% (rotation into)
+Financials: +1.5% (steady)
+Technology: -0.5% (taking profits)
+Communication Services: -0.8% (weakness)
+Consumer Discretionary: +0.3% (mixed)
+Healthcare: +0.5% (defensive bid)
+Utilities: -0.2% (rotation out)
+Real Estate: -0.4% (rate concerns)
+
+### Sector Rotation Signals
+FROM: Technology, Communication Services  
+TO: Energy, Materials, Industrials (cyclical rotation)
+
+[Truncated - unable to identify ticker sector]
+## VII. KEY GLOBAL THEMES
+### Energy Transition & Commodity Supercycle
+- Oil demand forecasts revised higher (IEA: +1.8M bpd 2026)
+- Natural gas storage below 5-year average (supply concerns)
+- Offshore drilling contracts increasing (dayrate recovery)
+
+### Inflation & Rate Path
+- Core inflation sticky at 3.2% (above Fed 2% target)
+- Services inflation elevated (wage pressures)
+- Goods deflation moderating
+
+### China Growth & Commodity Demand
+- China stimulus supporting commodity demand
+- Manufacturing PMI expanding (51.2)
+- Infrastructure spending accelerating
+## VIII. MACRO RISK FACTORS
+nflation persistence (sticky services inflation)
+- Credit tightening (regional bank stress)
+- Geopolitical escalation (energy supply risk premium)
+- Policy uncertainty (election year dynamics)
+- Commercial real estate stress (refinancing wall)
+
+## IX. REAL ALPHAVANTAGE NEWS (LAST 7 DAYS)
+
+Total articles fetched: 6
+
+### Article 1: Transocean Downgrade Casts Doubt on Stock Prospects
+- Source: StocksToTrade
+- Published: 20260331T120000
+- Relevance to RIG: 1.00
+- Summary: Clarksons has downgraded Transocean (RIG) from "Buy" to "Neutral" with a $5.90 price target, largely due to heightened geopolitical tensions and the company's profitability struggles. Despite significant revenue, Transocean faces challenges with negative profit margins and substantial debt, requirin...
+
+### Article 2: Transocean Sees Unusually Large Options Volume (NYSE:RIG)
+- Source: MarketBeat
+- Published: 20260330T174020
+- Relevance to RIG: 1.00
+- Summary: Transocean (NYSE:RIG) recently experienced an unusually large volume of put options trading, with investors purchasing 131,365 put options, a 199% increase from typical levels, indicating strong bearish sentiment. This comes amidst mixed analyst ratings, with an average "Reduce" rating and a target ...
+
+### Article 3: Transocean Ltd. Hits New 52-Week High at USD 7.04
+- Source: Markets Mojo
+- Published: 20260330T044600
+- Relevance to RIG: 1.00
+- Summary: Transocean Ltd. has reached a new 52-week high of USD 7.04, marking a significant 22.87% increase over the past year, outperforming the S&P 500. The company, a small-cap player in the construction industry, has a market capitalization of USD 7,052 million, a P/E ratio of 53.00, and a price-to-book r...
+
+### Article 4: A Look At Transocean (RIG) Valuation After A Strong Multi‑Month Share Price Run
+- Source: Simply Wall Street
+- Published: 20260328T074002
+- Relevance to RIG: 1.00
+- Summary: Transocean (RIG) has seen strong share price growth, rising 11.4% in the past week and 72.39% over 90 days. While a common narrative flags the stock as overvalued at $6.93 against a fair value of $4.37 due to its debt burden, Simply Wall St's DCF model suggests it's undervalued by about 40% with a f...
+
+### Article 5: Transocean (NYSE:RIG) Shares Reach Fresh Annual Peak Amid Sector Activity
+- Source: Kalkine Media
+- Published: 20260327T233911
+- Relevance to RIG: 1.00
+- Summary: Transocean (NYSE:RIG) shares have reached a new annual peak, driven by increased activity and evolving global energy demands in the offshore energy services sector. The company specializes in offshore drilling services, operating a diverse fleet of advanced rigs. This surge reflects growing interest...
+
+### Article 6: Vanguard reports zero Transocean holdings — Transocean Ltd (NYSE: RIG)
+- Source: Stock Titan
+- Published: 20260327T173910
+- Relevance to RIG: 1.00
+- Summary: The Vanguard Group has filed an Amendment No. 12 to a Schedule 13G/A, reporting zero beneficial ownership (0 shares and 0%) in Transocean Ltd (NYSE: RIG). This change is a result of an internal realignment completed on January 12, 2026, where certain Vanguard subsidiaries will now report their holdi...
