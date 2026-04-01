@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from datetime import datetime
+from io import StringIO
+import re
 from typing import Optional
 
 import pandas as pd
+import requests
 import yfinance as yf
+
+from .alpha_vantage_common import AlphaVantageError, _make_api_request
 
 
 # ---------------------------------------------------------------------------
@@ -32,19 +37,118 @@ def _download(symbols: list[str], period: str = "3mo") -> Optional[pd.DataFrame]
     """Download closing prices, returning None on failure."""
     try:
         hist = yf.download(symbols, period=period, auto_adjust=True, progress=False, threads=True)
+        if hist is None:
+            return None
         if hist.empty:
             return None
         if len(symbols) == 1:
             closes = hist["Close"]
             if isinstance(closes, pd.DataFrame):
-                closes = closes.iloc[:, 0]
+                closes = closes[closes.columns[0]]
             return closes.to_frame(name=symbols[0]).dropna()
-        return hist["Close"].dropna(how="all")
+        closes = hist["Close"]
+        if isinstance(closes, pd.Series):
+            closes = closes.to_frame(name=symbols[0])
+        return closes.dropna(how="all")
     except Exception:
         return None
 
 
-def _latest(series: pd.Series) -> Optional[float]:
+def _download_vix_from_finviz_vx_futures() -> tuple[Optional[float], Optional[str], Optional[float]]:
+    """Fetch VX futures direction from Finviz futures page.
+
+    Returns:
+        (change_1d_pct, source_symbol, vix_like_price)
+
+    Notes:
+        Finviz futures page does not expose a stable machine-readable VIX spot
+        series in this code path, so this helper returns directional percentage
+        context only and leaves the absolute VIX level as unavailable.
+    """
+    url = "https://finviz.com/futures_charts.ashx?t=VX&p=h"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/115.0.0.0 Safari/537.36"
+        )
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=20)
+    except requests.RequestException:
+        return None, None, None
+
+    if response.status_code != 200:
+        return None, None, None
+
+    html = response.text
+    html_lower = html.lower()
+    if "access denied" in html_lower or "captcha" in html_lower:
+        return None, None, None
+
+    title_match = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    title = title_match.group(1).strip() if title_match else ""
+    if "futures" not in title.lower() or "vix" not in title.lower():
+        return None, None, None
+
+    pct_matches = re.findall(r"[-+]?\d+(?:\.\d+)?%", html)
+    if not pct_matches:
+        return None, None, None
+
+    try:
+        change_1d_pct = float(pct_matches[0].replace("%", ""))
+    except ValueError:
+        return None, None, None
+
+    return change_1d_pct, "VX", None
+
+
+def _download_vix_proxy_from_alpha_vantage() -> tuple[Optional[float], Optional[str], Optional[float]]:
+    """Fetch VIX proxy direction from Alpha Vantage (VXX/VIXY).
+
+    Returns:
+        (change_1d_pct, source_symbol, proxy_price)
+    """
+    for symbol in ("VXX", "VIXY"):
+        try:
+            csv_text = _make_api_request(
+                "TIME_SERIES_DAILY_ADJUSTED",
+                {
+                    "symbol": symbol,
+                    "outputsize": "compact",
+                    "datatype": "csv",
+                },
+            )
+            if not isinstance(csv_text, str):
+                continue
+
+            df = pd.read_csv(StringIO(csv_text))
+            if df.empty or len(df) < 2:
+                continue
+
+            close_col = "adjusted_close" if "adjusted_close" in df.columns else "close"
+            if close_col not in df.columns:
+                continue
+
+            closes = pd.to_numeric(df[close_col], errors="coerce").dropna()
+            if len(closes) < 2:
+                continue
+
+            latest = float(closes.iloc[0])
+            prev = float(closes.iloc[1])
+            if prev == 0:
+                continue
+
+            change_1d_pct = (latest - prev) / prev * 100
+            return change_1d_pct, symbol, latest
+        except (AlphaVantageError, ValueError, TypeError, pd.errors.ParserError):
+            continue
+
+    return None, None, None
+
+
+def _latest(series: Optional[pd.Series]) -> Optional[float]:
     if series is None or series.empty:
         return None
     v = series.dropna()
@@ -208,7 +312,7 @@ def _signal_sector_rotation(
 def _fetch_macro_data() -> tuple[
     Optional[pd.Series], Optional[pd.Series], Optional[pd.Series], Optional[pd.Series],
     Optional[pd.Series], Optional[pd.Series], dict[str, pd.Series], dict[str, pd.Series],
-    Optional[float]
+    Optional[float], str, Optional[float]
 ]:
     vix_data = _download(["^VIX"], period="3mo")
     market_data = _download(["^GSPC"], period="14mo")  # 14mo for 200-SMA
@@ -216,7 +320,7 @@ def _fetch_macro_data() -> tuple[
     tlt_shy_data = _download(["TLT", "SHY"], period="3mo")
     sector_data = _download(_DEFENSIVE_ETFS + _CYCLICAL_ETFS, period="3mo")
 
-    # Extract series
+    # Extract series with validation
     vix_series = vix_data["^VIX"] if vix_data is not None and "^VIX" in vix_data.columns else None
     spx_series = market_data["^GSPC"] if market_data is not None and "^GSPC" in market_data.columns else None
     hyg_series = (hyg_lqd_data["HYG"] if hyg_lqd_data is not None and "HYG" in hyg_lqd_data.columns else None)
@@ -234,11 +338,40 @@ def _fetch_macro_data() -> tuple[
             if sym in sector_data.columns:
                 cyclical_closes[sym] = sector_data[sym]
 
+    # Extract VIX price with validation and fallback chain:
+    # yfinance -> Alpha Vantage proxy -> Finviz VX futures.
+    # Known issue: yfinance can occasionally return corrupted VIX values.
     vix_price = _latest(vix_series)
+    yfinance_vix_corrupt = vix_price is not None and vix_price > 100
+    vix_source = "yfinance:^VIX"
+    vix_proxy_change_1d: Optional[float] = None
+
+    if vix_series is None or yfinance_vix_corrupt:
+        av_change_1d, av_symbol, av_price = _download_vix_proxy_from_alpha_vantage()
+        if av_change_1d is not None and av_symbol is not None:
+            vix_proxy_change_1d = av_change_1d
+            vix_source = f"alpha_vantage:{av_symbol}"
+            # VXX/VIXY are proxy products, not spot VIX.
+            vix_price = None
+            if av_price is not None:
+                vix_series = pd.Series([av_price], index=[pd.Timestamp.utcnow()], name=av_symbol)
+        else:
+            finviz_change_1d, finviz_symbol, finviz_price = _download_vix_from_finviz_vx_futures()
+            if finviz_change_1d is not None and finviz_symbol is not None:
+                vix_proxy_change_1d = finviz_change_1d
+                vix_source = f"finviz:{finviz_symbol}"
+                # VX futures provide direction context but not the VIX spot level here.
+                vix_price = None
+                if finviz_price is not None:
+                    vix_series = pd.Series([finviz_price], index=[pd.Timestamp.utcnow()], name=finviz_symbol)
+            elif yfinance_vix_corrupt:
+                # No healthy fallback available.
+                vix_price = None
+                vix_source = "unavailable"
 
     return (
         vix_series, spx_series, hyg_series, lqd_series, tlt_series, shy_series,
-        defensive_closes, cyclical_closes, vix_price
+        defensive_closes, cyclical_closes, vix_price, vix_source, vix_proxy_change_1d
     )
 
 
@@ -293,21 +426,38 @@ def _determine_regime_and_confidence(total_score: int) -> tuple[str, str]:
 
 
 def _generate_summary(
-    regime: str, total_score: int, confidence: str, signals: list[dict], vix_price: Optional[float]
+    regime: str,
+    total_score: int,
+    confidence: str,
+    signals: list[dict],
+    vix_price: Optional[float],
+    vix_source: str,
+    vix_proxy_change_1d: Optional[float],
 ) -> str:
     risk_on_count = sum(1 for s in signals if s["score"] > 0)
     risk_off_count = sum(1 for s in signals if s["score"] < 0)
     neutral_count = sum(1 for s in signals if s["score"] == 0)
 
-    summary = (
-        f"Macro regime: **{regime.upper()}** "
-        f"(score {total_score:+d}/6, confidence: {confidence}). "
-        f"{risk_on_count} risk-on signals, {risk_off_count} risk-off signals, {neutral_count} neutral. "
-        f"VIX: {vix_price:.1f}" if vix_price else
+    prefix = (
         f"Macro regime: **{regime.upper()}** "
         f"(score {total_score:+d}/6, confidence: {confidence}). "
         f"{risk_on_count} risk-on signals, {risk_off_count} risk-off signals, {neutral_count} neutral."
     )
+
+    if vix_price is not None:
+        summary = f"{prefix} VIX: {vix_price:.1f} ({vix_source})."
+    elif vix_proxy_change_1d is not None:
+        direction = "up" if vix_proxy_change_1d > 0 else "down"
+        source_phrase = (
+            "VX futures trend" if vix_source.startswith("finviz:VX") else "proxy trend"
+        )
+        summary = (
+            f"{prefix} VIX level unavailable; using {source_phrase} from {vix_source}: "
+            f"{direction} {abs(vix_proxy_change_1d):.1f}% vs previous day."
+        )
+    else:
+        summary = f"{prefix} VIX level unavailable ({vix_source})."
+
     return summary
 
 
@@ -315,7 +465,7 @@ def _generate_summary(
 # Main classifier
 # ---------------------------------------------------------------------------
 
-def classify_macro_regime(curr_date: str = None) -> dict:
+def classify_macro_regime(curr_date: Optional[str] = None) -> dict:
     """
     Classify current macro regime using 6 market signals.
 
@@ -333,7 +483,7 @@ def classify_macro_regime(curr_date: str = None) -> dict:
     # --- Download all required data ---
     (
         vix_series, spx_series, hyg_series, lqd_series, tlt_series, shy_series,
-        defensive_closes, cyclical_closes, vix_price
+        defensive_closes, cyclical_closes, vix_price, vix_source, vix_proxy_change_1d
     ) = _fetch_macro_data()
 
     # --- Evaluate each signal ---
@@ -345,13 +495,23 @@ def classify_macro_regime(curr_date: str = None) -> dict:
     # --- Classify regime ---
     regime, confidence = _determine_regime_and_confidence(total_score)
 
-    summary = _generate_summary(regime, total_score, confidence, signals, vix_price)
+    summary = _generate_summary(
+        regime,
+        total_score,
+        confidence,
+        signals,
+        vix_price,
+        vix_source,
+        vix_proxy_change_1d,
+    )
 
     return {
         "regime": regime,
         "score": total_score,
         "confidence": confidence,
         "vix": vix_price,
+        "vix_source": vix_source,
+        "vix_proxy_change_1d": vix_proxy_change_1d,
         "signals": signals,
         "summary": summary,
     }
@@ -363,6 +523,8 @@ def format_macro_report(regime_data: dict) -> str:
     score = regime_data.get("score", 0)
     confidence = regime_data.get("confidence", "unknown")
     vix = regime_data.get("vix")
+    vix_source = regime_data.get("vix_source", "unknown")
+    vix_proxy_change_1d = regime_data.get("vix_proxy_change_1d")
     signals = regime_data.get("signals", [])
     summary = regime_data.get("summary", "")
 
@@ -381,6 +543,12 @@ def format_macro_report(regime_data: dict) -> str:
         f"| Composite Score | {score:+d} / 6 |",
         f"| Confidence | {confidence.title()} |",
         f"| VIX | {f'{vix:.2f}' if vix is not None else 'N/A'} |",
+        f"| VIX Source | {vix_source} |",
+        (
+            f"| VIX Fallback 1D Change | {vix_proxy_change_1d:+.2f}% |"
+            if vix_proxy_change_1d is not None
+            else "| VIX Fallback 1D Change | N/A |"
+        ),
         "",
         "## Signal Breakdown",
         "",

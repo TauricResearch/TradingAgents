@@ -18,6 +18,7 @@ Skip in unit-only CI (default):
 """
 
 import pytest
+import requests
 
 # ---------------------------------------------------------------------------
 # Guard — skip every test in this file if finvizfinance is not installed.
@@ -358,3 +359,48 @@ class TestAllThreeToolsSmoke:
             assert isinstance(result, str), f"{label}: expected str"
             assert len(result) > 0, f"{label}: empty result"
             _assert_valid_result(result, label)
+
+
+@pytest.mark.enable_socket()
+class TestFinvizVixFuturesLive:
+    """Live checks for direct Finviz VX futures page access.
+
+    This validates that we can reach the futures endpoint directly (not only
+    equity quote pages) and that returned HTML includes expected VX/VIX context.
+    """
+
+    def test_vx_futures_page_is_reachable_and_has_vix_context(self):
+        url = "https://finviz.com/futures_charts.ashx?t=VX&p=h"
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/115.0.0.0 Safari/537.36"
+            )
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=20)
+        except requests.RequestException as exc:
+            pytest.skip(f"Finviz futures endpoint not reachable: {exc}")
+
+        assert response.status_code == 200, (
+            f"Expected 200 from Finviz futures endpoint, got {response.status_code}"
+        )
+
+        html = response.text
+        html_lower = html.lower()
+        assert "access denied" not in html_lower, "Finviz blocked the request"
+        assert "captcha" not in html_lower, "Finviz returned anti-bot challenge"
+
+        # Stable page-level checks avoid fragile CSS-selector coupling.
+        assert "<title>" in html_lower and "</title>" in html_lower
+        assert "futures" in html_lower
+        assert "vix" in html_lower
+
+        # Confirm there is at least one percentage value on the page.
+        import re
+
+        pct_matches = re.findall(r"[-+]?\d+(?:\.\d+)?%", html)
+        print(f"Finviz VX futures percentage tokens (sample): {pct_matches[:5]}")
+        assert pct_matches, "Expected percentage values on Finviz VX futures page"

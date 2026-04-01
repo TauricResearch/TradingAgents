@@ -7,10 +7,10 @@ from tradingagents.agents.utils.agent_utils import (
     format_prefetched_context,
     prefetch_tools_parallel,
 )
+from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
 from tradingagents.agents.utils.tool_runner import run_tool_loop
-from tradingagents.dataflows.y_finance import get_stock_data as _get_stock_data_yf
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
@@ -40,12 +40,11 @@ def create_market_analyst(llm):
                     "label": "Macro Regime Classification",
                 },
                 {
-                    "tool": _get_stock_data_yf,
+                    "tool": get_stock_data,
                     "args": {
                         "symbol": ticker,
                         "start_date": stock_start,
                         "end_date": current_date,
-                        "lookback_days": lookback_days,
                     },
                     "label": "Stock Price Data",
                 },
