@@ -161,6 +161,7 @@ tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+Ticker input supports both equities and crypto symbols (for example: `SPY`, `7203.T`, `BTC-USD`, `ETH/USDT`, `BTCUSDT`).
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -195,6 +196,10 @@ ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 # forward propagate
 _, decision = ta.propagate("NVDA", "2026-01-15")
 print(decision)
+
+# crypto example
+_, crypto_decision = ta.propagate("BTC-USD", "2026-01-15")
+print(crypto_decision)
 ```
 
 You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.

@@ -24,8 +24,8 @@ config["data_vendors"] = {
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 
-# forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
+# forward propagate (equity or crypto symbol)
+_, decision = ta.propagate("BTC-USD", "2024-05-10")
 print(decision)
 
 # Memorize mistakes and reflect

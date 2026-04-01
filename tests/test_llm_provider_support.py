@@ -27,6 +27,27 @@ class LLMProviderSupportTests(unittest.TestCase):
         self.assertEqual(kwargs["model"], "deepseek-chat")
 
     @patch("tradingagents.llm_clients.openai_client.NormalizedChatOpenAI")
+    def test_deepseek_supports_custom_base_url(self, mock_chat_openai):
+        with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "deepseek-test-key"}, clear=False):
+            client = OpenAIClient(
+                "deepseek-chat",
+                provider="deepseek",
+                base_url="https://proxy.example.com/v1",
+            )
+            client.get_llm()
+
+        kwargs = mock_chat_openai.call_args.kwargs
+        self.assertEqual(kwargs["base_url"], "https://proxy.example.com/v1")
+        self.assertEqual(kwargs["api_key"], "deepseek-test-key")
+        self.assertEqual(kwargs["model"], "deepseek-chat")
+
+    def test_deepseek_missing_key_raises_clear_error(self):
+        with patch.dict(os.environ, {"DEEPSEEK_API_KEY": ""}, clear=False):
+            client = OpenAIClient("deepseek-chat", provider="deepseek")
+            with self.assertRaisesRegex(ValueError, "Missing API key for provider 'deepseek'"):
+                client.get_llm()
+
+    @patch("tradingagents.llm_clients.openai_client.NormalizedChatOpenAI")
     def test_kimi_prefers_kimi_api_key(self, mock_chat_openai):
         with patch.dict(
             os.environ,

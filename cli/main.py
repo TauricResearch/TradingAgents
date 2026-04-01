@@ -25,6 +25,7 @@ from rich.rule import Rule
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.instruments import get_asset_class
 from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
@@ -502,7 +503,7 @@ def get_user_selections():
     console.print(
         create_question_box(
             "Step 1: Ticker Symbol",
-            "Enter the exact ticker symbol to analyze, including exchange suffix when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK)",
+            "Enter the exact ticker symbol to analyze, including exchange suffix or crypto pair when needed (examples: SPY, CNC.TO, 7203.T, 0700.HK, BTC-USD, ETH/USDT)",
             "SPY",
         )
     )
@@ -613,7 +614,8 @@ def get_user_selections():
 
 def get_ticker():
     """Get ticker symbol from user input."""
-    return typer.prompt("", default="SPY")
+    raw = typer.prompt("", default="SPY")
+    return normalize_ticker_symbol(raw)
 
 
 def get_analysis_date():
@@ -928,6 +930,7 @@ def format_tool_args(args, max_length=80) -> str:
 def run_analysis():
     # First get all user selections
     selections = get_user_selections()
+    asset_class = get_asset_class(selections["ticker"])
 
     # Create config with selected research depth
     config = DEFAULT_CONFIG.copy()
@@ -942,6 +945,7 @@ def run_analysis():
     config["openai_reasoning_effort"] = selections.get("openai_reasoning_effort")
     config["anthropic_effort"] = selections.get("anthropic_effort")
     config["output_language"] = selections.get("output_language", "English")
+    config["asset_class"] = asset_class
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()
@@ -1021,6 +1025,7 @@ def run_analysis():
 
         # Add initial messages
         message_buffer.add_message("System", f"Selected ticker: {selections['ticker']}")
+        message_buffer.add_message("System", f"Detected asset class: {asset_class}")
         message_buffer.add_message(
             "System", f"Analysis date: {selections['analysis_date']}"
         )

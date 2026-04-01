@@ -125,4 +125,4 @@ class StockstatsUtils:
             indicator_value = matching_rows[indicator].values[0]
             return indicator_value
         else:
-            return "N/A: Not a trading day (weekend or holiday)"
+            return "N/A: No market data available for this date"

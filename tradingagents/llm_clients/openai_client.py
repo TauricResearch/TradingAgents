@@ -60,14 +60,24 @@ class OpenAIClient(BaseLLMClient):
 
         # Provider-specific base URL and auth
         if self.provider in _PROVIDER_CONFIG:
-            base_url, api_key_envs = _PROVIDER_CONFIG[self.provider]
-            llm_kwargs["base_url"] = base_url
+            default_base_url, api_key_envs = _PROVIDER_CONFIG[self.provider]
+            llm_kwargs["base_url"] = self.base_url or default_base_url
             if api_key_envs:
+                resolved_api_key = self.kwargs.get("api_key")
                 for api_key_env in api_key_envs:
+                    if resolved_api_key:
+                        break
                     api_key = os.environ.get(api_key_env)
                     if api_key:
-                        llm_kwargs["api_key"] = api_key
+                        resolved_api_key = api_key
                         break
+                if not resolved_api_key:
+                    api_key_env_list = ", ".join(api_key_envs)
+                    raise ValueError(
+                        f"Missing API key for provider '{self.provider}'. "
+                        f"Set one of: {api_key_env_list}, or pass api_key explicitly."
+                    )
+                llm_kwargs["api_key"] = resolved_api_key
             else:
                 llm_kwargs["api_key"] = "ollama"
         elif self.base_url:
