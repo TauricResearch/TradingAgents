@@ -289,28 +289,14 @@ class TestRiskSynthesisGroundTruth:
 
 class TestSocialMediaAnalystGroundTruth:
     def test_ground_truth_in_system_prompt(self):
+        """Verify the social media analyst prompt template includes ground-truth instruction."""
+        import inspect
         from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
 
-        llm = _mock_llm("sentiment report")
-        # social_media_analyst uses ChatPromptTemplate which calls llm differently
-        # We need to patch the chain invocation
-        node = create_social_media_analyst(llm)
-
-        # The prompt template is built with partial variables, then piped to llm.
-        # Since we're testing prompt construction (not LLM output), we capture
-        # via the mock's invoke call.
-        try:
-            node(_base_state())
-        except Exception:
-            pass  # May fail on chain invocation but prompt is still built
-
-        # Check the system_message variable that was built
-        import inspect
-        source = inspect.getsource(node)
-        # Alternative: verify the source code contains ground truth
-        from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst as factory
-        src = inspect.getsource(factory)
+        src = inspect.getsource(create_social_media_analyst)
         assert "STRICT GROUND TRUTH" in src
+        assert "Scanner Context" in src
+        assert "commodity prices" in src.lower() or "ground-truth" in src.lower()
 
 
 # ---------------------------------------------------------------------------
