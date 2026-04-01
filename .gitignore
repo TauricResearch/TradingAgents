@@ -234,3 +234,7 @@ node_modules/
 agent_os/frontend/dist/
 
 .claude/worktrees.worktrees/
+.obsidian/
+.intent/
+.DS_Store
+docs/scratch/
