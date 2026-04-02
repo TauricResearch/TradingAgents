@@ -131,6 +131,19 @@ def create_news_analyst(llm):
                 MessagesPlaceholder(variable_name="messages"),
             ]
         )
+
+        prompt = prompt.partial(system_message=system_message)
+        prompt = prompt.partial(current_date=current_date)
+        prompt = prompt.partial(instrument_context=instrument_context)
+        prompt = prompt.partial(scanner_context=scanner_context)
+        prompt = prompt.partial(prefetched_context=prefetched_context)
+
+        # No tools remain — use direct invocation (no bind_tools, no tool loop)
+        chain = prompt | llm
+
+        result = chain.invoke(state["messages"])
+
+        report = result.content or ""
         
         # Validate output quality
         is_valid, reason = validate_news_analysis(report, ticker)
@@ -150,19 +163,6 @@ def create_news_analyst(llm):
                 f"News analyst output validation failed for {ticker}: {reason}"
             )
             report = format_validation_warning(report, ticker, reason)
-
-        prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(current_date=current_date)
-        prompt = prompt.partial(instrument_context=instrument_context)
-        prompt = prompt.partial(scanner_context=scanner_context)
-        prompt = prompt.partial(prefetched_context=prefetched_context)
-
-        # No tools remain — use direct invocation (no bind_tools, no tool loop)
-        chain = prompt | llm
-
-        result = chain.invoke(state["messages"])
-
-        report = result.content or ""
 
         return {
             "messages": [result],
