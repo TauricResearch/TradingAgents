@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import logging
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
@@ -8,6 +9,14 @@ from tradingagents.agents.utils.agent_utils import (
     prefetch_tools_parallel,
 )
 from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
+from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
+from tradingagents.agents.utils.output_validation import (
+    validate_news_analysis,
+    format_validation_warning,
+    log_validation_result,
+)
+
+logger = logging.getLogger(__name__)
 
 
 def create_news_analyst(llm):
@@ -15,7 +24,12 @@ def create_news_analyst(llm):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
-        scanner_context = state.get("scanner_context_packet", "")
+        
+        # Apply ticker-specific filtering to reduce scanner context from ~10K to ~3-4K tokens
+        scanner_context_raw = state.get("scanner_context_packet", "")
+        scanner_context = filter_scanner_context_for_ticker(
+            scanner_context_raw, ticker
+        ) if scanner_context_raw else ""
 
         # ── Pre-fetch company-specific and global news in parallel ────────────
         trade_date = datetime.strptime(current_date, "%Y-%m-%d")
@@ -73,6 +87,19 @@ def create_news_analyst(llm):
             "- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n"
             "- Prioritize material news with quantifiable impact over speculative commentary.\n"
             "- Attribute each claim to a specific source and date.\n\n"
+            f"**CRITICAL OUTPUT REQUIREMENTS**:\n"
+            f"Your response MUST satisfy ALL of these validation criteria:\n"
+            f"1. Mention the ticker symbol \"{ticker}\" at least 5 times\n"
+            f"2. Include at least 3 specific quotes or facts directly from the provided news articles\n"
+            f"3. Reference specific dates (YYYY-MM-DD format) and sources for all major claims\n"
+            f"4. Include concrete numbers ($X.XX, Y.Y%, specific quantities)\n"
+            f"5. If you find yourself writing generic portfolio strategy advice (diversification, risk tolerance, rebalancing), STOP - that is WRONG\n\n"
+            f"**SELF-VALIDATION CHECK** (before finalizing your response):\n"
+            f"- Does it mention {ticker} at least 5 times? ✓\n"
+            f"- Does it quote specific articles with dates? ✓\n"
+            f"- Does it include concrete numbers and percentages? ✓\n"
+            f"- Does it avoid generic investment advice? ✓\n\n"
+            f"If NO to any of the above, your response FAILED validation. Start over and focus strictly on the {ticker} news articles.\n\n"
             "Start with the company-specific news block and anchor the report on developments "
             f"that are directly material to {ticker}. Use the global macroeconomic block only "
             "as secondary context. If the company feed includes peer, ETF, or sector articles "
@@ -117,6 +144,25 @@ def create_news_analyst(llm):
         result = chain.invoke(state["messages"])
 
         report = result.content or ""
+        
+        # Validate output quality
+        is_valid, reason = validate_news_analysis(report, ticker)
+        
+        # Log validation result for monitoring
+        log_validation_result(
+            agent_name="news_analyst",
+            ticker=ticker,
+            is_valid=is_valid,
+            reason=reason,
+            output_preview=report[:500] if report else ""
+        )
+        
+        # If validation fails, prepend warning to output (visible to user/downstream agents)
+        if not is_valid:
+            logger.warning(
+                f"News analyst output validation failed for {ticker}: {reason}"
+            )
+            report = format_validation_warning(report, ticker, reason)
 
         return {
             "messages": [result],
