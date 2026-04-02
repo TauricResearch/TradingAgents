@@ -4,10 +4,11 @@ This module provides validation functions to check if agent outputs are actually
 analyzing the provided data rather than hallucinating generic content.
 """
 
+import json
 import re
 import logging
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ SCANNER_CITATION_PATTERN = re.compile(
     r"\[Source:\s*Finviz Smart Money Scanner\s*\|\s*Scan Date:\s*(\d{4}-\d{2}-\d{2})\]",
     re.IGNORECASE,
 )
+EVIDENCE_ID_PATTERN = re.compile(r"\[Evidence ID:\s*([^\]]+)\]", re.IGNORECASE)
 SCANNER_KEYWORDS = (
     "smart money",
     "unusual volume",
@@ -122,11 +124,22 @@ SCANNER_KEYWORDS = (
 )
 
 
-def canonicalize_source_name(raw_source: str) -> Optional[str]:
+def canonicalize_source_name(
+    raw_source: str,
+    allowed_source_names: Iterable[str] | None = None,
+) -> Optional[str]:
     """Return a canonical source id for an explicit citation string."""
     normalized = _normalize_source_name(raw_source)
     if not normalized:
         return None
+
+    allowed_aliases = {
+        _normalize_source_name(source)
+        for source in (allowed_source_names or [])
+        if _normalize_source_name(source)
+    }
+    if normalized in allowed_aliases:
+        return normalized
 
     for canonical_id, metadata in CANONICAL_SOURCE_REGISTRY.items():
         aliases = {_normalize_source_name(metadata["display_name"]), *{
@@ -137,7 +150,49 @@ def canonicalize_source_name(raw_source: str) -> Optional[str]:
     return None
 
 
-def validate_news_analysis_detailed(output: str, ticker: str) -> ValidationResult:
+def extract_allowed_sources_from_context(context: str) -> set[str]:
+    """Extract source names from prefetched context injected into the prompt.
+
+    The news prefetched context is usually JSON-like and includes fields such as
+    ``"source"`` and ``"source_domain"``. We intentionally keep the parser
+    lightweight and permissive so validation can accept real source names shown
+    to the model, even when they are not in the static registry.
+    """
+    if not context:
+        return set()
+
+    allowed: set[str] = set()
+
+    json_field_patterns = [
+        r'"source"\s*:\s*"([^"]+)"',
+        r'"source_domain"\s*:\s*"([^"]+)"',
+    ]
+    for pattern in json_field_patterns:
+        for match in re.finditer(pattern, context, re.IGNORECASE):
+            source = _clean_source_candidate(match.group(1))
+            if source:
+                allowed.add(source)
+
+    markdown_patterns = [
+        r"\bSource:\s*([^\n|]+)",
+        r"\(source:\s*([^)]+)\)",
+    ]
+    for pattern in markdown_patterns:
+        for match in re.finditer(pattern, context, re.IGNORECASE):
+            source = _clean_source_candidate(match.group(1))
+            if source:
+                allowed.add(source)
+
+    return allowed
+
+
+def validate_news_analysis_detailed(
+    output: str,
+    ticker: str,
+    allowed_source_names: Iterable[str] | None = None,
+    allowed_evidence_ids: Iterable[str] | None = None,
+    enforce_provenance: bool = True,
+) -> ValidationResult:
     """Detailed validation result used by fail-closed retry logic."""
     if not output or not ticker:
         return ValidationResult(False, "Empty output or ticker", "empty_input")
@@ -185,21 +240,36 @@ def validate_news_analysis_detailed(output: str, ticker: str) -> ValidationResul
             "missing_quant_details",
         )
 
-    explicit_sources = _extract_explicit_sources(output)
-    unknown_sources = sorted(
-        {
-            source for source in explicit_sources
-            if canonicalize_source_name(source) is None
-        }
-    )
-    if unknown_sources:
-        return ValidationResult(
-            False,
-            "Unknown source citations detected: "
-            + ", ".join(unknown_sources)
-            + ". Use only canonical source names present in the provided context.",
-            "unknown_source",
+    if enforce_provenance:
+        explicit_sources = extract_explicit_sources(output)
+        unknown_sources = sorted(
+            {
+                source for source in explicit_sources
+                if canonicalize_source_name(source, allowed_source_names=allowed_source_names) is None
+            }
         )
+        if unknown_sources:
+            return ValidationResult(
+                False,
+                "Unknown source citations detected: "
+                + ", ".join(unknown_sources)
+                + ". Use only canonical source names present in the provided context.",
+                "unknown_source",
+            )
+
+        explicit_evidence_ids = extract_evidence_ids(output)
+        allowed_ids = {str(item).strip() for item in (allowed_evidence_ids or []) if str(item).strip()}
+        unknown_evidence_ids = sorted(
+            {evidence_id for evidence_id in explicit_evidence_ids if evidence_id not in allowed_ids}
+        )
+        if unknown_evidence_ids:
+            return ValidationResult(
+                False,
+                "Unknown evidence IDs detected: "
+                + ", ".join(unknown_evidence_ids)
+                + ". Use only evidence IDs persisted for the current run.",
+                "unknown_evidence_id",
+            )
 
     if _mentions_scanner_context(output) and not SCANNER_CITATION_PATTERN.search(output):
         return ValidationResult(
@@ -226,7 +296,7 @@ def _normalize_source_name(raw_source: str) -> str:
     return source
 
 
-def _extract_explicit_sources(output: str) -> list[str]:
+def extract_explicit_sources(output: str) -> list[str]:
     """Extract only explicit attribution spans to minimize false positives."""
     matches: list[str] = []
 
@@ -245,6 +315,51 @@ def _extract_explicit_sources(output: str) -> list[str]:
                 matches.append(candidate)
 
     return matches
+
+
+def extract_evidence_ids(output: str) -> list[str]:
+    return [
+        match.group(1).strip()
+        for match in EVIDENCE_ID_PATTERN.finditer(output or "")
+        if match.group(1).strip()
+    ]
+
+
+def filter_news_report_by_provenance(
+    output: str,
+    *,
+    allowed_source_names: Iterable[str] | None = None,
+    allowed_evidence_ids: Iterable[str] | None = None,
+) -> tuple[str, list[str]]:
+    """Remove bullet lines that cite unknown sources or evidence IDs."""
+    allowed_ids = {str(item).strip() for item in (allowed_evidence_ids or []) if str(item).strip()}
+    kept_lines: list[str] = []
+    removed_lines: list[str] = []
+
+    for line in (output or "").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith(("-", "*")):
+            kept_lines.append(line)
+            continue
+
+        evidence_ids = extract_evidence_ids(line)
+        if evidence_ids and any(evidence_id not in allowed_ids for evidence_id in evidence_ids):
+            removed_lines.append(line)
+            continue
+
+        explicit_sources = extract_explicit_sources(line)
+        if explicit_sources and any(
+            canonicalize_source_name(source, allowed_source_names=allowed_source_names) is None
+            for source in explicit_sources
+        ):
+            removed_lines.append(line)
+            continue
+
+        kept_lines.append(line)
+
+    sanitized = "\n".join(kept_lines)
+    sanitized = re.sub(r"\n{3,}", "\n\n", sanitized).strip()
+    return sanitized, removed_lines
 
 
 def _clean_source_candidate(candidate: str) -> str:

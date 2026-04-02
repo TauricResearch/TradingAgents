@@ -124,7 +124,7 @@ class GraphSetup:
 
         if "news" in selected_analysts:
             analyst_nodes["news"] = create_news_analyst(
-                self.quick_thinking_llm
+                self.mid_thinking_llm
             )
             delete_nodes["news"] = create_msg_delete()
             tool_nodes["news"] = self.tool_nodes["news"]
@@ -164,6 +164,7 @@ class GraphSetup:
         neutral_r2 = create_neutral_debator(self.quick_thinking_llm, round_num=2)
         risk_synthesis = create_risk_synthesis(self.mid_thinking_llm)
         critical_abort_terminal_node = create_critical_abort_terminal()
+        news_fact_checker_node = create_news_fact_checker()
         portfolio_manager_node = create_portfolio_manager(
             self.deep_thinking_llm, self.portfolio_manager_memory
         )
@@ -196,6 +197,7 @@ class GraphSetup:
         workflow.add_node("Neutral R2", neutral_r2)
         workflow.add_node("Risk Synthesis", risk_synthesis)
         workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
+        workflow.add_node("News Fact Checker", news_fact_checker_node)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
@@ -231,13 +233,18 @@ class GraphSetup:
             else:
                 next_node = "Research Packet Summary"
 
+            route_origin = current_clear
+            if analyst_type == "news":
+                workflow.add_edge(current_clear, "News Fact Checker")
+                route_origin = "News Fact Checker"
+
             def _route_after_clear(state: AgentState, next_node: str = next_node) -> str:
                 if self._should_short_circuit_to_critical_abort_terminal(state):
                     return CRITICAL_ABORT_NODE
                 return next_node
 
             workflow.add_conditional_edges(
-                current_clear,
+                route_origin,
                 _route_after_clear,
                 {
                     CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,

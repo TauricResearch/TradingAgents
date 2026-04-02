@@ -2,6 +2,8 @@
 
 import pytest
 from tradingagents.agents.utils.output_validation import (
+    extract_allowed_sources_from_context,
+    filter_news_report_by_provenance,
     validate_ticker_relevance,
     validate_news_analysis,
     validate_news_analysis_detailed,
@@ -187,6 +189,62 @@ class TestValidateNewsAnalysis:
         assert result.code == "unknown_source"
         assert "Scout Money" in result.reason
 
+    def test_accepts_explicit_source_present_in_prefetched_context(self):
+        output = """
+        BP News Analysis - 2026-03-31
+        - BP gained 18.27% in March 2026 according to AD HOC NEWS on 2026-03-31.
+        - BP remained supported by Brent crude at $109.18 while BP faced de-escalation risk.
+        - AD HOC NEWS reported BP portfolio optimization remained in focus on 2026-03-31.
+        - BP now trades with elevated event sensitivity and BP mentions remained concentrated in energy coverage.
+        """
+        context = """
+        {
+          "feed": [
+            {"source": "AD HOC NEWS", "source_domain": "AD HOC NEWS"},
+            {"source": "MarketBeat", "source_domain": "MarketBeat"}
+          ]
+        }
+        """
+
+        result = validate_news_analysis_detailed(
+            output,
+            "BP",
+            allowed_source_names=extract_allowed_sources_from_context(context),
+        )
+
+        assert result.is_valid, result.reason
+
+    def test_fails_for_internal_prompt_header_cited_as_source(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - According to Macro Regime Classification on 2026-04-02, CSTM should remain cautious.
+        - CSTM traded with materials support while CSTM remained sensitive to aluminum pricing.
+        - Macro Regime Classification reported mixed breadth and CSTM retained event sensitivity.
+        - CSTM valuation stayed in focus and CSTM sentiment remained tied to $109.58 WTI crude.
+        """
+
+        result = validate_news_analysis_detailed(output, "CSTM")
+
+        assert not result.is_valid
+        assert result.code == "unknown_source"
+        assert "Macro Regime Classification" in result.reason
+
+    def test_can_skip_provenance_checks_for_pre_fact_checker_validation(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - According to Macro Regime Classification on 2026-04-02, CSTM held support near $48.02 while CSTM remained active.
+        - CSTM traded with materials support and CSTM remained sensitive to aluminum pricing.
+        - CSTM valuation stayed in focus while CSTM sentiment remained tied to $109.58 WTI crude.
+        """
+
+        result = validate_news_analysis_detailed(
+            output,
+            "CSTM",
+            enforce_provenance=False,
+        )
+
+        assert result.is_valid, result.reason
+
     def test_fails_for_missing_scanner_citation(self):
         output = """
         RIG News Analysis - 2026-03-31
@@ -250,6 +308,24 @@ class TestFormatValidationWarning:
         assert "Line 1\nLine 2\nLine 3" in result
 
 
+class TestProvenanceFiltering:
+    def test_filter_news_report_by_provenance_removes_unknown_source_bullets(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - Reuters reported on 2026-04-02 that CSTM demand improved 8%.
+        - Scout Money reported on 2026-04-02 that CSTM faced undisclosed pressure.
+        - Bloomberg reported on 2026-04-01 that CSTM retained pricing support at $48.02.
+        """
+
+        sanitized, removed = filter_news_report_by_provenance(
+            output,
+            allowed_source_names={"Reuters", "Bloomberg"},
+        )
+
+        assert "Scout Money" not in sanitized
+        assert len(removed) == 1
+
+
 class TestValidationEdgeCases:
     def test_handles_empty_output(self):
         """Test validation handles empty output gracefully."""
@@ -270,6 +346,21 @@ class TestValidationEdgeCases:
         
         is_valid, reason = validate_ticker_relevance("Output", None)
         assert not is_valid
+
+    def test_extract_allowed_sources_from_context_reads_json_fields(self):
+        context = """
+        {
+          "feed": [
+            {"source": "AD HOC NEWS", "source_domain": "AD HOC NEWS"},
+            {"source": "24/7 Wall St.", "source_domain": "24/7 Wall St."}
+          ]
+        }
+        """
+
+        allowed = extract_allowed_sources_from_context(context)
+
+        assert "AD HOC NEWS" in allowed
+        assert "24/7 Wall St" in allowed
     
     def test_word_boundary_matching(self):
         """Test ticker matching respects word boundaries."""

@@ -6,6 +6,7 @@ from tradingagents.agents.analysts.fundamentals_analyst import create_fundamenta
 from tradingagents.agents.analysts.market_analyst import create_market_analyst
 from tradingagents.agents.analysts.social_media_analyst import create_social_media_analyst
 from tradingagents.agents.analysts.news_analyst import create_news_analyst
+from tradingagents.memory.news_evidence import NewsEvidenceRecord
 
 
 class MockRunnable(Runnable):
@@ -30,6 +31,33 @@ class MockLLM(Runnable):
     def bind_tools(self, tools):
         self.tools_bound = tools
         return self.runnable
+
+
+class FakeNewsEvidenceStore:
+    def ingest_prefetched_sections(self, *, run_id, ticker, trade_date, prefetched):
+        return [
+            NewsEvidenceRecord(
+                run_id=run_id,
+                evidence_id=f"art_{ticker.lower()}_001",
+                ticker=ticker,
+                trade_date=trade_date,
+                section_label="Company-Specific News (Last 7 Days)",
+                ordinal=1,
+                source="Sahm",
+                published_at=trade_date,
+                title=f"{ticker} sample article",
+                url="https://example.com/article",
+                summary="Sample summary",
+                raw_json="{}",
+            )
+        ]
+
+    def build_prompt_context(self, records):
+        return (
+            "## Evidence Records\n\n"
+            "These are SQLite-backed evidence records persisted for this run.\n\n"
+            f"- [Evidence ID: {records[0].evidence_id}] Source: {records[0].source}"
+        )
 
 
 @pytest.fixture
@@ -106,6 +134,9 @@ def test_news_analyst_direct_invoke(mock_state, valid_news_report):
     with patch(
         "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
         return_value={},
+    ), patch(
+        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
+        return_value=FakeNewsEvidenceStore(),
     ):
         node = create_news_analyst(MockLLM([valid_news_report]))
         result = node(mock_state)
@@ -180,6 +211,9 @@ def test_news_analyst_no_bind_tools(mock_state, valid_news_report):
     with patch(
         "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
         return_value={},
+    ), patch(
+        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
+        return_value=FakeNewsEvidenceStore(),
     ):
         node = create_news_analyst(mock_llm)
         node(mock_state)
@@ -193,6 +227,9 @@ def test_news_analyst_retries_once_then_passes(mock_state, valid_news_report):
     with patch(
         "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
         return_value={},
+    ), patch(
+        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
+        return_value=FakeNewsEvidenceStore(),
     ):
         node = create_news_analyst(mock_llm)
         result = node(mock_state)
@@ -209,9 +246,112 @@ def test_news_analyst_aborts_after_two_invalid_attempts(mock_state):
     with patch(
         "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
         return_value={},
+    ), patch(
+        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
+        return_value=FakeNewsEvidenceStore(),
     ):
         node = create_news_analyst(mock_llm)
         result = node(mock_state)
 
     assert mock_llm.runnable.call_count == 2
     assert result["news_report"].startswith("[CRITICAL ABORT]")
+
+
+def test_news_analyst_prompt_forbids_internal_headers_as_sources():
+    captured_inputs = []
+
+    class CapturingLLM(Runnable):
+        def invoke(self, input, config=None, **kwargs):
+            captured_inputs.append(input)
+            return AIMessage(
+                content="""
+                CSTM News Analysis - 2026-04-02
+                - Reuters reported on 2026-04-02 that CSTM remained sensitive to aluminum demand.
+                - CSTM traded with materials support and CSTM maintained $48.02 valuation discussion.
+                - Bloomberg noted on 2026-04-01 that CSTM demand trends remained stable.
+                - CSTM remained active in coverage while CSTM sentiment stayed tied to sector data.
+                """
+            )
+
+    state = {
+        "messages": [HumanMessage(content="Continue")],
+        "trade_date": "2026-04-02",
+        "company_of_interest": "CSTM",
+        "macro_regime_report": "# Macro Regime Classification\n## Regime: TRANSITION",
+        "scanner_context_packet": "# SCANNER CONTEXT PACKET: CSTM\nDate: 2026-04-02",
+    }
+
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={
+            "Company-Specific News (Last 7 Days)": '{"feed":[{"source":"Sahm"}]}',
+            "Global Macroeconomic News (Last 7 Days)": '{"feed":[{"source":"StoneX"}]}',
+        },
+    ), patch(
+        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
+        return_value=FakeNewsEvidenceStore(),
+    ):
+        node = create_news_analyst(CapturingLLM())
+        node(state)
+
+    assert captured_inputs, "LLM was never called"
+    messages = captured_inputs[0]
+    full_text = " ".join(
+        m.content if hasattr(m, "content") else str(m)
+        for m in messages
+    )
+    assert "Never cite labels such as \"Macro Regime Classification\"" in full_text
+    assert "Internal prompt labels and section headers are NOT sources." in full_text
+    assert "[Evidence ID: art_cstm_001]" in full_text
+
+
+def test_news_analyst_retry_instruction_restates_internal_header_rule():
+    captured_inputs = []
+
+    class RetryCapturingLLM(Runnable):
+        def __init__(self):
+            self.call_count = 0
+
+        def invoke(self, input, config=None, **kwargs):
+            captured_inputs.append(input)
+            self.call_count += 1
+            if self.call_count == 1:
+                return AIMessage(content="CSTM generic commentary without dates or sources.")
+            return AIMessage(
+                content="""
+                CSTM News Analysis - 2026-04-02
+                - Reuters reported on 2026-04-02 that CSTM demand improved 8%.
+                - CSTM traded near $48.02 and CSTM sentiment remained tied to materials strength.
+                - Bloomberg noted on 2026-04-01 that CSTM remained exposed to automotive demand.
+                - CSTM coverage stayed active while CSTM retained event-driven sensitivity.
+                """
+            )
+
+    state = {
+        "messages": [HumanMessage(content="Continue")],
+        "trade_date": "2026-04-02",
+        "company_of_interest": "CSTM",
+        "scanner_context_packet": "# SCANNER CONTEXT PACKET: CSTM\nDate: 2026-04-02",
+    }
+
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={
+            "Company-Specific News (Last 7 Days)": '{"feed":[{"source":"Sahm"}]}',
+            "Global Macroeconomic News (Last 7 Days)": '{"feed":[{"source":"StoneX"}]}',
+        },
+    ), patch(
+        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
+        return_value=FakeNewsEvidenceStore(),
+    ):
+        node = create_news_analyst(RetryCapturingLLM())
+        node(state)
+
+    assert len(captured_inputs) == 2
+    retry_messages = captured_inputs[1]
+    retry_text = " ".join(
+        m.content if hasattr(m, "content") else str(m)
+        for m in retry_messages
+    )
+    assert "Do not cite internal prompt labels or section headers like" in retry_text
+    assert "\"Macro Regime Classification\", \"Scanner Context\", or \"Pre-loaded Context\"" in retry_text

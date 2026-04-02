@@ -58,6 +58,7 @@ type RunType = 'scan' | 'pipeline' | 'portfolio' | 'auto' | 'mock';
 
 /** Mock-specific sub-type. */
 type MockType = 'pipeline' | 'scan' | 'auto';
+type EventScope = 'all' | 'latest' | number;
 
 interface RunParams {
   date: string;
@@ -435,17 +436,39 @@ export const Dashboard: React.FC = () => {
 
   // Terminal search filter
   const [terminalSearchTerm, setTerminalSearchTerm] = useState('');
+  const [eventScope, setEventScope] = useState<EventScope>('latest');
+
+  const rerunSeqs = useMemo(() => {
+    const unique = new Set<number>();
+    events.forEach((evt) => unique.add(typeof evt.rerun_seq === 'number' ? evt.rerun_seq : 0));
+    return [...unique].sort((a, b) => a - b);
+  }, [events]);
+
+  const latestRerunSeq = rerunSeqs.length > 0 ? rerunSeqs[rerunSeqs.length - 1] : 0;
+  const scopedSeq = eventScope === 'all' ? null : eventScope === 'latest' ? latestRerunSeq : eventScope;
+
+  useEffect(() => {
+    if (eventScope === 'all' || eventScope === 'latest') return;
+    if (!rerunSeqs.includes(eventScope)) {
+      setEventScope('latest');
+    }
+  }, [eventScope, rerunSeqs]);
+
+  const scopedEvents = useMemo(() => {
+    if (scopedSeq === null) return events;
+    return events.filter((evt) => (typeof evt.rerun_seq === 'number' ? evt.rerun_seq : 0) === scopedSeq);
+  }, [events, scopedSeq]);
 
   const filteredEvents = useMemo(() => {
-    if (!terminalSearchTerm.trim()) return events;
+    if (!terminalSearchTerm.trim()) return scopedEvents;
     const term = terminalSearchTerm.toLowerCase();
-    return events.filter(evt => 
+    return scopedEvents.filter(evt => 
       evt.agent?.toLowerCase().includes(term) ||
       evt.node_id?.toLowerCase().includes(term) ||
       evt.service?.toLowerCase().includes(term) ||
       evt.message?.toLowerCase().includes(term)
     );
-  }, [events, terminalSearchTerm]);
+  }, [scopedEvents, terminalSearchTerm]);
   const [params, setParams] = useState<RunParams>({
     date: new Date().toISOString().split('T')[0],
     ticker: 'AAPL',
@@ -508,6 +531,17 @@ export const Dashboard: React.FC = () => {
 
   const isRunning = isTriggering || status === 'streaming' || status === 'connecting';
   const isActiveRunStopping = Boolean(activeRunId && stopRequestedRunId === activeRunId && isRunning);
+  const selectedRunId = activeRunRecord?.id ?? null;
+  const selectedRunStatus = activeRunRecord?.status ?? null;
+  const isSelectedRunStopping = Boolean(selectedRunId && stopRequestedRunId === selectedRunId);
+  const canStopSelectedRun = Boolean(
+    selectedRunId && (
+      selectedRunStatus === 'running'
+      || isSelectedRunStopping
+      || (activeRunId === selectedRunId && isRunning)
+    ),
+  );
+  const canResumeSelectedRun = Boolean(selectedRunId && selectedRunStatus === 'failed' && !isRunning);
   const pendingPhase3Decision = activeRunRecord?.pending_phase3_decision || null;
   const incompletePhase3Tickers = pendingPhase3Decision?.incomplete_tickers || [];
   const selectedRetryTickers = incompletePhase3Tickers
@@ -596,6 +630,7 @@ export const Dashboard: React.FC = () => {
       setActiveRunId(res.data.run_id);
       setActiveRunRecord({ id: res.data.run_id, type, status: 'running', params: body });
       setStopRequestedRunId(null);
+      setEventScope('latest');
     } catch (err) {
       console.error("Failed to start run:", err);
       setActiveRunType(null);
@@ -662,6 +697,7 @@ export const Dashboard: React.FC = () => {
 
   const loadRun = async (run: any) => {
     clearEvents();
+    setEventScope('latest');
     syncParamsFromRun(run);
     try {
       const res = await axios.get(`${API_BASE}/run/${run.id}`);
@@ -712,6 +748,7 @@ export const Dashboard: React.FC = () => {
       setActiveRunType((targetRun.type || null) as RunType | null);
       setActiveRunRecord({ ...targetRun, status: 'running' });
       setStopRequestedRunId(null);
+      setEventScope('latest');
       setActiveRunReloadKey((k) => k + 1);
       toast({
         title: `Resumed run ${targetRun.id.slice(-8)}`,
@@ -745,12 +782,10 @@ export const Dashboard: React.FC = () => {
     try {
       await axios.post(`${API_BASE}/run/${targetRun.id}/stop`);
       setStopRequestedRunId(targetRun.id);
-      if (activeRunId === targetRun.id) {
-        setActiveRunRecord((prev: any) => (prev ? { ...prev, status: 'running' } : prev));
-      }
+      setActiveRunRecord((prev: any) => (prev?.id === targetRun.id ? { ...prev, status: 'stopping' } : prev));
       toast({
-        title: 'Graceful stop requested',
-        description: 'Current work will finish, but no new work will be queued.',
+        title: 'Stop requested',
+        description: 'This run will stop and can be resumed later from history.',
         status: 'info',
         duration: 3500,
         isClosable: true,
@@ -784,6 +819,7 @@ export const Dashboard: React.FC = () => {
       setTerminalStatus('idle');
       setActiveRunId(activeRunRecord.id);
       setActiveRunRecord((prev: any) => (prev ? { ...prev, status: 'running' } : prev));
+      setEventScope('latest');
       setActiveRunReloadKey((k) => k + 1);
       loadHistory();
       toast({
@@ -818,8 +854,8 @@ export const Dashboard: React.FC = () => {
         date: params.date,
         portfolio_id: params.portfolio_id,
       });
-      // Clear terminal and reconnect WebSocket to stream only the new phase's events
-      clearEvents();
+      // Preserve in-session history so the user can compare base vs rerun output.
+      setEventScope('all');
       setActiveRunId(res.data.run_id);
       setActiveRunReloadKey((k) => k + 1);
       toast({
@@ -916,7 +952,7 @@ export const Dashboard: React.FC = () => {
           <Flex flex="1" overflow="hidden">
             {/* Left Side: Graph Area */}
             <Box flex="1" position="relative" borderRight="1px solid" borderColor="whiteAlpha.100">
-               <AgentGraph events={events} runStatus={status} onNodeClick={openNodeDetail} onNodeRerun={handleNodeRerun} />
+               <AgentGraph events={events} allEvents={events} runStatus={status} onNodeClick={openNodeDetail} onNodeRerun={handleNodeRerun} />
                
                {/* Floating Control Panel */}
                <VStack position="absolute" top={4} left={4} spacing={2} align="stretch">
@@ -981,13 +1017,13 @@ export const Dashboard: React.FC = () => {
                         Reset Decision
                       </Button>
                     </Tooltip>
-                    {activeRunRecord?.status === 'failed' && !isRunning && (
+                    {canResumeSelectedRun && (
                       <Button
                         size="sm"
                         colorScheme="blue"
                         variant="outline"
                         onClick={() => resumeRun(activeRunRecord)}
-                        isLoading={actionRunId === activeRunRecord.id && actionKind === 'resume'}
+                        isLoading={actionRunId === selectedRunId && actionKind === 'resume'}
                       >
                         Resume Loaded Run
                       </Button>
@@ -1002,16 +1038,16 @@ export const Dashboard: React.FC = () => {
                         Review Incomplete Tickers
                       </Button>
                     )}
-                    {activeRunId && isRunning && (
+                    {canStopSelectedRun && (
                       <Button
                         size="sm"
                         colorScheme="orange"
-                        variant={isActiveRunStopping ? 'solid' : 'outline'}
+                        variant={isSelectedRunStopping || isActiveRunStopping ? 'solid' : 'outline'}
                         onClick={() => stopRun(activeRunRecord)}
-                        isDisabled={isActiveRunStopping}
-                        isLoading={actionRunId === activeRunId && actionKind === 'stop'}
+                        isDisabled={isSelectedRunStopping}
+                        isLoading={actionRunId === selectedRunId && actionKind === 'stop'}
                       >
-                        {isActiveRunStopping ? 'Stopping…' : 'Graceful Stop'}
+                        {isSelectedRunStopping ? 'Stopping…' : 'Stop Loaded Run'}
                       </Button>
                     )}
                     <Divider orientation="vertical" h="20px" />
@@ -1086,7 +1122,7 @@ export const Dashboard: React.FC = () => {
                                     Review
                                   </Button>
                                 )}
-                                {r.status === 'running' && (
+                                {(r.status === 'running' || stopRequestedRunId === r.id) && (
                                   <Button
                                     size="xs"
                                     colorScheme="orange"
@@ -1235,6 +1271,50 @@ export const Dashboard: React.FC = () => {
                      </VStack>
                    </Box>
                  </Collapse>
+
+                 <Collapse in={rerunSeqs.length > 1 || eventScope === 'all'} animateOpacity>
+                   <HStack
+                     bg="blackAlpha.800"
+                     p={2}
+                     borderRadius="lg"
+                     backdropFilter="blur(10px)"
+                     border="1px solid"
+                     borderColor="whiteAlpha.200"
+                     spacing={2}
+                     flexWrap="wrap"
+                   >
+                     <Text fontSize="2xs" color="whiteAlpha.600" textTransform="uppercase" letterSpacing="wider">
+                       Event Scope
+                     </Text>
+                     <Button
+                       size="xs"
+                       variant={eventScope === 'latest' ? 'solid' : 'ghost'}
+                       colorScheme="cyan"
+                       onClick={() => setEventScope('latest')}
+                     >
+                       Latest
+                     </Button>
+                     <Button
+                       size="xs"
+                       variant={eventScope === 'all' ? 'solid' : 'ghost'}
+                       colorScheme="cyan"
+                       onClick={() => setEventScope('all')}
+                     >
+                       All
+                     </Button>
+                     {rerunSeqs.map((seq) => (
+                       <Button
+                         key={seq}
+                         size="xs"
+                         variant={eventScope === seq ? 'solid' : 'ghost'}
+                         colorScheme={seq === 0 ? 'gray' : 'orange'}
+                         onClick={() => setEventScope(seq)}
+                       >
+                         {seq === 0 ? 'Base' : `R${seq}`}
+                       </Button>
+                     ))}
+                   </HStack>
+                 </Collapse>
                </VStack>
             </Box>
 
@@ -1257,7 +1337,7 @@ export const Dashboard: React.FC = () => {
                     />
                  </InputGroup>
                  <Text fontSize="2xs" color="whiteAlpha.400" ml={2} minW="40px" textAlign="right">
-                   {filteredEvents.length} / {events.length}
+                   {filteredEvents.length} / {scopedEvents.length}
                  </Text>
               </Flex>
               
@@ -1324,7 +1404,7 @@ export const Dashboard: React.FC = () => {
               <EventDetail event={selectedEvent} onOpenModal={openModal} />
             )}
             {drawerMode === 'node' && selectedNodeId && (
-              <NodeEventsDetail nodeId={selectedNodeId} identifier={selectedNodeIdentifier} events={events} onOpenModal={openModal} />
+              <NodeEventsDetail nodeId={selectedNodeId} identifier={selectedNodeIdentifier} events={filteredEvents} onOpenModal={openModal} />
             )}
           </DrawerBody>
         </DrawerContent>

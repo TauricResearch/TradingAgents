@@ -18,6 +18,7 @@ from .risk_mgmt.risk_synthesis import create_risk_synthesis
 
 from .managers.research_manager import create_research_manager
 from .managers.critical_abort_terminal import create_critical_abort_terminal
+from .managers.news_fact_checker import create_news_fact_checker
 from .managers.portfolio_manager import create_portfolio_manager
 from .managers.context_summaries import (
     create_investment_debate_summary,
@@ -37,6 +38,7 @@ __all__ = [
     "create_bull_researcher",
     "create_research_manager",
     "create_critical_abort_terminal",
+    "create_news_fact_checker",
     "create_fundamentals_analyst",
     "create_market_analyst",
     "create_neutral_debator",

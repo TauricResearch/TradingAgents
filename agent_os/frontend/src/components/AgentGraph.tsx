@@ -20,6 +20,7 @@ const ROW_HEIGHT = 148;
 const TOP_PADDING = 40;
 const TICKER_GAP = 80;
 const TICKER_HDR_H = 108;
+const TICKER_HDR_TO_NODE_GAP = 24;
 
 const SCAN_LEVELS: Record<string, number> = {
   gatekeeper_scanner: 0,
@@ -99,6 +100,7 @@ const ANALYST_IDS = new Set([
   'market_analyst',
   'social_analyst',
   'news_analyst',
+  'news_fact_checker',
   'fundamentals_analyst',
 ]);
 
@@ -118,6 +120,7 @@ const PIPELINE_RERUNNABLE = new Set([
   'market_analyst',
   'social_analyst',
   'news_analyst',
+  'news_fact_checker',
   'fundamentals_analyst',
   'bull_researcher',
   'bear_researcher',
@@ -139,6 +142,8 @@ interface GraphRecord {
   label: string;
   kind: Exclude<NodeKind, 'skip'>;
   firstSeen: number;
+  rerunSeq: number;
+  stale: boolean;
   status: 'running' | 'completed' | 'error';
   metrics?: AgentEvent['metrics'];
 }
@@ -186,6 +191,32 @@ function canRerunNode(normalizedId: string, identifier: string): boolean {
   return PIPELINE_RERUNNABLE.has(normalizedId);
 }
 
+function getEventRerunSeq(event: AgentEvent): number {
+  return typeof event.rerun_seq === 'number' ? event.rerun_seq : 0;
+}
+
+const PIPELINE_PHASE_ORDER: Record<string, number> = {
+  market_analyst: 0,
+  social_analyst: 1,
+  news_analyst: 2,
+  news_fact_checker: 3,
+  fundamentals_analyst: 4,
+  bull_researcher: 5,
+  bear_researcher: 6,
+  research_manager: 7,
+  trader: 8,
+  aggressive_analyst: 9,
+  conservative_analyst: 10,
+  neutral_analyst: 11,
+  portfolio_manager: 12,
+};
+
+function getNodeOrder(kind: Exclude<NodeKind, 'skip'>, normalizedId: string): number {
+  if (kind === 'scan') return SCAN_ORDER[normalizedId] ?? 999;
+  if (kind === 'portfolio') return PORTFOLIO_ORDER[normalizedId] ?? 999;
+  return PIPELINE_PHASE_ORDER[normalizedId] ?? 999;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   running: '#4fd1c5',
   completed: '#68d391',
@@ -222,17 +253,20 @@ const AgentNode = ({ data }: NodeProps) => {
   const sc = statusColor(data.status);
   const canRerun = data.status === 'completed' || data.status === 'error';
   const totalTok = (data.metrics?.tokens_in ?? 0) + (data.metrics?.tokens_out ?? 0);
+  const isStale = Boolean(data.stale);
 
   return (
     <Box
       bg="#0f172a"
       border="1px solid"
       borderColor={sc}
+      borderStyle={isStale ? 'dashed' : 'solid'}
       p={3}
       borderRadius="lg"
       w="200px"
       boxShadow={`0 0 12px ${sc}35`}
       cursor="pointer"
+      opacity={isStale ? 0.6 : 1}
       _hover={{ borderColor: '#67e8f9', boxShadow: '0 0 18px #67e8f940' }}
     >
       <Handle type="target" position={Position.Top} style={{ borderColor: sc }} />
@@ -243,6 +277,10 @@ const AgentNode = ({ data }: NodeProps) => {
           <Text fontSize="xs" fontWeight="bold" color="white" flex={1} noOfLines={1}>
             {data.label}
           </Text>
+          {typeof data.rerunSeq === 'number' && data.rerunSeq > 0 && (
+            <Badge colorScheme="cyan" fontSize="2xs">{`R${data.rerunSeq}`}</Badge>
+          )}
+          {isStale && <Badge colorScheme="orange" fontSize="2xs">STALE</Badge>}
           {data.status === 'completed' && <Badge colorScheme="green" fontSize="2xs">✓</Badge>}
           {data.status === 'error' && <Badge colorScheme="red" fontSize="2xs">✗</Badge>}
         </Flex>
@@ -323,6 +361,7 @@ const TickerHeaderNode = ({ data }: NodeProps) => {
   const sc = statusColor(data.status ?? 'running');
   const done = data.completedCount ?? 0;
   const total = data.agentCount ?? 0;
+  const stale = data.staleCount ?? 0;
 
   return (
     <Box
@@ -369,6 +408,11 @@ const TickerHeaderNode = ({ data }: NodeProps) => {
             </Text>
           )}
         </Flex>
+        {stale > 0 && (
+          <Badge alignSelf="flex-start" colorScheme="orange" variant="subtle" fontSize="2xs">
+            {stale} stale
+          </Badge>
+        )}
       </Flex>
 
       <Handle type="source" position={Position.Bottom} style={{ borderColor: color }} />
@@ -380,6 +424,7 @@ const nodeTypes = { agentNode: AgentNode, tickerHeader: TickerHeaderNode };
 
 interface AgentGraphProps {
   events: AgentEvent[];
+  allEvents?: AgentEvent[];
   runStatus?: 'idle' | 'connecting' | 'streaming' | 'completed' | 'paused' | 'error';
   onNodeClick?: (nodeId: string, identifier?: string) => void;
   onNodeRerun?: (identifier: string, nodeId: string) => void;
@@ -394,6 +439,7 @@ function centeredX(index: number, count: number, maxColumns: number): number {
 
 function buildGraph(
   events: AgentEvent[],
+  allEvents: AgentEvent[],
   runStatus?: AgentGraphProps['runStatus'],
   onNodeRerun?: AgentGraphProps['onNodeRerun'],
 ): GraphBuild {
@@ -401,7 +447,37 @@ function buildGraph(
   const edgeKeys = new Set<string>();
   const edges: Edge[] = [];
   const deferredEdges: Array<{ source: string; target: string }> = [];
-  const tickerHeaders = new Map<string, { firstSeen: number; agentCount: number; completedCount: number; status: 'running' | 'completed' | 'error' }>();
+  const tickerHeaders = new Map<string, { firstSeen: number; agentCount: number; completedCount: number; staleCount: number; status: 'running' | 'completed' | 'error' }>();
+  const latestSeqByIdentifier = new Map<string, number>();
+  const latestSeqStartOrderByIdentifier = new Map<string, number>();
+
+  allEvents.forEach((evt) => {
+    const rawNodeId = evt.node_id;
+    if (!rawNodeId || rawNodeId === '__system__') return;
+    const identifier = evt.identifier ?? '';
+    const normalizedId = normalizeNodeId(rawNodeId);
+    const kind = classifyNode(normalizedId, identifier);
+    if (kind === 'skip') return;
+    const rerunSeq = getEventRerunSeq(evt);
+    const current = latestSeqByIdentifier.get(identifier) ?? 0;
+    if (rerunSeq > current) latestSeqByIdentifier.set(identifier, rerunSeq);
+  });
+
+  allEvents.forEach((evt) => {
+    const rawNodeId = evt.node_id;
+    if (!rawNodeId || rawNodeId === '__system__') return;
+    const identifier = evt.identifier ?? '';
+    const normalizedId = normalizeNodeId(rawNodeId);
+    const kind = classifyNode(normalizedId, identifier);
+    if (kind === 'skip') return;
+    const rerunSeq = getEventRerunSeq(evt);
+    if (rerunSeq !== (latestSeqByIdentifier.get(identifier) ?? 0)) return;
+    const order = getNodeOrder(kind, normalizedId);
+    const currentOrder = latestSeqStartOrderByIdentifier.get(identifier);
+    if (currentOrder === undefined || order < currentOrder) {
+      latestSeqStartOrderByIdentifier.set(identifier, order);
+    }
+  });
 
   const pushEdge = (source: string, target: string, color = '#4fd1c5', dashed = false) => {
     if (source === target) return;
@@ -430,7 +506,9 @@ function buildGraph(
 
     const recordId = scopeId(normalizedId, identifier);
     const existing = records.get(recordId);
+    const rerunSeq = getEventRerunSeq(evt);
     const completed = evt.type === 'result' || evt.status === 'success' || evt.status === 'graceful_skip';
+    const wasCompleted = existing?.status === 'completed';
     const nextStatus: GraphRecord['status'] =
       evt.status === 'error'
         ? 'error'
@@ -447,18 +525,25 @@ function buildGraph(
         label: toLabel(rawNodeId),
         kind,
         firstSeen: index,
+        rerunSeq,
+        stale: false,
         status: nextStatus,
         metrics: evt.metrics,
       });
     } else {
+      if (rerunSeq >= existing.rerunSeq) {
+        existing.rerunSeq = rerunSeq;
+        existing.rawNodeId = rawNodeId;
+        existing.label = toLabel(rawNodeId);
+        if (evt.metrics && Object.keys(evt.metrics).length > 0) {
+          existing.metrics = evt.metrics;
+        }
+      }
       existing.status = existing.status === 'error' || nextStatus === 'error'
         ? 'error'
         : existing.status === 'completed' || nextStatus === 'completed'
           ? 'completed'
           : 'running';
-      if (evt.metrics && Object.keys(evt.metrics).length > 0) {
-        existing.metrics = evt.metrics;
-      }
     }
 
     if (kind === 'ticker') {
@@ -467,13 +552,14 @@ function buildGraph(
           firstSeen: index,
           agentCount: 0,
           completedCount: 0,
+          staleCount: 0,
           status: 'running',
         });
       }
 
       const header = tickerHeaders.get(identifier)!;
       if (!existing) header.agentCount += 1;
-      if (completed && existing?.status !== 'completed') header.completedCount += 1;
+      if (completed && !wasCompleted) header.completedCount += 1;
       header.status = header.completedCount >= header.agentCount && header.agentCount > 0 ? 'completed' : 'running';
 
       const prevTickerNode = lastTickerNodeByIdentifier.get(identifier);
@@ -501,6 +587,29 @@ function buildGraph(
       pushEdge(source, target);
     }
   });
+
+  for (const record of records.values()) {
+    const latestSeq = latestSeqByIdentifier.get(record.identifier) ?? 0;
+    const latestStartOrder = latestSeqStartOrderByIdentifier.get(record.identifier);
+    const order = getNodeOrder(record.kind, record.normalizedId);
+    record.stale = (
+      latestStartOrder !== undefined &&
+      record.rerunSeq < latestSeq &&
+      order >= latestStartOrder
+    );
+  }
+
+  for (const [identifier, header] of tickerHeaders.entries()) {
+    const scopedRecords = [...records.values()].filter((record) => record.kind === 'ticker' && record.identifier === identifier);
+    header.agentCount = scopedRecords.length;
+    header.completedCount = scopedRecords.filter((record) => record.status === 'completed' && !record.stale).length;
+    header.staleCount = scopedRecords.filter((record) => record.stale).length;
+    header.status = scopedRecords.some((record) => record.status === 'error' && !record.stale)
+      ? 'error'
+      : scopedRecords.some((record) => record.status === 'running' || record.stale)
+        ? 'running'
+        : 'completed';
+  }
 
   if (runStatus === 'error') {
     for (const record of records.values()) {
@@ -602,6 +711,8 @@ function buildGraph(
           node_id: record.rawNodeId,
           status: record.status,
           metrics: record.metrics,
+          stale: record.stale,
+          rerunSeq: record.rerunSeq,
           onRerun: onNodeRerun && canRerunNode(record.normalizedId, record.identifier)
             ? () => onNodeRerun(record.identifier, record.rawNodeId)
             : undefined,
@@ -626,6 +737,7 @@ function buildGraph(
         status: header.status,
         agentCount: header.agentCount,
         completedCount: header.completedCount,
+        staleCount: header.staleCount,
         node_id: 'header',
         identifier,
       },
@@ -640,15 +752,23 @@ function buildGraph(
       return (tickerRowOrder.get(a.normalizedId) ?? 999) - (tickerRowOrder.get(b.normalizedId) ?? 999) || a.firstSeen - b.firstSeen;
     });
 
+  const tickerCompactRowByRecord = new Map<string, number>();
+  const tickerRowCountByIdentifier = new Map<string, number>();
+  tickerRecords.forEach((record) => {
+    const nextRow = tickerRowCountByIdentifier.get(record.identifier) ?? 0;
+    tickerCompactRowByRecord.set(record.id, nextRow);
+    tickerRowCountByIdentifier.set(record.identifier, nextRow + 1);
+  });
+
   tickerRecords.forEach((record) => {
     const colIndex = tickerIdentifiers.indexOf(record.identifier);
-    const rowIndex = tickerRowOrder.get(record.normalizedId) ?? 0;
+    const rowIndex = tickerCompactRowByRecord.get(record.id) ?? 0;
     nodes.push({
       id: record.id,
       type: 'agentNode',
       position: {
         x: tickerX(colIndex),
-        y: tickerStartY + TICKER_HDR_H + rowIndex * ROW_HEIGHT,
+        y: tickerStartY + TICKER_HDR_H + TICKER_HDR_TO_NODE_GAP + rowIndex * ROW_HEIGHT,
       },
       data: {
         agent: record.rawNodeId,
@@ -657,6 +777,8 @@ function buildGraph(
         node_id: record.rawNodeId,
         status: record.status,
         metrics: record.metrics,
+        stale: record.stale,
+        rerunSeq: record.rerunSeq,
         onRerun: onNodeRerun && canRerunNode(record.normalizedId, record.identifier)
           ? () => onNodeRerun(record.identifier, record.rawNodeId)
           : undefined,
@@ -671,8 +793,8 @@ function buildGraph(
     }
   });
 
-  const maxTickerRow = tickerRecords.reduce((max, record) => Math.max(max, tickerRowOrder.get(record.normalizedId) ?? 0), -1);
-  const portfolioStartY = tickerStartY + TICKER_HDR_H + (maxTickerRow >= 0 ? (maxTickerRow + 1) * ROW_HEIGHT + TICKER_GAP : 0);
+  const maxTickerRows = [...tickerRowCountByIdentifier.values()].reduce((max, count) => Math.max(max, count), 0);
+  const portfolioStartY = tickerStartY + TICKER_HDR_H + TICKER_HDR_TO_NODE_GAP + (maxTickerRows > 0 ? maxTickerRows * ROW_HEIGHT + TICKER_GAP : 0);
 
   const portfolioByLevel = new Map<number, GraphRecord[]>();
   portfolioRecords.forEach((record) => {
@@ -695,6 +817,8 @@ function buildGraph(
             node_id: record.rawNodeId,
             status: record.status,
             metrics: record.metrics,
+            stale: record.stale,
+            rerunSeq: record.rerunSeq,
             onRerun: onNodeRerun && canRerunNode(record.normalizedId, record.identifier)
               ? () => onNodeRerun(record.identifier, record.rawNodeId)
               : undefined,
@@ -706,10 +830,10 @@ function buildGraph(
   return { nodes, edges };
 }
 
-export const AgentGraph: React.FC<AgentGraphProps> = ({ events, runStatus, onNodeClick, onNodeRerun }) => {
+export const AgentGraph: React.FC<AgentGraphProps> = ({ events, allEvents, runStatus, onNodeClick, onNodeRerun }) => {
   const { nodes: layoutNodes, edges } = useMemo(
-    () => buildGraph(events, runStatus, onNodeRerun),
-    [events, runStatus, onNodeRerun],
+    () => buildGraph(events, allEvents ?? events, runStatus, onNodeRerun),
+    [events, allEvents, runStatus, onNodeRerun],
   );
   const [positionOverrides, setPositionOverrides] = useState<PositionOverrides>({});
 
