@@ -37,14 +37,14 @@
       "losses_1d": 98,
       "wins_7d": 69,
       "losses_7d": 86,
-      "wins_30d": 21,
-      "losses_30d": 50,
+      "wins_30d": 22,
+      "losses_30d": 55,
       "avg_return_1d": -0.09,
       "avg_return_7d": -0.57,
-      "avg_return_30d": -1.15,
+      "avg_return_30d": -1.47,
       "win_rate_1d": 38.4,
       "win_rate_7d": 44.5,
-      "win_rate_30d": 29.6
+      "win_rate_30d": 28.6
     },
     "options_flow": {
       "count": 89,
@@ -52,14 +52,14 @@
       "losses_1d": 59,
       "wins_7d": 35,
       "losses_7d": 48,
-      "wins_30d": 16,
-      "losses_30d": 41,
+      "wins_30d": 18,
+      "losses_30d": 42,
       "avg_return_1d": 0.05,
       "avg_return_7d": -1.33,
-      "avg_return_30d": -3.67,
+      "avg_return_30d": -3.06,
       "win_rate_1d": 33.7,
       "win_rate_7d": 42.2,
-      "win_rate_30d": 28.1
+      "win_rate_30d": 30.0
     },
     "earnings_play": {
       "count": 55,
@@ -68,13 +68,13 @@
       "wins_7d": 21,
       "losses_7d": 33,
       "wins_30d": 20,
-      "losses_30d": 23,
+      "losses_30d": 25,
       "avg_return_1d": -0.79,
       "avg_return_7d": -2.23,
-      "avg_return_30d": -3.66,
+      "avg_return_30d": -4.24,
       "win_rate_1d": 36.4,
       "win_rate_7d": 38.9,
-      "win_rate_30d": 46.5
+      "win_rate_30d": 44.4
     },
     "contrarian_value": {
       "count": 7,
@@ -143,13 +143,13 @@
       "wins_7d": 11,
       "losses_7d": 13,
       "wins_30d": 4,
-      "losses_30d": 13,
+      "losses_30d": 14,
       "avg_return_1d": -0.02,
       "avg_return_7d": -1.12,
-      "avg_return_30d": -3.82,
+      "avg_return_30d": -4.45,
       "win_rate_1d": 28.0,
       "win_rate_7d": 45.8,
-      "win_rate_30d": 23.5
+      "win_rate_30d": 22.2
     },
     "ipo_opportunity": {
       "count": 1,
@@ -173,13 +173,13 @@
       "wins_7d": 3,
       "losses_7d": 14,
       "wins_30d": 2,
-      "losses_30d": 9,
+      "losses_30d": 10,
       "avg_return_1d": -3.01,
       "avg_return_7d": -4.7,
-      "avg_return_30d": -10.15,
+      "avg_return_30d": -10.89,
       "win_rate_1d": 11.1,
       "win_rate_7d": 17.6,
-      "win_rate_30d": 18.2
+      "win_rate_30d": 16.7
     },
     "social_dd": {
       "count": 25,
@@ -187,14 +187,14 @@
       "losses_1d": 13,
       "wins_7d": 11,
       "losses_7d": 14,
-      "wins_30d": 8,
-      "losses_30d": 4,
+      "wins_30d": 9,
+      "losses_30d": 5,
       "avg_return_1d": 0.75,
       "avg_return_7d": -1.47,
-      "avg_return_30d": 4.89,
+      "avg_return_30d": 2.07,
       "win_rate_1d": 48.0,
       "win_rate_7d": 44.0,
-      "win_rate_30d": 66.7
+      "win_rate_30d": 64.3
     }
   },
   "overall_1d": {
@@ -210,9 +210,9 @@
     "win_rate": 41.0
   },
   "overall_30d": {
-    "count": 390,
-    "wins": 132,
-    "avg_return": -2.99,
-    "win_rate": 33.8
+    "count": 405,
+    "wins": 136,
+    "avg_return": -3.13,
+    "win_rate": 33.6
   }
 }
