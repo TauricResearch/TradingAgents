@@ -1089,6 +1089,7 @@ class LangGraphEngine:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = params.get("force", False)
         continue_on_ticker_failure = bool(params.get("continue_on_ticker_failure"))
+        include_portfolio_holdings = params.get("include_portfolio_holdings", True)
         root_run_id = self._root_run_id(run_id, params)
         execution_key = self._execution_key(run_id, params)
 
@@ -1166,13 +1167,18 @@ class LangGraphEngine:
             # has fresh analysis for existing positions (hold/sell/add decisions).
             portfolio_id = params.get("portfolio_id", "main_portfolio")
             holding_tickers: list[str] = []
-            try:
-                from tradingagents.portfolio.repository import PortfolioRepository
-                _repo = PortfolioRepository()
-                _, holdings = _repo.get_portfolio_with_holdings(portfolio_id)
-                holding_tickers = [h.ticker.upper() for h in holdings]
-            except Exception as exc:
-                logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
+            if include_portfolio_holdings:
+                try:
+                    from tradingagents.portfolio.repository import PortfolioRepository
+                    _repo = PortfolioRepository()
+                    _, holdings = _repo.get_portfolio_with_holdings(portfolio_id)
+                    holding_tickers = [h.ticker.upper() for h in holdings]
+                except Exception as exc:
+                    logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
+            else:
+                yield self._system_log(
+                    "Phase 2/3: include_portfolio_holdings=False — skipping portfolio holdings, scan candidates only."
+                )
 
             holding_instruments = [
                 resolve_instrument(ticker, source_context="holding")
