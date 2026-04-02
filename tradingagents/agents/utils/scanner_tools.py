@@ -1,6 +1,8 @@
 """Scanner tools for market-wide analysis."""
 
 import logging
+import os
+import socket
 from typing import Annotated
 
 from langchain_core.tools import tool
@@ -238,12 +240,24 @@ def get_economic_calendar(
 
 def _run_finviz_screen(filters_dict: dict, label: str) -> str:
     """Shared helper — runs a Finviz Overview screener with hardcoded filters."""
+    timeout_sec = float(os.getenv("TRADINGAGENTS_FINVIZ_TIMEOUT_SEC", "20"))
+    previous_timeout = socket.getdefaulttimeout()
     try:
+        # finvizfinance does not expose request timeout arguments; cap socket time.
+        socket.setdefaulttimeout(timeout_sec)
         from finvizfinance.screener.overview import Overview  # lazy import
 
         foverview = Overview()
         foverview.set_filter(filters_dict=filters_dict)
-        df = foverview.screener_view()
+        # We only surface top 5 rows in reports; avoid full-site pagination.
+        # finvizfinance defaults to limit=100000 and may crawl dozens of pages.
+        df = foverview.screener_view(
+            order="Volume",
+            ascend=False,
+            limit=5,
+            verbose=0,
+            sleep_sec=0,
+        )
 
         if df is None or df.empty:
             return f"No stocks matched the {label} criteria today."
@@ -262,6 +276,8 @@ def _run_finviz_screen(filters_dict: dict, label: str) -> str:
     except Exception as e:
         logger.error("Finviz screener error (%s): %s", label, e)
         return f"Smart money scan unavailable (Finviz error): {e}"
+    finally:
+        socket.setdefaulttimeout(previous_timeout)
 
 
 @tool

@@ -67,6 +67,19 @@ def mock_llm_direct_report():
     return MockLLM([final_report_msg])
 
 
+@pytest.fixture
+def valid_news_report():
+    return AIMessage(
+        content="""
+        AAPL News Analysis - 2024-05-15
+        - Reuters reported on 2024-05-15 that AAPL supplier demand improved by 8%.
+        - AAPL shares closed at $189.00 on 2024-05-15, and AAPL services revenue expectations rose 4%.
+        - Bloomberg reported AAPL iPhone demand stabilized on 2024-05-14, supporting AAPL gross margin forecasts.
+        - AAPL remained the focus of analyst revisions, and AAPL now trades with 22% operating margin expectations.
+        """
+    )
+
+
 def test_fundamentals_analyst_tool_loop(mock_state, mock_llm_with_tool_call):
     """Fundamentals analyst: pre-fetches 4 tools, runs iterative loop for raw statements."""
     node = create_fundamentals_analyst(mock_llm_with_tool_call)
@@ -88,11 +101,15 @@ def test_social_media_analyst_direct_invoke(mock_state, mock_llm_direct_report):
     assert "This is the final report after running the tool." in result["sentiment_report"]
 
 
-def test_news_analyst_direct_invoke(mock_state, mock_llm_direct_report):
+def test_news_analyst_direct_invoke(mock_state, valid_news_report):
     """News analyst: full pre-fetch, direct LLM invoke (no tool loop)."""
-    node = create_news_analyst(mock_llm_direct_report)
-    result = node(mock_state)
-    assert "This is the final report after running the tool." in result["news_report"]
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={},
+    ):
+        node = create_news_analyst(MockLLM([valid_news_report]))
+        result = node(mock_state)
+    assert "AAPL News Analysis" in result["news_report"]
 
 
 def test_market_analyst_macro_regime_from_prefetch(mock_state, mock_llm_with_tool_call):
@@ -157,8 +174,44 @@ def test_prefetched_context_injected_into_prompt(mock_state, mock_llm_with_tool_
     assert "Pre-loaded Context" in full_text
 
 
-def test_news_analyst_no_bind_tools(mock_state, mock_llm_direct_report):
+def test_news_analyst_no_bind_tools(mock_state, valid_news_report):
     """News analyst must not call bind_tools since there are no tools."""
-    node = create_news_analyst(mock_llm_direct_report)
-    node(mock_state)
-    assert mock_llm_direct_report.tools_bound is None
+    mock_llm = MockLLM([valid_news_report])
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={},
+    ):
+        node = create_news_analyst(mock_llm)
+        node(mock_state)
+    assert mock_llm.tools_bound is None
+
+
+def test_news_analyst_retries_once_then_passes(mock_state, valid_news_report):
+    invalid = AIMessage(content="AAPL generic commentary without dates or sources.")
+    mock_llm = MockLLM([invalid, valid_news_report])
+
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={},
+    ):
+        node = create_news_analyst(mock_llm)
+        result = node(mock_state)
+
+    assert mock_llm.runnable.call_count == 2
+    assert "[CRITICAL ABORT]" not in result["news_report"]
+    assert "AAPL News Analysis" in result["news_report"]
+
+
+def test_news_analyst_aborts_after_two_invalid_attempts(mock_state):
+    invalid = AIMessage(content="AAPL generic commentary without dates or sources.")
+    mock_llm = MockLLM([invalid, invalid])
+
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={},
+    ):
+        node = create_news_analyst(mock_llm)
+        result = node(mock_state)
+
+    assert mock_llm.runnable.call_count == 2
+    assert result["news_report"].startswith("[CRITICAL ABORT]")

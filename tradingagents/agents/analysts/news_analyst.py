@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 
+from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
@@ -11,12 +12,29 @@ from tradingagents.agents.utils.agent_utils import (
 from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
 from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
 from tradingagents.agents.utils.output_validation import (
-    validate_news_analysis,
-    format_validation_warning,
+    validate_news_analysis_detailed,
     log_validation_result,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_scanner_citation_hint(scanner_context: str, fallback_date: str) -> str:
+    source_match = None
+    date_match = None
+    if scanner_context:
+        source_match = next(
+            (line.split(":", 1)[1].strip() for line in scanner_context.splitlines() if line.startswith("Source:")),
+            None,
+        )
+        date_match = next(
+            (line.split(":", 1)[1].strip() for line in scanner_context.splitlines() if line.startswith("Scan Date:")),
+            None,
+        )
+
+    source_name = source_match or "Finviz Smart Money Scanner"
+    scan_date = date_match or fallback_date
+    return f"[Source: {source_name} | Scan Date: {scan_date}]"
 
 
 def create_news_analyst(llm):
@@ -30,6 +48,9 @@ def create_news_analyst(llm):
         scanner_context = filter_scanner_context_for_ticker(
             scanner_context_raw, ticker
         ) if scanner_context_raw else ""
+        scanner_citation_hint = _extract_scanner_citation_hint(
+            scanner_context, current_date
+        )
 
         # ── Pre-fetch company-specific and global news in parallel ────────────
         trade_date = datetime.strptime(current_date, "%Y-%m-%d")
@@ -87,6 +108,9 @@ def create_news_analyst(llm):
             "- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n"
             "- Prioritize material news with quantifiable impact over speculative commentary.\n"
             "- Attribute each claim to a specific source and date.\n\n"
+            "When citing scanner-derived claims, use this exact format: "
+            f"{scanner_citation_hint}\n"
+            "Do not invent source names. Do not describe Finviz scanner output as SEC or Form 4 evidence unless SEC filing data is explicitly present in the provided news context.\n\n"
             f"**CRITICAL OUTPUT REQUIREMENTS**:\n"
             f"Your response MUST satisfy ALL of these validation criteria:\n"
             f"1. Mention the ticker symbol \"{ticker}\" at least 5 times\n"
@@ -141,28 +165,57 @@ def create_news_analyst(llm):
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
         chain = prompt | llm
 
-        result = chain.invoke(state["messages"])
+        first_result = chain.invoke(state["messages"])
+        report = first_result.content or ""
 
-        report = result.content or ""
-        
-        # Validate output quality
-        is_valid, reason = validate_news_analysis(report, ticker)
-        
-        # Log validation result for monitoring
+        validation = validate_news_analysis_detailed(report, ticker)
         log_validation_result(
-            agent_name="news_analyst",
+            agent_name="news_analyst_attempt_1",
             ticker=ticker,
-            is_valid=is_valid,
-            reason=reason,
+            is_valid=validation.is_valid,
+            reason=validation.reason,
             output_preview=report[:500] if report else ""
         )
-        
-        # If validation fails, prepend warning to output (visible to user/downstream agents)
-        if not is_valid:
+
+        result = first_result
+        if not validation.is_valid:
             logger.warning(
-                f"News analyst output validation failed for {ticker}: {reason}"
+                "News analyst output validation failed for %s on attempt 1 (%s): %s",
+                ticker,
+                validation.code,
+                validation.reason,
             )
-            report = format_validation_warning(report, ticker, reason)
+            retry_instruction = HumanMessage(
+                content=(
+                    "Validation failed for your prior draft.\n"
+                    f"Failure code: {validation.code}\n"
+                    f"Failure reason: {validation.reason}\n"
+                    "Rewrite the report from scratch using only the provided context. "
+                    f"If you cite scanner-derived claims, you must use {scanner_citation_hint} exactly."
+                )
+            )
+            result = chain.invoke([*state["messages"], retry_instruction])
+            report = result.content or ""
+            validation = validate_news_analysis_detailed(report, ticker)
+            log_validation_result(
+                agent_name="news_analyst_attempt_2",
+                ticker=ticker,
+                is_valid=validation.is_valid,
+                reason=validation.reason,
+                output_preview=report[:500] if report else ""
+            )
+
+            if not validation.is_valid:
+                logger.error(
+                    "News analyst output validation failed for %s on attempt 2 (%s): %s",
+                    ticker,
+                    validation.code,
+                    validation.reason,
+                )
+                report = (
+                    "[CRITICAL ABORT] Reason: News analysis failed source-validation twice "
+                    f"for {ticker} ({validation.code}) - {validation.reason}"
+                )
 
         return {
             "messages": [result],

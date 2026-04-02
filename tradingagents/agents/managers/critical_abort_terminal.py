@@ -11,7 +11,7 @@ def create_critical_abort_terminal():
         is_holding = context == "holding"
         terminal_action = "SELL" if is_holding else "AVOID"
         source_field, abort_report = extract_abort_report(
-            state, "market_report", "fundamentals_report"
+            state, "market_report", "news_report", "fundamentals_report"
         )
         source_label = source_field.replace("_", " ") if source_field else "analyst report"
         instrument_context = build_instrument_context(state["company_of_interest"])

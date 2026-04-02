@@ -17,7 +17,9 @@ class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
     def _should_short_circuit_to_critical_abort_terminal(self, state: AgentState) -> bool:
-        return state_has_critical_abort(state, "market_report", "fundamentals_report")
+        return state_has_critical_abort(
+            state, "market_report", "news_report", "fundamentals_report"
+        )
 
     @staticmethod
     def _route_after_preflight(state: AgentState, next_node: str) -> str:

@@ -234,6 +234,26 @@ Detail on various tickers...
         assert "no" in result.lower() and "found" in result.lower()
         assert "Market Overview" in result  # First paragraph
 
+    def test_preserves_provenance_metadata(self):
+        smart_money = """
+Source: Finviz Smart Money Scanner
+Scan Date: 2026-03-31
+[Source: Finviz Smart Money Scanner | Scan Date: 2026-03-31]
+
+Energy Flow Overview:
+Broad energy flows improved.
+
+RIG Analysis:
+RIG unusual volume rose 22%.
+"""
+
+        result = filter_smart_money_for_ticker(smart_money, "RIG")
+
+        assert "Source: Finviz Smart Money Scanner" in result
+        assert "Scan Date: 2026-03-31" in result
+        assert "[Source: Finviz Smart Money Scanner | Scan Date: 2026-03-31]" in result
+        assert "## III. SMART MONEY" not in result
+
 
 class TestFilterFactorAlignmentForTicker:
     def test_extracts_ticker_factors(self):

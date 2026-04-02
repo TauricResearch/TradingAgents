@@ -25,9 +25,9 @@ def create_portfolio_manager(llm, memory):
         macro_regime_report = state.get("macro_regime_report", "")
         research_packet = build_research_packet(state)
 
-        # Check for critical abort in market_report or fundamentals_report
+        # Check for critical abort in market/news/fundamentals reports
         is_critical_abort = state_has_critical_abort(
-            state, "market_report", "fundamentals_report"
+            state, "market_report", "news_report", "fundamentals_report"
         )
 
         # Build current situation with all reports
@@ -45,7 +45,7 @@ def create_portfolio_manager(llm, memory):
         if is_critical_abort:
             # Critical abort: Use the aborting analyst's report and recommend SELL/AVOID
             _, abort_report = extract_abort_report(
-                state, "market_report", "fundamentals_report"
+                state, "market_report", "news_report", "fundamentals_report"
             )
             prompt = f"""As the Portfolio Manager, you have received a critical abort signal from an early analyst. This indicates catastrophic conditions (bankruptcy, SEC delisting, etc.) that require immediate action.
 

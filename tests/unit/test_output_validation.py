@@ -4,6 +4,7 @@ import pytest
 from tradingagents.agents.utils.output_validation import (
     validate_ticker_relevance,
     validate_news_analysis,
+    validate_news_analysis_detailed,
     format_validation_warning,
 )
 
@@ -170,6 +171,49 @@ class TestValidateNewsAnalysis:
         # Should fail because news analysis requires 5+ mentions
         assert not is_valid
         assert "mentioned only" in reason
+
+    def test_fails_for_unknown_explicit_source(self):
+        output = """
+        RIG News Analysis - 2026-03-31
+        - RIG fell 4.5% on 2026-03-31 after Scout Money reported insider pressure.
+        - According to Scout Money on 2026-03-31, RIG options flow turned negative.
+        - RIG now trades near $4.50 and RIG implied volatility rose 12%.
+        - RIG management faces funding pressure while RIG sentiment remains weak.
+        """
+
+        result = validate_news_analysis_detailed(output, "RIG")
+
+        assert not result.is_valid
+        assert result.code == "unknown_source"
+        assert "Scout Money" in result.reason
+
+    def test_fails_for_missing_scanner_citation(self):
+        output = """
+        RIG News Analysis - 2026-03-31
+        - RIG smart money activity turned negative on 2026-03-31 with unusual volume.
+        - RIG institutional flow deteriorated by 18% while RIG put volume increased 22%.
+        - Reuters reported RIG dayrates remain under pressure on 2026-03-31.
+        - RIG now trades near $4.50 and RIG remains under review.
+        """
+
+        result = validate_news_analysis_detailed(output, "RIG")
+
+        assert not result.is_valid
+        assert result.code == "missing_scanner_citation"
+
+    def test_fails_for_scanner_sec_conflation(self):
+        output = """
+        RIG News Analysis - 2026-03-31
+        - RIG showed insider buying in the smart money scanner.
+        - [Source: Finviz Smart Money Scanner | Scan Date: 2026-03-31] confirms SEC Form 4 insider buying for RIG.
+        - Reuters reported RIG contract dayrates weakened on 2026-03-31.
+        - RIG trades at $4.50 and RIG volatility rose 10% while RIG sentiment deteriorated.
+        """
+
+        result = validate_news_analysis_detailed(output, "RIG")
+
+        assert not result.is_valid
+        assert result.code == "scanner_sec_conflation"
 
 
 class TestFormatValidationWarning:
