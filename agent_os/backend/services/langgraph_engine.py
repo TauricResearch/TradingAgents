@@ -1165,14 +1165,20 @@ class LangGraphEngine:
             # Also include tickers from current portfolio holdings so the PM agent
             # has fresh analysis for existing positions (hold/sell/add decisions).
             portfolio_id = params.get("portfolio_id", "main_portfolio")
+            include_portfolio_holdings = bool(params.get("include_portfolio_holdings", True))
             holding_tickers: list[str] = []
-            try:
-                from tradingagents.portfolio.repository import PortfolioRepository
-                _repo = PortfolioRepository()
-                _, holdings = _repo.get_portfolio_with_holdings(portfolio_id)
-                holding_tickers = [h.ticker.upper() for h in holdings]
-            except Exception as exc:
-                logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
+            if include_portfolio_holdings:
+                try:
+                    from tradingagents.portfolio.repository import PortfolioRepository
+                    _repo = PortfolioRepository()
+                    _, holdings = _repo.get_portfolio_with_holdings(portfolio_id)
+                    holding_tickers = [h.ticker.upper() for h in holdings]
+                except Exception as exc:
+                    logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
+            else:
+                yield self._system_log(
+                    "Phase 2/3: include_portfolio_holdings=false — skipping portfolio holdings, scan candidates only."
+                )
 
             holding_instruments = [
                 resolve_instrument(ticker, source_context="holding")
