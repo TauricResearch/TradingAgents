@@ -238,3 +238,7 @@ agent_os/frontend/dist/
 .intent/
 .DS_Store
 docs/scratch/
+
+
+artifacts/
+.worktrees/

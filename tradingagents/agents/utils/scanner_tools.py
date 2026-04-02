@@ -254,7 +254,7 @@ def _run_finviz_screen(filters_dict: dict, label: str) -> str:
         df = foverview.screener_view(
             order="Volume",
             ascend=False,
-            limit=5,
+            limit=50,
             verbose=0,
             sleep_sec=0,
         )
