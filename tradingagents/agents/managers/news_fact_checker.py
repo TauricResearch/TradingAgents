@@ -8,7 +8,9 @@ from tradingagents.agents.utils.output_validation import (
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 
 
-def create_news_fact_checker():
+def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
+    store = evidence_store or NewsEvidenceStore()
+
     def news_fact_checker_node(state) -> dict:
         report = str(state.get("news_report") or "").strip()
         if not report or report_has_critical_abort(report):
@@ -18,7 +20,6 @@ def create_news_fact_checker():
         trade_date = str(state.get("trade_date") or "")
         run_id = str(state.get("run_id") or f"{ticker}-{trade_date}")
 
-        store = NewsEvidenceStore()
         records = store.fetch_records(run_id=run_id, ticker=ticker, trade_date=trade_date)
         allowed_source_names = {record.source for record in records if record.source}
         allowed_evidence_ids = {record.evidence_id for record in records if record.evidence_id}

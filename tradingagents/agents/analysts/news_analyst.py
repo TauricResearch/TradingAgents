@@ -39,7 +39,9 @@ def _extract_scanner_citation_hint(scanner_context: str, fallback_date: str) -> 
     return f"[Source: {source_name} | Scan Date: {scan_date}]"
 
 
-def create_news_analyst(llm):
+def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
+    store = evidence_store or NewsEvidenceStore()
+
     def news_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
@@ -82,14 +84,13 @@ def create_news_analyst(llm):
             ]
         )
         prefetched_context = format_prefetched_context(prefetched)
-        evidence_store = NewsEvidenceStore()
-        evidence_records = evidence_store.ingest_prefetched_sections(
+        evidence_records = store.ingest_prefetched_sections(
             run_id=run_id,
             ticker=ticker,
             trade_date=current_date,
             prefetched=prefetched,
         )
-        evidence_context = evidence_store.build_prompt_context(evidence_records)
+        evidence_context = store.build_prompt_context(evidence_records)
         allowed_source_names = (
             {record.source for record in evidence_records if record.source}
             | extract_allowed_sources_from_context(prefetched_context)

@@ -43,13 +43,8 @@ def _records():
     ]
 
 
-def test_news_fact_checker_removes_unknown_source_bullets(monkeypatch):
-    monkeypatch.setattr(
-        "tradingagents.agents.managers.news_fact_checker.NewsEvidenceStore",
-        lambda: FakeEvidenceStore(_records()),
-    )
-
-    node = create_news_fact_checker()
+def test_news_fact_checker_removes_unknown_source_bullets():
+    node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
         "company_of_interest": "CSTM",
@@ -70,13 +65,8 @@ def test_news_fact_checker_removes_unknown_source_bullets(monkeypatch):
     assert not result["news_report"].startswith("[CRITICAL ABORT]")
 
 
-def test_news_fact_checker_aborts_when_only_fake_sourced_claims_remain(monkeypatch):
-    monkeypatch.setattr(
-        "tradingagents.agents.managers.news_fact_checker.NewsEvidenceStore",
-        lambda: FakeEvidenceStore(_records()),
-    )
-
-    node = create_news_fact_checker()
+def test_news_fact_checker_aborts_when_only_fake_sourced_claims_remain():
+    node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
         "company_of_interest": "CSTM",

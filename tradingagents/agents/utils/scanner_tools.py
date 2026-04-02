@@ -2,7 +2,7 @@
 
 import logging
 import os
-import socket
+from time import sleep
 from typing import Annotated
 
 from langchain_core.tools import tool
@@ -11,6 +11,60 @@ from tradingagents.dataflows.sovereign_cds import get_todays_sovereign_cds_snaps
 from tradingagents.dataflows.interface import route_to_vendor
 
 logger = logging.getLogger(__name__)
+
+
+def _fetch_finviz_soup(url: str, params: dict, timeout_sec: float):
+    from bs4 import BeautifulSoup
+    from finvizfinance.util import headers, proxy_dict, session
+
+    response = session.get(
+        url,
+        params=params,
+        headers=headers,
+        timeout=timeout_sec,
+        proxies=proxy_dict,
+    )
+    response.raise_for_status()
+    return BeautifulSoup(response.text, "lxml")
+
+
+def _screener_view_with_timeout(
+    foverview,
+    *,
+    timeout_sec: float,
+    order: str = "Volume",
+    ascend: bool = False,
+    limit: int = 50,
+    columns=None,
+):
+    from finvizfinance.constants import order_dict
+
+    if order not in order_dict:
+        order_keys = list(order_dict.keys())
+        raise ValueError(f"Invalid order '{order}'. Possible order: {order_keys}")
+
+    try:
+        foverview.request_params["o"] = ("" if ascend else "-") + order_dict[order]
+        foverview._parse_columns(columns)
+
+        soup = _fetch_finviz_soup(foverview.url, foverview.request_params, timeout_sec)
+        page = foverview._get_page(soup)
+        if page == 0:
+            return None
+
+        df = foverview._parse_table(None, soup, limit)
+        remaining = limit - foverview.size
+        for page_index in range(1, page):
+            if remaining <= 0:
+                break
+            sleep(0)
+            foverview.request_params["r"] = page_index * foverview.size + 1
+            soup = _fetch_finviz_soup(foverview.url, foverview.request_params, timeout_sec)
+            df = foverview._parse_table(df, soup, remaining)
+            remaining -= foverview.size
+        return df
+    finally:
+        foverview.reset()
 
 
 @tool
@@ -241,22 +295,19 @@ def get_economic_calendar(
 def _run_finviz_screen(filters_dict: dict, label: str) -> str:
     """Shared helper — runs a Finviz Overview screener with hardcoded filters."""
     timeout_sec = float(os.getenv("TRADINGAGENTS_FINVIZ_TIMEOUT_SEC", "20"))
-    previous_timeout = socket.getdefaulttimeout()
     try:
-        # finvizfinance does not expose request timeout arguments; cap socket time.
-        socket.setdefaulttimeout(timeout_sec)
         from finvizfinance.screener.overview import Overview  # lazy import
 
         foverview = Overview()
         foverview.set_filter(filters_dict=filters_dict)
         # We only surface top 5 rows in reports; avoid full-site pagination.
         # finvizfinance defaults to limit=100000 and may crawl dozens of pages.
-        df = foverview.screener_view(
+        df = _screener_view_with_timeout(
+            foverview,
+            timeout_sec=timeout_sec,
             order="Volume",
             ascend=False,
             limit=50,
-            verbose=0,
-            sleep_sec=0,
         )
 
         if df is None or df.empty:
@@ -276,8 +327,6 @@ def _run_finviz_screen(filters_dict: dict, label: str) -> str:
     except Exception as e:
         logger.error("Finviz screener error (%s): %s", label, e)
         return f"Smart money scan unavailable (Finviz error): {e}"
-    finally:
-        socket.setdefaulttimeout(previous_timeout)
 
 
 @tool

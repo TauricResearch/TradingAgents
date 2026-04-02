@@ -13,6 +13,7 @@ from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.dataflows.config import set_config
+from tradingagents.memory.news_evidence import NewsEvidenceStore
 
 # Import the new abstract tool methods
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
@@ -138,6 +139,7 @@ class TradingAgentsGraph:
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
         self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
         self.portfolio_manager_memory = FinancialSituationMemory("portfolio_manager_memory", self.config)
+        self.news_evidence_store = NewsEvidenceStore()
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -158,6 +160,7 @@ class TradingAgentsGraph:
             self.invest_judge_memory,
             self.portfolio_manager_memory,
             self.conditional_logic,
+            self.news_evidence_store,
         )
 
         self.propagator = Propagator()

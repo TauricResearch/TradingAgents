@@ -134,11 +134,11 @@ def test_news_analyst_direct_invoke(mock_state, valid_news_report):
     with patch(
         "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
         return_value={},
-    ), patch(
-        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
-        return_value=FakeNewsEvidenceStore(),
     ):
-        node = create_news_analyst(MockLLM([valid_news_report]))
+        node = create_news_analyst(
+            MockLLM([valid_news_report]),
+            evidence_store=FakeNewsEvidenceStore(),
+        )
         result = node(mock_state)
     assert "AAPL News Analysis" in result["news_report"]
 
@@ -211,11 +211,8 @@ def test_news_analyst_no_bind_tools(mock_state, valid_news_report):
     with patch(
         "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
         return_value={},
-    ), patch(
-        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
-        return_value=FakeNewsEvidenceStore(),
     ):
-        node = create_news_analyst(mock_llm)
+        node = create_news_analyst(mock_llm, evidence_store=FakeNewsEvidenceStore())
         node(mock_state)
     assert mock_llm.tools_bound is None
 
@@ -227,11 +224,8 @@ def test_news_analyst_retries_once_then_passes(mock_state, valid_news_report):
     with patch(
         "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
         return_value={},
-    ), patch(
-        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
-        return_value=FakeNewsEvidenceStore(),
     ):
-        node = create_news_analyst(mock_llm)
+        node = create_news_analyst(mock_llm, evidence_store=FakeNewsEvidenceStore())
         result = node(mock_state)
 
     assert mock_llm.runnable.call_count == 2
@@ -246,11 +240,8 @@ def test_news_analyst_aborts_after_two_invalid_attempts(mock_state):
     with patch(
         "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
         return_value={},
-    ), patch(
-        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
-        return_value=FakeNewsEvidenceStore(),
     ):
-        node = create_news_analyst(mock_llm)
+        node = create_news_analyst(mock_llm, evidence_store=FakeNewsEvidenceStore())
         result = node(mock_state)
 
     assert mock_llm.runnable.call_count == 2
@@ -287,11 +278,11 @@ def test_news_analyst_prompt_forbids_internal_headers_as_sources():
             "Company-Specific News (Last 7 Days)": '{"feed":[{"source":"Sahm"}]}',
             "Global Macroeconomic News (Last 7 Days)": '{"feed":[{"source":"StoneX"}]}',
         },
-    ), patch(
-        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
-        return_value=FakeNewsEvidenceStore(),
     ):
-        node = create_news_analyst(CapturingLLM())
+        node = create_news_analyst(
+            CapturingLLM(),
+            evidence_store=FakeNewsEvidenceStore(),
+        )
         node(state)
 
     assert captured_inputs, "LLM was never called"
@@ -340,11 +331,11 @@ def test_news_analyst_retry_instruction_restates_internal_header_rule():
             "Company-Specific News (Last 7 Days)": '{"feed":[{"source":"Sahm"}]}',
             "Global Macroeconomic News (Last 7 Days)": '{"feed":[{"source":"StoneX"}]}',
         },
-    ), patch(
-        "tradingagents.agents.analysts.news_analyst.NewsEvidenceStore",
-        return_value=FakeNewsEvidenceStore(),
     ):
-        node = create_news_analyst(RetryCapturingLLM())
+        node = create_news_analyst(
+            RetryCapturingLLM(),
+            evidence_store=FakeNewsEvidenceStore(),
+        )
         node(state)
 
     assert len(captured_inputs) == 2

@@ -6,6 +6,7 @@ these tests run without a network connection or API key.
 """
 
 import json
+import socket
 import pandas as pd
 import pytest
 from datetime import date, datetime
@@ -818,7 +819,7 @@ class TestFinvizSmartMoneyTools:
     """Mocked unit tests for Finviz screener tools — no network required."""
 
     def _mock_overview(self, df):
-        """Return a patched Overview instance whose screener_view() yields df."""
+        """Return a patched Overview instance."""
         mock_inst = MagicMock()
         mock_inst.screener_view.return_value = df
         mock_cls = MagicMock(return_value=mock_inst)
@@ -827,12 +828,9 @@ class TestFinvizSmartMoneyTools:
     def test_get_insider_buying_stocks_returns_report(self):
         from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
 
-        with patch("tradingagents.agents.utils.scanner_tools._run_finviz_screen",
-                   wraps=None) as _:
-            pass  # use full stack — patch Overview only
-
         mock_cls = self._mock_overview(_make_finviz_df())
-        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+        with patch("finvizfinance.screener.overview.Overview", mock_cls), \
+             patch("tradingagents.agents.utils.scanner_tools._screener_view_with_timeout", return_value=_make_finviz_df()):
             result = get_insider_buying_stocks.invoke({})
 
         assert "insider_buying" in result
@@ -842,7 +840,8 @@ class TestFinvizSmartMoneyTools:
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
         mock_cls = self._mock_overview(_make_finviz_df())
-        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+        with patch("finvizfinance.screener.overview.Overview", mock_cls), \
+             patch("tradingagents.agents.utils.scanner_tools._screener_view_with_timeout", return_value=_make_finviz_df()):
             result = get_unusual_volume_stocks.invoke({})
 
         assert "unusual_volume" in result
@@ -851,7 +850,8 @@ class TestFinvizSmartMoneyTools:
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
         mock_cls = self._mock_overview(_make_finviz_df())
-        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+        with patch("finvizfinance.screener.overview.Overview", mock_cls), \
+             patch("tradingagents.agents.utils.scanner_tools._screener_view_with_timeout", return_value=_make_finviz_df()):
             result = get_breakout_accumulation_stocks.invoke({})
 
         assert "breakout_accumulation" in result
@@ -860,7 +860,8 @@ class TestFinvizSmartMoneyTools:
         from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
 
         mock_cls = self._mock_overview(pd.DataFrame())
-        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+        with patch("finvizfinance.screener.overview.Overview", mock_cls), \
+             patch("tradingagents.agents.utils.scanner_tools._screener_view_with_timeout", return_value=pd.DataFrame()):
             result = get_insider_buying_stocks.invoke({})
 
         assert "No stocks matched" in result
@@ -868,11 +869,9 @@ class TestFinvizSmartMoneyTools:
     def test_exception_returns_graceful_unavailable_message(self):
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
-        mock_inst = MagicMock()
-        mock_inst.screener_view.side_effect = ConnectionError("timeout")
-        mock_cls = MagicMock(return_value=mock_inst)
-
-        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+        mock_cls = self._mock_overview(_make_finviz_df())
+        with patch("finvizfinance.screener.overview.Overview", mock_cls), \
+             patch("tradingagents.agents.utils.scanner_tools._screener_view_with_timeout", side_effect=ConnectionError("timeout")):
             result = get_breakout_accumulation_stocks.invoke({})
 
         assert "Smart money scan unavailable" in result
@@ -884,12 +883,24 @@ class TestFinvizSmartMoneyTools:
 
         # NVDA has highest volume (45M) — should appear first in report
         mock_cls = self._mock_overview(_make_finviz_df())
-        with patch("finvizfinance.screener.overview.Overview", mock_cls):
+        with patch("finvizfinance.screener.overview.Overview", mock_cls), \
+             patch("tradingagents.agents.utils.scanner_tools._screener_view_with_timeout", return_value=_make_finviz_df()):
             result = get_unusual_volume_stocks.invoke({})
 
         nvda_pos = result.find("NVDA")
         amd_pos = result.find("AMD")
         assert nvda_pos < amd_pos, "NVDA (higher volume) should appear before AMD"
+
+    def test_finviz_screen_does_not_mutate_global_socket_timeout(self):
+        from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
+
+        previous_timeout = socket.getdefaulttimeout()
+        mock_cls = self._mock_overview(_make_finviz_df())
+        with patch("finvizfinance.screener.overview.Overview", mock_cls), \
+             patch("tradingagents.agents.utils.scanner_tools._screener_view_with_timeout", return_value=_make_finviz_df()):
+            get_unusual_volume_stocks.invoke({})
+
+        assert socket.getdefaulttimeout() == previous_timeout
 
     def test_get_gap_candidates_returns_finviz_table(self):
         from tradingagents.agents.utils.scanner_tools import get_gap_candidates
