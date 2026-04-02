@@ -122,6 +122,29 @@ SCANNER_KEYWORDS = (
     "scanner context",
     "insider buying",
 )
+_GENERIC_SOURCE_CANDIDATES = {
+    "company",
+    "the company",
+    "management",
+    "the management",
+    "analyst",
+    "analysts",
+    "the analyst",
+    "the analysts",
+    "report",
+    "the report",
+    "reports",
+    "the reports",
+    "article",
+    "the article",
+    "articles",
+    "the articles",
+    "market",
+    "the market",
+    "market data",
+    "investors",
+    "the investors",
+}
 
 
 def canonicalize_source_name(
@@ -241,7 +264,10 @@ def validate_news_analysis_detailed(
         )
 
     if enforce_provenance:
-        explicit_sources = extract_explicit_sources(output)
+        explicit_sources = extract_explicit_sources(
+            output,
+            allowed_source_names=allowed_source_names,
+        )
         unknown_sources = sorted(
             {
                 source for source in explicit_sources
@@ -293,10 +319,15 @@ def validate_news_analysis_detailed(
 def _normalize_source_name(raw_source: str) -> str:
     source = re.sub(r"\s+", " ", str(raw_source or "").strip().lower())
     source = source.strip(" .,:;()[]{}\"'")
+    if source.startswith("the "):
+        source = source[4:].strip()
     return source
 
 
-def extract_explicit_sources(output: str) -> list[str]:
+def extract_explicit_sources(
+    output: str,
+    allowed_source_names: Iterable[str] | None = None,
+) -> list[str]:
     """Extract only explicit attribution spans to minimize false positives."""
     matches: list[str] = []
 
@@ -311,7 +342,10 @@ def extract_explicit_sources(output: str) -> list[str]:
     for pattern in explicit_patterns:
         for match in re.finditer(pattern, output):
             candidate = _clean_source_candidate(match.group(1))
-            if candidate:
+            if candidate and _is_explicit_source_candidate(
+                candidate,
+                allowed_source_names=allowed_source_names,
+            ):
                 matches.append(candidate)
 
     return matches
@@ -347,7 +381,10 @@ def filter_news_report_by_provenance(
             removed_lines.append(line)
             continue
 
-        explicit_sources = extract_explicit_sources(line)
+        explicit_sources = extract_explicit_sources(
+            line,
+            allowed_source_names=allowed_source_names,
+        )
         if explicit_sources and any(
             canonicalize_source_name(source, allowed_source_names=allowed_source_names) is None
             for source in explicit_sources
@@ -369,6 +406,39 @@ def _clean_source_candidate(candidate: str) -> str:
     if not candidate or len(candidate) < 2:
         return ""
     return candidate
+
+
+def _is_explicit_source_candidate(
+    candidate: str,
+    *,
+    allowed_source_names: Iterable[str] | None = None,
+) -> bool:
+    normalized = _normalize_source_name(candidate)
+    if not normalized or normalized in _GENERIC_SOURCE_CANDIDATES:
+        return False
+
+    if canonicalize_source_name(candidate, allowed_source_names=allowed_source_names) is not None:
+        return True
+
+    tokens = normalized.split()
+    generic_tokens = {
+        "company",
+        "management",
+        "report",
+        "reports",
+        "article",
+        "articles",
+        "market",
+        "data",
+        "analyst",
+        "analysts",
+        "investor",
+        "investors",
+    }
+    if len(tokens) <= 2 and all(token in generic_tokens for token in tokens):
+        return False
+
+    return True
 
 
 def _mentions_scanner_context(output: str) -> bool:

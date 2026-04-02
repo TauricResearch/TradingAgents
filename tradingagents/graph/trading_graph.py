@@ -14,6 +14,7 @@ from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.dataflows.config import set_config
 from tradingagents.memory.news_evidence import NewsEvidenceStore
+from tradingagents.report_paths import generate_run_id
 
 # Import the new abstract tool methods
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
@@ -285,7 +286,7 @@ class TradingAgentsGraph:
 
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date
+            company_name, trade_date, run_id=generate_run_id()
         )
         args = self.propagator.get_graph_args()
 

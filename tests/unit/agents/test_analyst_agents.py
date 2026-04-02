@@ -64,6 +64,7 @@ class FakeNewsEvidenceStore:
 def mock_state():
     return {
         "messages": [HumanMessage(content="Analyze AAPL.")],
+        "run_id": "run-001",
         "trade_date": "2024-05-15",
         "company_of_interest": "AAPL",
     }
@@ -266,6 +267,7 @@ def test_news_analyst_prompt_forbids_internal_headers_as_sources():
 
     state = {
         "messages": [HumanMessage(content="Continue")],
+        "run_id": "run-cstm-001",
         "trade_date": "2026-04-02",
         "company_of_interest": "CSTM",
         "macro_regime_report": "# Macro Regime Classification\n## Regime: TRANSITION",
@@ -320,6 +322,7 @@ def test_news_analyst_retry_instruction_restates_internal_header_rule():
 
     state = {
         "messages": [HumanMessage(content="Continue")],
+        "run_id": "run-cstm-002",
         "trade_date": "2026-04-02",
         "company_of_interest": "CSTM",
         "scanner_context_packet": "# SCANNER CONTEXT PACKET: CSTM\nDate: 2026-04-02",

@@ -4,6 +4,8 @@
 This strategy covers the recent reliability changes around:
 - Smart-money scanner provenance metadata (`Source`, `Scan Date`, canonical citation block)
 - Source-name validation and scanner/SEC attribution separation
+- SQLite-backed evidence IDs injected into news prompts
+- Post-generation `News Fact Checker` provenance enforcement
 - Fail-closed news behavior (retry once, then `[CRITICAL ABORT]`) and graph routing
 
 ## Execution Policy
@@ -31,6 +33,9 @@ This strategy covers the recent reliability changes around:
 3. Live Integration (real external services)
 - Purpose: detect production regressions in external data paths used by scanner/news context.
 - Run in CI nightly and before release cut.
+- Note: the opt-in live `News Analyst` regression remains a manual targeted run,
+  not a default CI gate, because it depends on a real LLM provider and prompt
+  determinism rather than only data-path stability.
 
 ## Live Test Matrix
 ### Suite: `core` (no API keys required)
@@ -45,6 +50,13 @@ This strategy covers the recent reliability changes around:
 - `tests/integration/test_sovereign_cds_live.py`
   - Gate: pass or explicit `pytest.skip` for stale same-day snapshot.
   - Note: keep this outside the provenance/source-validation gate because it validates geopolitical scanner tool wiring, not smart-money/news attribution.
+
+### Optional targeted LLM provenance check
+- `tests/integration/test_news_analyst_live.py`
+  - Gate: manual/opt-in only.
+  - Purpose: replay a reduced production payload against a live model and verify
+    the response avoids fake source labels such as `Macro Regime Classification`.
+  - Run when changing prompt wording, provenance instructions, or validator rules.
 
 ### Suite: `alpha-vantage` (requires `ALPHA_VANTAGE_API_KEY`)
 - `tests/integration/test_alpha_vantage_live.py`
@@ -114,3 +126,5 @@ Runner examples:
 ## Operational Notes
 - Live tests are expected to have occasional skip outcomes due to market closures, stale snapshots, or empty live result sets; these are acceptable only when tests explicitly skip with reason.
 - Unknown-source or scanner/SEC conflation coverage remains deterministic in unit tests by design; live tests validate upstream data path stability, not LLM determinism.
+- The primary provenance gate for PRs remains unit/integration coverage. The live
+  news-analyst test is a targeted diagnostic, not a stable PR gate.

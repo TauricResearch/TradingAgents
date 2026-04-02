@@ -177,8 +177,9 @@ class NewsEvidenceStore:
         for record in records:
             lines.append(
                 f"- [Evidence ID: {record.evidence_id}] "
-                f"Source: {record.source} | Published: {record.published_at} | "
-                f"Section: {record.section_label} | Ordinal: {record.ordinal} | Title: {record.title}"
+                f"Source: {_sanitize_prompt_text(record.source)} | Published: {record.published_at} | "
+                f"Section: {_sanitize_prompt_text(record.section_label)} | Ordinal: {record.ordinal} | "
+                f"Title: {_sanitize_prompt_text(record.title)}"
             )
         return "\n".join(lines).strip()
 
@@ -323,3 +324,13 @@ def _make_article_id(
     ]
     raw = "|".join(normalized_parts)
     return f"art_{hashlib.sha1(raw.encode('utf-8')).hexdigest()[:16]}"
+
+
+def _sanitize_prompt_text(value: str, *, max_len: int = 160) -> str:
+    text = re.sub(r"[\r\n\t]+", " ", str(value or ""))
+    text = re.sub(r"\s+", " ", text).strip()
+    text = text.replace("```", "'''").replace("`", "'")
+    text = text.replace("{", "(").replace("}", ")")
+    if len(text) > max_len:
+        return text[: max_len - 3].rstrip() + "..."
+    return text

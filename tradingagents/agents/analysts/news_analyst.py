@@ -45,7 +45,7 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
     def news_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
-        run_id = str(state.get("run_id") or f"{ticker.upper()}-{current_date}")
+        run_id = str(state["run_id"])
         instrument_context = build_instrument_context(ticker)
         
         # Apply ticker-specific filtering to reduce scanner context from ~10K to ~3-4K tokens

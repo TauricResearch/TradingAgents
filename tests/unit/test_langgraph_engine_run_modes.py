@@ -18,7 +18,11 @@ _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from agent_os.backend.services.langgraph_engine import LangGraphEngine
+from agent_os.backend.services.langgraph_engine import (
+    LangGraphEngine,
+    _fallback_model_summary,
+    _is_rate_limit_error,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +48,37 @@ def _root_chain_end_event(output: dict) -> dict:
         "run_id": "test-run-id",
         "tags": [],
     }
+
+
+class TestLangGraphHelperClassifiers(unittest.TestCase):
+    def test_is_rate_limit_error_matches_status_code(self):
+        exc = RuntimeError("boom")
+        exc.status_code = 429
+        self.assertTrue(_is_rate_limit_error(exc))
+
+    def test_is_rate_limit_error_matches_upstream_message(self):
+        exc = RuntimeError("provider is temporarily rate-limited upstream, retry shortly")
+        self.assertTrue(_is_rate_limit_error(exc))
+
+    def test_is_rate_limit_error_returns_false_for_other_errors(self):
+        exc = RuntimeError("provider policy blocked model")
+        self.assertFalse(_is_rate_limit_error(exc))
+
+    def test_fallback_model_summary_lists_only_changed_tiers(self):
+        current = {
+            "quick_think_llm": "q1",
+            "mid_think_llm": "m1",
+            "deep_think_llm": "d1",
+        }
+        fallback = {
+            "quick_think_llm": "q2",
+            "mid_think_llm": "m1",
+            "deep_think_llm": "d2",
+        }
+
+        summary = _fallback_model_summary(current, fallback)
+
+        self.assertEqual(summary, "quick_think=q2, deep_think=d2")
 
 
 # ---------------------------------------------------------------------------

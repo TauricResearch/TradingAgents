@@ -3,6 +3,7 @@
 import pytest
 from tradingagents.agents.utils.output_validation import (
     extract_allowed_sources_from_context,
+    extract_explicit_sources,
     filter_news_report_by_provenance,
     validate_ticker_relevance,
     validate_news_analysis,
@@ -228,6 +229,37 @@ class TestValidateNewsAnalysis:
         assert not result.is_valid
         assert result.code == "unknown_source"
         assert "Macro Regime Classification" in result.reason
+
+    def test_extract_explicit_sources_ignores_generic_company_phrases(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - The Company reported on 2026-04-02 that CSTM demand improved 8%.
+        - The Report noted on 2026-04-02 that CSTM held support near $48.02.
+        - Reuters reported on 2026-04-02 that CSTM shipments improved 8%.
+        """
+
+        sources = extract_explicit_sources(output)
+
+        assert "The Company" not in sources
+        assert "The Report" not in sources
+        assert "Reuters" in sources
+
+    def test_generic_company_phrase_does_not_trigger_unknown_source_failure(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - The Company reported on 2026-04-02 that CSTM demand improved 8%.
+        - CSTM traded near $48.02 while CSTM sentiment remained tied to materials demand.
+        - Reuters reported on 2026-04-02 that CSTM shipments improved 8%.
+        - CSTM remained in focus while CSTM coverage stayed active.
+        """
+
+        result = validate_news_analysis_detailed(
+            output,
+            "CSTM",
+            allowed_source_names={"Reuters"},
+        )
+
+        assert result.is_valid, result.reason
 
     def test_can_skip_provenance_checks_for_pre_fact_checker_validation(self):
         output = """

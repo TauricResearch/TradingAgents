@@ -579,6 +579,7 @@ class LangGraphEngine:
         initial_state = graph_wrapper.propagator.create_initial_state(
             ticker,
             date,
+            run_id=root_run_id,
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
         )
@@ -994,6 +995,7 @@ class LangGraphEngine:
                 initial_state = graph_wrapper.propagator.create_initial_state(
                     ticker,
                     date,
+                    run_id=root_run_id,
                     portfolio_context=ckpt.get("portfolio_context", "candidate"),
                 )
                 # Overlay checkpoint data onto initial state
@@ -1061,6 +1063,7 @@ class LangGraphEngine:
                 initial_state = graph_wrapper.propagator.create_initial_state(
                     ticker,
                     date,
+                    run_id=root_run_id,
                     portfolio_context=ckpt.get("portfolio_context", "candidate"),
                 )
                 if not ckpt.get("investment_plan"):

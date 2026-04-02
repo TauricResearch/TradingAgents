@@ -18,7 +18,7 @@ def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
 
         ticker = str(state.get("company_of_interest") or "").upper()
         trade_date = str(state.get("trade_date") or "")
-        run_id = str(state.get("run_id") or f"{ticker}-{trade_date}")
+        run_id = str(state["run_id"])
 
         records = store.fetch_records(run_id=run_id, ticker=ticker, trade_date=trade_date)
         allowed_source_names = {record.source for record in records if record.source}

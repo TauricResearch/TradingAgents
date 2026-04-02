@@ -58,7 +58,8 @@ def test_resolve_index():
 
 
 def test_propagator_initial_state_includes_instrument_metadata():
-    state = Propagator().create_initial_state("SPY", "2026-01-01")
+    state = Propagator().create_initial_state("SPY", "2026-01-01", run_id="run-001")
+    assert state["run_id"] == "run-001"
     assert state["instrument_key"] == "etf:SPY"
     assert state["asset_class"] == "etf"
     assert state["instrument_type"] == "broad_market_etf"
