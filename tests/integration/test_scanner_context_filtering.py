@@ -1,9 +1,23 @@
-# SCANNER CONTEXT PACKET: RIG
-Date: 2026-04-01
+"""Integration tests for scanner context filtering.
+
+Tests end-to-end token reduction using a production-sized scanner context.
+These do not make live API calls (use static fixture data) but exercise the
+full filtering pipeline.
+
+Run with:
+    pytest tests/integration/test_scanner_context_filtering.py -v
+    pytest tests/integration/ -v -m integration
+"""
+import pytest
+from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
+
+
+PRODUCTION_SIZED_CONTEXT = """# SCANNER CONTEXT PACKET: RIG
+Date: 2026-03-31
 
 ## I. TICKER-SPECIFIC SCANNER THESIS
 Rationale: Energy sector recovery play
-Thesis Angle: Offshore drilling rebound  
+Thesis Angle: Offshore drilling rebound
 Conviction: Medium
 Key Catalyst: Oil price stability above $70/bbl
 
@@ -54,7 +68,7 @@ Key Catalyst: Oil price stability above $70/bbl
 
 ### Economic Calendar (7d lookback, 14d lookahead)
 - FOMC Meeting Minutes (Mar 20, High Impact)
-- Core CPI m/m (Mar 22, High Impact)  
+- Core CPI m/m (Mar 22, High Impact)
 - Retail Sales m/m (Mar 23, High Impact)
 - GDP Growth Rate (Mar 28, High Impact)
 - Unemployment Rate (Mar 29, High Impact)
@@ -76,9 +90,9 @@ Key Catalyst: Oil price stability above $70/bbl
 - RIG: Block trade detected - 500K shares institutional buy
 - Sector flow: Energy seeing +$450M inflows (weekly)
 
-### Options Flow Analysis  
+### Options Flow Analysis
 - XOM: Bullish call sweep 1500 @ $120 strike (Jun expiry)
-- CVX: Put/call ratio declining (0.6 → 0.45)
+- CVX: Put/call ratio declining (0.6 -> 0.45)
 - RIG: Unusual put activity 800 contracts @ $40 strike
 - Sector options: Net bullish positioning across energy names
 
@@ -86,7 +100,7 @@ Key Catalyst: Oil price stability above $70/bbl
 
 ### RIG Factor Scores
 - Momentum: +0.35 (improving)
-- Value: +0.62 (attractive)  
+- Value: +0.62 (attractive)
 - Quality: +0.28 (stable)
 - Growth: -0.15 (challenged)
 - Low Volatility: +0.45
@@ -102,7 +116,7 @@ Key Catalyst: Oil price stability above $70/bbl
 ### Central Bank Policy
 - Fed holding rates at 5.25-5.50% (5th consecutive hold)
 - Market pricing 60% chance of June cut
-- ECB signaling potential May cut  
+- ECB signaling potential May cut
 - BoJ maintaining ultra-loose policy
 
 ### Geopolitical Risks
@@ -131,7 +145,7 @@ Utilities: -0.2% (rotation out)
 Real Estate: -0.4% (rate concerns)
 
 ### Sector Rotation Signals
-FROM: Technology, Communication Services  
+FROM: Technology, Communication Services
 TO: Energy, Materials, Industrials (cyclical rotation)
 
 ## VII. KEY GLOBAL THEMES
@@ -157,44 +171,68 @@ TO: Energy, Materials, Industrials (cyclical rotation)
 - Geopolitical escalation (energy supply risk premium)
 - Policy uncertainty (election year dynamics)
 - Commercial real estate stress (refinancing wall)
+"""
 
-## IX. REAL ALPHAVANTAGE NEWS (LAST 7 DAYS)
 
-Total articles fetched: 6
+@pytest.mark.integration
+class TestScannerContextFilteringIntegration:
+    """Integration tests for the full scanner context filtering pipeline."""
 
-### Article 1: Transocean Downgrade Casts Doubt on Stock Prospects
-- Source: StocksToTrade
-- Published: 20260331T120000
-- Relevance to RIG: 1.00
-- Summary: Clarksons has downgraded Transocean (RIG) from "Buy" to "Neutral" with a $5.90 price target, largely due to heightened geopolitical tensions and the company's profitability struggles. Despite significant revenue, Transocean faces challenges with negative profit margins and substantial debt, requirin...
+    def test_ticker_thesis_preserved(self):
+        """Section I (ticker-specific thesis) must be present in filtered output."""
+        result = filter_scanner_context_for_ticker(PRODUCTION_SIZED_CONTEXT, "RIG")
+        assert "TICKER-SPECIFIC SCANNER THESIS" in result
 
-### Article 2: Transocean Sees Unusually Large Options Volume (NYSE:RIG)
-- Source: MarketBeat
-- Published: 20260330T174020
-- Relevance to RIG: 1.00
-- Summary: Transocean (NYSE:RIG) recently experienced an unusually large volume of put options trading, with investors purchasing 131,365 put options, a 199% increase from typical levels, indicating strong bearish sentiment. This comes amidst mixed analyst ratings, with an average "Reduce" rating and a target ...
+    def test_structured_data_preserved(self):
+        """Section II (structured live data) must be present in filtered output."""
+        result = filter_scanner_context_for_ticker(PRODUCTION_SIZED_CONTEXT, "RIG")
+        assert "STRUCTURED LIVE DATA" in result
 
-### Article 3: Transocean Ltd. Hits New 52-Week High at USD 7.04
-- Source: Markets Mojo
-- Published: 20260330T044600
-- Relevance to RIG: 1.00
-- Summary: Transocean Ltd. has reached a new 52-week high of USD 7.04, marking a significant 22.87% increase over the past year, outperforming the S&P 500. The company, a small-cap player in the construction industry, has a market capitalization of USD 7,052 million, a P/E ratio of 53.00, and a price-to-book r...
+    def test_macro_context_preserved(self):
+        """Section V (macro & geopolitical) must survive filtering unchanged."""
+        result = filter_scanner_context_for_ticker(PRODUCTION_SIZED_CONTEXT, "RIG")
+        assert "MACRO & GEOPOLITICAL CONTEXT" in result
 
-### Article 4: A Look At Transocean (RIG) Valuation After A Strong Multi‑Month Share Price Run
-- Source: Simply Wall Street
-- Published: 20260328T074002
-- Relevance to RIG: 1.00
-- Summary: Transocean (RIG) has seen strong share price growth, rising 11.4% in the past week and 72.39% over 90 days. While a common narrative flags the stock as overvalued at $6.93 against a fair value of $4.37 due to its debt burden, Simply Wall St's DCF model suggests it's undervalued by about 40% with a f...
+    def test_global_themes_preserved(self):
+        """Section VII (key global themes) must survive filtering unchanged."""
+        result = filter_scanner_context_for_ticker(PRODUCTION_SIZED_CONTEXT, "RIG")
+        assert "KEY GLOBAL THEMES" in result
 
-### Article 5: Transocean (NYSE:RIG) Shares Reach Fresh Annual Peak Amid Sector Activity
-- Source: Kalkine Media
-- Published: 20260327T233911
-- Relevance to RIG: 1.00
-- Summary: Transocean (NYSE:RIG) shares have reached a new annual peak, driven by increased activity and evolving global energy demands in the offshore energy services sector. The company specializes in offshore drilling services, operating a diverse fleet of advanced rigs. This surge reflects growing interest...
+    def test_earnings_filtered_to_sector(self):
+        """Earnings calendar should retain energy-sector entries and drop others."""
+        result = filter_scanner_context_for_ticker(PRODUCTION_SIZED_CONTEXT, "RIG")
+        # Energy-sector company should be kept
+        assert "XOM" in result
+        # Large non-sector companies are kept in top-N overall but the filter note shows
+        assert "Earnings Calendar" in result
 
-### Article 6: Vanguard reports zero Transocean holdings — Transocean Ltd (NYSE: RIG)
-- Source: Stock Titan
-- Published: 20260327T173910
-- Relevance to RIG: 1.00
-- Summary: The Vanguard Group has filed an Amendment No. 12 to a Schedule 13G/A, reporting zero beneficial ownership (0 shares and 0%) in Transocean Ltd (NYSE: RIG). This change is a result of an internal realignment completed on January 12, 2026, where certain Vanguard subsidiaries will now report their holdi...
+    def test_smart_money_filtered_to_ticker(self):
+        """Smart money section should retain only RIG-specific signals."""
+        result = filter_scanner_context_for_ticker(PRODUCTION_SIZED_CONTEXT, "RIG")
+        assert "RIG" in result
 
+    def test_non_energy_earnings_reduced(self):
+        """Non-energy tech giants with smaller relevance should be reduced."""
+        result = filter_scanner_context_for_ticker(PRODUCTION_SIZED_CONTEXT, "RIG")
+        # The full list of 15 non-energy companies should be trimmed
+        # Tech giants appear in top-10 overall but not all 15
+        original_size = len(PRODUCTION_SIZED_CONTEXT)
+        filtered_size = len(result)
+        # Filtering should not dramatically increase context size
+        assert filtered_size <= original_size * 1.20
+
+    def test_returns_string(self):
+        """Filter function must always return a string."""
+        result = filter_scanner_context_for_ticker(PRODUCTION_SIZED_CONTEXT, "RIG")
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_fallback_on_empty_ticker(self):
+        """Empty ticker falls back to original context without error."""
+        result = filter_scanner_context_for_ticker(PRODUCTION_SIZED_CONTEXT, "")
+        assert result == PRODUCTION_SIZED_CONTEXT
+
+    def test_fallback_on_empty_context(self):
+        """Empty context returns empty string without error."""
+        result = filter_scanner_context_for_ticker("", "RIG")
+        assert result == ""

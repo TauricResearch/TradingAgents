@@ -160,16 +160,24 @@ def _filter_structured_data(section_text: str, ticker: str) -> str:
     # Keep commodity prices and FX rates as-is (small)
     commodity_section = subsections.get("Commodity Prices", "")
     fx_section = subsections.get("FX Rates", "")
-    
+
     # Filter earnings calendar
     earnings_raw = subsections.get("Earnings Calendar (7d lookback, 14d lookahead)", "")
     earnings_filtered = filter_earnings_calendar(earnings_raw, ticker, top_n_sector=10, top_n_overall=10)
-    
+
     # Filter economic calendar
     econ_raw = subsections.get("Economic Calendar (7d lookback, 14d lookahead)", "")
     econ_filtered = filter_economic_calendar(econ_raw, max_events=10)
-    
-    # Reconstruct section
+
+    # Reconstruct section — known subsections first, then pass through any others unchanged
+    # (e.g. a "Recent News" subsection added by a scanner agent is preserved as-is)
+    known_subsections = {
+        "Commodity Prices",
+        "FX Rates",
+        "Earnings Calendar (7d lookback, 14d lookahead)",
+        "Economic Calendar (7d lookback, 14d lookahead)",
+    }
+
     filtered_parts = []
     if commodity_section:
         filtered_parts.append(f"### Commodity Prices\n{commodity_section}")
@@ -179,7 +187,11 @@ def _filter_structured_data(section_text: str, ticker: str) -> str:
         filtered_parts.append(f"### Earnings Calendar (Filtered: Ticker + Top 10 Same Sector)\n{earnings_filtered}")
     if econ_filtered:
         filtered_parts.append(f"### Economic Calendar (Top 10 High-Importance Events)\n{econ_filtered}")
-    
+
+    for title, content in subsections.items():
+        if title not in known_subsections and content:
+            filtered_parts.append(f"### {title}\n{content}")
+
     return "\n\n".join(filtered_parts)
 
 
@@ -410,21 +422,48 @@ def filter_smart_money_for_ticker(smart_money_report: str, ticker: str) -> str:
     # Split into paragraphs
     paragraphs = smart_money_report.split('\n\n')
     
-    # Find paragraphs mentioning the ticker
-    ticker_paragraphs = []
+    # Infer the ticker's sector so we can include sector-level signals even when
+    # the ticker is not named directly.
+    ticker_sector = _infer_sector_from_text(smart_money_report, ticker)
+    related_sectors = RELATED_SECTORS.get(ticker_sector or "", [])
+
+    ticker_paragraphs: List[str] = []
+    sector_paragraphs: List[str] = []
+    market_paragraphs: List[str] = []  # broad market / macro signals
+
+    market_keywords = ["market", "broad", "all sectors", "overall", "macro", "index", "s&p", "nasdaq", "dow"]
+
     for para in paragraphs:
+        para_lower = para.lower()
         if ticker in para.upper():
             ticker_paragraphs.append(para)
-    
-    # If ticker mentioned, return those paragraphs
+        elif ticker_sector and ticker_sector.lower() in para_lower:
+            sector_paragraphs.append(para)
+        elif any(rs.lower() in para_lower for rs in related_sectors):
+            sector_paragraphs.append(para)
+        elif any(kw in para_lower for kw in market_keywords):
+            market_paragraphs.append(para)
+
     if ticker_paragraphs:
-        result = '\n\n'.join(ticker_paragraphs)
-        return f"[Filtered to {ticker}-specific signals]\n\n{result}"
-    
-    # Otherwise, return just the first paragraph (summary) + a note
+        combined = ticker_paragraphs + sector_paragraphs + market_paragraphs[:2]
+        result = '\n\n'.join(combined)
+        return f"[Filtered to {ticker}-specific and related sector signals]\n\n{result}"
+
+    # Ticker not found — include sector and market-wide context so the analyst
+    # still receives relevant signals that affect this ticker indirectly.
+    fallback = sector_paragraphs + market_paragraphs[:3]
+    if fallback:
+        result = '\n\n'.join(fallback)
+        label = f"[No {ticker}-specific signals found"
+        if ticker_sector:
+            label += f". Including {ticker_sector} sector and market-wide signals"
+        label += ".]"
+        return f"{label}\n\n{result}"
+
+    # Last resort: first paragraph
     if paragraphs:
         return f"[No {ticker}-specific signals found. General summary:]\n\n{paragraphs[0]}"
-    
+
     return smart_money_report
 
 
@@ -451,26 +490,40 @@ def filter_factor_alignment_for_ticker(factor_report: str, ticker: str) -> str:
     
     # Split into sections
     sections = factor_report.split('\n\n')
-    
-    # Find sections mentioning the ticker
-    ticker_sections = []
-    summary_sections = []
-    
+
+    # Infer sector so we can include sector-level factor signals.
+    ticker_sector = _infer_sector_from_text(factor_report, ticker)
+    related_sectors = RELATED_SECTORS.get(ticker_sector or "", [])
+
+    market_keywords = ["summary", "regime", "macro", "factor", "overall", "market", "broad", "index"]
+
+    ticker_sections: List[str] = []
+    sector_sections: List[str] = []
+    summary_sections: List[str] = []
+
     for section in sections:
+        section_lower = section.lower()
         if ticker in section.upper():
             ticker_sections.append(section)
-        # Keep any summary/regime sections
-        elif any(keyword in section.lower() for keyword in ['summary', 'regime', 'macro', 'factor', 'overall']):
+        elif ticker_sector and ticker_sector.lower() in section_lower:
+            sector_sections.append(section)
+        elif any(rs.lower() in section_lower for rs in related_sectors):
+            sector_sections.append(section)
+        elif any(keyword in section_lower for keyword in market_keywords):
             summary_sections.append(section)
-    
-    # Combine ticker-specific + summary
-    filtered_sections = ticker_sections + summary_sections[:2]  # Limit summaries to 2
-    
+
+    # Combine: ticker-specific → sector → market summaries
+    filtered_sections = ticker_sections + sector_sections + summary_sections[:2]
+
     if filtered_sections:
         result = '\n\n'.join(filtered_sections)
-        return f"[Filtered to {ticker}-specific factors]\n\n{result}"
-    
-    # Fallback: return first part of report with note about no match
+        label = f"[Filtered to {ticker}-specific factors"
+        if not ticker_sections and ticker_sector:
+            label += f". Including {ticker_sector} sector context"
+        label += "]"
+        return f"{label}\n\n{result}"
+
+    # Fallback: first part of report
     truncated = factor_report[:800]
     return f"[No {ticker}-specific factor data found. Showing general context:]\n\n{truncated}"
 

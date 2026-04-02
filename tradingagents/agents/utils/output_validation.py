@@ -57,33 +57,38 @@ def validate_ticker_relevance(
             "Output may be hallucinated generic content rather than ticker-specific analysis."
         )
     
-    # Check for article/source references (indicates grounding in provided data)
+    # Check for actual source citations (indicates grounding in provided news data).
+    # Patterns require explicit attribution syntax — not just words that happen to appear
+    # in generic prose (e.g. "analysts expect..." is NOT a citation).
     if check_article_refs:
         article_indicators = [
-            r'\barticle\b',
-            r'\breport\b',
-            r'\baccording to\b',
-            r'\bsource:',
-            r'\bcited\b',
-            r'\bquote\b',
-            r'\d{4}-\d{2}-\d{2}',  # Date pattern (YYYY-MM-DD)
-            r'\d{1,2}/\d{1,2}/\d{4}',  # Date pattern (MM/DD/YYYY)
-            r'analyst',
-            r'downgrade',
-            r'upgrade',
-            r'price target',
+            # Explicit attribution: "According to Reuters", "per Bloomberg", etc.
+            r'\baccording\s+to\s+\w+',
+            # Named source with a reporting verb: "Reuters reported", "Bloomberg said"
+            r'\b\w+\s+(?:reported|said|noted|wrote|published|revealed)',
+            # Inline source attribution: "(Source: ...)"
+            r'\bsource\s*:',
+            # Date + source combo: signals a real citation with temporal grounding
+            r'\d{4}-\d{2}-\d{2}',   # YYYY-MM-DD
+            r'\d{1,2}/\d{1,2}/\d{4}',  # MM/DD/YYYY
+            # Quoted headline patterns: text in quotes following a verb or "titled"
+            r'["\']\s*[A-Z][^"\']{10,}["\']',
+            # News publication names that imply a real source
+            r'\b(?:Reuters|Bloomberg|CNBC|WSJ|Wall Street Journal|Financial Times|'
+            r'MarketWatch|Seeking Alpha|Barron\'s|Forbes|StocksToTrade|'
+            r'Zacks|TheStreet|Motley Fool)\b',
         ]
-        
+
         has_article_ref = any(
-            re.search(pattern, output, re.IGNORECASE) 
+            re.search(pattern, output, re.IGNORECASE)
             for pattern in article_indicators
         )
-        
+
         if not has_article_ref:
             return (
                 False,
-                "No article references, dates, or analyst mentions found. "
-                "Output may not be based on provided news data."
+                "No article citations, named sources, publication names, or dated references found. "
+                "Output may not be grounded in the provided news data."
             )
     
     return (True, "Valid ticker-relevant output")
