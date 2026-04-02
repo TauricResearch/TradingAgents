@@ -27,13 +27,22 @@ def test_no_env_set_uses_hardcoded_defaults():
     assert cfg["mid_think_llm"] is None
     assert cfg["quick_think_llm"] == "gpt-5-mini"
     assert cfg["backend_url"] == "https://api.openai.com/v1"
+    assert cfg["llm_timeout"] == 180.0
     assert cfg["max_debate_rounds"] == 2
     assert cfg["data_vendors"]["scanner_data"] == "yfinance"
 
 
 def test_process_env_overrides_defaults():
-    cfg = _build(environ={"TRADINGAGENTS_LLM_PROVIDER": "openrouter"})
+    cfg = _build(
+        environ={
+            "TRADINGAGENTS_LLM_PROVIDER": "openrouter",
+            "TRADINGAGENTS_LLM_TIMEOUT_SEC": "45",
+            "TRADINGAGENTS_MID_THINK_LLM_TIMEOUT_SEC": "12.5",
+        }
+    )
     assert cfg["llm_provider"] == "openrouter"
+    assert cfg["llm_timeout"] == 45.0
+    assert cfg["mid_think_llm_timeout"] == 12.5
 
 
 def test_dotenv_overrides_defaults(tmp_path: Path):

@@ -702,6 +702,60 @@ class TestRunAutoTickerSource(unittest.TestCase):
         mock_store.load_analysis.side_effect = _load_analysis
         return mock_store
 
+    def test_run_auto_retries_scan_with_tier_fallback_on_rate_limit(self):
+        engine = LangGraphEngine()
+        engine.config = {
+            **engine.config,
+            "quick_think_llm": "primary-quick",
+            "mid_think_llm": "primary-mid",
+            "deep_think_llm": "primary-deep",
+            "quick_think_fallback_llm": "fallback-quick",
+            "mid_think_fallback_llm": "fallback-mid",
+            "deep_think_fallback_llm": "fallback-deep",
+        }
+        scan_calls = []
+
+        async def fake_run_scan(run_id, params):
+            scan_calls.append(
+                (
+                    run_id,
+                    engine.config.get("quick_think_llm"),
+                    engine.config.get("mid_think_llm"),
+                    engine.config.get("deep_think_llm"),
+                )
+            )
+            if len(scan_calls) == 1:
+                raise RuntimeError(
+                    "429 - qwen/qwen3.6-plus-preview:free is temporarily rate-limited upstream. "
+                    "Please retry shortly."
+                )
+            yield {"type": "log", "message": "scan fallback ok"}
+
+        async def fake_after_scan(**kwargs):
+            yield {"type": "log", "message": "after scan"}
+
+        engine.run_scan = fake_run_scan
+        engine._load_scan_state = MagicMock(return_value={"scan_date": "2026-01-01"})
+        engine._run_auto_after_scan = fake_after_scan
+
+        mock_store = MagicMock()
+        mock_store.load_scan.return_value = None
+
+        with patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=MagicMock(spec=Path)), \
+             patch.object(engine, "_start_run_logger", return_value=MagicMock(callback=None)), \
+             patch.object(engine, "_finish_run_logger"):
+            events = asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        self.assertEqual(len(scan_calls), 2)
+        self.assertEqual(scan_calls[0][1:], ("primary-quick", "primary-mid", "primary-deep"))
+        self.assertEqual(scan_calls[1][1:], ("fallback-quick", "fallback-mid", "fallback-deep"))
+        log_messages = [e.get("message", "") for e in events if e.get("type") == "log"]
+        self.assertTrue(
+            any("retrying with fallback" in m for m in log_messages),
+            f"Expected fallback retry log. Got: {log_messages}",
+        )
+
     def test_run_auto_gets_tickers_from_scan_report(self):
         """run_auto should run pipeline for AAPL and TSLA from the scan report."""
         scan_data = {"stocks_to_investigate": ["AAPL", "TSLA"]}

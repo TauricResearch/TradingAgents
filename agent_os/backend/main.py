@@ -1,40 +1,19 @@
+import logging
+import os
+import socket
+import urllib.error
+import urllib.request
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+
 from agent_os.backend.routes import portfolios, runs, websocket
 from agent_os.backend.run_metadata import normalize_run_params
-import logging
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("agent_os")
-
-app = FastAPI(title="AgentOS API")
-
-# --- CORS Middleware ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    logger.info(f"Incoming request: {request.method} {request.url}")
-    response = await call_next(request)
-    logger.info(f"Response status: {response.status_code}")
-    return response
-
-# --- Include Routes ---
-app.include_router(portfolios.router)
-app.include_router(runs.router)
-app.include_router(websocket.router)
 
 
 def _hydrate_run_record(meta: dict) -> dict:
@@ -67,7 +46,6 @@ def _hydrate_run_record(meta: dict) -> dict:
         record["error"] = error
     return record
 
-@app.on_event("startup")
 async def hydrate_runs_from_disk():
     """Populate the in-memory runs store from persisted run_meta.json files."""
     from agent_os.backend.store import runs
@@ -84,6 +62,43 @@ async def hydrate_runs_from_disk():
         logger.exception("Failed to hydrate runs from disk on startup")
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await hydrate_runs_from_disk()
+    yield
+
+
+app = FastAPI(title="AgentOS API", lifespan=lifespan)
+
+# --- CORS Middleware ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url}")
+    response = await call_next(request)
+    logger.info(f"Response status: {response.status_code}")
+    return response
+
+
+# --- Include Routes ---
+app.include_router(portfolios.router)
+app.include_router(runs.router)
+app.include_router(websocket.router)
+
+
 @app.get("/api/config")
 async def get_config():
     from tradingagents.default_config import DEFAULT_CONFIG
@@ -95,6 +110,36 @@ async def get_config():
 async def health_check():
     return {"status": "ok", "service": "AgentOS API"}
 
+
+def _agent_os_already_running(host: str, port: int) -> bool:
+    """Return True when the target port is serving the AgentOS health endpoint."""
+    url = f"http://127.0.0.1:{port}/"
+    try:
+        with urllib.request.urlopen(url, timeout=1.0) as response:
+            body = response.read().decode("utf-8", errors="ignore")
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+    return '"service":"AgentOS API"' in body and '"status":"ok"' in body
+
+
+def _port_is_bound(host: str, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.5)
+        return sock.connect_ex((host, port)) == 0
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8088)
+
+    host = os.getenv("AGENT_OS_HOST", "0.0.0.0")
+    port = int(os.getenv("AGENT_OS_PORT", "8088"))
+
+    if _port_is_bound("127.0.0.1", port):
+        if _agent_os_already_running(host, port):
+            logger.info(
+                "AgentOS API is already running on port %s; exiting duplicate startup.",
+                port,
+            )
+            raise SystemExit(0)
+        raise SystemExit(f"Port {port} is already in use by another process.")
+
+    uvicorn.run(app, host=host, port=port)

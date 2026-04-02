@@ -61,6 +61,7 @@ class TestConditionalLogicWiring:
         from tradingagents.default_config import DEFAULT_CONFIG
         assert DEFAULT_CONFIG["max_debate_rounds"] == 2
         assert DEFAULT_CONFIG["max_risk_discuss_rounds"] == 2
+        assert DEFAULT_CONFIG["llm_timeout"] == 180.0
 
     def test_conditional_logic_accepts_config_values(self):
         from tradingagents.graph.conditional_logic import ConditionalLogic
@@ -118,3 +119,49 @@ class TestNewModulesImportable:
         from tradingagents.dataflows.macro_regime import classify_macro_regime, format_macro_report
         assert callable(classify_macro_regime)
         assert callable(format_macro_report)
+
+
+class TestLLMTimeoutWiring:
+    def test_trading_graph_provider_kwargs_include_default_timeout(self):
+        from tradingagents.graph.trading_graph import TradingAgentsGraph
+
+        graph = object.__new__(TradingAgentsGraph)
+        graph.config = {
+            "llm_provider": "openrouter",
+            "llm_timeout": 180.0,
+            "openai_reasoning_effort": "medium",
+        }
+
+        kwargs = graph._get_provider_kwargs("quick_think")
+
+        assert kwargs["timeout"] == 180.0
+        assert kwargs["reasoning_effort"] == "medium"
+
+    def test_scanner_graph_tier_timeout_override_wins(self):
+        from tradingagents.graph.scanner_graph import ScannerGraph
+
+        graph = object.__new__(ScannerGraph)
+        graph.config = {
+            "llm_provider": "openrouter",
+            "llm_timeout": 180.0,
+            "mid_think_llm_timeout": 45.0,
+        }
+
+        kwargs = graph._get_provider_kwargs("mid_think")
+
+        assert kwargs["timeout"] == 45.0
+
+    def test_portfolio_graph_timeout_also_applies_to_google(self):
+        from tradingagents.graph.portfolio_graph import PortfolioGraph
+
+        graph = object.__new__(PortfolioGraph)
+        graph.config = {
+            "llm_provider": "google",
+            "llm_timeout": 120.0,
+            "google_thinking_level": "high",
+        }
+
+        kwargs = graph._get_provider_kwargs("deep_think")
+
+        assert kwargs["timeout"] == 120.0
+        assert kwargs["thinking_level"] == "high"

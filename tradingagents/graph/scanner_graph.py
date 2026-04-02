@@ -157,6 +157,11 @@ class ScannerGraph:
         provider = (
             self.config.get(f"{prefix}llm_provider") or self.config.get("llm_provider", "")
         ).lower()
+        timeout = self.config.get(f"{prefix}llm_timeout")
+        if timeout is None:
+            timeout = self.config.get("llm_timeout")
+        if timeout is not None:
+            kwargs["timeout"] = float(timeout)
 
         if provider == "google":
             thinking_level = self.config.get(f"{prefix}google_thinking_level") or self.config.get(
