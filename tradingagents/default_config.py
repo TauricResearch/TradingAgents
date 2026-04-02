@@ -9,8 +9,8 @@ DEFAULT_CONFIG = {
     ),
     # LLM settings
     "llm_provider": "openai",
-    "deep_think_llm": "glm-5:cloud",
-    "quick_think_llm": "glm-5:cloud",
+    "deep_think_llm": "nemotron-3-nano:30b-cloud",
+    "quick_think_llm": "nemotron-3-nano:30b-cloud",
     "backend_url": "https://ollama.com/v1",
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
