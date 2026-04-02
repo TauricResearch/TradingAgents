@@ -221,6 +221,8 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
                     "Validation failed for your prior draft.\n"
                     f"Failure code: {validation.code}\n"
                     f"Failure reason: {validation.reason}\n"
+                    "The same full scanner context, pre-loaded news feeds, and persisted evidence records "
+                    "remain available on this retry.\n"
                     "Rewrite the report from scratch using only the provided context. "
                     "Only cite publications or data sources present in the provided feeds. "
                     "Do not cite internal prompt labels or section headers like "
@@ -236,6 +238,7 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
                 ticker,
                 allowed_source_names=allowed_source_names,
                 allowed_evidence_ids={record.evidence_id for record in evidence_records},
+                # Provenance is enforced by the dedicated News Fact Checker node.
                 enforce_provenance=False,
             )
             log_validation_result(

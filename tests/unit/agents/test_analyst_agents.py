@@ -347,5 +347,6 @@ def test_news_analyst_retry_instruction_restates_internal_header_rule():
         m.content if hasattr(m, "content") else str(m)
         for m in retry_messages
     )
+    assert "The same full scanner context, pre-loaded news feeds, and persisted evidence records remain available on this retry." in retry_text
     assert "Do not cite internal prompt labels or section headers like" in retry_text
     assert "\"Macro Regime Classification\", \"Scanner Context\", or \"Pre-loaded Context\"" in retry_text

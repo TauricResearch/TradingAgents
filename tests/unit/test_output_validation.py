@@ -305,6 +305,21 @@ class TestValidateNewsAnalysis:
         assert not result.is_valid
         assert result.code == "scanner_sec_conflation"
 
+    def test_fails_for_scanner_sec_conflation_when_terms_are_far_apart_in_same_bullet(self):
+        output = """
+        RIG News Analysis - 2026-03-31
+        - [Source: Finviz Smart Money Scanner | Scan Date: 2026-03-31] RIG showed insider buying in the smart money scanner,
+          with unusually strong volume and follow-through in related flow metrics across the session, while later in the same
+          bullet the draft incorrectly labels that scanner evidence as SEC Form 4 confirmation for RIG.
+        - Reuters reported RIG contract dayrates weakened on 2026-03-31.
+        - RIG trades at $4.50 and RIG volatility rose 10% while RIG sentiment deteriorated.
+        """
+
+        result = validate_news_analysis_detailed(output, "RIG")
+
+        assert not result.is_valid
+        assert result.code == "scanner_sec_conflation"
+
 
 class TestFormatValidationWarning:
     def test_formats_warning_banner(self):

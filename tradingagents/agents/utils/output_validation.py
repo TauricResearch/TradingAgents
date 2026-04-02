@@ -453,16 +453,39 @@ def _has_scanner_sec_conflation(output: str) -> bool:
     if "sec form 4" not in output_lower and "form 4" not in output_lower and "sec filing" not in output_lower:
         return False
 
-    scanner_windows = re.finditer(
-        r"(.{0,160}\[Source:\s*Finviz Smart Money Scanner\s*\|\s*Scan Date:\s*\d{4}-\d{2}-\d{2}\].{0,160})",
-        output,
-        re.IGNORECASE | re.DOTALL,
-    )
-    for window in scanner_windows:
-        chunk = window.group(1).lower()
-        if "sec form 4" in chunk or "form 4" in chunk or "sec filing" in chunk:
+    for block in _iter_output_blocks(output):
+        block_lower = block.lower()
+        if SCANNER_CITATION_PATTERN.search(block) and (
+            "sec form 4" in block_lower
+            or "form 4" in block_lower
+            or "sec filing" in block_lower
+        ):
             return True
     return False
+
+
+def _iter_output_blocks(output: str) -> list[str]:
+    blocks: list[str] = []
+    current: list[str] = []
+
+    for line in (output or "").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if current:
+                blocks.append("\n".join(current))
+                current = []
+            continue
+
+        if stripped.startswith(("-", "*")) and current:
+            blocks.append("\n".join(current))
+            current = [line]
+            continue
+
+        current.append(line)
+
+    if current:
+        blocks.append("\n".join(current))
+    return blocks
 
 
 def validate_ticker_relevance(

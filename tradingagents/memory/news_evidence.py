@@ -17,7 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-from tradingagents.default_config import DEFAULT_CONFIG, get_env_value
+from tradingagents.default_config import get_env_value
+from tradingagents.report_paths import REPORTS_ROOT
 
 
 @dataclass(frozen=True)
@@ -40,8 +41,7 @@ def _default_db_path() -> Path:
     override = get_env_value("TRADINGAGENTS_NEWS_EVIDENCE_DB")
     if override:
         return Path(override)
-    results_dir = Path(str(DEFAULT_CONFIG.get("results_dir", "./reports")))
-    return results_dir / "news_evidence.sqlite3"
+    return REPORTS_ROOT / "news_evidence.sqlite3"
 
 
 class NewsEvidenceStore:
