@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from tradingagents.agents.managers.summary_rules import (
-    INVESTMENT_DEBATE_SUMMARY,
     RESEARCH_PACKET_SUMMARY,
-    RISK_DEBATE_SUMMARY,
     generate_summary_prompt,
+)
+from tradingagents.agents.utils.summary_context import (
+    build_investment_debate_summary,
+    build_risk_debate_summary,
 )
 
 def _build_research_packet_input(
@@ -93,24 +95,7 @@ def create_research_packet_summary(llm):
 def create_investment_debate_summary(llm):
     def investment_debate_summary_node(state) -> dict:
         debate_state = state["investment_debate_state"]
-        
-        # FAST PATH: Heuristic aggregation of summary points instead of LLM call.
-        
-        sections = []
-        
-        bull_sum = debate_state.get("current_bull_summary")
-        if bull_sum:
-            sections.append(f"### Bull Analyst Points\n{bull_sum}")
-        elif debate_state.get("bull_history"):
-            sections.append(f"### Bull Analyst Points\n(No specific summary provided)")
-
-        bear_sum = debate_state.get("current_bear_summary")
-        if bear_sum:
-            sections.append(f"### Bear Analyst Points\n{bear_sum}")
-        elif debate_state.get("bear_history"):
-            sections.append(f"### Bear Analyst Points\n(No specific summary provided)")
-
-        summary = "\n\n".join(sections) if sections else "Investment debate in progress..."
+        summary = build_investment_debate_summary(debate_state) or "Investment debate in progress..."
 
         return {
             "investment_debate_state": {
@@ -126,31 +111,7 @@ def create_investment_debate_summary(llm):
 def create_risk_debate_summary(llm):
     def risk_debate_summary_node(state) -> dict:
         debate_state = state["risk_debate_state"]
-        
-        # FAST PATH: Heuristic aggregation of summary points instead of LLM call.
-        # This removes the single biggest sequential bottleneck in the pipeline.
-        
-        sections = []
-        
-        agg_sum = debate_state.get("current_aggressive_summary")
-        if agg_sum:
-            sections.append(f"### Aggressive Analyst Points\n{agg_sum}")
-        elif debate_state.get("current_aggressive_response"):
-            sections.append(f"### Aggressive Analyst Points\n(No specific summary provided)")
-
-        con_sum = debate_state.get("current_conservative_summary")
-        if con_sum:
-            sections.append(f"### Conservative Analyst Points\n{con_sum}")
-        elif debate_state.get("current_conservative_response"):
-            sections.append(f"### Conservative Analyst Points\n(No specific summary provided)")
-
-        neu_sum = debate_state.get("current_neutral_summary")
-        if neu_sum:
-            sections.append(f"### Neutral Analyst Points\n{neu_sum}")
-        elif debate_state.get("current_neutral_response"):
-            sections.append(f"### Neutral Analyst Points\n(No specific summary provided)")
-
-        summary = "\n\n".join(sections) if sections else "Risk debate in progress..."
+        summary = build_risk_debate_summary(debate_state) or "Risk debate in progress..."
 
         return {
             "risk_debate_state": {

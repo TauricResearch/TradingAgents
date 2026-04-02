@@ -75,7 +75,7 @@ def test_investment_debate_summary_updates_state_summary():
 
 
 def test_investment_debate_summary_fallback_without_summaries():
-    """Heuristic fast-path: falls back to placeholder when no summary fields."""
+    """Without per-side summary points, node emits in-progress placeholder."""
     llm = MagicMock()
     node = create_investment_debate_summary(llm)
 
@@ -92,9 +92,7 @@ def test_investment_debate_summary_fallback_without_summaries():
     )
 
     summary = result["investment_debate_state"]["summary"]
-    assert "### Bull Analyst Points" in summary
-    assert "### Bear Analyst Points" in summary
-    assert "(No specific summary provided)" in summary
+    assert summary == "Investment debate in progress..."
 
 
 def test_risk_debate_summary_updates_state_summary():
@@ -122,7 +120,7 @@ def test_risk_debate_summary_updates_state_summary():
 
     summary = result["risk_debate_state"]["summary"]
     assert "### Aggressive Analyst Points" in summary
-    assert "(No specific summary provided)" in summary
+    assert "Aggressive Analyst: push harder" in summary
     assert result["risk_debate_state"]["latest_speaker"] == "Aggressive"
     # Heuristic path does not invoke the LLM
     llm.invoke.assert_not_called()
@@ -187,6 +185,43 @@ def test_researcher_nodes_preserve_investment_summary_and_metadata():
     assert bear_state["summary"] == "rolling debate summary"
     assert bear_state["judge_decision"] == "judge output"
     assert bear_state["count"] == 3
+
+
+def test_researcher_nodes_write_compact_summary_points():
+    llm = MagicMock()
+    llm.invoke.return_value = SimpleNamespace(
+        content="THE DEBATE:\n- line\n\nSUMMARY POINTS:\n- point A\n- point B"
+    )
+    memory = MagicMock()
+    memory.get_memories.return_value = []
+
+    state = {
+        "company_of_interest": "AAPL",
+        "research_packet_summary": "compact packet",
+        "investment_debate_state": {
+            "bull_history": "",
+            "bear_history": "",
+            "history": "",
+            "summary": "",
+            "current_response": "",
+            "judge_decision": "",
+            "count": 0,
+        },
+    }
+
+    bull_state = create_bull_researcher(llm, memory)(state)["investment_debate_state"]
+    assert "### Bull Analyst Points" in bull_state["summary"]
+    assert "- point A" in bull_state["summary"]
+
+    bear_result_state = create_bear_researcher(llm, memory)(
+        {
+            "company_of_interest": "AAPL",
+            "research_packet_summary": "compact packet",
+            "investment_debate_state": bull_state,
+        }
+    )["investment_debate_state"]
+    assert "### Bull Analyst Points" in bear_result_state["summary"]
+    assert "### Bear Analyst Points" in bear_result_state["summary"]
 
 
 def test_risk_nodes_preserve_summary_and_metadata():

@@ -36,7 +36,6 @@ def test_fundamentals_analyst_uses_mid_llm():
              patch("tradingagents.graph.setup.create_bull_researcher"), \
              patch("tradingagents.graph.setup.create_bear_researcher"), \
              patch("tradingagents.graph.setup.create_research_packet_summary"), \
-             patch("tradingagents.graph.setup.create_investment_debate_summary"), \
              patch("tradingagents.graph.setup.create_research_manager"), \
              patch("tradingagents.graph.setup.create_trader"), \
              patch("tradingagents.graph.setup.create_aggressive_debator"), \
@@ -85,7 +84,6 @@ def test_news_analyst_and_fact_checker_share_injected_evidence_store():
          patch("tradingagents.graph.setup.create_bull_researcher"), \
          patch("tradingagents.graph.setup.create_bear_researcher"), \
          patch("tradingagents.graph.setup.create_research_packet_summary"), \
-         patch("tradingagents.graph.setup.create_investment_debate_summary"), \
          patch("tradingagents.graph.setup.create_research_manager"), \
          patch("tradingagents.graph.setup.create_trader"), \
          patch("tradingagents.graph.setup.create_aggressive_debator"), \

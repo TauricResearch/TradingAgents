@@ -150,9 +150,6 @@ class GraphSetup:
         research_packet_summary_node = create_research_packet_summary(
             self.quick_thinking_llm
         )
-        investment_debate_summary_node = create_investment_debate_summary(
-            self.quick_thinking_llm
-        )
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
         )
@@ -189,7 +186,6 @@ class GraphSetup:
         workflow.add_node("Research Packet Summary", research_packet_summary_node)
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
-        workflow.add_node("Investment Debate Summary", investment_debate_summary_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
         workflow.add_node("Aggressive R1", aggressive_r1)
@@ -262,10 +258,19 @@ class GraphSetup:
             lambda _state: "Bull Researcher",
             {"Bull Researcher": "Bull Researcher"},
         )
-        workflow.add_edge("Bull Researcher", "Investment Debate Summary")
-        workflow.add_edge("Bear Researcher", "Investment Debate Summary")
         workflow.add_conditional_edges(
-            "Investment Debate Summary",
+            "Bull Researcher",
+            self.conditional_logic.should_continue_debate,
+            {
+                "Bull Researcher": "Bull Researcher",
+                "Bear Researcher": "Bear Researcher",
+                "Research Manager": "Research Manager",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
+                "Portfolio Manager": "Portfolio Manager",
+            },
+        )
+        workflow.add_conditional_edges(
+            "Bear Researcher",
             self.conditional_logic.should_continue_debate,
             {
                 "Bull Researcher": "Bull Researcher",
@@ -318,9 +323,6 @@ class GraphSetup:
         research_packet_summary_node = create_research_packet_summary(
             self.quick_thinking_llm
         )
-        investment_debate_summary_node = create_investment_debate_summary(
-            self.quick_thinking_llm
-        )
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
         )
@@ -345,7 +347,6 @@ class GraphSetup:
         workflow.add_node("Research Packet Summary", research_packet_summary_node)
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
-        workflow.add_node("Investment Debate Summary", investment_debate_summary_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
         workflow.add_node("Aggressive R1", aggressive_r1)
@@ -361,10 +362,18 @@ class GraphSetup:
 
         workflow.add_edge(START, "Research Packet Summary")
         workflow.add_edge("Research Packet Summary", "Bull Researcher")
-        workflow.add_edge("Bull Researcher", "Investment Debate Summary")
-        workflow.add_edge("Bear Researcher", "Investment Debate Summary")
         workflow.add_conditional_edges(
-            "Investment Debate Summary",
+            "Bull Researcher",
+            self.conditional_logic.should_continue_debate,
+            {
+                "Bull Researcher": "Bull Researcher",
+                "Bear Researcher": "Bear Researcher",
+                "Research Manager": "Research Manager",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
+            },
+        )
+        workflow.add_conditional_edges(
+            "Bear Researcher",
             self.conditional_logic.should_continue_debate,
             {
                 "Bull Researcher": "Bull Researcher",

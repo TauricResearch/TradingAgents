@@ -1,5 +1,6 @@
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.summary_context import (
+    build_investment_debate_summary,
     build_research_packet,
     get_investment_debate_summary,
 )
@@ -69,12 +70,25 @@ Output your response in two sections:
         if "SUMMARY POINTS:" in response.content:
             summary_section = response.content.split("SUMMARY POINTS:")[-1].strip()
 
+        current_bull_summary = summary_section or str(
+            investment_debate_state.get("current_bull_summary") or ""
+        ).strip()
+        next_summary = build_investment_debate_summary(
+            {
+                **investment_debate_state,
+                "current_bull_summary": current_bull_summary,
+            }
+        )
+        if not next_summary:
+            next_summary = str(investment_debate_state.get("summary") or "").strip()
+
         new_investment_debate_state = {
             **investment_debate_state,
             "history": history + "\n" + argument,
             "bull_history": bull_history + "\n" + argument,
             "current_response": argument,
-            "current_bull_summary": summary_section,
+            "current_bull_summary": current_bull_summary,
+            "summary": next_summary,
             "count": investment_debate_state["count"] + 1,
         }
 

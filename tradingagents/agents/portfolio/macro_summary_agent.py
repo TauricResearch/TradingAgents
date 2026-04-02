@@ -9,7 +9,6 @@ Pattern: ``create_macro_summary_agent(llm, macro_memory)`` → closure
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 
@@ -18,6 +17,28 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.memory.macro_memory import MacroMemory
 
 logger = logging.getLogger(__name__)
+
+
+def _build_candidate_context(scan_summary: dict, limit: int = 5) -> str:
+    """Build a stable, compact candidate block for PM-facing macro briefs."""
+    rows: list[str] = []
+    for candidate in scan_summary.get("stocks_to_investigate", [])[:limit]:
+        if not isinstance(candidate, dict):
+            continue
+        catalysts = ", ".join(candidate.get("key_catalysts", [])[:2]) or "None"
+        risks = ", ".join(candidate.get("risks", [])[:2]) or "None"
+        rows.append(
+            " | ".join(
+                [
+                    str(candidate.get("ticker", "?")),
+                    str(candidate.get("conviction", "?")),
+                    str(candidate.get("thesis_angle", "?")),
+                    f"catalysts: {catalysts}",
+                    f"risks: {risks}",
+                ]
+            )
+        )
+    return "\n".join(f"- {row}" for row in rows) or "None"
 
 
 def create_macro_summary_agent(llm, macro_memory: MacroMemory | None = None):
@@ -64,16 +85,7 @@ def create_macro_summary_agent(llm, macro_memory: MacroMemory | None = None):
             for t in key_themes
         ) or "None"
 
-        # Strip verbose rationale — retain only what the brief needs
-        ticker_conviction = [
-            {
-                "ticker": t.get("ticker", "?"),
-                "conviction": t.get("conviction", "?"),
-                "thesis_angle": t.get("thesis_angle", "?"),
-            }
-            for t in scan_summary.get("stocks_to_investigate", [])
-        ]
-        ticker_conviction_str = json.dumps(ticker_conviction, indent=2) or "[]"
+        ticker_conviction_str = _build_candidate_context(scan_summary)
 
         risk_factors: list = scan_summary.get("risk_factors", [])
         risk_factors_str = "\n".join(f"- {r}" for r in risk_factors) or "None"
