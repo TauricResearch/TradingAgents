@@ -11,6 +11,7 @@ import {
   InputGroup,
   InputLeftElement,
   Checkbox,
+  Switch,
   useDisclosure,
   Drawer,
   DrawerOverlay,
@@ -64,6 +65,7 @@ interface RunParams {
   portfolio_id: string;
   max_auto_tickers: string;
   continue_on_ticker_failure: boolean;
+  include_portfolio_holdings: boolean;
   mock_type: MockType;
   speed: string;
   force: boolean;
@@ -450,6 +452,7 @@ export const Dashboard: React.FC = () => {
     portfolio_id: 'main_portfolio',
     max_auto_tickers: '',
     continue_on_ticker_failure: false,
+    include_portfolio_holdings: true,
     mock_type: 'pipeline',
     speed: '3',
     force: false,
@@ -530,6 +533,7 @@ export const Dashboard: React.FC = () => {
       portfolio_id: run.params.portfolio_id || p.portfolio_id,
       max_auto_tickers: run.params.max_tickers?.toString() || run.params.max_auto_tickers?.toString() || '',
       continue_on_ticker_failure: Boolean(run.params.continue_on_ticker_failure),
+      include_portfolio_holdings: run.params.include_portfolio_holdings !== false,
       mock_type: run.params.mock_type || p.mock_type,
       speed: run.params.speed?.toString() || p.speed,
       force: Boolean(run.params.force),
@@ -581,6 +585,7 @@ export const Dashboard: React.FC = () => {
           date: effectiveParams.date,
           force: effectiveParams.force,
           continue_on_ticker_failure: effectiveParams.continue_on_ticker_failure,
+          include_portfolio_holdings: effectiveParams.include_portfolio_holdings,
           ...(effectiveParams.max_auto_tickers ? { max_tickers: parseInt(effectiveParams.max_auto_tickers, 10) } : {}),
         };
         if (type === 'pipeline' && inputTickers.length > 0) {
@@ -1150,13 +1155,23 @@ export const Dashboard: React.FC = () => {
                          />
                        </HStack>
                        <HStack>
+                         <Text fontSize="xs" color="whiteAlpha.600" minW="70px">Holdings:</Text>
+                         <Switch
+                           size="sm"
+                           colorScheme="teal"
+                           isChecked={params.include_portfolio_holdings}
+                           onChange={(e) => setParams((p) => ({ ...p, include_portfolio_holdings: e.target.checked }))}
+                         />
+                         <Text fontSize="xs" color="whiteAlpha.500">Include portfolio holdings</Text>
+                       </HStack>
+                       <HStack>
                          <Text fontSize="xs" color="whiteAlpha.600" minW="70px">Max Tickers</Text>
                          <Input size="xs" type="number" min={1} placeholder="default (env)" w="80px"
                            bg="whiteAlpha.100"
                            borderColor="whiteAlpha.200"
                            value={params.max_auto_tickers}
                            onChange={(e) => setParams((p) => ({ ...p, max_auto_tickers: e.target.value }))} />
-                         <Text fontSize="2xs" color="whiteAlpha.400">(scan only, portfolio always included)</Text>
+                         <Text fontSize="2xs" color="whiteAlpha.400">(scan candidates only)</Text>
                        </HStack>
                        {/* Mock-specific controls */}
                        <Box height="1px" bg="whiteAlpha.100" />
