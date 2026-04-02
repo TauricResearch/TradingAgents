@@ -1089,6 +1089,7 @@ class LangGraphEngine:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = params.get("force", False)
         continue_on_ticker_failure = bool(params.get("continue_on_ticker_failure"))
+        include_portfolio_holdings = params.get("include_portfolio_holdings", True)
         root_run_id = self._root_run_id(run_id, params)
         execution_key = self._execution_key(run_id, params)
 
@@ -1165,7 +1166,6 @@ class LangGraphEngine:
             # Also include tickers from current portfolio holdings so the PM agent
             # has fresh analysis for existing positions (hold/sell/add decisions).
             portfolio_id = params.get("portfolio_id", "main_portfolio")
-            include_portfolio_holdings = bool(params.get("include_portfolio_holdings", True))
             holding_tickers: list[str] = []
             if include_portfolio_holdings:
                 try:
@@ -1177,7 +1177,7 @@ class LangGraphEngine:
                     logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
             else:
                 yield self._system_log(
-                    "Phase 2/3: include_portfolio_holdings=false — skipping portfolio holdings, scan candidates only."
+                    "Phase 2/3: include_portfolio_holdings=False — skipping portfolio holdings, scan candidates only."
                 )
 
             holding_instruments = [
