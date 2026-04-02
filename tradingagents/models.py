@@ -449,25 +449,84 @@ def should_hard_veto(
 # LLM structured output helper
 # ---------------------------------------------------------------------------
 
-def invoke_structured(llm, model_cls, prompt: str, timeout: int = 60):
-    """Call LLM with structured output, with JSON fallback.
+def _build_json_example(model_cls) -> str:
+    """Build a minimal JSON example from a Pydantic model's fields."""
+    examples = {}
+    schema = model_cls.model_json_schema()
+    props = schema.get("properties", {})
+    for field_name, field_info in props.items():
+        ftype = field_info.get("type", "string")
+        if ftype == "number" or ftype == "integer":
+            examples[field_name] = 5.0
+        elif ftype == "boolean":
+            examples[field_name] = True
+        elif ftype == "array":
+            examples[field_name] = ["example item"]
+        else:
+            examples[field_name] = "your analysis here"
+    return json.dumps(examples, indent=2)
 
-    Each LLM call is wrapped in a per-call timeout (default 60s) to avoid
-    hanging on a single call while the global 60-minute analysis timeout
-    covers the entire pipeline.
+
+def _extract_json(text: str) -> str:
+    """Extract JSON from LLM response that may contain markdown or prose."""
+    text = text.strip()
+    # Try direct parse first
+    if text.startswith("{"):
+        return text
+    # Extract from ```json blocks
+    if "```json" in text:
+        return text.split("```json")[1].split("```")[0].strip()
+    if "```" in text:
+        parts = text.split("```")
+        for part in parts[1::2]:  # odd indices are inside code blocks
+            candidate = part.strip()
+            if candidate.startswith("{"):
+                return candidate
+    # Find first { ... } block
+    start = text.find("{")
+    if start >= 0:
+        depth = 0
+        for i in range(start, len(text)):
+            if text[i] == "{": depth += 1
+            elif text[i] == "}": depth -= 1
+            if depth == 0:
+                return text[start:i+1]
+    return text
+
+
+def invoke_structured(llm, model_cls, prompt: str, timeout: int = 60):
+    """Call LLM with structured output, with aggressive JSON fallback.
+
+    Strategy:
+    1. Try langchain structured output (works with OpenAI, Anthropic)
+    2. If that fails, use JSON-only system prompt with schema + example
+    3. Extract JSON from any markdown/prose wrapper
+    4. Fall back to defaults if all else fails
     """
     import concurrent.futures
+    from langchain_core.messages import SystemMessage, HumanMessage
 
     def _call_structured():
         structured = llm.with_structured_output(model_cls)
         return structured.invoke(prompt)
 
-    def _call_json_fallback():
+    def _call_json_direct():
+        """Force JSON output with aggressive system prompt and concrete example."""
         schema_str = json.dumps(model_cls.model_json_schema(), indent=2)
-        json_prompt = (
-            f"{prompt}\n\nReturn ONLY valid JSON matching this schema:\n{schema_str}"
-        )
-        return llm.invoke(json_prompt)
+        example_str = _build_json_example(model_cls)
+        messages = [
+            SystemMessage(content=(
+                "You are a JSON-only API. You MUST respond with a single valid JSON object. "
+                "No markdown, no commentary, no explanation, no ```json blocks. "
+                "Start your response with { and end with }. Nothing else."
+            )),
+            HumanMessage(content=(
+                f"{prompt}\n\n"
+                f"Respond with ONLY a JSON object matching this schema:\n{schema_str}\n\n"
+                f"Example format (fill in real values):\n{example_str}"
+            )),
+        ]
+        return llm.invoke(messages)
 
     # Try structured output with per-call timeout
     try:
@@ -480,20 +539,16 @@ def invoke_structured(llm, model_cls, prompt: str, timeout: int = 60):
     except Exception as e:
         logger.warning("Structured output failed for %s: %s — using JSON fallback", model_cls.__name__, e)
 
-    # JSON fallback with per-call timeout
+    # JSON-direct fallback with per-call timeout
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            future = pool.submit(_call_json_fallback)
+            future = pool.submit(_call_json_direct)
             response = future.result(timeout=timeout)
     except concurrent.futures.TimeoutError:
         logger.warning("JSON fallback timed out after %ds for %s", timeout, model_cls.__name__)
         raise TimeoutError(f"LLM JSON fallback timed out after {timeout}s for {model_cls.__name__}")
 
-    content = response.content.strip()
-    if "```json" in content:
-        content = content.split("```json")[1].split("```")[0].strip()
-    elif "```" in content:
-        content = content.split("```")[1].split("```")[0].strip()
+    content = _extract_json(response.content)
     try:
         return model_cls.model_validate_json(content)
     except ValidationError as ve:
