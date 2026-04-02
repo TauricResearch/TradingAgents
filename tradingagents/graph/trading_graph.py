@@ -13,6 +13,8 @@ from tradingagents.agents import *
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.dataflows.config import set_config
+from tradingagents.memory.news_evidence import NewsEvidenceStore
+from tradingagents.report_paths import generate_run_id
 
 # Import the new abstract tool methods
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
@@ -138,6 +140,7 @@ class TradingAgentsGraph:
         self.trader_memory = FinancialSituationMemory("trader_memory", self.config)
         self.invest_judge_memory = FinancialSituationMemory("invest_judge_memory", self.config)
         self.portfolio_manager_memory = FinancialSituationMemory("portfolio_manager_memory", self.config)
+        self.news_evidence_store = NewsEvidenceStore()
 
         # Create tool nodes
         self.tool_nodes = self._create_tool_nodes()
@@ -158,6 +161,7 @@ class TradingAgentsGraph:
             self.invest_judge_memory,
             self.portfolio_manager_memory,
             self.conditional_logic,
+            self.news_evidence_store,
         )
 
         self.propagator = Propagator()
@@ -203,6 +207,11 @@ class TradingAgentsGraph:
             self.config.get(f"{prefix}llm_provider")
             or self.config.get("llm_provider", "")
         ).lower()
+        timeout = self.config.get(f"{prefix}llm_timeout")
+        if timeout is None:
+            timeout = self.config.get("llm_timeout")
+        if timeout is not None:
+            kwargs["timeout"] = float(timeout)
 
         if provider == "google":
             thinking_level = (
@@ -277,7 +286,7 @@ class TradingAgentsGraph:
 
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
-            company_name, trade_date
+            company_name, trade_date, run_id=generate_run_id()
         )
         args = self.propagator.get_graph_args()
 

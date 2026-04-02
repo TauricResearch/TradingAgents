@@ -32,6 +32,20 @@ def _is_transient_openai_error(exc: Exception) -> bool:
     ):
         return True
 
+    if isinstance(exc, openai.RateLimitError):
+        msg = str(exc).lower()
+        return any(
+            token in msg
+            for token in (
+                "temporarily rate-limited upstream",
+                "retry shortly",
+                "temporarily unavailable",
+                "rate limit",
+                "rate-limited",
+                "429",
+            )
+        )
+
     if isinstance(exc, openai.APIError):
         msg = str(exc).lower()
         return any(

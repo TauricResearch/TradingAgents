@@ -22,7 +22,7 @@ from rich.rule import Rule
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.report_paths import get_daily_dir, get_market_dir, get_ticker_dir
+from tradingagents.report_paths import generate_run_id, get_daily_dir, get_market_dir, get_ticker_dir
 from tradingagents.daily_digest import append_to_digest
 from tradingagents.notebook_sync import sync_to_notebooklm
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -1163,7 +1163,9 @@ def run_analysis():
 
         # Initialize state and get graph args with callbacks
         init_agent_state = graph.propagator.create_initial_state(
-            selections["ticker"], selections["analysis_date"]
+            selections["ticker"],
+            selections["analysis_date"],
+            run_id=generate_run_id(),
         )
         # Pass callbacks to graph config for tool execution tracking
         # (LLM tracking is handled separately via LLM constructor)

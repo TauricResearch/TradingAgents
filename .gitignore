@@ -237,4 +237,10 @@ agent_os/frontend/dist/
 .obsidian/
 .intent/
 .DS_Store
+.codex/
+.vscode/
 docs/scratch/
+
+
+artifacts/
+.worktrees/

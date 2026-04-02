@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 
+from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
@@ -11,18 +12,40 @@ from tradingagents.agents.utils.agent_utils import (
 from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
 from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
 from tradingagents.agents.utils.output_validation import (
-    validate_news_analysis,
-    format_validation_warning,
+    extract_allowed_sources_from_context,
+    validate_news_analysis_detailed,
     log_validation_result,
 )
+from tradingagents.memory.news_evidence import NewsEvidenceStore
 
 logger = logging.getLogger(__name__)
 
 
-def create_news_analyst(llm):
+def _extract_scanner_citation_hint(scanner_context: str, fallback_date: str) -> str:
+    source_match = None
+    date_match = None
+    if scanner_context:
+        source_match = next(
+            (line.split(":", 1)[1].strip() for line in scanner_context.splitlines() if line.startswith("Source:")),
+            None,
+        )
+        date_match = next(
+            (line.split(":", 1)[1].strip() for line in scanner_context.splitlines() if line.startswith("Scan Date:")),
+            None,
+        )
+
+    source_name = source_match or "Finviz Smart Money Scanner"
+    scan_date = date_match or fallback_date
+    return f"[Source: {source_name} | Scan Date: {scan_date}]"
+
+
+def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
+    store = evidence_store or NewsEvidenceStore()
+
     def news_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
+        run_id = str(state["run_id"])
         instrument_context = build_instrument_context(ticker)
         
         # Apply ticker-specific filtering to reduce scanner context from ~10K to ~3-4K tokens
@@ -30,6 +53,9 @@ def create_news_analyst(llm):
         scanner_context = filter_scanner_context_for_ticker(
             scanner_context_raw, ticker
         ) if scanner_context_raw else ""
+        scanner_citation_hint = _extract_scanner_citation_hint(
+            scanner_context, current_date
+        )
 
         # ── Pre-fetch company-specific and global news in parallel ────────────
         trade_date = datetime.strptime(current_date, "%Y-%m-%d")
@@ -58,6 +84,17 @@ def create_news_analyst(llm):
             ]
         )
         prefetched_context = format_prefetched_context(prefetched)
+        evidence_records = store.ingest_prefetched_sections(
+            run_id=run_id,
+            ticker=ticker,
+            trade_date=current_date,
+            prefetched=prefetched,
+        )
+        evidence_context = store.build_prompt_context(evidence_records)
+        allowed_source_names = (
+            {record.source for record in evidence_records if record.source}
+            | extract_allowed_sources_from_context(prefetched_context)
+        )
 
         macro_regime_report = state.get("macro_regime_report", "")
         macro_regime_section = (
@@ -87,6 +124,16 @@ def create_news_analyst(llm):
             "- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n"
             "- Prioritize material news with quantifiable impact over speculative commentary.\n"
             "- Attribute each claim to a specific source and date.\n\n"
+            "When citing scanner-derived claims, use this exact format: "
+            f"{scanner_citation_hint}\n"
+            "When a matching persisted article is available in the Evidence Records section, "
+            "prefer to append its stable evidence handle in the form "
+            "`[Evidence ID: ...]` so the claim can be traced back later.\n"
+            "Only cite publications or data sources that appear in the provided news feeds or the exact scanner citation above.\n"
+            "Internal prompt labels and section headers are NOT sources. Never cite labels such as "
+            "\"Macro Regime Classification\", \"Scanner Context\", \"Pre-loaded Context\", or "
+            "\"Economic Calendar\" as publications.\n"
+            "Do not invent source names. Do not describe Finviz scanner output as SEC or Form 4 evidence unless SEC filing data is explicitly present in the provided news context.\n\n"
             f"**CRITICAL OUTPUT REQUIREMENTS**:\n"
             f"Your response MUST satisfy ALL of these validation criteria:\n"
             f"1. Mention the ticker symbol \"{ticker}\" at least 5 times\n"
@@ -126,6 +173,7 @@ def create_news_analyst(llm):
                     "\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}\n\n"
                     "## Scanner Context\n\n{scanner_context}\n\n"
+                    "{evidence_context}\n\n"
                     "## Pre-loaded Context\n\n{prefetched_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
@@ -136,33 +184,82 @@ def create_news_analyst(llm):
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
         prompt = prompt.partial(scanner_context=scanner_context)
+        prompt = prompt.partial(evidence_context=evidence_context)
         prompt = prompt.partial(prefetched_context=prefetched_context)
 
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
         chain = prompt | llm
 
-        result = chain.invoke(state["messages"])
+        first_result = chain.invoke(state["messages"])
+        report = first_result.content or ""
 
-        report = result.content or ""
-        
-        # Validate output quality
-        is_valid, reason = validate_news_analysis(report, ticker)
-        
-        # Log validation result for monitoring
+        validation = validate_news_analysis_detailed(
+            report,
+            ticker,
+            allowed_source_names=allowed_source_names,
+            allowed_evidence_ids={record.evidence_id for record in evidence_records},
+            enforce_provenance=False,
+        )
         log_validation_result(
-            agent_name="news_analyst",
+            agent_name="news_analyst_attempt_1",
             ticker=ticker,
-            is_valid=is_valid,
-            reason=reason,
+            is_valid=validation.is_valid,
+            reason=validation.reason,
             output_preview=report[:500] if report else ""
         )
-        
-        # If validation fails, prepend warning to output (visible to user/downstream agents)
-        if not is_valid:
+
+        result = first_result
+        if not validation.is_valid:
             logger.warning(
-                f"News analyst output validation failed for {ticker}: {reason}"
+                "News analyst output validation failed for %s on attempt 1 (%s): %s",
+                ticker,
+                validation.code,
+                validation.reason,
             )
-            report = format_validation_warning(report, ticker, reason)
+            retry_instruction = HumanMessage(
+                content=(
+                    "Validation failed for your prior draft.\n"
+                    f"Failure code: {validation.code}\n"
+                    f"Failure reason: {validation.reason}\n"
+                    "The same full scanner context, pre-loaded news feeds, and persisted evidence records "
+                    "remain available on this retry.\n"
+                    "Rewrite the report from scratch using only the provided context. "
+                    "Only cite publications or data sources present in the provided feeds. "
+                    "Do not cite internal prompt labels or section headers like "
+                    "\"Macro Regime Classification\", \"Scanner Context\", or "
+                    "\"Pre-loaded Context\" as sources. "
+                    f"If you cite scanner-derived claims, you must use {scanner_citation_hint} exactly."
+                )
+            )
+            result = chain.invoke([*state["messages"], retry_instruction])
+            report = result.content or ""
+            validation = validate_news_analysis_detailed(
+                report,
+                ticker,
+                allowed_source_names=allowed_source_names,
+                allowed_evidence_ids={record.evidence_id for record in evidence_records},
+                # Provenance is enforced by the dedicated News Fact Checker node.
+                enforce_provenance=False,
+            )
+            log_validation_result(
+                agent_name="news_analyst_attempt_2",
+                ticker=ticker,
+                is_valid=validation.is_valid,
+                reason=validation.reason,
+                output_preview=report[:500] if report else ""
+            )
+
+            if not validation.is_valid:
+                logger.error(
+                    "News analyst output validation failed for %s on attempt 2 (%s): %s",
+                    ticker,
+                    validation.code,
+                    validation.reason,
+                )
+                report = (
+                    "[CRITICAL ABORT] Reason: News analysis failed source-validation twice "
+                    f"for {ticker} ({validation.code}) - {validation.reason}"
+                )
 
         return {
             "messages": [result],

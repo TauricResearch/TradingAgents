@@ -19,6 +19,7 @@ Skip in unit-only CI (default):
 
 import pytest
 import requests
+from functools import lru_cache
 
 # ---------------------------------------------------------------------------
 # Guard — skip every test in this file if finvizfinance is not installed.
@@ -37,6 +38,14 @@ _skip_if_no_finviz = pytest.mark.skipif(
     not _finvizfinance_available,
     reason="finvizfinance not installed — skipping live Finviz tests",
 )
+
+
+# Cache each live tool invocation once per module to avoid 20+ repeated
+# external calls in this test file.
+@lru_cache(maxsize=None)
+def _cached_live_tool_output(tool_name: str) -> str:
+    from tradingagents.agents.utils import scanner_tools as _scanner_tools
+    return getattr(_scanner_tools, tool_name).invoke({})
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -106,19 +115,19 @@ class TestRunFinvizScreen:
     def test_returns_string(self):
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         assert isinstance(result, str)
 
     def test_result_is_non_empty(self):
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         assert len(result) > 0
 
     def test_result_has_valid_prefix(self):
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         _assert_valid_result(result, "unusual_volume")
 
 
@@ -134,31 +143,31 @@ class TestGetInsiderBuyingStocks:
     def test_returns_string(self):
         from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
 
-        result = get_insider_buying_stocks.invoke({})
+        result = _cached_live_tool_output("get_insider_buying_stocks")
         assert isinstance(result, str)
 
     def test_result_is_non_empty(self):
         from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
 
-        result = get_insider_buying_stocks.invoke({})
+        result = _cached_live_tool_output("get_insider_buying_stocks")
         assert len(result) > 0
 
     def test_result_has_valid_prefix(self):
         from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
 
-        result = get_insider_buying_stocks.invoke({})
+        result = _cached_live_tool_output("get_insider_buying_stocks")
         _assert_valid_result(result, "insider_buying")
 
     def test_data_rows_have_expected_shape(self):
         from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
 
-        result = get_insider_buying_stocks.invoke({})
+        result = _cached_live_tool_output("get_insider_buying_stocks")
         _assert_ticker_rows(result, "insider_buying")
 
     def test_no_error_message_on_success(self):
         from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
 
-        result = get_insider_buying_stocks.invoke({})
+        result = _cached_live_tool_output("get_insider_buying_stocks")
         # If finviz returned data or an empty result, there should be no error
         if result.startswith("Top 5 stocks for ") or result.startswith("No stocks matched"):
             assert "Finviz error" not in result
@@ -176,31 +185,31 @@ class TestGetUnusualVolumeStocks:
     def test_returns_string(self):
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         assert isinstance(result, str)
 
     def test_result_is_non_empty(self):
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         assert len(result) > 0
 
     def test_result_has_valid_prefix(self):
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         _assert_valid_result(result, "unusual_volume")
 
     def test_data_rows_have_expected_shape(self):
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         _assert_ticker_rows(result, "unusual_volume")
 
     def test_no_error_message_on_success(self):
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         if result.startswith("Top 5 stocks for ") or result.startswith("No stocks matched"):
             assert "Finviz error" not in result
 
@@ -208,7 +217,7 @@ class TestGetUnusualVolumeStocks:
         """When data is returned, all ticker symbols must be uppercase."""
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         if not result.startswith("Top 5 stocks for "):
             pytest.skip("No data returned today")
 
@@ -233,31 +242,31 @@ class TestGetBreakoutAccumulationStocks:
     def test_returns_string(self):
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
-        result = get_breakout_accumulation_stocks.invoke({})
+        result = _cached_live_tool_output("get_breakout_accumulation_stocks")
         assert isinstance(result, str)
 
     def test_result_is_non_empty(self):
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
-        result = get_breakout_accumulation_stocks.invoke({})
+        result = _cached_live_tool_output("get_breakout_accumulation_stocks")
         assert len(result) > 0
 
     def test_result_has_valid_prefix(self):
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
-        result = get_breakout_accumulation_stocks.invoke({})
+        result = _cached_live_tool_output("get_breakout_accumulation_stocks")
         _assert_valid_result(result, "breakout_accumulation")
 
     def test_data_rows_have_expected_shape(self):
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
-        result = get_breakout_accumulation_stocks.invoke({})
+        result = _cached_live_tool_output("get_breakout_accumulation_stocks")
         _assert_ticker_rows(result, "breakout_accumulation")
 
     def test_no_error_message_on_success(self):
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
-        result = get_breakout_accumulation_stocks.invoke({})
+        result = _cached_live_tool_output("get_breakout_accumulation_stocks")
         if result.startswith("Top 5 stocks for ") or result.startswith("No stocks matched"):
             assert "Finviz error" not in result
 
@@ -265,7 +274,7 @@ class TestGetBreakoutAccumulationStocks:
         """The screener caps output at 5 rows (hardcoded head(5))."""
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
-        result = get_breakout_accumulation_stocks.invoke({})
+        result = _cached_live_tool_output("get_breakout_accumulation_stocks")
         if not result.startswith("Top 5 stocks for "):
             pytest.skip("No data returned today")
 
@@ -276,7 +285,7 @@ class TestGetBreakoutAccumulationStocks:
         """Price values after '$' must be parseable as floats."""
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
-        result = get_breakout_accumulation_stocks.invoke({})
+        result = _cached_live_tool_output("get_breakout_accumulation_stocks")
         if not result.startswith("Top 5 stocks for "):
             pytest.skip("No data returned today")
 
@@ -305,36 +314,30 @@ class TestNoInvalidFilterErrors:
     def test_insider_buying_filter_is_valid(self):
         from tradingagents.agents.utils.scanner_tools import get_insider_buying_stocks
 
-        result = get_insider_buying_stocks.invoke({})
+        result = _cached_live_tool_output("get_insider_buying_stocks")
         _assert_no_invalid_filter_error(result, "insider_buying")
 
     def test_unusual_volume_filter_is_valid(self):
         from tradingagents.agents.utils.scanner_tools import get_unusual_volume_stocks
 
-        result = get_unusual_volume_stocks.invoke({})
+        result = _cached_live_tool_output("get_unusual_volume_stocks")
         _assert_no_invalid_filter_error(result, "unusual_volume")
 
     def test_breakout_accumulation_filter_is_valid(self):
         from tradingagents.agents.utils.scanner_tools import get_breakout_accumulation_stocks
 
-        result = get_breakout_accumulation_stocks.invoke({})
+        result = _cached_live_tool_output("get_breakout_accumulation_stocks")
         _assert_no_invalid_filter_error(result, "breakout_accumulation")
 
     def test_all_three_tools_no_invalid_filter(self):
         """Single test exercising all three tools — useful for quick CI smoke run."""
-        from tradingagents.agents.utils.scanner_tools import (
-            get_breakout_accumulation_stocks,
-            get_insider_buying_stocks,
-            get_unusual_volume_stocks,
-        )
-
         tools = [
-            (get_insider_buying_stocks, "insider_buying"),
-            (get_unusual_volume_stocks, "unusual_volume"),
-            (get_breakout_accumulation_stocks, "breakout_accumulation"),
+            ("get_insider_buying_stocks", "insider_buying"),
+            ("get_unusual_volume_stocks", "unusual_volume"),
+            ("get_breakout_accumulation_stocks", "breakout_accumulation"),
         ]
-        for tool_fn, label in tools:
-            result = tool_fn.invoke({})
+        for tool_name, label in tools:
+            result = _cached_live_tool_output(tool_name)
             _assert_no_invalid_filter_error(result, label)
 
 
@@ -343,19 +346,13 @@ class TestAllThreeToolsSmoke:
     """Quick smoke test running all three tools sequentially."""
 
     def test_all_three_return_strings(self):
-        from tradingagents.agents.utils.scanner_tools import (
-            get_breakout_accumulation_stocks,
-            get_insider_buying_stocks,
-            get_unusual_volume_stocks,
-        )
-
         tools = [
-            (get_insider_buying_stocks, "insider_buying"),
-            (get_unusual_volume_stocks, "unusual_volume"),
-            (get_breakout_accumulation_stocks, "breakout_accumulation"),
+            ("get_insider_buying_stocks", "insider_buying"),
+            ("get_unusual_volume_stocks", "unusual_volume"),
+            ("get_breakout_accumulation_stocks", "breakout_accumulation"),
         ]
-        for tool_fn, label in tools:
-            result = tool_fn.invoke({})
+        for tool_name, label in tools:
+            result = _cached_live_tool_output(tool_name)
             assert isinstance(result, str), f"{label}: expected str"
             assert len(result) > 0, f"{label}: empty result"
             _assert_valid_result(result, label)

@@ -50,6 +50,7 @@ class RiskDebateState(TypedDict):
 
 
 class AgentState(MessagesState):
+    run_id: Annotated[str, "Canonical run identifier for traceability across persisted artifacts"]
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     trade_date: Annotated[str, "What date we are trading at"]
     portfolio_context: Annotated[str, "Whether the ticker is being evaluated as a holding or a candidate"]

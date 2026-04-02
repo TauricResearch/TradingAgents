@@ -418,13 +418,17 @@ def filter_smart_money_for_ticker(smart_money_report: str, ticker: str) -> str:
         return smart_money_report
     
     ticker = ticker.upper()
+
+    metadata_block, smart_money_body = _extract_smart_money_metadata_block(
+        smart_money_report
+    )
     
     # Split into paragraphs
-    paragraphs = smart_money_report.split('\n\n')
+    paragraphs = smart_money_body.split('\n\n') if smart_money_body else []
     
     # Infer the ticker's sector so we can include sector-level signals even when
     # the ticker is not named directly.
-    ticker_sector = _infer_sector_from_text(smart_money_report, ticker)
+    ticker_sector = _infer_sector_from_text(smart_money_body or smart_money_report, ticker)
     related_sectors = RELATED_SECTORS.get(ticker_sector or "", [])
 
     ticker_paragraphs: List[str] = []
@@ -447,7 +451,10 @@ def filter_smart_money_for_ticker(smart_money_report: str, ticker: str) -> str:
     if ticker_paragraphs:
         combined = ticker_paragraphs + sector_paragraphs + market_paragraphs[:2]
         result = '\n\n'.join(combined)
-        return f"[Filtered to {ticker}-specific and related sector signals]\n\n{result}"
+        return _prepend_smart_money_metadata(
+            metadata_block,
+            f"[Filtered to {ticker}-specific and related sector signals]\n\n{result}",
+        )
 
     # Ticker not found — include sector and market-wide context so the analyst
     # still receives relevant signals that affect this ticker indirectly.
@@ -458,13 +465,55 @@ def filter_smart_money_for_ticker(smart_money_report: str, ticker: str) -> str:
         if ticker_sector:
             label += f". Including {ticker_sector} sector and market-wide signals"
         label += ".]"
-        return f"{label}\n\n{result}"
+        return _prepend_smart_money_metadata(metadata_block, f"{label}\n\n{result}")
 
     # Last resort: first paragraph
     if paragraphs:
-        return f"[No {ticker}-specific signals found. General summary:]\n\n{paragraphs[0]}"
+        return _prepend_smart_money_metadata(
+            metadata_block,
+            f"[No {ticker}-specific signals found. General summary:]\n\n{paragraphs[0]}",
+        )
 
     return smart_money_report
+
+
+def _extract_smart_money_metadata_block(report: str) -> Tuple[str, str]:
+    """Split leading provenance metadata from the smart-money narrative body."""
+    if not report:
+        return "", ""
+
+    lines = report.splitlines()
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    metadata_lines: List[str] = []
+    body_start = 0
+
+    for idx, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped and metadata_lines:
+            body_start = idx + 1
+            break
+        if (
+            stripped.startswith("Source:")
+            or stripped.startswith("Scan Date:")
+            or stripped.startswith("[Source:")
+        ):
+            metadata_lines.append(stripped)
+            body_start = idx + 1
+            continue
+        break
+
+    metadata_block = "\n".join(metadata_lines).strip()
+    body = "\n".join(lines[body_start:]).strip() if metadata_lines else report.strip()
+    return metadata_block, body
+
+
+def _prepend_smart_money_metadata(metadata_block: str, body: str) -> str:
+    """Re-attach smart-money provenance metadata ahead of filtered content."""
+    body = (body or "").strip()
+    if metadata_block and body:
+        return f"{metadata_block}\n\n{body}"
+    return metadata_block or body
 
 
 def filter_factor_alignment_for_ticker(factor_report: str, ticker: str) -> str:

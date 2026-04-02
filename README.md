@@ -248,6 +248,9 @@ config = DEFAULT_CONFIG.copy()
 config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
 config["deep_think_llm"] = "gpt-5.2"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5-mini" # Model for quick tasks
+config["mid_think_llm"] = "gpt-5"        # Balanced analysis tier (used by News/Fundamentals analysts)
+config["llm_timeout"] = 180              # Global timeout for OpenAI-compatible model calls
+config["mid_think_fallback_llm"] = "gpt-5-mini"  # Optional fallback if the primary model is blocked or rate-limited
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
@@ -256,6 +259,10 @@ print(decision)
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
+
+Notes:
+- The `News Analyst` and `Fundamentals Analyst` use the `mid_think` tier by default. The news path was moved off `quick_think` to improve source attribution reliability under stricter provenance validation.
+- For OpenAI-compatible providers, the runtime now uses bounded request timeouts plus per-tier fallback models. Same-model retries happen in the client layer; model substitution happens in the engine layer.
 
 ## Contributing
 

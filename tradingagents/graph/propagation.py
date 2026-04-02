@@ -19,6 +19,7 @@ class Propagator:
         self,
         company_name: str,
         trade_date: str,
+        run_id: str,
         portfolio_context: str = "candidate",
         scanner_context_packet: str = "",
     ) -> Dict[str, Any]:
@@ -26,6 +27,7 @@ class Propagator:
         instrument = resolve_instrument(company_name, source_context="trading_graph")
         return {
             "messages": [("human", company_name)],
+            "run_id": str(run_id),
             "company_of_interest": company_name,
             "trade_date": str(trade_date),
             "portfolio_context": portfolio_context,

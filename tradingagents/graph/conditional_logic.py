@@ -42,7 +42,9 @@ class ConditionalLogic:
     def should_continue_debate(self, state: AgentState) -> str:
         """Determine if debate should continue."""
         # Only the explicit CRITICAL ABORT marker bypasses debate.
-        if state_has_critical_abort(state, "market_report", "fundamentals_report"):
+        if state_has_critical_abort(
+            state, "market_report", "news_report", "fundamentals_report"
+        ):
             return CRITICAL_ABORT_NODE
 
         if state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds:
@@ -54,7 +56,9 @@ class ConditionalLogic:
     def should_continue_risk_analysis(self, state: AgentState) -> str:
         """Determine if risk analysis should continue."""
         # Only the explicit CRITICAL ABORT marker bypasses risk analysis.
-        if state_has_critical_abort(state, "market_report", "fundamentals_report"):
+        if state_has_critical_abort(
+            state, "market_report", "news_report", "fundamentals_report"
+        ):
             return CRITICAL_ABORT_NODE
 
         if state["risk_debate_state"]["count"] >= 3 * self.max_risk_discuss_rounds:

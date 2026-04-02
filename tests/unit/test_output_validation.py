@@ -2,8 +2,12 @@
 
 import pytest
 from tradingagents.agents.utils.output_validation import (
+    extract_allowed_sources_from_context,
+    extract_explicit_sources,
+    filter_news_report_by_provenance,
     validate_ticker_relevance,
     validate_news_analysis,
+    validate_news_analysis_detailed,
     format_validation_warning,
 )
 
@@ -171,6 +175,151 @@ class TestValidateNewsAnalysis:
         assert not is_valid
         assert "mentioned only" in reason
 
+    def test_fails_for_unknown_explicit_source(self):
+        output = """
+        RIG News Analysis - 2026-03-31
+        - RIG fell 4.5% on 2026-03-31 after Scout Money reported insider pressure.
+        - According to Scout Money on 2026-03-31, RIG options flow turned negative.
+        - RIG now trades near $4.50 and RIG implied volatility rose 12%.
+        - RIG management faces funding pressure while RIG sentiment remains weak.
+        """
+
+        result = validate_news_analysis_detailed(output, "RIG")
+
+        assert not result.is_valid
+        assert result.code == "unknown_source"
+        assert "Scout Money" in result.reason
+
+    def test_accepts_explicit_source_present_in_prefetched_context(self):
+        output = """
+        BP News Analysis - 2026-03-31
+        - BP gained 18.27% in March 2026 according to AD HOC NEWS on 2026-03-31.
+        - BP remained supported by Brent crude at $109.18 while BP faced de-escalation risk.
+        - AD HOC NEWS reported BP portfolio optimization remained in focus on 2026-03-31.
+        - BP now trades with elevated event sensitivity and BP mentions remained concentrated in energy coverage.
+        """
+        context = """
+        {
+          "feed": [
+            {"source": "AD HOC NEWS", "source_domain": "AD HOC NEWS"},
+            {"source": "MarketBeat", "source_domain": "MarketBeat"}
+          ]
+        }
+        """
+
+        result = validate_news_analysis_detailed(
+            output,
+            "BP",
+            allowed_source_names=extract_allowed_sources_from_context(context),
+        )
+
+        assert result.is_valid, result.reason
+
+    def test_fails_for_internal_prompt_header_cited_as_source(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - According to Macro Regime Classification on 2026-04-02, CSTM should remain cautious.
+        - CSTM traded with materials support while CSTM remained sensitive to aluminum pricing.
+        - Macro Regime Classification reported mixed breadth and CSTM retained event sensitivity.
+        - CSTM valuation stayed in focus and CSTM sentiment remained tied to $109.58 WTI crude.
+        """
+
+        result = validate_news_analysis_detailed(output, "CSTM")
+
+        assert not result.is_valid
+        assert result.code == "unknown_source"
+        assert "Macro Regime Classification" in result.reason
+
+    def test_extract_explicit_sources_ignores_generic_company_phrases(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - The Company reported on 2026-04-02 that CSTM demand improved 8%.
+        - The Report noted on 2026-04-02 that CSTM held support near $48.02.
+        - Reuters reported on 2026-04-02 that CSTM shipments improved 8%.
+        """
+
+        sources = extract_explicit_sources(output)
+
+        assert "The Company" not in sources
+        assert "The Report" not in sources
+        assert "Reuters" in sources
+
+    def test_generic_company_phrase_does_not_trigger_unknown_source_failure(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - The Company reported on 2026-04-02 that CSTM demand improved 8%.
+        - CSTM traded near $48.02 while CSTM sentiment remained tied to materials demand.
+        - Reuters reported on 2026-04-02 that CSTM shipments improved 8%.
+        - CSTM remained in focus while CSTM coverage stayed active.
+        """
+
+        result = validate_news_analysis_detailed(
+            output,
+            "CSTM",
+            allowed_source_names={"Reuters"},
+        )
+
+        assert result.is_valid, result.reason
+
+    def test_can_skip_provenance_checks_for_pre_fact_checker_validation(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - According to Macro Regime Classification on 2026-04-02, CSTM held support near $48.02 while CSTM remained active.
+        - CSTM traded with materials support and CSTM remained sensitive to aluminum pricing.
+        - CSTM valuation stayed in focus while CSTM sentiment remained tied to $109.58 WTI crude.
+        """
+
+        result = validate_news_analysis_detailed(
+            output,
+            "CSTM",
+            enforce_provenance=False,
+        )
+
+        assert result.is_valid, result.reason
+
+    def test_fails_for_missing_scanner_citation(self):
+        output = """
+        RIG News Analysis - 2026-03-31
+        - RIG smart money activity turned negative on 2026-03-31 with unusual volume.
+        - RIG institutional flow deteriorated by 18% while RIG put volume increased 22%.
+        - Reuters reported RIG dayrates remain under pressure on 2026-03-31.
+        - RIG now trades near $4.50 and RIG remains under review.
+        """
+
+        result = validate_news_analysis_detailed(output, "RIG")
+
+        assert not result.is_valid
+        assert result.code == "missing_scanner_citation"
+
+    def test_fails_for_scanner_sec_conflation(self):
+        output = """
+        RIG News Analysis - 2026-03-31
+        - RIG showed insider buying in the smart money scanner.
+        - [Source: Finviz Smart Money Scanner | Scan Date: 2026-03-31] confirms SEC Form 4 insider buying for RIG.
+        - Reuters reported RIG contract dayrates weakened on 2026-03-31.
+        - RIG trades at $4.50 and RIG volatility rose 10% while RIG sentiment deteriorated.
+        """
+
+        result = validate_news_analysis_detailed(output, "RIG")
+
+        assert not result.is_valid
+        assert result.code == "scanner_sec_conflation"
+
+    def test_fails_for_scanner_sec_conflation_when_terms_are_far_apart_in_same_bullet(self):
+        output = """
+        RIG News Analysis - 2026-03-31
+        - [Source: Finviz Smart Money Scanner | Scan Date: 2026-03-31] RIG showed insider buying in the smart money scanner,
+          with unusually strong volume and follow-through in related flow metrics across the session, while later in the same
+          bullet the draft incorrectly labels that scanner evidence as SEC Form 4 confirmation for RIG.
+        - Reuters reported RIG contract dayrates weakened on 2026-03-31.
+        - RIG trades at $4.50 and RIG volatility rose 10% while RIG sentiment deteriorated.
+        """
+
+        result = validate_news_analysis_detailed(output, "RIG")
+
+        assert not result.is_valid
+        assert result.code == "scanner_sec_conflation"
+
 
 class TestFormatValidationWarning:
     def test_formats_warning_banner(self):
@@ -206,6 +355,24 @@ class TestFormatValidationWarning:
         assert "Line 1\nLine 2\nLine 3" in result
 
 
+class TestProvenanceFiltering:
+    def test_filter_news_report_by_provenance_removes_unknown_source_bullets(self):
+        output = """
+        CSTM News Analysis - 2026-04-02
+        - Reuters reported on 2026-04-02 that CSTM demand improved 8%.
+        - Scout Money reported on 2026-04-02 that CSTM faced undisclosed pressure.
+        - Bloomberg reported on 2026-04-01 that CSTM retained pricing support at $48.02.
+        """
+
+        sanitized, removed = filter_news_report_by_provenance(
+            output,
+            allowed_source_names={"Reuters", "Bloomberg"},
+        )
+
+        assert "Scout Money" not in sanitized
+        assert len(removed) == 1
+
+
 class TestValidationEdgeCases:
     def test_handles_empty_output(self):
         """Test validation handles empty output gracefully."""
@@ -226,6 +393,21 @@ class TestValidationEdgeCases:
         
         is_valid, reason = validate_ticker_relevance("Output", None)
         assert not is_valid
+
+    def test_extract_allowed_sources_from_context_reads_json_fields(self):
+        context = """
+        {
+          "feed": [
+            {"source": "AD HOC NEWS", "source_domain": "AD HOC NEWS"},
+            {"source": "24/7 Wall St.", "source_domain": "24/7 Wall St."}
+          ]
+        }
+        """
+
+        allowed = extract_allowed_sources_from_context(context)
+
+        assert "AD HOC NEWS" in allowed
+        assert "24/7 Wall St" in allowed
     
     def test_word_boundary_matching(self):
         """Test ticker matching respects word boundaries."""

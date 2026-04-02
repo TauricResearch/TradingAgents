@@ -26,6 +26,9 @@ market_report_abort = "[CRITICAL ABORT] Reason: Trading halted pending SEC inves
 # Fundamentals report with abort
 fundamentals_report_abort = "[CRITICAL ABORT] Reason: Negative gross margin with bankruptcy filing"
 
+# News report with abort
+news_report_abort = "[CRITICAL ABORT] Reason: News analysis failed source-validation twice for AAPL (unknown_source) - Unknown source citations detected"
+
 # Normal market report
 normal_market_report = "Market analysis shows strong bullish trend with positive momentum..."
 
@@ -193,6 +196,23 @@ class TestConditionalLogicFlowControl:
         result = cl.should_continue_debate(state)
         assert result == CRITICAL_ABORT_NODE
 
+    def test_should_continue_debate_with_news_abort(self):
+        cl = ConditionalLogic()
+        state = {
+            "market_report": normal_market_report,
+            "news_report": news_report_abort,
+            "fundamentals_report": normal_fundamentals_report,
+            "investment_debate_state": {
+                "history": [],
+                "bull_history": [],
+                "bear_history": [],
+                "current_response": "",
+                "judge_decision": "",
+                "count": 0,
+            },
+        }
+        assert cl.should_continue_debate(state) == CRITICAL_ABORT_NODE
+
     def test_should_continue_risk_analysis_with_abort(self):
         """Verify risk analysis is bypassed when abort detected."""
         cl = ConditionalLogic()
@@ -214,6 +234,27 @@ class TestConditionalLogicFlowControl:
         }
         result = cl.should_continue_risk_analysis(state)
         assert result == CRITICAL_ABORT_NODE
+
+    def test_should_continue_risk_analysis_with_news_abort(self):
+        cl = ConditionalLogic()
+        state = {
+            "market_report": normal_market_report,
+            "news_report": news_report_abort,
+            "fundamentals_report": normal_fundamentals_report,
+            "risk_debate_state": {
+                "history": [],
+                "aggressive_history": [],
+                "conservative_history": [],
+                "neutral_history": [],
+                "latest_speaker": "Aggressive",
+                "current_aggressive_response": "",
+                "current_conservative_response": "",
+                "current_neutral_response": "",
+                "judge_decision": "",
+                "count": 0,
+            },
+        }
+        assert cl.should_continue_risk_analysis(state) == CRITICAL_ABORT_NODE
 
     def test_normal_flow_without_abort(self):
         """Verify normal flow continues when no abort detected."""
@@ -385,6 +426,21 @@ class TestCriticalAbortTerminal:
         assert result["terminal_action"] == "AVOID"
         assert "Terminal Action: AVOID" in result["final_trade_decision"]
 
+    def test_news_abort_is_selected_by_terminal(self):
+        node = create_critical_abort_terminal()
+        result = node(
+            {
+                "company_of_interest": "AAPL",
+                "portfolio_context": "candidate",
+                "market_report": "",
+                "news_report": news_report_abort,
+                "fundamentals_report": "",
+                "risk_debate_state": {},
+            }
+        )
+        assert "news report" in result["final_trade_decision"].lower()
+        assert news_report_abort in result["final_trade_decision"]
+
 
 # ---------------------------------------------------------------------------
 # Analyst Report Tests
@@ -467,11 +523,12 @@ class TestFundamentalsAnalystAbortInstructions:
 class TestPortfolioManagerAbortDetection:
     """Tests for portfolio manager abort detection and response."""
 
-    def _make_abort_state(self, market_report, fundamentals_report):
+    def _make_abort_state(self, market_report, fundamentals_report, news_report=""):
         """Build a minimal state dict suitable for portfolio_manager_node."""
         return {
             "company_of_interest": "AAPL",
             "market_report": market_report,
+            "news_report": news_report,
             "fundamentals_report": fundamentals_report,
             "macro_regime_report": macro_regime_report,
             "risk_debate_state": {
@@ -484,7 +541,6 @@ class TestPortfolioManagerAbortDetection:
                 "current_neutral_response": "",
                 "count": 0,
             },
-            "news_report": "",
             "sentiment_report": "",
             "investment_plan": "BUY AAPL",
         }
@@ -562,6 +618,22 @@ class TestPortfolioManagerAbortDetection:
         result = portfolio_manager(state)
 
         assert "AVOID" in result.get("final_trade_decision", "").upper()
+
+    def test_portfolio_manager_uses_news_abort_report(self):
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = MagicMock(
+            content="RECOMMENDATION: AVOID - Source validation failed twice"
+        )
+        portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
+        state = self._make_abort_state(
+            normal_market_report,
+            normal_fundamentals_report,
+            news_report=news_report_abort,
+        )
+
+        result = portfolio_manager(state)
+
+        assert "SOURCE VALIDATION FAILED" in result.get("final_trade_decision", "").upper()
 
 
 # ---------------------------------------------------------------------------

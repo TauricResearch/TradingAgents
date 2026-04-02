@@ -67,7 +67,13 @@ def create_smart_money_scanner(llm):
 
         chain = prompt | llm.bind_tools(tools)
         result = run_tool_loop(chain, state["messages"], tools)
-        report = result.content or ""
+        report_body = (result.content or "").strip()
+        provenance_header = (
+            "Source: Finviz Smart Money Scanner\n"
+            f"Scan Date: {scan_date}\n"
+            f"[Source: Finviz Smart Money Scanner | Scan Date: {scan_date}]"
+        )
+        report = f"{provenance_header}\n\n{report_body}" if report_body else provenance_header
 
         return {
             "messages": [result],

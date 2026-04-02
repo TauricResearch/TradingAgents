@@ -22,6 +22,8 @@ export interface AgentEvent {
   status?: 'running' | 'success' | 'error' | 'graceful_skip';
   /** Error message when status is "error". */
   error?: string | null;
+  /** Sequence number for reruns within the same logical run. Base execution is 0. */
+  rerun_seq?: number;
   metrics?: {
     model: string;
     tokens_in?: number;
