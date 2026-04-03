@@ -1,6 +1,6 @@
 from typing import Annotated, Sequence
 from datetime import date, timedelta, datetime
-from typing_extensions import TypedDict, Optional
+from typing_extensions import TypedDict, Optional, NotRequired
 from langchain_openai import ChatOpenAI
 from tradingagents.agents import *
 from langgraph.prebuilt import ToolNode
@@ -60,6 +60,7 @@ class AgentState(MessagesState):
         str, "Report from the News Researcher of current world affairs"
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
+    quant_report: NotRequired[Annotated[str, "Report from the Quant Analyst"]]
 
     # researcher team discussion step
     investment_debate_state: Annotated[
