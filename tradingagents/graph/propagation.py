@@ -22,6 +22,8 @@ class Propagator:
         run_id: str,
         portfolio_context: str = "candidate",
         scanner_context_packet: str = "",
+        market_report: str = "",
+        macro_regime_report: str = "",
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
         instrument = resolve_instrument(company_name, source_context="trading_graph")
@@ -66,14 +68,15 @@ class Propagator:
                     "count": 0,
                 }
             ),
-            "market_report": "",
+            "market_report": market_report,
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "news_report_structured": {},
             "investment_plan": "",
             "trader_investment_plan": "",
             "final_trade_decision": "",
-            "macro_regime_report": "",
+            "macro_regime_report": macro_regime_report,
             "research_packet_summary": "",
             "critical_abort_reason": "",
         }

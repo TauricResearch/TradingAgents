@@ -43,43 +43,78 @@ def _records():
     ]
 
 
-def test_news_fact_checker_removes_unknown_source_bullets():
+def test_news_fact_checker_removes_unsupported_structured_claims():
     node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
         "company_of_interest": "CSTM",
         "trade_date": "2026-04-02",
-        "news_report": """
-        CSTM News Analysis - 2026-04-02
-        - Reuters reported on 2026-04-02 that CSTM demand improved 8% and CSTM held pricing support at $48.02. [Evidence ID: art_reuters_001]
-        - Scout Money reported on 2026-04-02 that CSTM faced undisclosed pressure despite CSTM strength at $48.02.
-        - Bloomberg reported on 2026-04-01 that CSTM retained support while CSTM sentiment tracked $109.58 crude. [Evidence ID: art_bloomberg_001]
-        """,
+        "news_report": "CSTM News Analysis",
+        "news_report_structured": {
+            "ticker": "CSTM",
+            "report_title": "CSTM News Analysis",
+            "claims": [
+                {
+                    "claim": "CSTM demand improved 8% and CSTM held pricing support at $48.02.",
+                    "source": "Reuters",
+                    "published_at": "2026-04-02",
+                    "evidence_id": "art_reuters_001",
+                },
+                {
+                    "claim": "CSTM faced undisclosed pressure despite CSTM strength at $48.02.",
+                    "source": "Scout Money",
+                    "published_at": "2026-04-02",
+                    "evidence_id": "art_fake_001",
+                },
+                {
+                    "claim": "CSTM retained support while CSTM sentiment tracked $109.58 crude.",
+                    "source": "Bloomberg",
+                    "published_at": "2026-04-01",
+                    "evidence_id": "art_bloomberg_001",
+                },
+            ],
+            "summary_table": [],
+        },
     }
 
     result = node(state)
 
     assert result["sender"] == "news_fact_checker"
     assert "Scout Money" not in result["news_report"]
-    assert "Reuters reported" in result["news_report"]
+    assert "[Source: Reuters | Published: 2026-04-02]" in result["news_report"]
     assert not result["news_report"].startswith("[CRITICAL ABORT]")
 
 
-def test_news_fact_checker_aborts_when_only_fake_sourced_claims_remain():
+def test_news_fact_checker_returns_placeholder_when_only_fake_structured_claims_remain():
     node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
     state = {
         "run_id": "run-001",
         "company_of_interest": "CSTM",
         "trade_date": "2026-04-02",
-        "news_report": """
-        CSTM News Analysis - 2026-04-02
-        - Scout Money reported on 2026-04-02 that CSTM faced undisclosed pressure while CSTM traded near $48.02.
-        - Macro Regime Classification reported on 2026-04-02 that CSTM should be avoided while CSTM remained sensitive to $109.58 crude.
-        - Scout Money noted on 2026-04-01 that CSTM demand weakened 8% even as CSTM held support near $48.02.
-        """,
+        "news_report": "CSTM News Analysis",
+        "news_report_structured": {
+            "ticker": "CSTM",
+            "report_title": "CSTM News Analysis",
+            "claims": [
+                {
+                    "claim": "CSTM faced undisclosed pressure while CSTM traded near $48.02.",
+                    "source": "Scout Money",
+                    "published_at": "2026-04-02",
+                    "evidence_id": "art_fake_001",
+                },
+                {
+                    "claim": "CSTM should be avoided while CSTM remained sensitive to $109.58 crude.",
+                    "source": "Macro Regime Classification",
+                    "published_at": "2026-04-02",
+                    "evidence_id": "art_fake_002",
+                },
+            ],
+            "summary_table": [],
+        },
     }
 
     result = node(state)
 
     assert result["sender"] == "news_fact_checker"
-    assert result["news_report"].startswith("[CRITICAL ABORT]")
+    assert not result["news_report"].startswith("[CRITICAL ABORT]")
+    assert "No validated news claims remained" in result["news_report"]

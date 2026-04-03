@@ -193,17 +193,10 @@ def create_market_analyst(llm):
         report = result.content or ""
         macro_regime_report = ""
 
-        # Extract macro regime section if present (from pre-loaded context or report)
+        # Macro regime is sourced only from explicit prefetch output.
         regime_data = prefetched.get("Macro Regime Classification", "")
         if regime_data and not regime_data.startswith("[Error"):
             macro_regime_report = regime_data
-        elif report and (
-            "Macro Regime Classification" in report
-            or "RISK-ON" in report.upper()
-            or "RISK-OFF" in report.upper()
-            or "TRANSITION" in report.upper()
-        ):
-            macro_regime_report = report
 
         return {
             "messages": [result],

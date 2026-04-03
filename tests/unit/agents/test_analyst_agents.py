@@ -100,11 +100,40 @@ def mock_llm_direct_report():
 def valid_news_report():
     return AIMessage(
         content="""
-        AAPL News Analysis - 2024-05-15
-        - Reuters reported on 2024-05-15 that AAPL supplier demand improved by 8%.
-        - AAPL shares closed at $189.00 on 2024-05-15, and AAPL services revenue expectations rose 4%.
-        - Bloomberg reported AAPL iPhone demand stabilized on 2024-05-14, supporting AAPL gross margin forecasts.
-        - AAPL remained the focus of analyst revisions, and AAPL now trades with 22% operating margin expectations.
+        {
+          "ticker": "AAPL",
+          "report_title": "AAPL News Analysis",
+          "claims": [
+            {
+              "claim": "AAPL supplier demand improved by 8% on 2024-05-15.",
+              "source": "Sahm",
+              "published_at": "2024-05-15",
+              "evidence_id": "art_aapl_001"
+            },
+            {
+              "claim": "AAPL services revenue expectations rose 4% on 2024-05-15.",
+              "source": "Sahm",
+              "published_at": "2024-05-15",
+              "evidence_id": "art_aapl_001"
+            },
+            {
+              "claim": "AAPL remained the focus of analyst revisions with 22% operating margin expectations.",
+              "source": "Sahm",
+              "published_at": "2024-05-15",
+              "evidence_id": "art_aapl_001"
+            }
+          ],
+          "summary_table": [
+            {
+              "date": "2024-05-15",
+              "event": "Supplier demand",
+              "metric": "Demand growth",
+              "value": "8%",
+              "source": "Sahm",
+              "evidence_id": "art_aapl_001"
+            }
+          ]
+        }
         """
     )
 
@@ -142,6 +171,7 @@ def test_news_analyst_direct_invoke(mock_state, valid_news_report):
         )
         result = node(mock_state)
     assert "AAPL News Analysis" in result["news_report"]
+    assert result["news_report_structured"]["ticker"] == "AAPL"
 
 
 def test_market_analyst_macro_regime_from_prefetch(mock_state, mock_llm_with_tool_call):
@@ -156,6 +186,43 @@ def test_market_analyst_macro_regime_from_prefetch(mock_state, mock_llm_with_too
         node = create_market_analyst(mock_llm_with_tool_call)
         result = node(mock_state)
     assert result["macro_regime_report"] == "## Risk-On\nMarket is RISK-ON."
+
+
+def test_market_analyst_macro_regime_empty_when_prefetch_missing(mock_state):
+    """Macro regime should stay empty when prefetch has no macro section."""
+    tool_call_msg = AIMessage(
+        content="",
+        tool_calls=[{"name": "mock_tool", "args": {"query": "test"}, "id": "call_123"}],
+    )
+    report = AIMessage(content="Macro Regime Classification: RISK-ON but sourced from report text only.")
+    with patch(
+        "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
+        return_value={
+            "Stock Price Data": "Date,Close\n2024-05-14,189.0",
+        },
+    ):
+        node = create_market_analyst(MockLLM([tool_call_msg, report]))
+        result = node(mock_state)
+    assert result["macro_regime_report"] == ""
+
+
+def test_market_analyst_macro_regime_empty_when_prefetch_errors(mock_state):
+    """Macro regime should stay empty when macro prefetch returns an error marker."""
+    tool_call_msg = AIMessage(
+        content="",
+        tool_calls=[{"name": "mock_tool", "args": {"query": "test"}, "id": "call_123"}],
+    )
+    report = AIMessage(content="TRANSITION regime discussed in report body.")
+    with patch(
+        "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
+        return_value={
+            "Macro Regime Classification": "[Error] upstream failure",
+            "Stock Price Data": "Date,Close\n2024-05-14,189.0",
+        },
+    ):
+        node = create_market_analyst(MockLLM([tool_call_msg, report]))
+        result = node(mock_state)
+    assert result["macro_regime_report"] == ""
 
 
 def test_social_media_analyst_no_bind_tools(mock_state, mock_llm_direct_report):
@@ -219,7 +286,7 @@ def test_news_analyst_no_bind_tools(mock_state, valid_news_report):
 
 
 def test_news_analyst_retries_once_then_passes(mock_state, valid_news_report):
-    invalid = AIMessage(content="AAPL generic commentary without dates or sources.")
+    invalid = AIMessage(content='{"ticker":"AAPL","claims":[],"summary_table":[]}')
     mock_llm = MockLLM([invalid, valid_news_report])
 
     with patch(
@@ -232,10 +299,11 @@ def test_news_analyst_retries_once_then_passes(mock_state, valid_news_report):
     assert mock_llm.runnable.call_count == 2
     assert "[CRITICAL ABORT]" not in result["news_report"]
     assert "AAPL News Analysis" in result["news_report"]
+    assert result["news_report_structured"]["ticker"] == "AAPL"
 
 
 def test_news_analyst_aborts_after_two_invalid_attempts(mock_state):
-    invalid = AIMessage(content="AAPL generic commentary without dates or sources.")
+    invalid = AIMessage(content='{"ticker":"AAPL","claims":[],"summary_table":[]}')
     mock_llm = MockLLM([invalid, invalid])
 
     with patch(
@@ -257,11 +325,31 @@ def test_news_analyst_prompt_forbids_internal_headers_as_sources():
             captured_inputs.append(input)
             return AIMessage(
                 content="""
-                CSTM News Analysis - 2026-04-02
-                - Reuters reported on 2026-04-02 that CSTM remained sensitive to aluminum demand.
-                - CSTM traded with materials support and CSTM maintained $48.02 valuation discussion.
-                - Bloomberg noted on 2026-04-01 that CSTM demand trends remained stable.
-                - CSTM remained active in coverage while CSTM sentiment stayed tied to sector data.
+                {
+                  "ticker": "CSTM",
+                  "report_title": "CSTM News Analysis",
+                  "claims": [
+                    {
+                      "claim": "CSTM remained sensitive to aluminum demand on 2026-04-02.",
+                      "source": "Sahm",
+                      "published_at": "2026-04-02",
+                      "evidence_id": "art_cstm_001"
+                    },
+                    {
+                      "claim": "CSTM maintained $48.02 valuation discussion in sector coverage.",
+                      "source": "Sahm",
+                      "published_at": "2026-04-02",
+                      "evidence_id": "art_cstm_001"
+                    },
+                    {
+                      "claim": "CSTM demand trends remained stable in the provided article context.",
+                      "source": "Sahm",
+                      "published_at": "2026-04-02",
+                      "evidence_id": "art_cstm_001"
+                    }
+                  ],
+                  "summary_table": []
+                }
                 """
             )
 
@@ -309,14 +397,34 @@ def test_news_analyst_retry_instruction_restates_internal_header_rule():
             captured_inputs.append(input)
             self.call_count += 1
             if self.call_count == 1:
-                return AIMessage(content="CSTM generic commentary without dates or sources.")
+                return AIMessage(content='{"ticker":"CSTM","claims":[],"summary_table":[]}')
             return AIMessage(
                 content="""
-                CSTM News Analysis - 2026-04-02
-                - Reuters reported on 2026-04-02 that CSTM demand improved 8%.
-                - CSTM traded near $48.02 and CSTM sentiment remained tied to materials strength.
-                - Bloomberg noted on 2026-04-01 that CSTM remained exposed to automotive demand.
-                - CSTM coverage stayed active while CSTM retained event-driven sensitivity.
+                {
+                  "ticker": "CSTM",
+                  "report_title": "CSTM News Analysis",
+                  "claims": [
+                    {
+                      "claim": "CSTM demand improved 8% in the supplied article context.",
+                      "source": "Sahm",
+                      "published_at": "2026-04-02",
+                      "evidence_id": "art_cstm_001"
+                    },
+                    {
+                      "claim": "CSTM traded near $48.02 with materials strength in focus.",
+                      "source": "Sahm",
+                      "published_at": "2026-04-02",
+                      "evidence_id": "art_cstm_001"
+                    },
+                    {
+                      "claim": "CSTM retained event-driven sensitivity in coverage.",
+                      "source": "Sahm",
+                      "published_at": "2026-04-02",
+                      "evidence_id": "art_cstm_001"
+                    }
+                  ],
+                  "summary_table": []
+                }
                 """
             )
 

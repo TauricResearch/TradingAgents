@@ -1,4 +1,4 @@
-from typing import Annotated, Sequence
+from typing import Annotated, Any, Sequence
 from datetime import date, timedelta, datetime
 from typing_extensions import TypedDict, Optional
 from langchain_openai import ChatOpenAI
@@ -70,6 +70,9 @@ class AgentState(MessagesState):
     sentiment_report: Annotated[str, "Report from the Social Media Analyst"]
     news_report: Annotated[
         str, "Report from the News Researcher of current world affairs"
+    ]
+    news_report_structured: Annotated[
+        dict[str, Any], "Structured news claims before and after fact-check pruning"
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
     research_packet_summary: Annotated[

@@ -334,6 +334,42 @@ class LangGraphEngine:
     def _execution_key(run_id: str, params: Dict[str, Any]) -> str:
         return params.get("_execution_key") or run_id
 
+    @staticmethod
+    def _load_injected_market_report(file_path: str) -> Dict[str, str]:
+        """Load a saved market report artifact for pipeline injection.
+
+        Supports:
+        - plain-text/markdown files containing only the market report
+        - JSON artifacts with a top-level ``market_report`` key and optional
+          ``macro_regime_report`` key
+        """
+        path = Path(str(file_path)).expanduser()
+        if not path.exists():
+            raise FileNotFoundError(f"Injected market report file not found: {path}")
+
+        raw_text = path.read_text(encoding="utf-8").strip()
+        if not raw_text:
+            raise ValueError(f"Injected market report file is empty: {path}")
+
+        if path.suffix.lower() == ".json":
+            payload = json.loads(raw_text)
+            if not isinstance(payload, dict):
+                raise ValueError(
+                    f"Injected market report JSON must be an object: {path}"
+                )
+            market_report = str(payload.get("market_report") or "").strip()
+            macro_regime_report = str(payload.get("macro_regime_report") or "").strip()
+            if not market_report:
+                raise ValueError(
+                    f"Injected market report JSON missing non-empty 'market_report': {path}"
+                )
+            return {
+                "market_report": market_report,
+                "macro_regime_report": macro_regime_report,
+            }
+
+        return {"market_report": raw_text, "macro_regime_report": ""}
+
     # ------------------------------------------------------------------
     # Run helpers
     # ------------------------------------------------------------------
@@ -548,7 +584,11 @@ class LangGraphEngine:
         instrument = resolve_instrument(params.get("ticker", "AAPL"), source_context="pipeline")
         ticker = instrument.canonical_symbol or "AAPL"
         date = params.get("date", time.strftime("%Y-%m-%d"))
-        analysts = params.get("analysts", ["market", "news", "fundamentals"])
+        analysts = (
+            params.get("analysts")
+            or params.get("selected_analysts")
+            or ["market", "news", "fundamentals"]
+        )
         root_run_id = self._root_run_id(run_id, params)
         execution_key = self._execution_key(run_id, params)
         store = create_report_store(run_id=root_run_id)
@@ -571,6 +611,20 @@ class LangGraphEngine:
 
         yield self._system_log(f"Starting analysis pipeline for {ticker} on {date}")
 
+        injected_market = {"market_report": "", "macro_regime_report": ""}
+        market_report_file = str(params.get("market_report_file") or "").strip()
+        if market_report_file:
+            injected_market = self._load_injected_market_report(market_report_file)
+            yield self._system_log(
+                f"Injecting saved market report for {ticker} from {market_report_file}"
+            )
+            logger.info(
+                "PIPELINE run=%s ticker=%s using injected market report file=%s",
+                root_run_id,
+                ticker,
+                market_report_file,
+            )
+
         graph_wrapper = TradingAgentsGraph(
             selected_analysts=analysts,
             config=self.config,
@@ -583,6 +637,8 @@ class LangGraphEngine:
             run_id=root_run_id,
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
+            market_report=injected_market["market_report"],
+            macro_regime_report=injected_market["macro_regime_report"],
         )
 
         self._node_start_times[execution_key] = {}

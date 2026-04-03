@@ -7,8 +7,10 @@ Tests for LangGraphEngine run modes:
   - _extract_tickers_from_scan_data (pure unit)
 """
 import asyncio
+import json
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch, call
@@ -79,6 +81,34 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
         summary = _fallback_model_summary(current, fallback)
 
         self.assertEqual(summary, "quick_think=q2, deep_think=d2")
+
+    def test_load_injected_market_report_from_markdown(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = Path(tmpdir) / "market_report.md"
+            report_path.write_text("# Market\nSaved report", encoding="utf-8")
+
+            loaded = LangGraphEngine._load_injected_market_report(str(report_path))
+
+        self.assertEqual(loaded["market_report"], "# Market\nSaved report")
+        self.assertEqual(loaded["macro_regime_report"], "")
+
+    def test_load_injected_market_report_from_json_artifact(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = Path(tmpdir) / "complete_report.json"
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "market_report": "Saved market report",
+                        "macro_regime_report": "risk-off",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            loaded = LangGraphEngine._load_injected_market_report(str(report_path))
+
+        self.assertEqual(loaded["market_report"], "Saved market report")
+        self.assertEqual(loaded["macro_regime_report"], "risk-off")
 
 
 # ---------------------------------------------------------------------------
@@ -439,6 +469,75 @@ class TestRunPipelineReportStorage(unittest.TestCase):
 
         mock_store.save_analysis.assert_not_called()
         mock_digest.assert_not_called()
+
+    def test_run_pipeline_passes_injected_market_report_to_initial_state(self):
+        mock_wrapper = self._make_mock_graph_wrapper()
+        engine = LangGraphEngine()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = Path(tmpdir) / "market_report.md"
+            report_path.write_text("Injected market report", encoding="utf-8")
+
+            with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
+                 patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
+                 patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+                 patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+                 patch.object(LangGraphEngine, "_write_complete_report_md"):
+                fake_dir = MagicMock(spec=Path)
+                fake_dir.mkdir = MagicMock()
+                mock_gtd.return_value = fake_dir
+                mock_rs_cls.return_value.save_analysis = MagicMock()
+
+                asyncio.run(
+                    _collect(
+                        engine.run_pipeline(
+                            "run1",
+                            {
+                                "ticker": "AAPL",
+                                "date": "2026-01-01",
+                                "market_report_file": str(report_path),
+                            },
+                        )
+                    )
+                )
+
+        create_initial_state = mock_wrapper.propagator.create_initial_state
+        self.assertEqual(create_initial_state.call_count, 1)
+        self.assertEqual(create_initial_state.call_args.kwargs["market_report"], "Injected market report")
+        self.assertEqual(create_initial_state.call_args.kwargs["macro_regime_report"], "")
+
+    def test_run_pipeline_uses_selected_analysts_when_analysts_missing(self):
+        mock_wrapper = self._make_mock_graph_wrapper()
+        engine = LangGraphEngine()
+
+        with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper) as mock_graph_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch.object(LangGraphEngine, "_write_complete_report_md"):
+            fake_dir = MagicMock(spec=Path)
+            fake_dir.mkdir = MagicMock()
+            mock_gtd.return_value = fake_dir
+            mock_rs_cls.return_value.save_analysis = MagicMock()
+
+            asyncio.run(
+                _collect(
+                    engine.run_pipeline(
+                        "run1",
+                        {
+                            "ticker": "AAPL",
+                            "date": "2026-01-01",
+                            "selected_analysts": ["market"],
+                        },
+                    )
+                )
+            )
+
+        mock_graph_cls.assert_called_once()
+        self.assertEqual(
+            mock_graph_cls.call_args.kwargs["selected_analysts"],
+            ["market"],
+        )
 
 
 # ---------------------------------------------------------------------------

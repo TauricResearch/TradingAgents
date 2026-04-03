@@ -5,9 +5,12 @@ from tradingagents.agents.utils.output_validation import (
     extract_allowed_sources_from_context,
     extract_explicit_sources,
     filter_news_report_by_provenance,
+    render_structured_news_payload,
+    sanitize_structured_news_payload,
     validate_ticker_relevance,
     validate_news_analysis,
     validate_news_analysis_detailed,
+    validate_structured_news_payload,
     format_validation_warning,
 )
 
@@ -417,11 +420,91 @@ class TestValidationEdgeCases:
         However, RIG stock specifically faces challenges.
         RIG is mentioned here correctly.
         """
-        
+
         is_valid, reason = validate_ticker_relevance(output, "RIG", min_mentions=2, check_article_refs=False)
-        
+
         # Should only count the 2 standalone "RIG" mentions, not TRIGGER or RIGID
         assert is_valid  # Has exactly 2 valid mentions
+
+
+class TestStructuredNewsValidation:
+    def test_validates_structured_payload(self):
+        output = """
+        {
+          "ticker": "RIG",
+          "report_title": "RIG News Analysis",
+          "claims": [
+            {"claim": "RIG dayrates weakened 4% on 2026-03-31.", "source": "Reuters", "published_at": "2026-03-31", "evidence_id": "art_rig_001"},
+            {"claim": "RIG backlog remained under pressure on 2026-03-31.", "source": "Reuters", "published_at": "2026-03-31", "evidence_id": "art_rig_002"},
+            {"claim": "RIG put activity increased 12% on 2026-03-31.", "source": "Reuters", "published_at": "2026-03-31", "evidence_id": "art_rig_003"}
+          ],
+          "summary_table": []
+        }
+        """
+
+        result = validate_structured_news_payload(output, "RIG")
+
+        assert result.is_valid, result.reason
+        assert result.payload["ticker"] == "RIG"
+
+    def test_sanitizes_structured_payload_by_evidence_id(self):
+        payload = {
+            "ticker": "CSTM",
+            "report_title": "CSTM News Analysis",
+            "claims": [
+                {
+                    "claim": "CSTM demand improved 8% on 2026-04-02.",
+                    "source": "Reuters",
+                    "published_at": "2026-04-02",
+                    "evidence_id": "art_reuters_001",
+                },
+                {
+                    "claim": "CSTM faced hidden pressure on 2026-04-02.",
+                    "source": "Scout Money",
+                    "published_at": "2026-04-02",
+                    "evidence_id": "art_fake_001",
+                },
+            ],
+            "summary_table": [],
+        }
+
+        class Record:
+            evidence_id = "art_reuters_001"
+            source = "Reuters"
+            published_at = "2026-04-02"
+
+        sanitized, removed = sanitize_structured_news_payload(
+            payload,
+            ticker="CSTM",
+            allowed_source_names={"Reuters"},
+            allowed_evidence_ids={"art_reuters_001"},
+            evidence_records_by_id={"art_reuters_001": Record()},
+        )
+
+        assert len(sanitized["claims"]) == 1
+        assert sanitized["claims"][0]["source"] == "Reuters"
+        assert removed[0]["reason"] == "unknown_evidence_id"
+
+    def test_renders_structured_payload_to_markdown(self):
+        rendered = render_structured_news_payload(
+            {
+                "ticker": "CSTM",
+                "report_title": "CSTM News Analysis",
+                "claims": [
+                    {
+                        "claim": "CSTM demand improved 8% on 2026-04-02.",
+                        "source": "Reuters",
+                        "published_at": "2026-04-02",
+                        "evidence_id": "art_reuters_001",
+                    }
+                ],
+                "summary_table": [],
+            },
+            "CSTM",
+        )
+
+        assert "CSTM News Analysis" in rendered
+        assert "[Source: Reuters | Published: 2026-04-02]" in rendered
 
 
 class TestValidationScenarios:

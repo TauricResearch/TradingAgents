@@ -543,6 +543,7 @@ class TestPortfolioManagerAbortDetection:
             },
             "sentiment_report": "",
             "investment_plan": "BUY AAPL",
+            "trader_investment_plan": "TRADER PLAN: ENTER 50% AT $249, STOP $233",
         }
 
     def test_portfolio_manager_detects_abort(self):
@@ -634,6 +635,38 @@ class TestPortfolioManagerAbortDetection:
         result = portfolio_manager(state)
 
         assert "SOURCE VALIDATION FAILED" in result.get("final_trade_decision", "").upper()
+
+    def test_portfolio_manager_uses_trader_plan_field_in_normal_flow_prompt(self):
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = MagicMock(
+            content="RECOMMENDATION: BUY - coherent with trader plan"
+        )
+        portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
+        state = self._make_abort_state(normal_market_report, normal_fundamentals_report)
+        state["investment_plan"] = "RESEARCH PLAN: SHOULD NOT APPEAR"
+        state["trader_investment_plan"] = "TRADER PLAN: USE THIS"
+
+        portfolio_manager(state)
+
+        prompt = mock_llm.invoke.call_args.args[0]
+        assert "TRADER PLAN: USE THIS" in prompt
+        assert "RESEARCH PLAN: SHOULD NOT APPEAR" not in prompt
+
+    def test_portfolio_manager_uses_trader_plan_field_in_abort_flow_prompt(self):
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = MagicMock(
+            content="RECOMMENDATION: SELL - critical abort"
+        )
+        portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
+        state = self._make_abort_state(market_report_abort, normal_fundamentals_report)
+        state["investment_plan"] = "RESEARCH PLAN: SHOULD NOT APPEAR"
+        state["trader_investment_plan"] = "TRADER PLAN: USE THIS ABORT"
+
+        portfolio_manager(state)
+
+        prompt = mock_llm.invoke.call_args.args[0]
+        assert "TRADER PLAN: USE THIS ABORT" in prompt
+        assert "RESEARCH PLAN: SHOULD NOT APPEAR" not in prompt
 
 
 # ---------------------------------------------------------------------------

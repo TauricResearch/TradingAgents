@@ -8,7 +8,9 @@ import json
 import re
 import logging
 from dataclasses import dataclass
-from typing import Iterable, Optional, Tuple
+from typing import Any, Iterable, Optional, Tuple
+
+from tradingagents.agents.utils.json_utils import extract_json
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +149,14 @@ _GENERIC_SOURCE_CANDIDATES = {
 }
 
 
+@dataclass(frozen=True)
+class StructuredNewsValidationResult:
+    is_valid: bool
+    reason: str
+    payload: dict[str, Any] | None = None
+    code: str = "ok"
+
+
 def canonicalize_source_name(
     raw_source: str,
     allowed_source_names: Iterable[str] | None = None,
@@ -209,12 +219,284 @@ def extract_allowed_sources_from_context(context: str) -> set[str]:
     return allowed
 
 
+def parse_structured_news_payload(output: str) -> dict[str, Any]:
+    """Parse the news analyst's JSON payload and normalize top-level fields."""
+    payload = extract_json(output)
+    claims = payload.get("claims")
+    summary_table = payload.get("summary_table")
+
+    payload["claims"] = claims if isinstance(claims, list) else []
+    payload["summary_table"] = summary_table if isinstance(summary_table, list) else []
+    payload["ticker"] = str(payload.get("ticker") or "").strip().upper()
+    payload["report_title"] = str(payload.get("report_title") or "").strip()
+    return payload
+
+
+def validate_structured_news_payload(
+    output: str,
+    ticker: str,
+    *,
+    min_claims: int = 3,
+) -> StructuredNewsValidationResult:
+    """Validate the analyst's structured JSON before provenance checks."""
+    try:
+        payload = parse_structured_news_payload(output)
+    except ValueError as exc:
+        return StructuredNewsValidationResult(
+            False,
+            str(exc),
+            code="invalid_json",
+        )
+
+    ticker_upper = str(ticker or "").strip().upper()
+    if not ticker_upper:
+        return StructuredNewsValidationResult(
+            False,
+            "Empty ticker",
+            payload=payload,
+            code="empty_ticker",
+        )
+
+    if payload.get("ticker") != ticker_upper:
+        return StructuredNewsValidationResult(
+            False,
+            f"Structured payload ticker '{payload.get('ticker')}' does not match expected ticker '{ticker_upper}'.",
+            payload=payload,
+            code="ticker_mismatch",
+        )
+
+    claims = payload["claims"]
+    if len(claims) < min_claims:
+        return StructuredNewsValidationResult(
+            False,
+            f"Structured payload has only {len(claims)} claims (expected {min_claims}+).",
+            payload=payload,
+            code="insufficient_claims",
+        )
+
+    valid_claims = 0
+    for index, claim in enumerate(claims, start=1):
+        if not isinstance(claim, dict):
+            return StructuredNewsValidationResult(
+                False,
+                f"Claim {index} is not a JSON object.",
+                payload=payload,
+                code="invalid_claim_shape",
+            )
+
+        summary = str(claim.get("claim") or "").strip()
+        source = str(claim.get("source") or "").strip()
+        published_at = str(claim.get("published_at") or "").strip()
+        evidence_id = str(claim.get("evidence_id") or "").strip()
+
+        if not summary:
+            return StructuredNewsValidationResult(
+                False,
+                f"Claim {index} is missing 'claim' text.",
+                payload=payload,
+                code="missing_claim_text",
+            )
+        if not source:
+            return StructuredNewsValidationResult(
+                False,
+                f"Claim {index} is missing 'source'.",
+                payload=payload,
+                code="missing_source",
+            )
+        if source == "Finviz Smart Money Scanner":
+            scan_date = str(claim.get("scan_date") or "").strip()
+            if not scan_date:
+                return StructuredNewsValidationResult(
+                    False,
+                    f"Scanner claim {index} is missing 'scan_date'.",
+                    payload=payload,
+                    code="missing_scan_date",
+                )
+        else:
+            if not published_at:
+                return StructuredNewsValidationResult(
+                    False,
+                    f"Claim {index} is missing 'published_at'.",
+                    payload=payload,
+                    code="missing_published_at",
+                )
+            if not evidence_id:
+                return StructuredNewsValidationResult(
+                    False,
+                    f"Claim {index} is missing 'evidence_id'.",
+                    payload=payload,
+                    code="missing_evidence_id",
+                )
+
+        if ticker_upper in summary.upper():
+            valid_claims += 1
+
+    if valid_claims == 0:
+        return StructuredNewsValidationResult(
+            False,
+            f"No structured claims explicitly mention {ticker_upper}.",
+            payload=payload,
+            code="ticker_relevance",
+        )
+
+    return StructuredNewsValidationResult(
+        True,
+        "Valid structured news payload",
+        payload=payload,
+    )
+
+
+def sanitize_structured_news_payload(
+    payload: dict[str, Any],
+    *,
+    ticker: str,
+    allowed_source_names: Iterable[str] | None = None,
+    allowed_evidence_ids: Iterable[str] | None = None,
+    evidence_records_by_id: dict[str, Any] | None = None,
+    min_claims: int = 2,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Drop unsupported claims and summary rows using run-scoped evidence."""
+    claims = payload.get("claims")
+    rows = payload.get("summary_table")
+    if not isinstance(claims, list):
+        claims = []
+    if not isinstance(rows, list):
+        rows = []
+
+    allowed_sources = {str(item).strip() for item in (allowed_source_names or []) if str(item).strip()}
+    allowed_ids = {str(item).strip() for item in (allowed_evidence_ids or []) if str(item).strip()}
+    records_by_id = evidence_records_by_id or {}
+
+    kept_claims: list[dict[str, Any]] = []
+    removed_claims: list[dict[str, Any]] = []
+    kept_ids: set[str] = set()
+
+    for claim in claims:
+        if not isinstance(claim, dict):
+            removed_claims.append({"reason": "invalid_claim_shape", "claim": claim})
+            continue
+
+        normalized = dict(claim)
+        source = str(normalized.get("source") or "").strip()
+        evidence_id = str(normalized.get("evidence_id") or "").strip()
+        published_at = str(normalized.get("published_at") or "").strip()
+
+        if source == "Finviz Smart Money Scanner":
+            scan_date = str(normalized.get("scan_date") or "").strip()
+            if not scan_date:
+                removed_claims.append({"reason": "missing_scan_date", "claim": claim})
+                continue
+            kept_claims.append(normalized)
+            continue
+
+        record = records_by_id.get(evidence_id)
+        if not evidence_id or evidence_id not in allowed_ids or record is None:
+            removed_claims.append({"reason": "unknown_evidence_id", "claim": claim})
+            continue
+
+        if source not in allowed_sources or source != getattr(record, "source", source):
+            removed_claims.append({"reason": "source_mismatch", "claim": claim})
+            continue
+
+        if published_at and published_at != getattr(record, "published_at", published_at):
+            removed_claims.append({"reason": "published_at_mismatch", "claim": claim})
+            continue
+
+        normalized["published_at"] = getattr(record, "published_at", published_at)
+        normalized["source"] = getattr(record, "source", source)
+        normalized["evidence_id"] = evidence_id
+        kept_claims.append(normalized)
+        kept_ids.add(evidence_id)
+
+    kept_rows: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+
+        normalized = dict(row)
+        source = str(normalized.get("source") or "").strip()
+        evidence_id = str(normalized.get("evidence_id") or "").strip()
+        if source == "Finviz Smart Money Scanner":
+            scan_date = str(normalized.get("scan_date") or "").strip()
+            if scan_date:
+                kept_rows.append(normalized)
+            continue
+
+        if evidence_id not in kept_ids:
+            continue
+        record = records_by_id.get(evidence_id)
+        if record is None:
+            continue
+        normalized["source"] = getattr(record, "source", source)
+        normalized["date"] = str(normalized.get("date") or getattr(record, "published_at", "")).strip()
+        kept_rows.append(normalized)
+
+    sanitized = {
+        "ticker": str(payload.get("ticker") or ticker).strip().upper(),
+        "report_title": str(payload.get("report_title") or "").strip(),
+        "claims": kept_claims,
+        "summary_table": kept_rows,
+    }
+    if len(kept_claims) < min_claims:
+        sanitized["claims"] = kept_claims
+    return sanitized, removed_claims
+
+
+def render_structured_news_payload(payload: dict[str, Any], ticker: str) -> str:
+    """Render validated structured news back into markdown for downstream nodes."""
+    ticker_upper = str(ticker or payload.get("ticker") or "").strip().upper()
+    lines = [payload.get("report_title") or f"{ticker_upper} News Analysis", ""]
+
+    claims = payload.get("claims") or []
+    for claim in claims:
+        if not isinstance(claim, dict):
+            continue
+        summary = str(claim.get("claim") or "").strip()
+        if not summary:
+            continue
+        if ticker_upper not in summary.upper():
+            summary = f"{ticker_upper}: {summary}"
+
+        source = str(claim.get("source") or "").strip()
+        evidence_id = str(claim.get("evidence_id") or "").strip()
+        if source == "Finviz Smart Money Scanner":
+            scan_date = str(claim.get("scan_date") or "").strip()
+            lines.append(
+                f"- {summary} [Source: Finviz Smart Money Scanner | Scan Date: {scan_date}]"
+            )
+            continue
+
+        published_at = str(claim.get("published_at") or "").strip()
+        citation = f"[Source: {source} | Published: {published_at}]"
+        if evidence_id:
+            citation += f" [Evidence ID: {evidence_id}]"
+        lines.append(f"- {summary} {citation}")
+
+    rows = payload.get("summary_table") or []
+    if rows:
+        lines.extend(["", "### Summary Table", "", "| Date | Event | Metric | Value | Source |", "|------|-------|--------|-------|--------|"])
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            date = str(row.get("date") or row.get("published_at") or "").strip()
+            event = str(row.get("event") or row.get("claim") or "").strip()
+            metric = str(row.get("metric") or "").strip()
+            value = str(row.get("value") or "").strip()
+            source = str(row.get("source") or "").strip()
+            lines.append(
+                f"| {date} | {event} | {metric} | {value} | {source} |"
+            )
+
+    return "\n".join(line for line in lines if line is not None).strip()
+
+
 def validate_news_analysis_detailed(
     output: str,
     ticker: str,
     allowed_source_names: Iterable[str] | None = None,
     allowed_evidence_ids: Iterable[str] | None = None,
     enforce_provenance: bool = True,
+    min_ticker_mentions: int = 5,
 ) -> ValidationResult:
     """Detailed validation result used by fail-closed retry logic."""
     if not output or not ticker:
@@ -222,7 +504,10 @@ def validate_news_analysis_detailed(
 
     # First check basic ticker relevance
     is_valid, reason = validate_ticker_relevance(
-        output, ticker, min_mentions=5, check_article_refs=True
+        output,
+        ticker,
+        min_mentions=min_ticker_mentions,
+        check_article_refs=True,
     )
 
     if not is_valid:
@@ -419,6 +704,12 @@ def _is_explicit_source_candidate(
 
     if canonicalize_source_name(candidate, allowed_source_names=allowed_source_names) is not None:
         return True
+
+    # Short all-caps tokens are usually ticker symbols in prose
+    # (e.g. "USO reported...", "JPM said..."), not publication names.
+    compact_candidate = re.sub(r"[^A-Za-z]", "", candidate)
+    if compact_candidate.isupper() and 1 <= len(compact_candidate) <= 5:
+        return False
 
     tokens = normalized.split()
     generic_tokens = {

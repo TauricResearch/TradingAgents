@@ -1,5 +1,8 @@
 # Live Integration Testing Strategy
 
+Related operational guide:
+- [Node-by-Node Terminal Testing Guide](/Users/Ahmet/Repo/TradingAgents/docs/testing/node-by-node-terminal-guide.md)
+
 ## Scope
 This strategy covers the recent reliability changes around:
 - Smart-money scanner provenance metadata (`Source`, `Scan Date`, canonical citation block)

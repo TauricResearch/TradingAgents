@@ -21,7 +21,7 @@ def create_portfolio_manager(llm, memory):
         news_report = state.get("news_report", "")
         fundamentals_report = state.get("fundamentals_report", "")
         sentiment_report = state.get("sentiment_report", "")
-        trader_plan = state.get("investment_plan", "")
+        trader_plan = state.get("trader_investment_plan", "")
         macro_regime_report = state.get("macro_regime_report", "")
         research_packet = build_research_packet(state)
 

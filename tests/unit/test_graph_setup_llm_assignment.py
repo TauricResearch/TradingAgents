@@ -97,3 +97,92 @@ def test_news_analyst_and_fact_checker_share_injected_evidence_store():
 
     mock_news_analyst.assert_called_once_with(mid_llm, news_evidence_store)
     mock_fact_checker.assert_called_once_with(news_evidence_store)
+
+
+def test_resolve_next_analyst_node_skips_preloaded_market_report():
+    state = {"market_report": "saved market report"}
+
+    next_node = GraphSetup._resolve_next_analyst_node(
+        state,
+        ["market", "news", "fundamentals"],
+        0,
+    )
+
+    assert next_node == "News Analyst"
+
+
+def test_resolve_next_analyst_node_falls_through_to_summary_when_all_selected_are_seeded():
+    state = {"market_report": "saved market report"}
+
+    next_node = GraphSetup._resolve_next_analyst_node(
+        state,
+        ["market"],
+        0,
+    )
+
+    assert next_node == "Research Packet Summary"
+
+
+def test_build_debate_subgraph_skips_research_packet_summary_node():
+    quick_llm = MagicMock(name="quick")
+    mid_llm = MagicMock(name="mid")
+    deep_llm = MagicMock(name="deep")
+    setup = GraphSetup(
+        quick_thinking_llm=quick_llm,
+        mid_thinking_llm=mid_llm,
+        deep_thinking_llm=deep_llm,
+        tool_nodes={},
+        bull_memory=MagicMock(),
+        bear_memory=MagicMock(),
+        trader_memory=MagicMock(),
+        invest_judge_memory=MagicMock(),
+        portfolio_manager_memory=MagicMock(),
+        conditional_logic=MagicMock(),
+        news_evidence_store=MagicMock(),
+    )
+
+    with patch("tradingagents.graph.setup.create_research_packet_summary") as mock_summary, \
+         patch("tradingagents.graph.setup.create_bull_researcher", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_bear_researcher", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_research_manager", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_trader", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_aggressive_debator", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_conservative_debator", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_neutral_debator", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_risk_round_barrier", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_risk_synthesis", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_critical_abort_terminal", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_portfolio_manager", return_value=MagicMock()):
+        setup.build_debate_subgraph()
+
+    mock_summary.assert_not_called()
+
+
+def test_build_risk_subgraph_skips_research_packet_summary_node():
+    quick_llm = MagicMock(name="quick")
+    mid_llm = MagicMock(name="mid")
+    deep_llm = MagicMock(name="deep")
+    setup = GraphSetup(
+        quick_thinking_llm=quick_llm,
+        mid_thinking_llm=mid_llm,
+        deep_thinking_llm=deep_llm,
+        tool_nodes={},
+        bull_memory=MagicMock(),
+        bear_memory=MagicMock(),
+        trader_memory=MagicMock(),
+        invest_judge_memory=MagicMock(),
+        portfolio_manager_memory=MagicMock(),
+        conditional_logic=MagicMock(),
+        news_evidence_store=MagicMock(),
+    )
+
+    with patch("tradingagents.graph.setup.create_research_packet_summary") as mock_summary, \
+         patch("tradingagents.graph.setup.create_aggressive_debator", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_conservative_debator", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_neutral_debator", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_risk_round_barrier", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_risk_synthesis", return_value=MagicMock()), \
+         patch("tradingagents.graph.setup.create_portfolio_manager", return_value=MagicMock()):
+        setup.build_risk_subgraph()
+
+    mock_summary.assert_not_called()
