@@ -289,8 +289,11 @@ def create_market_analyst(llm):
                     timeout_seconds=invoke_timeout,
                 )
                 result = AIMessage(content=report)
+                is_timeout_fallback = True
             else:
                 raise invoke_error
+        else:
+            is_timeout_fallback = False
 
         report = result.content or ""
         structured = build_market_report_structured(
@@ -298,6 +301,7 @@ def create_market_analyst(llm):
             as_of_date=current_date,
             market_report=report,
             macro_regime_report=macro_regime_report,
+            is_timeout_fallback=is_timeout_fallback,
         )
 
         return {

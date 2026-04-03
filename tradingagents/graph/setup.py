@@ -383,6 +383,9 @@ class GraphSetup:
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         workflow.add_edge(START, "Bull Researcher")
+        # Note: The debate subgraph intentionally omits "Portfolio Manager"
+        # from routing targets. should_continue_debate() never returns it,
+        # and the subgraph's terminal edge goes directly from PM to END.
         workflow.add_conditional_edges(
             "Bull Researcher",
             self.conditional_logic.should_continue_debate,

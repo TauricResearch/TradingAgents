@@ -281,7 +281,7 @@ def test_market_analyst_timeout_fallback_returns_report(mock_state, mock_llm_dir
             },
         ],
     ), patch(
-        "tradingagents.agents.analysts.market_analyst._invoke_with_timeout",
+        "tradingagents.agents.analysts.market_analyst.invoke_with_timeout",
         return_value=(None, TimeoutError("forced timeout")),
     ):
         node = create_market_analyst(mock_llm_direct_report)
@@ -289,7 +289,7 @@ def test_market_analyst_timeout_fallback_returns_report(mock_state, mock_llm_dir
 
     assert "Timeout Fallback" in result["market_report"]
     assert result["market_report_structured"]["macro_regime"] == "risk_off"
-    assert result["market_report_structured"]["status"] == "completed"
+    assert result["market_report_structured"]["status"] == "timeout_fallback"
 
 
 def test_social_media_analyst_no_bind_tools(mock_state, mock_llm_direct_report):
