@@ -1,6 +1,6 @@
 import json
 
-import agent_os.backend.services.langgraph_engine as engine_mod
+import agent_os.backend.services.scanner_context as scanner_mod
 from agent_os.backend.services.langgraph_engine import LangGraphEngine
 
 
@@ -14,7 +14,7 @@ class _StubTool:
 
 def _patch_ground_truth_tools(monkeypatch):
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_gold_price",
         _StubTool(
             """
@@ -25,7 +25,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_oil_prices",
         _StubTool(
             """
@@ -37,7 +37,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_bitcoin_price",
         _StubTool(
             """
@@ -48,7 +48,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_eur_usd_rate",
         _StubTool(
             """
@@ -59,7 +59,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_jpy_usd_rate",
         _StubTool(
             """
@@ -70,7 +70,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_cny_usd_rate",
         _StubTool(
             """
@@ -81,7 +81,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_earnings_calendar",
         _StubTool(
             """
@@ -95,7 +95,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_economic_calendar",
         _StubTool(
             """

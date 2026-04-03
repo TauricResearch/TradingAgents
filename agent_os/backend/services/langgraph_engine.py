@@ -1,40 +1,87 @@
+"""Orchestration engine for LangGraph pipeline executions.
+
+This module owns the run lifecycle (scan, pipeline, portfolio, auto)
+and delegates event mapping, scanner-context assembly, and report
+persistence to dedicated helper modules.
+"""
+
 import asyncio
-import datetime as _dt
 import json
 import logging
-import re
 import time
 from pathlib import Path
-from typing import Dict, Any, AsyncGenerator
-from agent_os.backend.store import runs as live_runs
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.graph.scanner_graph import ScannerGraph
-from tradingagents.graph.portfolio_graph import PortfolioGraph
-from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.report_paths import get_market_dir, get_ticker_dir, get_daily_dir, REPORTS_ROOT
-from tradingagents.portfolio.report_store import ReportStore
-from tradingagents.portfolio.store_factory import create_report_store
-from tradingagents.daily_digest import append_to_digest
+from typing import Any, AsyncGenerator, Dict
+
 from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.daily_digest import append_to_digest
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.graph.portfolio_graph import PortfolioGraph
+from tradingagents.graph.scanner_graph import ScannerGraph
+from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.instruments import (
     CanonicalInstrument,
     is_equity_pipeline_supported,
     resolve_instrument,
 )
-from tradingagents.agents.utils.scanner_tools import (
-    get_gold_price,
-    get_oil_prices,
-    get_bitcoin_price,
-    get_eur_usd_rate,
-    get_jpy_usd_rate,
-    get_cny_usd_rate,
-    get_earnings_calendar,
-    get_economic_calendar,
-)
 from tradingagents.observability import RunLogger, set_run_logger
+from tradingagents.portfolio.report_store import ReportStore
+from tradingagents.portfolio.store_factory import create_report_store
+from tradingagents.report_paths import (
+    REPORTS_ROOT,
+    get_daily_dir,
+    get_market_dir,
+    get_ticker_dir,
+)
+
+from agent_os.backend.services.event_mapper import (
+    EventMapper,
+    is_root_chain_end,
+    system_log,
+)
+from agent_os.backend.services.report_helpers import (
+    extract_pipeline_instruments_from_scan_data,
+    extract_tickers_from_scan_data,
+    normalize_scan_summary,
+    sanitize_for_json,
+    write_complete_report_md,
+)
+from agent_os.backend.services.run_helpers import (
+    analysis_has_deep_dive,
+    analysis_status,
+    analysis_is_terminal,
+    build_fallback_config,
+    fallback_model_summary,
+    fetch_prices,
+    is_fallback_eligible_error,
+    is_policy_error,
+    normalize_analysis_status,
+    run_should_stop,
+    tickers_from_decision,
+)
+from agent_os.backend.services.scanner_context import build_scanner_context_packet
 
 logger = logging.getLogger("agent_os.engine")
 
+# Re-export for backwards compatibility with code that imports the
+# old private names from ``langgraph_engine``.
+from agent_os.backend.services.event_mapper import (  # noqa: E402,F811
+    TOOL_SERVICE_MAP as _TOOL_SERVICE_MAP,
+)
+from agent_os.backend.store import runs as live_runs  # noqa: E402,F811
+from agent_os.backend.services.run_helpers import (  # noqa: E402,F811
+    is_policy_error as _is_policy_error,
+    is_rate_limit_error as _is_rate_limit_error,
+    is_fallback_eligible_error as _is_fallback_eligible_error,
+    build_fallback_config as _build_fallback_config,
+    fallback_model_summary as _fallback_model_summary,
+    fetch_prices as _fetch_prices,
+    tickers_from_decision as _tickers_from_decision,
+    analysis_status as _analysis_status,
+    analysis_is_terminal as _analysis_is_terminal,
+    analysis_has_deep_dive as _analysis_has_deep_dive,
+    run_should_stop as _run_should_stop,
+    normalize_analysis_status as _normalize_analysis_status,
+)
 
 class AwaitPhase3Decision(RuntimeError):
     """Raised when auto mode must pause for a user decision before Phase 3."""
@@ -48,211 +95,6 @@ class AwaitPhase3Decision(RuntimeError):
             if isinstance(item, dict)
         ) or "unknown ticker state"
         super().__init__(f"Ticker analyses require a decision before Phase 3: {summary}")
-
-# ---------------------------------------------------------------------------
-# LLM policy / 404 error helpers
-# ---------------------------------------------------------------------------
-
-def _is_policy_error(exc: Exception) -> bool:
-    """Return True if *exc* is a provider 404 / guardrail / policy error."""
-    if getattr(exc, "status_code", None) == 404:
-        return True
-    cause = getattr(exc, "__cause__", None)
-    if getattr(cause, "status_code", None) == 404:
-        return True
-    # Catch RuntimeErrors wrapped by tool_runner
-    msg = str(exc).lower()
-    return "404" in msg and ("policy" in msg or "guardrail" in msg or "openrouter" in msg)
-
-
-def _is_rate_limit_error(exc: Exception) -> bool:
-    """Return True if *exc* looks like a temporary upstream/provider rate limit."""
-    if getattr(exc, "status_code", None) == 429:
-        return True
-    cause = getattr(exc, "__cause__", None)
-    if getattr(cause, "status_code", None) == 429:
-        return True
-    msg = str(exc).lower()
-    return any(
-        token in msg
-        for token in (
-            "temporarily rate-limited upstream",
-            "retry shortly",
-            "rate limited upstream",
-            "rate-limited upstream",
-            "rate limit",
-            "429",
-        )
-    )
-
-
-def _is_fallback_eligible_error(exc: Exception) -> bool:
-    """Return True if *exc* should trigger per-tier fallback LLM substitution."""
-    return _is_policy_error(exc) or _is_rate_limit_error(exc)
-
-
-def _build_fallback_config(config: dict) -> "dict | None":
-    """Return config with per-tier fallback models substituted, or None if none set."""
-    tiers = ("quick_think", "mid_think", "deep_think")
-    replacements: dict = {}
-    for tier in tiers:
-        fb_llm = config.get(f"{tier}_fallback_llm")
-        fb_prov = config.get(f"{tier}_fallback_llm_provider")
-        if fb_llm:
-            replacements[f"{tier}_llm"] = fb_llm
-        if fb_prov:
-            replacements[f"{tier}_llm_provider"] = fb_prov
-    if not replacements:
-        return None
-    return {**config, **replacements}
-
-
-def _fallback_model_summary(current_config: dict, fallback_config: dict) -> str:
-    return ", ".join(
-        f"{tier}={fallback_config.get(f'{tier}_llm', 'same')}"
-        for tier in ("quick_think", "mid_think", "deep_think")
-        if fallback_config.get(f"{tier}_llm") != current_config.get(f"{tier}_llm")
-    )
-
-# Maximum characters of prompt/response content to include in the short message
-_MAX_CONTENT_LEN = 300
-
-
-def _fetch_prices(tickers: list[str]) -> dict[str, float]:
-    """Fetch the latest closing price for each ticker via yfinance.
-
-    Returns a dict of {ticker: price}.  Tickers that fail are silently skipped.
-    """
-    if not tickers:
-        return {}
-    try:
-        import yfinance as yf
-        data = yf.download(tickers, period="2d", auto_adjust=True, progress=False, threads=True)
-        if data.empty:
-            return {}
-        close = data["Close"] if "Close" in data.columns else data
-        # Take the last available row
-        last_row = close.iloc[-1]
-        return {
-            t: float(last_row[t])
-            for t in tickers
-            if t in last_row.index and not __import__("math").isnan(last_row[t])
-        }
-    except Exception as exc:
-        logger.warning("_fetch_prices failed: %s", exc)
-        return {}
-
-
-def _tickers_from_decision(decision: dict) -> list[str]:
-    """Extract all ticker symbols referenced in a PM decision dict."""
-    tickers = set()
-    for key in ("sells", "buys", "holds"):
-        for item in decision.get(key) or []:
-            if isinstance(item, dict):
-                t = item.get("ticker") or item.get("symbol")
-            else:
-                t = str(item)
-            if t:
-                tickers.add(t.upper())
-    return list(tickers)
-
-
-def _analysis_status(analysis: Any) -> str:
-    """Return the normalized analysis status for a saved ticker artifact."""
-    if not isinstance(analysis, dict):
-        return "missing"
-    status = str(analysis.get("analysis_status") or "").strip().lower()
-    has_final_decision = bool(str(analysis.get("final_trade_decision") or "").strip())
-    if status == "aborted":
-        return status
-    if has_final_decision:
-        return "completed"
-    if status:
-        return status
-    return "incomplete"
-
-
-def _analysis_is_completed(analysis: Any) -> bool:
-    return _analysis_status(analysis) == "completed"
-
-
-def _analysis_is_terminal(analysis: Any) -> bool:
-    return _analysis_status(analysis) in {"completed", "aborted"}
-
-
-def _analysis_has_deep_dive(analysis: Any) -> bool:
-    """Return True when a ticker analysis contains a completed deep-dive output."""
-    if not isinstance(analysis, dict):
-        return False
-    status = str(analysis.get("analysis_status") or "").strip().lower()
-    if status == "aborted":
-        return False
-    if status == "completed":
-        return True
-    return bool(str(analysis.get("final_trade_decision") or "").strip())
-
-
-def _run_should_stop(run_id: str) -> bool:
-    """Return True when a graceful stop has been requested for the root run."""
-    return bool((live_runs.get(run_id) or {}).get("stop_requested"))
-
-
-def _normalize_analysis_status(analysis: dict[str, Any]) -> str:
-    """Persist a terminal status whenever a final trade decision is present."""
-    status = str(analysis.get("analysis_status") or "").strip().lower()
-    if status == "aborted":
-        return status
-    if str(analysis.get("final_trade_decision") or "").strip():
-        return "completed"
-    if status:
-        return status
-    return "incomplete"
-
-# Maximum characters of prompt/response for the full fields (generous limit)
-_MAX_FULL_LEN = 50_000
-
-# Keywords in tool output that indicate the error was handled gracefully
-_GRACEFUL_SKIP_KEYWORDS = ("gracefully", "fallback", "skipped")
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Tool-name → primary service mapping (best-effort, used for display only)
-# ──────────────────────────────────────────────────────────────────────────────
-_TOOL_SERVICE_MAP: Dict[str, str] = {
-    # Core stock APIs
-    "get_stock_data": "yfinance",
-    "get_indicators": "yfinance",
-    # Fundamental data
-    "get_fundamentals": "yfinance",
-    "get_balance_sheet": "yfinance",
-    "get_cashflow": "yfinance",
-    "get_income_statement": "yfinance",
-    "get_ttm_analysis": "yfinance (derived)",
-    "get_peer_comparison": "yfinance (derived)",
-    "get_sector_relative": "yfinance (derived)",
-    "get_macro_regime": "yfinance (derived)",
-    # News
-    "get_news": "yfinance",
-    "get_global_news": "yfinance",
-    "get_insider_transactions": "finnhub",
-    # Scanner
-    "get_market_movers": "yfinance",
-    "get_market_indices": "finnhub",
-    "get_sector_performance": "finnhub",
-    "get_industry_performance": "yfinance",
-    "get_topic_news": "finnhub",
-    "get_earnings_calendar": "finnhub",
-    "get_economic_calendar": "finnhub",
-    # Finviz smart money
-    "get_insider_buying_stocks": "finviz",
-    "get_unusual_volume_stocks": "finviz",
-    "get_breakout_accumulation_stocks": "finviz",
-    # Portfolio (local)
-    "get_enriched_holdings": "local",
-    "compute_portfolio_risk_metrics": "local",
-    "load_portfolio_risk_metrics": "local",
-    "load_portfolio_decision": "local",
-}
-
 
 NODE_TO_PHASE = {
     # Phase analysts: re-run full pipeline from scratch
@@ -283,22 +125,30 @@ SCAN_NODE_TO_REPORT_FIELD = {
     "industry_deep_dive": "industry_deep_dive_report",
     "macro_synthesis": "macro_scan_summary",
 }
+# Keys checked when saving analyst checkpoints
+_ANALYST_KEYS = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
 
 
 class LangGraphEngine:
     """Orchestrates LangGraph pipeline executions and streams events."""
 
-    def __init__(self):
-        self.config = DEFAULT_CONFIG.copy()
+    def __init__(self) -> None:
+        self.config: Dict[str, Any] = DEFAULT_CONFIG.copy()
         self.active_runs: Dict[str, Dict[str, Any]] = {}
-        # Track node start times per run so we can compute latency
-        self._node_start_times: Dict[str, Dict[str, float]] = {}
-        # Track the last prompt per node so we can attach it to result events
-        self._node_prompts: Dict[str, Dict[str, str]] = {}
-        # Track the human-readable identifier (ticker / "MARKET" / portfolio_id) per run
-        self._run_identifiers: Dict[str, str] = {}
-        # Track RunLogger instances per run for JSONL persistence
+        self._event_mapper = EventMapper()
         self._run_loggers: Dict[str, RunLogger] = {}
+    # Backwards-compatibility properties for tests that access the mapper internals
+    @property
+    def _node_start_times(self) -> Dict[str, Dict[str, float]]:
+        return self._event_mapper._node_start_times
+
+    @property
+    def _node_prompts(self) -> Dict[str, Dict[str, str]]:
+        return self._event_mapper._node_prompts
+
+    @property
+    def _run_identifiers(self) -> Dict[str, str]:
+        return self._event_mapper._run_identifiers
 
     # ------------------------------------------------------------------
     # Run logger lifecycle
@@ -389,6 +239,64 @@ class LangGraphEngine:
             }
 
         return {"market_report": raw_text, "macro_regime_report": ""}
+    # ------------------------------------------------------------------
+    # Event mapping delegation
+    # ------------------------------------------------------------------
+
+    def _map_langgraph_event(
+        self, run_id: str, event: Dict[str, Any]
+    ) -> Dict[str, Any] | None:
+        return self._event_mapper.map_event(run_id, event)
+
+    @staticmethod
+    def _is_root_chain_end(event: Dict[str, Any]) -> bool:
+        return is_root_chain_end(event)
+
+    @staticmethod
+    def _system_log(message: str) -> Dict[str, Any]:
+        return system_log(message)
+
+    @staticmethod
+    def _extract_content(obj: object) -> str:
+        from agent_os.backend.services.event_mapper import _extract_content
+        return _extract_content(obj)
+
+    @staticmethod
+    def _safe_dict(obj: object) -> Dict[str, Any]:
+        from agent_os.backend.services.event_mapper import _safe_dict
+        return _safe_dict(obj)
+
+    # ------------------------------------------------------------------
+    # Report / scan helpers (delegate to extracted modules)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _sanitize_for_json(obj: Any) -> Any:
+        return sanitize_for_json(obj)
+
+    @staticmethod
+    def _write_complete_report_md(
+        final_state: Dict[str, Any], ticker: str, save_dir: Path
+    ) -> None:
+        return write_complete_report_md(final_state, ticker, save_dir)
+
+    @staticmethod
+    def _extract_tickers_from_scan_data(scan_data: Dict[str, Any] | None) -> list[str]:
+        return extract_tickers_from_scan_data(scan_data)
+
+    @staticmethod
+    def _extract_pipeline_instruments_from_scan_data(
+        scan_data: Dict[str, Any] | None,
+    ) -> list[CanonicalInstrument]:
+        return extract_pipeline_instruments_from_scan_data(scan_data)
+
+    @staticmethod
+    def _normalize_scan_summary(scan_data: Dict[str, Any] | None) -> Dict[str, Any]:
+        return normalize_scan_summary(scan_data)
+
+    @staticmethod
+    def _build_scanner_context_packet(scan_state: Dict[str, Any], ticker: str) -> str:
+        return build_scanner_context_packet(scan_state, ticker)
 
     # ------------------------------------------------------------------
     # Run helpers
@@ -423,8 +331,7 @@ class LangGraphEngine:
             "sender": "",
         }
 
-        self._node_start_times[execution_key] = {}
-        self._run_identifiers[execution_key] = "MARKET"
+        self._event_mapper.register_run(execution_key, "MARKET")
         final_state: Dict[str, Any] = {}
         captured_root_state = False
 
@@ -432,7 +339,7 @@ class LangGraphEngine:
             async for event in scanner.graph.astream_events(
                 initial_state, version="v2", config={"callbacks": [rl.callback]}
             ):
-                if _run_should_stop(root_run_id):
+                if run_should_stop(root_run_id):
                     logger.info("SCAN run=%s: graceful stop requested, aborting early", root_run_id)
                     yield self._system_log("Aborting macro scan due to graceful stop request.")
                     raise asyncio.CancelledError()
@@ -440,7 +347,7 @@ class LangGraphEngine:
                 # Capture the complete final state from the root graph's terminal event.
                 # LangGraph v2 emits one root-level on_chain_end (parent_ids=[], no
                 # langgraph_node in metadata) whose data.output is the full accumulated state.
-                if self._is_root_chain_end(event):
+                if is_root_chain_end(event):
                     output = (event.get("data") or {}).get("output")
                     if isinstance(output, dict):
                         captured_root_state = True
@@ -464,9 +371,7 @@ class LangGraphEngine:
 
             logger.info("Completed SCAN run=%s", root_run_id)
         finally:
-            self._node_start_times.pop(execution_key, None)
-            self._node_prompts.pop(execution_key, None)
-            self._run_identifiers.pop(execution_key, None)
+            self._event_mapper.unregister_run(execution_key)
             self._finish_run_logger(execution_key, get_market_dir(date, root_run_id))
 
     async def _save_scan_outputs(
@@ -562,8 +467,7 @@ class LangGraphEngine:
             **initial_state,
         }
 
-        self._node_start_times[execution_key] = {}
-        self._run_identifiers[execution_key] = "MARKET"
+        self._event_mapper.register_run(execution_key, "MARKET")
         final_state: Dict[str, Any] = {}
         captured_root_state = False
 
@@ -571,7 +475,7 @@ class LangGraphEngine:
             async for event in graph.astream_events(
                 seeded_state, version="v2", config={"callbacks": [rl.callback]}
             ):
-                if self._is_root_chain_end(event):
+                if is_root_chain_end(event):
                     output = (event.get("data") or {}).get("output")
                     if isinstance(output, dict):
                         captured_root_state = True
@@ -592,9 +496,7 @@ class LangGraphEngine:
 
             logger.info("Completed SCAN rerun run=%s node=%s", root_run_id, start_node)
         finally:
-            self._node_start_times.pop(execution_key, None)
-            self._node_prompts.pop(execution_key, None)
-            self._run_identifiers.pop(execution_key, None)
+            self._event_mapper.unregister_run(execution_key)
             self._finish_run_logger(execution_key, get_market_dir(date, root_run_id))
 
     async def run_pipeline(
@@ -661,8 +563,7 @@ class LangGraphEngine:
             macro_regime_report=injected_market["macro_regime_report"],
         )
 
-        self._node_start_times[execution_key] = {}
-        self._run_identifiers[execution_key] = ticker.upper()
+        self._event_mapper.register_run(execution_key, ticker.upper())
         final_state: Dict[str, Any] = {}
 
         try:
@@ -674,13 +575,13 @@ class LangGraphEngine:
                     "callbacks": [rl.callback],
                 },
             ):
-                if _run_should_stop(root_run_id):
+                if run_should_stop(root_run_id):
                     logger.info("PIPELINE run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
                     yield self._system_log(f"Aborting analysis for {ticker} due to graceful stop request.")
                     raise asyncio.CancelledError()
 
                 # Capture the complete final state from the root graph's terminal event.
-                if self._is_root_chain_end(event):
+                if is_root_chain_end(event):
                     output = (event.get("data") or {}).get("output")
                     if isinstance(output, dict):
                         final_state = output
@@ -688,7 +589,7 @@ class LangGraphEngine:
                 if mapped:
                     yield mapped
         except Exception as exc:
-            if _is_policy_error(exc):
+            if is_policy_error(exc):
                 model = self.config.get("quick_think_llm") or self.config.get("llm_provider", "unknown")
                 provider = self.config.get("llm_provider", "unknown")
                 raise RuntimeError(
@@ -698,9 +599,7 @@ class LangGraphEngine:
                 ) from exc
             raise
 
-        self._node_start_times.pop(execution_key, None)
-        self._node_prompts.pop(execution_key, None)
-        self._run_identifiers.pop(execution_key, None)
+        self._event_mapper.unregister_run(execution_key)
 
         # Fallback: if the root on_chain_end event was never captured (can happen
         # with deeply nested sub-graphs), re-invoke to get the complete final state.
@@ -730,7 +629,7 @@ class LangGraphEngine:
                 serializable_state = self._sanitize_for_json(final_state)
                 serializable_state.update(instrument.to_metadata())
                 serializable_state["ticker"] = ticker
-                serializable_state["analysis_status"] = _normalize_analysis_status(serializable_state)
+                serializable_state["analysis_status"] = normalize_analysis_status(serializable_state)
 
                 # Save JSON via store (complete_report.json)
                 store.save_analysis(date, ticker, serializable_state)
@@ -748,12 +647,11 @@ class LangGraphEngine:
                     append_to_digest(date, "analyze", ticker, digest_content)
 
                 # Save analysts checkpoint (any analyst report populated — social is optional)
-                _analyst_keys = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
-                if any(final_state.get(k) for k in _analyst_keys):
+                if any(final_state.get(k) for k in _ANALYST_KEYS):
                     analysts_ckpt = {
                         "company_of_interest": ticker,
                         "trade_date": date,
-                        **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                        **{k: serializable_state.get(k, "") for k in _ANALYST_KEYS},
                         "market_report_structured": serializable_state.get("market_report_structured", {}),
                         "news_report_structured": serializable_state.get("news_report_structured", {}),
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
@@ -767,7 +665,7 @@ class LangGraphEngine:
                     trader_ckpt = {
                         "company_of_interest": ticker,
                         "trade_date": date,
-                        **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                        **{k: serializable_state.get(k, "") for k in _ANALYST_KEYS},
                         "market_report_structured": serializable_state.get("market_report_structured", {}),
                         "news_report_structured": serializable_state.get("news_report_structured", {}),
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
@@ -841,7 +739,7 @@ class LangGraphEngine:
                         (analysis or {}).get("instrument_key")
                         or resolve_instrument(ticker_dir.name, source_context="analysis").instrument_key
                     )
-                    if _analysis_has_deep_dive(analysis):
+                    if analysis_has_deep_dive(analysis):
                         ticker_analyses[instrument_key] = analysis
                         seen_tickers.add(instrument_key)
                     elif analysis:
@@ -884,7 +782,7 @@ class LangGraphEngine:
         all_tickers = list(
             {t.upper() for t in holding_tickers + analysis_tickers if t} | {CASH_SWEEP_ETF}
         )
-        prices = _fetch_prices(all_tickers) if all_tickers else {}
+        prices = fetch_prices(all_tickers) if all_tickers else {}
 
         initial_state = {
             "portfolio_id": portfolio_id,
@@ -902,19 +800,18 @@ class LangGraphEngine:
             "sender": "",
         }
 
-        self._node_start_times[execution_key] = {}
-        self._run_identifiers[execution_key] = portfolio_id
+        self._event_mapper.register_run(execution_key, portfolio_id)
         final_state: Dict[str, Any] = {}
 
         async for event in portfolio_graph.graph.astream_events(
             initial_state, version="v2", config={"callbacks": [rl.callback]}
         ):
-            if _run_should_stop(root_run_id):
+            if run_should_stop(root_run_id):
                 logger.info("PORTFOLIO run=%s: graceful stop requested, aborting early", root_run_id)
                 yield self._system_log("Aborting portfolio management due to graceful stop request.")
                 raise asyncio.CancelledError()
 
-            if self._is_root_chain_end(event):
+            if is_root_chain_end(event):
                 output = (event.get("data") or {}).get("output")
                 if isinstance(output, dict):
                     final_state = output
@@ -922,9 +819,7 @@ class LangGraphEngine:
             if mapped:
                 yield mapped
 
-        self._node_start_times.pop(execution_key, None)
-        self._node_prompts.pop(execution_key, None)
-        self._run_identifiers.pop(execution_key, None)
+        self._event_mapper.unregister_run(execution_key)
 
         # Fallback: if the root on_chain_end event was never captured, re-invoke.
         if not final_state:
@@ -1000,10 +895,10 @@ class LangGraphEngine:
         from tradingagents.portfolio.repository import PortfolioRepository
 
         if not prices:
-            tickers = _tickers_from_decision(decision)
+            tickers = tickers_from_decision(decision)
             if tickers:
                 yield self._system_log(f"Fetching live prices for {tickers} from yfinance…")
-                prices = _fetch_prices(tickers)
+                prices = fetch_prices(tickers)
                 logger.info("TRADE_EXECUTION run=%s: fetched prices for %s", run_id, list(prices.keys()))
             if not prices:
                 logger.warning("TRADE_EXECUTION run=%s: no prices available — execution may produce incomplete results", run_id)
@@ -1093,20 +988,19 @@ class LangGraphEngine:
                         initial_state[k] = v
 
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)
-                self._node_start_times[execution_key] = {}
-                self._run_identifiers[execution_key] = ticker.upper()
+                self._event_mapper.register_run(execution_key, ticker.upper())
                 final_state: Dict[str, Any] = {}
 
                 async for event in graph_wrapper.debate_graph.astream_events(
                     initial_state, version="v2",
                     config={"recursion_limit": graph_wrapper.propagator.max_recur_limit, "callbacks": [rl.callback]},
                 ):
-                    if _run_should_stop(root_run_id):
+                    if run_should_stop(root_run_id):
                         logger.info("PIPELINE_RERUN run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
                         yield self._system_log(f"Aborting rerun for {ticker} due to graceful stop request.")
                         raise asyncio.CancelledError()
 
-                    if self._is_root_chain_end(event):
+                    if is_root_chain_end(event):
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
@@ -1114,21 +1008,18 @@ class LangGraphEngine:
                     if mapped:
                         yield mapped
 
-                self._node_start_times.pop(execution_key, None)
-                self._node_prompts.pop(execution_key, None)
-                self._run_identifiers.pop(execution_key, None)
+                self._event_mapper.unregister_run(execution_key)
 
                 if final_state:
                     serializable_state = self._sanitize_for_json(final_state)
-                    serializable_state["analysis_status"] = _normalize_analysis_status(serializable_state)
+                    serializable_state["analysis_status"] = normalize_analysis_status(serializable_state)
                     writer_store.save_analysis(date, ticker, serializable_state)
                     # Overwrite checkpoints
-                    _analyst_keys = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
                     if final_state.get("trader_investment_plan"):
                         trader_ckpt = {
                             "company_of_interest": ticker,
                             "trade_date": date,
-                            **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                            **{k: serializable_state.get(k, "") for k in _ANALYST_KEYS},
                             "macro_regime_report": serializable_state.get("macro_regime_report", ""),
                             "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                             "investment_debate_state": serializable_state.get("investment_debate_state", {}),
@@ -1165,20 +1056,19 @@ class LangGraphEngine:
                         initial_state[k] = v
 
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)
-                self._node_start_times[execution_key] = {}
-                self._run_identifiers[execution_key] = ticker.upper()
+                self._event_mapper.register_run(execution_key, ticker.upper())
                 final_state: Dict[str, Any] = {}
 
                 async for event in graph_wrapper.risk_graph.astream_events(
                     initial_state, version="v2",
                     config={"recursion_limit": graph_wrapper.propagator.max_recur_limit, "callbacks": [rl.callback]},
                 ):
-                    if _run_should_stop(root_run_id):
+                    if run_should_stop(root_run_id):
                         logger.info("PIPELINE_RERUN_RISK run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
                         yield self._system_log(f"Aborting risk rerun for {ticker} due to graceful stop request.")
                         raise asyncio.CancelledError()
 
-                    if self._is_root_chain_end(event):
+                    if is_root_chain_end(event):
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
@@ -1186,13 +1076,11 @@ class LangGraphEngine:
                     if mapped:
                         yield mapped
 
-                self._node_start_times.pop(execution_key, None)
-                self._node_prompts.pop(execution_key, None)
-                self._run_identifiers.pop(execution_key, None)
+                self._event_mapper.unregister_run(execution_key)
 
                 if final_state:
                     serializable_state = self._sanitize_for_json(final_state)
-                    serializable_state["analysis_status"] = _normalize_analysis_status(serializable_state)
+                    serializable_state["analysis_status"] = normalize_analysis_status(serializable_state)
                     writer_store.save_analysis(date, ticker, serializable_state)
 
                 self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
@@ -1239,10 +1127,10 @@ class LangGraphEngine:
                     async for evt in self.run_scan(f"{root_run_id}:scan", scan_params):
                         yield evt
                 except Exception as exc:
-                    if _is_fallback_eligible_error(exc):
-                        fallback_config = _build_fallback_config(self.config)
+                    if is_fallback_eligible_error(exc):
+                        fallback_config = build_fallback_config(self.config)
                         if fallback_config:
-                            fallback_models = _fallback_model_summary(self.config, fallback_config)
+                            fallback_models = fallback_model_summary(self.config, fallback_config)
                             await asyncio.sleep(0)
                             yield self._system_log(
                                 "Phase 1/3: primary scan model unavailable — retrying with "
@@ -1309,7 +1197,7 @@ class LangGraphEngine:
         continue_on_ticker_failure: bool,
         include_portfolio_holdings: bool,
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        if _run_should_stop(root_run_id):
+        if run_should_stop(root_run_id):
             yield self._system_log("Graceful stop requested — finishing after the market scan phase.")
             return
 
@@ -1433,8 +1321,8 @@ class LangGraphEngine:
                     failed_tickers[ticker] = reason
 
                 existing_analysis = store.load_analysis(date, ticker)
-                if not force and _analysis_is_terminal(existing_analysis):
-                    status = _analysis_status(existing_analysis)
+                if not force and analysis_is_terminal(existing_analysis):
+                    status = analysis_status(existing_analysis)
                     await pipeline_queue.put(
                         self._system_log(f"Phase 2: Analysis for {ticker} on {date} already exists, skipping.")
                     )
@@ -1462,7 +1350,7 @@ class LangGraphEngine:
                     ):
                         await pipeline_queue.put(evt)
                     saved_analysis = store.load_analysis(date, ticker)
-                    saved_status = _analysis_status(saved_analysis)
+                    saved_status = analysis_status(saved_analysis)
                     if saved_status == "aborted":
                         aborted_tickers.append(ticker)
                         await pipeline_queue.put(
@@ -1481,16 +1369,16 @@ class LangGraphEngine:
                             )
                         )
                 except Exception as exc:
-                    if _is_fallback_eligible_error(exc):
+                    if is_fallback_eligible_error(exc):
                         logger.error(
                             "Pipeline primary model unavailable ticker=%s run=%s: %s",
                             ticker,
                             root_run_id,
                             exc,
                         )
-                        fallback_config = _build_fallback_config(self.config)
+                        fallback_config = build_fallback_config(self.config)
                         if fallback_config:
-                            fallback_models = _fallback_model_summary(self.config, fallback_config)
+                            fallback_models = fallback_model_summary(self.config, fallback_config)
                             await pipeline_queue.put(
                                 self._system_log(
                                     f"Primary model unavailable for {ticker} — retrying with "
@@ -1513,7 +1401,7 @@ class LangGraphEngine:
                                 ):
                                     await pipeline_queue.put(evt)
                                 saved_analysis = store.load_analysis(date, ticker)
-                                saved_status = _analysis_status(saved_analysis)
+                                saved_status = analysis_status(saved_analysis)
                                 if saved_status == "aborted":
                                     aborted_tickers.append(ticker)
                                     await pipeline_queue.put(
@@ -1580,7 +1468,7 @@ class LangGraphEngine:
 
                         while True:
                             while len(pending) < max_concurrent:
-                                if _run_should_stop(root_run_id):
+                                if run_should_stop(root_run_id):
                                     if not stop_logged:
                                         stop_logged = True
                                         await pipeline_queue.put(
@@ -1667,7 +1555,7 @@ class LangGraphEngine:
                         }
                     )
 
-        if _run_should_stop(root_run_id):
+        if run_should_stop(root_run_id):
             yield self._system_log("Graceful stop requested — finishing after Phase 2 without starting portfolio management.")
             return
 
@@ -1750,7 +1638,7 @@ class LangGraphEngine:
                 yield self._system_log(
                     f"Phase 3: Found saved PM decision for {portfolio_id}, resuming trade execution…"
                 )
-                prices = _fetch_prices(_tickers_from_decision(saved_decision))
+                prices = fetch_prices(tickers_from_decision(saved_decision))
                 async for evt in self.run_trade_execution(
                     root_run_id,
                     date,
@@ -1810,7 +1698,7 @@ class LangGraphEngine:
                     + ", ".join(sorted(retry_tickers))
                 )
                 for ticker in retry_tickers:
-                    if _run_should_stop(root_run_id):
+                    if run_should_stop(root_run_id):
                         logger.info("AUTO_PHASE3_DECISION run=%s: graceful stop requested, aborting early", root_run_id)
                         yield self._system_log("Aborting retry due to graceful stop request.")
                         raise asyncio.CancelledError()
@@ -1832,7 +1720,7 @@ class LangGraphEngine:
                 aborted_tickers: list[str] = []
                 for ticker, item in sorted(incomplete_map.items()):
                     analysis = store.load_analysis(date, ticker)
-                    status = _analysis_status(analysis)
+                    status = analysis_status(analysis)
                     if status == "completed":
                         completed_tickers.append(ticker)
                     elif status == "aborted":
@@ -1882,1060 +1770,3 @@ class LangGraphEngine:
                 yield evt
         finally:
             self._finish_run_logger(execution_key, get_daily_dir(date, root_run_id))
-
-    # ------------------------------------------------------------------
-    # Report helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _sanitize_for_json(obj: Any) -> Any:
-        """Recursively convert non-JSON-serializable objects to plain types.
-
-        LangGraph final states may contain LangChain message objects
-        (HumanMessage, AIMessage, etc.) in the ``messages`` field, as well as
-        other non-serializable objects from third-party libraries.  All such
-        objects are converted to strings as a last resort so ``json.dumps``
-        never raises ``TypeError``.
-        """
-        if isinstance(obj, dict):
-            return {k: LangGraphEngine._sanitize_for_json(v) for k, v in obj.items()}
-        if isinstance(obj, (list, tuple)):
-            return [LangGraphEngine._sanitize_for_json(v) for v in obj]
-        # LangChain message objects: convert to a safe dict representation
-        if hasattr(obj, "content") and hasattr(obj, "type"):
-            return {
-                "type": str(getattr(obj, "type", "unknown")),
-                "content": str(getattr(obj, "content", "")),
-            }
-        # Native JSON-serializable scalar types — return as-is
-        if isinstance(obj, (str, int, float, bool, type(None))):
-            return obj
-        # Anything else (custom objects, datetimes, etc.) — stringify
-        return str(obj)
-
-    @staticmethod
-    def _write_complete_report_md(
-        final_state: Dict[str, Any], ticker: str, save_dir: Path
-    ) -> None:
-        """Write a human-readable complete_report.md from the pipeline final state."""
-        sections = []
-        header = (
-            f"# Trading Analysis Report: {ticker}\n\n"
-            f"Generated: {_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        )
-
-        analyst_parts = []
-        for key, label in (
-            ("market_report", "Market Analyst"),
-            ("sentiment_report", "Social Analyst"),
-            ("news_report", "News Analyst"),
-            ("fundamentals_report", "Fundamentals Analyst"),
-        ):
-            if final_state.get(key):
-                analyst_parts.append(f"### {label}\n{final_state[key]}")
-        if analyst_parts:
-            sections.append("## I. Analyst Team Reports\n\n" + "\n\n".join(analyst_parts))
-
-        if final_state.get("investment_plan"):
-            sections.append(f"## II. Research Team Decision\n\n{final_state['investment_plan']}")
-
-        if final_state.get("trader_investment_plan"):
-            sections.append(f"## III. Trading Team Plan\n\n{final_state['trader_investment_plan']}")
-
-        if final_state.get("final_trade_decision"):
-            sections.append(f"## IV. Final Decision\n\n{final_state['final_trade_decision']}")
-
-        (save_dir / "complete_report.md").write_text(header + "\n\n".join(sections))
-
-    @staticmethod
-    def _extract_tickers_from_scan_data(scan_data: Dict[str, Any] | None) -> list[str]:
-        """Extract ticker symbols from a ReportStore scan summary dict.
-
-        Handles two shapes from the macro synthesis LLM output:
-        * List of dicts: ``[{'ticker': 'AAPL', ...}, ...]``
-        * List of strings: ``['AAPL', 'TSLA', ...]``
-
-        Also checks both ``stocks_to_investigate`` and ``watchlist`` keys.
-        Returns a deduplicated list of common-stock symbols in original order.
-        """
-        if not scan_data:
-            return []
-        raw_stocks = scan_data.get("equity_candidates") or scan_data.get("stocks_to_investigate") or scan_data.get("watchlist") or []
-        seen: set[str] = set()
-        tickers: list[str] = []
-        for item in raw_stocks:
-            if isinstance(item, dict):
-                sym = item.get("ticker") or item.get("symbol") or ""
-            elif isinstance(item, str):
-                sym = item
-            else:
-                continue
-            instrument = resolve_instrument(sym, source_context="scan")
-            if not is_equity_pipeline_supported(instrument):
-                continue
-            if instrument.canonical_symbol and instrument.canonical_symbol not in seen:
-                seen.add(instrument.canonical_symbol)
-                tickers.append(instrument.canonical_symbol)
-        return tickers
-
-    @staticmethod
-    def _extract_pipeline_instruments_from_scan_data(scan_data: Dict[str, Any] | None) -> list[CanonicalInstrument]:
-        if not scan_data:
-            return []
-        raw_stocks = scan_data.get("equity_candidates") or scan_data.get("stocks_to_investigate") or scan_data.get("watchlist") or []
-        seen: set[str] = set()
-        instruments: list[CanonicalInstrument] = []
-        for item in raw_stocks:
-            if isinstance(item, dict):
-                sym = item.get("ticker") or item.get("symbol") or ""
-            elif isinstance(item, str):
-                sym = item
-            else:
-                continue
-            instrument = resolve_instrument(sym, source_context="scan")
-            if not is_equity_pipeline_supported(instrument):
-                continue
-            if instrument.instrument_key in seen:
-                continue
-            seen.add(instrument.instrument_key)
-            instruments.append(instrument)
-        return instruments
-
-    @staticmethod
-    def _normalize_scan_summary(scan_data: Dict[str, Any] | None) -> Dict[str, Any]:
-        if not isinstance(scan_data, dict):
-            return {}
-        normalized = dict(scan_data)
-        raw_stocks = normalized.get("stocks_to_investigate") or normalized.get("watchlist")
-        if raw_stocks is None:
-            raw_stocks = normalized.get("equity_candidates") or []
-        equity_candidates: list[dict[str, Any]] = []
-        tracked_market_instruments: list[dict[str, Any]] = []
-        tracked_crypto_instruments: list[dict[str, Any]] = []
-        for item in raw_stocks:
-            if isinstance(item, dict):
-                candidate = dict(item)
-                sym = candidate.get("ticker") or candidate.get("symbol") or ""
-            elif isinstance(item, str):
-                sym = item
-                candidate = {"ticker": str(item).strip().upper()}
-            else:
-                continue
-            instrument = resolve_instrument(sym, source_context="scan")
-            candidate.update(instrument.to_metadata())
-            candidate["ticker"] = instrument.canonical_symbol
-            if is_equity_pipeline_supported(instrument):
-                equity_candidates.append(candidate)
-            elif instrument.asset_class in {"etf", "index"}:
-                tracked_market_instruments.append(candidate)
-            elif instrument.asset_class == "crypto":
-                tracked_crypto_instruments.append(candidate)
-        normalized["equity_candidates"] = equity_candidates
-        normalized["tracked_market_instruments"] = tracked_market_instruments
-        normalized["tracked_crypto_instruments"] = tracked_crypto_instruments
-        return normalized
-
-    @staticmethod
-    def _clean_line(text: Any, max_chars: int = 200) -> str:
-        line = " ".join(str(text or "").strip().split())
-        if not line:
-            return ""
-        if len(line) <= max_chars:
-            return line
-        return line[: max_chars - 3].rstrip() + "..."
-
-    @staticmethod
-    def _dedupe_keep_order(lines: list[str], max_items: int) -> list[str]:
-        seen: set[str] = set()
-        out: list[str] = []
-        for raw in lines:
-            line = LangGraphEngine._clean_line(raw)
-            if not line or line in seen:
-                continue
-            seen.add(line)
-            out.append(line)
-            if len(out) >= max_items:
-                break
-        return out
-
-    @staticmethod
-    def _top_summary_lines(text: Any, max_lines: int = 4) -> list[str]:
-        lines: list[str] = []
-        for raw in str(text or "").splitlines():
-            line = raw.strip()
-            if not line:
-                continue
-            if line.startswith("#") or line.startswith("```"):
-                continue
-            line = re.sub(r"^[-*0-9).\s]+", "", line).strip()
-            cleaned = LangGraphEngine._clean_line(line)
-            if cleaned:
-                lines.append(cleaned)
-        return LangGraphEngine._dedupe_keep_order(lines, max_lines)
-
-    @staticmethod
-    def _extract_ticker_relevant_lines(
-        text: Any,
-        ticker: str,
-        *,
-        sector_tokens: list[str] | None = None,
-        max_lines: int = 5,
-    ) -> list[str]:
-        raw_lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
-        ticker_upper = ticker.upper()
-        sector_tokens = [tok.lower() for tok in (sector_tokens or []) if tok]
-
-        ticker_hits: list[str] = []
-        sector_hits: list[str] = []
-        other_hits: list[str] = []
-        for raw in raw_lines:
-            line = re.sub(r"^[-*0-9).\s]+", "", raw).strip()
-            if not line or line.startswith("#") or line.startswith("```"):
-                continue
-            upper = line.upper()
-            lower = line.lower()
-            if ticker_upper in upper:
-                ticker_hits.append(line)
-            elif sector_tokens and any(token in lower for token in sector_tokens):
-                sector_hits.append(line)
-            else:
-                other_hits.append(line)
-
-        # Keep strict relevance when ticker/sector hits exist; only fall back to
-        # generic lines when no relevant rows are present.
-        prioritized = ticker_hits + sector_hits
-        if not prioritized:
-            prioritized = other_hits
-        return LangGraphEngine._dedupe_keep_order(prioritized, max_lines)
-
-    @staticmethod
-    def _parse_markdown_rows(raw: Any) -> list[list[str]]:
-        rows: list[list[str]] = []
-        for line in str(raw or "").splitlines():
-            stripped = line.strip()
-            if not stripped.startswith("|"):
-                continue
-            cells = [c.strip() for c in stripped.strip("|").split("|")]
-            if not cells:
-                continue
-            if all((not c) or set(c) <= {"-", ":"} for c in cells):
-                continue
-            rows.append(cells)
-        return rows
-
-    @staticmethod
-    def _drop_table_header(rows: list[list[str]], header_tokens: set[str]) -> list[list[str]]:
-        if not rows:
-            return rows
-        first = {c.lower() for c in rows[0]}
-        if first & header_tokens:
-            return rows[1:]
-        return rows
-
-    @staticmethod
-    def _format_snapshot_lines(raw: Any, *, max_rows: int = 2) -> list[str]:
-        rows = LangGraphEngine._parse_markdown_rows(raw)
-        rows = LangGraphEngine._drop_table_header(
-            rows,
-            header_tokens={"asset", "symbol", "current price", "change", "change %"},
-        )
-        out: list[str] = []
-        for row in rows[:max_rows]:
-            if len(row) >= 5:
-                out.append(f"{row[0]} {row[2]} ({row[4]})")
-            elif len(row) >= 3:
-                out.append(f"{row[0]} {row[2]}")
-            else:
-                out.append(" | ".join(row))
-        if out:
-            return LangGraphEngine._dedupe_keep_order(out, max_rows)
-        fallback = LangGraphEngine._top_summary_lines(raw, max_lines=max_rows)
-        return fallback or ["N/A"]
-
-    @staticmethod
-    def _format_filtered_earnings_rows(
-        raw: Any,
-        ticker: str,
-        peer_tickers: list[str],
-        *,
-        max_rows: int = 8,
-    ) -> list[str]:
-        rows = LangGraphEngine._parse_markdown_rows(raw)
-        rows = LangGraphEngine._drop_table_header(
-            rows,
-            header_tokens={"symbol", "company", "date", "eps estimate", "revenue estimate"},
-        )
-        ticker_set = {ticker.upper(), *[t.upper() for t in peer_tickers]}
-
-        selected: list[list[str]] = []
-        for row in rows:
-            joined = " ".join(row).upper()
-            if any(t in joined for t in ticker_set):
-                selected.append(row)
-        if not selected:
-            selected = rows[:max_rows]
-
-        formatted: list[str] = []
-        for row in selected[:max_rows]:
-            symbol = row[0] if len(row) >= 1 else "N/A"
-            event_date = row[2] if len(row) >= 3 else "N/A"
-            eps = row[3] if len(row) >= 4 else "N/A"
-            revenue = row[5] if len(row) >= 6 else (row[-1] if row else "N/A")
-            formatted.append(f"{symbol} {event_date} EPS {eps} Rev {revenue}")
-
-        if formatted:
-            return LangGraphEngine._dedupe_keep_order(formatted, max_rows)
-        fallback = LangGraphEngine._top_summary_lines(raw, max_lines=max_rows)
-        return fallback or ["N/A"]
-
-    @staticmethod
-    def _format_filtered_economic_events(raw: Any, *, max_rows: int = 8) -> list[str]:
-        rows = LangGraphEngine._parse_markdown_rows(raw)
-        rows = LangGraphEngine._drop_table_header(
-            rows,
-            header_tokens={"event", "country", "date", "impact", "actual", "forecast"},
-        )
-
-        def _priority(row: list[str]) -> int:
-            text = " ".join(row).lower()
-            high_terms = (
-                "high",
-                "fomc",
-                "cpi",
-                "pce",
-                "nfp",
-                "gdp",
-                "unemployment",
-                "fed",
-                "rate",
-            )
-            if any(term in text for term in high_terms):
-                return 0
-            if "medium" in text:
-                return 1
-            return 2
-
-        if rows:
-            ranked = sorted(rows, key=_priority)
-            formatted: list[str] = []
-            for row in ranked[:max_rows]:
-                if len(row) >= 4:
-                    formatted.append(f"{row[0]} {row[1]} Impact {row[2]} Date {row[3]}")
-                elif len(row) >= 2:
-                    formatted.append(f"{row[0]} {row[1]}")
-                else:
-                    formatted.append(" | ".join(row))
-            return LangGraphEngine._dedupe_keep_order(formatted, max_rows)
-
-        fallback = LangGraphEngine._top_summary_lines(raw, max_lines=max_rows)
-        return fallback or ["N/A"]
-
-    @staticmethod
-    def _build_scanner_context_packet(scan_state: Dict[str, Any], ticker: str) -> str:
-        """Build a compact summary-first scanner packet for Phase 2 analyst prompts."""
-        ticker = ticker.upper()
-
-        # Parse macro synthesis output as the primary handoff contract source.
-        summary_data: Dict[str, Any] = {}
-        macro_summary = scan_state.get("macro_scan_summary", "")
-        try:
-            parsed = extract_json(macro_summary) if isinstance(macro_summary, str) else macro_summary
-            if isinstance(parsed, dict):
-                summary_data = parsed
-        except Exception:
-            logger.warning("Failed to parse macro_scan_summary for scanner context packet")
-
-        candidates = summary_data.get("stocks_to_investigate") or summary_data.get("equity_candidates") or []
-        ticker_candidate: Dict[str, Any] = {}
-        peer_tickers: list[str] = []
-        for candidate in candidates:
-            if not isinstance(candidate, dict):
-                continue
-            cand_ticker = str(candidate.get("ticker") or candidate.get("symbol") or "").upper()
-            if not cand_ticker:
-                continue
-            if cand_ticker == ticker and not ticker_candidate:
-                ticker_candidate = candidate
-                continue
-            if cand_ticker != ticker and cand_ticker not in peer_tickers:
-                peer_tickers.append(cand_ticker)
-            if len(peer_tickers) >= 4:
-                break
-
-        sector_text = str(ticker_candidate.get("sector") or "")
-        sector_tokens = [
-            tok.strip().lower()
-            for tok in re.split(r"[/,|&\\-]+", sector_text)
-            if tok and tok.strip()
-        ]
-        primary_sector = LangGraphEngine._clean_line(sector_text, max_chars=60) or "Unknown"
-
-        rationale = LangGraphEngine._clean_line(
-            ticker_candidate.get("rationale") or "No ticker-specific rationale in macro summary."
-        )
-        thesis_angle = LangGraphEngine._clean_line(ticker_candidate.get("thesis_angle") or "N/A")
-        conviction = LangGraphEngine._clean_line(ticker_candidate.get("conviction") or "N/A", max_chars=40)
-        catalysts = ticker_candidate.get("key_catalysts") or []
-        if isinstance(catalysts, list):
-            catalyst_line = "; ".join(LangGraphEngine._clean_line(item, 120) for item in catalysts if str(item).strip())
-        else:
-            catalyst_line = LangGraphEngine._clean_line(catalysts, 240)
-        catalyst_line = catalyst_line or "N/A"
-
-        candidate_risks = ticker_candidate.get("risks") or []
-        if isinstance(candidate_risks, list):
-            candidate_risk_line = "; ".join(
-                LangGraphEngine._clean_line(item, 120) for item in candidate_risks if str(item).strip()
-            )
-        else:
-            candidate_risk_line = LangGraphEngine._clean_line(candidate_risks, 240)
-        candidate_risk_line = candidate_risk_line or "N/A"
-
-        theme_lines: list[str] = []
-        for item in summary_data.get("key_themes") or []:
-            if isinstance(item, dict):
-                theme = LangGraphEngine._clean_line(item.get("theme"), 80)
-                desc = LangGraphEngine._clean_line(item.get("description"), 140)
-                conviction_label = LangGraphEngine._clean_line(item.get("conviction"), 20)
-                line = f"{theme}: {desc}" if theme else desc
-                if conviction_label:
-                    line = f"{line} (conviction={conviction_label})"
-                if line.strip():
-                    theme_lines.append(line)
-            else:
-                theme_lines.append(LangGraphEngine._clean_line(item, 200))
-        theme_lines = LangGraphEngine._dedupe_keep_order(theme_lines, 4) or ["N/A"]
-
-        macro_risk_lines = [
-            LangGraphEngine._clean_line(item, 180)
-            for item in (summary_data.get("risk_factors") or [])
-            if str(item).strip()
-        ]
-        macro_risk_lines = LangGraphEngine._dedupe_keep_order(macro_risk_lines, 6)
-        if not macro_risk_lines:
-            macro_risk_lines = [candidate_risk_line]
-
-        # Scanner summaries (summary-first: intentionally do NOT ingest raw *_report payloads).
-        smart_money_summary = scan_state.get("smart_money_summary", "")
-        factor_summary = scan_state.get("factor_alignment_summary", "")
-        drift_summary = scan_state.get("drift_opportunities_summary", "")
-        sector_summary = scan_state.get("sector_summary", "")
-        geopolitical_summary = scan_state.get("geopolitical_summary", "")
-        market_movers_summary = scan_state.get("market_movers_summary", "")
-        industry_summary = scan_state.get("industry_deep_dive_summary", "")
-
-        smart_lines = LangGraphEngine._extract_ticker_relevant_lines(
-            smart_money_summary,
-            ticker,
-            sector_tokens=sector_tokens,
-            max_lines=5,
-        ) or ["N/A"]
-        factor_lines = LangGraphEngine._extract_ticker_relevant_lines(
-            factor_summary,
-            ticker,
-            sector_tokens=sector_tokens,
-            max_lines=5,
-        ) or ["N/A"]
-        drift_lines = LangGraphEngine._extract_ticker_relevant_lines(
-            drift_summary,
-            ticker,
-            sector_tokens=sector_tokens,
-            max_lines=5,
-        ) or ["N/A"]
-        sector_lines = LangGraphEngine._extract_ticker_relevant_lines(
-            sector_summary,
-            ticker,
-            sector_tokens=sector_tokens,
-            max_lines=3,
-        ) or ["N/A"]
-        market_pulse_lines = LangGraphEngine._top_summary_lines(market_movers_summary, max_lines=2) or ["N/A"]
-        geo_pulse_lines = LangGraphEngine._top_summary_lines(geopolitical_summary, max_lines=2) or ["N/A"]
-        industry_pulse_lines = LangGraphEngine._top_summary_lines(industry_summary, max_lines=2) or ["N/A"]
-
-        # Structured ground-truth blocks (bounded extraction only).
-        gold_snapshot = ["N/A"]
-        oil_snapshot = ["N/A"]
-        btc_snapshot = ["N/A"]
-        eur_snapshot = ["N/A"]
-        jpy_snapshot = ["N/A"]
-        cny_snapshot = ["N/A"]
-        earnings_rows = ["N/A"]
-        economic_rows = ["N/A"]
-
-        try:
-            gold_snapshot = LangGraphEngine._format_snapshot_lines(get_gold_price.invoke({}), max_rows=1)
-        except Exception as e:
-            logger.warning("Failed to fetch gold price for scanner context: %s", e)
-        try:
-            oil_snapshot = LangGraphEngine._format_snapshot_lines(get_oil_prices.invoke({}), max_rows=2)
-        except Exception as e:
-            logger.warning("Failed to fetch oil prices for scanner context: %s", e)
-        try:
-            btc_snapshot = LangGraphEngine._format_snapshot_lines(get_bitcoin_price.invoke({}), max_rows=1)
-        except Exception as e:
-            logger.warning("Failed to fetch bitcoin price for scanner context: %s", e)
-        try:
-            eur_snapshot = LangGraphEngine._format_snapshot_lines(get_eur_usd_rate.invoke({}), max_rows=1)
-        except Exception as e:
-            logger.warning("Failed to fetch EUR/USD rate for scanner context: %s", e)
-        try:
-            jpy_snapshot = LangGraphEngine._format_snapshot_lines(get_jpy_usd_rate.invoke({}), max_rows=1)
-        except Exception as e:
-            logger.warning("Failed to fetch JPY/USD rate for scanner context: %s", e)
-        try:
-            cny_snapshot = LangGraphEngine._format_snapshot_lines(get_cny_usd_rate.invoke({}), max_rows=1)
-        except Exception as e:
-            logger.warning("Failed to fetch CNY/USD rate for scanner context: %s", e)
-
-        scan_date_str = scan_state.get("scan_date", time.strftime("%Y-%m-%d"))
-        try:
-            scan_dt = _dt.datetime.strptime(scan_date_str, "%Y-%m-%d")
-            from_date = (scan_dt - _dt.timedelta(days=7)).strftime("%Y-%m-%d")
-            to_date = (scan_dt + _dt.timedelta(days=14)).strftime("%Y-%m-%d")
-
-            try:
-                earnings_rows = LangGraphEngine._format_filtered_earnings_rows(
-                    get_earnings_calendar.invoke({"from_date": from_date, "to_date": to_date}),
-                    ticker,
-                    peer_tickers,
-                    max_rows=8,
-                )
-            except Exception as e:
-                logger.warning("Failed to fetch earnings calendar for scanner context: %s", e)
-            try:
-                economic_rows = LangGraphEngine._format_filtered_economic_events(
-                    get_economic_calendar.invoke({"from_date": from_date, "to_date": to_date}),
-                    max_rows=8,
-                )
-            except Exception as e:
-                logger.warning("Failed to fetch economic calendar for scanner context: %s", e)
-        except Exception as e:
-            logger.warning("Failed to parse scan date for calendar data: %s", e)
-
-        # Pre-build joined line blocks for the f-string template.
-        def _bullet_lines(items: list[str]) -> str:
-            return "\n".join(f"- {line}" for line in items)
-
-        commodity_block = _bullet_lines(gold_snapshot + oil_snapshot + btc_snapshot)
-        fx_block = _bullet_lines(eur_snapshot + jpy_snapshot + cny_snapshot)
-        earnings_block = _bullet_lines(earnings_rows)
-        economic_block = _bullet_lines(economic_rows)
-        smart_block = _bullet_lines(smart_lines)
-        factor_block = _bullet_lines(factor_lines)
-        drift_block = _bullet_lines(drift_lines)
-        sector_block = _bullet_lines(sector_lines)
-        spillover_block = _bullet_lines(market_pulse_lines[:1])
-        themes_block = _bullet_lines(theme_lines)
-        geo_block = _bullet_lines(geo_pulse_lines)
-        movers_block = _bullet_lines(market_pulse_lines)
-        industry_block = _bullet_lines(industry_pulse_lines)
-        risk_block = _bullet_lines(macro_risk_lines)
-
-        packet = f"""# SCANNER CONTEXT PACKET: {ticker}
-Date: {scan_state.get('scan_date', 'N/A')}
-
-## 1) Selection Context
-- Ticker: {ticker}
-- Rationale: {rationale}
-- Conviction: {conviction}
-- Thesis Angle: {thesis_angle}
-- Catalysts: {catalyst_line}
-- Risks: {candidate_risk_line}
-
-## 2) Ground Truth
-### Commodity Snapshot
-{commodity_block}
-
-### FX Snapshot
-{fx_block}
-
-### Filtered Earnings Rows
-{earnings_block}
-
-### Filtered Economic Events
-{economic_block}
-
-## 3) Ticker-Relevant Scanner Signals
-### Smart Money
-{smart_block}
-
-### Factor Alignment
-{factor_block}
-
-### Drift
-{drift_block}
-
-## 4) Sector Context
-- Primary Sector: {primary_sector}
-- Sector Summary:
-{sector_block}
-- Related Spillover:
-{spillover_block}
-
-## 5) Macro Themes
-{themes_block}
-- Geopolitical Pulse:
-{geo_block}
-- Market Movers Pulse:
-{movers_block}
-- Industry Deep Dive Pulse:
-{industry_block}
-
-## 6) Risk Factors
-{risk_block}
-"""
-        return packet
-
-    # ------------------------------------------------------------------
-    # Event mapping
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _is_root_chain_end(event: Dict[str, Any]) -> bool:
-        """Return True for the root-graph terminal event in a LangGraph v2 stream.
-
-        LangGraph v2 emits one ``on_chain_end`` event per node AND one for the
-        root graph itself.  The root-graph event is distinguished by:
-
-        * ``event["metadata"]`` has no ``langgraph_node`` key  (node events always do)
-        * ``event["parent_ids"]`` is empty  (root has no parent run)
-
-        Its ``data["output"]`` contains the **complete** final state — the
-        canonical way to read the propagated state without re-running the graph.
-        """
-        if event.get("event") != "on_chain_end":
-            return False
-        metadata = event.get("metadata") or {}
-        if metadata.get("langgraph_node"):
-            return False  # This is a node event, not the root
-        parent_ids = event.get("parent_ids")
-        return parent_ids is not None and len(parent_ids) == 0
-
-    @staticmethod
-    def _extract_node_name(event: Dict[str, Any]) -> str:
-        """Extract the LangGraph node name from event metadata or tags."""
-        # Prefer metadata.langgraph_node (most reliable)
-        metadata = event.get("metadata") or {}
-        node = metadata.get("langgraph_node")
-        if node:
-            return node
-
-        # Fallback: tags like "graph:node:<name>"
-        for tag in event.get("tags", []):
-            if tag.startswith("graph:node:"):
-                return tag.split(":", 2)[-1]
-
-        # Last resort: the event name itself
-        return event.get("name", "unknown")
-
-    @staticmethod
-    def _extract_content(obj: object) -> str:
-        """Safely extract text content from a LangChain message or plain object."""
-        content = getattr(obj, "content", None)
-        # Handle cases where .content might be a method instead of a property
-        if content is not None and callable(content):
-            content = None
-        return str(content) if content is not None else str(obj)
-
-    @staticmethod
-    def _truncate(text: str, max_len: int = _MAX_CONTENT_LEN) -> str:
-        if len(text) <= max_len:
-            return text
-        return text[:max_len] + "…"
-
-    @staticmethod
-    def _system_log(message: str) -> Dict[str, Any]:
-        """Create a log-type event for informational messages."""
-        return {
-            "id": f"log_{time.time_ns()}",
-            "node_id": "__system__",
-            "type": "log",
-            "agent": "SYSTEM",
-            "message": message,
-            "metrics": {},
-        }
-
-    @staticmethod
-    def _first_message_content(messages: Any) -> str:
-        """Extract content from the first message in a LangGraph messages payload.
-
-        ``messages`` may be a flat list of message objects or a list-of-lists.
-        Returns an empty string when extraction fails.
-        """
-        if not isinstance(messages, list) or not messages:
-            return ""
-        first_item = messages[0]
-        # Handle list-of-lists (nested batches)
-        if isinstance(first_item, list):
-            if not first_item:
-                return ""
-            first_item = first_item[0]
-        content = getattr(first_item, "content", None)
-        return str(content) if content is not None else str(first_item)
-
-    def _extract_all_messages_content(self, messages: Any) -> str:
-        """Extract text from ALL messages in a LangGraph messages payload.
-
-        Returns the concatenated content of every message so the user can
-        inspect the full prompt that was sent to the LLM.
-
-        Handles several structures observed across LangChain / LangGraph versions:
-        - flat list of message objects  ``[SystemMessage, HumanMessage, ...]``
-        - list-of-lists (batched)       ``[[SystemMessage, HumanMessage, ...]]``
-        - list of plain dicts            ``[{'role': 'system', 'content': '...'}]``
-        - tuple wrapper                  ``([SystemMessage, ...],)``
-        """
-        if not messages:
-            return ""
-
-        # Unwrap single-element tuple / list-of-lists
-        items: list = messages if isinstance(messages, list) else list(messages)
-        if items and isinstance(items[0], (list, tuple)):
-            items = list(items[0])
-
-        parts: list[str] = []
-        for msg in items:
-            # LangChain message objects have .content and .type
-            content = getattr(msg, "content", None)
-            role = getattr(msg, "type", None)
-            # Plain-dict messages (e.g. {"role": "user", "content": "..."})
-            if content is None and isinstance(msg, dict):
-                content = msg.get("content", "")
-                role = msg.get("role") or msg.get("type") or "unknown"
-            if role is None:
-                role = "unknown"
-            text = str(content) if content is not None else str(msg)
-            parts.append(f"[{role}] {text}")
-
-        return "\n\n".join(parts)
-
-    def _extract_model(self, event: Dict[str, Any]) -> str:
-        """Best-effort extraction of the model name from a LangGraph event."""
-        data = event.get("data") or {};
-
-        # 1. invocation_params (standard LangChain)
-        inv = data.get("invocation_params") or {}
-        model = inv.get("model_name") or inv.get("model") or ""
-        if model:
-            return model
-
-        # 2. Serialized kwargs (OpenRouter / ChatOpenAI)
-        serialized = event.get("serialized") or data.get("serialized") or {}
-        kwargs = serialized.get("kwargs") or {}
-        model = kwargs.get("model_name") or kwargs.get("model") or ""
-        if model:
-            return model
-
-        # 3. metadata.ls_model_name (LangSmith tracing)
-        metadata = event.get("metadata") or {}
-        model = metadata.get("ls_model_name") or ""
-        if model:
-            return model
-
-        return "unknown"
-
-    @staticmethod
-    def _safe_dict(obj: object) -> Dict[str, Any]:
-        """Return *obj* if it is a dict, otherwise an empty dict.
-
-        Many LangChain message objects expose dict-like metadata
-        properties (``usage_metadata``, ``response_metadata``) but some
-        providers return non-dict types (e.g. bound methods, None, or
-        custom objects).  This helper guarantees safe ``.get()`` calls.
-        """
-        return obj if isinstance(obj, dict) else {}
-
-    def _map_langgraph_event(
-        self, run_id: str, event: Dict[str, Any]
-    ) -> Dict[str, Any] | None:
-        """Map LangGraph v2 events to AgentOS frontend contract.
-
-        Each branch is wrapped in a ``try / except`` so that a single
-        unexpected object shape never crashes the whole streaming loop.
-        """
-        kind = event.get("event", "")
-        name = event.get("name", "unknown")
-        node_name = self._extract_node_name(event)
-
-        starts = self._node_start_times.get(run_id, {})
-        prompts = self._node_prompts.setdefault(run_id, {})
-        identifier = self._run_identifiers.get(run_id, "")
-
-        # ------ LLM start ------
-        if kind == "on_chat_model_start":
-            try:
-                starts[node_name] = time.monotonic()
-
-                data = event.get("data") or {}
-
-                # Extract the full prompt being sent to the LLM.
-                # Try multiple paths observed in different LangChain versions:
-                #   1. data.messages  (most common)
-                #   2. data.input.messages  (newer LangGraph)
-                #   3. data.input  (if it's a list of messages itself)
-                #   4. data.kwargs.messages  (some providers)
-                full_prompt = ""
-                for source in (
-                    data.get("messages"),
-                    (data.get("input") or {}).get("messages") if isinstance(data.get("input"), dict) else None,
-                    data.get("input") if isinstance(data.get("input"), (list, tuple)) else None,
-                    (data.get("kwargs") or {}).get("messages"),
-                ):
-                    if source:
-                        full_prompt = self._extract_all_messages_content(source)
-                        if full_prompt:
-                            break
-
-                # If all structured extractions failed, dump a raw preview
-                if not full_prompt:
-                    raw_dump = str(data)[:_MAX_FULL_LEN]
-                    if raw_dump and raw_dump != "{}":
-                        full_prompt = f"[raw event data] {raw_dump}"
-
-                prompt_snippet = self._truncate(
-                    full_prompt.replace("\n", " "), _MAX_CONTENT_LEN
-                ) if full_prompt else ""
-
-                # Remember the full prompt so we can attach it to the result event
-                prompts[node_name] = full_prompt
-
-                model = self._extract_model(event)
-
-                logger.info(
-                    "LLM start node=%s model=%s run=%s", node_name, model, run_id
-                )
-
-                return {
-                    "id": event.get("run_id", f"thought_{time.time_ns()}").strip(),
-                    "node_id": node_name,
-                    "parent_node_id": "start",
-                    "type": "thought",
-                    "agent": node_name.upper(),
-                    "identifier": identifier,
-                    "message": f"Prompting {model}…"
-                    + (f" | {prompt_snippet}" if prompt_snippet else ""),
-                    "prompt": full_prompt,
-                    "metrics": {"model": model},
-                }
-            except Exception:
-                logger.exception("Error mapping on_chat_model_start run=%s", run_id)
-                return {
-                    "id": f"thought_err_{time.time_ns()}",
-                    "node_id": node_name,
-                    "type": "thought",
-                    "agent": node_name.upper(),
-                    "identifier": identifier,
-                    "message": f"Prompting LLM… (event parse error)",
-                    "prompt": "",
-                    "metrics": {},
-                }
-
-        # ------ Tool call ------
-        elif kind == "on_tool_start":
-            try:
-                full_input = ""
-                tool_input = ""
-                inp = (event.get("data") or {}).get("input")
-                if inp:
-                    full_input = str(inp)[:_MAX_FULL_LEN]
-                    tool_input = self._truncate(str(inp))
-
-                service = _TOOL_SERVICE_MAP.get(name, "")
-
-                logger.info("Tool start tool=%s service=%s node=%s run=%s", name, service, node_name, run_id)
-
-                return {
-                    "id": event.get("run_id", f"tool_{time.time_ns()}").strip(),
-                    "node_id": f"tool_{name}",
-                    "parent_node_id": node_name,
-                    "type": "tool",
-                    "agent": node_name.upper(),
-                    "identifier": identifier,
-                    "message": f"▶ Tool: {name}"
-                    + (f" | {tool_input}" if tool_input else ""),
-                    "prompt": full_input,
-                    "service": service,
-                    "status": "running",
-                    "metrics": {},
-                }
-            except Exception:
-                logger.exception("Error mapping on_tool_start run=%s", run_id)
-                return None
-
-        # ------ Tool result ------
-        elif kind == "on_tool_end":
-            try:
-                full_output = ""
-                tool_output = ""
-                is_error = False
-                error_message = ""
-                graceful = False
-                out = (event.get("data") or {}).get("output")
-                if out is not None:
-                    raw = self._extract_content(out)
-                    full_output = raw[:_MAX_FULL_LEN]
-                    tool_output = self._truncate(raw)
-                    # Detect errors in tool output
-                    if raw.startswith("Error") or raw.startswith("Error calling "):
-                        is_error = True
-                        error_message = raw[:500]
-                    # Detect graceful degradation (vendor fallback / empty-but-ok)
-                    raw_lower = raw.lower()
-                    if any(kw in raw_lower for kw in _GRACEFUL_SKIP_KEYWORDS):
-                        graceful = True
-                # Some LangGraph versions pass errors through the event status
-                evt_status = (event.get("data") or {}).get("status")
-                if evt_status == "error":
-                    is_error = True
-                    if not error_message:
-                        error_message = tool_output or "Unknown tool error"
-
-                service = _TOOL_SERVICE_MAP.get(name, "")
-                status = "error" if is_error else ("graceful_skip" if graceful else "success")
-                icon = "✗" if is_error else ("⚠" if graceful else "✓")
-
-                logger.info(
-                    "Tool end tool=%s status=%s node=%s run=%s",
-                    name, status, node_name, run_id,
-                )
-
-                return {
-                    "id": f"{event.get('run_id', 'tool_end')}_{time.time_ns()}",
-                    "node_id": f"tool_{name}",
-                    "parent_node_id": node_name,
-                    "type": "tool_result",
-                    "agent": node_name.upper(),
-                    "identifier": identifier,
-                    "message": f"{icon} Tool result: {name}"
-                    + (f" | {tool_output}" if tool_output else ""),
-                    "response": full_output,
-                    "service": service,
-                    "status": status,
-                    "error": error_message if is_error else None,
-                    "metrics": {},
-                }
-            except Exception:
-                logger.exception("Error mapping on_tool_end run=%s", run_id)
-                return None
-
-        # ------ LLM end ------
-        elif kind == "on_chat_model_end":
-            try:
-                output = (event.get("data") or {}).get("output")
-                usage: Dict[str, Any] = {}
-                model = "unknown"
-                response_snippet = ""
-                full_response = ""
-
-                if output is not None:
-                    # Safely extract usage & response metadata (must be dicts)
-                    usage_raw = getattr(output, "usage_metadata", None)
-                    usage = self._safe_dict(usage_raw)
-
-                    resp_meta = getattr(output, "response_metadata", None)
-                    resp_dict = self._safe_dict(resp_meta)
-                    if resp_dict:
-                        model = resp_dict.get("model_name") or resp_dict.get("model", model)
-
-                    # Extract the response text – handle message objects and dicts
-                    raw = self._extract_content(output)
-
-                    # If .content was empty or the repr of the whole object, try harder
-                    if not raw or raw.startswith("<") or raw == str(output):
-                        # Some providers wrap in .text or .message
-                        potential_text = getattr(output, "text", None)
-                        if potential_text is None or callable(potential_text):
-                            potential_text = ""
-                        if not isinstance(potential_text, str):
-                            potential_text = str(potential_text)
-
-                        raw = (
-                            potential_text
-                            or (output.get("content", "") if isinstance(output, dict) else "")
-                        )
-
-                    # Ensure raw is always a string before slicing
-                    if not isinstance(raw, str):
-                        raw = str(raw) if raw is not None else ""
-
-                    if raw:
-                        full_response = raw[:_MAX_FULL_LEN]
-                        response_snippet = self._truncate(raw)
-
-                # Fall back to event-level model extraction
-                if model == "unknown":
-                    model = self._extract_model(event)
-
-                latency_ms = 0
-                start_t = starts.pop(node_name, None)
-                if start_t is not None:
-                    latency_ms = round((time.monotonic() - start_t) * 1000)
-
-                # Retrieve the prompt that started this LLM call
-                matched_prompt = prompts.pop(node_name, "")
-
-                tokens_in = usage.get("input_tokens", 0)
-                tokens_out = usage.get("output_tokens", 0)
-
-                logger.info(
-                    "LLM end node=%s model=%s tokens_in=%s tokens_out=%s latency=%dms run=%s",
-                    node_name,
-                    model,
-                    tokens_in or "?",
-                    tokens_out or "?",
-                    latency_ms,
-                    run_id,
-                )
-
-                return {
-                    "id": f"{event.get('run_id', 'result')}_{time.time_ns()}",
-                    "node_id": node_name,
-                    "type": "result",
-                    "agent": node_name.upper(),
-                    "identifier": identifier,
-                    "message": response_snippet or "Completed.",
-                    "prompt": matched_prompt,
-                    "response": full_response,
-                    "metrics": {
-                        "model": model,
-                        "tokens_in": tokens_in if isinstance(tokens_in, (int, float)) else 0,
-                        "tokens_out": tokens_out if isinstance(tokens_out, (int, float)) else 0,
-                        "latency_ms": latency_ms,
-                    },
-                }
-            except Exception:
-                logger.exception("Error mapping on_chat_model_end run=%s", run_id)
-                matched_prompt = prompts.pop(node_name, "")
-                return {
-                    "id": f"result_err_{time.time_ns()}",
-                    "node_id": node_name,
-                    "type": "result",
-                    "agent": node_name.upper(),
-                    "identifier": identifier,
-                    "message": "Completed (event parse error).",
-                    "prompt": matched_prompt,
-                    "response": "",
-                    "metrics": {"model": "unknown", "tokens_in": 0, "tokens_out": 0, "latency_ms": 0},
-                }
-
-        return None
-
-    # ------------------------------------------------------------------
-    # Background task wrappers
-    # ------------------------------------------------------------------
-
-    async def run_scan_background(self, run_id: str, params: Dict[str, Any]):
-        async for _ in self.run_scan(run_id, params):
-            pass
-
-    async def run_pipeline_background(self, run_id: str, params: Dict[str, Any]):
-        async for _ in self.run_pipeline(run_id, params):
-            pass
-
-    async def run_portfolio_background(self, run_id: str, params: Dict[str, Any]):
-        async for _ in self.run_portfolio(run_id, params):
-            pass
-
-    async def run_auto_background(self, run_id: str, params: Dict[str, Any]):
-        async for _ in self.run_auto(run_id, params):
-            pass
