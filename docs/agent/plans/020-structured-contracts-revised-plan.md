@@ -16,6 +16,7 @@ Companion docs:
 - [017 Structured Contracts and Raw Context Experiment](/Users/Ahmet/Repo/TradingAgents/docs/agent/plans/017-structured-contracts-and-raw-context-experiment.md)
 - [018 Agent Handoff Matrix](/Users/Ahmet/Repo/TradingAgents/docs/agent/plans/018-agent-handoff-matrix.md)
 - [019 Structured Contracts Implementation Checklist](/Users/Ahmet/Repo/TradingAgents/docs/agent/plans/019-structured-contracts-implementation-checklist.md)
+- [021 Post-News Node Implementation Plan](/Users/Ahmet/Repo/TradingAgents/docs/agent/plans/021-post-news-node-implementation-plan.md)
 
 ## What Changes From 017-019
 

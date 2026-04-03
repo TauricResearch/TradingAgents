@@ -45,6 +45,7 @@ The system now uses a single canonical ULID `run_id` across runtime and storage.
 
 - codex/unify-run-id-ulid: remove remaining legacy flow-id references from docs and ancillary code
 - codex/global-search-graph-main-squash: wire gatekeeper universe into scanner graph and deterministic ranking
+- codex/structured-contracts-plan: execute post-news node structured-contract rollout from market node downward using plan 021 and terminal runner validation
 
 # Active Blockers
 
