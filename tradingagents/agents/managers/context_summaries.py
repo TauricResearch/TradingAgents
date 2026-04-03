@@ -28,6 +28,9 @@ Latest response:
 
 
 def create_research_packet_summary(llm):
+    # TODO(structured-contracts): remove after Phase 6 — this node is no longer
+    # wired into any graph.  build_research_packet() is now called inline by
+    # each consumer (bull_researcher, bear_researcher, research_manager, etc.).
     def research_packet_summary_node(state) -> dict:
         if not any(
             (
@@ -54,6 +57,9 @@ def create_research_packet_summary(llm):
 
 
 def create_investment_debate_summary(llm):
+    # TODO(structured-contracts): remove after Phase 6 — this node is no longer
+    # wired into any graph.  build_investment_debate_summary() is now called
+    # inline by each consumer.
     def investment_debate_summary_node(state) -> dict:
         debate_state = state["investment_debate_state"]
         summary = build_investment_debate_summary(debate_state) or "Investment debate in progress..."

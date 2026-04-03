@@ -1,6 +1,4 @@
 from datetime import datetime, timedelta
-import queue
-import threading
 
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -12,6 +10,7 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.output_validation import (
     build_market_report_structured,
     infer_macro_regime_from_prefetched_report,
@@ -90,28 +89,6 @@ def _build_indicator_prefetches(
         }
         for indicator in indicators
     ]
-
-
-def _invoke_with_timeout(chain, messages, timeout_seconds: float):
-    """Invoke a chain with a hard wall-clock timeout."""
-    result_queue: "queue.Queue[tuple[str, object]]" = queue.Queue(maxsize=1)
-
-    def _runner():
-        try:
-            result_queue.put(("ok", chain.invoke(messages)))
-        except Exception as exc:  # pragma: no cover - exercised via caller behavior
-            result_queue.put(("err", exc))
-
-    thread = threading.Thread(target=_runner, daemon=True)
-    thread.start()
-    thread.join(timeout=max(1.0, float(timeout_seconds)))
-    if thread.is_alive():
-        return None, TimeoutError(f"market analyst invoke exceeded {timeout_seconds:.1f}s")
-
-    status, payload = result_queue.get()
-    if status == "err":
-        return None, payload
-    return payload, None
 
 
 def _build_timeout_fallback_report(
@@ -298,7 +275,7 @@ def create_market_analyst(llm):
             or 120.0
         )
         invoke_timeout = min(configured_timeout, 45.0)
-        result, invoke_error = _invoke_with_timeout(
+        result, invoke_error = invoke_with_timeout(
             chain,
             state["messages"],
             timeout_seconds=invoke_timeout,
@@ -312,8 +289,11 @@ def create_market_analyst(llm):
                     timeout_seconds=invoke_timeout,
                 )
                 result = AIMessage(content=report)
+                is_timeout_fallback = True
             else:
                 raise invoke_error
+        else:
+            is_timeout_fallback = False
 
         report = result.content or ""
         structured = build_market_report_structured(
@@ -321,6 +301,7 @@ def create_market_analyst(llm):
             as_of_date=current_date,
             market_report=report,
             macro_regime_report=macro_regime_report,
+            is_timeout_fallback=is_timeout_fallback,
         )
 
         return {

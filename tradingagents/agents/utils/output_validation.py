@@ -202,6 +202,7 @@ def build_market_report_structured(
     market_report: str,
     macro_regime_report: str,
     contract_version: str = "market_summary_v1",
+    is_timeout_fallback: bool = False,
 ) -> dict[str, Any]:
     """Build a compact canonical contract for market node output."""
     report = str(market_report or "").strip()
@@ -209,6 +210,9 @@ def build_market_report_structured(
     if report.startswith(abort_prefix):
         status = "aborted"
         abort_reason = report[len(abort_prefix):].strip(" :\n\t")
+    elif is_timeout_fallback:
+        status = "timeout_fallback"
+        abort_reason = ""
     elif not report:
         status = "empty"
         abort_reason = ""
@@ -519,7 +523,11 @@ def sanitize_structured_news_payload(
         "summary_table": kept_rows,
     }
     if len(kept_claims) < min_claims:
-        sanitized["claims"] = kept_claims
+        sanitized["below_min_claims"] = True
+        logger.warning(
+            "sanitize_structured_news_payload: only %d claims kept (min_claims=%d) for %s",
+            len(kept_claims), min_claims, ticker,
+        )
     return sanitized, removed_claims
 
 

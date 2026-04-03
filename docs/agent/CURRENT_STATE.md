@@ -67,6 +67,13 @@ The active objective is to remove hallucination-prone prose handoffs, preserve e
 - Summary generator removed from the canonical analyst-to-researcher path
 - Deterministic research packet now used downstream instead of legacy summary preference
 - Terminal live-run helper and node-by-node testing guide expanded for this rollout
+- `llm_guard.py` consolidated: `invoke_with_timeout`, `bind_max_tokens_if_supported`, `truncate_text` used by all downstream nodes
+- `market_report_structured` canonical contract emitted by market analyst (status: completed/aborted/timeout_fallback/empty)
+- All downstream nodes (bull/bear researchers, research manager, trader, risk debaters, risk synthesis, portfolio manager) hardened with `invoke_with_timeout` and deterministic fallback reports
+- Scanner context packet exception handler split: each commodity/FX/calendar tool invocation is individually guarded, preserving partial data
+- Path traversal fix in `_load_injected_market_report`: resolved paths validated against allowed directories
+- `InvestDebateState` TypedDict aligned: `current_bull_summary`/`current_bear_summary` fields formalized
+- Dead code marked for removal: `create_research_packet_summary`, `create_investment_debate_summary`
 
 # Left In Current Rollout
 

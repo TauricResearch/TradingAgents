@@ -9,6 +9,7 @@ Tests for LangGraphEngine run modes:
 import asyncio
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -83,18 +84,24 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
         self.assertEqual(summary, "quick_think=q2, deep_think=d2")
 
     def test_load_injected_market_report_from_markdown(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            report_path = Path(tmpdir) / "market_report.md"
+        tmpdir = Path.cwd() / "_test_injected_reports"
+        tmpdir.mkdir(exist_ok=True)
+        try:
+            report_path = tmpdir / "market_report.md"
             report_path.write_text("# Market\nSaved report", encoding="utf-8")
 
             loaded = LangGraphEngine._load_injected_market_report(str(report_path))
 
-        self.assertEqual(loaded["market_report"], "# Market\nSaved report")
-        self.assertEqual(loaded["macro_regime_report"], "")
+            self.assertEqual(loaded["market_report"], "# Market\nSaved report")
+            self.assertEqual(loaded["macro_regime_report"], "")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
     def test_load_injected_market_report_from_json_artifact(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            report_path = Path(tmpdir) / "complete_report.json"
+        tmpdir = Path.cwd() / "_test_injected_reports"
+        tmpdir.mkdir(exist_ok=True)
+        try:
+            report_path = tmpdir / "complete_report.json"
             report_path.write_text(
                 json.dumps(
                     {
@@ -107,8 +114,31 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
 
             loaded = LangGraphEngine._load_injected_market_report(str(report_path))
 
-        self.assertEqual(loaded["market_report"], "Saved market report")
-        self.assertEqual(loaded["macro_regime_report"], "risk-off")
+            self.assertEqual(loaded["market_report"], "Saved market report")
+            self.assertEqual(loaded["macro_regime_report"], "risk-off")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def test_load_injected_market_report_rejects_path_traversal(self):
+        """Verify path traversal outside allowed directories is rejected."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            report_path = Path(tmpdir) / "secret.md"
+            report_path.write_text("should not be readable", encoding="utf-8")
+            with self.assertRaises(PermissionError):
+                LangGraphEngine._load_injected_market_report(str(report_path))
+
+    def test_load_injected_market_report_rejects_malformed_json(self):
+        """Verify malformed JSON raises ValueError, not json.JSONDecodeError."""
+        tmpdir = Path.cwd() / "_test_injected_reports"
+        tmpdir.mkdir(exist_ok=True)
+        try:
+            report_path = tmpdir / "bad.json"
+            report_path.write_text("{invalid json", encoding="utf-8")
+            with self.assertRaises(ValueError) as ctx:
+                LangGraphEngine._load_injected_market_report(str(report_path))
+            self.assertIn("malformed", str(ctx.exception))
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
@@ -512,8 +542,10 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         mock_wrapper = self._make_mock_graph_wrapper()
         engine = LangGraphEngine()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            report_path = Path(tmpdir) / "market_report.md"
+        tmpdir = Path.cwd() / "_test_injected_reports"
+        tmpdir.mkdir(exist_ok=True)
+        try:
+            report_path = tmpdir / "market_report.md"
             report_path.write_text("Injected market report", encoding="utf-8")
 
             with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
@@ -538,6 +570,8 @@ class TestRunPipelineReportStorage(unittest.TestCase):
                         )
                     )
                 )
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
         create_initial_state = mock_wrapper.propagator.create_initial_state
         self.assertEqual(create_initial_state.call_count, 1)

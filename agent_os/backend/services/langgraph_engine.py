@@ -11,7 +11,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.scanner_graph import ScannerGraph
 from tradingagents.graph.portfolio_graph import PortfolioGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.report_paths import get_market_dir, get_ticker_dir, get_daily_dir
+from tradingagents.report_paths import get_market_dir, get_ticker_dir, get_daily_dir, REPORTS_ROOT
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.store_factory import create_report_store
 from tradingagents.daily_digest import append_to_digest
@@ -342,8 +342,23 @@ class LangGraphEngine:
         - plain-text/markdown files containing only the market report
         - JSON artifacts with a top-level ``market_report`` key and optional
           ``macro_regime_report`` key
+
+        The resolved path must be within REPORTS_ROOT or the current working
+        directory to prevent path-traversal attacks.
         """
-        path = Path(str(file_path)).expanduser()
+        path = Path(str(file_path)).expanduser().resolve()
+
+        # Guard against path traversal — only allow files under the reports
+        # root or the working directory.
+        allowed_bases = [REPORTS_ROOT.resolve(), Path.cwd().resolve()]
+        if not any(
+            path == base or base in path.parents
+            for base in allowed_bases
+        ):
+            raise PermissionError(
+                f"Injected market report path escapes allowed directories: {path}"
+            )
+
         if not path.exists():
             raise FileNotFoundError(f"Injected market report file not found: {path}")
 
@@ -352,7 +367,12 @@ class LangGraphEngine:
             raise ValueError(f"Injected market report file is empty: {path}")
 
         if path.suffix.lower() == ".json":
-            payload = json.loads(raw_text)
+            try:
+                payload = json.loads(raw_text)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Injected market report JSON is malformed: {path} ({e})"
+                ) from e
             if not isinstance(payload, dict):
                 raise ValueError(
                     f"Injected market report JSON must be an object: {path}"
@@ -2344,29 +2364,72 @@ class LangGraphEngine:
 
         try:
             gold_snapshot = LangGraphEngine._format_snapshot_lines(get_gold_price.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch gold price for scanner context: %s", e)
+        try:
             oil_snapshot = LangGraphEngine._format_snapshot_lines(get_oil_prices.invoke({}), max_rows=2)
+        except Exception as e:
+            logger.warning("Failed to fetch oil prices for scanner context: %s", e)
+        try:
             btc_snapshot = LangGraphEngine._format_snapshot_lines(get_bitcoin_price.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch bitcoin price for scanner context: %s", e)
+        try:
             eur_snapshot = LangGraphEngine._format_snapshot_lines(get_eur_usd_rate.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch EUR/USD rate for scanner context: %s", e)
+        try:
             jpy_snapshot = LangGraphEngine._format_snapshot_lines(get_jpy_usd_rate.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch JPY/USD rate for scanner context: %s", e)
+        try:
             cny_snapshot = LangGraphEngine._format_snapshot_lines(get_cny_usd_rate.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch CNY/USD rate for scanner context: %s", e)
 
-            scan_date_str = scan_state.get("scan_date", time.strftime("%Y-%m-%d"))
+        scan_date_str = scan_state.get("scan_date", time.strftime("%Y-%m-%d"))
+        try:
             scan_dt = _dt.datetime.strptime(scan_date_str, "%Y-%m-%d")
             from_date = (scan_dt - _dt.timedelta(days=7)).strftime("%Y-%m-%d")
             to_date = (scan_dt + _dt.timedelta(days=14)).strftime("%Y-%m-%d")
 
-            earnings_rows = LangGraphEngine._format_filtered_earnings_rows(
-                get_earnings_calendar.invoke({"from_date": from_date, "to_date": to_date}),
-                ticker,
-                peer_tickers,
-                max_rows=8,
-            )
-            economic_rows = LangGraphEngine._format_filtered_economic_events(
-                get_economic_calendar.invoke({"from_date": from_date, "to_date": to_date}),
-                max_rows=8,
-            )
+            try:
+                earnings_rows = LangGraphEngine._format_filtered_earnings_rows(
+                    get_earnings_calendar.invoke({"from_date": from_date, "to_date": to_date}),
+                    ticker,
+                    peer_tickers,
+                    max_rows=8,
+                )
+            except Exception as e:
+                logger.warning("Failed to fetch earnings calendar for scanner context: %s", e)
+            try:
+                economic_rows = LangGraphEngine._format_filtered_economic_events(
+                    get_economic_calendar.invoke({"from_date": from_date, "to_date": to_date}),
+                    max_rows=8,
+                )
+            except Exception as e:
+                logger.warning("Failed to fetch economic calendar for scanner context: %s", e)
         except Exception as e:
-            logger.warning(f"Failed to fetch structured data for scanner context packet: {e}")
+            logger.warning("Failed to parse scan date for calendar data: %s", e)
+
+        # Pre-build joined line blocks for the f-string template.
+        def _bullet_lines(items: list[str]) -> str:
+            return "\n".join(f"- {line}" for line in items)
+
+        commodity_block = _bullet_lines(gold_snapshot + oil_snapshot + btc_snapshot)
+        fx_block = _bullet_lines(eur_snapshot + jpy_snapshot + cny_snapshot)
+        earnings_block = _bullet_lines(earnings_rows)
+        economic_block = _bullet_lines(economic_rows)
+        smart_block = _bullet_lines(smart_lines)
+        factor_block = _bullet_lines(factor_lines)
+        drift_block = _bullet_lines(drift_lines)
+        sector_block = _bullet_lines(sector_lines)
+        spillover_block = _bullet_lines(market_pulse_lines[:1])
+        themes_block = _bullet_lines(theme_lines)
+        geo_block = _bullet_lines(geo_pulse_lines)
+        movers_block = _bullet_lines(market_pulse_lines)
+        industry_block = _bullet_lines(industry_pulse_lines)
+        risk_block = _bullet_lines(macro_risk_lines)
 
         packet = f"""# SCANNER CONTEXT PACKET: {ticker}
 Date: {scan_state.get('scan_date', 'N/A')}
@@ -2381,45 +2444,45 @@ Date: {scan_state.get('scan_date', 'N/A')}
 
 ## 2) Ground Truth
 ### Commodity Snapshot
-{chr(10).join(f"- {line}" for line in (gold_snapshot + oil_snapshot + btc_snapshot))}
+{commodity_block}
 
 ### FX Snapshot
-{chr(10).join(f"- {line}" for line in (eur_snapshot + jpy_snapshot + cny_snapshot))}
+{fx_block}
 
 ### Filtered Earnings Rows
-{chr(10).join(f"- {line}" for line in earnings_rows)}
+{earnings_block}
 
 ### Filtered Economic Events
-{chr(10).join(f"- {line}" for line in economic_rows)}
+{economic_block}
 
 ## 3) Ticker-Relevant Scanner Signals
 ### Smart Money
-{chr(10).join(f"- {line}" for line in smart_lines)}
+{smart_block}
 
 ### Factor Alignment
-{chr(10).join(f"- {line}" for line in factor_lines)}
+{factor_block}
 
 ### Drift
-{chr(10).join(f"- {line}" for line in drift_lines)}
+{drift_block}
 
 ## 4) Sector Context
 - Primary Sector: {primary_sector}
 - Sector Summary:
-{chr(10).join(f"- {line}" for line in sector_lines)}
+{sector_block}
 - Related Spillover:
-{chr(10).join(f"- {line}" for line in market_pulse_lines[:1])}
+{spillover_block}
 
 ## 5) Macro Themes
-{chr(10).join(f"- {line}" for line in theme_lines)}
+{themes_block}
 - Geopolitical Pulse:
-{chr(10).join(f"- {line}" for line in geo_pulse_lines)}
+{geo_block}
 - Market Movers Pulse:
-{chr(10).join(f"- {line}" for line in market_pulse_lines)}
+{movers_block}
 - Industry Deep Dive Pulse:
-{chr(10).join(f"- {line}" for line in industry_pulse_lines)}
+{industry_block}
 
 ## 6) Risk Factors
-{chr(10).join(f"- {line}" for line in macro_risk_lines)}
+{risk_block}
 """
         return packet
 

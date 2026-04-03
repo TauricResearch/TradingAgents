@@ -451,14 +451,14 @@ class TestMarketAnalystAbortInstructions:
 
     def test_market_analyst_includes_abort_instructions(self):
         """Verify market analyst produces abort report when LLM signals critical abort."""
-        # run_tool_loop is the injectable boundary — patch it to return the abort message
+        # invoke_with_timeout is the injectable boundary — patch it to return the abort message
         # without making any network calls.
         mock_result = MagicMock()
         mock_result.content = market_report_abort
         mock_result.tool_calls = []
 
         with patch("tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel", return_value={}), \
-             patch("tradingagents.agents.analysts.market_analyst.run_tool_loop", return_value=mock_result):
+             patch("tradingagents.agents.analysts.market_analyst.invoke_with_timeout", return_value=(mock_result, None)):
             market_analyst = create_market_analyst(MagicMock())
             state = {
                 "trade_date": "2024-01-01",
@@ -523,6 +523,24 @@ class TestFundamentalsAnalystAbortInstructions:
 class TestPortfolioManagerAbortDetection:
     """Tests for portfolio manager abort detection and response."""
 
+    @staticmethod
+    def _make_mock_llm(content: str) -> MagicMock:
+        """Build a MagicMock LLM compatible with llm_guard.invoke_with_timeout.
+
+        invoke_with_timeout calls bind_max_tokens_if_supported(llm, max_tokens)
+        which returns llm.bind(max_tokens=N), and then .invoke(prompt) on the
+        result.  We wire both mock_llm.invoke and mock_llm.bind(...).invoke to
+        return the same response so tests can assert on either path.
+        """
+        response = MagicMock(content=content)
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = response
+        # bind() returns a new object whose .invoke also returns the response
+        bound = MagicMock()
+        bound.invoke.return_value = response
+        mock_llm.bind.return_value = bound
+        return mock_llm
+
     def _make_abort_state(self, market_report, fundamentals_report, news_report=""):
         """Build a minimal state dict suitable for portfolio_manager_node."""
         return {
@@ -548,26 +566,23 @@ class TestPortfolioManagerAbortDetection:
 
     def test_portfolio_manager_detects_abort(self):
         """Verify PM detects abort and recommends SELL/AVOID."""
-        # Create mock LLM *before* the closure so the closure captures it.
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: SELL - Trading halted pending SEC investigation"
+        mock_llm = self._make_mock_llm(
+            "RECOMMENDATION: SELL - Trading halted pending SEC investigation"
         )
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(market_report_abort, normal_fundamentals_report)
 
         result = portfolio_manager(state)
 
-        # Verify the closure's LLM was actually called
-        assert mock_llm.invoke.called
+        # Verify the LLM was actually called (through bind().invoke path)
+        assert mock_llm.bind.return_value.invoke.called
         # Verify the result contains SELL recommendation
         assert "SELL" in result.get("final_trade_decision", "").upper()
 
     def test_portfolio_manager_uses_aborting_analyst_report(self):
         """Verify PM decision text reflects the abort reason from the analyst report."""
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: SELL - Trading halted pending SEC investigation"
+        mock_llm = self._make_mock_llm(
+            "RECOMMENDATION: SELL - Trading halted pending SEC investigation"
         )
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(market_report_abort, normal_fundamentals_report)
@@ -579,25 +594,23 @@ class TestPortfolioManagerAbortDetection:
 
     def test_portfolio_manager_normal_flow(self):
         """Verify PM works normally without abort."""
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: BUY - Strong bullish trend with positive momentum"
+        mock_llm = self._make_mock_llm(
+            "RECOMMENDATION: BUY - Strong bullish trend with positive momentum"
         )
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(normal_market_report, normal_fundamentals_report)
 
         result = portfolio_manager(state)
 
-        # Verify the closure's LLM was actually called
-        assert mock_llm.invoke.called
+        # Verify the LLM was actually called (through bind().invoke path)
+        assert mock_llm.bind.return_value.invoke.called
         # Verify the result contains BUY recommendation
         assert "BUY" in result.get("final_trade_decision", "").upper()
 
     def test_portfolio_manager_uses_fundamentals_abort_report(self):
         """Verify PM uses fundamentals report when it contains abort."""
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: AVOID - Negative gross margin with bankruptcy filing"
+        mock_llm = self._make_mock_llm(
+            "RECOMMENDATION: AVOID - Negative gross margin with bankruptcy filing"
         )
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(normal_market_report, fundamentals_report_abort)
@@ -609,9 +622,8 @@ class TestPortfolioManagerAbortDetection:
 
     def test_portfolio_manager_avoids_recommendation(self):
         """Verify PM recommends AVOID when fundamentals report has abort."""
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: AVOID - Negative gross margin with bankruptcy filing"
+        mock_llm = self._make_mock_llm(
+            "RECOMMENDATION: AVOID - Negative gross margin with bankruptcy filing"
         )
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(normal_market_report, fundamentals_report_abort)
@@ -621,9 +633,8 @@ class TestPortfolioManagerAbortDetection:
         assert "AVOID" in result.get("final_trade_decision", "").upper()
 
     def test_portfolio_manager_uses_news_abort_report(self):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: AVOID - Source validation failed twice"
+        mock_llm = self._make_mock_llm(
+            "RECOMMENDATION: AVOID - Source validation failed twice"
         )
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(
@@ -637,9 +648,8 @@ class TestPortfolioManagerAbortDetection:
         assert "SOURCE VALIDATION FAILED" in result.get("final_trade_decision", "").upper()
 
     def test_portfolio_manager_uses_trader_plan_field_in_normal_flow_prompt(self):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: BUY - coherent with trader plan"
+        mock_llm = self._make_mock_llm(
+            "RECOMMENDATION: BUY - coherent with trader plan"
         )
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(normal_market_report, normal_fundamentals_report)
@@ -648,14 +658,13 @@ class TestPortfolioManagerAbortDetection:
 
         portfolio_manager(state)
 
-        prompt = mock_llm.invoke.call_args.args[0]
+        prompt = mock_llm.bind.return_value.invoke.call_args.args[0]
         assert "TRADER PLAN: USE THIS" in prompt
         assert "RESEARCH PLAN: SHOULD NOT APPEAR" not in prompt
 
     def test_portfolio_manager_uses_trader_plan_field_in_abort_flow_prompt(self):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: SELL - critical abort"
+        mock_llm = self._make_mock_llm(
+            "RECOMMENDATION: SELL - critical abort"
         )
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         state = self._make_abort_state(market_report_abort, normal_fundamentals_report)
@@ -664,7 +673,7 @@ class TestPortfolioManagerAbortDetection:
 
         portfolio_manager(state)
 
-        prompt = mock_llm.invoke.call_args.args[0]
+        prompt = mock_llm.bind.return_value.invoke.call_args.args[0]
         assert "TRADER PLAN: USE THIS ABORT" in prompt
         assert "RESEARCH PLAN: SHOULD NOT APPEAR" not in prompt
 
@@ -717,9 +726,9 @@ class TestFastRejectFullFlow:
 
         state = self._make_state(market_report_abort, normal_fundamentals_report)
 
-        # Patch network-calling helpers; control analyst output via run_tool_loop mock
+        # Patch network-calling helpers; control analyst output via invoke_with_timeout mock
         with patch("tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel", return_value={}), \
-             patch("tradingagents.agents.analysts.market_analyst.run_tool_loop", return_value=mock_market_ai):
+             patch("tradingagents.agents.analysts.market_analyst.invoke_with_timeout", return_value=(mock_market_ai, None)):
             market_analyst = create_market_analyst(MagicMock())
             analyst_result = market_analyst(state)
             state = {**state, **analyst_result}  # merge so all keys are preserved
@@ -748,7 +757,7 @@ class TestFastRejectFullFlow:
         state = self._make_state(normal_market_report, fundamentals_report_abort)
 
         with patch("tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel", return_value={}), \
-             patch("tradingagents.agents.analysts.market_analyst.run_tool_loop", return_value=mock_market_ai):
+             patch("tradingagents.agents.analysts.market_analyst.invoke_with_timeout", return_value=(mock_market_ai, None)):
             market_analyst = create_market_analyst(MagicMock())
             analyst_result = market_analyst(state)
             state = {**state, **analyst_result}
@@ -778,16 +787,15 @@ class TestFastRejectFullFlow:
         state = self._make_state(normal_market_report, normal_fundamentals_report)
 
         with patch("tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel", return_value={}), \
-             patch("tradingagents.agents.analysts.market_analyst.run_tool_loop", return_value=mock_market_ai):
+             patch("tradingagents.agents.analysts.market_analyst.invoke_with_timeout", return_value=(mock_market_ai, None)):
             market_analyst = create_market_analyst(MagicMock())
             analyst_result = market_analyst(state)
             state = {**state, **analyst_result}
 
         assert "[CRITICAL ABORT]" not in state.get("market_report", "")
 
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = MagicMock(
-            content="RECOMMENDATION: BUY - Strong bullish trend with positive momentum"
+        mock_llm = TestPortfolioManagerAbortDetection._make_mock_llm(
+            "RECOMMENDATION: BUY - Strong bullish trend with positive momentum"
         )
         portfolio_manager = create_portfolio_manager(mock_llm, MagicMock())
         pm_result = portfolio_manager(state)
