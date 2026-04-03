@@ -135,15 +135,34 @@ def select_research_depth() -> int:
     return choice
 
 
+_CUSTOM_MODEL = "__custom__"
+
+
+def _prompt_custom_model(label: str) -> str:
+    """Prompt the user to enter a free-text model name."""
+    model = questionary.text(
+        f"Enter {label} model name (e.g. llama3.2, mistral, phi4):",
+        validate=lambda x: len(x.strip()) > 0 or "Please enter a model name.",
+        style=questionary.Style([("text", "fg:cyan")]),
+    ).ask()
+    if not model:
+        console.print("\n[red]No model name entered. Exiting...[/red]")
+        exit(1)
+    return model.strip()
+
+
 def select_shallow_thinking_agent(provider) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
+    model_options = list(get_model_options(provider, "quick"))
+    is_ollama = provider.lower() == "ollama"
+
+    choices = [questionary.Choice(display, value=value) for display, value in model_options]
+    if is_ollama:
+        choices.append(questionary.Choice("Enter custom model name...", value=_CUSTOM_MODEL))
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, "quick")
-        ],
+        choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -160,18 +179,23 @@ def select_shallow_thinking_agent(provider) -> str:
         )
         exit(1)
 
+    if choice == _CUSTOM_MODEL:
+        return _prompt_custom_model("quick-thinking")
     return choice
 
 
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
+    model_options = list(get_model_options(provider, "deep"))
+    is_ollama = provider.lower() == "ollama"
+
+    choices = [questionary.Choice(display, value=value) for display, value in model_options]
+    if is_ollama:
+        choices.append(questionary.Choice("Enter custom model name...", value=_CUSTOM_MODEL))
 
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, "deep")
-        ],
+        choices=choices,
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
             [
@@ -186,11 +210,14 @@ def select_deep_thinking_agent(provider) -> str:
         console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
         exit(1)
 
+    if choice == _CUSTOM_MODEL:
+        return _prompt_custom_model("deep-thinking")
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """Select the LLM provider using interactive selection."""
+    import os
+
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
@@ -199,7 +226,7 @@ def select_llm_provider() -> tuple[str, str]:
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
     ]
-    
+
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
@@ -215,14 +242,26 @@ def select_llm_provider() -> tuple[str, str]:
             ]
         ),
     ).ask()
-    
-    if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
-        exit(1)
-    
-    display_name, url = choice
-    print(f"You selected: {display_name}\tURL: {url}")
 
+    if choice is None:
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
+        exit(1)
+
+    display_name, url = choice
+
+    if display_name == "Ollama":
+        default_url = os.environ.get("OLLAMA_BASE_URL", url)
+        custom_url = questionary.text(
+            "Ollama base URL (press Enter to use default):",
+            default=default_url,
+            style=questionary.Style([("text", "fg:cyan")]),
+        ).ask()
+        if custom_url is None:
+            console.print("\n[red]No Ollama URL provided. Exiting...[/red]")
+            exit(1)
+        url = custom_url.strip() or default_url
+
+    console.print(f"[dim]Provider: {display_name}  URL: {url}[/dim]")
     return display_name, url
 
 

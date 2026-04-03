@@ -58,7 +58,15 @@ class OpenAIClient(BaseLLMClient):
 
         # Provider-specific base URL and auth
         if self.provider in _PROVIDER_CONFIG:
-            base_url, api_key_env = _PROVIDER_CONFIG[self.provider]
+            default_base_url, api_key_env = _PROVIDER_CONFIG[self.provider]
+            if self.provider == "ollama":
+                # Precedence: explicit base_url arg → OLLAMA_BASE_URL env var → default
+                base_url = (
+                    self.base_url
+                    or os.environ.get("OLLAMA_BASE_URL", default_base_url)
+                )
+            else:
+                base_url = default_base_url
             llm_kwargs["base_url"] = base_url
             if api_key_env:
                 api_key = os.environ.get(api_key_env)
