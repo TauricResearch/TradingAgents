@@ -79,6 +79,7 @@ The active objective is to remove hallucination-prone prose handoffs, preserve e
 
 - Continue node-by-node hardening for the remaining downstream runtime path until a full pipeline run completes cleanly through final report generation
 - Fix the API-backed run/event wrapper behavior that can stall or fail to surface analyst node progress even when direct graph execution advances
+- Execute the live-run recovery handoff in [022 Live Run Issue Handoff](/Users/Ahmet/Repo/TradingAgents/docs/agent/plans/022-live-run-issue-handoff.md)
 - Harden scanner-context enrichment so context packets remain fully populated when one upstream vendor fails
 - Perform final cleanup refactor on [langgraph_engine.py](/Users/Ahmet/Repo/TradingAgents/agent_os/backend/services/langgraph_engine.py):
   - remove unused helpers / dead branches
@@ -94,6 +95,7 @@ The active objective is to remove hallucination-prone prose handoffs, preserve e
 # Active Blockers
 
 - API-backed pipeline runs can remain opaque at the event layer even when direct LangGraph execution progresses; this slows live validation and needs cleanup in the backend orchestration layer
+- Handoff for that blocker is now captured in [022 Live Run Issue Handoff](/Users/Ahmet/Repo/TradingAgents/docs/agent/plans/022-live-run-issue-handoff.md)
 
 # Key Architectural Decisions Active
 
