@@ -9,6 +9,7 @@ Tests for LangGraphEngine run modes:
 import asyncio
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -94,7 +95,6 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             self.assertEqual(loaded["market_report"], "# Market\nSaved report")
             self.assertEqual(loaded["macro_regime_report"], "")
         finally:
-            import shutil
             shutil.rmtree(tmpdir, ignore_errors=True)
 
     def test_load_injected_market_report_from_json_artifact(self):
@@ -117,7 +117,6 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             self.assertEqual(loaded["market_report"], "Saved market report")
             self.assertEqual(loaded["macro_regime_report"], "risk-off")
         finally:
-            import shutil
             shutil.rmtree(tmpdir, ignore_errors=True)
 
     def test_load_injected_market_report_rejects_path_traversal(self):
@@ -139,7 +138,6 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
                 LangGraphEngine._load_injected_market_report(str(report_path))
             self.assertIn("malformed", str(ctx.exception))
         finally:
-            import shutil
             shutil.rmtree(tmpdir, ignore_errors=True)
 
 
@@ -573,7 +571,6 @@ class TestRunPipelineReportStorage(unittest.TestCase):
                     )
                 )
         finally:
-            import shutil
             shutil.rmtree(tmpdir, ignore_errors=True)
 
         create_initial_state = mock_wrapper.propagator.create_initial_state
