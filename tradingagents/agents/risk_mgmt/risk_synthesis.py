@@ -1,6 +1,10 @@
 """Risk synthesis node — consolidates 2 rounds of parallel risk debate into a summary."""
 
+from langchain_core.messages import AIMessage
+
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import build_research_packet
+from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def create_risk_synthesis(llm):
@@ -13,8 +17,14 @@ def create_risk_synthesis(llm):
         r2_con = state.get("risk_r2_conservative", "")
         r2_neu = state.get("risk_r2_neutral", "")
 
-        trader_decision = state.get("trader_investment_plan", "")
-        research_packet = build_research_packet(state)
+        trader_decision = truncate_text(
+            state.get("trader_investment_plan", ""),
+            max_chars=1800,
+        )
+        research_packet = truncate_text(
+            build_research_packet(state),
+            max_chars=5000,
+        )
 
         # Build full history for Portfolio Manager
         history_parts = []
@@ -71,7 +81,29 @@ Neutral: {r2_neu}
 
 Output a structured risk synthesis in under 400 words."""
 
-        response = llm.invoke(prompt)
+        timeout_seconds = min(
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+            60.0,
+        )
+        response, invoke_error = invoke_with_timeout(
+            llm,
+            prompt,
+            timeout_seconds=timeout_seconds,
+            max_tokens=900,
+        )
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                response = AIMessage(
+                    content=(
+                        "- Risk synthesis timed out; using fallback summary.\n"
+                        "- Agreements: Preserve only risk controls already shared by debators.\n"
+                        "- Disagreements: Treat unresolved upside/downside disputes as open.\n"
+                        "- Material Risks: Use scanner-context dates and validated report evidence only.\n"
+                        "- Balanced Assessment: Hold risk posture until synthesis can be recomputed."
+                    )
+                )
+            else:
+                raise invoke_error
         summary = response.content.strip()
 
         # Build risk_debate_state for Portfolio Manager backward compatibility

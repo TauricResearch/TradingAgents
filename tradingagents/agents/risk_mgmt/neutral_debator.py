@@ -1,8 +1,11 @@
 from tradingagents.agents.utils.anonymization import anonymize_ticker
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
     get_risk_debate_summary,
 )
+from tradingagents.default_config import DEFAULT_CONFIG
+from langchain_core.messages import AIMessage
 
 
 def create_neutral_debator(llm, round_num=1):
@@ -13,9 +16,19 @@ def create_neutral_debator(llm, round_num=1):
         trader_decision = state["trader_investment_plan"]
 
         # Anonymize data variables to prevent training-data bias
-        anon_research_packet = anonymize_ticker(research_packet, ticker)
-        anon_risk_summary = anonymize_ticker(risk_summary, ticker)
-        anon_trader_decision = anonymize_ticker(trader_decision, ticker)
+        anon_research_packet = anonymize_ticker(
+            truncate_text(research_packet, max_chars=4500), ticker
+        )
+        anon_risk_summary = anonymize_ticker(
+            truncate_text(risk_summary, max_chars=1600), ticker
+        )
+        anon_trader_decision = anonymize_ticker(
+            truncate_text(trader_decision, max_chars=1800), ticker
+        )
+        timeout_seconds = min(
+            float(DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+            45.0,
+        )
 
         if round_num == 1:
             prompt = f"""You are a Senior Portfolio Strategist acting as the Neutral Risk Analyst. Your objective is to provide a clinically balanced assessment of the trader's plan, weighing growth potential against risk constraints.
@@ -44,7 +57,23 @@ Output in two sections:
 1. THE DEBATE: Your initial clinical argument.
 2. SUMMARY POINTS: 3 most critical balanced risk/reward points.
 """
-            response = llm.invoke(prompt)
+            response, invoke_error = invoke_with_timeout(
+                llm, prompt, timeout_seconds=timeout_seconds, max_tokens=700
+            )
+            if invoke_error is not None:
+                if isinstance(invoke_error, TimeoutError):
+                    response = AIMessage(
+                        content=(
+                            "THE DEBATE:\n"
+                            "- Neutral analyst timeout fallback; no new balanced expansion added this round.\n\n"
+                            "SUMMARY POINTS:\n"
+                            "- Preserve existing validated balance arguments only.\n"
+                            "- Do not add unsourced neutral claims.\n"
+                            "- Escalate existing packet to synthesis."
+                        )
+                    )
+                else:
+                    raise invoke_error
             argument = f"Neutral Analyst (Round 1): {response.content}"
             return {"risk_r1_neutral": argument}
 
@@ -86,7 +115,23 @@ Output in two sections:
 1. THE DEBATE: Your clinical rebuttal.
 2. SUMMARY POINTS: 3 most critical balanced risk/reward points.
 """
-            response = llm.invoke(prompt)
+            response, invoke_error = invoke_with_timeout(
+                llm, prompt, timeout_seconds=timeout_seconds, max_tokens=700
+            )
+            if invoke_error is not None:
+                if isinstance(invoke_error, TimeoutError):
+                    response = AIMessage(
+                        content=(
+                            "THE DEBATE:\n"
+                            "- Neutral analyst rebuttal timed out; no new round-2 expansion added.\n\n"
+                            "SUMMARY POINTS:\n"
+                            "- Preserve prior neutral points only.\n"
+                            "- Do not add unsourced rebuttals.\n"
+                            "- Escalate existing debate state to synthesis."
+                        )
+                    )
+                else:
+                    raise invoke_error
             argument = f"Neutral Analyst (Round 2): {response.content}"
             return {"risk_r2_neutral": argument}
 

@@ -86,20 +86,25 @@ RISK_DEBATE_SUMMARY = SummaryRuleSet(
 
 SCANNER_REPORT_SUMMARY = SummaryRuleSet(
     name="scanner_report_summary",
-    objective="Compress a market-wide scanner report into a data-dense clinical summary for downstream synthesis.",
+    objective=(
+        "Compress a market-wide scanner report into a reusable signal block for "
+        "Phase 1 fan-in and Phase 2 ticker handoff."
+    ),
     max_words=250,
     sections=(
-        "Primary Alpha Signals",
-        "Quantified Macro Impact",
-        "Ticker/Sector Outliers",
-        "Systemic Risk Deltas",
+        "Candidate Rows",
+        "Sector / Macro Implication",
+        "Dates and Exact Numbers",
+        "Risk / Failure Modes",
     ),
     rules=(
-        "Output ONLY clinical, quantitative analysis in bullet points.",
-        "NO conversational filler, narrative, or roleplay.",
-        "Retain all exact numeric values, percentages, and price levels.",
-        "Prioritize evidence that contradicts or confirms existing macro themes.",
-        "Ensure the summary is ready for algorithmic/quantitative synthesis.",
+        "Output ONLY short bullet points or row-style bullets. No prose paragraphs.",
+        "Prefer rows in the form: TICKER | sector | signal | exact evidence | implication.",
+        "If no ticker is relevant, use sector/theme rows with exact evidence and implication.",
+        "Retain all exact numeric values, percentages, price levels, rankings, and dates.",
+        "Bias toward candidate rows, sector ranking, macro implication, and contradictory signals.",
+        "Preserve risk deltas and failure modes that could invalidate the scanner signal.",
+        "Make the output directly reusable by downstream synthesis and ticker handoff nodes.",
         "Cite exact values as $X.XX (+Y.Y% YoY). No superlatives or hedge words.",
     ),
 )

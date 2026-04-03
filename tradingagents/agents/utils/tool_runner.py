@@ -12,6 +12,9 @@ from typing import Any, List
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
+from tradingagents.default_config import DEFAULT_CONFIG
+
 
 # Most LLM tool-calling patterns resolve within 2-3 rounds;
 # 5 provides headroom for complex scenarios while preventing runaway loops.
@@ -23,6 +26,10 @@ MAX_TOOL_ROUNDS = 5
 # without actually calling tools.
 MIN_REPORT_LENGTH = 2000
 
+# Bound tool outputs fed back into the model to avoid oversized second-turn
+# prompts that can stall local tool-calling models.
+MAX_TOOL_OUTPUT_CHARS = 1800
+
 
 def run_tool_loop(
     chain,
@@ -30,6 +37,8 @@ def run_tool_loop(
     tools: List[Any],
     max_rounds: int = MAX_TOOL_ROUNDS,
     min_report_length: int = MIN_REPORT_LENGTH,
+    max_tool_output_chars: int = MAX_TOOL_OUTPUT_CHARS,
+    invoke_timeout_seconds: float | None = None,
 ) -> AIMessage:
     """Invoke *chain* in a loop, executing any tool calls until the LLM
     produces a final text response (i.e. no more tool_calls).
@@ -55,10 +64,32 @@ def run_tool_loop(
     current_messages = list(messages)
     first_round = True
     result = None
+    timeout_seconds = float(
+        invoke_timeout_seconds
+        or DEFAULT_CONFIG.get("mid_think_llm_timeout")
+        or DEFAULT_CONFIG.get("llm_timeout")
+        or 120.0
+    )
+    timeout_seconds = min(timeout_seconds, 60.0)
 
     for _ in range(max_rounds):
         try:
-            result: AIMessage = chain.invoke(current_messages)
+            result, invoke_error = invoke_with_timeout(
+                llm=chain,
+                prompt_or_messages=current_messages,
+                timeout_seconds=timeout_seconds,
+            )
+            if invoke_error is not None:
+                if isinstance(invoke_error, TimeoutError):
+                    tool_names = ", ".join(tool_map.keys()) or "preloaded tools"
+                    return AIMessage(
+                        content=(
+                            f"- Tool-using analyst timed out after {timeout_seconds:.0f}s.\n"
+                            f"- Available tools for this node: {tool_names}.\n"
+                            "- Treat this node as incomplete and do not infer additional unsourced claims."
+                        )
+                    )
+                raise invoke_error
         except Exception as exc:
             if getattr(exc, "status_code", None) == 404:
                 raise RuntimeError(
@@ -112,8 +143,17 @@ def run_tool_loop(
                     if rl:
                         rl.log_tool_call(tool_name, str(tool_args)[:120], False, (time.time() - t0) * 1000, error=str(e)[:200])
 
+            raw_tool_output = str(tool_output)
+            tool_output_text = raw_tool_output
+            if max_tool_output_chars > 0 and len(tool_output_text) > max_tool_output_chars:
+                head = max(200, max_tool_output_chars - 220)
+                tool_output_text = (
+                    f"{tool_output_text[:head]}\n"
+                    f"... [truncated {len(raw_tool_output) - head} chars for tool-loop context safety]"
+                )
+
             current_messages.append(
-                ToolMessage(content=str(tool_output), tool_call_id=tc["id"])
+                ToolMessage(content=tool_output_text, tool_call_id=tc["id"])
             )
 
     # If we exhausted max_rounds, return the last AIMessage

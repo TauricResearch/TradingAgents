@@ -3,10 +3,13 @@ from tradingagents.agents.utils.critical_abort import (
     extract_abort_report,
     state_has_critical_abort,
 )
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
     get_risk_debate_summary,
 )
+from tradingagents.default_config import DEFAULT_CONFIG
+from langchain_core.messages import AIMessage
 
 
 def create_portfolio_manager(llm, memory):
@@ -15,15 +18,15 @@ def create_portfolio_manager(llm, memory):
         instrument_context = build_instrument_context(state["company_of_interest"])
 
         risk_debate_state = state["risk_debate_state"]
-        history = risk_debate_state.get("history", "")
-        risk_summary = get_risk_debate_summary(state)
+        history = truncate_text(risk_debate_state.get("history", ""), max_chars=3200)
+        risk_summary = truncate_text(get_risk_debate_summary(state), max_chars=1800)
         market_research_report = state.get("market_report", "")
         news_report = state.get("news_report", "")
         fundamentals_report = state.get("fundamentals_report", "")
         sentiment_report = state.get("sentiment_report", "")
-        trader_plan = state.get("investment_plan", "")
+        trader_plan = state.get("trader_investment_plan", "")
         macro_regime_report = state.get("macro_regime_report", "")
-        research_packet = build_research_packet(state)
+        research_packet = truncate_text(build_research_packet(state), max_chars=5000)
 
         # Check for critical abort in market/news/fundamentals reports
         is_critical_abort = state_has_critical_abort(
@@ -72,7 +75,27 @@ def create_portfolio_manager(llm, memory):
 
 **IMPORTANT**: Based on the critical abort signal, you should recommend SELL or AVOID. Do not proceed with any other analysis. The aborting analyst has identified fundamental issues that make this investment unacceptable."""
 
-            response = llm.invoke(prompt)
+            timeout_seconds = min(
+                float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+                60.0,
+            )
+            response, invoke_error = invoke_with_timeout(
+                llm,
+                prompt,
+                timeout_seconds=timeout_seconds,
+                max_tokens=900,
+            )
+            if invoke_error is not None:
+                if isinstance(invoke_error, TimeoutError):
+                    response = AIMessage(
+                        content=(
+                            "Rating: Sell\n"
+                            "Executive Summary: Critical-abort fallback preserved; avoid entry until the aborting condition is re-evaluated.\n"
+                            "Investment Thesis: Portfolio manager timed out while a critical abort was active, so the fail-safe decision remains Sell/Avoid."
+                        )
+                    )
+                else:
+                    raise invoke_error
         else:
             # Normal flow: Synthesize all reports and make decision
             prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
@@ -111,7 +134,27 @@ def create_portfolio_manager(llm, memory):
 
 Be decisive and ground every conclusion in specific evidence from the analysts."""
 
-            response = llm.invoke(prompt)
+            timeout_seconds = min(
+                float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+                60.0,
+            )
+            response, invoke_error = invoke_with_timeout(
+                llm,
+                prompt,
+                timeout_seconds=timeout_seconds,
+                max_tokens=900,
+            )
+            if invoke_error is not None:
+                if isinstance(invoke_error, TimeoutError):
+                    response = AIMessage(
+                        content=(
+                            "Rating: Hold\n"
+                            "Executive Summary: No new portfolio action while portfolio-manager synthesis is incomplete.\n"
+                            "Investment Thesis: Portfolio manager timed out, so the fail-safe decision is Hold until the risk debate can be recomputed."
+                        )
+                    )
+                else:
+                    raise invoke_error
 
         new_risk_debate_state = {
             "judge_decision": response.content,

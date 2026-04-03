@@ -2,6 +2,7 @@ import asyncio
 import datetime as _dt
 import json
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Dict, Any, AsyncGenerator
@@ -10,7 +11,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.graph.scanner_graph import ScannerGraph
 from tradingagents.graph.portfolio_graph import PortfolioGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.report_paths import get_market_dir, get_ticker_dir, get_daily_dir
+from tradingagents.report_paths import get_market_dir, get_ticker_dir, get_daily_dir, REPORTS_ROOT
 from tradingagents.portfolio.report_store import ReportStore
 from tradingagents.portfolio.store_factory import create_report_store
 from tradingagents.daily_digest import append_to_digest
@@ -333,6 +334,62 @@ class LangGraphEngine:
     def _execution_key(run_id: str, params: Dict[str, Any]) -> str:
         return params.get("_execution_key") or run_id
 
+    @staticmethod
+    def _load_injected_market_report(file_path: str) -> Dict[str, str]:
+        """Load a saved market report artifact for pipeline injection.
+
+        Supports:
+        - plain-text/markdown files containing only the market report
+        - JSON artifacts with a top-level ``market_report`` key and optional
+          ``macro_regime_report`` key
+
+        The resolved path must be within REPORTS_ROOT or the current working
+        directory to prevent path-traversal attacks.
+        """
+        path = Path(str(file_path)).expanduser().resolve()
+
+        # Guard against path traversal — only allow files under the reports
+        # root or the working directory.
+        allowed_bases = [REPORTS_ROOT.resolve(), Path.cwd().resolve()]
+        if not any(
+            path == base or base in path.parents
+            for base in allowed_bases
+        ):
+            raise PermissionError(
+                f"Injected market report path escapes allowed directories: {path}"
+            )
+
+        if not path.exists():
+            raise FileNotFoundError(f"Injected market report file not found: {path}")
+
+        raw_text = path.read_text(encoding="utf-8").strip()
+        if not raw_text:
+            raise ValueError(f"Injected market report file is empty: {path}")
+
+        if path.suffix.lower() == ".json":
+            try:
+                payload = json.loads(raw_text)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Injected market report JSON is malformed: {path} ({e})"
+                ) from e
+            if not isinstance(payload, dict):
+                raise ValueError(
+                    f"Injected market report JSON must be an object: {path}"
+                )
+            market_report = str(payload.get("market_report") or "").strip()
+            macro_regime_report = str(payload.get("macro_regime_report") or "").strip()
+            if not market_report:
+                raise ValueError(
+                    f"Injected market report JSON missing non-empty 'market_report': {path}"
+                )
+            return {
+                "market_report": market_report,
+                "macro_regime_report": macro_regime_report,
+            }
+
+        return {"market_report": raw_text, "macro_regime_report": ""}
+
     # ------------------------------------------------------------------
     # Run helpers
     # ------------------------------------------------------------------
@@ -547,7 +604,11 @@ class LangGraphEngine:
         instrument = resolve_instrument(params.get("ticker", "AAPL"), source_context="pipeline")
         ticker = instrument.canonical_symbol or "AAPL"
         date = params.get("date", time.strftime("%Y-%m-%d"))
-        analysts = params.get("analysts", ["market", "news", "fundamentals"])
+        analysts = (
+            params.get("analysts")
+            or params.get("selected_analysts")
+            or ["market", "news", "fundamentals"]
+        )
         root_run_id = self._root_run_id(run_id, params)
         execution_key = self._execution_key(run_id, params)
         store = create_report_store(run_id=root_run_id)
@@ -570,6 +631,20 @@ class LangGraphEngine:
 
         yield self._system_log(f"Starting analysis pipeline for {ticker} on {date}")
 
+        injected_market = {"market_report": "", "macro_regime_report": ""}
+        market_report_file = str(params.get("market_report_file") or "").strip()
+        if market_report_file:
+            injected_market = self._load_injected_market_report(market_report_file)
+            yield self._system_log(
+                f"Injecting saved market report for {ticker} from {market_report_file}"
+            )
+            logger.info(
+                "PIPELINE run=%s ticker=%s using injected market report file=%s",
+                root_run_id,
+                ticker,
+                market_report_file,
+            )
+
         graph_wrapper = TradingAgentsGraph(
             selected_analysts=analysts,
             config=self.config,
@@ -582,6 +657,8 @@ class LangGraphEngine:
             run_id=root_run_id,
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
+            market_report=injected_market["market_report"],
+            macro_regime_report=injected_market["macro_regime_report"],
         )
 
         self._node_start_times[execution_key] = {}
@@ -677,6 +754,8 @@ class LangGraphEngine:
                         "company_of_interest": ticker,
                         "trade_date": date,
                         **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                        "market_report_structured": serializable_state.get("market_report_structured", {}),
+                        "news_report_structured": serializable_state.get("news_report_structured", {}),
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
                         "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                         "messages": serializable_state.get("messages", []),
@@ -689,6 +768,8 @@ class LangGraphEngine:
                         "company_of_interest": ticker,
                         "trade_date": date,
                         **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                        "market_report_structured": serializable_state.get("market_report_structured", {}),
+                        "news_report_structured": serializable_state.get("news_report_structured", {}),
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
                         "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                         "investment_debate_state": serializable_state.get("investment_debate_state", {}),
@@ -1000,7 +1081,15 @@ class LangGraphEngine:
                 )
                 # Overlay checkpoint data onto initial state
                 for k, v in ckpt.items():
-                    if k in initial_state or k in ("market_report", "sentiment_report", "news_report", "fundamentals_report", "macro_regime_report"):
+                    if k in initial_state or k in (
+                        "market_report",
+                        "market_report_structured",
+                        "sentiment_report",
+                        "news_report",
+                        "news_report_structured",
+                        "fundamentals_report",
+                        "macro_regime_report",
+                    ):
                         initial_state[k] = v
 
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)
@@ -1947,115 +2036,453 @@ class LangGraphEngine:
         return normalized
 
     @staticmethod
+    def _clean_line(text: Any, max_chars: int = 200) -> str:
+        line = " ".join(str(text or "").strip().split())
+        if not line:
+            return ""
+        if len(line) <= max_chars:
+            return line
+        return line[: max_chars - 3].rstrip() + "..."
+
+    @staticmethod
+    def _dedupe_keep_order(lines: list[str], max_items: int) -> list[str]:
+        seen: set[str] = set()
+        out: list[str] = []
+        for raw in lines:
+            line = LangGraphEngine._clean_line(raw)
+            if not line or line in seen:
+                continue
+            seen.add(line)
+            out.append(line)
+            if len(out) >= max_items:
+                break
+        return out
+
+    @staticmethod
+    def _top_summary_lines(text: Any, max_lines: int = 4) -> list[str]:
+        lines: list[str] = []
+        for raw in str(text or "").splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            if line.startswith("#") or line.startswith("```"):
+                continue
+            line = re.sub(r"^[-*0-9).\s]+", "", line).strip()
+            cleaned = LangGraphEngine._clean_line(line)
+            if cleaned:
+                lines.append(cleaned)
+        return LangGraphEngine._dedupe_keep_order(lines, max_lines)
+
+    @staticmethod
+    def _extract_ticker_relevant_lines(
+        text: Any,
+        ticker: str,
+        *,
+        sector_tokens: list[str] | None = None,
+        max_lines: int = 5,
+    ) -> list[str]:
+        raw_lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+        ticker_upper = ticker.upper()
+        sector_tokens = [tok.lower() for tok in (sector_tokens or []) if tok]
+
+        ticker_hits: list[str] = []
+        sector_hits: list[str] = []
+        other_hits: list[str] = []
+        for raw in raw_lines:
+            line = re.sub(r"^[-*0-9).\s]+", "", raw).strip()
+            if not line or line.startswith("#") or line.startswith("```"):
+                continue
+            upper = line.upper()
+            lower = line.lower()
+            if ticker_upper in upper:
+                ticker_hits.append(line)
+            elif sector_tokens and any(token in lower for token in sector_tokens):
+                sector_hits.append(line)
+            else:
+                other_hits.append(line)
+
+        # Keep strict relevance when ticker/sector hits exist; only fall back to
+        # generic lines when no relevant rows are present.
+        prioritized = ticker_hits + sector_hits
+        if not prioritized:
+            prioritized = other_hits
+        return LangGraphEngine._dedupe_keep_order(prioritized, max_lines)
+
+    @staticmethod
+    def _parse_markdown_rows(raw: Any) -> list[list[str]]:
+        rows: list[list[str]] = []
+        for line in str(raw or "").splitlines():
+            stripped = line.strip()
+            if not stripped.startswith("|"):
+                continue
+            cells = [c.strip() for c in stripped.strip("|").split("|")]
+            if not cells:
+                continue
+            if all((not c) or set(c) <= {"-", ":"} for c in cells):
+                continue
+            rows.append(cells)
+        return rows
+
+    @staticmethod
+    def _drop_table_header(rows: list[list[str]], header_tokens: set[str]) -> list[list[str]]:
+        if not rows:
+            return rows
+        first = {c.lower() for c in rows[0]}
+        if first & header_tokens:
+            return rows[1:]
+        return rows
+
+    @staticmethod
+    def _format_snapshot_lines(raw: Any, *, max_rows: int = 2) -> list[str]:
+        rows = LangGraphEngine._parse_markdown_rows(raw)
+        rows = LangGraphEngine._drop_table_header(
+            rows,
+            header_tokens={"asset", "symbol", "current price", "change", "change %"},
+        )
+        out: list[str] = []
+        for row in rows[:max_rows]:
+            if len(row) >= 5:
+                out.append(f"{row[0]} {row[2]} ({row[4]})")
+            elif len(row) >= 3:
+                out.append(f"{row[0]} {row[2]}")
+            else:
+                out.append(" | ".join(row))
+        if out:
+            return LangGraphEngine._dedupe_keep_order(out, max_rows)
+        fallback = LangGraphEngine._top_summary_lines(raw, max_lines=max_rows)
+        return fallback or ["N/A"]
+
+    @staticmethod
+    def _format_filtered_earnings_rows(
+        raw: Any,
+        ticker: str,
+        peer_tickers: list[str],
+        *,
+        max_rows: int = 8,
+    ) -> list[str]:
+        rows = LangGraphEngine._parse_markdown_rows(raw)
+        rows = LangGraphEngine._drop_table_header(
+            rows,
+            header_tokens={"symbol", "company", "date", "eps estimate", "revenue estimate"},
+        )
+        ticker_set = {ticker.upper(), *[t.upper() for t in peer_tickers]}
+
+        selected: list[list[str]] = []
+        for row in rows:
+            joined = " ".join(row).upper()
+            if any(t in joined for t in ticker_set):
+                selected.append(row)
+        if not selected:
+            selected = rows[:max_rows]
+
+        formatted: list[str] = []
+        for row in selected[:max_rows]:
+            symbol = row[0] if len(row) >= 1 else "N/A"
+            event_date = row[2] if len(row) >= 3 else "N/A"
+            eps = row[3] if len(row) >= 4 else "N/A"
+            revenue = row[5] if len(row) >= 6 else (row[-1] if row else "N/A")
+            formatted.append(f"{symbol} {event_date} EPS {eps} Rev {revenue}")
+
+        if formatted:
+            return LangGraphEngine._dedupe_keep_order(formatted, max_rows)
+        fallback = LangGraphEngine._top_summary_lines(raw, max_lines=max_rows)
+        return fallback or ["N/A"]
+
+    @staticmethod
+    def _format_filtered_economic_events(raw: Any, *, max_rows: int = 8) -> list[str]:
+        rows = LangGraphEngine._parse_markdown_rows(raw)
+        rows = LangGraphEngine._drop_table_header(
+            rows,
+            header_tokens={"event", "country", "date", "impact", "actual", "forecast"},
+        )
+
+        def _priority(row: list[str]) -> int:
+            text = " ".join(row).lower()
+            high_terms = (
+                "high",
+                "fomc",
+                "cpi",
+                "pce",
+                "nfp",
+                "gdp",
+                "unemployment",
+                "fed",
+                "rate",
+            )
+            if any(term in text for term in high_terms):
+                return 0
+            if "medium" in text:
+                return 1
+            return 2
+
+        if rows:
+            ranked = sorted(rows, key=_priority)
+            formatted: list[str] = []
+            for row in ranked[:max_rows]:
+                if len(row) >= 4:
+                    formatted.append(f"{row[0]} {row[1]} Impact {row[2]} Date {row[3]}")
+                elif len(row) >= 2:
+                    formatted.append(f"{row[0]} {row[1]}")
+                else:
+                    formatted.append(" | ".join(row))
+            return LangGraphEngine._dedupe_keep_order(formatted, max_rows)
+
+        fallback = LangGraphEngine._top_summary_lines(raw, max_lines=max_rows)
+        return fallback or ["N/A"]
+
+    @staticmethod
     def _build_scanner_context_packet(scan_state: Dict[str, Any], ticker: str) -> str:
-        """Consolidate Phase 1 scanner output into a clinical context packet for Phase 2."""
+        """Build a compact summary-first scanner packet for Phase 2 analyst prompts."""
         ticker = ticker.upper()
-        
-        # 1. Ticker-specific thesis from synthesis
+
+        # Parse macro synthesis output as the primary handoff contract source.
+        summary_data: Dict[str, Any] = {}
         macro_summary = scan_state.get("macro_scan_summary", "")
-        ticker_thesis = "No specific scanner thesis found for this ticker."
-        key_themes = "None"
-        risk_factors = "None"
-        
         try:
-            summary_data = extract_json(macro_summary) if isinstance(macro_summary, str) else macro_summary
-            if isinstance(summary_data, dict):
-                candidates = summary_data.get("stocks_to_investigate") or summary_data.get("equity_candidates") or []
-                for c in candidates:
-                    c_ticker = (c.get("ticker") or c.get("symbol") or "").upper()
-                    if c_ticker == ticker:
-                        ticker_thesis = (
-                            f"Rationale: {c.get('rationale', 'N/A')}\n"
-                            f"Thesis Angle: {c.get('thesis_angle', 'N/A')}\n"
-                            f"Conviction: {c.get('conviction', 'N/A')}\n"
-                            f"Key Catalysts: {', '.join(c.get('key_catalysts', []))}\n"
-                            f"Specific Risks: {', '.join(c.get('risks', []))}"
-                        )
-                        break
-                
-                themes = summary_data.get("key_themes", [])
-                if themes:
-                    key_themes = "\n".join([f"- {t.get('theme')}: {t.get('description')} (Conviction: {t.get('conviction')})" for t in themes])
-                
-                risks = summary_data.get("risk_factors", [])
-                if risks:
-                    risk_factors = "\n".join([f"- {r}" for r in risks])
+            parsed = extract_json(macro_summary) if isinstance(macro_summary, str) else macro_summary
+            if isinstance(parsed, dict):
+                summary_data = parsed
         except Exception:
             logger.warning("Failed to parse macro_scan_summary for scanner context packet")
 
-        # 2. Extract specific reports
-        geo_report = scan_state.get("geopolitical_report", "N/A")
-        smart_money = scan_state.get("smart_money_report", "N/A")
-        factor_alignment = scan_state.get("factor_alignment_report", "N/A")
-        sector_performance = scan_state.get("sector_performance_report", "N/A")
-        drift_report = scan_state.get("drift_opportunities_report", "N/A")
+        candidates = summary_data.get("stocks_to_investigate") or summary_data.get("equity_candidates") or []
+        ticker_candidate: Dict[str, Any] = {}
+        peer_tickers: list[str] = []
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            cand_ticker = str(candidate.get("ticker") or candidate.get("symbol") or "").upper()
+            if not cand_ticker:
+                continue
+            if cand_ticker == ticker and not ticker_candidate:
+                ticker_candidate = candidate
+                continue
+            if cand_ticker != ticker and cand_ticker not in peer_tickers:
+                peer_tickers.append(cand_ticker)
+            if len(peer_tickers) >= 4:
+                break
 
-        # 3. Fetch structured live data to prevent hallucinations
-        gold = "N/A"
-        oil = "N/A"
-        btc = "N/A"
-        fx = "N/A"
-        earnings = "N/A"
-        economics = "N/A"
+        sector_text = str(ticker_candidate.get("sector") or "")
+        sector_tokens = [
+            tok.strip().lower()
+            for tok in re.split(r"[/,|&\\-]+", sector_text)
+            if tok and tok.strip()
+        ]
+        primary_sector = LangGraphEngine._clean_line(sector_text, max_chars=60) or "Unknown"
+
+        rationale = LangGraphEngine._clean_line(
+            ticker_candidate.get("rationale") or "No ticker-specific rationale in macro summary."
+        )
+        thesis_angle = LangGraphEngine._clean_line(ticker_candidate.get("thesis_angle") or "N/A")
+        conviction = LangGraphEngine._clean_line(ticker_candidate.get("conviction") or "N/A", max_chars=40)
+        catalysts = ticker_candidate.get("key_catalysts") or []
+        if isinstance(catalysts, list):
+            catalyst_line = "; ".join(LangGraphEngine._clean_line(item, 120) for item in catalysts if str(item).strip())
+        else:
+            catalyst_line = LangGraphEngine._clean_line(catalysts, 240)
+        catalyst_line = catalyst_line or "N/A"
+
+        candidate_risks = ticker_candidate.get("risks") or []
+        if isinstance(candidate_risks, list):
+            candidate_risk_line = "; ".join(
+                LangGraphEngine._clean_line(item, 120) for item in candidate_risks if str(item).strip()
+            )
+        else:
+            candidate_risk_line = LangGraphEngine._clean_line(candidate_risks, 240)
+        candidate_risk_line = candidate_risk_line or "N/A"
+
+        theme_lines: list[str] = []
+        for item in summary_data.get("key_themes") or []:
+            if isinstance(item, dict):
+                theme = LangGraphEngine._clean_line(item.get("theme"), 80)
+                desc = LangGraphEngine._clean_line(item.get("description"), 140)
+                conviction_label = LangGraphEngine._clean_line(item.get("conviction"), 20)
+                line = f"{theme}: {desc}" if theme else desc
+                if conviction_label:
+                    line = f"{line} (conviction={conviction_label})"
+                if line.strip():
+                    theme_lines.append(line)
+            else:
+                theme_lines.append(LangGraphEngine._clean_line(item, 200))
+        theme_lines = LangGraphEngine._dedupe_keep_order(theme_lines, 4) or ["N/A"]
+
+        macro_risk_lines = [
+            LangGraphEngine._clean_line(item, 180)
+            for item in (summary_data.get("risk_factors") or [])
+            if str(item).strip()
+        ]
+        macro_risk_lines = LangGraphEngine._dedupe_keep_order(macro_risk_lines, 6)
+        if not macro_risk_lines:
+            macro_risk_lines = [candidate_risk_line]
+
+        # Scanner summaries (summary-first: intentionally do NOT ingest raw *_report payloads).
+        smart_money_summary = scan_state.get("smart_money_summary", "")
+        factor_summary = scan_state.get("factor_alignment_summary", "")
+        drift_summary = scan_state.get("drift_opportunities_summary", "")
+        sector_summary = scan_state.get("sector_summary", "")
+        geopolitical_summary = scan_state.get("geopolitical_summary", "")
+        market_movers_summary = scan_state.get("market_movers_summary", "")
+        industry_summary = scan_state.get("industry_deep_dive_summary", "")
+
+        smart_lines = LangGraphEngine._extract_ticker_relevant_lines(
+            smart_money_summary,
+            ticker,
+            sector_tokens=sector_tokens,
+            max_lines=5,
+        ) or ["N/A"]
+        factor_lines = LangGraphEngine._extract_ticker_relevant_lines(
+            factor_summary,
+            ticker,
+            sector_tokens=sector_tokens,
+            max_lines=5,
+        ) or ["N/A"]
+        drift_lines = LangGraphEngine._extract_ticker_relevant_lines(
+            drift_summary,
+            ticker,
+            sector_tokens=sector_tokens,
+            max_lines=5,
+        ) or ["N/A"]
+        sector_lines = LangGraphEngine._extract_ticker_relevant_lines(
+            sector_summary,
+            ticker,
+            sector_tokens=sector_tokens,
+            max_lines=3,
+        ) or ["N/A"]
+        market_pulse_lines = LangGraphEngine._top_summary_lines(market_movers_summary, max_lines=2) or ["N/A"]
+        geo_pulse_lines = LangGraphEngine._top_summary_lines(geopolitical_summary, max_lines=2) or ["N/A"]
+        industry_pulse_lines = LangGraphEngine._top_summary_lines(industry_summary, max_lines=2) or ["N/A"]
+
+        # Structured ground-truth blocks (bounded extraction only).
+        gold_snapshot = ["N/A"]
+        oil_snapshot = ["N/A"]
+        btc_snapshot = ["N/A"]
+        eur_snapshot = ["N/A"]
+        jpy_snapshot = ["N/A"]
+        cny_snapshot = ["N/A"]
+        earnings_rows = ["N/A"]
+        economic_rows = ["N/A"]
 
         try:
-            gold = get_gold_price.invoke({})
-            oil = get_oil_prices.invoke({})
-            btc = get_bitcoin_price.invoke({})
-            eur = get_eur_usd_rate.invoke({})
-            jpy = get_jpy_usd_rate.invoke({})
-            cny = get_cny_usd_rate.invoke({})
-            fx = f"{eur}\n{jpy}\n{cny}"
-            
-            scan_date_str = scan_state.get('scan_date', time.strftime("%Y-%m-%d"))
+            gold_snapshot = LangGraphEngine._format_snapshot_lines(get_gold_price.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch gold price for scanner context: %s", e)
+        try:
+            oil_snapshot = LangGraphEngine._format_snapshot_lines(get_oil_prices.invoke({}), max_rows=2)
+        except Exception as e:
+            logger.warning("Failed to fetch oil prices for scanner context: %s", e)
+        try:
+            btc_snapshot = LangGraphEngine._format_snapshot_lines(get_bitcoin_price.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch bitcoin price for scanner context: %s", e)
+        try:
+            eur_snapshot = LangGraphEngine._format_snapshot_lines(get_eur_usd_rate.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch EUR/USD rate for scanner context: %s", e)
+        try:
+            jpy_snapshot = LangGraphEngine._format_snapshot_lines(get_jpy_usd_rate.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch JPY/USD rate for scanner context: %s", e)
+        try:
+            cny_snapshot = LangGraphEngine._format_snapshot_lines(get_cny_usd_rate.invoke({}), max_rows=1)
+        except Exception as e:
+            logger.warning("Failed to fetch CNY/USD rate for scanner context: %s", e)
+
+        scan_date_str = scan_state.get("scan_date", time.strftime("%Y-%m-%d"))
+        try:
             scan_dt = _dt.datetime.strptime(scan_date_str, "%Y-%m-%d")
             from_date = (scan_dt - _dt.timedelta(days=7)).strftime("%Y-%m-%d")
             to_date = (scan_dt + _dt.timedelta(days=14)).strftime("%Y-%m-%d")
-            
-            earnings = get_earnings_calendar.invoke({"from_date": from_date, "to_date": to_date})
-            economics = get_economic_calendar.invoke({"from_date": from_date, "to_date": to_date})
+
+            try:
+                earnings_rows = LangGraphEngine._format_filtered_earnings_rows(
+                    get_earnings_calendar.invoke({"from_date": from_date, "to_date": to_date}),
+                    ticker,
+                    peer_tickers,
+                    max_rows=8,
+                )
+            except Exception as e:
+                logger.warning("Failed to fetch earnings calendar for scanner context: %s", e)
+            try:
+                economic_rows = LangGraphEngine._format_filtered_economic_events(
+                    get_economic_calendar.invoke({"from_date": from_date, "to_date": to_date}),
+                    max_rows=8,
+                )
+            except Exception as e:
+                logger.warning("Failed to fetch economic calendar for scanner context: %s", e)
         except Exception as e:
-            logger.warning(f"Failed to fetch structured data for scanner context packet: {e}")
+            logger.warning("Failed to parse scan date for calendar data: %s", e)
+
+        # Pre-build joined line blocks for the f-string template.
+        def _bullet_lines(items: list[str]) -> str:
+            return "\n".join(f"- {line}" for line in items)
+
+        commodity_block = _bullet_lines(gold_snapshot + oil_snapshot + btc_snapshot)
+        fx_block = _bullet_lines(eur_snapshot + jpy_snapshot + cny_snapshot)
+        earnings_block = _bullet_lines(earnings_rows)
+        economic_block = _bullet_lines(economic_rows)
+        smart_block = _bullet_lines(smart_lines)
+        factor_block = _bullet_lines(factor_lines)
+        drift_block = _bullet_lines(drift_lines)
+        sector_block = _bullet_lines(sector_lines)
+        spillover_block = _bullet_lines(market_pulse_lines[:1])
+        themes_block = _bullet_lines(theme_lines)
+        geo_block = _bullet_lines(geo_pulse_lines)
+        movers_block = _bullet_lines(market_pulse_lines)
+        industry_block = _bullet_lines(industry_pulse_lines)
+        risk_block = _bullet_lines(macro_risk_lines)
 
         packet = f"""# SCANNER CONTEXT PACKET: {ticker}
 Date: {scan_state.get('scan_date', 'N/A')}
 
-## I. TICKER-SPECIFIC SCANNER THESIS
-{ticker_thesis}
+## 1) Selection Context
+- Ticker: {ticker}
+- Rationale: {rationale}
+- Conviction: {conviction}
+- Thesis Angle: {thesis_angle}
+- Catalysts: {catalyst_line}
+- Risks: {candidate_risk_line}
 
-## II. STRUCTURED LIVE DATA (GROUND TRUTH)
-### Commodity Prices
-{gold}
-{oil}
-{btc}
+## 2) Ground Truth
+### Commodity Snapshot
+{commodity_block}
 
-### FX Rates
-{fx}
+### FX Snapshot
+{fx_block}
 
-### Earnings Calendar (7d lookback, 14d lookahead)
-{earnings}
+### Filtered Earnings Rows
+{earnings_block}
 
-### Economic Calendar (7d lookback, 14d lookahead)
-{economics}
+### Filtered Economic Events
+{economic_block}
 
-## III. SMART MONEY & FLOW SIGNALS
-{smart_money}
+## 3) Ticker-Relevant Scanner Signals
+### Smart Money
+{smart_block}
 
-## IV. FACTOR ALIGNMENT & DRIFT
-{factor_alignment}
-{drift_report}
+### Factor Alignment
+{factor_block}
 
-## V. MACRO & GEOPOLITICAL CONTEXT
-{geo_report}
+### Drift
+{drift_block}
 
-## VI. SECTOR ROTATION & MARKET REGIME
-{sector_performance}
+## 4) Sector Context
+- Primary Sector: {primary_sector}
+- Sector Summary:
+{sector_block}
+- Related Spillover:
+{spillover_block}
 
-## VII. KEY GLOBAL THEMES
-{key_themes}
+## 5) Macro Themes
+{themes_block}
+- Geopolitical Pulse:
+{geo_block}
+- Market Movers Pulse:
+{movers_block}
+- Industry Deep Dive Pulse:
+{industry_block}
 
-## VIII. MACRO RISK FACTORS
-{risk_factors}
+## 6) Risk Factors
+{risk_block}
 """
         return packet
 

@@ -22,6 +22,7 @@ from tradingagents.agents.portfolio.macro_summary_agent import (
     create_macro_summary_agent,
 )
 from tradingagents.agents.portfolio.micro_summary_agent import (
+    _analysis_snapshot,
     create_micro_summary_agent,
 )
 from tradingagents.agents.portfolio.holding_reviewer import create_holding_reviewer
@@ -186,6 +187,39 @@ class TestMacroSummaryAgentReturnShape:
         result = agent(state)
         assert result["macro_brief"] == content
 
+    def test_macro_prompt_includes_candidate_catalysts_and_risks(self):
+        captured = []
+
+        def _invoke(input, config=None, **kwargs):
+            captured.append(input)
+            return AIMessage(content="MACRO REGIME: neutral")
+
+        llm = RunnableLambda(_invoke)
+        agent = create_macro_summary_agent(llm)
+        state = {
+            "scan_summary": {
+                "executive_summary": "Rotation into energy and AI",
+                "stocks_to_investigate": [
+                    {
+                        "ticker": "OXY",
+                        "conviction": "high",
+                        "thesis_angle": "energy alpha",
+                        "key_catalysts": ["OPEC+ decision", "buyback acceleration"],
+                        "risks": ["demand destruction", "policy error"],
+                    }
+                ],
+            },
+            "messages": [],
+            "analysis_date": "2026-03-26",
+        }
+
+        agent(state)
+
+        prompt = captured[0].to_messages()[0].content
+        assert "OXY | high | energy alpha" in prompt
+        assert "catalysts: OPEC+ decision, buyback acceleration" in prompt
+        assert "risks: demand destruction, policy error" in prompt
+
 
 # ---------------------------------------------------------------------------
 # MacroSummaryAgent — macro_memory integration
@@ -296,6 +330,35 @@ class TestMicroSummaryAgentMalformedInput:
         }
         result = agent(state)
         assert "micro_brief" in result
+
+
+class TestMicroSummaryAgentSnapshotCompaction:
+    def test_analysis_snapshot_preserves_decision_tail(self):
+        long_decision = (
+            "Rating: Buy\nExecutive Summary: "
+            + ("Alpha thesis. " * 120)
+            + "Stop Loss: 205.00\nTake Profit: 260.00\n"
+        )
+
+        snapshot = _analysis_snapshot(
+            {
+                "analysis_status": "completed",
+                "final_trade_decision": long_decision,
+                "trader_investment_plan": "Entry near support. " * 40 + "Sizing: 1%.",
+                "investment_plan": "Research note. " * 40 + "Catalyst date: 2026-04-15.",
+                "market_report": "Trend context. " * 30 + "Support: $210.00.",
+                "fundamentals_report": "Fundamental context. " * 30 + "FCF margin: 28.4%.",
+            }
+        )
+
+        assert snapshot["rating"] == "Buy"
+        assert "Rating: Buy" in snapshot["final_trade_decision"]
+        assert "Stop Loss: 205.00" in snapshot["final_trade_decision"]
+        assert "Take Profit: 260.00" in snapshot["final_trade_decision"]
+        assert "Sizing: 1%." in snapshot["trader_plan"]
+        assert "Catalyst date: 2026-04-15." in snapshot["research_plan"]
+        assert "Support: $210.00." in snapshot["market_report"]
+        assert "FCF margin: 28.4%." in snapshot["fundamentals_report"]
 
     def test_invalid_candidates_json_handled_gracefully(self):
         """Malformed JSON in prioritized_candidates does not raise."""
@@ -507,4 +570,3 @@ class TestSummaryAgentsRobustness:
         assert len(messages) == 1
         assert messages[0].type == "system"
         assert "This prior message should be ignored." not in messages[0].content
-

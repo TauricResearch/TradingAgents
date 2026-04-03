@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
@@ -9,28 +10,123 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
+from tradingagents.agents.utils.output_validation import (
+    build_market_report_structured,
+    infer_macro_regime_from_prefetched_report,
+)
 from tradingagents.agents.utils.technical_indicators_tools import get_indicators
-from tradingagents.agents.utils.tool_runner import run_tool_loop
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
-def create_market_analyst(llm):
+_INDICATOR_PLANS = {
+    "risk_on": [
+        "close_10_ema",
+        "close_50_sma",
+        "macd",
+        "macds",
+        "macdh",
+        "rsi",
+        "vwma",
+        "atr",
+    ],
+    "risk_off": [
+        "close_200_sma",
+        "close_50_sma",
+        "atr",
+        "boll",
+        "boll_ub",
+        "boll_lb",
+        "rsi",
+        "vwma",
+    ],
+    "transition": [
+        "close_10_ema",
+        "close_50_sma",
+        "close_200_sma",
+        "macd",
+        "rsi",
+        "atr",
+        "boll",
+        "vwma",
+    ],
+}
 
+
+def _compact_timeseries_text(raw_text: str, *, max_data_rows: int, marker: str) -> str:
+    """Keep prompt-safe slices of large CSV/indicator blocks."""
+    text = str(raw_text or "").strip()
+    if not text or text.startswith("[Error"):
+        return text
+    lines = [line for line in text.splitlines() if line.strip()]
+    if len(lines) <= max_data_rows + 1:
+        return text
+    header = lines[0]
+    tail = lines[-max_data_rows:]
+    omitted = len(lines) - (max_data_rows + 1)
+    return "\n".join([header, f"# [{marker}: truncated {omitted} older rows]", *tail])
+
+
+def _build_indicator_prefetches(
+    *,
+    ticker: str,
+    current_date: str,
+    lookback_days: int,
+    macro_regime_report: str,
+) -> list[dict]:
+    regime = infer_macro_regime_from_prefetched_report(macro_regime_report)
+    indicators = _INDICATOR_PLANS.get(regime) or _INDICATOR_PLANS["transition"]
+    return [
+        {
+            "tool": get_indicators,
+            "args": {
+                "symbol": ticker,
+                "indicator": indicator,
+                "curr_date": current_date,
+                "look_back_days": lookback_days,
+            },
+            "label": f"Technical Indicator: {indicator}",
+        }
+        for indicator in indicators
+    ]
+
+
+def _build_timeout_fallback_report(
+    *,
+    ticker: str,
+    as_of_date: str,
+    macro_regime_report: str,
+    timeout_seconds: float,
+) -> str:
+    regime = infer_macro_regime_from_prefetched_report(macro_regime_report)
+    regime_label = regime.replace("_", "-").upper() if regime != "unknown" else "UNKNOWN"
+    return (
+        f"{ticker} Market Analysis (Timeout Fallback)\n\n"
+        f"- Model generation exceeded {timeout_seconds:.0f}s and was cut over to deterministic fallback mode.\n"
+        f"- Macro regime from pre-loaded context: {regime_label}.\n"
+        f"- Preserve scanner context values as ground truth for downstream weighting.\n"
+        f"- Recommend rerunning market analysis when model latency stabilizes.\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        f"| Ticker | {ticker} |\n"
+        f"| Date | {as_of_date} |\n"
+        f"| Macro Regime | {regime_label} |\n"
+        f"| Mode | Timeout fallback |\n"
+    )
+
+
+def create_market_analyst(llm):
     def market_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
         scanner_context = state.get("scanner_context_packet", "")
 
-        # ── Pre-fetch macro regime and stock price data in parallel ──────────
-        # Both are always required; fetching them upfront removes 2 LLM round-
-        # trips and lets the LLM focus its single tool-call budget on choosing
-        # the right indicators based on the macro regime it sees.
-        trade_date = datetime.strptime(current_date, "%Y-%m-%d")
-        # Always fetch a full year so get_stock_data can compute 200-day SMA
-        # and 52-week levels; the function truncates the CSV to lookback_days.
-        stock_start = (trade_date - timedelta(days=365)).strftime("%Y-%m-%d")
         lookback_days = DEFAULT_CONFIG.get("trading_lookback_days", 90)
+        indicator_lookback_days = max(20, min(int(lookback_days), 45))
+        trade_date = datetime.strptime(current_date, "%Y-%m-%d")
+        stock_window_days = max(100, indicator_lookback_days + 20)
+        stock_start = (trade_date - timedelta(days=stock_window_days)).strftime("%Y-%m-%d")
 
         prefetched = prefetch_tools_parallel(
             [
@@ -50,31 +146,54 @@ def create_market_analyst(llm):
                 },
             ]
         )
-        prefetched_context = format_prefetched_context(prefetched)
+        stock_blob = prefetched.get("Stock Price Data", "")
+        if stock_blob:
+            prefetched["Stock Price Data"] = _compact_timeseries_text(
+                stock_blob,
+                max_data_rows=40,
+                marker="stock data compacted",
+            )
 
-        # ── Only get_indicators remains iterative ─────────────────────────────
-        # The LLM reads the macro regime from the pre-loaded context and decides
-        # which indicators are most relevant before calling get_indicators.
-        tools = [get_indicators]
+        macro_regime_report = ""
+        regime_data = prefetched.get("Macro Regime Classification", "")
+        if regime_data and not regime_data.startswith("[Error"):
+            macro_regime_report = regime_data
+
+        indicator_prefetched = prefetch_tools_parallel(
+            _build_indicator_prefetches(
+                ticker=ticker,
+                current_date=current_date,
+                lookback_days=indicator_lookback_days,
+                macro_regime_report=macro_regime_report,
+            )
+        )
+        for key, value in list(indicator_prefetched.items()):
+            indicator_prefetched[key] = _compact_timeseries_text(
+                value,
+                max_data_rows=12,
+                marker="indicator data compacted",
+            )
+        prefetched_context = format_prefetched_context({**prefetched, **indicator_prefetched})
 
         system_message = (
             "You are a trading assistant tasked with analyzing financial markets.\n\n"
             "## Pre-loaded Data\n\n"
-            "The macro regime classification and recent stock price data for the company under "
-            "analysis have already been fetched and are provided in the **Pre-loaded Context** "
-            "section below. "
-            "Do NOT call `get_macro_regime` or `get_stock_data` — the data is already available.\n\n"
+            "The macro regime classification, recent stock price data, and a regime-specific "
+            "technical indicator pack for the company under analysis have already been fetched "
+            "and are provided in the **Pre-loaded Context** section below. Do NOT call "
+            "`get_macro_regime`, `get_stock_data`, or `get_indicators` — the data is already "
+            "available.\n\n"
             "## Your Task\n\n"
             "0. **STRICT GROUND TRUTH**: Treat all values in the **Scanner Context** section "
             "(commodity prices, FX rates, and calendar dates) as absolute ground-truth. "
             "Do NOT deviate from these numbers or dates in your report. If the Scanner "
             "Context contains a 30-day directional prediction, incorporate it into your "
             "assessment of the market backdrop.\n\n"
-            "1. Read the macro regime classification from the pre-loaded context. "
-            "The macro regime has been classified above — use it to weight your indicator "
-            "choices before calling `get_indicators`. For example, in risk-off environments "
-            "favour ATR, Bollinger Bands, and long-term SMAs; in risk-on environments favour "
-            "momentum indicators like MACD and short EMAs.\n\n"
+            "1. Read the macro regime classification from the pre-loaded context. Use it to "
+            "weight the significance of the indicator pack that follows. In risk-off "
+            "environments, emphasize volatility, capital preservation, and long-term support "
+            "levels. In risk-on environments, emphasize momentum, trend confirmation, and "
+            "breakout continuation. In transition regimes, highlight conflicting signals.\n\n"
             "## CRITICAL ABORT TRIGGER\n\n"
             "If you detect any of the following CATASTROPHIC market conditions, you MUST immediately "
             "prepend `[CRITICAL ABORT]` to your report and provide specific reasoning:\n\n"
@@ -104,60 +223,18 @@ def create_market_analyst(llm):
             "STRICT CONSTRAINTS:\n"
             "- Output ONLY bulleted quantitative analysis with a summary table.\n"
             "- Cite exact values in standard format: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n\n"
+            "- Keep the report concise: maximum 12 bullets and one compact markdown table.\n"
+            "- Target <= 700 words total.\n\n"
             "If no catastrophic conditions are detected, continue with your analysis:\n\n"
-            "2. Select the **most relevant indicators** for the given market condition from "
-            "the list below. Choose up to **8 indicators** that provide complementary insights "
-            "without redundancy.\n\n"
-            "Moving Averages:\n"
-            "- close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend "
-            "direction and serve as dynamic support/resistance. Tips: It lags price; combine "
-            "with faster indicators for timely signals.\n"
-            "- close_200_sma: 200 SMA: A long-term trend benchmark. Usage: Confirm overall "
-            "market trend and identify golden/death cross setups. Tips: It reacts slowly; best "
-            "for strategic trend confirmation rather than frequent trading entries.\n"
-            "- close_10_ema: 10 EMA: A responsive short-term average. Usage: Capture quick "
-            "shifts in momentum and potential entry points. Tips: Prone to noise in choppy "
-            "markets; use alongside longer averages for filtering false signals.\n\n"
-            "MACD Related:\n"
-            "- macd: MACD: Computes momentum via differences of EMAs. Usage: Look for "
-            "crossovers and divergence as signals of trend changes. Tips: Confirm with other "
-            "indicators in low-volatility or sideways markets.\n"
-            "- macds: MACD Signal: An EMA smoothing of the MACD line. Usage: Use crossovers "
-            "with the MACD line to trigger trades. Tips: Should be part of a broader strategy "
-            "to avoid false positives.\n"
-            "- macdh: MACD Histogram: Shows the gap between the MACD line and its signal. "
-            "Usage: Visualize momentum strength and spot divergence early. Tips: Can be "
-            "volatile; complement with additional filters in fast-moving markets.\n\n"
-            "Momentum Indicators:\n"
-            "- rsi: RSI: Measures momentum to flag overbought/oversold conditions. Usage: "
-            "Apply 70/30 thresholds and watch for divergence to signal reversals. Tips: In "
-            "strong trends, RSI may remain extreme; always cross-check with trend analysis.\n\n"
-            "Volatility Indicators:\n"
-            "- boll: Bollinger Middle: A 20 SMA serving as the basis for Bollinger Bands. "
-            "Usage: Acts as a dynamic benchmark for price movement. Tips: Combine with the "
-            "upper and lower bands to effectively spot breakouts or reversals.\n"
-            "- boll_ub: Bollinger Upper Band: Typically 2 standard deviations above the middle "
-            "line. Usage: Signals potential overbought conditions and breakout zones. Tips: "
-            "Confirm signals with other tools; prices may ride the band in strong trends.\n"
-            "- boll_lb: Bollinger Lower Band: Typically 2 standard deviations below the middle "
-            "line. Usage: Indicates potential oversold conditions. Tips: Use additional "
-            "analysis to avoid false reversal signals.\n"
-            "- atr: ATR: Averages true range to measure volatility. Usage: Set stop-loss "
-            "levels and adjust position sizes based on current market volatility. Tips: It's "
-            "a reactive measure, so use it as part of a broader risk management strategy.\n\n"
-            "Volume-Based Indicators:\n"
-            "- vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by "
-            "integrating price action with volume data. Tips: Watch for skewed results from "
-            "volume spikes; use in combination with other volume analyses.\n\n"
-            "3. Select indicators that provide diverse and complementary information. Avoid "
-            "redundancy (e.g., do not select both rsi and stochrsi). Briefly explain why each "
-            "chosen indicator is suitable for the current macro context. When calling "
-            "`get_indicators`, use the exact indicator names listed above — they are defined "
-            "parameters and any deviation will cause the call to fail.\n\n"
-            "4. Write a very detailed and nuanced report of the trends you observe. Provide "
-            "specific, actionable insights with supporting evidence to help traders make "
-            "informed decisions. Make sure to append a Markdown table at the end of the report "
-            "to organise key points, making it easy to read."
+            "2. Use the provided indicator pack to explain trend direction, momentum, "
+            "volatility, and support/resistance. Anchor the report on the explicit values in "
+            "the indicator sections; do not invent missing metrics.\n\n"
+            "3. The indicator set was preselected for the detected regime. If one indicator "
+            "conflicts with the broader setup, call that conflict out explicitly instead of "
+            "rewriting the evidence.\n\n"
+            "4. Write a detailed market report with actionable insights supported by the "
+            "pre-loaded stock data, macro regime, and indicator readings. Make sure to append "
+            "a Markdown table at the end of the report to organise key points for easy review."
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -165,12 +242,11 @@ def create_market_analyst(llm):
                 (
                     "system",
                     "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
                     " will help where you left off. Execute what you can to make progress."
                     " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
                     " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
+                    "\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}\n\n"
                     "## Scanner Context\n\n{scanner_context}\n\n"
                     "## Pre-loaded Context\n\n{prefetched_context}",
@@ -180,35 +256,59 @@ def create_market_analyst(llm):
         )
 
         prompt = prompt.partial(system_message=system_message)
-        prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
         prompt = prompt.partial(scanner_context=scanner_context)
         prompt = prompt.partial(prefetched_context=prefetched_context)
 
-        chain = prompt | llm.bind_tools(tools)
+        llm_for_market = llm
+        if hasattr(llm, "bind"):
+            try:
+                llm_for_market = llm.bind(max_tokens=900)
+            except Exception:
+                llm_for_market = llm
 
-        result = run_tool_loop(chain, state["messages"], tools)
+        chain = prompt | llm_for_market
+        configured_timeout = float(
+            DEFAULT_CONFIG.get("quick_think_llm_timeout")
+            or DEFAULT_CONFIG.get("llm_timeout")
+            or 120.0
+        )
+        invoke_timeout = min(configured_timeout, 45.0)
+        result, invoke_error = invoke_with_timeout(
+            chain,
+            state["messages"],
+            timeout_seconds=invoke_timeout,
+        )
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                report = _build_timeout_fallback_report(
+                    ticker=ticker,
+                    as_of_date=current_date,
+                    macro_regime_report=macro_regime_report,
+                    timeout_seconds=invoke_timeout,
+                )
+                result = AIMessage(content=report)
+                is_timeout_fallback = True
+            else:
+                raise invoke_error
+        else:
+            is_timeout_fallback = False
 
         report = result.content or ""
-        macro_regime_report = ""
-
-        # Extract macro regime section if present (from pre-loaded context or report)
-        regime_data = prefetched.get("Macro Regime Classification", "")
-        if regime_data and not regime_data.startswith("[Error"):
-            macro_regime_report = regime_data
-        elif report and (
-            "Macro Regime Classification" in report
-            or "RISK-ON" in report.upper()
-            or "RISK-OFF" in report.upper()
-            or "TRANSITION" in report.upper()
-        ):
-            macro_regime_report = report
+        structured = build_market_report_structured(
+            ticker=ticker,
+            as_of_date=current_date,
+            market_report=report,
+            macro_regime_report=macro_regime_report,
+            is_timeout_fallback=is_timeout_fallback,
+        )
 
         return {
             "messages": [result],
             "market_report": report,
             "macro_regime_report": macro_regime_report,
+            "market_report_structured": structured,
         }
 
     return market_analyst_node

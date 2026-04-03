@@ -1,4 +1,4 @@
-from typing import Annotated, Sequence
+from typing import Annotated, Any, Sequence
 from datetime import date, timedelta, datetime
 from typing_extensions import TypedDict, Optional
 from langchain_openai import ChatOpenAI
@@ -14,10 +14,12 @@ class InvestDebateState(TypedDict):
     ]  # Bullish Conversation history
     bear_history: Annotated[
         str, "Bearish Conversation history"
-    ]  # Bullish Conversation history
+    ]  # Bearish Conversation history
     history: Annotated[str, "Conversation history"]  # Conversation history
     summary: Annotated[str, "Rolling compressed summary of the debate"]
     current_response: Annotated[str, "Latest response"]  # Last response
+    current_bull_summary: Annotated[str, "Latest compressed bull researcher summary"]
+    current_bear_summary: Annotated[str, "Latest compressed bear researcher summary"]
     judge_decision: Annotated[str, "Final judge decision"]  # Last response
     count: Annotated[int, "Length of the current conversation"]  # Conversation length
 
@@ -67,9 +69,15 @@ class AgentState(MessagesState):
 
     # research step
     market_report: Annotated[str, "Report from the Market Analyst"]
+    market_report_structured: Annotated[
+        dict[str, Any], "Compact canonical market contract for downstream machine consumers"
+    ]
     sentiment_report: Annotated[str, "Report from the Social Media Analyst"]
     news_report: Annotated[
         str, "Report from the News Researcher of current world affairs"
+    ]
+    news_report_structured: Annotated[
+        dict[str, Any], "Structured news claims before and after fact-check pruning"
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
     research_packet_summary: Annotated[

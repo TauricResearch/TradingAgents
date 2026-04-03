@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
@@ -11,12 +11,14 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
 from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.output_validation import (
-    extract_allowed_sources_from_context,
-    validate_news_analysis_detailed,
     log_validation_result,
+    render_structured_news_payload,
+    validate_structured_news_payload,
 )
 from tradingagents.memory.news_evidence import NewsEvidenceStore
+from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -91,11 +93,6 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             prefetched=prefetched,
         )
         evidence_context = store.build_prompt_context(evidence_records)
-        allowed_source_names = (
-            {record.source for record in evidence_records if record.source}
-            | extract_allowed_sources_from_context(prefetched_context)
-        )
-
         macro_regime_report = state.get("macro_regime_report", "")
         macro_regime_section = (
             "\n## Current Macro Regime\n"
@@ -120,10 +117,35 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             "Use the provided **Economic Calendar** to contextulize news events — "
             "do NOT hallucinate dates for FOMC, CPI, or other macro releases.\n\n"
             "STRICT CONSTRAINTS:\n"
-            "- Output ONLY bulleted quantitative analysis with a summary table.\n"
-            "- Cite exact values in standard format: $X.XX, +Y.Y% YoY. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n"
+            "- Output ONLY valid JSON. Do not wrap the JSON in markdown fences.\n"
+            "- Cite exact values in standard format inside claim text: $X.XX, +Y.Y% YoY. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n"
             "- Prioritize material news with quantifiable impact over speculative commentary.\n"
             "- Attribute each claim to a specific source and date.\n\n"
+            "Return a JSON object with this schema:\n"
+            "{\n"
+            f'  "ticker": "{ticker}",\n'
+            f'  "report_title": "{ticker} News Analysis",\n'
+            '  "claims": [\n'
+            "    {\n"
+            '      "claim": "One sentence grounded in the provided context that includes the ticker symbol.",\n'
+            '      "source": "Exact source name from the provided evidence records or Finviz Smart Money Scanner",\n'
+            '      "published_at": "YYYY-MM-DD",\n'
+            '      "evidence_id": "art_...",\n'
+            '      "scan_date": "YYYY-MM-DD"\n'
+            "    }\n"
+            "  ],\n"
+            '  "summary_table": [\n'
+            "    {\n"
+            '      "date": "YYYY-MM-DD",\n'
+            '      "event": "Short event label",\n'
+            '      "metric": "Metric name",\n'
+            '      "value": "Exact value string",\n'
+            '      "source": "Exact source name",\n'
+            '      "evidence_id": "art_..."\n'
+            "    }\n"
+            "  ]\n"
+            "}\n"
+            "Use `scan_date` only for Finviz Smart Money Scanner claims. Use `published_at` and `evidence_id` for article-based claims.\n\n"
             "When citing scanner-derived claims, use this exact format: "
             f"{scanner_citation_hint}\n"
             "When a matching persisted article is available in the Evidence Records section, "
@@ -134,19 +156,8 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             "\"Macro Regime Classification\", \"Scanner Context\", \"Pre-loaded Context\", or "
             "\"Economic Calendar\" as publications.\n"
             "Do not invent source names. Do not describe Finviz scanner output as SEC or Form 4 evidence unless SEC filing data is explicitly present in the provided news context.\n\n"
-            f"**CRITICAL OUTPUT REQUIREMENTS**:\n"
-            f"Your response MUST satisfy ALL of these validation criteria:\n"
-            f"1. Mention the ticker symbol \"{ticker}\" at least 5 times\n"
-            f"2. Include at least 3 specific quotes or facts directly from the provided news articles\n"
-            f"3. Reference specific dates (YYYY-MM-DD format) and sources for all major claims\n"
-            f"4. Include concrete numbers ($X.XX, Y.Y%, specific quantities)\n"
-            f"5. If you find yourself writing generic portfolio strategy advice (diversification, risk tolerance, rebalancing), STOP - that is WRONG\n\n"
-            f"**SELF-VALIDATION CHECK** (before finalizing your response):\n"
-            f"- Does it mention {ticker} at least 5 times? ✓\n"
-            f"- Does it quote specific articles with dates? ✓\n"
-            f"- Does it include concrete numbers and percentages? ✓\n"
-            f"- Does it avoid generic investment advice? ✓\n\n"
-            f"If NO to any of the above, your response FAILED validation. Start over and focus strictly on the {ticker} news articles.\n\n"
+            "If the evidence window is sparse, return only the claims you can verify from the provided context. "
+            "Do not invent filler claims to satisfy a target count.\n\n"
             "Start with the company-specific news block and anchor the report on developments "
             f"that are directly material to {ticker}. Use the global macroeconomic block only "
             "as secondary context. If the company feed includes peer, ETF, or sector articles "
@@ -156,9 +167,8 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             "current state of the world as it is relevant to trading and macroeconomics. "
             "Cross-reference company-specific developments with the broader macro backdrop. "
             "Provide specific, actionable insights with supporting evidence to help traders "
-            "make informed decisions. "
-            "Make sure to append a Markdown table at the end of the report to organise key "
-            "points, making it easy to read."
+            "make informed decisions. Populate the `summary_table` with the most decision-relevant "
+            "rows from the same validated evidence."
         )
 
         prompt = ChatPromptTemplate.from_messages(
@@ -190,80 +200,135 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
         chain = prompt | llm
 
-        first_result = chain.invoke(state["messages"])
-        report = first_result.content or ""
-
-        validation = validate_news_analysis_detailed(
-            report,
-            ticker,
-            allowed_source_names=allowed_source_names,
-            allowed_evidence_ids={record.evidence_id for record in evidence_records},
-            enforce_provenance=False,
+        timeout_seconds = min(
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+            60.0,
         )
+        first_result, invoke_error = invoke_with_timeout(
+            llm=chain,
+            prompt_or_messages=state["messages"],
+            timeout_seconds=timeout_seconds,
+        )
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                timeout_report = (
+                    f"{ticker} News Analysis\n\n"
+                    f"- News analyst timed out after {timeout_seconds:.0f}s; no validated JSON payload was produced.\n"
+                    "- Treat news input as unavailable for this run and rely on other validated analyst evidence.\n"
+                    "- No new article claims should be inferred from this fallback."
+                )
+                return {
+                    "messages": [AIMessage(content=timeout_report)],
+                    "news_report": timeout_report,
+                    "news_report_structured": None,
+                }
+            raise invoke_error
+        raw_output = first_result.content or ""
+        structured_validation = validate_structured_news_payload(
+            raw_output,
+            ticker,
+            min_claims=1,
+        )
+        report = (
+            render_structured_news_payload(structured_validation.payload, ticker)
+            if structured_validation.is_valid and structured_validation.payload is not None
+            else raw_output
+        )
+
         log_validation_result(
             agent_name="news_analyst_attempt_1",
             ticker=ticker,
-            is_valid=validation.is_valid,
-            reason=validation.reason,
-            output_preview=report[:500] if report else ""
+            is_valid=structured_validation.is_valid,
+            reason=structured_validation.reason,
+            output_preview=raw_output[:500] if raw_output else "",
         )
 
         result = first_result
-        if not validation.is_valid:
+        structured_payload = (
+            structured_validation.payload if structured_validation.is_valid else None
+        )
+        if not structured_validation.is_valid:
             logger.warning(
                 "News analyst output validation failed for %s on attempt 1 (%s): %s",
                 ticker,
-                validation.code,
-                validation.reason,
+                structured_validation.code,
+                structured_validation.reason,
             )
             retry_instruction = HumanMessage(
                 content=(
                     "Validation failed for your prior draft.\n"
-                    f"Failure code: {validation.code}\n"
-                    f"Failure reason: {validation.reason}\n"
+                    f"Failure code: {structured_validation.code}\n"
+                    f"Failure reason: {structured_validation.reason}\n"
                     "The same full scanner context, pre-loaded news feeds, and persisted evidence records "
                     "remain available on this retry.\n"
-                    "Rewrite the report from scratch using only the provided context. "
+                    "Rewrite the report from scratch using only the provided context and return valid JSON only. "
                     "Only cite publications or data sources present in the provided feeds. "
                     "Do not cite internal prompt labels or section headers like "
                     "\"Macro Regime Classification\", \"Scanner Context\", or "
                     "\"Pre-loaded Context\" as sources. "
-                    f"If you cite scanner-derived claims, you must use {scanner_citation_hint} exactly."
+                    f"If you cite scanner-derived claims, you must use {scanner_citation_hint} exactly. "
+                    "Every article-based claim must include exact `source`, `published_at`, and `evidence_id` fields."
                 )
             )
-            result = chain.invoke([*state["messages"], retry_instruction])
-            report = result.content or ""
-            validation = validate_news_analysis_detailed(
-                report,
+            result, invoke_error = invoke_with_timeout(
+                llm=chain,
+                prompt_or_messages=[*state["messages"], retry_instruction],
+                timeout_seconds=timeout_seconds,
+            )
+            if invoke_error is not None:
+                if isinstance(invoke_error, TimeoutError):
+                    report = (
+                        f"{ticker} News Analysis\n\n"
+                        f"- News analyst retry timed out after {timeout_seconds:.0f}s; no validated JSON payload was produced.\n"
+                        "- Treat news input as unavailable for this run and rely on other validated analyst evidence.\n"
+                        "- No new article claims should be inferred from this fallback."
+                    )
+                    return {
+                        "messages": [AIMessage(content=report)],
+                        "news_report": report,
+                        "news_report_structured": None,
+                    }
+                raise invoke_error
+            raw_output = result.content or ""
+            structured_validation = validate_structured_news_payload(
+                raw_output,
                 ticker,
-                allowed_source_names=allowed_source_names,
-                allowed_evidence_ids={record.evidence_id for record in evidence_records},
-                # Provenance is enforced by the dedicated News Fact Checker node.
-                enforce_provenance=False,
+                min_claims=1,
+            )
+            report = (
+                render_structured_news_payload(structured_validation.payload, ticker)
+                if structured_validation.is_valid and structured_validation.payload is not None
+                else raw_output
             )
             log_validation_result(
                 agent_name="news_analyst_attempt_2",
                 ticker=ticker,
-                is_valid=validation.is_valid,
-                reason=validation.reason,
-                output_preview=report[:500] if report else ""
+                is_valid=structured_validation.is_valid,
+                reason=structured_validation.reason,
+                output_preview=raw_output[:500] if raw_output else "",
             )
 
-            if not validation.is_valid:
+            if not structured_validation.is_valid:
                 logger.error(
                     "News analyst output validation failed for %s on attempt 2 (%s): %s",
                     ticker,
-                    validation.code,
-                    validation.reason,
+                    structured_validation.code,
+                    structured_validation.reason,
                 )
                 report = (
                     "[CRITICAL ABORT] Reason: News analysis failed source-validation twice "
-                    f"for {ticker} ({validation.code}) - {validation.reason}"
+                    f"for {ticker} ({structured_validation.code}) - {structured_validation.reason}"
                 )
+                structured_payload = None
+            else:
+                structured_payload = structured_validation.payload
+        else:
+            structured_payload = structured_validation.payload
 
         return {
             "messages": [result],
             "news_report": report,
+            "news_report_structured": structured_payload or {},
         }
 
     return news_analyst_node

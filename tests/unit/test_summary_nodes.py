@@ -20,26 +20,38 @@ from tradingagents.agents.risk_mgmt.neutral_debator import create_neutral_debato
 
 def test_research_packet_summary_node_returns_summary():
     llm = MagicMock()
-    llm.invoke.return_value = SimpleNamespace(content="Market setup\nFundamentals\n...")
     node = create_research_packet_summary(llm)
 
     result = node(
         {
-            "market_report": "market",
-            "sentiment_report": "sentiment",
-            "news_report": "news",
-            "fundamentals_report": "fundamentals",
-            "macro_regime_report": "macro",
+            "scanner_context_packet": "Oil: $72.10\nDXY: 104.2",
+            "market_report": "- Price held $189.00 support\n| Metric | Value |\n| --- | --- |",
+            "market_report_structured": {
+                "status": "completed",
+                "contract_version": "market_summary_v1",
+                "macro_regime": "risk_on",
+                "claim_count": 4,
+                "key_levels": ["$189.00", "$194.50"],
+                "key_metrics": {
+                    "numeric_mentions": 6,
+                    "summary_table_rows": 2,
+                },
+            },
+            "sentiment_report": "- Sentiment improved to 62%",
+            "news_report": "- AAPL supplier demand improved 8% on 2024-05-15.",
+            "fundamentals_report": "- Gross margin expanded 120bps.",
+            "macro_regime_report": "## Risk-On\nMarket is RISK-ON.",
         }
     )
 
-    assert result["research_packet_summary"] == "Market setup\nFundamentals\n..."
+    summary = result["research_packet_summary"]
+    assert "## Scanner Context (Phase 1)" in summary
+    assert "## Market Structured Contract" in summary
+    assert "macro_regime: risk_on" in summary
+    assert "## Market Report" in summary
+    assert "## News Report" in summary
     assert result["sender"] == "research_packet_summary"
-    prompt = llm.invoke.call_args.args[0]
-    assert "## OBJECTIVE" in prompt
-    assert RESEARCH_PACKET_SUMMARY.objective in prompt
-    assert "- **Market setup**" in prompt
-    assert "## INPUT TEXT TO SUMMARIZE:" in prompt
+    llm.invoke.assert_not_called()
 
 
 def test_investment_debate_summary_updates_state_summary():
@@ -75,7 +87,7 @@ def test_investment_debate_summary_updates_state_summary():
 
 
 def test_investment_debate_summary_fallback_without_summaries():
-    """Heuristic fast-path: falls back to placeholder when no summary fields."""
+    """Without per-side summary points, node emits in-progress placeholder."""
     llm = MagicMock()
     node = create_investment_debate_summary(llm)
 
@@ -92,9 +104,7 @@ def test_investment_debate_summary_fallback_without_summaries():
     )
 
     summary = result["investment_debate_state"]["summary"]
-    assert "### Bull Analyst Points" in summary
-    assert "### Bear Analyst Points" in summary
-    assert "(No specific summary provided)" in summary
+    assert summary == "Investment debate in progress..."
 
 
 def test_risk_debate_summary_updates_state_summary():
@@ -122,7 +132,7 @@ def test_risk_debate_summary_updates_state_summary():
 
     summary = result["risk_debate_state"]["summary"]
     assert "### Aggressive Analyst Points" in summary
-    assert "(No specific summary provided)" in summary
+    assert "Aggressive Analyst: push harder" in summary
     assert result["risk_debate_state"]["latest_speaker"] == "Aggressive"
     # Heuristic path does not invoke the LLM
     llm.invoke.assert_not_called()
@@ -130,6 +140,7 @@ def test_risk_debate_summary_updates_state_summary():
 
 def test_bull_researcher_uses_summary_context_when_available():
     llm = MagicMock()
+    llm.bind.side_effect = RuntimeError("bind unsupported in unit test")
     llm.invoke.return_value = SimpleNamespace(content="bull answer")
     memory = MagicMock()
     memory.get_memories.return_value = []
@@ -158,6 +169,7 @@ def test_bull_researcher_uses_summary_context_when_available():
 
 def test_researcher_nodes_preserve_investment_summary_and_metadata():
     llm = MagicMock()
+    llm.bind.side_effect = RuntimeError("bind unsupported in unit test")
     llm.invoke.return_value = SimpleNamespace(content="updated argument")
     memory = MagicMock()
     memory.get_memories.return_value = []
@@ -189,8 +201,47 @@ def test_researcher_nodes_preserve_investment_summary_and_metadata():
     assert bear_state["count"] == 3
 
 
+def test_researcher_nodes_write_compact_summary_points():
+    llm = MagicMock()
+    llm.bind.side_effect = RuntimeError("bind unsupported in unit test")
+    llm.invoke.return_value = SimpleNamespace(
+        content="THE DEBATE:\n- line\n\nSUMMARY POINTS:\n- point A\n- point B"
+    )
+    memory = MagicMock()
+    memory.get_memories.return_value = []
+
+    state = {
+        "company_of_interest": "AAPL",
+        "research_packet_summary": "compact packet",
+        "investment_debate_state": {
+            "bull_history": "",
+            "bear_history": "",
+            "history": "",
+            "summary": "",
+            "current_response": "",
+            "judge_decision": "",
+            "count": 0,
+        },
+    }
+
+    bull_state = create_bull_researcher(llm, memory)(state)["investment_debate_state"]
+    assert "### Bull Analyst Points" in bull_state["summary"]
+    assert "- point A" in bull_state["summary"]
+
+    bear_result_state = create_bear_researcher(llm, memory)(
+        {
+            "company_of_interest": "AAPL",
+            "research_packet_summary": "compact packet",
+            "investment_debate_state": bull_state,
+        }
+    )["investment_debate_state"]
+    assert "### Bull Analyst Points" in bear_result_state["summary"]
+    assert "### Bear Analyst Points" in bear_result_state["summary"]
+
+
 def test_risk_nodes_preserve_summary_and_metadata():
     llm = MagicMock()
+    llm.bind.side_effect = RuntimeError("bind unsupported in unit test")
     llm.invoke.return_value = SimpleNamespace(content="updated risk argument")
     state = {
         "company_of_interest": "AAPL",

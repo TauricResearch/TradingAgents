@@ -17,6 +17,13 @@ from .conditional_logic import ConditionalLogic, CRITICAL_ABORT_NODE
 class GraphSetup:
     """Handles the setup and configuration of the agent graph."""
 
+    _REPORT_FIELD_BY_ANALYST = {
+        "market": "market_report",
+        "social": "sentiment_report",
+        "news": "news_report",
+        "fundamentals": "fundamentals_report",
+    }
+
     def _should_short_circuit_to_critical_abort_terminal(self, state: AgentState) -> bool:
         return state_has_critical_abort(
             state, "market_report", "news_report", "fundamentals_report"
@@ -27,6 +34,23 @@ class GraphSetup:
         if str(state.get("analysis_status") or "").strip().lower() == "aborted":
             return "END"
         return next_node
+
+    @classmethod
+    def _should_skip_analyst(cls, state: AgentState, analyst_type: str) -> bool:
+        field_name = cls._REPORT_FIELD_BY_ANALYST.get(analyst_type)
+        if not field_name:
+            return False
+        return bool(str(state.get(field_name) or "").strip())
+
+    @classmethod
+    def _resolve_next_analyst_node(
+        cls, state: AgentState, selected_analysts: list[str], start_index: int = 0
+    ) -> str:
+        for analyst_type in selected_analysts[start_index:]:
+            if cls._should_skip_analyst(state, analyst_type):
+                continue
+            return f"{analyst_type.capitalize()} Analyst"
+        return "Bull Researcher"
 
     @staticmethod
     def _make_instrument_preflight_node():
@@ -113,14 +137,14 @@ class GraphSetup:
 
         if "market" in selected_analysts:
             analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm
+                self.mid_thinking_llm
             )
             delete_nodes["market"] = create_msg_delete()
             tool_nodes["market"] = self.tool_nodes["market"]
 
         if "social" in selected_analysts:
             analyst_nodes["social"] = create_social_media_analyst(
-                self.quick_thinking_llm
+                self.mid_thinking_llm
             )
             delete_nodes["social"] = create_msg_delete()
             tool_nodes["social"] = self.tool_nodes["social"]
@@ -146,12 +170,6 @@ class GraphSetup:
         )
         bear_researcher_node = create_bear_researcher(
             self.mid_thinking_llm, self.bear_memory
-        )
-        research_packet_summary_node = create_research_packet_summary(
-            self.quick_thinking_llm
-        )
-        investment_debate_summary_node = create_investment_debate_summary(
-            self.quick_thinking_llm
         )
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
@@ -186,10 +204,8 @@ class GraphSetup:
 
         # Add other nodes
         workflow.add_node("Instrument Preflight", self._make_instrument_preflight_node())
-        workflow.add_node("Research Packet Summary", research_packet_summary_node)
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
-        workflow.add_node("Investment Debate Summary", investment_debate_summary_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
         workflow.add_node("Aggressive R1", aggressive_r1)
@@ -206,15 +222,21 @@ class GraphSetup:
 
         # Define edges
         # Start with deterministic instrument preflight
-        first_analyst = selected_analysts[0]
         workflow.add_edge(START, "Instrument Preflight")
+        preflight_targets = {
+            **{
+                f"{analyst_type.capitalize()} Analyst": f"{analyst_type.capitalize()} Analyst"
+                for analyst_type in selected_analysts
+            },
+            "Bull Researcher": "Bull Researcher",
+            "END": END,
+        }
         workflow.add_conditional_edges(
             "Instrument Preflight",
-            lambda state, next_node=f"{first_analyst.capitalize()} Analyst": self._route_after_preflight(state, next_node),
-            {
-                f"{first_analyst.capitalize()} Analyst": f"{first_analyst.capitalize()} Analyst",
-                "END": END,
-            },
+            lambda state, analysts=list(selected_analysts): self._route_after_preflight(
+                state, self._resolve_next_analyst_node(state, analysts, 0)
+            ),
+            preflight_targets,
         )
 
         # Connect analysts in sequence
@@ -231,41 +253,49 @@ class GraphSetup:
             )
             workflow.add_edge(current_tools, current_analyst)
 
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(selected_analysts) - 1:
-                next_node = f"{selected_analysts[i+1].capitalize()} Analyst"
-            else:
-                next_node = "Research Packet Summary"
-
             route_origin = current_clear
             if analyst_type == "news":
                 workflow.add_edge(current_clear, "News Fact Checker")
                 route_origin = "News Fact Checker"
 
-            def _route_after_clear(state: AgentState, next_node: str = next_node) -> str:
+            next_targets = {
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
+                **{
+                    f"{remaining.capitalize()} Analyst": f"{remaining.capitalize()} Analyst"
+                    for remaining in selected_analysts[i + 1 :]
+                },
+                "Bull Researcher": "Bull Researcher",
+            }
+
+            def _route_after_clear(
+                state: AgentState,
+                analysts: list[str] = list(selected_analysts),
+                start_index: int = i + 1,
+            ) -> str:
                 if self._should_short_circuit_to_critical_abort_terminal(state):
                     return CRITICAL_ABORT_NODE
-                return next_node
+                return self._resolve_next_analyst_node(state, analysts, start_index)
 
             workflow.add_conditional_edges(
                 route_origin,
                 _route_after_clear,
-                {
-                    CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
-                    next_node: next_node,
-                },
+                next_targets,
             )
 
         # Add remaining edges
         workflow.add_conditional_edges(
-            "Research Packet Summary",
-            lambda _state: "Bull Researcher",
-            {"Bull Researcher": "Bull Researcher"},
+            "Bull Researcher",
+            self.conditional_logic.should_continue_debate,
+            {
+                "Bull Researcher": "Bull Researcher",
+                "Bear Researcher": "Bear Researcher",
+                "Research Manager": "Research Manager",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
+                "Portfolio Manager": "Portfolio Manager",
+            },
         )
-        workflow.add_edge("Bull Researcher", "Investment Debate Summary")
-        workflow.add_edge("Bear Researcher", "Investment Debate Summary")
         workflow.add_conditional_edges(
-            "Investment Debate Summary",
+            "Bear Researcher",
             self.conditional_logic.should_continue_debate,
             {
                 "Bull Researcher": "Bull Researcher",
@@ -306,7 +336,8 @@ class GraphSetup:
         """Build a subgraph that starts from Bull Researcher (skips analysts).
 
         Use this to re-run the debate + trader + risk phases when analysts
-        checkpoints are available. Entry point: Bull Researcher.
+        checkpoints are available. Reruns already carry analyst reports in state,
+        so the LLM research-packet summary node is intentionally skipped here.
         """
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(
@@ -314,12 +345,6 @@ class GraphSetup:
         )
         bear_researcher_node = create_bear_researcher(
             self.mid_thinking_llm, self.bear_memory
-        )
-        research_packet_summary_node = create_research_packet_summary(
-            self.quick_thinking_llm
-        )
-        investment_debate_summary_node = create_investment_debate_summary(
-            self.quick_thinking_llm
         )
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
@@ -342,10 +367,8 @@ class GraphSetup:
 
         workflow = StateGraph(AgentState)
 
-        workflow.add_node("Research Packet Summary", research_packet_summary_node)
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
-        workflow.add_node("Investment Debate Summary", investment_debate_summary_node)
         workflow.add_node("Research Manager", research_manager_node)
         workflow.add_node("Trader", trader_node)
         workflow.add_node("Aggressive R1", aggressive_r1)
@@ -359,12 +382,22 @@ class GraphSetup:
         workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
-        workflow.add_edge(START, "Research Packet Summary")
-        workflow.add_edge("Research Packet Summary", "Bull Researcher")
-        workflow.add_edge("Bull Researcher", "Investment Debate Summary")
-        workflow.add_edge("Bear Researcher", "Investment Debate Summary")
+        workflow.add_edge(START, "Bull Researcher")
+        # Note: The debate subgraph intentionally omits "Portfolio Manager"
+        # from routing targets. should_continue_debate() never returns it,
+        # and the subgraph's terminal edge goes directly from PM to END.
         workflow.add_conditional_edges(
-            "Investment Debate Summary",
+            "Bull Researcher",
+            self.conditional_logic.should_continue_debate,
+            {
+                "Bull Researcher": "Bull Researcher",
+                "Bear Researcher": "Bear Researcher",
+                "Research Manager": "Research Manager",
+                CRITICAL_ABORT_NODE: CRITICAL_ABORT_NODE,
+            },
+        )
+        workflow.add_conditional_edges(
+            "Bear Researcher",
             self.conditional_logic.should_continue_debate,
             {
                 "Bull Researcher": "Bull Researcher",
@@ -403,11 +436,9 @@ class GraphSetup:
         """Build a subgraph that starts from the risk debate (skips analysts + debate + trader).
 
         Use this to re-run only the risk debate + PM phases when trader
-        checkpoints are available. Entry point: Research Packet Summary → Risk R1 fan-out.
+        checkpoints are available. Reruns already carry trader and analyst
+        context in state, so the LLM research-packet summary node is skipped.
         """
-        research_packet_summary_node = create_research_packet_summary(
-            self.quick_thinking_llm
-        )
 
         # Risk debate — 2 parallel rounds + synthesis
         aggressive_r1 = create_aggressive_debator(self.quick_thinking_llm, round_num=1)
@@ -425,7 +456,6 @@ class GraphSetup:
 
         workflow = StateGraph(AgentState)
 
-        workflow.add_node("Research Packet Summary", research_packet_summary_node)
         workflow.add_node("Aggressive R1", aggressive_r1)
         workflow.add_node("Conservative R1", conservative_r1)
         workflow.add_node("Neutral R1", neutral_r1)
@@ -437,12 +467,10 @@ class GraphSetup:
         workflow.add_node(CRITICAL_ABORT_NODE, critical_abort_terminal_node)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
-        workflow.add_edge(START, "Research Packet Summary")
-
-        # Round 1 — parallel fan-out from Research Packet Summary
-        workflow.add_edge("Research Packet Summary", "Aggressive R1")
-        workflow.add_edge("Research Packet Summary", "Conservative R1")
-        workflow.add_edge("Research Packet Summary", "Neutral R1")
+        # Round 1 — parallel fan-out from preloaded rerun state
+        workflow.add_edge(START, "Aggressive R1")
+        workflow.add_edge(START, "Conservative R1")
+        workflow.add_edge(START, "Neutral R1")
         # Round 1 — fan-in to barrier
         workflow.add_edge("Aggressive R1", "Risk Round Barrier")
         workflow.add_edge("Conservative R1", "Risk Round Barrier")

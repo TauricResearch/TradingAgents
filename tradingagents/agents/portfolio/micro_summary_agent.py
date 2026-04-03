@@ -40,6 +40,20 @@ def _extract_rating(decision_text: str) -> str:
     return ""
 
 
+def _compact_text_block(text: str, limit: int, *, tail_chars: int | None = None) -> str:
+    """Keep both the start and end of long strings within a hard cap."""
+    text = str(text or "").strip()
+    if not text or len(text) <= limit:
+        return text
+
+    marker = "\n...\n"
+    tail_chars = tail_chars if tail_chars is not None else min(220, max(80, limit // 3))
+    head_chars = max(0, limit - tail_chars - len(marker))
+    if head_chars <= 0:
+        return text[:limit]
+    return f"{text[:head_chars].rstrip()}{marker}{text[-tail_chars:].lstrip()}"
+
+
 def _analysis_snapshot(analysis: dict) -> dict[str, str]:
     """Build a compact deep-dive snapshot for PM consumption."""
     if not _analysis_has_deep_dive(analysis):
@@ -47,11 +61,27 @@ def _analysis_snapshot(analysis: dict) -> dict[str, str]:
     final_decision = str(analysis.get("final_trade_decision") or "").strip()
     return {
         "rating": _extract_rating(final_decision),
-        "final_trade_decision": final_decision[:500],
-        "trader_plan": str(analysis.get("trader_investment_plan") or "").strip()[:280],
-        "research_plan": str(analysis.get("investment_plan") or "").strip()[:280],
-        "market_report": str(analysis.get("market_report") or "").strip()[:220],
-        "fundamentals_report": str(analysis.get("fundamentals_report") or "").strip()[:220],
+        "final_trade_decision": _compact_text_block(final_decision, 900, tail_chars=320),
+        "trader_plan": _compact_text_block(
+            str(analysis.get("trader_investment_plan") or "").strip(),
+            420,
+            tail_chars=140,
+        ),
+        "research_plan": _compact_text_block(
+            str(analysis.get("investment_plan") or "").strip(),
+            420,
+            tail_chars=140,
+        ),
+        "market_report": _compact_text_block(
+            str(analysis.get("market_report") or "").strip(),
+            320,
+            tail_chars=120,
+        ),
+        "fundamentals_report": _compact_text_block(
+            str(analysis.get("fundamentals_report") or "").strip(),
+            320,
+            tail_chars=120,
+        ),
     }
 
 
