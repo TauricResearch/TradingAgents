@@ -3,6 +3,7 @@ import datetime
 import typer
 from pathlib import Path
 from functools import wraps
+import re
 from rich.console import Console
 from dotenv import load_dotenv
 
@@ -29,6 +30,13 @@ from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
+from tradingagents.agents.utils.agent_utils import (
+    extract_feedback_snapshot,
+    get_output_language,
+    is_feedback_snapshot_inferred,
+    localize_role_name,
+    strip_feedback_snapshot,
+)
 
 console = Console()
 
@@ -227,6 +235,136 @@ class MessageBuffer:
 
 
 message_buffer = MessageBuffer()
+
+
+RESEARCH_SPEAKER_ALIASES = {
+    "Bull Researcher": ("Bull Researcher", "Bull Analyst", "多头分析师"),
+    "Bear Researcher": ("Bear Researcher", "Bear Analyst", "空头分析师"),
+}
+
+RISK_SPEAKER_ALIASES = {
+    "Aggressive Analyst": ("Aggressive Analyst", "激进分析师"),
+    "Conservative Analyst": ("Conservative Analyst", "保守分析师"),
+    "Neutral Analyst": ("Neutral Analyst", "中性分析师"),
+}
+
+DISPLAY_ROLE_NAMES = {
+    "Bull Researcher": "多头分析师",
+    "Bear Researcher": "空头分析师",
+    "Research Manager": "研究经理",
+    "Aggressive Analyst": "激进分析师",
+    "Conservative Analyst": "保守分析师",
+    "Neutral Analyst": "中性分析师",
+    "Portfolio Manager": "投资组合经理",
+}
+
+
+def _build_speaker_pattern(speaker_aliases: dict[str, tuple[str, ...]]) -> re.Pattern[str]:
+    aliases = []
+    for names in speaker_aliases.values():
+        aliases.extend(names)
+    escaped = sorted((re.escape(name) for name in aliases), key=len, reverse=True)
+    return re.compile(rf"(?m)^\s*({'|'.join(escaped)})\s*[:：]\s*")
+
+
+def _split_history_into_turns(history: str, speaker_aliases: dict[str, tuple[str, ...]]) -> list[str]:
+    if not history or not history.strip():
+        return []
+
+    pattern = _build_speaker_pattern(speaker_aliases)
+    matches = list(pattern.finditer(history))
+    if not matches:
+        return [history.strip()]
+
+    turns = []
+    for idx, match in enumerate(matches):
+        start = match.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(history)
+        turn = history[start:end].strip()
+        if turn:
+            turns.append(turn)
+    return turns
+
+
+def _format_grouped_rounds(
+    histories: dict[str, str],
+    speaker_aliases: dict[str, tuple[str, ...]],
+    manager_title: Optional[str] = None,
+    manager_content: str = "",
+) -> str:
+    output_language = get_output_language().strip().lower()
+    is_chinese = output_language in {"chinese", "中文", "zh", "zh-cn", "zh-hans"}
+    turns_by_speaker = {
+        speaker: _split_history_into_turns(histories.get(speaker, ""), speaker_aliases)
+        for speaker in speaker_aliases
+    }
+    max_rounds = max((len(turns) for turns in turns_by_speaker.values()), default=0)
+
+    parts = []
+    for round_index in range(max_rounds):
+        round_parts = []
+        for speaker, turns in turns_by_speaker.items():
+            if round_index < len(turns):
+                turn = turns[round_index]
+                argument_body = strip_feedback_snapshot(turn)
+                snapshot = extract_feedback_snapshot(turn)
+                speaker_title = DISPLAY_ROLE_NAMES.get(speaker, speaker) if is_chinese else speaker
+                speaker_parts = [f"#### {speaker_title}"]
+                if argument_body:
+                    speaker_parts.append(argument_body)
+                if snapshot:
+                    inferred_snapshot = is_feedback_snapshot_inferred(turn)
+                    if is_chinese:
+                        snapshot_title = "自动复盘" if inferred_snapshot else "本轮复盘"
+                    else:
+                        snapshot_title = "Auto Review" if inferred_snapshot else "Round Review"
+                    speaker_parts.append(f"##### {snapshot_title}\n" + snapshot)
+                round_parts.append("\n\n".join(speaker_parts))
+        if round_parts:
+            round_title = f"第 {round_index + 1} 轮" if is_chinese else f"Round {round_index + 1}"
+            parts.append(f"### {round_title}\n\n" + "\n\n".join(round_parts))
+
+    if manager_title and manager_content and manager_content.strip():
+        parts.append(f"### {manager_title}\n{manager_content.strip()}")
+
+    return "\n\n".join(parts).strip()
+
+
+def format_research_team_history(debate_state: dict) -> str:
+    output_language = get_output_language().strip().lower()
+    manager_title = (
+        "研究经理结论"
+        if output_language in {"chinese", "中文", "zh", "zh-cn", "zh-hans"}
+        else "Research Manager Decision"
+    )
+    return _format_grouped_rounds(
+        {
+            "Bull Researcher": debate_state.get("bull_history", ""),
+            "Bear Researcher": debate_state.get("bear_history", ""),
+        },
+        RESEARCH_SPEAKER_ALIASES,
+        manager_title=manager_title,
+        manager_content=debate_state.get("judge_decision", ""),
+    )
+
+
+def format_risk_management_history(risk_state: dict) -> str:
+    output_language = get_output_language().strip().lower()
+    manager_title = (
+        "投资组合经理结论"
+        if output_language in {"chinese", "中文", "zh", "zh-cn", "zh-hans"}
+        else "Portfolio Manager Decision"
+    )
+    return _format_grouped_rounds(
+        {
+            "Aggressive Analyst": risk_state.get("aggressive_history", ""),
+            "Conservative Analyst": risk_state.get("conservative_history", ""),
+            "Neutral Analyst": risk_state.get("neutral_history", ""),
+        },
+        RISK_SPEAKER_ALIASES,
+        manager_title=manager_title,
+        manager_content=risk_state.get("judge_decision", ""),
+    )
 
 
 def create_layout():
@@ -679,9 +817,14 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         if debate.get("judge_decision"):
             research_dir.mkdir(exist_ok=True)
             (research_dir / "manager.md").write_text(debate["judge_decision"])
-            research_parts.append(("Research Manager", debate["judge_decision"]))
+        formatted_research = format_research_team_history(debate)
+        if formatted_research:
+            research_dir.mkdir(exist_ok=True)
+            (research_dir / "rounds.md").write_text(formatted_research)
         if research_parts:
-            content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
+            content = formatted_research or "\n\n".join(
+                f"### {name}\n{text}" for name, text in research_parts
+            )
             sections.append(f"## II. Research Team Decision\n\n{content}")
 
     # 3. Trading
@@ -708,8 +851,14 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
             risk_dir.mkdir(exist_ok=True)
             (risk_dir / "neutral.md").write_text(risk["neutral_history"])
             risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
+        formatted_risk = format_risk_management_history(risk)
+        if formatted_risk:
+            risk_dir.mkdir(exist_ok=True)
+            (risk_dir / "rounds.md").write_text(formatted_risk)
         if risk_parts:
-            content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
+            content = formatted_risk or "\n\n".join(
+                f"### {name}\n{text}" for name, text in risk_parts
+            )
             sections.append(f"## IV. Risk Management Team Decision\n\n{content}")
 
         # 5. Portfolio Manager
@@ -748,17 +897,17 @@ def display_complete_report(final_state):
     # II. Research Team Reports
     if final_state.get("investment_debate_state"):
         debate = final_state["investment_debate_state"]
-        research = []
-        if debate.get("bull_history"):
-            research.append(("Bull Researcher", debate["bull_history"]))
-        if debate.get("bear_history"):
-            research.append(("Bear Researcher", debate["bear_history"]))
-        if debate.get("judge_decision"):
-            research.append(("Research Manager", debate["judge_decision"]))
-        if research:
+        formatted_research = format_research_team_history(debate)
+        if formatted_research:
             console.print(Panel("[bold]II. Research Team Decision[/bold]", border_style="magenta"))
-            for title, content in research:
-                console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
+            console.print(
+                Panel(
+                    Markdown(formatted_research),
+                    title="Research Team",
+                    border_style="blue",
+                    padding=(1, 2),
+                )
+            )
 
     # III. Trading Team
     if final_state.get("trader_investment_plan"):
@@ -768,17 +917,17 @@ def display_complete_report(final_state):
     # IV. Risk Management Team
     if final_state.get("risk_debate_state"):
         risk = final_state["risk_debate_state"]
-        risk_reports = []
-        if risk.get("aggressive_history"):
-            risk_reports.append(("Aggressive Analyst", risk["aggressive_history"]))
-        if risk.get("conservative_history"):
-            risk_reports.append(("Conservative Analyst", risk["conservative_history"]))
-        if risk.get("neutral_history"):
-            risk_reports.append(("Neutral Analyst", risk["neutral_history"]))
-        if risk_reports:
+        formatted_risk = format_risk_management_history(risk)
+        if formatted_risk:
             console.print(Panel("[bold]IV. Risk Management Team Decision[/bold]", border_style="red"))
-            for title, content in risk_reports:
-                console.print(Panel(Markdown(content), title=title, border_style="blue", padding=(1, 2)))
+            console.print(
+                Panel(
+                    Markdown(formatted_risk),
+                    title="Risk Management Team",
+                    border_style="blue",
+                    padding=(1, 2),
+                )
+            )
 
         # V. Portfolio Manager Decision
         if risk.get("judge_decision"):
@@ -1084,22 +1233,16 @@ def run_analysis():
                 bull_hist = debate_state.get("bull_history", "").strip()
                 bear_hist = debate_state.get("bear_history", "").strip()
                 judge = debate_state.get("judge_decision", "").strip()
+                formatted_research = format_research_team_history(debate_state)
 
                 # Only update status when there's actual content
                 if bull_hist or bear_hist:
                     update_research_team_status("in_progress")
-                if bull_hist:
+                if formatted_research:
                     message_buffer.update_report_section(
-                        "investment_plan", f"### Bull Researcher Analysis\n{bull_hist}"
-                    )
-                if bear_hist:
-                    message_buffer.update_report_section(
-                        "investment_plan", f"### Bear Researcher Analysis\n{bear_hist}"
+                        "investment_plan", formatted_research
                     )
                 if judge:
-                    message_buffer.update_report_section(
-                        "investment_plan", f"### Research Manager Decision\n{judge}"
-                    )
                     update_research_team_status("completed")
                     message_buffer.update_agent_status("Trader", "in_progress")
 
@@ -1119,31 +1262,24 @@ def run_analysis():
                 con_hist = risk_state.get("conservative_history", "").strip()
                 neu_hist = risk_state.get("neutral_history", "").strip()
                 judge = risk_state.get("judge_decision", "").strip()
+                formatted_risk = format_risk_management_history(risk_state)
 
                 if agg_hist:
                     if message_buffer.agent_status.get("Aggressive Analyst") != "completed":
                         message_buffer.update_agent_status("Aggressive Analyst", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### Aggressive Analyst Analysis\n{agg_hist}"
-                    )
                 if con_hist:
                     if message_buffer.agent_status.get("Conservative Analyst") != "completed":
                         message_buffer.update_agent_status("Conservative Analyst", "in_progress")
-                    message_buffer.update_report_section(
-                        "final_trade_decision", f"### Conservative Analyst Analysis\n{con_hist}"
-                    )
                 if neu_hist:
                     if message_buffer.agent_status.get("Neutral Analyst") != "completed":
                         message_buffer.update_agent_status("Neutral Analyst", "in_progress")
+                if formatted_risk:
                     message_buffer.update_report_section(
-                        "final_trade_decision", f"### Neutral Analyst Analysis\n{neu_hist}"
+                        "final_trade_decision", formatted_risk
                     )
                 if judge:
                     if message_buffer.agent_status.get("Portfolio Manager") != "completed":
                         message_buffer.update_agent_status("Portfolio Manager", "in_progress")
-                        message_buffer.update_report_section(
-                            "final_trade_decision", f"### Portfolio Manager Decision\n{judge}"
-                        )
                         message_buffer.update_agent_status("Aggressive Analyst", "completed")
                         message_buffer.update_agent_status("Conservative Analyst", "completed")
                         message_buffer.update_agent_status("Neutral Analyst", "completed")

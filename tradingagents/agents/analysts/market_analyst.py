@@ -3,6 +3,7 @@ import time
 import json
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    get_collaboration_stop_instruction,
     get_indicators,
     get_language_instruction,
     get_stock_data,
@@ -22,7 +23,7 @@ def create_market_analyst(llm):
         ]
 
         system_message = (
-            """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+            """You are a trading assistant tasked with analyzing financial markets. Your price and technical analysis must rely only on the data returned by `get_stock_data` and `get_indicators`. Do not infer price action, volume behavior, momentum, or technical signals from company news, macro news, or social sentiment. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
@@ -55,14 +56,15 @@ Volume-Based Indicators:
             [
                 (
                     "system",
-                    "You are a helpful AI assistant, collaborating with other assistants."
-                    " Use the provided tools to progress towards answering the question."
-                    " If you are unable to fully answer, that's OK; another assistant with different tools"
-                    " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
-                    " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. {instrument_context}",
+                    (
+                        "You are a helpful AI assistant, collaborating with other assistants."
+                        " Use the provided tools to progress towards answering the question."
+                        " If you are unable to fully answer, that's OK; another assistant with different tools"
+                        " will help where you left off. Execute what you can to make progress."
+                        + get_collaboration_stop_instruction()
+                        + " You have access to the following tools: {tool_names}.\n{system_message}"
+                        + "For your reference, the current date is {current_date}. {instrument_context}"
+                    ),
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]

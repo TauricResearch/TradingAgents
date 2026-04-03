@@ -75,14 +75,16 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "ollama": {
         "quick": [
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
+            ("Qwen3.5-27B (llama.cpp local)", "Qwen3.5-27B"),
+            ("Qwen3.5-35B-3A (llama.cpp local)", "Qwen3.5-35B-3A"),
+            ("Qwen3.5-35B-A3B (llama.cpp local)", "Qwen3.5-35B-A3B"),
+            ("Qwen3.5-122B (llama.cpp local)", "Qwen3.5-122B"),
         ],
         "deep": [
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
+            ("Qwen3.5-122B (llama.cpp local)", "Qwen3.5-122B"),
+            ("Qwen3.5-35B-A3B (llama.cpp local)", "Qwen3.5-35B-A3B"),
+            ("Qwen3.5-35B-3A (llama.cpp local)", "Qwen3.5-35B-3A"),
+            ("Qwen3.5-27B (llama.cpp local)", "Qwen3.5-27B"),
         ],
     },
 }

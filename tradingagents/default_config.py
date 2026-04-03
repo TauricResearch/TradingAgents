@@ -23,16 +23,27 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    "report_context_char_limit": 16000,
+    "debate_history_char_limit": 12000,
+    "memory_min_similarity": 0.15,
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "core_stock_apis": "tushare,yfinance",       # Options: tushare, yfinance
+        "technical_indicators": "tushare,yfinance",  # Options: tushare, yfinance
+        "fundamental_data": "tushare,yfinance",      # Options: tushare, yfinance
+        "news_data": "opencli,brave,yfinance",       # Options: opencli, brave, yfinance
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
-        # Example: "get_stock_data": "alpha_vantage",  # Override category default
+        "get_stock_data": "tushare",
+        "get_indicators": "tushare",
+        "get_fundamentals": "tushare",
+        "get_balance_sheet": "tushare",
+        "get_cashflow": "tushare",
+        "get_income_statement": "tushare",
+        "get_news": "opencli",
+        "get_global_news": "opencli",
+        "get_insider_transactions": "tushare,yfinance",
     },
 }

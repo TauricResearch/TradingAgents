@@ -2,7 +2,7 @@ import unittest
 import warnings
 
 from tradingagents.llm_clients.base_client import BaseLLMClient
-from tradingagents.llm_clients.model_catalog import get_known_models
+from tradingagents.llm_clients.model_catalog import get_known_models, get_model_options
 from tradingagents.llm_clients.validators import validate_model
 
 
@@ -20,6 +20,19 @@ class DummyLLMClient(BaseLLMClient):
 
 
 class ModelValidationTests(unittest.TestCase):
+    def test_local_llamacpp_models_are_exposed_in_cli_catalog(self):
+        quick_models = [value for _, value in get_model_options("ollama", "quick")]
+        deep_models = [value for _, value in get_model_options("ollama", "deep")]
+
+        for model in (
+            "Qwen3.5-27B",
+            "Qwen3.5-35B-3A",
+            "Qwen3.5-35B-A3B",
+            "Qwen3.5-122B",
+        ):
+            with self.subTest(model=model):
+                self.assertIn(model, quick_models + deep_models)
+
     def test_cli_catalog_models_are_all_validator_approved(self):
         for provider, models in get_known_models().items():
             if provider in ("ollama", "openrouter"):

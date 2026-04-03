@@ -23,6 +23,8 @@ class FinancialSituationMemory:
         self.documents: List[str] = []
         self.recommendations: List[str] = []
         self.bm25 = None
+        cfg = config or {}
+        self.min_similarity = float(cfg.get("memory_min_similarity", 0.15))
 
     def _tokenize(self, text: str) -> List[str]:
         """Tokenize text for BM25 indexing.
@@ -78,15 +80,19 @@ class FinancialSituationMemory:
 
         # Build results
         results = []
-        max_score = max(scores) if max(scores) > 0 else 1  # Normalize scores
+        query_token_set = set(query_tokens)
 
         for idx in top_indices:
-            # Normalize score to 0-1 range for consistency
-            normalized_score = scores[idx] / max_score if max_score > 0 else 0
+            doc_token_set = set(self._tokenize(self.documents[idx]))
+            overlap_count = len(query_token_set & doc_token_set)
+            overlap_ratio = overlap_count / max(1, len(query_token_set))
+
+            if overlap_ratio < self.min_similarity:
+                continue
             results.append({
                 "matched_situation": self.documents[idx],
                 "recommendation": self.recommendations[idx],
-                "similarity_score": normalized_score,
+                "similarity_score": overlap_ratio,
             })
 
         return results

@@ -50,7 +50,8 @@ class ConditionalLogic:
             state["investment_debate_state"]["count"] >= 2 * self.max_debate_rounds
         ):  # 3 rounds of back-and-forth between 2 agents
             return "Research Manager"
-        if state["investment_debate_state"]["current_response"].startswith("Bull"):
+        latest_speaker = state["investment_debate_state"].get("latest_speaker", "")
+        if latest_speaker.startswith("Bull"):
             return "Bear Researcher"
         return "Bull Researcher"
 

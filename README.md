@@ -128,7 +128,8 @@ export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export OPENROUTER_API_KEY=...      # OpenRouter
-export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+export TUSHARE_TOKEN=...           # Tushare (A-share / HK / US price and fundamentals)
+export BRAVE_SEARCH_API_KEY=...    # Brave Search (news search)
 ```
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.

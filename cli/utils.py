@@ -189,21 +189,21 @@ def select_deep_thinking_agent(provider) -> str:
 
 def select_llm_provider() -> tuple[str, str]:
     """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    # Define provider options as (display_name, provider_key, endpoint)
     BASE_URLS = [
-        ("OpenAI", "https://api.openai.com/v1"),
-        ("Google", "https://generativelanguage.googleapis.com/v1"),
-        ("Anthropic", "https://api.anthropic.com/"),
-        ("xAI", "https://api.x.ai/v1"),
-        ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),
+        ("OpenAI", "openai", "https://api.openai.com/v1"),
+        ("Google", "google", "https://generativelanguage.googleapis.com/v1"),
+        ("Anthropic", "anthropic", "https://api.anthropic.com/"),
+        ("xAI", "xai", "https://api.x.ai/v1"),
+        ("Openrouter", "openrouter", "https://openrouter.ai/api/v1"),
+        ("Ollama / llama.cpp", "ollama", "http://localhost:4000/v1"),
     ]
     
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
-            questionary.Choice(display, value=(display, value))
-            for display, value in BASE_URLS
+            questionary.Choice(display, value=(provider_key, endpoint, display))
+            for display, provider_key, endpoint in BASE_URLS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -219,10 +219,10 @@ def select_llm_provider() -> tuple[str, str]:
         console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
         exit(1)
     
-    display_name, url = choice
+    provider_key, url, display_name = choice
     print(f"You selected: {display_name}\tURL: {url}")
 
-    return display_name, url
+    return provider_key, url
 
 
 def ask_openai_reasoning_effort() -> str:
