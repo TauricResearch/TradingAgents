@@ -667,6 +667,10 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"])
         analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    if final_state.get("quant_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "quant.md").write_text(final_state["quant_report"])
+        analyst_parts.append(("Quant Analyst", final_state["quant_report"]))
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
         sections.append(f"## I. Analyst Team Reports\n\n{content}")

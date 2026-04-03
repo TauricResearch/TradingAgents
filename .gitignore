@@ -218,3 +218,5 @@ __marimo__/
 # Cache
 **/data_cache/
 CLAUDE.md
+reports/*
+results/*

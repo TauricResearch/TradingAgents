@@ -1,13 +1,23 @@
+import re
+
+from langchain_core.messages import ToolMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.quant_tools import get_quant_analysis
 from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
+
+
+def _looks_like_raw_tool_call(text: str) -> bool:
+    """Return True if the LLM output a tool call as plain text instead of via the API."""
+    stripped = re.sub(r"^```+\w*\s*", "", text.strip())
+    return bool(re.search(r'"name"\s*:', stripped) and re.search(r'"arguments"\s*:', stripped))
 
 
 def create_quant_analyst(llm):
 
     def quant_analyst_node(state):
         current_date = state["trade_date"]
-        instrument_context = build_instrument_context(state["company_of_interest"])
+        ticker = state["company_of_interest"]
+        instrument_context = build_instrument_context(ticker)
 
         tools = [get_quant_analysis]
 
@@ -49,7 +59,25 @@ def create_quant_analyst(llm):
 
         report = ""
         if len(result.tool_calls) == 0:
-            report = result.content
+            content = result.content if isinstance(result.content, str) else ""
+            if _looks_like_raw_tool_call(content):
+                # The model output the tool call as plain text instead of using the
+                # function-calling API (common with weaker/local models). Call the
+                # tool directly so the quant data is always populated.
+                try:
+                    raw_data = get_quant_analysis.invoke(
+                        {"ticker": ticker, "analysis_date": current_date}
+                    )
+                except Exception as e:
+                    raw_data = f"Quant analysis unavailable: {e}"
+                # Feed the raw data back to the LLM so it can write the narrative report.
+                tool_msg = ToolMessage(content=raw_data, tool_call_id="fallback")
+                followup = chain.invoke(state["messages"] + [result, tool_msg])
+                fc = followup.content if isinstance(followup.content, str) else ""
+                report = fc if fc and not _looks_like_raw_tool_call(fc) else raw_data
+                result = followup
+            else:
+                report = content
 
         return {
             "messages": [result],
