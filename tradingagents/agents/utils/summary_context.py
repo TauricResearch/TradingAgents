@@ -1,28 +1,75 @@
-"""Helpers for choosing compressed prompt context when summaries exist."""
+"""Helpers for deterministic packet assembly and compact debate context."""
 
 from __future__ import annotations
 
 
-def build_research_packet(state: dict) -> str:
-    """Return a compact analyst packet when available, otherwise raw reports."""
-    summary = str(state.get("research_packet_summary") or "").strip()
-    if summary:
-        return summary
+def _compact_lines(text: str, *, max_lines: int = 8, max_chars: int = 1600) -> str:
+    lines: list[str] = []
+    total = 0
+    for raw_line in str(text or "").splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            continue
+        line_len = len(line) + 1
+        if total + line_len > max_chars:
+            break
+        lines.append(line)
+        total += line_len
+        if len(lines) >= max_lines:
+            break
+    return "\n".join(lines).strip()
 
-    parts = []
-    labeled_reports = (
-        ("Scanner Context (Phase 1)", state.get("scanner_context_packet", "")),
-        ("Market Research Report", state.get("market_report", "")),
-        ("Social Media Sentiment Report", state.get("sentiment_report", "")),
-        ("Latest World Affairs Report", state.get("news_report", "")),
-        ("Company Fundamentals Report", state.get("fundamentals_report", "")),
-        ("Macro Regime Report", state.get("macro_regime_report", "")),
+
+def _format_market_structured(structured: object) -> str:
+    if not isinstance(structured, dict):
+        return ""
+    key_levels = structured.get("key_levels") or []
+    if not isinstance(key_levels, list):
+        key_levels = []
+    key_metrics = structured.get("key_metrics") or {}
+    if not isinstance(key_metrics, dict):
+        key_metrics = {}
+    lines = [
+        f"- status: {structured.get('status', '')}",
+        f"- contract_version: {structured.get('contract_version', '')}",
+        f"- macro_regime: {structured.get('macro_regime', '')}",
+        f"- claim_count: {structured.get('claim_count', '')}",
+        f"- key_levels: {', '.join(str(level) for level in key_levels[:3])}",
+        f"- numeric_mentions: {key_metrics.get('numeric_mentions', '')}",
+        f"- summary_table_rows: {key_metrics.get('summary_table_rows', '')}",
+    ]
+    return "\n".join(line for line in lines if line.split(":", 1)[1].strip())
+
+
+def build_research_packet(state: dict) -> str:
+    """Return the canonical deterministic analyst packet for downstream nodes."""
+    sections: list[str] = []
+
+    scanner_context_packet = _compact_lines(
+        str(state.get("scanner_context_packet") or ""),
+        max_lines=10,
+        max_chars=2000,
     )
-    for label, content in labeled_reports:
-        content = str(content or "").strip()
-        if content:
-            parts.append(f"{label}: {content}")
-    return "\n\n".join(parts)
+    if scanner_context_packet:
+        sections.append(f"## Scanner Context (Phase 1)\n{scanner_context_packet}")
+
+    market_structured = _format_market_structured(state.get("market_report_structured"))
+    if market_structured:
+        sections.append(f"## Market Structured Contract\n{market_structured}")
+
+    block_specs = [
+        ("## Market Report", state.get("market_report"), 10, 2200),
+        ("## Sentiment Report", state.get("sentiment_report"), 8, 1600),
+        ("## News Report", state.get("news_report"), 10, 2200),
+        ("## Fundamentals Report", state.get("fundamentals_report"), 10, 2200),
+        ("## Macro Regime Report", state.get("macro_regime_report"), 6, 1000),
+    ]
+    for header, raw_value, max_lines, max_chars in block_specs:
+        compact = _compact_lines(str(raw_value or ""), max_lines=max_lines, max_chars=max_chars)
+        if compact:
+            sections.append(f"{header}\n{compact}")
+
+    return "\n\n".join(sections).strip()
 
 
 def build_investment_debate_summary(debate_state: dict) -> str:

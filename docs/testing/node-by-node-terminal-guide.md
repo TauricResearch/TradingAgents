@@ -12,6 +12,11 @@ This guide defines a repeatable terminal workflow to:
 
 Use this for structured-contract migration and hallucination hardening work.
 
+This guide now covers two complementary validation paths:
+
+1. API-backed live runs through `run_node_live.py`
+2. direct graph probes when you need to inspect actual prompt/context wiring and the API wrapper is too noisy
+
 ## Prerequisites
 
 - Repo root: `/Users/Ahmet/Repo/TradingAgents`
@@ -52,6 +57,94 @@ Example: monitor an existing run:
   --run-id 01KN9TK6NYDGKHTJKCZMBN9EGE \
   --show-system \
   --watch-nodes "News Analyst,News Fact Checker"
+```
+
+Example: trigger + validate a market-only rollout step (live ticker):
+
+```bash
+./scripts/run_node_live.py \
+  --trigger \
+  --ticker AAPL \
+  --date 2026-03-31 \
+  --analysts market \
+  --show-system \
+  --watch-nodes "Market Analyst,__system__" \
+  --heartbeat-seconds 20 \
+  --timeout-seconds 900 \
+  --stop-on-timeout \
+  --stall-seconds 180 \
+  --validate-market-checkpoint \
+  --market-require-structured \
+  --market-required-fields "status,contract_version,macro_regime" \
+  --validate-downstream-entry \
+  --downstream-after-node "Market Analyst" \
+  --downstream-entry-nodes "Bull Researcher" \
+  --write-run-json /tmp/aapl-market-run.json
+```
+
+Summary-bypass validation command (analysts -> Bull Researcher, no summary node):
+
+```bash
+./scripts/run_node_live.py \
+  --trigger \
+  --ticker AAPL \
+  --date 2026-03-31 \
+  --analysts market,news,fundamentals \
+  --show-system \
+  --watch-nodes "Market Analyst,News Analyst,Fundamentals Analyst,Research Packet Summary,Bull Researcher,__system__" \
+  --heartbeat-seconds 20 \
+  --stall-seconds 180 \
+  --stop-on-stall \
+  --timeout-seconds 1200 \
+  --validate-bypass-summary-flow \
+  --required-analyst-nodes "Market Analyst,News Analyst,Fundamentals Analyst" \
+  --forbidden-nodes-before-bull "Research Packet Summary" \
+  --validate-analyst-contracts \
+  --required-contract-fields "market_report_structured,news_report_structured,fundamentals_report_structured" \
+  --write-run-json /tmp/aapl-bypass-summary-run.json
+```
+
+Example: direct live-context probe for a single node path with injected market context:
+
+```bash
+uv run python - <<'PY'
+from pathlib import Path
+from unittest.mock import MagicMock
+
+from agent_os.backend.services.langgraph_engine import LangGraphEngine
+from tradingagents.agents.utils.output_validation import build_market_report_structured
+from tradingagents.agents.utils.summary_context import build_research_packet
+
+macro_path = Path("reports/daily/2026-04-02/01KN86XN2BHGRTME4GHYQF21R5/market/macro_scan_summary.md")
+engine = LangGraphEngine()
+scanner_context = engine._build_scanner_context_packet(
+    {"macro_scan_summary": macro_path.read_text(encoding="utf-8")},
+    "JPM",
+)
+injected_market = engine._load_injected_market_report(str(macro_path))
+market_structured = build_market_report_structured(
+    ticker="JPM",
+    as_of_date="2026-04-02",
+    market_report=injected_market["market_report"],
+    macro_regime_report=injected_market["macro_regime_report"],
+)
+
+state = {
+    "company_of_interest": "JPM",
+    "scanner_context_packet": scanner_context,
+    "market_report": injected_market["market_report"],
+    "market_report_structured": market_structured,
+    "news_report": "",
+    "sentiment_report": "",
+    "fundamentals_report": "",
+    "macro_regime_report": injected_market["macro_regime_report"],
+}
+
+packet = build_research_packet(state)
+print("has_scanner_context", "## Scanner Context (Phase 1)" in packet)
+print("has_market_contract", "## Market Structured Contract" in packet)
+print(packet[:1600])
+PY
 ```
 
 ## 0) Start backend
@@ -169,6 +262,37 @@ for i, e in enumerate(events):
 PY
 ```
 
+For market rollout validation (checkpoint-level):
+
+```bash
+python - <<'PY'
+import glob, json
+run_id = "REPLACE_RUN_ID"
+date = "2026-03-31"
+ticker = "AAPL"
+paths = sorted(glob.glob(f"reports/daily/{date}/{run_id}/{ticker}/report/*analysts_checkpoint.json"))
+assert paths, "No analysts checkpoint found"
+payload = json.loads(open(paths[-1]).read())
+print("macro_fallback_detected", (payload.get("macro_regime_report") or "").strip() == (payload.get("market_report") or "").strip())
+structured = payload.get("market_report_structured")
+print("has_market_report_structured", isinstance(structured, dict) or (isinstance(structured, str) and structured.strip().startswith("{")))
+PY
+```
+
+For stalled runs, inspect the last few events quickly:
+
+```bash
+python - <<'PY'
+import json
+p = "reports/daily/2026-03-31/REPLACE_RUN_ID/run_events.jsonl"
+events = [json.loads(x) for x in open(p)]
+print("event_count", len(events))
+for e in events[-6:]:
+    msg = (e.get("message") or e.get("response") or "").replace("\n", " ")
+    print(e.get("node_id"), e.get("type"), msg[:180])
+PY
+```
+
 ## 5) Node-level deterministic test (without full graph)
 
 Use direct node invocation to validate contract behavior even if live model calls are flaky.
@@ -196,6 +320,42 @@ with tempfile.TemporaryDirectory() as d:
 PY
 ```
 
+## 6) Direct prompt/context validation
+
+Use this when you need to answer questions like:
+
+- is the scanner context actually attached to the analyst prompt?
+- is the context filtered to the target ticker?
+- did the structured payload survive into the next node?
+- is the downstream researcher using the deterministic packet instead of legacy summary prose?
+
+Recommended workflow:
+
+1. build or inject a known market/scanner artifact set
+2. render the node prompt directly with a fake/mocked model
+3. inspect prompt text for:
+   - target ticker present
+   - scanner context present
+   - unwanted peer ticker leakage absent
+   - contract sections present
+4. run the immediate downstream node on the produced state
+5. inspect structured payloads and the deterministic packet builder
+
+What to check on the current structured-contract path:
+
+1. `News Analyst`
+   - prompt contains `## Scanner Context`
+   - prompt contains target ticker
+   - prompt contains allowed source hint such as `Finviz Smart Money Scanner`
+   - prompt does not over-carry peer ticker context when filtered
+2. `News Fact Checker`
+   - `news_report_structured` exists
+   - unsupported or hallucinated claims are removed without aborting the run
+3. `Bull Researcher` and downstream debate/risk nodes
+   - prompt contains `## Scanner Context (Phase 1)`
+   - prompt contains `## Market Structured Contract`
+   - prompt does not depend on legacy `research_packet_summary` text
+
 ## 6) Node-by-node execution loop
 
 For each node in top-down order:
@@ -206,6 +366,14 @@ For each node in top-down order:
 4. monitor events until complete/fail/timeout
 5. inspect persisted artifacts
 6. record pass/fail notes before moving to next node
+
+Market-node gate to downstream gate sequence:
+
+1. run market live gate with strict checkpoint checks and save run json
+2. confirm `market_report_structured` contains required fields
+3. confirm no macro fallback (`macro_regime_report` is not full `market_report`)
+4. confirm downstream entry occurred after market (`Bull Researcher`)
+5. only then move to downstream node-specific fixes
 
 Recommended order for structured contracts:
 
@@ -232,3 +400,68 @@ Require all:
 2. one live scoped run attempted and monitored
 3. persisted artifacts confirm prompt/contract change is present
 4. deterministic node-level invocation confirms expected failure/success shape
+
+For market-node completion specifically, include:
+
+1. analysts checkpoint file exists under `reports/daily/<date>/<run_id>/<ticker>/report/*analysts_checkpoint.json`
+2. `market_report_structured` exists and has `status`, `contract_version`, `macro_regime`
+3. `macro_regime_report` is not equal to full `market_report`
+4. a downstream entry node appears after `Market Analyst` in run events
+
+When `Research Packet Summary` is bypassed, artifact expectations change:
+
+1. `run_events.jsonl` should not contain `node_id="Research Packet Summary"` before `Bull Researcher`.
+2. `Bull Researcher` should appear after analyst nodes directly (same ticker flow).
+3. Analysts checkpoint remains the key contract artifact (`*analysts_checkpoint.json`) and should contain required structured fields.
+4. Any summary-specific prompt/result traces for the summarizer node should disappear from run events for the bypassed path.
+
+## Current Status
+
+Done:
+
+1. `Research Packet Summary` is removed from the canonical analyst-to-researcher path.
+2. `build_research_packet()` now assembles the deterministic packet directly from scanner context and analyst outputs.
+3. Runner validations exist for summary bypass, contract presence, market checkpoint validation, and stall detection.
+4. Direct graph validation has confirmed the news path reaches `Bull Researcher` without hitting `Research Packet Summary`.
+
+Left:
+
+1. finish node-by-node downstream hardening until a full API-backed run completes cleanly end to end
+2. fix the backend run/event wrapper behavior that can hide node progress during live runs
+3. harden scanner-context enrichment so packet fields do not degrade to `N/A` when one vendor path fails
+4. perform final cleanup refactor of [langgraph_engine.py](/Users/Ahmet/Repo/TradingAgents/agent_os/backend/services/langgraph_engine.py) after runtime stabilization
+
+Market stall reproduction command (exit quickly when no progress):
+
+```bash
+./scripts/run_node_live.py \
+  --trigger \
+  --ticker AAPL \
+  --date 2026-03-31 \
+  --analysts market \
+  --show-system \
+  --watch-nodes "Market Analyst,__system__" \
+  --heartbeat-seconds 15 \
+  --stall-seconds 120 \
+  --exit-on-stall \
+  --write-run-json /tmp/aapl-market-stall.json
+```
+
+If you want automatic cleanup when stalled:
+
+```bash
+./scripts/run_node_live.py \
+  --trigger \
+  --ticker AAPL \
+  --date 2026-03-31 \
+  --analysts market \
+  --show-system \
+  --watch-nodes "Market Analyst,__system__" \
+  --heartbeat-seconds 15 \
+  --stall-seconds 120 \
+  --stop-on-stall \
+  --exit-on-stall \
+  --write-run-json /tmp/aapl-market-stall.json
+```
+
+Note: when `--exit-on-stall` is used, the saved run JSON is captured at stall detection time. It may still show `status=running` even if `--stop-on-stall` was sent immediately after.

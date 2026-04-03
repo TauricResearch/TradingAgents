@@ -69,6 +69,7 @@ class Propagator:
                 }
             ),
             "market_report": market_report,
+            "market_report_structured": {},
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",

@@ -67,6 +67,9 @@ class AgentState(MessagesState):
 
     # research step
     market_report: Annotated[str, "Report from the Market Analyst"]
+    market_report_structured: Annotated[
+        dict[str, Any], "Compact canonical market contract for downstream machine consumers"
+    ]
     sentiment_report: Annotated[str, "Report from the Social Media Analyst"]
     news_report: Annotated[
         str, "Report from the News Researcher of current world affairs"

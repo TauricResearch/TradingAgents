@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
@@ -7,7 +8,9 @@ from tradingagents.agents.utils.agent_utils import (
     format_prefetched_context,
     prefetch_tools_parallel,
 )
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.news_data_tools import get_social_sentiment
+from tradingagents.default_config import DEFAULT_CONFIG
 
 
 def create_social_media_analyst(llm):
@@ -109,7 +112,26 @@ def create_social_media_analyst(llm):
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
         chain = prompt | llm
 
-        result = chain.invoke(state["messages"])
+        timeout_seconds = min(
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+            60.0,
+        )
+        result, invoke_error = invoke_with_timeout(
+            llm=chain,
+            prompt_or_messages=state["messages"],
+            timeout_seconds=timeout_seconds,
+        )
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                result = AIMessage(
+                    content=(
+                        "- Social analyst timed out; no new sentiment synthesis was generated.\n"
+                        "- Preserve only validated headline-sentiment evidence already present in the pre-loaded context.\n"
+                        "- Treat sentiment as neutral until this node is recomputed."
+                    )
+                )
+            else:
+                raise invoke_error
 
         report = result.content or ""
 

@@ -1,9 +1,28 @@
 # Current Milestone
 
-Run-id unification + run history UX. Branch `codex/unify-run-id-ulid`.
-The system now uses a single canonical ULID `run_id` across runtime and storage.
+Structured-contract rollout and summary-bypass validation. Branch `codex/structured-contracts-plan`.
+The active objective is to remove hallucination-prone prose handoffs, preserve explicit contracts between nodes, and validate each fix with terminal-first live checks.
 
 # Recent Progress
+
+- `codex/structured-contracts-plan`:
+  - Removed `Research Packet Summary` from the main analyst-to-researcher graph path in [setup.py](/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/setup.py)
+  - Preserved analyst-to-downstream contracts by switching downstream packet consumers to deterministic packet assembly in [summary_context.py](/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/utils/summary_context.py)
+  - Kept `research_packet_summary` as a derived artifact only, via [context_summaries.py](/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/managers/context_summaries.py)
+  - Hardened market/news/social and downstream LLM nodes with timeout guards and bounded fallback behavior
+  - Added runner-side validation for:
+    - summary bypass before `Bull Researcher`
+    - analyst structured contract presence
+    - market checkpoint validation
+    - stall detection / stop-on-stall
+  - Live-validated the direct graph path for the news branch:
+    - `Instrument Preflight -> News Analyst -> Msg Clear News -> News Fact Checker -> Bull Researcher`
+    - confirmed `Research Packet Summary` does not appear in between on the tested path
+  - Prompt/context probe for `JPM` verified:
+    - ticker-filtered scanner context is attached to `News Analyst`
+    - `News Fact Checker` receives structured payload
+    - `Bull Researcher` receives deterministic packet content with scanner context and market structured contract
+    - legacy summary prose is not reintroduced into downstream packet assembly
 
 - `codex/auto-run-lifecycle-fix`:
   - Reworked `run_auto()` Phase 2 concurrency to use structured `TaskGroup` ownership for producer and per-ticker pipelines
@@ -41,15 +60,33 @@ The system now uses a single canonical ULID `run_id` across runtime and storage.
   - Narrowed Finviz usage to the gap/event layer instead of the full market-universe layer
   - Added graph wiring: dedicated gatekeeper scanner node, gatekeeper-aware drift context, and deterministic ranking that excludes names outside the gatekeeper universe
 
+# Done In Current Rollout
+
+- News-node structured output and fact-check path hardened
+- Market-node structured contract persisted and validated
+- Summary generator removed from the canonical analyst-to-researcher path
+- Deterministic research packet now used downstream instead of legacy summary preference
+- Terminal live-run helper and node-by-node testing guide expanded for this rollout
+
+# Left In Current Rollout
+
+- Continue node-by-node hardening for the remaining downstream runtime path until a full pipeline run completes cleanly through final report generation
+- Fix the API-backed run/event wrapper behavior that can stall or fail to surface analyst node progress even when direct graph execution advances
+- Harden scanner-context enrichment so context packets remain fully populated when one upstream vendor fails
+- Perform final cleanup refactor on [langgraph_engine.py](/Users/Ahmet/Repo/TradingAgents/agent_os/backend/services/langgraph_engine.py):
+  - remove unused helpers / dead branches
+  - extract event mapping, pipeline runner, portfolio runner, and scan-state helpers into smaller modules
+  - keep behavior unchanged while tightening regression coverage
+
 # In Progress
 
+- codex/structured-contracts-plan: continue post-news structured-contract rollout from market node downward using terminal runner validation and direct graph probes
 - codex/unify-run-id-ulid: remove remaining legacy flow-id references from docs and ancillary code
 - codex/global-search-graph-main-squash: wire gatekeeper universe into scanner graph and deterministic ranking
-- codex/structured-contracts-plan: execute post-news node structured-contract rollout from market node downward using plan 021 and terminal runner validation
 
 # Active Blockers
 
-- None
+- API-backed pipeline runs can remain opaque at the event layer even when direct LangGraph execution progresses; this slows live validation and needs cleanup in the backend orchestration layer
 
 # Key Architectural Decisions Active
 

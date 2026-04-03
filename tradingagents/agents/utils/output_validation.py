@@ -157,6 +157,87 @@ class StructuredNewsValidationResult:
     code: str = "ok"
 
 
+def infer_macro_regime_from_prefetched_report(macro_regime_report: str) -> str:
+    """Infer a normalized macro regime from explicit pre-fetched macro text only."""
+    text = str(macro_regime_report or "").strip().lower()
+    if not text:
+        return "unknown"
+    if "risk-off" in text or "risk off" in text:
+        return "risk_off"
+    if "risk-on" in text or "risk on" in text:
+        return "risk_on"
+    if "transition" in text:
+        return "transition"
+    return "unknown"
+
+
+def _count_summary_table_rows(report: str) -> int:
+    rows = 0
+    for line in str(report or "").splitlines():
+        stripped = line.strip()
+        if "|" not in stripped:
+            continue
+        if set(stripped.replace("|", "").replace("-", "").replace(":", "").strip()) == set():
+            continue
+        rows += 1
+    return rows
+
+
+def _extract_key_levels(report: str, *, max_levels: int = 3) -> list[str]:
+    matches = re.findall(r"\$[0-9]+(?:\.[0-9]{1,2})?", str(report or ""))
+    deduped: list[str] = []
+    for value in matches:
+        if value in deduped:
+            continue
+        deduped.append(value)
+        if len(deduped) >= max_levels:
+            break
+    return deduped
+
+
+def build_market_report_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    market_report: str,
+    macro_regime_report: str,
+    contract_version: str = "market_summary_v1",
+) -> dict[str, Any]:
+    """Build a compact canonical contract for market node output."""
+    report = str(market_report or "").strip()
+    abort_prefix = "[CRITICAL ABORT]"
+    if report.startswith(abort_prefix):
+        status = "aborted"
+        abort_reason = report[len(abort_prefix):].strip(" :\n\t")
+    elif not report:
+        status = "empty"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", report))
+    numeric_mentions = len(re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", report, re.IGNORECASE))
+    summary_table_rows = _count_summary_table_rows(report)
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "claim_count": bullet_count,
+        "macro_regime": infer_macro_regime_from_prefetched_report(macro_regime_report),
+        "macro_regime_report_present": bool(str(macro_regime_report or "").strip()),
+        "key_levels": _extract_key_levels(report),
+        "key_metrics": {
+            "numeric_mentions": numeric_mentions,
+            "summary_table_rows": summary_table_rows,
+            "report_char_count": len(report),
+        },
+    }
+
+
 def canonicalize_source_name(
     raw_source: str,
     allowed_source_names: Iterable[str] | None = None,

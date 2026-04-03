@@ -318,6 +318,18 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         "final_trade_decision": "BUY AAPL",
         "trader_investment_plan": "invest 10%",
         "market_report": "market is bullish",
+        "market_report_structured": {
+            "ticker": "AAPL",
+            "as_of_date": "2026-01-01",
+            "status": "completed",
+            "contract_version": "market_summary_v1",
+            "abort_reason": "",
+            "claim_count": 1,
+            "macro_regime": "risk_on",
+            "macro_regime_report_present": True,
+            "key_levels": ["$210.00"],
+            "key_metrics": {"numeric_mentions": 1, "summary_table_rows": 0, "report_char_count": 17},
+        },
     }
 
     def _make_mock_graph_wrapper(self, final_state=None):
@@ -365,6 +377,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         self.assertEqual(saved_state["analysis_status"], "completed")
         self.assertEqual(saved_state["instrument_key"], "equity:AAPL")
         self.assertEqual(saved_state["instrument_type"], "common_stock")
+        self.assertEqual(saved_state["market_report_structured"]["status"], "completed")
 
     def test_run_pipeline_writes_complete_report_md(self):
         """run_pipeline should call _write_complete_report_md."""
@@ -384,6 +397,31 @@ class TestRunPipelineReportStorage(unittest.TestCase):
             asyncio.run(_collect(engine.run_pipeline("run1", {"ticker": "AAPL", "date": "2026-01-01"})))
 
         mock_write_md.assert_called_once()
+
+    def test_run_pipeline_saves_market_structured_in_analysts_checkpoint(self):
+        mock_wrapper = self._make_mock_graph_wrapper()
+        engine = LangGraphEngine()
+
+        with patch("agent_os.backend.services.langgraph_engine.TradingAgentsGraph", return_value=mock_wrapper), \
+             patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
+             patch.object(LangGraphEngine, "_write_complete_report_md"):
+            fake_dir = MagicMock(spec=Path)
+            fake_dir.mkdir = MagicMock()
+            mock_gtd.return_value = fake_dir
+            mock_store = MagicMock()
+            mock_rs_cls.return_value = mock_store
+
+            asyncio.run(_collect(engine.run_pipeline("run1", {"ticker": "AAPL", "date": "2026-01-01"})))
+
+        mock_store.save_analysts_checkpoint.assert_called_once()
+        checkpoint = mock_store.save_analysts_checkpoint.call_args[0][2]
+        self.assertEqual(checkpoint["market_report_structured"]["status"], "completed")
+        self.assertEqual(
+            checkpoint["market_report_structured"]["contract_version"],
+            "market_summary_v1",
+        )
 
     def test_run_pipeline_appends_digest(self):
         """run_pipeline should call append_to_digest with analyze/ticker."""

@@ -145,11 +145,16 @@ def test_fundamentals_analyst_tool_loop(mock_state, mock_llm_with_tool_call):
     assert "This is the final report after running the tool." in result["fundamentals_report"]
 
 
-def test_market_analyst_tool_loop(mock_state, mock_llm_with_tool_call):
-    """Market analyst: pre-fetches macro + stock data, keeps indicator selection iterative."""
-    node = create_market_analyst(mock_llm_with_tool_call)
+def test_market_analyst_direct_invoke(mock_state, mock_llm_direct_report):
+    """Market analyst: pre-fetches macro + indicator context and invokes directly."""
+    node = create_market_analyst(mock_llm_direct_report)
     result = node(mock_state)
     assert "This is the final report after running the tool." in result["market_report"]
+    structured = result["market_report_structured"]
+    assert structured["ticker"] == "AAPL"
+    assert structured["as_of_date"] == "2024-05-15"
+    assert structured["status"] == "completed"
+    assert structured["contract_version"] == "market_summary_v1"
 
 
 def test_social_media_analyst_direct_invoke(mock_state, mock_llm_direct_report):
@@ -174,55 +179,117 @@ def test_news_analyst_direct_invoke(mock_state, valid_news_report):
     assert result["news_report_structured"]["ticker"] == "AAPL"
 
 
-def test_market_analyst_macro_regime_from_prefetch(mock_state, mock_llm_with_tool_call):
+def test_market_analyst_macro_regime_from_prefetch(mock_state, mock_llm_direct_report):
     """Market analyst populates macro_regime_report from pre-fetched data when available."""
     with patch(
         "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
-        return_value={
-            "Macro Regime Classification": "## Risk-On\nMarket is RISK-ON.",
-            "Stock Price Data": "Date,Close\n2024-05-14,189.0",
-        },
+        side_effect=[
+            {
+                "Macro Regime Classification": "## Risk-On\nMarket is RISK-ON.",
+                "Stock Price Data": "Date,Close\n2024-05-14,189.0",
+            },
+            {
+                "Technical Indicator: macd": "MACD context",
+                "Technical Indicator: rsi": "RSI context",
+            },
+        ],
     ):
-        node = create_market_analyst(mock_llm_with_tool_call)
+        node = create_market_analyst(mock_llm_direct_report)
         result = node(mock_state)
     assert result["macro_regime_report"] == "## Risk-On\nMarket is RISK-ON."
+    assert result["market_report_structured"]["macro_regime"] == "risk_on"
 
 
 def test_market_analyst_macro_regime_empty_when_prefetch_missing(mock_state):
     """Macro regime should stay empty when prefetch has no macro section."""
-    tool_call_msg = AIMessage(
-        content="",
-        tool_calls=[{"name": "mock_tool", "args": {"query": "test"}, "id": "call_123"}],
-    )
-    report = AIMessage(content="Macro Regime Classification: RISK-ON but sourced from report text only.")
     with patch(
         "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
-        return_value={
-            "Stock Price Data": "Date,Close\n2024-05-14,189.0",
-        },
+        side_effect=[
+            {
+                "Stock Price Data": "Date,Close\n2024-05-14,189.0",
+            },
+            {
+                "Technical Indicator: macd": "MACD context",
+            },
+        ],
     ):
-        node = create_market_analyst(MockLLM([tool_call_msg, report]))
+        node = create_market_analyst(
+            MockLLM([AIMessage(content="Macro Regime Classification: RISK-ON but sourced from report text only.")])
+        )
         result = node(mock_state)
     assert result["macro_regime_report"] == ""
+    # Do not infer regime from report prose when prefetch is absent.
+    assert result["market_report_structured"]["macro_regime"] == "unknown"
 
 
 def test_market_analyst_macro_regime_empty_when_prefetch_errors(mock_state):
     """Macro regime should stay empty when macro prefetch returns an error marker."""
-    tool_call_msg = AIMessage(
-        content="",
-        tool_calls=[{"name": "mock_tool", "args": {"query": "test"}, "id": "call_123"}],
-    )
-    report = AIMessage(content="TRANSITION regime discussed in report body.")
     with patch(
         "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
-        return_value={
-            "Macro Regime Classification": "[Error] upstream failure",
-            "Stock Price Data": "Date,Close\n2024-05-14,189.0",
-        },
+        side_effect=[
+            {
+                "Macro Regime Classification": "[Error] upstream failure",
+                "Stock Price Data": "Date,Close\n2024-05-14,189.0",
+            },
+            {
+                "Technical Indicator: atr": "ATR context",
+            },
+        ],
     ):
-        node = create_market_analyst(MockLLM([tool_call_msg, report]))
+        node = create_market_analyst(MockLLM([AIMessage(content="TRANSITION regime discussed in report body.")]))
         result = node(mock_state)
     assert result["macro_regime_report"] == ""
+    assert result["market_report_structured"]["macro_regime"] == "unknown"
+
+
+def test_market_analyst_structured_status_aborted_on_critical_abort(mock_state):
+    """Structured market contract should mark critical abort reports as aborted."""
+    abort_report = AIMessage(
+        content="[CRITICAL ABORT] Reason: Trading halted pending delisting - SEC notice"
+    )
+    with patch(
+        "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
+        side_effect=[
+            {
+                "Macro Regime Classification": "## Risk-Off\nMarket is RISK-OFF.",
+                "Stock Price Data": "Date,Close\n2024-05-14,189.0",
+            },
+            {
+                "Technical Indicator: atr": "ATR context",
+            },
+        ],
+    ):
+        node = create_market_analyst(MockLLM([abort_report]))
+        result = node(mock_state)
+    structured = result["market_report_structured"]
+    assert structured["status"] == "aborted"
+    assert structured["abort_reason"].startswith("Reason:")
+    assert structured["macro_regime"] == "risk_off"
+
+
+def test_market_analyst_timeout_fallback_returns_report(mock_state, mock_llm_direct_report):
+    """Timeout in market LLM invoke should return deterministic fallback instead of stalling."""
+    with patch(
+        "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
+        side_effect=[
+            {
+                "Macro Regime Classification": "## Risk-Off\nMarket is RISK-OFF.",
+                "Stock Price Data": "Date,Close\n2024-05-14,189.0",
+            },
+            {
+                "Technical Indicator: atr": "ATR context",
+            },
+        ],
+    ), patch(
+        "tradingagents.agents.analysts.market_analyst._invoke_with_timeout",
+        return_value=(None, TimeoutError("forced timeout")),
+    ):
+        node = create_market_analyst(mock_llm_direct_report)
+        result = node(mock_state)
+
+    assert "Timeout Fallback" in result["market_report"]
+    assert result["market_report_structured"]["macro_regime"] == "risk_off"
+    assert result["market_report_structured"]["status"] == "completed"
 
 
 def test_social_media_analyst_no_bind_tools(mock_state, mock_llm_direct_report):
@@ -233,30 +300,41 @@ def test_social_media_analyst_no_bind_tools(mock_state, mock_llm_direct_report):
     assert mock_llm_direct_report.tools_bound is None
 
 
-def test_prefetched_context_injected_into_prompt(mock_state, mock_llm_with_tool_call):
+def test_market_analyst_no_bind_tools(mock_state, mock_llm_direct_report):
+    """Market analyst must not call bind_tools after indicator prefetch hardening."""
+    node = create_market_analyst(mock_llm_direct_report)
+    node(mock_state)
+    assert mock_llm_direct_report.tools_bound is None
+
+
+def test_prefetched_context_injected_into_prompt(mock_state):
     """Market analyst injects pre-fetched context into the prompt sent to the LLM."""
     captured_inputs = []
-
-    class CapturingRunnable(Runnable):
-        def invoke(self, input, config=None, **kwargs):
-            captured_inputs.append(input)
-            # Return final report directly to end the loop early
-            return AIMessage(content="This is the final report after running the tool.")
 
     class CapturingLLM(Runnable):
         def invoke(self, input, config=None, **kwargs):
             captured_inputs.append(input)
             return AIMessage(content="This is the final report after running the tool.")
 
-        def bind_tools(self, tools):
-            return CapturingRunnable()
+    long_stock = "Date,Close\n" + "\n".join(
+        [f"2024-04-{i:02d},{180 + i/10:.2f}" for i in range(1, 62)]
+    )
+    long_indicator = "Date,Value\n" + "\n".join(
+        [f"2024-04-{i:02d},{50 + i/100:.2f}" for i in range(1, 28)]
+    )
 
     with patch(
         "tradingagents.agents.analysts.market_analyst.prefetch_tools_parallel",
-        return_value={
-            "Macro Regime Classification": "**RISK-ON** regime detected.",
-            "Stock Price Data": "Date,Close\n2024-05-14,189.0",
-        },
+        side_effect=[
+            {
+                "Macro Regime Classification": "**RISK-ON** regime detected.",
+                "Stock Price Data": long_stock,
+            },
+            {
+                "Technical Indicator: macd": long_indicator,
+                "Technical Indicator: rsi": "RSI context",
+            },
+        ],
     ):
         node = create_market_analyst(CapturingLLM())
         node(mock_state)
@@ -271,6 +349,9 @@ def test_prefetched_context_injected_into_prompt(mock_state, mock_llm_with_tool_
     )
     assert "RISK-ON" in full_text
     assert "Pre-loaded Context" in full_text
+    assert "Technical Indicator: macd" in full_text
+    assert "stock data compacted" in full_text
+    assert "indicator data compacted" in full_text
 
 
 def test_news_analyst_no_bind_tools(mock_state, valid_news_report):

@@ -50,7 +50,7 @@ class GraphSetup:
             if cls._should_skip_analyst(state, analyst_type):
                 continue
             return f"{analyst_type.capitalize()} Analyst"
-        return "Research Packet Summary"
+        return "Bull Researcher"
 
     @staticmethod
     def _make_instrument_preflight_node():
@@ -137,14 +137,14 @@ class GraphSetup:
 
         if "market" in selected_analysts:
             analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm
+                self.mid_thinking_llm
             )
             delete_nodes["market"] = create_msg_delete()
             tool_nodes["market"] = self.tool_nodes["market"]
 
         if "social" in selected_analysts:
             analyst_nodes["social"] = create_social_media_analyst(
-                self.quick_thinking_llm
+                self.mid_thinking_llm
             )
             delete_nodes["social"] = create_msg_delete()
             tool_nodes["social"] = self.tool_nodes["social"]
@@ -170,9 +170,6 @@ class GraphSetup:
         )
         bear_researcher_node = create_bear_researcher(
             self.mid_thinking_llm, self.bear_memory
-        )
-        research_packet_summary_node = create_research_packet_summary(
-            self.quick_thinking_llm
         )
         research_manager_node = create_research_manager(
             self.deep_thinking_llm, self.invest_judge_memory
@@ -207,7 +204,6 @@ class GraphSetup:
 
         # Add other nodes
         workflow.add_node("Instrument Preflight", self._make_instrument_preflight_node())
-        workflow.add_node("Research Packet Summary", research_packet_summary_node)
         workflow.add_node("Bull Researcher", bull_researcher_node)
         workflow.add_node("Bear Researcher", bear_researcher_node)
         workflow.add_node("Research Manager", research_manager_node)
@@ -232,7 +228,7 @@ class GraphSetup:
                 f"{analyst_type.capitalize()} Analyst": f"{analyst_type.capitalize()} Analyst"
                 for analyst_type in selected_analysts
             },
-            "Research Packet Summary": "Research Packet Summary",
+            "Bull Researcher": "Bull Researcher",
             "END": END,
         }
         workflow.add_conditional_edges(
@@ -268,7 +264,7 @@ class GraphSetup:
                     f"{remaining.capitalize()} Analyst": f"{remaining.capitalize()} Analyst"
                     for remaining in selected_analysts[i + 1 :]
                 },
-                "Research Packet Summary": "Research Packet Summary",
+                "Bull Researcher": "Bull Researcher",
             }
 
             def _route_after_clear(
@@ -287,11 +283,6 @@ class GraphSetup:
             )
 
         # Add remaining edges
-        workflow.add_conditional_edges(
-            "Research Packet Summary",
-            lambda _state: "Bull Researcher",
-            {"Bull Researcher": "Bull Researcher"},
-        )
         workflow.add_conditional_edges(
             "Bull Researcher",
             self.conditional_logic.should_continue_debate,

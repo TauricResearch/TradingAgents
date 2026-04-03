@@ -2,6 +2,9 @@ import functools
 
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.default_config import DEFAULT_CONFIG
+from langchain_core.messages import AIMessage
 
 
 def create_trader(llm, memory):
@@ -26,8 +29,12 @@ def create_trader(llm, memory):
             past_memory_str = "No past memories found."
 
         # Anonymize data variables to prevent training-data bias
-        anon_investment_plan = anonymize_ticker(investment_plan, ticker)
-        anon_past_memory_str = anonymize_ticker(past_memory_str, ticker)
+        anon_investment_plan = anonymize_ticker(
+            truncate_text(investment_plan, max_chars=3000), ticker
+        )
+        anon_past_memory_str = anonymize_ticker(
+            truncate_text(past_memory_str, max_chars=1600), ticker
+        )
 
         scanner_section = ""
         if scanner_context:
@@ -68,7 +75,29 @@ Apply lessons from past decisions:
             context,
         ]
 
-        result = llm.invoke(messages)
+        timeout_seconds = min(
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+            60.0,
+        )
+        result, invoke_error = invoke_with_timeout(
+            llm,
+            messages,
+            timeout_seconds=timeout_seconds,
+            max_tokens=900,
+        )
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                result = AIMessage(
+                    content=(
+                        "- Research Manager's Verdict: HOLD via timeout fallback.\n"
+                        "- Entry Setup: No new entry until the trading plan can be regenerated.\n"
+                        "- Risk Parameters: No new order; preserve existing position controls only.\n"
+                        "- Catalyst Timeline: Use only scanner ground-truth dates already present in upstream context.\n"
+                        "- FINAL TRANSACTION PROPOSAL: **HOLD**"
+                    )
+                )
+            else:
+                raise invoke_error
 
         # De-anonymize: replace TICKER_A back with the real ticker.
         output_content = result.content.replace("TICKER_A", ticker)

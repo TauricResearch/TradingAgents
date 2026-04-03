@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
@@ -11,12 +11,14 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
 from tradingagents.agents.utils.context_filtering import filter_scanner_context_for_ticker
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.output_validation import (
     log_validation_result,
     render_structured_news_payload,
     validate_structured_news_payload,
 )
 from tradingagents.memory.news_evidence import NewsEvidenceStore
+from tradingagents.default_config import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +200,29 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
         chain = prompt | llm
 
-        first_result = chain.invoke(state["messages"])
+        timeout_seconds = min(
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+            60.0,
+        )
+        first_result, invoke_error = invoke_with_timeout(
+            llm=chain,
+            prompt_or_messages=state["messages"],
+            timeout_seconds=timeout_seconds,
+        )
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                timeout_report = (
+                    f"{ticker} News Analysis\n\n"
+                    f"- News analyst timed out after {timeout_seconds:.0f}s; no validated JSON payload was produced.\n"
+                    "- Treat news input as unavailable for this run and rely on other validated analyst evidence.\n"
+                    "- No new article claims should be inferred from this fallback."
+                )
+                return {
+                    "messages": [AIMessage(content=timeout_report)],
+                    "news_report": timeout_report,
+                    "news_report_structured": None,
+                }
+            raise invoke_error
         raw_output = first_result.content or ""
         structured_validation = validate_structured_news_payload(
             raw_output,
@@ -246,7 +270,25 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
                     "Every article-based claim must include exact `source`, `published_at`, and `evidence_id` fields."
                 )
             )
-            result = chain.invoke([*state["messages"], retry_instruction])
+            result, invoke_error = invoke_with_timeout(
+                llm=chain,
+                prompt_or_messages=[*state["messages"], retry_instruction],
+                timeout_seconds=timeout_seconds,
+            )
+            if invoke_error is not None:
+                if isinstance(invoke_error, TimeoutError):
+                    report = (
+                        f"{ticker} News Analysis\n\n"
+                        f"- News analyst retry timed out after {timeout_seconds:.0f}s; no validated JSON payload was produced.\n"
+                        "- Treat news input as unavailable for this run and rely on other validated analyst evidence.\n"
+                        "- No new article claims should be inferred from this fallback."
+                    )
+                    return {
+                        "messages": [AIMessage(content=report)],
+                        "news_report": report,
+                        "news_report_structured": None,
+                    }
+                raise invoke_error
             raw_output = result.content or ""
             structured_validation = validate_structured_news_payload(
                 raw_output,

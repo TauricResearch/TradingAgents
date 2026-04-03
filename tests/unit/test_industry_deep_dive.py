@@ -204,3 +204,21 @@ class TestToolLoopNudge:
         result = run_tool_loop(chain, [], [tool])
         tool.invoke.assert_called_once_with({"x": 1})
         assert "Final report" in result.content
+
+    def test_tool_output_is_truncated_before_second_llm_turn(self):
+        tool_call_resp = AIMessage(
+            content="",
+            tool_calls=[{"name": "my_tool", "args": {"x": 1}, "id": "tc1"}],
+        )
+        final_resp = AIMessage(content="Final report" * 50, tool_calls=[])
+        chain = self._make_chain([tool_call_resp, final_resp])
+        tool = self._make_tool()
+        tool.invoke = MagicMock(return_value="X" * 5000)
+
+        run_tool_loop(chain, [], [tool], max_tool_output_chars=300)
+
+        second_call_messages = chain.invoke.call_args_list[1][0][0]
+        tool_messages = [m for m in second_call_messages if isinstance(m, ToolMessage)]
+        assert len(tool_messages) == 1
+        assert "[truncated" in tool_messages[0].content
+        assert len(tool_messages[0].content) < 400

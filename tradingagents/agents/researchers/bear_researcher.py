@@ -1,9 +1,12 @@
 from tradingagents.agents.utils.anonymization import anonymize_ticker
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import (
     build_investment_debate_summary,
     build_research_packet,
     get_investment_debate_summary,
 )
+from tradingagents.default_config import DEFAULT_CONFIG
+from langchain_core.messages import AIMessage
 
 
 def create_bear_researcher(llm, memory):
@@ -25,11 +28,19 @@ def create_bear_researcher(llm, memory):
             past_memory_str += rec["recommendation"] + "\n\n"
 
         # Anonymize data variables to prevent training-data bias
-        anon_research_packet = anonymize_ticker(research_packet, ticker)
-        anon_debate_summary = anonymize_ticker(debate_summary, ticker)
-        anon_history = anonymize_ticker(history, ticker)
-        anon_current_response = anonymize_ticker(current_response, ticker)
-        anon_past_memory_str = anonymize_ticker(past_memory_str, ticker)
+        anon_research_packet = anonymize_ticker(
+            truncate_text(research_packet, max_chars=5000), ticker
+        )
+        anon_debate_summary = anonymize_ticker(
+            truncate_text(debate_summary, max_chars=1800), ticker
+        )
+        anon_history = anonymize_ticker(truncate_text(history, max_chars=2200), ticker)
+        anon_current_response = anonymize_ticker(
+            truncate_text(current_response, max_chars=1200), ticker
+        )
+        anon_past_memory_str = anonymize_ticker(
+            truncate_text(past_memory_str, max_chars=1600), ticker
+        )
 
         prompt = f"""You are a Senior Quantitative Analyst and Economist building a clinical bear case against the stock. Your objective is to present a data-dense, objective argument for risk avoidance based on fundamental and technical delta-changes.
 
@@ -61,7 +72,32 @@ Output your response in two sections:
 2. SUMMARY POINTS: A concise bulleted list of your 3 most critical bearish points for this round.
 """
 
-        response = llm.invoke(prompt)
+        timeout_seconds = min(
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+            60.0,
+        )
+        response, invoke_error = invoke_with_timeout(
+            llm,
+            prompt,
+            timeout_seconds=timeout_seconds,
+            max_tokens=900,
+        )
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                response = AIMessage(
+                    content=(
+                        "THE DEBATE:\n"
+                        f"- Bear researcher timed out after {timeout_seconds:.0f}s; no new bearish expansion was added this round.\n"
+                        "- Preserve the strongest validated downside evidence already present in the compressed research packet.\n"
+                        "- Treat this round as incomplete and avoid adding unsourced bearish claims.\n\n"
+                        "SUMMARY POINTS:\n"
+                        "- No new bearish claims added due timeout fallback.\n"
+                        "- Reuse validated risk, fragility, and headwind evidence from prior analyst reports only.\n"
+                        "- Escalate with current packet and existing debate state."
+                    )
+                )
+            else:
+                raise invoke_error
 
         argument = f"Bear Analyst: {response.content}"
 

@@ -87,6 +87,7 @@ def _base_state(**overrides):
 
 def _mock_llm(response_text="mock response"):
     llm = MagicMock()
+    llm.bind.side_effect = RuntimeError("bind unsupported in unit test")
     llm.invoke.return_value = SimpleNamespace(content=response_text)
     return llm
 
@@ -114,14 +115,30 @@ class TestBuildResearchPacketIncludesScanner:
         state = _base_state(research_packet_summary="")
         packet = build_research_packet(state)
         scanner_pos = packet.index("Scanner Context (Phase 1)")
-        market_pos = packet.index("Market Research Report")
+        market_pos = packet.index("## Market Report")
         assert scanner_pos < market_pos
 
-    def test_summary_takes_precedence(self):
-        """When research_packet_summary exists, it is used instead of raw reports."""
+    def test_raw_reports_take_precedence_over_summary(self):
+        """When raw analyst reports exist, they remain canonical even if summary is present."""
         state = _base_state(research_packet_summary="compressed summary with Scanner Context")
         packet = build_research_packet(state)
-        assert packet == "compressed summary with Scanner Context"
+        assert "Scanner Context (Phase 1)" in packet
+        assert "## Market Report" in packet
+        assert packet != "compressed summary with Scanner Context"
+
+    def test_summary_used_only_when_raw_reports_missing(self):
+        """No legacy-summary fallback remains once summary generation is disabled."""
+        state = _base_state(
+            scanner_context_packet="",
+            market_report="",
+            sentiment_report="",
+            news_report="",
+            fundamentals_report="",
+            macro_regime_report="",
+            research_packet_summary="compressed summary with Scanner Context",
+        )
+        packet = build_research_packet(state)
+        assert packet == ""
 
 
 # ---------------------------------------------------------------------------

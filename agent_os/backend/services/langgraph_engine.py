@@ -734,6 +734,8 @@ class LangGraphEngine:
                         "company_of_interest": ticker,
                         "trade_date": date,
                         **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                        "market_report_structured": serializable_state.get("market_report_structured", {}),
+                        "news_report_structured": serializable_state.get("news_report_structured", {}),
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
                         "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                         "messages": serializable_state.get("messages", []),
@@ -746,6 +748,8 @@ class LangGraphEngine:
                         "company_of_interest": ticker,
                         "trade_date": date,
                         **{k: serializable_state.get(k, "") for k in _analyst_keys},
+                        "market_report_structured": serializable_state.get("market_report_structured", {}),
+                        "news_report_structured": serializable_state.get("news_report_structured", {}),
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
                         "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                         "investment_debate_state": serializable_state.get("investment_debate_state", {}),
@@ -1057,7 +1061,15 @@ class LangGraphEngine:
                 )
                 # Overlay checkpoint data onto initial state
                 for k, v in ckpt.items():
-                    if k in initial_state or k in ("market_report", "sentiment_report", "news_report", "fundamentals_report", "macro_regime_report"):
+                    if k in initial_state or k in (
+                        "market_report",
+                        "market_report_structured",
+                        "sentiment_report",
+                        "news_report",
+                        "news_report_structured",
+                        "fundamentals_report",
+                        "macro_regime_report",
+                    ):
                         initial_state[k] = v
 
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)

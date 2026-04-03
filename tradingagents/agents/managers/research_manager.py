@@ -1,9 +1,12 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
     get_investment_debate_summary,
 )
+from tradingagents.default_config import DEFAULT_CONFIG
+from langchain_core.messages import AIMessage
 
 
 def create_research_manager(llm, memory):
@@ -32,10 +35,16 @@ def create_research_manager(llm, memory):
         macro_context = f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nWeight your decision in line with this macro environment — a risk-off regime raises the bar for BUY decisions, while risk-on supports them.\n" if macro_regime_report else ""
 
         # Anonymize data variables to prevent training-data bias
-        anon_research_packet = anonymize_ticker(research_packet, ticker)
-        anon_debate_summary = anonymize_ticker(debate_summary, ticker)
-        anon_history = anonymize_ticker(history, ticker)
-        anon_past_memory_str = anonymize_ticker(past_memory_str, ticker)
+        anon_research_packet = anonymize_ticker(
+            truncate_text(research_packet, max_chars=5000), ticker
+        )
+        anon_debate_summary = anonymize_ticker(
+            truncate_text(debate_summary, max_chars=1800), ticker
+        )
+        anon_history = anonymize_ticker(truncate_text(history, max_chars=2600), ticker)
+        anon_past_memory_str = anonymize_ticker(
+            truncate_text(past_memory_str, max_chars=1600), ticker
+        )
 
         prompt = f"""As the Research Manager and debate facilitator, critically evaluate this round of debate and make a definitive decision: Buy, Sell, or Hold.
 {macro_context}
@@ -68,7 +77,29 @@ Rolling debate summary:
 Here is the debate:
 Debate History:
 {anon_history}"""
-        response = llm.invoke(prompt)
+        timeout_seconds = min(
+            float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
+            60.0,
+        )
+        response, invoke_error = invoke_with_timeout(
+            llm,
+            prompt,
+            timeout_seconds=timeout_seconds,
+            max_tokens=1000,
+        )
+        if invoke_error is not None:
+            if isinstance(invoke_error, TimeoutError):
+                response = AIMessage(
+                    content=(
+                        "- Strongest Bull Evidence: Reuse only validated bullish points already present in the debate history.\n"
+                        "- Strongest Bear Evidence: Reuse only validated bearish points already present in the debate history.\n"
+                        "- Recommendation: HOLD.\n"
+                        "- Rationale: Research manager timed out and no new synthesis was produced; preserve capital until the debate can be recomputed.\n"
+                        "- Strategic Actions: Do not add exposure, keep monitoring catalyst dates from scanner ground truth, and rerun research synthesis."
+                    )
+                )
+            else:
+                raise invoke_error
 
         # De-anonymize: replace TICKER_A back with the real ticker so downstream
         # nodes (Trader, Portfolio Manager) receive the correct symbol.

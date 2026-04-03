@@ -2,9 +2,11 @@
 
 import pytest
 from tradingagents.agents.utils.output_validation import (
+    build_market_report_structured,
     extract_allowed_sources_from_context,
     extract_explicit_sources,
     filter_news_report_by_provenance,
+    infer_macro_regime_from_prefetched_report,
     render_structured_news_payload,
     sanitize_structured_news_payload,
     validate_ticker_relevance,
@@ -77,6 +79,40 @@ class TestValidateTickerRelevance:
         output = "rig RIG Rig RiG analysis"
         is_valid, _ = validate_ticker_relevance(output, "RIG", min_mentions=3, check_article_refs=False)
         assert is_valid
+
+
+class TestMarketStructuredContract:
+    def test_infer_macro_regime_from_prefetched_report(self):
+        assert infer_macro_regime_from_prefetched_report("## Risk-On\nMarket is RISK-ON.") == "risk_on"
+        assert infer_macro_regime_from_prefetched_report("[Error] failed fetch") == "unknown"
+        assert infer_macro_regime_from_prefetched_report("") == "unknown"
+
+    def test_build_market_report_structured_completed(self):
+        structured = build_market_report_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            market_report="- AAPL held support at $190.25\n\n| Level | Value |\n|---|---|\n| Support | $190.25 |",
+            macro_regime_report="## Risk-Off\nMarket is RISK-OFF.",
+        )
+
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["contract_version"] == "market_summary_v1"
+        assert structured["macro_regime"] == "risk_off"
+        assert "$190.25" in structured["key_levels"]
+        assert structured["key_metrics"]["summary_table_rows"] >= 2
+
+    def test_build_market_report_structured_aborted(self):
+        structured = build_market_report_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            market_report="[CRITICAL ABORT] Reason: Trading halted pending delisting",
+            macro_regime_report="## Transition\nMarket is TRANSITION.",
+        )
+
+        assert structured["status"] == "aborted"
+        assert structured["abort_reason"] == "Reason: Trading halted pending delisting"
+        assert structured["macro_regime"] == "transition"
 
 
 class TestValidateNewsAnalysis:
