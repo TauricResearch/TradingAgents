@@ -62,26 +62,75 @@ from agent_os.backend.services.scanner_context import build_scanner_context_pack
 
 logger = logging.getLogger("agent_os.engine")
 
-# Re-export for backwards compatibility with code that imports the
-# old private names from ``langgraph_engine``.
-from agent_os.backend.services.event_mapper import (  # noqa: E402,F811
-    TOOL_SERVICE_MAP as _TOOL_SERVICE_MAP,
-)
-from agent_os.backend.store import runs as live_runs  # noqa: E402,F811
-from agent_os.backend.services.run_helpers import (  # noqa: E402,F811
-    is_policy_error as _is_policy_error,
-    is_rate_limit_error as _is_rate_limit_error,
-    is_fallback_eligible_error as _is_fallback_eligible_error,
-    build_fallback_config as _build_fallback_config,
-    fallback_model_summary as _fallback_model_summary,
-    fetch_prices as _fetch_prices,
-    tickers_from_decision as _tickers_from_decision,
-    analysis_status as _analysis_status,
-    analysis_is_terminal as _analysis_is_terminal,
-    analysis_has_deep_dive as _analysis_has_deep_dive,
-    run_should_stop as _run_should_stop,
-    normalize_analysis_status as _normalize_analysis_status,
-)
+
+# ------------------------------------------------------------------
+# Module-level helpers (formerly @staticmethod on the class)
+# ------------------------------------------------------------------
+
+
+def _root_run_id(run_id: str, params: Dict[str, Any]) -> str:
+    return params.get("run_id") or run_id
+
+
+def _execution_key(run_id: str, params: Dict[str, Any]) -> str:
+    return params.get("_execution_key") or run_id
+
+
+def _load_injected_market_report(file_path: str) -> Dict[str, str]:
+    """Load a saved market report artifact for pipeline injection.
+
+    Supports:
+    - plain-text/markdown files containing only the market report
+    - JSON artifacts with a top-level ``market_report`` key and optional
+      ``macro_regime_report`` key
+
+    The resolved path must be within REPORTS_ROOT or the current working
+    directory to prevent path-traversal attacks.
+    """
+    path = Path(str(file_path)).expanduser().resolve()
+
+    # Guard against path traversal — only allow files under the reports
+    # root or the working directory.
+    allowed_bases = [REPORTS_ROOT.resolve(), Path.cwd().resolve()]
+    if not any(
+        path == base or base in path.parents
+        for base in allowed_bases
+    ):
+        raise PermissionError(
+            f"Injected market report path escapes allowed directories: {path}"
+        )
+
+    if not path.exists():
+        raise FileNotFoundError(f"Injected market report file not found: {path}")
+
+    raw_text = path.read_text(encoding="utf-8").strip()
+    if not raw_text:
+        raise ValueError(f"Injected market report file is empty: {path}")
+
+    if path.suffix.lower() == ".json":
+        try:
+            payload = json.loads(raw_text)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Injected market report JSON is malformed: {path} ({e})"
+            ) from e
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"Injected market report JSON must be an object: {path}"
+            )
+        market_report = str(payload.get("market_report") or "").strip()
+        macro_regime_report = str(payload.get("macro_regime_report") or "").strip()
+        if not market_report:
+            raise ValueError(
+                f"Injected market report JSON missing non-empty 'market_report': {path}"
+            )
+        return {
+            "market_report": market_report,
+            "macro_regime_report": macro_regime_report,
+        }
+
+    return {"market_report": raw_text, "macro_regime_report": ""}
+
 
 class AwaitPhase3Decision(RuntimeError):
     """Raised when auto mode must pause for a user decision before Phase 3."""
@@ -137,18 +186,6 @@ class LangGraphEngine:
         self.active_runs: Dict[str, Dict[str, Any]] = {}
         self._event_mapper = EventMapper()
         self._run_loggers: Dict[str, RunLogger] = {}
-    # Backwards-compatibility properties for tests that access the mapper internals
-    @property
-    def _node_start_times(self) -> Dict[str, Dict[str, float]]:
-        return self._event_mapper._node_start_times
-
-    @property
-    def _node_prompts(self) -> Dict[str, Dict[str, str]]:
-        return self._event_mapper._node_prompts
-
-    @property
-    def _run_identifiers(self) -> Dict[str, str]:
-        return self._event_mapper._run_identifiers
 
     # ------------------------------------------------------------------
     # Run logger lifecycle
@@ -176,128 +213,6 @@ class LangGraphEngine:
         finally:
             set_run_logger(None)
 
-    @staticmethod
-    def _root_run_id(run_id: str, params: Dict[str, Any]) -> str:
-        return params.get("run_id") or run_id
-
-    @staticmethod
-    def _execution_key(run_id: str, params: Dict[str, Any]) -> str:
-        return params.get("_execution_key") or run_id
-
-    @staticmethod
-    def _load_injected_market_report(file_path: str) -> Dict[str, str]:
-        """Load a saved market report artifact for pipeline injection.
-
-        Supports:
-        - plain-text/markdown files containing only the market report
-        - JSON artifacts with a top-level ``market_report`` key and optional
-          ``macro_regime_report`` key
-
-        The resolved path must be within REPORTS_ROOT or the current working
-        directory to prevent path-traversal attacks.
-        """
-        path = Path(str(file_path)).expanduser().resolve()
-
-        # Guard against path traversal — only allow files under the reports
-        # root or the working directory.
-        allowed_bases = [REPORTS_ROOT.resolve(), Path.cwd().resolve()]
-        if not any(
-            path == base or base in path.parents
-            for base in allowed_bases
-        ):
-            raise PermissionError(
-                f"Injected market report path escapes allowed directories: {path}"
-            )
-
-        if not path.exists():
-            raise FileNotFoundError(f"Injected market report file not found: {path}")
-
-        raw_text = path.read_text(encoding="utf-8").strip()
-        if not raw_text:
-            raise ValueError(f"Injected market report file is empty: {path}")
-
-        if path.suffix.lower() == ".json":
-            try:
-                payload = json.loads(raw_text)
-            except json.JSONDecodeError as e:
-                raise ValueError(
-                    f"Injected market report JSON is malformed: {path} ({e})"
-                ) from e
-            if not isinstance(payload, dict):
-                raise ValueError(
-                    f"Injected market report JSON must be an object: {path}"
-                )
-            market_report = str(payload.get("market_report") or "").strip()
-            macro_regime_report = str(payload.get("macro_regime_report") or "").strip()
-            if not market_report:
-                raise ValueError(
-                    f"Injected market report JSON missing non-empty 'market_report': {path}"
-                )
-            return {
-                "market_report": market_report,
-                "macro_regime_report": macro_regime_report,
-            }
-
-        return {"market_report": raw_text, "macro_regime_report": ""}
-    # ------------------------------------------------------------------
-    # Event mapping delegation
-    # ------------------------------------------------------------------
-
-    def _map_langgraph_event(
-        self, run_id: str, event: Dict[str, Any]
-    ) -> Dict[str, Any] | None:
-        return self._event_mapper.map_event(run_id, event)
-
-    @staticmethod
-    def _is_root_chain_end(event: Dict[str, Any]) -> bool:
-        return is_root_chain_end(event)
-
-    @staticmethod
-    def _system_log(message: str) -> Dict[str, Any]:
-        return system_log(message)
-
-    @staticmethod
-    def _extract_content(obj: object) -> str:
-        from agent_os.backend.services.event_mapper import _extract_content
-        return _extract_content(obj)
-
-    @staticmethod
-    def _safe_dict(obj: object) -> Dict[str, Any]:
-        from agent_os.backend.services.event_mapper import _safe_dict
-        return _safe_dict(obj)
-
-    # ------------------------------------------------------------------
-    # Report / scan helpers (delegate to extracted modules)
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _sanitize_for_json(obj: Any) -> Any:
-        return sanitize_for_json(obj)
-
-    @staticmethod
-    def _write_complete_report_md(
-        final_state: Dict[str, Any], ticker: str, save_dir: Path
-    ) -> None:
-        return write_complete_report_md(final_state, ticker, save_dir)
-
-    @staticmethod
-    def _extract_tickers_from_scan_data(scan_data: Dict[str, Any] | None) -> list[str]:
-        return extract_tickers_from_scan_data(scan_data)
-
-    @staticmethod
-    def _extract_pipeline_instruments_from_scan_data(
-        scan_data: Dict[str, Any] | None,
-    ) -> list[CanonicalInstrument]:
-        return extract_pipeline_instruments_from_scan_data(scan_data)
-
-    @staticmethod
-    def _normalize_scan_summary(scan_data: Dict[str, Any] | None) -> Dict[str, Any]:
-        return normalize_scan_summary(scan_data)
-
-    @staticmethod
-    def _build_scanner_context_packet(scan_state: Dict[str, Any], ticker: str) -> str:
-        return build_scanner_context_packet(scan_state, ticker)
-
     # ------------------------------------------------------------------
     # Run helpers
     # ------------------------------------------------------------------
@@ -307,8 +222,8 @@ class LangGraphEngine:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Run the 3-phase macro scanner and stream events."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
-        root_run_id = self._root_run_id(run_id, params)
-        execution_key = self._execution_key(run_id, params)
+        root_run_id = _root_run_id(run_id, params)
+        execution_key = _execution_key(run_id, params)
         store = create_report_store(run_id=root_run_id)
 
         rl = self._start_run_logger(root_run_id, logger_key=execution_key)
@@ -318,7 +233,7 @@ class LangGraphEngine:
         scanner = ScannerGraph(config=scan_config)
 
         logger.info("Starting SCAN run=%s date=%s", root_run_id, date)
-        yield self._system_log(f"Starting macro scan for {date}")
+        yield system_log(f"Starting macro scan for {date}")
 
         initial_state = {
             "scan_date": date,
@@ -341,7 +256,7 @@ class LangGraphEngine:
             ):
                 if run_should_stop(root_run_id):
                     logger.info("SCAN run=%s: graceful stop requested, aborting early", root_run_id)
-                    yield self._system_log("Aborting macro scan due to graceful stop request.")
+                    yield system_log("Aborting macro scan due to graceful stop request.")
                     raise asyncio.CancelledError()
 
                 # Capture the complete final state from the root graph's terminal event.
@@ -352,7 +267,7 @@ class LangGraphEngine:
                     if isinstance(output, dict):
                         captured_root_state = True
                         final_state = output
-                mapped = self._map_langgraph_event(execution_key, event)
+                mapped = self._event_mapper.map_event(execution_key, event)
                 if mapped:
                     yield mapped
 
@@ -362,7 +277,7 @@ class LangGraphEngine:
                     "refusing to re-run the graph because that can duplicate expensive work."
                 )
                 logger.error("SCAN run=%s: %s", root_run_id, message)
-                yield self._system_log(f"Error: {message}")
+                yield system_log(f"Error: {message}")
                 raise RuntimeError(message)
 
             if final_state:
@@ -382,7 +297,7 @@ class LangGraphEngine:
         store,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Persist scan artifacts and emit system log events."""
-        yield self._system_log("Saving scan reports…")
+        yield system_log("Saving scan reports…")
         try:
             save_dir = get_market_dir(date, root_run_id)
             save_dir.mkdir(parents=True, exist_ok=True)
@@ -395,7 +310,7 @@ class LangGraphEngine:
             summary_text = final_state.get("macro_scan_summary", "")
             if summary_text:
                 try:
-                    summary_data = self._normalize_scan_summary(extract_json(summary_text))
+                    summary_data = normalize_scan_summary(extract_json(summary_text))
                     store.save_scan(date, summary_data)
                 except (ValueError, KeyError, TypeError):
                     logger.warning(
@@ -418,11 +333,11 @@ class LangGraphEngine:
             if scan_parts:
                 append_to_digest(date, "scan", "Market Scan", "\n\n".join(scan_parts))
 
-            yield self._system_log(f"Scan reports saved to {save_dir}")
+            yield system_log(f"Scan reports saved to {save_dir}")
             logger.info("Saved scan reports run=%s date=%s dir=%s", root_run_id, date, save_dir)
         except Exception as exc:
             logger.exception("Failed to save scan reports run=%s", root_run_id)
-            yield self._system_log(f"Warning: could not save scan reports: {exc}")
+            yield system_log(f"Warning: could not save scan reports: {exc}")
 
     async def run_scan_from_node(
         self,
@@ -433,12 +348,12 @@ class LangGraphEngine:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Continue a market scan from *start_node* using a seeded state."""
         if start_node not in SCAN_NODE_TO_REPORT_FIELD:
-            yield self._system_log(f"Unknown scan node '{start_node}' — skipping")
+            yield system_log(f"Unknown scan node '{start_node}' — skipping")
             return
 
         date = params.get("date", time.strftime("%Y-%m-%d"))
-        root_run_id = self._root_run_id(run_id, params)
-        execution_key = self._execution_key(run_id, params)
+        root_run_id = _root_run_id(run_id, params)
+        execution_key = _execution_key(run_id, params)
         store = create_report_store(run_id=root_run_id)
 
         rl = self._start_run_logger(root_run_id, logger_key=execution_key)
@@ -449,7 +364,7 @@ class LangGraphEngine:
         graph = scanner.graph_from(start_node)
 
         logger.info("Starting SCAN rerun run=%s node=%s date=%s", root_run_id, start_node, date)
-        yield self._system_log(f"Continuing macro scan from {start_node} for {date}")
+        yield system_log(f"Continuing macro scan from {start_node} for {date}")
 
         seeded_state = {
             "scan_date": date,
@@ -480,14 +395,14 @@ class LangGraphEngine:
                     if isinstance(output, dict):
                         captured_root_state = True
                         final_state = output
-                mapped = self._map_langgraph_event(execution_key, event)
+                mapped = self._event_mapper.map_event(execution_key, event)
                 if mapped:
                     yield mapped
 
             if not captured_root_state:
                 message = f"Scan continuation from {start_node} for {date} completed without a root final state."
                 logger.error("SCAN rerun run=%s: %s", root_run_id, message)
-                yield self._system_log(f"Error: {message}")
+                yield system_log(f"Error: {message}")
                 raise RuntimeError(message)
 
             if final_state:
@@ -511,8 +426,8 @@ class LangGraphEngine:
             or params.get("selected_analysts")
             or ["market", "news", "fundamentals"]
         )
-        root_run_id = self._root_run_id(run_id, params)
-        execution_key = self._execution_key(run_id, params)
+        root_run_id = _root_run_id(run_id, params)
+        execution_key = _execution_key(run_id, params)
         store = create_report_store(run_id=root_run_id)
 
         rl = self._start_run_logger(root_run_id, logger_key=execution_key)
@@ -520,7 +435,7 @@ class LangGraphEngine:
         logger.info("Starting PIPELINE run=%s ticker=%s date=%s", root_run_id, ticker, date)
 
         if not is_equity_pipeline_supported(instrument):
-            yield self._system_log(
+            yield system_log(
                 f"Skipping stock deep-dive for {ticker}: "
                 f"classified as {instrument.instrument_type} ({instrument.asset_class})."
             )
@@ -531,13 +446,13 @@ class LangGraphEngine:
             self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
             return
 
-        yield self._system_log(f"Starting analysis pipeline for {ticker} on {date}")
+        yield system_log(f"Starting analysis pipeline for {ticker} on {date}")
 
         injected_market = {"market_report": "", "macro_regime_report": ""}
         market_report_file = str(params.get("market_report_file") or "").strip()
         if market_report_file:
-            injected_market = self._load_injected_market_report(market_report_file)
-            yield self._system_log(
+            injected_market = _load_injected_market_report(market_report_file)
+            yield system_log(
                 f"Injecting saved market report for {ticker} from {market_report_file}"
             )
             logger.info(
@@ -577,7 +492,7 @@ class LangGraphEngine:
             ):
                 if run_should_stop(root_run_id):
                     logger.info("PIPELINE run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
-                    yield self._system_log(f"Aborting analysis for {ticker} due to graceful stop request.")
+                    yield system_log(f"Aborting analysis for {ticker} due to graceful stop request.")
                     raise asyncio.CancelledError()
 
                 # Capture the complete final state from the root graph's terminal event.
@@ -585,7 +500,7 @@ class LangGraphEngine:
                     output = (event.get("data") or {}).get("output")
                     if isinstance(output, dict):
                         final_state = output
-                mapped = self._map_langgraph_event(execution_key, event)
+                mapped = self._event_mapper.map_event(execution_key, event)
                 if mapped:
                     yield mapped
         except Exception as exc:
@@ -619,14 +534,14 @@ class LangGraphEngine:
 
         # Save pipeline reports
         if final_state:
-            yield self._system_log(f"Saving analysis report for {ticker}…")
+            yield system_log(f"Saving analysis report for {ticker}…")
             try:
                 save_dir = get_ticker_dir(date, ticker, root_run_id)
                 save_dir.mkdir(parents=True, exist_ok=True)
 
                 # Sanitize final_state to remove non-JSON-serializable objects
                 # (e.g. LangChain HumanMessage, AIMessage objects in "messages")
-                serializable_state = self._sanitize_for_json(final_state)
+                serializable_state = sanitize_for_json(final_state)
                 serializable_state.update(instrument.to_metadata())
                 serializable_state["ticker"] = ticker
                 serializable_state["analysis_status"] = normalize_analysis_status(serializable_state)
@@ -635,7 +550,7 @@ class LangGraphEngine:
                 store.save_analysis(date, ticker, serializable_state)
 
                 # Write human-readable complete_report.md
-                self._write_complete_report_md(final_state, ticker, save_dir)
+                write_complete_report_md(final_state, ticker, save_dir)
 
                 # Append to daily digest
                 digest_content = (
@@ -677,11 +592,11 @@ class LangGraphEngine:
                     }
                     store.save_trader_checkpoint(date, ticker, trader_ckpt)
 
-                yield self._system_log(f"Analysis report for {ticker} saved to {save_dir}")
+                yield system_log(f"Analysis report for {ticker} saved to {save_dir}")
                 logger.info("Saved pipeline report run=%s ticker=%s dir=%s", root_run_id, ticker, save_dir)
             except Exception as exc:
                 logger.exception("Failed to save pipeline reports run=%s ticker=%s", root_run_id, ticker)
-                yield self._system_log(f"Warning: could not save analysis report for {ticker}: {exc}")
+                yield system_log(f"Warning: could not save analysis report for {ticker}: {exc}")
 
         logger.info("Completed PIPELINE run=%s", root_run_id)
         self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
@@ -692,8 +607,8 @@ class LangGraphEngine:
         """Run the portfolio manager workflow and stream events."""
         date = params.get("date", time.strftime("%Y-%m-%d"))
         portfolio_id = params.get("portfolio_id", "main_portfolio")
-        root_run_id = self._root_run_id(run_id, params)
-        execution_key = self._execution_key(run_id, params)
+        root_run_id = _root_run_id(run_id, params)
+        execution_key = _execution_key(run_id, params)
         store = create_report_store(run_id=root_run_id)
         reader_store = create_report_store(run_id=root_run_id)
         fallback_reader_store = create_report_store()
@@ -704,13 +619,13 @@ class LangGraphEngine:
             "Starting PORTFOLIO run=%s portfolio=%s date=%s",
             root_run_id, portfolio_id, date,
         )
-        yield self._system_log(
+        yield system_log(
             f"Starting portfolio manager for {portfolio_id} on {date}"
         )
 
         portfolio_graph = PortfolioGraph(config=self.config)
 
-        scan_summary = self._normalize_scan_summary(
+        scan_summary = normalize_scan_summary(
             reader_store.load_scan(date) or fallback_reader_store.load_scan(date) or {}
         )
         ticker_analyses: Dict[str, Any] = {}
@@ -746,15 +661,15 @@ class LangGraphEngine:
                         incomplete_tickers.append(instrument_key)
 
         if scan_summary:
-            yield self._system_log(f"Loaded macro scan summary for {date}")
+            yield system_log(f"Loaded macro scan summary for {date}")
         else:
-            yield self._system_log(f"No scan summary found for {date}, proceeding without it")
+            yield system_log(f"No scan summary found for {date}, proceeding without it")
         if ticker_analyses:
-            yield self._system_log(f"Loaded analyses for: {', '.join(sorted(ticker_analyses.keys()))}")
+            yield system_log(f"Loaded analyses for: {', '.join(sorted(ticker_analyses.keys()))}")
         else:
-            yield self._system_log("No per-ticker analyses found for this date")
+            yield system_log("No per-ticker analyses found for this date")
         if incomplete_tickers:
-            yield self._system_log(
+            yield system_log(
                 "Ignoring incomplete ticker analyses without deep-dive decisions: "
                 + ", ".join(sorted(set(incomplete_tickers)))
             )
@@ -808,14 +723,14 @@ class LangGraphEngine:
         ):
             if run_should_stop(root_run_id):
                 logger.info("PORTFOLIO run=%s: graceful stop requested, aborting early", root_run_id)
-                yield self._system_log("Aborting portfolio management due to graceful stop request.")
+                yield system_log("Aborting portfolio management due to graceful stop request.")
                 raise asyncio.CancelledError()
 
             if is_root_chain_end(event):
                 output = (event.get("data") or {}).get("output")
                 if isinstance(output, dict):
                     final_state = output
-            mapped = self._map_langgraph_event(execution_key, event)
+            mapped = self._event_mapper.map_event(execution_key, event)
             if mapped:
                 yield mapped
 
@@ -875,10 +790,10 @@ class LangGraphEngine:
                     except Exception as exc:
                         logger.warning("Failed to save execution_result run=%s: %s", root_run_id, exc)
 
-                yield self._system_log(f"Portfolio stage reports (decision & execution) saved for {portfolio_id} on {date}")
+                yield system_log(f"Portfolio stage reports (decision & execution) saved for {portfolio_id} on {date}")
             except Exception as exc:
                 logger.exception("Failed to save portfolio reports run=%s", root_run_id)
-                yield self._system_log(f"Warning: could not save portfolio reports: {exc}")
+                yield system_log(f"Warning: could not save portfolio reports: {exc}")
 
         logger.info("Completed PORTFOLIO run=%s", root_run_id)
         self._finish_run_logger(execution_key, get_daily_dir(date, root_run_id) / "portfolio")
@@ -889,7 +804,7 @@ class LangGraphEngine:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Manually execute a pre-computed PM decision (for resumability)."""
         logger.info("Starting TRADE_EXECUTION run=%s portfolio=%s date=%s", run_id, portfolio_id, date)
-        yield self._system_log(f"Resuming trade execution for {portfolio_id} using saved decision…")
+        yield system_log(f"Resuming trade execution for {portfolio_id} using saved decision…")
 
         from tradingagents.portfolio.trade_executor import TradeExecutor
         from tradingagents.portfolio.repository import PortfolioRepository
@@ -897,12 +812,12 @@ class LangGraphEngine:
         if not prices:
             tickers = tickers_from_decision(decision)
             if tickers:
-                yield self._system_log(f"Fetching live prices for {tickers} from yfinance…")
+                yield system_log(f"Fetching live prices for {tickers} from yfinance…")
                 prices = fetch_prices(tickers)
                 logger.info("TRADE_EXECUTION run=%s: fetched prices for %s", run_id, list(prices.keys()))
             if not prices:
                 logger.warning("TRADE_EXECUTION run=%s: no prices available — execution may produce incomplete results", run_id)
-                yield self._system_log(f"Warning: no prices found for {portfolio_id} on {date} — trade execution may be incomplete.")
+                yield system_log(f"Warning: no prices found for {portfolio_id} on {date} — trade execution may be incomplete.")
 
         _store = store or create_report_store(run_id=run_id)
 
@@ -916,11 +831,11 @@ class LangGraphEngine:
             # Save results using the shared store instance
             _store.save_execution_result(date, portfolio_id, result)
 
-            yield self._system_log(f"Trade execution completed for {portfolio_id}. {result.get('summary', {})}")
+            yield system_log(f"Trade execution completed for {portfolio_id}. {result.get('summary', {})}")
             logger.info("Completed TRADE_EXECUTION run=%s", run_id)
         except Exception as exc:
             logger.exception("Trade execution failed run=%s", run_id)
-            yield self._system_log(f"Error during trade execution: {exc}")
+            yield system_log(f"Error during trade execution: {exc}")
             raise
 
     async def run_pipeline_from_phase(
@@ -941,14 +856,14 @@ class LangGraphEngine:
         instrument = resolve_instrument(ticker, source_context="pipeline_rerun")
         date = params.get("date", time.strftime("%Y-%m-%d"))
         portfolio_id = params.get("portfolio_id", "main_portfolio")
-        root_run_id = self._root_run_id(run_id, params)
-        execution_key = self._execution_key(run_id, params)
+        root_run_id = _root_run_id(run_id, params)
+        execution_key = _execution_key(run_id, params)
         store = create_report_store(run_id=root_run_id)
         fallback_store = create_report_store()
         writer_store = create_report_store(run_id=root_run_id)
 
         if not is_equity_pipeline_supported(instrument):
-            yield self._system_log(
+            yield system_log(
                 f"Skipping {phase} re-run for {ticker}: "
                 f"classified as {instrument.instrument_type} ({instrument.asset_class})."
             )
@@ -959,14 +874,14 @@ class LangGraphEngine:
             async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "portfolio_context": params.get("portfolio_context", "candidate"), "_execution_key": execution_key}):
                 yield evt
         elif phase == "debate_and_trader":
-            yield self._system_log(f"Loading analysts checkpoint for {ticker}...")
+            yield system_log(f"Loading analysts checkpoint for {ticker}...")
             ckpt = store.load_analysts_checkpoint(date, ticker) or fallback_store.load_analysts_checkpoint(date, ticker)
             if not ckpt:
-                yield self._system_log(f"No analysts checkpoint found for {ticker} — falling back to full re-run")
+                yield system_log(f"No analysts checkpoint found for {ticker} — falling back to full re-run")
                 async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "portfolio_context": params.get("portfolio_context", "candidate"), "_execution_key": execution_key}):
                     yield evt
             else:
-                yield self._system_log(f"Running debate + trader + risk for {ticker} from checkpoint...")
+                yield system_log(f"Running debate + trader + risk for {ticker} from checkpoint...")
                 graph_wrapper = TradingAgentsGraph(config=self.config, debug=True)
                 initial_state = graph_wrapper.propagator.create_initial_state(
                     ticker,
@@ -997,21 +912,21 @@ class LangGraphEngine:
                 ):
                     if run_should_stop(root_run_id):
                         logger.info("PIPELINE_RERUN run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
-                        yield self._system_log(f"Aborting rerun for {ticker} due to graceful stop request.")
+                        yield system_log(f"Aborting rerun for {ticker} due to graceful stop request.")
                         raise asyncio.CancelledError()
 
                     if is_root_chain_end(event):
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
-                    mapped = self._map_langgraph_event(execution_key, event)
+                    mapped = self._event_mapper.map_event(execution_key, event)
                     if mapped:
                         yield mapped
 
                 self._event_mapper.unregister_run(execution_key)
 
                 if final_state:
-                    serializable_state = self._sanitize_for_json(final_state)
+                    serializable_state = sanitize_for_json(final_state)
                     serializable_state["analysis_status"] = normalize_analysis_status(serializable_state)
                     writer_store.save_analysis(date, ticker, serializable_state)
                     # Overwrite checkpoints
@@ -1031,14 +946,14 @@ class LangGraphEngine:
 
                 self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
         elif phase == "risk":
-            yield self._system_log(f"Loading trader checkpoint for {ticker}...")
+            yield system_log(f"Loading trader checkpoint for {ticker}...")
             ckpt = store.load_trader_checkpoint(date, ticker) or fallback_store.load_trader_checkpoint(date, ticker)
             if not ckpt:
-                yield self._system_log(f"No trader checkpoint found for {ticker} — falling back to full re-run")
+                yield system_log(f"No trader checkpoint found for {ticker} — falling back to full re-run")
                 async for evt in self.run_pipeline(execution_key, {"ticker": ticker, "date": date, "run_id": root_run_id, "portfolio_context": params.get("portfolio_context", "candidate"), "_execution_key": execution_key}):
                     yield evt
             else:
-                yield self._system_log(f"Running risk phase for {ticker} from checkpoint...")
+                yield system_log(f"Running risk phase for {ticker} from checkpoint...")
                 graph_wrapper = TradingAgentsGraph(config=self.config, debug=True)
                 initial_state = graph_wrapper.propagator.create_initial_state(
                     ticker,
@@ -1065,31 +980,31 @@ class LangGraphEngine:
                 ):
                     if run_should_stop(root_run_id):
                         logger.info("PIPELINE_RERUN_RISK run=%s ticker=%s: graceful stop requested, aborting early", root_run_id, ticker)
-                        yield self._system_log(f"Aborting risk rerun for {ticker} due to graceful stop request.")
+                        yield system_log(f"Aborting risk rerun for {ticker} due to graceful stop request.")
                         raise asyncio.CancelledError()
 
                     if is_root_chain_end(event):
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
-                    mapped = self._map_langgraph_event(execution_key, event)
+                    mapped = self._event_mapper.map_event(execution_key, event)
                     if mapped:
                         yield mapped
 
                 self._event_mapper.unregister_run(execution_key)
 
                 if final_state:
-                    serializable_state = self._sanitize_for_json(final_state)
+                    serializable_state = sanitize_for_json(final_state)
                     serializable_state["analysis_status"] = normalize_analysis_status(serializable_state)
                     writer_store.save_analysis(date, ticker, serializable_state)
 
                 self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
         else:
-            yield self._system_log(f"Unknown phase '{phase}' — skipping")
+            yield system_log(f"Unknown phase '{phase}' — skipping")
             return
 
         # Cascade: re-run portfolio manager with updated data
-        yield self._system_log(f"Cascading: re-running portfolio manager after {ticker} {phase} re-run...")
+        yield system_log(f"Cascading: re-running portfolio manager after {ticker} {phase} re-run...")
         async for evt in self.run_portfolio(
             f"{root_run_id}:cascade_pm:{ticker}:{phase}",
             {"date": date, "portfolio_id": portfolio_id, "run_id": root_run_id, "_execution_key": f"{root_run_id}:cascade_pm:{ticker}:{phase}"},
@@ -1104,8 +1019,8 @@ class LangGraphEngine:
         force = params.get("force", False)
         continue_on_ticker_failure = bool(params.get("continue_on_ticker_failure"))
         include_portfolio_holdings = params.get("include_portfolio_holdings", True)
-        root_run_id = self._root_run_id(run_id, params)
-        execution_key = self._execution_key(run_id, params)
+        root_run_id = _root_run_id(run_id, params)
+        execution_key = _execution_key(run_id, params)
 
         params = {**params, "run_id": root_run_id}
         store = create_report_store(run_id=root_run_id)
@@ -1113,12 +1028,12 @@ class LangGraphEngine:
         self._start_run_logger(root_run_id, logger_key=execution_key)
         try:
             logger.info("Starting AUTO run=%s date=%s force=%s", root_run_id, date, force)
-            yield self._system_log(f'Starting full auto workflow for {date} (force={force}, run={root_run_id})')
+            yield system_log(f'Starting full auto workflow for {date} (force={force}, run={root_run_id})')
 
             # Phase 1: Market scan
-            yield self._system_log("Phase 1/3: Running market scan…")
+            yield system_log("Phase 1/3: Running market scan…")
             if not force and store.load_scan(date):
-                yield self._system_log(f"Phase 1: Macro scan for {date} already exists, skipping.")
+                yield system_log(f"Phase 1: Macro scan for {date} already exists, skipping.")
             else:
                 scan_params = {"date": date, "run_id": root_run_id, "_execution_key": f"{root_run_id}:scan"}
                 if params.get("max_tickers"):
@@ -1132,7 +1047,7 @@ class LangGraphEngine:
                         if fallback_config:
                             fallback_models = fallback_model_summary(self.config, fallback_config)
                             await asyncio.sleep(0)
-                            yield self._system_log(
+                            yield system_log(
                                 "Phase 1/3: primary scan model unavailable — retrying with "
                                 f"fallback: {fallback_models or 'configured tier fallbacks'}…"
                             )
@@ -1198,13 +1113,13 @@ class LangGraphEngine:
         include_portfolio_holdings: bool,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         if run_should_stop(root_run_id):
-            yield self._system_log("Graceful stop requested — finishing after the market scan phase.")
+            yield system_log("Graceful stop requested — finishing after the market scan phase.")
             return
 
         # Phase 2: Pipeline analysis — get tickers from scan report + portfolio holdings
-        yield self._system_log("Phase 2/3: Loading stocks from scan report…")
-        scan_data = self._normalize_scan_summary(store.load_scan(date) or {})
-        scan_instruments = self._extract_pipeline_instruments_from_scan_data(scan_data)
+        yield system_log("Phase 2/3: Loading stocks from scan report…")
+        scan_data = normalize_scan_summary(store.load_scan(date) or {})
+        scan_instruments = extract_pipeline_instruments_from_scan_data(scan_data)
         tracked_market_symbols = [
             str(item.get("ticker") or "")
             for item in (scan_data.get("tracked_market_instruments") or [])
@@ -1233,7 +1148,7 @@ class LangGraphEngine:
             except Exception as exc:
                 logger.warning("run_auto: could not load holdings for pipeline: %s", exc)
         else:
-            yield self._system_log(
+            yield system_log(
                 "Phase 2/3: include_portfolio_holdings=False — skipping portfolio holdings, scan candidates only."
             )
 
@@ -1269,31 +1184,31 @@ class LangGraphEngine:
                 holdings_only.append(instrument.canonical_symbol)
 
         if scan_instruments:
-            yield self._system_log(
+            yield system_log(
                 f"Phase 2/3: {len(scan_instruments)} equity ticker(s) from scan report"
             )
         if tracked_market_symbols:
-            yield self._system_log(
+            yield system_log(
                 "Phase 2/3: tracked market instruments kept out of stock deep-dive queue: "
                 + ", ".join(tracked_market_symbols)
             )
         if tracked_crypto_symbols:
-            yield self._system_log(
+            yield system_log(
                 "Phase 2/3: tracked crypto instruments kept out of stock deep-dive queue: "
                 + ", ".join(tracked_crypto_symbols)
             )
         if holdings_only:
-            yield self._system_log(
+            yield system_log(
                 f"Phase 2/3: {len(holdings_only)} additional ticker(s) from portfolio holdings: "
                 + ", ".join(holdings_only)
             )
         if skipped_holding_symbols:
-            yield self._system_log(
+            yield system_log(
                 "Phase 2/3: skipping non-stock holdings for the current deep-dive path: "
                 + ", ".join(sorted(set(skipped_holding_symbols)))
             )
         if not queued_instruments:
-            yield self._system_log(
+            yield system_log(
                 "Warning: no common-stock candidates found in scan summary and no supported portfolio holdings — "
                 "ensure the scan completed successfully and produced a "
                 "stocks_to_investigate list. Skipping pipeline phase."
@@ -1303,7 +1218,7 @@ class LangGraphEngine:
             failed_tickers: dict[str, str] = {}
             completed_tickers: list[str] = []
             aborted_tickers: list[str] = []
-            yield self._system_log(
+            yield system_log(
                 f"Phase 2/3: Queuing {len(queued_instruments)} ticker(s) "
                 f"(max {max_concurrent} concurrent)…"
             )
@@ -1324,7 +1239,7 @@ class LangGraphEngine:
                 if not force and analysis_is_terminal(existing_analysis):
                     status = analysis_status(existing_analysis)
                     await pipeline_queue.put(
-                        self._system_log(f"Phase 2: Analysis for {ticker} on {date} already exists, skipping.")
+                        system_log(f"Phase 2: Analysis for {ticker} on {date} already exists, skipping.")
                     )
                     if status == "completed":
                         completed_tickers.append(ticker)
@@ -1332,9 +1247,9 @@ class LangGraphEngine:
                         aborted_tickers.append(ticker)
                     return
                 await pipeline_queue.put(
-                    self._system_log(f"Phase 2/3: Running analysis pipeline for {ticker}…")
+                    system_log(f"Phase 2/3: Running analysis pipeline for {ticker}…")
                 )
-                scanner_packet = self._build_scanner_context_packet(scan_state, ticker)
+                scanner_packet = build_scanner_context_packet(scan_state, ticker)
 
                 try:
                     async for evt in self.run_pipeline(
@@ -1354,7 +1269,7 @@ class LangGraphEngine:
                     if saved_status == "aborted":
                         aborted_tickers.append(ticker)
                         await pipeline_queue.put(
-                            self._system_log(
+                            system_log(
                                 f"Phase 2/3: {ticker} hit terminal critical-abort path ({saved_analysis.get('terminal_action', 'ABORT')})."
                             )
                         )
@@ -1364,7 +1279,7 @@ class LangGraphEngine:
                         reason = "analysis finished without a completed deep-dive decision"
                         _record_failure(reason)
                         await pipeline_queue.put(
-                            self._system_log(
+                            system_log(
                                 f"Warning: pipeline for {ticker} produced no deep-dive decision; skipping ticker in portfolio stage."
                             )
                         )
@@ -1380,7 +1295,7 @@ class LangGraphEngine:
                         if fallback_config:
                             fallback_models = fallback_model_summary(self.config, fallback_config)
                             await pipeline_queue.put(
-                                self._system_log(
+                                system_log(
                                     f"Primary model unavailable for {ticker} — retrying with "
                                     f"fallback: {fallback_models or 'configured tier fallbacks'}…"
                                 )
@@ -1405,7 +1320,7 @@ class LangGraphEngine:
                                 if saved_status == "aborted":
                                     aborted_tickers.append(ticker)
                                     await pipeline_queue.put(
-                                        self._system_log(
+                                        system_log(
                                             f"Phase 2/3: {ticker} hit terminal critical-abort path ({saved_analysis.get('terminal_action', 'ABORT')})."
                                         )
                                     )
@@ -1415,7 +1330,7 @@ class LangGraphEngine:
                                     reason = "fallback finished without a completed deep-dive decision"
                                     _record_failure(reason)
                                     await pipeline_queue.put(
-                                        self._system_log(
+                                        system_log(
                                             f"Warning: fallback pipeline for {ticker} produced no deep-dive decision; skipping ticker in portfolio stage."
                                         )
                                     )
@@ -1426,7 +1341,7 @@ class LangGraphEngine:
                                 )
                                 _record_failure(str(fallback_exc))
                                 await pipeline_queue.put(
-                                    self._system_log(
+                                    system_log(
                                         f"Warning: pipeline for {ticker} failed "
                                         f"(fallback also failed): {fallback_exc}"
                                     )
@@ -1436,7 +1351,7 @@ class LangGraphEngine:
                         else:
                             _record_failure(str(exc))
                             await pipeline_queue.put(
-                                self._system_log(
+                                system_log(
                                     f"Warning: pipeline for {ticker} failed due to LLM provider availability. "
                                     f"{exc} — "
                                     f"Set TRADINGAGENTS_QUICK_THINK_FALLBACK_LLM (and MID/DEEP) "
@@ -1449,7 +1364,7 @@ class LangGraphEngine:
                         )
                         _record_failure(str(exc))
                         await pipeline_queue.put(
-                            self._system_log(
+                            system_log(
                                 f"Warning: pipeline for {ticker} failed: {exc}"
                             )
                         )
@@ -1472,7 +1387,7 @@ class LangGraphEngine:
                                     if not stop_logged:
                                         stop_logged = True
                                         await pipeline_queue.put(
-                                            self._system_log(
+                                            system_log(
                                                 "Graceful stop requested — no new ticker pipelines will be queued."
                                             )
                                         )
@@ -1521,12 +1436,12 @@ class LangGraphEngine:
                     f"{ticker} ({reason})" for ticker, reason in sorted(failed_tickers.items())
                 )
                 if continue_on_ticker_failure:
-                    yield self._system_log(
+                    yield system_log(
                         "Phase 2/3: continuing to portfolio stage without failed tickers: "
                         + failed_summary
                     )
                 else:
-                    yield self._system_log(
+                    yield system_log(
                         "Phase 2/3: paused before portfolio stage because ticker analyses failed: "
                         + failed_summary
                     )
@@ -1556,7 +1471,7 @@ class LangGraphEngine:
                     )
 
         if run_should_stop(root_run_id):
-            yield self._system_log("Graceful stop requested — finishing after Phase 2 without starting portfolio management.")
+            yield system_log("Graceful stop requested — finishing after Phase 2 without starting portfolio management.")
             return
 
         async for evt in self._run_auto_phase_three(
@@ -1580,7 +1495,7 @@ class LangGraphEngine:
         force = params.get("force", False)
         continue_on_ticker_failure = bool(params.get("continue_on_ticker_failure"))
         include_portfolio_holdings = params.get("include_portfolio_holdings", True)
-        root_run_id = self._root_run_id(run_id, params)
+        root_run_id = _root_run_id(run_id, params)
         store = create_report_store(run_id=root_run_id)
 
         scan_params = {
@@ -1621,21 +1536,21 @@ class LangGraphEngine:
         store,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Run or resume the portfolio stage for an auto workflow."""
-        yield self._system_log("Phase 3/3: Running portfolio manager…")
+        yield system_log("Phase 3/3: Running portfolio manager…")
         portfolio_params = {k: v for k, v in params.items() if k != "ticker"}
         portfolio_params["run_id"] = root_run_id
         portfolio_id = params.get("portfolio_id", "main_portfolio")
 
         # Check if portfolio stage is fully complete (execution result exists)
         if not force and store.load_execution_result(date, portfolio_id):
-            yield self._system_log(
+            yield system_log(
                 f"Phase 3: Portfolio execution for {portfolio_id} on {date} already exists, skipping."
             )
         else:
             # Check if we can resume from a saved decision
             saved_decision = store.load_pm_decision(date, portfolio_id)
             if not force and saved_decision:
-                yield self._system_log(
+                yield system_log(
                     f"Phase 3: Found saved PM decision for {portfolio_id}, resuming trade execution…"
                 )
                 prices = fetch_prices(tickers_from_decision(saved_decision))
@@ -1666,8 +1581,8 @@ class LangGraphEngine:
         retry_tickers: list[str],
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Resolve an auto-run Phase 2 pause by retrying selected tickers or continuing."""
-        root_run_id = self._root_run_id(run_id, params)
-        execution_key = self._execution_key(run_id, params)
+        root_run_id = _root_run_id(run_id, params)
+        execution_key = _execution_key(run_id, params)
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = bool(params.get("force", False))
         store = create_report_store(run_id=root_run_id)
@@ -1693,14 +1608,14 @@ class LangGraphEngine:
                 )
 
             if retry_tickers:
-                yield self._system_log(
+                yield system_log(
                     "Phase 2/3: retrying selected incomplete ticker(s): "
                     + ", ".join(sorted(retry_tickers))
                 )
                 for ticker in retry_tickers:
                     if run_should_stop(root_run_id):
                         logger.info("AUTO_PHASE3_DECISION run=%s: graceful stop requested, aborting early", root_run_id)
-                        yield self._system_log("Aborting retry due to graceful stop request.")
+                        yield system_log("Aborting retry due to graceful stop request.")
                         raise asyncio.CancelledError()
                     item = incomplete_map[ticker]
                     async for evt in self.run_pipeline(
@@ -1740,7 +1655,7 @@ class LangGraphEngine:
                     failed_summary = ", ".join(
                         f"{item['ticker']} ({item['reason']})" for item in remaining_incomplete
                     )
-                    yield self._system_log(
+                    yield system_log(
                         "Phase 2/3: paused again before portfolio stage because ticker analyses are still incomplete: "
                         + failed_summary
                     )
@@ -1756,7 +1671,7 @@ class LangGraphEngine:
                     )
 
             else:
-                yield self._system_log(
+                yield system_log(
                     "Phase 2/3: continuing to Phase 3 without retrying incomplete tickers."
                 )
 

@@ -23,8 +23,12 @@ if _project_root not in sys.path:
 
 from agent_os.backend.services.langgraph_engine import (
     LangGraphEngine,
-    _fallback_model_summary,
-    _is_rate_limit_error,
+    _load_injected_market_report,
+)
+from agent_os.backend.services.report_helpers import extract_tickers_from_scan_data
+from agent_os.backend.services.run_helpers import (
+    fallback_model_summary,
+    is_rate_limit_error,
 )
 
 
@@ -54,20 +58,20 @@ def _root_chain_end_event(output: dict) -> dict:
 
 
 class TestLangGraphHelperClassifiers(unittest.TestCase):
-    def test_is_rate_limit_error_matches_status_code(self):
+    def testis_rate_limit_error_matches_status_code(self):
         exc = RuntimeError("boom")
         exc.status_code = 429
-        self.assertTrue(_is_rate_limit_error(exc))
+        self.assertTrue(is_rate_limit_error(exc))
 
-    def test_is_rate_limit_error_matches_upstream_message(self):
+    def testis_rate_limit_error_matches_upstream_message(self):
         exc = RuntimeError("provider is temporarily rate-limited upstream, retry shortly")
-        self.assertTrue(_is_rate_limit_error(exc))
+        self.assertTrue(is_rate_limit_error(exc))
 
-    def test_is_rate_limit_error_returns_false_for_other_errors(self):
+    def testis_rate_limit_error_returns_false_for_other_errors(self):
         exc = RuntimeError("provider policy blocked model")
-        self.assertFalse(_is_rate_limit_error(exc))
+        self.assertFalse(is_rate_limit_error(exc))
 
-    def test_fallback_model_summary_lists_only_changed_tiers(self):
+    def testfallback_model_summary_lists_only_changed_tiers(self):
         current = {
             "quick_think_llm": "q1",
             "mid_think_llm": "m1",
@@ -79,7 +83,7 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             "deep_think_llm": "d2",
         }
 
-        summary = _fallback_model_summary(current, fallback)
+        summary = fallback_model_summary(current, fallback)
 
         self.assertEqual(summary, "quick_think=q2, deep_think=d2")
 
@@ -90,7 +94,7 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             report_path = tmpdir / "market_report.md"
             report_path.write_text("# Market\nSaved report", encoding="utf-8")
 
-            loaded = LangGraphEngine._load_injected_market_report(str(report_path))
+            loaded = _load_injected_market_report(str(report_path))
 
             self.assertEqual(loaded["market_report"], "# Market\nSaved report")
             self.assertEqual(loaded["macro_regime_report"], "")
@@ -112,7 +116,7 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            loaded = LangGraphEngine._load_injected_market_report(str(report_path))
+            loaded = _load_injected_market_report(str(report_path))
 
             self.assertEqual(loaded["market_report"], "Saved market report")
             self.assertEqual(loaded["macro_regime_report"], "risk-off")
@@ -125,7 +129,7 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             report_path = Path(tmpdir) / "secret.md"
             report_path.write_text("should not be readable", encoding="utf-8")
             with self.assertRaises(PermissionError):
-                LangGraphEngine._load_injected_market_report(str(report_path))
+                _load_injected_market_report(str(report_path))
 
     def test_load_injected_market_report_rejects_malformed_json(self):
         """Verify malformed JSON raises ValueError, not json.JSONDecodeError."""
@@ -135,7 +139,7 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             report_path = tmpdir / "bad.json"
             report_path.write_text("{invalid json", encoding="utf-8")
             with self.assertRaises(ValueError) as ctx:
-                LangGraphEngine._load_injected_market_report(str(report_path))
+                _load_injected_market_report(str(report_path))
             self.assertIn("malformed", str(ctx.exception))
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
@@ -390,7 +394,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -418,7 +422,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md") as mock_write_md:
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md") as mock_write_md:
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -436,7 +440,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -462,7 +466,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest, \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -485,7 +489,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -552,7 +556,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
                  patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
                  patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
                  patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-                 patch.object(LangGraphEngine, "_write_complete_report_md"):
+                 patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
                 fake_dir = MagicMock(spec=Path)
                 fake_dir.mkdir = MagicMock()
                 mock_gtd.return_value = fake_dir
@@ -586,7 +590,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -1268,7 +1272,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
             ticker = params.get("ticker")
             pipeline_calls.append(ticker)
             completed_tickers.add(ticker)
-            from agent_os.backend.services.langgraph_engine import live_runs
+            from agent_os.backend.store import runs as live_runs
 
             live_runs.setdefault("auto1", {})["stop_requested"] = True
             for _ in ():
@@ -1290,7 +1294,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data), \
-             patch.dict("agent_os.backend.services.langgraph_engine.live_runs", {"auto1": {"stop_requested": False}}, clear=False):
+             patch.dict("agent_os.backend.services.run_helpers.live_runs", {"auto1": {"stop_requested": False}}, clear=False):
             fake_mdir = MagicMock(spec=Path)
             fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
             fake_mdir.mkdir = MagicMock()
@@ -1965,34 +1969,34 @@ class TestExtractTickersFromScanData(unittest.TestCase):
 
     def test_list_of_strings(self):
         scan = {"stocks_to_investigate": ["AAPL", "tsla"]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
 
     def test_list_of_dicts_with_ticker_key(self):
         scan = {"stocks_to_investigate": [{"ticker": "AAPL"}, {"ticker": "MSFT"}]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL", "MSFT"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["AAPL", "MSFT"])
 
     def test_list_of_dicts_with_symbol_key(self):
         scan = {"stocks_to_investigate": [{"symbol": "nvda"}]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["NVDA"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["NVDA"])
 
     def test_watchlist_fallback(self):
         scan = {"watchlist": ["GOOG"]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["GOOG"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["GOOG"])
 
     def test_deduplication(self):
         scan = {"stocks_to_investigate": ["AAPL", "aapl", "AAPL"]}
-        result = self.engine._extract_tickers_from_scan_data(scan)
+        result = extract_tickers_from_scan_data(scan)
         self.assertEqual(result, ["AAPL"])
 
     def test_empty_or_none(self):
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(None), [])
-        self.assertEqual(self.engine._extract_tickers_from_scan_data({}), [])
-        self.assertEqual(self.engine._extract_tickers_from_scan_data({"stocks_to_investigate": []}), [])
+        self.assertEqual(extract_tickers_from_scan_data(None), [])
+        self.assertEqual(extract_tickers_from_scan_data({}), [])
+        self.assertEqual(extract_tickers_from_scan_data({"stocks_to_investigate": []}), [])
 
     def test_mixed_types_skipped(self):
         """Items that are not str or dict should be silently skipped."""
         scan = {"stocks_to_investigate": ["AAPL", 42, None, ["nested"], {"ticker": "MSFT"}]}
-        result = self.engine._extract_tickers_from_scan_data(scan)
+        result = extract_tickers_from_scan_data(scan)
         self.assertIn("AAPL", result)
         self.assertIn("MSFT", result)
         # Non-string/non-dict items should not produce entries
@@ -2000,7 +2004,7 @@ class TestExtractTickersFromScanData(unittest.TestCase):
 
     def test_non_stock_symbols_are_filtered(self):
         scan = {"stocks_to_investigate": ["AAPL", "SPY", "BTC", "TSLA"]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
 
 
 class TestRunPipelineFromPhase(unittest.TestCase):

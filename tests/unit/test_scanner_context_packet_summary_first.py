@@ -1,7 +1,7 @@
 import json
 
 import agent_os.backend.services.scanner_context as scanner_mod
-from agent_os.backend.services.langgraph_engine import LangGraphEngine
+from agent_os.backend.services.scanner_context import build_scanner_context_packet
 
 
 class _StubTool:
@@ -175,7 +175,7 @@ def test_scanner_context_packet_prefers_summaries_over_raw_reports(monkeypatch):
         "sector_performance_report": raw_marker,
     }
 
-    packet = LangGraphEngine._build_scanner_context_packet(scan_state, "MSFT")
+    packet = build_scanner_context_packet(scan_state, "MSFT")
 
     assert raw_marker not in packet
     assert "## 1) Selection Context" in packet
@@ -215,7 +215,7 @@ def test_scanner_context_packet_is_bounded_vs_raw_payload_and_audit_scale(monkey
         "sector_performance_report": large_raw_block,
     }
 
-    packet = LangGraphEngine._build_scanner_context_packet(scan_state, "MSFT")
+    packet = build_scanner_context_packet(scan_state, "MSFT")
 
     raw_payload_chars = (
         len(scan_state["smart_money_report"])
