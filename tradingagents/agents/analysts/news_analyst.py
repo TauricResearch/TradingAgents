@@ -6,7 +6,6 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
-    format_prefetched_context,
     prefetch_tools_parallel,
 )
 from tradingagents.agents.utils.news_data_tools import get_global_news, get_news
@@ -39,6 +38,91 @@ def _extract_scanner_citation_hint(scanner_context: str, fallback_date: str) -> 
     source_name = source_match or "Finviz Smart Money Scanner"
     scan_date = date_match or fallback_date
     return f"[Source: {source_name} | Scan Date: {scan_date}]"
+
+
+def _build_timeout_structured_payload(
+    *,
+    ticker: str,
+    records: list,
+    fallback_date: str,
+    max_claims: int = 3,
+) -> dict:
+    ticker_upper = str(ticker or "").upper()
+    claims: list[dict] = []
+    summary_rows: list[dict] = []
+
+    for record in records[:max_claims]:
+        published_at = str(getattr(record, "published_at", "") or fallback_date).strip()
+        source = str(getattr(record, "source", "") or "Unknown").strip()
+        evidence_id = str(getattr(record, "evidence_id", "")).strip()
+        title = str(getattr(record, "title", "")).strip()
+        if not title or not evidence_id:
+            continue
+
+        claim_text = f"{ticker_upper}: {title} ({published_at})."
+        claims.append(
+            {
+                "claim": claim_text,
+                "source": source,
+                "published_at": published_at,
+                "evidence_id": evidence_id,
+            }
+        )
+        summary_rows.append(
+            {
+                "date": published_at,
+                "event": title[:80],
+                "metric": "Article",
+                "value": "Captured",
+                "source": source,
+                "evidence_id": evidence_id,
+            }
+        )
+
+    return {
+        "ticker": ticker_upper,
+        "report_title": f"{ticker_upper} News Analysis",
+        "claims": claims,
+        "summary_table": summary_rows,
+    }
+
+
+def _build_compact_news_context(
+    *,
+    records: list,
+    max_items: int = 12,
+    max_summary_chars: int = 220,
+) -> str:
+    """Build a deterministic, prompt-light context from persisted evidence records."""
+    lines = [
+        "## Deterministic News Context",
+        "",
+        "Use only the evidence rows below when generating claims.",
+        "",
+    ]
+    if not records:
+        lines.append("_No evidence records available._")
+        return "\n".join(lines)
+
+    for record in records[:max_items]:
+        evidence_id = str(getattr(record, "evidence_id", "")).strip()
+        source = str(getattr(record, "source", "")).strip() or "Unknown"
+        published_at = str(getattr(record, "published_at", "")).strip() or "N/A"
+        section_label = str(getattr(record, "section_label", "")).strip() or "News"
+        title = str(getattr(record, "title", "")).strip()
+        summary = str(getattr(record, "summary", "")).strip()
+        if len(summary) > max_summary_chars:
+            summary = summary[:max_summary_chars].rstrip() + "..."
+        lines.append(
+            f"- [Evidence ID: {evidence_id}] "
+            f"Source: {source} | Published: {published_at} | Section: {section_label}"
+        )
+        if title:
+            lines.append(f"  Title: {title}")
+        if summary:
+            lines.append(f"  Summary: {summary}")
+        lines.append("")
+    return "\n".join(lines).strip()
 
 
 def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
@@ -85,7 +169,6 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
                 },
             ]
         )
-        prefetched_context = format_prefetched_context(prefetched)
         evidence_records = store.ingest_prefetched_sections(
             run_id=run_id,
             ticker=ticker,
@@ -93,6 +176,7 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             prefetched=prefetched,
         )
         evidence_context = store.build_prompt_context(evidence_records)
+        compact_news_context = _build_compact_news_context(records=evidence_records)
         macro_regime_report = state.get("macro_regime_report", "")
         macro_regime_section = (
             "\n## Current Macro Regime\n"
@@ -184,7 +268,7 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
                     "For your reference, the current date is {current_date}. {instrument_context}\n\n"
                     "## Scanner Context\n\n{scanner_context}\n\n"
                     "{evidence_context}\n\n"
-                    "## Pre-loaded Context\n\n{prefetched_context}",
+                    "{compact_news_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -195,7 +279,7 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
         prompt = prompt.partial(instrument_context=instrument_context)
         prompt = prompt.partial(scanner_context=scanner_context)
         prompt = prompt.partial(evidence_context=evidence_context)
-        prompt = prompt.partial(prefetched_context=prefetched_context)
+        prompt = prompt.partial(compact_news_context=compact_news_context)
 
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
         chain = prompt | llm
@@ -211,16 +295,16 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
         )
         if invoke_error is not None:
             if isinstance(invoke_error, TimeoutError):
-                timeout_report = (
-                    f"{ticker} News Analysis\n\n"
-                    f"- News analyst timed out after {timeout_seconds:.0f}s; no validated JSON payload was produced.\n"
-                    "- Treat news input as unavailable for this run and rely on other validated analyst evidence.\n"
-                    "- No new article claims should be inferred from this fallback."
+                timeout_payload = _build_timeout_structured_payload(
+                    ticker=ticker,
+                    records=evidence_records,
+                    fallback_date=current_date,
                 )
+                timeout_report = render_structured_news_payload(timeout_payload, ticker)
                 return {
                     "messages": [AIMessage(content=timeout_report)],
                     "news_report": timeout_report,
-                    "news_report_structured": None,
+                    "news_report_structured": timeout_payload,
                 }
             raise invoke_error
         raw_output = first_result.content or ""
@@ -277,16 +361,16 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):
-                    report = (
-                        f"{ticker} News Analysis\n\n"
-                        f"- News analyst retry timed out after {timeout_seconds:.0f}s; no validated JSON payload was produced.\n"
-                        "- Treat news input as unavailable for this run and rely on other validated analyst evidence.\n"
-                        "- No new article claims should be inferred from this fallback."
+                    timeout_payload = _build_timeout_structured_payload(
+                        ticker=ticker,
+                        records=evidence_records,
+                        fallback_date=current_date,
                     )
+                    report = render_structured_news_payload(timeout_payload, ticker)
                     return {
                         "messages": [AIMessage(content=report)],
                         "news_report": report,
-                        "news_report_structured": None,
+                        "news_report_structured": timeout_payload,
                     }
                 raise invoke_error
             raw_output = result.content or ""

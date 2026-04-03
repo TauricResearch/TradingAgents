@@ -168,6 +168,38 @@ class TestLangGraphEngineExtraction(unittest.TestCase):
         result = self.engine._map_langgraph_event("run_123", event)
         self.assertIsNone(result)
 
+    def test_map_langgraph_event_chain_start_for_node(self):
+        event = {
+            "event": "on_chain_start",
+            "run_id": "node_run",
+            "name": "market_analyst",
+            "data": {},
+            "metadata": {"langgraph_node": "market_analyst"},
+        }
+
+        result = self.engine._map_langgraph_event("run_123", event)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["type"], "thought")
+        self.assertEqual(result["node_id"], "market_analyst")
+        self.assertIn("Starting node", result["message"])
+
+    def test_map_langgraph_event_chain_end_for_node(self):
+        # Seed an existing node start so latency gets computed.
+        self.engine._node_start_times["run_123"] = {"__node__:market_analyst": 0.0}
+        event = {
+            "event": "on_chain_end",
+            "run_id": "node_run",
+            "name": "market_analyst",
+            "data": {"output": "node output"},
+            "metadata": {"langgraph_node": "market_analyst"},
+        }
+
+        result = self.engine._map_langgraph_event("run_123", event)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["type"], "result")
+        self.assertEqual(result["node_id"], "market_analyst")
+        self.assertIn("Completed node", result["message"])
+
     # ── _is_root_chain_end ──────────────────────────────────────────
 
     def test_is_root_chain_end_true(self):

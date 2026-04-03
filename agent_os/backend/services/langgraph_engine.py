@@ -2660,6 +2660,47 @@ Date: {scan_state.get('scan_date', 'N/A')}
         starts = self._node_start_times.get(run_id, {})
         prompts = self._node_prompts.setdefault(run_id, {})
         identifier = self._run_identifiers.get(run_id, "")
+        node_timer_key = f"__node__:{node_name}"
+
+        # ------ LangGraph node start/end (chain lifecycle) ------
+        if kind == "on_chain_start":
+            metadata = event.get("metadata") or {}
+            if metadata.get("langgraph_node"):
+                starts[node_timer_key] = time.monotonic()
+                logger.info("Node start node=%s run=%s", node_name, run_id)
+                return {
+                    "id": event.get("run_id", f"node_start_{time.time_ns()}").strip(),
+                    "node_id": node_name,
+                    "parent_node_id": "graph",
+                    "type": "thought",
+                    "agent": node_name.upper(),
+                    "identifier": identifier,
+                    "message": f"Starting node: {node_name}",
+                    "metrics": {"model": "langgraph_node"},
+                }
+            return None
+
+        if kind == "on_chain_end":
+            metadata = event.get("metadata") or {}
+            if metadata.get("langgraph_node"):
+                latency_ms = 0
+                start_t = starts.pop(node_timer_key, None)
+                if start_t is not None:
+                    latency_ms = round((time.monotonic() - start_t) * 1000)
+                output = (event.get("data") or {}).get("output")
+                output_text = self._truncate(self._extract_content(output)) if output is not None else ""
+                logger.info("Node end node=%s latency=%dms run=%s", node_name, latency_ms, run_id)
+                return {
+                    "id": f"{event.get('run_id', 'node_end')}_{time.time_ns()}",
+                    "node_id": node_name,
+                    "type": "result",
+                    "agent": node_name.upper(),
+                    "identifier": identifier,
+                    "message": f"Completed node: {node_name}",
+                    "response": output_text,
+                    "metrics": {"model": "langgraph_node", "latency_ms": latency_ms},
+                }
+            return None
 
         # ------ LLM start ------
         if kind == "on_chat_model_start":

@@ -398,6 +398,27 @@ def test_news_analyst_aborts_after_two_invalid_attempts(mock_state):
     assert result["news_report"].startswith("[CRITICAL ABORT]")
 
 
+def test_news_analyst_timeout_builds_structured_evidence_fallback(mock_state):
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={},
+    ), patch(
+        "tradingagents.agents.analysts.news_analyst.invoke_with_timeout",
+        return_value=(None, TimeoutError("llm invoke exceeded")),
+    ):
+        node = create_news_analyst(
+            MockLLM([]),
+            evidence_store=FakeNewsEvidenceStore(),
+        )
+        result = node(mock_state)
+
+    structured = result["news_report_structured"]
+    assert isinstance(structured, dict)
+    assert structured["ticker"] == "AAPL"
+    assert len(structured["claims"]) >= 1
+    assert "art_aapl_001" in result["news_report"]
+
+
 def test_news_analyst_prompt_forbids_internal_headers_as_sources():
     captured_inputs = []
 
