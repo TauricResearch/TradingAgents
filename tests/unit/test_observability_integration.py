@@ -19,10 +19,8 @@ _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from agent_os.backend.services.langgraph_engine import (
-    LangGraphEngine,
-    _TOOL_SERVICE_MAP,
-)
+from agent_os.backend.services.langgraph_engine import LangGraphEngine
+from agent_os.backend.services.event_mapper import TOOL_SERVICE_MAP
 from tradingagents.observability import RunLogger, get_run_logger, set_run_logger
 
 
@@ -30,13 +28,13 @@ class TestToolServiceMap(unittest.TestCase):
     """Verify the static tool→service mapping is populated."""
 
     def test_known_tools_have_services(self):
-        self.assertEqual(_TOOL_SERVICE_MAP["get_stock_data"], "yfinance")
-        self.assertEqual(_TOOL_SERVICE_MAP["get_insider_transactions"], "finnhub")
-        self.assertEqual(_TOOL_SERVICE_MAP["get_insider_buying_stocks"], "finviz")
-        self.assertEqual(_TOOL_SERVICE_MAP["get_enriched_holdings"], "local")
+        self.assertEqual(TOOL_SERVICE_MAP["get_stock_data"], "yfinance")
+        self.assertEqual(TOOL_SERVICE_MAP["get_insider_transactions"], "finnhub")
+        self.assertEqual(TOOL_SERVICE_MAP["get_insider_buying_stocks"], "finviz")
+        self.assertEqual(TOOL_SERVICE_MAP["get_enriched_holdings"], "local")
 
     def test_map_is_non_empty(self):
-        self.assertGreater(len(_TOOL_SERVICE_MAP), 20)
+        self.assertGreater(len(TOOL_SERVICE_MAP), 20)
 
 
 class TestRunLoggerLifecycle(unittest.TestCase):
@@ -122,14 +120,14 @@ class TestToolEventMapping(unittest.TestCase):
     def setUp(self):
         self.engine = LangGraphEngine()
         self.run_id = "test-tool-run"
-        self.engine._node_start_times[self.run_id] = {}
-        self.engine._run_identifiers[self.run_id] = "AAPL"
-        self.engine._node_prompts[self.run_id] = {}
+        self.engine._event_mapper._node_start_times[self.run_id] = {}
+        self.engine._event_mapper._run_identifiers[self.run_id] = "AAPL"
+        self.engine._event_mapper._node_prompts[self.run_id] = {}
 
     def tearDown(self):
-        self.engine._node_start_times.pop(self.run_id, None)
-        self.engine._run_identifiers.pop(self.run_id, None)
-        self.engine._node_prompts.pop(self.run_id, None)
+        self.engine._event_mapper._node_start_times.pop(self.run_id, None)
+        self.engine._event_mapper._run_identifiers.pop(self.run_id, None)
+        self.engine._event_mapper._node_prompts.pop(self.run_id, None)
 
     def test_tool_start_includes_service(self):
         event = {
@@ -139,7 +137,7 @@ class TestToolEventMapping(unittest.TestCase):
             "run_id": "abc123",
             "metadata": {"langgraph_node": "market_analyst"},
         }
-        result = self.engine._map_langgraph_event(self.run_id, event)
+        result = self.engine._event_mapper.map_event(self.run_id, event)
         self.assertIsNotNone(result)
         self.assertEqual(result["type"], "tool")
         self.assertEqual(result["service"], "yfinance")
@@ -153,7 +151,7 @@ class TestToolEventMapping(unittest.TestCase):
             "run_id": "abc123",
             "metadata": {"langgraph_node": "custom_node"},
         }
-        result = self.engine._map_langgraph_event(self.run_id, event)
+        result = self.engine._event_mapper.map_event(self.run_id, event)
         self.assertIsNotNone(result)
         self.assertEqual(result["service"], "")
 
@@ -165,7 +163,7 @@ class TestToolEventMapping(unittest.TestCase):
             "run_id": "abc123",
             "metadata": {"langgraph_node": "fundamentals_analyst"},
         }
-        result = self.engine._map_langgraph_event(self.run_id, event)
+        result = self.engine._event_mapper.map_event(self.run_id, event)
         self.assertIsNotNone(result)
         self.assertEqual(result["type"], "tool_result")
         self.assertEqual(result["status"], "success")
@@ -183,7 +181,7 @@ class TestToolEventMapping(unittest.TestCase):
             "run_id": "abc123",
             "metadata": {"langgraph_node": "market_analyst"},
         }
-        result = self.engine._map_langgraph_event(self.run_id, event)
+        result = self.engine._event_mapper.map_event(self.run_id, event)
         self.assertIsNotNone(result)
         self.assertEqual(result["status"], "error")
         self.assertIn("Error", result["error"])
@@ -199,7 +197,7 @@ class TestToolEventMapping(unittest.TestCase):
             "run_id": "abc123",
             "metadata": {"langgraph_node": "news_analyst"},
         }
-        result = self.engine._map_langgraph_event(self.run_id, event)
+        result = self.engine._event_mapper.map_event(self.run_id, event)
         self.assertIsNotNone(result)
         self.assertEqual(result["status"], "graceful_skip")
         self.assertEqual(result["service"], "finnhub")
@@ -214,7 +212,7 @@ class TestToolEventMapping(unittest.TestCase):
             "run_id": "abc123",
             "metadata": {"langgraph_node": "sector_scanner"},
         }
-        result = self.engine._map_langgraph_event(self.run_id, event)
+        result = self.engine._event_mapper.map_event(self.run_id, event)
         self.assertIsNotNone(result)
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["service"], "finnhub")

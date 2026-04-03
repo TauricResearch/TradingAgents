@@ -1,7 +1,7 @@
 import json
 
-import agent_os.backend.services.langgraph_engine as engine_mod
-from agent_os.backend.services.langgraph_engine import LangGraphEngine
+import agent_os.backend.services.scanner_context as scanner_mod
+from agent_os.backend.services.scanner_context import build_scanner_context_packet
 
 
 class _StubTool:
@@ -14,7 +14,7 @@ class _StubTool:
 
 def _patch_ground_truth_tools(monkeypatch):
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_gold_price",
         _StubTool(
             """
@@ -25,7 +25,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_oil_prices",
         _StubTool(
             """
@@ -37,7 +37,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_bitcoin_price",
         _StubTool(
             """
@@ -48,7 +48,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_eur_usd_rate",
         _StubTool(
             """
@@ -59,7 +59,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_jpy_usd_rate",
         _StubTool(
             """
@@ -70,7 +70,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_cny_usd_rate",
         _StubTool(
             """
@@ -81,7 +81,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_earnings_calendar",
         _StubTool(
             """
@@ -95,7 +95,7 @@ def _patch_ground_truth_tools(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        engine_mod,
+        scanner_mod,
         "get_economic_calendar",
         _StubTool(
             """
@@ -175,7 +175,7 @@ def test_scanner_context_packet_prefers_summaries_over_raw_reports(monkeypatch):
         "sector_performance_report": raw_marker,
     }
 
-    packet = LangGraphEngine._build_scanner_context_packet(scan_state, "MSFT")
+    packet = build_scanner_context_packet(scan_state, "MSFT")
 
     assert raw_marker not in packet
     assert "## 1) Selection Context" in packet
@@ -215,7 +215,7 @@ def test_scanner_context_packet_is_bounded_vs_raw_payload_and_audit_scale(monkey
         "sector_performance_report": large_raw_block,
     }
 
-    packet = LangGraphEngine._build_scanner_context_packet(scan_state, "MSFT")
+    packet = build_scanner_context_packet(scan_state, "MSFT")
 
     raw_payload_chars = (
         len(scan_state["smart_money_report"])
