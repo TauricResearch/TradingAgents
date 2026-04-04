@@ -152,6 +152,15 @@ class TradingAgentsGraph:
             effort = self.config.get("anthropic_effort")
             if effort:
                 kwargs["effort"] = effort
+        elif provider == "codex":
+            kwargs["codex_binary"] = self.config.get("codex_binary")
+            kwargs["codex_reasoning_effort"] = self.config.get("codex_reasoning_effort")
+            kwargs["codex_summary"] = self.config.get("codex_summary")
+            kwargs["codex_personality"] = self.config.get("codex_personality")
+            kwargs["codex_workspace_dir"] = self.config.get("codex_workspace_dir")
+            kwargs["codex_request_timeout"] = self.config.get("codex_request_timeout")
+            kwargs["codex_max_retries"] = self.config.get("codex_max_retries")
+            kwargs["codex_cleanup_threads"] = self.config.get("codex_cleanup_threads")
 
         return kwargs
 

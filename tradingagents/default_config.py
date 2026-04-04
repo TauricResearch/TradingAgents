@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 DEFAULT_CONFIG = {
     "project_dir": os.path.abspath(os.path.join(os.path.dirname(__file__), ".")),
@@ -16,6 +17,14 @@ DEFAULT_CONFIG = {
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
+    "codex_binary": os.getenv("CODEX_BINARY"),
+    "codex_reasoning_effort": "medium",
+    "codex_summary": "none",
+    "codex_personality": "none",
+    "codex_workspace_dir": str(Path.home() / ".codex" / "tradingagents-workspace"),
+    "codex_request_timeout": 120.0,
+    "codex_max_retries": 2,
+    "codex_cleanup_threads": True,
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
