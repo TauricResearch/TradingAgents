@@ -274,7 +274,10 @@ def create_market_analyst(llm):
             or DEFAULT_CONFIG.get("llm_timeout")
             or 120.0
         )
-        invoke_timeout = min(configured_timeout, 45.0)
+        invoke_timeout = min(
+            configured_timeout,
+            float(DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 45.0),
+        )
         result, invoke_error = invoke_with_timeout(
             chain,
             state["messages"],

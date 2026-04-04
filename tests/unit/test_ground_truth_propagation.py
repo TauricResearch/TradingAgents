@@ -158,6 +158,34 @@ class TestResearchManagerGroundTruth:
         assert "Scanner Context" in prompt
         assert "Do NOT invent" in prompt
 
+    def test_scratchpad_output_is_replaced_with_deterministic_fallback(self):
+        from tradingagents.agents.managers.research_manager import create_research_manager
+
+        llm = _mock_llm("We need to follow instruction.\nWe can create bull arguments.")
+        node = create_research_manager(llm, _mock_memory())
+        result = node(
+            _base_state(
+                news_report_structured={
+                    "claims": [
+                        {
+                            "claim": "AAPL secured a $4.10B financing package.",
+                            "source": "Reuters",
+                            "published_at": "2026-03-30",
+                        }
+                    ]
+                },
+                fundamentals_report_structured={
+                    "status": "timeout_fallback",
+                    "macro_regime": "unknown",
+                    "key_metrics": {"numeric_mentions": 0},
+                },
+            )
+        )
+
+        assert "We need to" not in result["investment_plan"]
+        assert "- Recommendation: HOLD" in result["investment_plan"]
+        assert "timed out after 60s" in result["investment_plan"]
+
 
 # ---------------------------------------------------------------------------
 # Trader — ground-truth constraint
@@ -188,6 +216,22 @@ class TestTraderGroundTruth:
         system_msg = next(m for m in call_args if m["role"] == "system")
         assert "ground-truth calendar data ONLY" in system_msg["content"]
         assert "Do NOT estimate or invent" in system_msg["content"]
+
+    def test_scratchpad_output_is_replaced_with_deterministic_fallback(self):
+        from tradingagents.agents.trader.trader import create_trader
+
+        llm = _mock_llm("Let's craft the final answer.\nNow produce final answer.")
+        node = create_trader(llm, _mock_memory())
+        result = node(
+            _base_state(
+                market_report_structured={"key_levels": []},
+                fundamentals_report_structured={"status": "timeout_fallback"},
+            )
+        )
+
+        assert "Let's craft" not in result["trader_investment_plan"]
+        assert "FINAL TRANSACTION PROPOSAL" in result["trader_investment_plan"]
+        assert "**HOLD**" in result["trader_investment_plan"]
 
 
 # ---------------------------------------------------------------------------

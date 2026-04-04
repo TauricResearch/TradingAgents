@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Dict
 
 from tradingagents.agents.utils.json_utils import extract_json
+from tradingagents.agents.utils.output_validation import build_market_report_structured
 from tradingagents.daily_digest import append_to_digest
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.portfolio_graph import PortfolioGraph
@@ -76,13 +77,14 @@ def _execution_key(run_id: str, params: Dict[str, Any]) -> str:
     return params.get("_execution_key") or run_id
 
 
-def _load_injected_market_report(file_path: str) -> Dict[str, str]:
+def _load_injected_market_report(file_path: str) -> Dict[str, Any]:
     """Load a saved market report artifact for pipeline injection.
 
     Supports:
     - plain-text/markdown files containing only the market report
     - JSON artifacts with a top-level ``market_report`` key and optional
       ``macro_regime_report`` key
+    - macro-scan JSON payloads that are already structured market summaries
 
     The resolved path must be within REPORTS_ROOT or the current working
     directory to prevent path-traversal attacks.
@@ -120,6 +122,11 @@ def _load_injected_market_report(file_path: str) -> Dict[str, str]:
             )
         market_report = str(payload.get("market_report") or "").strip()
         macro_regime_report = str(payload.get("macro_regime_report") or "").strip()
+        if not market_report and any(
+            key in payload
+            for key in ("timeframe", "executive_summary", "key_themes", "stocks_to_investigate")
+        ):
+            market_report = json.dumps(payload, ensure_ascii=False)
         if not market_report:
             raise ValueError(
                 f"Injected market report JSON missing non-empty 'market_report': {path}"
@@ -127,9 +134,19 @@ def _load_injected_market_report(file_path: str) -> Dict[str, str]:
         return {
             "market_report": market_report,
             "macro_regime_report": macro_regime_report,
+            "market_report_structured": build_market_report_structured(
+                ticker="",
+                as_of_date="",
+                market_report=market_report,
+                macro_regime_report=macro_regime_report,
+            ),
         }
 
-    return {"market_report": raw_text, "macro_regime_report": ""}
+    return {
+        "market_report": raw_text,
+        "macro_regime_report": "",
+        "market_report_structured": {},
+    }
 
 
 class AwaitPhase3Decision(RuntimeError):
@@ -448,10 +465,24 @@ class LangGraphEngine:
 
         yield system_log(f"Starting analysis pipeline for {ticker} on {date}")
 
-        injected_market = {"market_report": "", "macro_regime_report": ""}
+        injected_market = {
+            "market_report": "",
+            "macro_regime_report": "",
+            "market_report_structured": {},
+        }
         market_report_file = str(params.get("market_report_file") or "").strip()
         if market_report_file:
             injected_market = _load_injected_market_report(market_report_file)
+            if injected_market["market_report"] and not injected_market["market_report_structured"]:
+                injected_market["market_report_structured"] = build_market_report_structured(
+                    ticker=ticker,
+                    as_of_date=date,
+                    market_report=injected_market["market_report"],
+                    macro_regime_report=injected_market["macro_regime_report"],
+                )
+            elif injected_market["market_report_structured"]:
+                injected_market["market_report_structured"]["ticker"] = ticker
+                injected_market["market_report_structured"]["as_of_date"] = date
             yield system_log(
                 f"Injecting saved market report for {ticker} from {market_report_file}"
             )
@@ -475,6 +506,7 @@ class LangGraphEngine:
             portfolio_context=params.get("portfolio_context", "candidate"),
             scanner_context_packet=params.get("scanner_context_packet", ""),
             market_report=injected_market["market_report"],
+            market_report_structured=injected_market["market_report_structured"],
             macro_regime_report=injected_market["macro_regime_report"],
         )
 
@@ -569,6 +601,7 @@ class LangGraphEngine:
                         **{k: serializable_state.get(k, "") for k in _ANALYST_KEYS},
                         "market_report_structured": serializable_state.get("market_report_structured", {}),
                         "news_report_structured": serializable_state.get("news_report_structured", {}),
+                        "fundamentals_report_structured": serializable_state.get("fundamentals_report_structured", {}),
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
                         "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                         "messages": serializable_state.get("messages", []),
@@ -583,6 +616,7 @@ class LangGraphEngine:
                         **{k: serializable_state.get(k, "") for k in _ANALYST_KEYS},
                         "market_report_structured": serializable_state.get("market_report_structured", {}),
                         "news_report_structured": serializable_state.get("news_report_structured", {}),
+                        "fundamentals_report_structured": serializable_state.get("fundamentals_report_structured", {}),
                         "macro_regime_report": serializable_state.get("macro_regime_report", ""),
                         "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
                         "investment_debate_state": serializable_state.get("investment_debate_state", {}),
@@ -898,6 +932,7 @@ class LangGraphEngine:
                         "news_report",
                         "news_report_structured",
                         "fundamentals_report",
+                        "fundamentals_report_structured",
                         "macro_regime_report",
                     ):
                         initial_state[k] = v

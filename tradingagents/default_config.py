@@ -230,6 +230,18 @@ def build_default_config(
         "quick_think_llm_timeout": _env_float(
             "QUICK_THINK_LLM_TIMEOUT_SEC", env=env
         ),
+        "deep_think_llm_timeout_cap": _env_float(
+            "DEEP_THINK_LLM_TIMEOUT_CAP_SEC", 60.0, env=env
+        ),
+        "mid_think_llm_timeout_cap": _env_float(
+            "MID_THINK_LLM_TIMEOUT_CAP_SEC", 60.0, env=env
+        ),
+        "quick_think_llm_timeout_cap": _env_float(
+            "QUICK_THINK_LLM_TIMEOUT_CAP_SEC", 45.0, env=env
+        ),
+        "tool_loop_timeout_cap": _env_float(
+            "TOOL_LOOP_TIMEOUT_CAP_SEC", 60.0, env=env
+        ),
         "google_thinking_level": _env("GOOGLE_THINKING_LEVEL", env=env),
         "openai_reasoning_effort": _env("OPENAI_REASONING_EFFORT", env=env),
         "anthropic_effort": _env("ANTHROPIC_EFFORT", env=env),

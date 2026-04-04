@@ -27,7 +27,7 @@ def create_aggressive_debator(llm, round_num=1):
         )
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            45.0,
+            float(DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 45.0),
         )
 
         if round_num == 1:

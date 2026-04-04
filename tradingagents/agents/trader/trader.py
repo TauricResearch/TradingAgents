@@ -3,6 +3,10 @@ import functools
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.output_validation import (
+    build_trader_plan_fallback,
+    output_contains_scratchpad,
+)
 from tradingagents.default_config import DEFAULT_CONFIG
 from langchain_core.messages import AIMessage
 
@@ -77,7 +81,7 @@ Apply lessons from past decisions:
 
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            60.0,
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 60.0),
         )
         result, invoke_error = invoke_with_timeout(
             llm,
@@ -101,6 +105,8 @@ Apply lessons from past decisions:
 
         # De-anonymize: replace TICKER_A back with the real ticker.
         output_content = result.content.replace("TICKER_A", ticker)
+        if output_contains_scratchpad(output_content):
+            output_content = build_trader_plan_fallback(state)
 
         return {
             "messages": [result],

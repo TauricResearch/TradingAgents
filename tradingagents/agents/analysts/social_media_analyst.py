@@ -114,7 +114,7 @@ def create_social_media_analyst(llm):
 
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            60.0,
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 60.0),
         )
         result, invoke_error = invoke_with_timeout(
             llm=chain,

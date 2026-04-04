@@ -90,7 +90,7 @@ def _build_timeout_structured_payload(
 def _build_compact_news_context(
     *,
     records: list,
-    max_items: int = 12,
+    max_items: int = 8,
     max_summary_chars: int = 220,
 ) -> str:
     """Build a deterministic, prompt-light context from persisted evidence records."""
@@ -175,7 +175,6 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             trade_date=current_date,
             prefetched=prefetched,
         )
-        evidence_context = store.build_prompt_context(evidence_records)
         compact_news_context = _build_compact_news_context(records=evidence_records)
         macro_regime_report = state.get("macro_regime_report", "")
         macro_regime_section = (
@@ -232,7 +231,7 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             "Use `scan_date` only for Finviz Smart Money Scanner claims. Use `published_at` and `evidence_id` for article-based claims.\n\n"
             "When citing scanner-derived claims, use this exact format: "
             f"{scanner_citation_hint}\n"
-            "When a matching persisted article is available in the Evidence Records section, "
+            "When a matching persisted article is available in the Deterministic News Context section, "
             "prefer to append its stable evidence handle in the form "
             "`[Evidence ID: ...]` so the claim can be traced back later.\n"
             "Only cite publications or data sources that appear in the provided news feeds or the exact scanner citation above.\n"
@@ -267,7 +266,6 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
                     "\n{system_message}"
                     "For your reference, the current date is {current_date}. {instrument_context}\n\n"
                     "## Scanner Context\n\n{scanner_context}\n\n"
-                    "{evidence_context}\n\n"
                     "{compact_news_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
@@ -278,7 +276,6 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
         prompt = prompt.partial(scanner_context=scanner_context)
-        prompt = prompt.partial(evidence_context=evidence_context)
         prompt = prompt.partial(compact_news_context=compact_news_context)
 
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
@@ -286,7 +283,7 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
 
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            60.0,
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 60.0),
         )
         first_result, invoke_error = invoke_with_timeout(
             llm=chain,

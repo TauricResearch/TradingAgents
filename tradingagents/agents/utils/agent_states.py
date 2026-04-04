@@ -80,6 +80,9 @@ class AgentState(MessagesState):
         dict[str, Any], "Structured news claims before and after fact-check pruning"
     ]
     fundamentals_report: Annotated[str, "Report from the Fundamentals Researcher"]
+    fundamentals_report_structured: Annotated[
+        dict[str, Any], "Structured fundamentals contract for downstream machine consumers"
+    ]
     research_packet_summary: Annotated[
         str, "Compressed cross-analyst briefing for downstream debate and risk nodes"
     ]

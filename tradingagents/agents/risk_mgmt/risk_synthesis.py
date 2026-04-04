@@ -83,7 +83,7 @@ Output a structured risk synthesis in under 400 words."""
 
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            60.0,
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 60.0),
         )
         response, invoke_error = invoke_with_timeout(
             llm,

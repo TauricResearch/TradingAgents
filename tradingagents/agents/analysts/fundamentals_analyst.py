@@ -15,6 +15,10 @@ from tradingagents.agents.utils.fundamental_data_tools import (
     get_ttm_analysis,
 )
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.output_validation import (
+    build_fundamentals_report_structured,
+    render_fundamentals_report_structured,
+)
 
 
 def create_fundamentals_analyst(llm):
@@ -171,10 +175,23 @@ def create_fundamentals_analyst(llm):
         result = run_tool_loop(chain, state["messages"], tools)
 
         report = result.content or ""
+        is_timeout_fallback = "timed out after" in report.lower()
+        structured_payload = build_fundamentals_report_structured(
+            ticker=ticker,
+            as_of_date=current_date,
+            fundamentals_report=report,
+            macro_regime_report=macro_regime_report,
+            prefetched_sections=prefetched,
+            is_timeout_fallback=is_timeout_fallback,
+        )
+
+        if not report.strip() or structured_payload["status"] in {"timeout_fallback", "empty"}:
+            report = render_fundamentals_report_structured(structured_payload)
 
         return {
             "messages": [result],
             "fundamentals_report": report,
+            "fundamentals_report_structured": structured_payload,
         }
 
     return fundamentals_analyst_node

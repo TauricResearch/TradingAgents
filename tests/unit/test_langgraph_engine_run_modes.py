@@ -98,6 +98,7 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
 
             self.assertEqual(loaded["market_report"], "# Market\nSaved report")
             self.assertEqual(loaded["macro_regime_report"], "")
+            self.assertEqual(loaded["market_report_structured"], {})
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -120,6 +121,31 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
 
             self.assertEqual(loaded["market_report"], "Saved market report")
             self.assertEqual(loaded["macro_regime_report"], "risk-off")
+            self.assertEqual(loaded["market_report_structured"]["status"], "completed")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def test_load_injected_market_report_from_macro_scan_json(self):
+        tmpdir = Path.cwd() / "_test_injected_reports"
+        tmpdir.mkdir(exist_ok=True)
+        try:
+            report_path = tmpdir / "macro_scan_summary.json"
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "timeframe": "1 month",
+                        "executive_summary": "Energy premium remains elevated.",
+                        "key_themes": [{"theme": "Energy"}],
+                        "stocks_to_investigate": [{"ticker": "JPM"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            loaded = _load_injected_market_report(str(report_path))
+
+            self.assertIn('"executive_summary": "Energy premium remains elevated."', loaded["market_report"])
+            self.assertEqual(loaded["market_report_structured"]["status"], "completed")
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -581,6 +607,10 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         self.assertEqual(create_initial_state.call_count, 1)
         self.assertEqual(create_initial_state.call_args.kwargs["market_report"], "Injected market report")
         self.assertEqual(create_initial_state.call_args.kwargs["macro_regime_report"], "")
+        self.assertEqual(
+            create_initial_state.call_args.kwargs["market_report_structured"]["status"],
+            "completed",
+        )
 
     def test_run_pipeline_uses_selected_analysts_when_analysts_missing(self):
         mock_wrapper = self._make_mock_graph_wrapper()

@@ -77,7 +77,7 @@ def create_portfolio_manager(llm, memory):
 
             timeout_seconds = min(
                 float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-                60.0,
+                float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 60.0),
             )
             response, invoke_error = invoke_with_timeout(
                 llm,
@@ -136,7 +136,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
 
             timeout_seconds = min(
                 float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-                60.0,
+                float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 60.0),
             )
             response, invoke_error = invoke_with_timeout(
                 llm,

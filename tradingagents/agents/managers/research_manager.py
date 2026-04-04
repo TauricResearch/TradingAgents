@@ -1,6 +1,10 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.output_validation import (
+    build_research_manager_fallback,
+    output_contains_scratchpad,
+)
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
     get_investment_debate_summary,
@@ -79,7 +83,7 @@ Debate History:
 {anon_history}"""
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            60.0,
+            float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 60.0),
         )
         response, invoke_error = invoke_with_timeout(
             llm,
@@ -104,6 +108,8 @@ Debate History:
         # De-anonymize: replace TICKER_A back with the real ticker so downstream
         # nodes (Trader, Portfolio Manager) receive the correct symbol.
         output_content = response.content.replace("TICKER_A", ticker)
+        if output_contains_scratchpad(output_content):
+            output_content = build_research_manager_fallback(state)
 
         new_investment_debate_state = {
             "judge_decision": output_content,

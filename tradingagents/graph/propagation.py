@@ -23,6 +23,7 @@ class Propagator:
         portfolio_context: str = "candidate",
         scanner_context_packet: str = "",
         market_report: str = "",
+        market_report_structured: Optional[Dict[str, Any]] = None,
         macro_regime_report: str = "",
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
@@ -69,8 +70,9 @@ class Propagator:
                 }
             ),
             "market_report": market_report,
-            "market_report_structured": {},
+            "market_report_structured": market_report_structured or {},
             "fundamentals_report": "",
+            "fundamentals_report_structured": {},
             "sentiment_report": "",
             "news_report": "",
             "news_report_structured": {},
