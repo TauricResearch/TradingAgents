@@ -118,6 +118,19 @@ Install the package and its dependencies:
 pip install .
 ```
 
+### Docker
+
+Alternatively, run with Docker:
+```bash
+cp .env.example .env  # add your API keys
+docker compose run --rm tradingagents
+```
+
+For local models with Ollama:
+```bash
+docker compose --profile ollama run --rm tradingagents-ollama
+```
+
 ### Required APIs
 
 TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
