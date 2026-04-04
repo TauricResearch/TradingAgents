@@ -376,3 +376,101 @@ class TestSummaryRulesPreserveGroundTruth:
         from tradingagents.agents.managers.summary_rules import RESEARCH_PACKET_SUMMARY
 
         assert RESEARCH_PACKET_SUMMARY.sections[0] == "Scanner Context (Phase 1)"
+
+
+# ---------------------------------------------------------------------------
+# Structured contract emission — every downstream node
+# ---------------------------------------------------------------------------
+
+class TestStructuredContractEmission:
+    """Each agent must emit its canonical structured field alongside the prose report."""
+
+    def test_research_manager_emits_investment_plan_structured(self):
+        from tradingagents.agents.managers.research_manager import create_research_manager
+
+        llm = _mock_llm("- Recommendation: BUY\n- Rationale: strong earnings (HIGH)")
+        node = create_research_manager(llm, _mock_memory())
+        result = node(_base_state())
+
+        assert "investment_plan_structured" in result
+        structured = result["investment_plan_structured"]
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["contract_version"] == "investment_plan_v1"
+        assert structured["recommendation"] == "BUY"
+
+    def test_trader_emits_trader_plan_structured(self):
+        from tradingagents.agents.trader.trader import create_trader
+
+        llm = _mock_llm(
+            "- Entry Setup: $192 breakout\n"
+            "- Risk Parameters: Stop-loss $183, take-profit $210\n"
+            "- FINAL TRANSACTION PROPOSAL: **BUY**"
+        )
+        node = create_trader(llm, _mock_memory())
+        result = node(_base_state())
+
+        assert "trader_plan_structured" in result
+        structured = result["trader_plan_structured"]
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["contract_version"] == "trader_plan_v1"
+        assert structured["final_action"] == "BUY"
+        assert structured["key_metrics"]["stop_loss_present"] is True
+
+    def test_risk_synthesis_emits_risk_synthesis_structured(self):
+        from tradingagents.agents.risk_mgmt.risk_synthesis import create_risk_synthesis
+
+        llm = _mock_llm(
+            "All three analysts agree on stop-loss discipline.\n"
+            "Balanced Assessment: BUY with tight risk controls."
+        )
+        node = create_risk_synthesis(llm)
+        state = _base_state()
+        state["risk_r1_aggressive"] = "Aggressive R1"
+        state["risk_r1_conservative"] = "Conservative R1"
+        state["risk_r1_neutral"] = "Neutral R1"
+        state["risk_r2_aggressive"] = "Aggressive R2"
+        state["risk_r2_conservative"] = "Conservative R2"
+        state["risk_r2_neutral"] = "Neutral R2"
+
+        result = node(state)
+
+        assert "risk_synthesis_structured" in result
+        structured = result["risk_synthesis_structured"]
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["contract_version"] == "risk_synthesis_v1"
+        assert structured["consensus_direction"] == "BUY"
+
+    def test_portfolio_manager_emits_final_trade_decision_structured(self):
+        from tradingagents.agents.managers.portfolio_manager import create_portfolio_manager
+
+        llm = _mock_llm("- Action: BUY 200 shares\n- Stop-loss: $183\n- Take-profit: $210")
+        node = create_portfolio_manager(llm, _mock_memory())
+        state = _base_state()
+        # Provide enough risk_debate_state for PM
+        state["risk_debate_state"] = {
+            "aggressive_history": "agg",
+            "conservative_history": "con",
+            "neutral_history": "neu",
+            "history": "full history",
+            "summary": "risk summary",
+            "latest_speaker": "Synthesis",
+            "current_aggressive_response": "agg",
+            "current_conservative_response": "con",
+            "current_neutral_response": "neu",
+            "judge_decision": "",
+            "count": 6,
+        }
+
+        result = node(state)
+
+        assert "final_trade_decision_structured" in result
+        structured = result["final_trade_decision_structured"]
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["contract_version"] == "final_decision_v1"
+        assert structured["action"] == "BUY"
+        assert structured["key_metrics"]["stop_loss_present"] is True
+        assert structured["key_metrics"]["take_profit_present"] is True

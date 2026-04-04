@@ -472,6 +472,268 @@ def build_trader_plan_fallback(state: dict[str, Any]) -> str:
     ).strip()
 
 
+def _infer_recommendation(text: str) -> str:
+    """Return the dominant BUY/SELL/HOLD signal from free-form text."""
+    upper = str(text or "").upper()
+    if "SELL" in upper:
+        return "SELL"
+    if "BUY" in upper:
+        return "BUY"
+    return "HOLD"
+
+
+def _infer_sentiment_direction(text: str) -> str:
+    """Return dominant sentiment direction from prose."""
+    upper = str(text or "").upper()
+    bullish = upper.count("BULLISH") + upper.count("POSITIVE") + upper.count("OPTIMISTIC")
+    bearish = upper.count("BEARISH") + upper.count("NEGATIVE") + upper.count("PESSIMISTIC")
+    if bullish > bearish:
+        return "bullish"
+    if bearish > bullish:
+        return "bearish"
+    if bullish == bearish and bullish > 0:
+        return "mixed"
+    return "neutral"
+
+
+def build_sentiment_report_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    sentiment_report: str,
+    contract_version: str = "sentiment_summary_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for social-media/sentiment node output."""
+    report = str(sentiment_report or "").strip()
+    abort_prefix = "[CRITICAL ABORT]"
+    timeout_detected = is_timeout_fallback or "timed out after" in report.lower()
+    if report.startswith(abort_prefix):
+        status = "aborted"
+        abort_reason = report[len(abort_prefix):].strip(" :\n\t")
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    elif not report:
+        status = "empty"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", report))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", report, re.IGNORECASE)
+    )
+    source_mentions = len(re.findall(r"\b(?:twitter|reddit|stocktwits|seeking alpha|social media|forum|youtube)\b", report, re.IGNORECASE))
+    sentiment_direction = _infer_sentiment_direction(report)
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "claim_count": bullet_count,
+        "sentiment_direction": sentiment_direction,
+        "key_metrics": {
+            "numeric_mentions": numeric_mentions,
+            "source_mentions": source_mentions,
+            "report_char_count": len(report),
+        },
+    }
+
+
+def build_investment_plan_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    investment_plan: str,
+    contract_version: str = "investment_plan_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for research-manager output."""
+    plan = str(investment_plan or "").strip()
+    timeout_detected = is_timeout_fallback or "timed out" in plan.lower()
+    if not plan:
+        status = "empty"
+        abort_reason = ""
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    recommendation = _infer_recommendation(plan)
+    bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", plan))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", plan, re.IGNORECASE)
+    )
+    high_confidence = len(re.findall(r"\(HIGH\)", plan, re.IGNORECASE))
+    med_confidence = len(re.findall(r"\(MED\)", plan, re.IGNORECASE))
+    low_confidence = len(re.findall(r"\(LOW\)", plan, re.IGNORECASE))
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "recommendation": recommendation,
+        "key_metrics": {
+            "bullet_count": bullet_count,
+            "numeric_mentions": numeric_mentions,
+            "high_confidence_claims": high_confidence,
+            "med_confidence_claims": med_confidence,
+            "low_confidence_claims": low_confidence,
+            "plan_char_count": len(plan),
+        },
+    }
+
+
+def build_trader_plan_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    trader_plan: str,
+    contract_version: str = "trader_plan_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for trader node output."""
+    plan = str(trader_plan or "").strip()
+    timeout_detected = is_timeout_fallback or "timed out" in plan.lower()
+    if not plan:
+        status = "empty"
+        abort_reason = ""
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    final_action = _infer_recommendation(plan)
+    has_entry = bool(re.search(r"entry\s*(price|setup|point)", plan, re.IGNORECASE))
+    has_stop = bool(re.search(r"stop[.\- ]?loss", plan, re.IGNORECASE))
+    has_target = bool(re.search(r"take[.\- ]?profit|target\s*price", plan, re.IGNORECASE))
+    has_catalyst = bool(re.search(r"catalyst|timeline|earnings|fomc|cpi|ex[.\- ]?div", plan, re.IGNORECASE))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", plan, re.IGNORECASE)
+    )
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "final_action": final_action,
+        "key_metrics": {
+            "entry_setup_present": has_entry,
+            "stop_loss_present": has_stop,
+            "take_profit_present": has_target,
+            "catalyst_dates_present": has_catalyst,
+            "numeric_mentions": numeric_mentions,
+            "plan_char_count": len(plan),
+        },
+    }
+
+
+def build_risk_synthesis_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    risk_synthesis: str,
+    contract_version: str = "risk_synthesis_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for risk synthesis node output."""
+    text = str(risk_synthesis or "").strip()
+    timeout_detected = is_timeout_fallback or "timed out" in text.lower()
+    if not text:
+        status = "empty"
+        abort_reason = ""
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    consensus_direction = _infer_recommendation(text)
+    agreements = len(re.findall(r"(?i)\b(all\s+(?:three\s+)?analysts\s+agree|unanimous|shared\s+view|common\s+ground)", text))
+    disagreements = len(re.findall(r"(?i)\b(disagree|dissent|contention|conflict\s+between|opposing\s+view)", text))
+    risk_mentions = len(re.findall(r"(?i)\b(risk|downside|drawdown|tail\s+risk|volatility)\b", text))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", text, re.IGNORECASE)
+    )
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "consensus_direction": consensus_direction,
+        "key_metrics": {
+            "agreement_mentions": agreements,
+            "disagreement_mentions": disagreements,
+            "risk_mentions": risk_mentions,
+            "numeric_mentions": numeric_mentions,
+            "synthesis_char_count": len(text),
+        },
+    }
+
+
+def build_final_decision_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    final_decision: str,
+    contract_version: str = "final_decision_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for portfolio-manager final decision."""
+    text = str(final_decision or "").strip()
+    timeout_detected = is_timeout_fallback or "timed out" in text.lower()
+    if not text:
+        status = "empty"
+        abort_reason = ""
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    action = _infer_recommendation(text)
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", text, re.IGNORECASE)
+    )
+    has_stop = bool(re.search(r"stop[.\- ]?loss", text, re.IGNORECASE))
+    has_target = bool(re.search(r"take[.\- ]?profit|target\s*price", text, re.IGNORECASE))
+    has_position_size = bool(re.search(r"position\s*(size|sizing|weight|allocation)", text, re.IGNORECASE))
+    excerpt = " ".join(text.split())[:200]
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "action": action,
+        "key_metrics": {
+            "numeric_mentions": numeric_mentions,
+            "stop_loss_present": has_stop,
+            "take_profit_present": has_target,
+            "position_size_present": has_position_size,
+            "decision_char_count": len(text),
+        },
+        "decision_excerpt": excerpt,
+    }
+
+
 def canonicalize_source_name(
     raw_source: str,
     allowed_source_names: Iterable[str] | None = None,

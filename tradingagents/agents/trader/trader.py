@@ -5,6 +5,7 @@ from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
     build_trader_plan_fallback,
+    build_trader_plan_structured,
     output_contains_scratchpad,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
@@ -105,12 +106,21 @@ Apply lessons from past decisions:
 
         # De-anonymize: replace TICKER_A back with the real ticker.
         output_content = result.content.replace("TICKER_A", ticker)
+        is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
         if output_contains_scratchpad(output_content):
             output_content = build_trader_plan_fallback(state)
+
+        structured = build_trader_plan_structured(
+            ticker=ticker,
+            as_of_date=state.get("trade_date", ""),
+            trader_plan=output_content,
+            is_timeout_fallback=is_timeout,
+        )
 
         return {
             "messages": [result],
             "trader_investment_plan": output_content,
+            "trader_plan_structured": structured,
             "sender": name,
         }
 

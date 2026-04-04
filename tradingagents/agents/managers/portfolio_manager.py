@@ -4,6 +4,7 @@ from tradingagents.agents.utils.critical_abort import (
     state_has_critical_abort,
 )
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.output_validation import build_final_decision_structured
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
     get_risk_debate_summary,
@@ -170,9 +171,17 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
             "count": risk_debate_state.get("count", 0),
         }
 
+        final_decision_text = response.content
+        structured = build_final_decision_structured(
+            ticker=state.get("company_of_interest", ""),
+            as_of_date=state.get("trade_date", ""),
+            final_decision=final_decision_text,
+        )
+
         return {
             "risk_debate_state": new_risk_debate_state,
-            "final_trade_decision": response.content,
+            "final_trade_decision": final_decision_text,
+            "final_trade_decision_structured": structured,
         }
 
     return portfolio_manager_node

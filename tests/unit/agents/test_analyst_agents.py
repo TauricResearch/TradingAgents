@@ -230,7 +230,11 @@ def test_social_media_analyst_direct_invoke(mock_state, mock_llm_direct_report):
     node = create_social_media_analyst(mock_llm_direct_report)
     result = node(mock_state)
     assert "This is the final report after running the tool." in result["sentiment_report"]
-
+    assert "sentiment_report_structured" in result
+    structured = result["sentiment_report_structured"]
+    assert structured["ticker"] == "AAPL"
+    assert structured["status"] in {"completed", "timeout_fallback", "empty", "aborted"}
+    assert structured["contract_version"] == "sentiment_summary_v1"
 
 def test_news_analyst_direct_invoke(mock_state, valid_news_report):
     """News analyst: full pre-fetch, direct LLM invoke (no tool loop)."""

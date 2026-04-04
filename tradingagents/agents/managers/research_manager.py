@@ -2,6 +2,7 @@ from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
+    build_investment_plan_structured,
     build_research_manager_fallback,
     output_contains_scratchpad,
 )
@@ -108,8 +109,16 @@ Debate History:
         # De-anonymize: replace TICKER_A back with the real ticker so downstream
         # nodes (Trader, Portfolio Manager) receive the correct symbol.
         output_content = response.content.replace("TICKER_A", ticker)
+        is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
         if output_contains_scratchpad(output_content):
             output_content = build_research_manager_fallback(state)
+
+        structured = build_investment_plan_structured(
+            ticker=ticker,
+            as_of_date=state.get("trade_date", ""),
+            investment_plan=output_content,
+            is_timeout_fallback=is_timeout,
+        )
 
         new_investment_debate_state = {
             "judge_decision": output_content,
@@ -123,6 +132,7 @@ Debate History:
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": output_content,
+            "investment_plan_structured": structured,
         }
 
     return research_manager_node

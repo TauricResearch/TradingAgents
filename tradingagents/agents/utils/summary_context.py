@@ -69,6 +69,30 @@ def _format_fundamentals_structured(structured: object) -> str:
     return "\n".join(line for line in lines if line.split(":", 1)[1].strip())
 
 
+def _has_value_after_colon(line: str) -> bool:
+    """Return True if the line has a non-empty value after its first colon."""
+    parts = line.split(":", 1)
+    return len(parts) == 2 and bool(parts[1].strip())
+
+
+def _format_sentiment_structured(structured: object) -> str:
+    if not isinstance(structured, dict):
+        return ""
+    key_metrics = structured.get("key_metrics") or {}
+    if not isinstance(key_metrics, dict):
+        key_metrics = {}
+    lines = [
+        f"- status: {structured.get('status', '')}",
+        f"- contract_version: {structured.get('contract_version', '')}",
+        f"- sentiment_direction: {structured.get('sentiment_direction', '')}",
+        f"- claim_count: {structured.get('claim_count', '')}",
+        f"- numeric_mentions: {key_metrics.get('numeric_mentions', '')}",
+        f"- source_mentions: {key_metrics.get('source_mentions', '')}",
+    ]
+    return "\n".join(line for line in lines if _has_value_after_colon(line))
+
+
+
 def build_research_packet(state: dict) -> str:
     """Return the canonical deterministic analyst packet for downstream nodes."""
     sections: list[str] = []
@@ -90,6 +114,10 @@ def build_research_packet(state: dict) -> str:
     )
     if fundamentals_structured:
         sections.append(f"## Fundamentals Structured Contract\n{fundamentals_structured}")
+
+    sentiment_structured = _format_sentiment_structured(state.get("sentiment_report_structured"))
+    if sentiment_structured:
+        sections.append(f"## Sentiment Structured Contract\n{sentiment_structured}")
 
     block_specs = [
         ("## Market Report", state.get("market_report"), 10, 2200),

@@ -608,3 +608,183 @@ class TestValidationScenarios:
         
         # Should pass all validation checks
         assert is_valid, f"Valid output failed validation: {reason}"
+
+
+class TestSentimentStructuredContract:
+    def test_build_completed(self):
+        from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
+        structured = build_sentiment_report_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            sentiment_report="- AAPL headline sentiment is BULLISH with +15.5% improvement this week.\n- Coverage intensity: 23 articles from 9 outlets.\n- Reddit posts: positive.",
+        )
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["contract_version"] == "sentiment_summary_v1"
+        assert structured["sentiment_direction"] == "bullish"
+        assert structured["key_metrics"]["report_char_count"] > 0
+
+    def test_build_empty(self):
+        from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
+        structured = build_sentiment_report_structured(
+            ticker="MSFT",
+            as_of_date="2026-04-03",
+            sentiment_report="",
+        )
+        assert structured["status"] == "empty"
+        assert structured["ticker"] == "MSFT"
+
+    def test_build_timeout_fallback(self):
+        from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
+        structured = build_sentiment_report_structured(
+            ticker="TSLA",
+            as_of_date="2026-04-03",
+            sentiment_report="Some partial output",
+            is_timeout_fallback=True,
+        )
+        assert structured["status"] == "timeout_fallback"
+
+    def test_bearish_direction_detected(self):
+        from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
+        structured = build_sentiment_report_structured(
+            ticker="XYZ",
+            as_of_date="2026-04-03",
+            sentiment_report="- Sentiment is BEARISH. NEGATIVE outlook across forums. PESSIMISTIC coverage.",
+        )
+        assert structured["sentiment_direction"] == "bearish"
+
+
+class TestInvestmentPlanStructuredContract:
+    def test_build_completed_buy(self):
+        from tradingagents.agents.utils.output_validation import build_investment_plan_structured
+        structured = build_investment_plan_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            investment_plan="- Strongest Bull Evidence: Revenue +12.4% YoY (HIGH)\n- Recommendation: BUY\n- Rationale: Strong earnings momentum (HIGH)",
+        )
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["recommendation"] == "BUY"
+        assert structured["key_metrics"]["high_confidence_claims"] >= 2
+
+    def test_build_completed_sell(self):
+        from tradingagents.agents.utils.output_validation import build_investment_plan_structured
+        structured = build_investment_plan_structured(
+            ticker="XYZ",
+            as_of_date="2026-04-03",
+            investment_plan="- Recommendation: SELL\n- Rationale: Margin contraction -5.0% (MED)",
+        )
+        assert structured["recommendation"] == "SELL"
+
+    def test_build_empty(self):
+        from tradingagents.agents.utils.output_validation import build_investment_plan_structured
+        structured = build_investment_plan_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            investment_plan="",
+        )
+        assert structured["status"] == "empty"
+
+
+class TestTraderPlanStructuredContract:
+    def test_build_completed_with_entry_and_stop(self):
+        from tradingagents.agents.utils.output_validation import build_trader_plan_structured
+        structured = build_trader_plan_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            trader_plan=(
+                "- Research Manager's Verdict: BUY\n"
+                "- Entry Setup: $192.50 technical breakout\n"
+                "- Risk Parameters: Stop-loss at $183.00, take-profit $210.00\n"
+                "- Catalyst Timeline: Earnings 2026-05-01 per scanner\n"
+                "- FINAL TRANSACTION PROPOSAL: **BUY**"
+            ),
+        )
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["final_action"] == "BUY"
+        assert structured["key_metrics"]["entry_setup_present"] is True
+        assert structured["key_metrics"]["stop_loss_present"] is True
+        assert structured["key_metrics"]["take_profit_present"] is True
+        assert structured["key_metrics"]["catalyst_dates_present"] is True
+
+    def test_build_empty(self):
+        from tradingagents.agents.utils.output_validation import build_trader_plan_structured
+        structured = build_trader_plan_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            trader_plan="",
+        )
+        assert structured["status"] == "empty"
+        assert structured["final_action"] == "HOLD"
+
+
+class TestRiskSynthesisStructuredContract:
+    def test_build_completed(self):
+        from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured
+        structured = build_risk_synthesis_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            risk_synthesis=(
+                "- Key Agreements: All three analysts agree on stop-loss discipline.\n"
+                "- Disagreements: Aggressive analyst disagrees with conservative on upside.\n"
+                "- Material Risks: volatility risk, downside of -8.5% if support breaks.\n"
+                "- Balanced Assessment: BUY with tight risk controls."
+            ),
+        )
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["consensus_direction"] == "BUY"
+        assert structured["key_metrics"]["agreement_mentions"] >= 1
+        assert structured["key_metrics"]["risk_mentions"] >= 1
+
+    def test_build_empty(self):
+        from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured
+        structured = build_risk_synthesis_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            risk_synthesis="",
+        )
+        assert structured["status"] == "empty"
+
+
+class TestFinalDecisionStructuredContract:
+    def test_build_completed_buy(self):
+        from tradingagents.agents.utils.output_validation import build_final_decision_structured
+        structured = build_final_decision_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            final_decision=(
+                "- Action: BUY 200 shares of AAPL at $192.50\n"
+                "- Position size: 5% of portfolio\n"
+                "- Stop-loss: $183.00\n"
+                "- Take-profit: $210.00"
+            ),
+        )
+        assert structured["ticker"] == "AAPL"
+        assert structured["status"] == "completed"
+        assert structured["action"] == "BUY"
+        assert structured["key_metrics"]["stop_loss_present"] is True
+        assert structured["key_metrics"]["take_profit_present"] is True
+        assert structured["key_metrics"]["position_size_present"] is True
+        assert len(structured["decision_excerpt"]) > 0
+
+    def test_build_empty(self):
+        from tradingagents.agents.utils.output_validation import build_final_decision_structured
+        structured = build_final_decision_structured(
+            ticker="AAPL",
+            as_of_date="2026-04-03",
+            final_decision="",
+        )
+        assert structured["status"] == "empty"
+        assert structured["action"] == "HOLD"
+
+    def test_decision_excerpt_truncated(self):
+        from tradingagents.agents.utils.output_validation import build_final_decision_structured
+        long_text = "BUY " + "A" * 500
+        structured = build_final_decision_structured(
+            ticker="XYZ",
+            as_of_date="2026-04-03",
+            final_decision=long_text,
+        )
+        assert len(structured["decision_excerpt"]) <= 200

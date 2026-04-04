@@ -3,6 +3,7 @@
 from langchain_core.messages import AIMessage
 
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured
 from tradingagents.agents.utils.summary_context import build_research_packet
 from tradingagents.default_config import DEFAULT_CONFIG
 
@@ -105,6 +106,13 @@ Output a structured risk synthesis in under 400 words."""
             else:
                 raise invoke_error
         summary = response.content.strip()
+        is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
+        structured = build_risk_synthesis_structured(
+            ticker=state.get("company_of_interest", ""),
+            as_of_date=state.get("trade_date", ""),
+            risk_synthesis=summary,
+            is_timeout_fallback=is_timeout,
+        )
 
         # Build risk_debate_state for Portfolio Manager backward compatibility
         risk_debate_state = {
@@ -123,6 +131,7 @@ Output a structured risk synthesis in under 400 words."""
 
         return {
             "risk_debate_state": risk_debate_state,
+            "risk_synthesis_structured": structured,
             "sender": "risk_synthesis",
         }
 

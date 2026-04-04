@@ -10,6 +10,7 @@ from tradingagents.agents.utils.agent_utils import (
 )
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.news_data_tools import get_social_sentiment
+from tradingagents.agents.utils.output_validation import build_sentiment_report_structured
 from tradingagents.default_config import DEFAULT_CONFIG
 
 
@@ -134,10 +135,18 @@ def create_social_media_analyst(llm):
                 raise invoke_error
 
         report = result.content or ""
+        is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
+        structured = build_sentiment_report_structured(
+            ticker=ticker,
+            as_of_date=current_date,
+            sentiment_report=report,
+            is_timeout_fallback=is_timeout,
+        )
 
         return {
             "messages": [result],
             "sentiment_report": report,
+            "sentiment_report_structured": structured,
         }
 
     return social_media_analyst_node
