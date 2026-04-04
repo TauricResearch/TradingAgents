@@ -199,6 +199,33 @@ _, decision = ta.propagate("NVDA", "2026-01-15")
 print(decision)
 ```
 
+### A-share (China) with AKShare
+
+If you want to run TradingAgents on A-share symbols with AKShare data:
+
+1. Install dependencies:
+```bash
+pip install .
+pip install akshare
+```
+2. Switch data vendors to AKShare in your config:
+```python
+config["data_vendors"] = {
+    "core_stock_apis": "akshare",
+    "technical_indicators": "akshare",
+    "fundamental_data": "akshare",
+    "news_data": "akshare",
+}
+```
+3. Use A-share symbols like `600519` or `sh600519`:
+```python
+_, decision = ta.propagate("600519", "2026-01-15")
+```
+
+Notes:
+- The current AKShare adapter provides production-ready price + basic technical indicator access.
+- Fundamental/news/insider methods are scaffolded as placeholders so you can bind your preferred AKShare endpoints quickly.
+
 See `tradingagents/default_config.py` for all configuration options.
 
 ## Contributing
