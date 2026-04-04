@@ -1,0 +1,66 @@
+{
+  "date": "2026-04-04",
+  "llm_provider": "google",
+  "recommendations": [
+    {
+      "ticker": "PAGS",
+      "rank": 1,
+      "company_name": "PagSeguro Digital Ltd.",
+      "description": "PagSeguro Digital Ltd. engages in the provision of financial and payment solutions for consumers, entrepreneurs, and small/medium businesses in Brazil.",
+      "strategy_match": "insider_buying",
+      "pipeline": "insider_buying",
+      "final_score": 88,
+      "confidence": 8,
+      "risk_level": "moderate",
+      "reason": "Director Luis Frias executed a massive $4.96M insider purchase, providing a strong fundamental floor for the stock. This is corroborated by highly unusual bullish options flow, highlighted by a staggering 0.021 P/C ratio and heavy call buying at the $14 strike. Technicals are aligning with the accumulation, showing a MACD bullish crossover and price action holding above the 20 EMA and VWAP. The risk/reward is highly favorable given the low valuation (P/E 7.55), though failure to break the 50 SMA at $10.51 could stall momentum.",
+      "entry_price": 10.34000015258789,
+      "discovery_date": "2026-04-04",
+      "status": "open"
+    },
+    {
+      "ticker": "ZBIO",
+      "rank": 2,
+      "company_name": "Zenas BioPharma, Inc.",
+      "description": "Zenas BioPharma, Inc. is a clinical-stage biopharma company developing immunology-based therapies.",
+      "strategy_match": "insider_buying",
+      "pipeline": "insider_buying",
+      "final_score": 85,
+      "confidence": 7,
+      "risk_level": "high",
+      "reason": "ZBIO is experiencing aggressive cluster buying, with three insiders\u2014including the CEO ($1.0M) and a 10% owner ($3.0M)\u2014purchasing over $5.5M in shares. This heavy insider accumulation is a massive vote of confidence and directly challenges the elevated short interest of 21.1%. Short-term momentum is accelerating, evidenced by an intraday jump of +6.4% and the price crossing above both the VWAP and 20 EMA. While the setup is primed for a squeeze, the stock's pre-revenue status and high volatility (ATR 9.1%) present substantial fundamental risks.",
+      "entry_price": 21.459999084472656,
+      "discovery_date": "2026-04-04",
+      "status": "open"
+    },
+    {
+      "ticker": "PACB",
+      "rank": 3,
+      "company_name": "Pacific Biosciences of California, Inc.",
+      "description": "Pacific Biosciences of California, Inc. designs and manufactures sequencing solutions to resolve genetically complex problems.",
+      "strategy_match": "earnings_play",
+      "pipeline": "earnings_play",
+      "final_score": 70,
+      "confidence": 6,
+      "risk_level": "speculative",
+      "reason": "PACB presents a compelling binary setup heading into its earnings report in three days. The options market is aggressively positioning for an upside move, reflected by an extremely bullish P/C volume ratio of 0.086. Combined with a high short interest of 15.6%, any positive surprise or forward guidance could trigger a violent short squeeze. A recent MACD bullish crossover and an intraday bounce of +3.9% indicate pre-earnings accumulation, though the underlying cash burn and strong macro downtrend pose severe risks if earnings disappoint.",
+      "entry_price": 1.340000033378601,
+      "discovery_date": "2026-04-04",
+      "status": "open"
+    },
+    {
+      "ticker": "NNOX",
+      "rank": 4,
+      "company_name": "Nano-X Imaging Ltd.",
+      "description": "Nano-X Imaging Ltd. develops a commercial-grade tomographic imaging device with a digital X-ray source and provides teleradiology services.",
+      "strategy_match": "earnings_play",
+      "pipeline": "earnings_play",
+      "final_score": 60,
+      "confidence": 5,
+      "risk_level": "speculative",
+      "reason": "With earnings arriving in just two days, NNOX is flashing contrarian bullish signals driven by options flow and short positioning. The options P/C ratio sits at a heavily skewed 0.241, suggesting speculators are betting on an earnings beat or short squeeze. A short interest of 13.3% provides the fuel for a potential rapid upward rerating. However, the company's operating margin of -413% and high volatility (ATR 6.3%) make this a strictly speculative, binary trade heavily reliant on the upcoming catalyst.",
+      "entry_price": 2.4100000858306885,
+      "discovery_date": "2026-04-04",
+      "status": "open"
+    }
+  ]
+}
