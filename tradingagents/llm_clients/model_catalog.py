@@ -23,6 +23,20 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("GPT-5.4 Pro - Most capable, expensive ($30/$180 per 1M tokens)", "gpt-5.4-pro"),
         ],
     },
+    "codex": {
+        "quick": [
+            ("GPT-5.4 Mini - Local Codex session, fast tool use", "gpt-5.4-mini"),
+            ("GPT-5.4 Nano - Lowest-cost Codex model", "gpt-5.4-nano"),
+            ("GPT-5.4 - Frontier Codex model", "gpt-5.4"),
+            ("GPT-4.1 - Strong non-reasoning fallback", "gpt-4.1"),
+        ],
+        "deep": [
+            ("GPT-5.4 - Frontier Codex model", "gpt-5.4"),
+            ("GPT-5.2 - Strong Codex reasoning", "gpt-5.2"),
+            ("GPT-5.4 Mini - Faster Codex alternative", "gpt-5.4-mini"),
+            ("GPT-5.4 Pro - Highest capability Codex model", "gpt-5.4-pro"),
+        ],
+    },
     "anthropic": {
         "quick": [
             ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),

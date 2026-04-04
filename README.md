@@ -27,6 +27,8 @@
 
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
+Korean documentation: [README.ko.md](README.ko.md)
+
 ## News
 - [2026-03] **TradingAgents v0.2.3** released with multi-language support, GPT-5.4 family models, unified model catalog, backtesting date fidelity, and proxy support.
 - [2026-03] **TradingAgents v0.2.2** released with GPT-5.4/Gemini 3.1/Claude 4.6 model coverage, five-tier rating scale, OpenAI Responses API, Anthropic effort control, and cross-platform stability.
@@ -118,6 +120,16 @@ Install the package and its dependencies:
 pip install .
 ```
 
+Windows PowerShell quickstart (validated in this repository):
+```powershell
+Set-Location C:\Projects\TradingAgents
+py -3.13 -m venv .venv-codex
+.\.venv-codex\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e . --no-cache-dir
+tradingagents --help
+```
+
 ### Docker
 
 Alternatively, run with Docker:
@@ -146,6 +158,42 @@ export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 
 For local models, configure Ollama with `llm_provider: "ollama"` in your config.
 
+For the local `codex` provider, no API key is required. Authenticate once with Codex instead:
+```bash
+codex login
+# or
+codex login --device-auth
+```
+
+TradingAgents talks directly to `codex app-server` over stdio and relies on Codex-managed credentials (for example `~/.codex/auth.json` when file-backed auth is enabled). If auth is missing, the provider fails with a message telling you to run `codex login`.
+
+Recommended `~/.codex/config.toml` for TradingAgents:
+```toml
+approval_policy = "never"
+sandbox_mode = "read-only"
+web_search = "disabled"
+personality = "none"
+cli_auth_credentials_store = "file"
+```
+
+Important notes for `codex`:
+- TradingAgents keeps its own LangGraph `ToolNode` execution. It does not use Codex dynamic tools.
+- Each model invocation uses a fresh ephemeral Codex thread to avoid context bleed across agents.
+- The default Codex workspace is a dedicated neutral directory under `~/.codex/tradingagents-workspace`, not your repo root.
+
+Windows PowerShell notes for `codex`:
+```powershell
+where.exe codex
+codex --version
+codex login
+```
+
+If `codex` is not recognized in the VS Code terminal, reload the VS Code window after updating your terminal PATH or use the full `codex.exe` path returned by `where.exe codex`.
+TradingAgents also tries to auto-discover `codex.exe` from common Windows locations such as the VS Code OpenAI extension install path. You can override detection explicitly with:
+```powershell
+$env:CODEX_BINARY = "C:\full\path\to\codex.exe"
+```
+
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
 cp .env.example .env
@@ -159,6 +207,33 @@ tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+
+Windows PowerShell run commands:
+```powershell
+Set-Location C:\Projects\TradingAgents
+.\.venv-codex\Scripts\Activate.ps1
+tradingagents
+```
+
+Alternative:
+```powershell
+Set-Location C:\Projects\TradingAgents
+.\.venv-codex\Scripts\Activate.ps1
+python -m cli.main
+```
+
+Validated Codex smoke checks:
+```powershell
+Set-Location C:\Projects\TradingAgents
+.\.venv-codex\Scripts\Activate.ps1
+tradingagents --help
+```
+
+The local Codex provider was also validated with:
+- a plain `llm.invoke(...)` call
+- an OpenAI-style `list[dict]` invoke path
+- a `bind_tools()` tool-call path
+- a minimal `TradingAgentsGraph(...).propagate(...)` smoke run that returned a final decision
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -178,7 +253,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, OpenRouter, and Ollama.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Codex, Google, Anthropic, xAI, OpenRouter, and Ollama.
 
 ### Python Usage
 
@@ -202,7 +277,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
+config["llm_provider"] = "openai"        # openai, codex, google, anthropic, xai, openrouter, ollama
 config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
@@ -213,6 +288,16 @@ print(decision)
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
+
+When using `llm_provider = "codex"`, these extra config knobs are available:
+- `codex_binary`
+- `codex_reasoning_effort`
+- `codex_summary`
+- `codex_personality`
+- `codex_workspace_dir`
+- `codex_request_timeout`
+- `codex_max_retries`
+- `codex_cleanup_threads`
 
 ## Contributing
 
