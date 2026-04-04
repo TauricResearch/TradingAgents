@@ -226,6 +226,29 @@ Notes:
 - The current AKShare adapter provides production-ready price + basic technical indicator access.
 - Fundamental/news/insider methods are scaffolded as placeholders so you can bind your preferred AKShare endpoints quickly.
 
+#### Run in GitHub Codespaces (recommended quick start)
+
+You can run this project directly in Codespaces (no local setup required):
+
+```bash
+# 1) open terminal in Codespaces
+python -m venv .venv
+source .venv/bin/activate
+
+# 2) install project and AKShare
+pip install -U pip
+pip install .
+pip install akshare
+
+# 3) set your LLM key (pick one provider)
+export OPENAI_API_KEY=your_key_here
+
+# 4) run CLI
+python -m cli.main
+```
+
+For A-share symbols, input values such as `600519`, `000001`, `sh600519`, or `sz000001`.
+
 See `tradingagents/default_config.py` for all configuration options.
 
 ## Contributing
