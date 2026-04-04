@@ -775,7 +775,7 @@ class AgentState(MessagesState):
   "ticker": "string",                           // REQUIRED
   "as_of_date": "string",                       // REQUIRED
   "status": "completed|timeout_fallback|empty",  // REQUIRED
-  "sentiment_direction": "improving|deteriorating|stable|unknown",  // REQUIRED
+  "sentiment_direction": "bullish|bearish|mixed|neutral",  // REQUIRED
   "has_critical_abort": false                   // REQUIRED
 }
 ```
