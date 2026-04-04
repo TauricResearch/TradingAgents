@@ -30,6 +30,7 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    "akshare>=1.17.62",
 ]
 
 [project.scripts]

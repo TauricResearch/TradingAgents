@@ -138,6 +138,27 @@ Alternatively, copy `.env.example` to `.env` and fill in your keys:
 cp .env.example .env
 ```
 
+#### No OpenAI API key?
+
+You can still run TradingAgents in two ways:
+
+1. Use another cloud provider key (Gemini / Claude / xAI / OpenRouter), then set:
+```python
+config["llm_provider"] = "google"      # or anthropic / xai / openrouter
+```
+
+2. Use local Ollama models (no cloud API key required):
+```bash
+ollama pull qwen3:8b
+```
+
+```python
+config["llm_provider"] = "ollama"
+config["backend_url"] = "http://localhost:11434/v1"
+config["deep_think_llm"] = "qwen3:8b"
+config["quick_think_llm"] = "qwen3:8b"
+```
+
 ### CLI Usage
 
 Launch the interactive CLI:
@@ -146,6 +167,19 @@ tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+
+When prompted with:
+
+```text
+Select Output Language
+```
+
+choose `Chinese (中文)` if you want Chinese analyst reports/final decision text.  
+You can also force it in config:
+
+```python
+config["output_language"] = "Chinese"
+```
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -198,6 +232,56 @@ ta = TradingAgentsGraph(debug=True, config=config)
 _, decision = ta.propagate("NVDA", "2026-01-15")
 print(decision)
 ```
+
+### A-share (China) with AKShare
+
+If you want to run TradingAgents on A-share symbols with AKShare data:
+
+1. Install dependencies:
+```bash
+pip install .
+pip install akshare
+```
+2. Switch data vendors to AKShare in your config:
+```python
+config["data_vendors"] = {
+    "core_stock_apis": "akshare",
+    "technical_indicators": "akshare",
+    "fundamental_data": "akshare",
+    "news_data": "akshare",
+}
+```
+3. Use A-share symbols like `600519` or `sh600519`:
+```python
+_, decision = ta.propagate("600519", "2026-01-15")
+```
+
+Notes:
+- The current AKShare adapter provides production-ready price + basic technical indicator access.
+- Fundamental/news/insider methods are scaffolded as placeholders so you can bind your preferred AKShare endpoints quickly.
+
+#### Run in GitHub Codespaces (recommended quick start)
+
+You can run this project directly in Codespaces (no local setup required):
+
+```bash
+# 1) open terminal in Codespaces
+python -m venv .venv
+source .venv/bin/activate
+
+# 2) install project and AKShare
+pip install -U pip
+pip install .
+pip install akshare
+
+# 3) set your LLM key (pick one provider)
+export OPENAI_API_KEY=your_key_here
+
+# 4) run CLI
+python -m cli.main
+```
+
+For A-share symbols, input values such as `600519`, `000001`, `sh600519`, or `sz000001`.
 
 See `tradingagents/default_config.py` for all configuration options.
 
