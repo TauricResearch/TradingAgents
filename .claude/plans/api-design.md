@@ -31,6 +31,10 @@ You review all projects, by default, the project call SPY and report. But my inp
 ### Task 6: Remove all yfinance in source code
 - You have to scan all code, remove all yfinance.
 - In dataflow/ interface.py, remove all yfinance factory remove all. You must appyly Binance api for this.
+
+### Task 7: Logs Enhancement
+- The first step, you must print promting string before call CLAUDE API.
+### Task 7.1 
 ---
 
 

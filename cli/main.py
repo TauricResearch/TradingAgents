@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 import datetime
 import typer
@@ -8,6 +9,10 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Show Claude prompts in the console without flooding other loggers
+logging.basicConfig(format="%(message)s", level=logging.WARNING)
+logging.getLogger("tradingagents.llm_clients").setLevel(logging.INFO)
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.live import Live

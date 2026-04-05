@@ -124,7 +124,6 @@ def get_binance_klines(
 ) -> str:
     """Fetch OHLCV candlestick data from Binance for the given symbol and date range.
 
-    This is the Binance equivalent of ``get_YFin_data_online``.
     Returns a CSV string with a descriptive header.
     """
     datetime.strptime(start_date, "%Y-%m-%d")

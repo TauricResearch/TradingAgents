@@ -1,11 +1,15 @@
 import time
-from tradingagents.dataflows.y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions
+from tradingagents.dataflows.binance import get_binance_klines, get_binance_indicators_window
 
-print("Testing optimized implementation with 30-day lookback:")
-start_time = time.time()
-result = get_stock_stats_indicators_window("AAPL", "macd", "2024-11-01", 30)
-end_time = time.time()
-
-print(f"Execution time: {end_time - start_time:.2f} seconds")
+print("Testing Binance klines:")
+start = time.time()
+result = get_binance_klines("BTCUSDT", "2024-10-01", "2024-11-01")
+print(f"Execution time: {time.time() - start:.2f}s")
 print(f"Result length: {len(result)} characters")
+print(result[:500])
+
+print("\nTesting Binance indicators (MACD, 30-day lookback):")
+start = time.time()
+result = get_binance_indicators_window("BTCUSDT", "macd", "2024-11-01", 30)
+print(f"Execution time: {time.time() - start:.2f}s")
 print(result)
