@@ -8,13 +8,11 @@ DEFAULT_CONFIG = {
         "dataflows/data_cache",
     ),
     # LLM settings
-    "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.2",
-    "quick_think_llm": "gpt-5-mini",
-    "backend_url": "https://api.openai.com/v1",
-    # Provider-specific thinking configuration
-    "google_thinking_level": None,      # "high", "minimal", etc.
-    "openai_reasoning_effort": None,    # "medium", "high", "low"
+    "llm_provider": "anthropic",
+    "deep_think_llm": "claude-opus-4-6",
+    "quick_think_llm": "claude-sonnet-4-6",
+    "backend_url": "https://api.anthropic.com/",
+    # Anthropic thinking configuration
     "anthropic_effort": None,           # "high", "medium", "low"
     # Debate and discussion settings
     "max_debate_rounds": 1,
@@ -23,10 +21,10 @@ DEFAULT_CONFIG = {
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
-        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
-        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
-        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance, binance
+        "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance, binance
+        "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance  (binance not supported)
+        "news_data": "yfinance",             # Options: alpha_vantage, yfinance  (binance not supported)
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {

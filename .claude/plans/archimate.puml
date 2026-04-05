@@ -1,0 +1,110 @@
+@startuml
+
+skinparam BackgroundColor transparent
+skinparam componentStyle uml2
+component "User interface layer" AS CLI{
+
+    component "CLI interface \n located at cli/main.py \n typer + rich + questionary" as commander
+}
+
+component "Ochestrastion Layer" as OL{
+    component "TradingAgentGraph \n locatedAt graph/trading_graph.py"  as TAG{
+    }
+
+    component "LangGraph State Machine\n Agent Coordinator" as coor{
+
+    }
+
+    component "Default config \n located at infrastructure" as ins{
+
+    }
+}
+
+
+component "LLM Provider Layer" as llm {
+    component "LLM Provider Factory" as llmFactory{
+
+    }
+
+    component "Anthropic Claude" as claude {
+
+    }
+
+}
+
+component "Multi Agent layer as DOMAIN" as al {
+
+    component "Analysist Team Market" as atm {
+
+    }
+
+    component "Researcher Team Bull & Bear debate" as bbd{
+
+    }
+
+    component "Trader agent decision synthesis" as synth {
+
+    }
+
+    component "Risk Management Multi-perpective analysis" as MPA{
+
+    }
+
+    component "Porfolio Manager Final Approval"  as PMFA{
+
+    }
+}
+
+component "Indicator service as DOMAIN" as indi {
+
+    component "SMA, EMA, MA, MACD using padas" as drawler
+    component "final result " as fr
+}
+
+component "InsfraStructure Layer" {
+
+    component "Parameter (interval: 5m, 10m, 15m, 30m, 1H, 4H, symbol : BTCUSDT, limit 100)" as params
+
+    component "Binace API kline" as bkline {
+
+    }
+
+    component "Binance Ticker" as btick{
+
+    }
+
+    component "Binace API Depth" as bdepth{
+
+    }
+
+    component "csv storage" as csv
+}
+
+
+
+
+
+commander -down-> OL
+TAG -> coor
+llmFactory ..> claude : use facotry pattern based on enumeration
+TAG -left-> llmFactory
+TAG -left-> ins
+
+atm -down-> bbd
+bbd -down-> synth
+synth -down-> MPA
+MPA -down-> PMFA
+
+params -> bkline
+params ->btick
+params ->bdepth
+
+
+bkline -down-> csv : write
+btick -down-> csv : write
+bdepth -down-> csv : write
+
+drawler -> csv: read
+drawler -> fr
+fr -> csv: write
+@enduml

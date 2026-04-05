@@ -42,6 +42,22 @@ def normalize_ticker_symbol(ticker: str) -> str:
     return ticker.strip().upper()
 
 
+_CRYPTO_QUOTE_SUFFIXES = (
+    "USDT", "USDC", "BUSD", "FDUSD", "TUSD",
+    "BTC", "ETH", "BNB",
+)
+
+
+def is_crypto_ticker(ticker: str) -> bool:
+    """Return True if the ticker looks like a Binance crypto trading pair.
+
+    Binance pairs are all-uppercase with no dots or exchange suffixes,
+    ending in a known quote currency (USDT, BTC, ETH, …).
+    """
+    t = ticker.upper()
+    return "." not in t and any(t.endswith(suffix) for suffix in _CRYPTO_QUOTE_SUFFIXES)
+
+
 def get_analysis_date() -> str:
     """Prompt the user to enter a date in YYYY-MM-DD format."""
     import re
@@ -133,51 +149,19 @@ def select_research_depth() -> int:
     return choice
 
 
-def select_shallow_thinking_agent(provider) -> str:
+def select_shallow_thinking_agent() -> str:
     """Select shallow thinking llm engine using an interactive selection."""
-
-    # Define shallow thinking llm engine options with their corresponding model names
-    # Ordering: medium → light → heavy (balanced first for quick tasks)
-    # Within same tier, newer models first
-    SHALLOW_AGENT_OPTIONS = {
-        "openai": [
-            ("GPT-5 Mini - Balanced speed, cost, and capability", "gpt-5-mini"),
-            ("GPT-5 Nano - High-throughput, simple tasks", "gpt-5-nano"),
-            ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
-            ("GPT-4.1 - Smartest non-reasoning model", "gpt-4.1"),
-        ],
-        "anthropic": [
-            ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
-            ("Claude Haiku 4.5 - Fast, near-instant responses", "claude-haiku-4-5"),
-            ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
-        ],
-        "google": [
-            ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
-            ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
-            ("Gemini 3.1 Flash Lite - Most cost-efficient", "gemini-3.1-flash-lite-preview"),
-            ("Gemini 2.5 Flash Lite - Fast, low-cost", "gemini-2.5-flash-lite"),
-        ],
-        "xai": [
-            ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
-            ("Grok 4 Fast (Non-Reasoning) - Speed optimized", "grok-4-fast-non-reasoning"),
-            ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
-        ],
-        "openrouter": [
-            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
-            ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
-        ],
-        "ollama": [
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
-        ],
-    }
+    SHALLOW_AGENT_OPTIONS = [
+        ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
+        ("Claude Haiku 4.5 - Fast, near-instant responses", "claude-haiku-4-5"),
+        ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
+    ]
 
     choice = questionary.select(
         "Select Your [Quick-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in SHALLOW_AGENT_OPTIONS[provider.lower()]
+            for display, value in SHALLOW_AGENT_OPTIONS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -198,53 +182,20 @@ def select_shallow_thinking_agent(provider) -> str:
     return choice
 
 
-def select_deep_thinking_agent(provider) -> str:
+def select_deep_thinking_agent() -> str:
     """Select deep thinking llm engine using an interactive selection."""
-
-    # Define deep thinking llm engine options with their corresponding model names
-    # Ordering: heavy → medium → light (most capable first for deep tasks)
-    # Within same tier, newer models first
-    DEEP_AGENT_OPTIONS = {
-        "openai": [
-            ("GPT-5.4 - Latest frontier, 1M context", "gpt-5.4"),
-            ("GPT-5.2 - Strong reasoning, cost-effective", "gpt-5.2"),
-            ("GPT-5 Mini - Balanced speed, cost, and capability", "gpt-5-mini"),
-            ("GPT-5.4 Pro - Most capable, expensive ($30/$180 per 1M tokens)", "gpt-5.4-pro"),
-        ],
-        "anthropic": [
-            ("Claude Opus 4.6 - Most intelligent, agents and coding", "claude-opus-4-6"),
-            ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
-            ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
-            ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
-        ],
-        "google": [
-            ("Gemini 3.1 Pro - Reasoning-first, complex workflows", "gemini-3.1-pro-preview"),
-            ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),
-            ("Gemini 2.5 Pro - Stable pro model", "gemini-2.5-pro"),
-            ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
-        ],
-        "xai": [
-            ("Grok 4 - Flagship model", "grok-4-0709"),
-            ("Grok 4.1 Fast (Reasoning) - High-performance, 2M ctx", "grok-4-1-fast-reasoning"),
-            ("Grok 4 Fast (Reasoning) - High-performance", "grok-4-fast-reasoning"),
-            ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),
-        ],
-        "openrouter": [
-            ("Z.AI GLM 4.5 Air (free)", "z-ai/glm-4.5-air:free"),
-            ("NVIDIA Nemotron 3 Nano 30B (free)", "nvidia/nemotron-3-nano-30b-a3b:free"),
-        ],
-        "ollama": [
-            ("GLM-4.7-Flash:latest (30B, local)", "glm-4.7-flash:latest"),
-            ("GPT-OSS:latest (20B, local)", "gpt-oss:latest"),
-            ("Qwen3:latest (8B, local)", "qwen3:latest"),
-        ],
-    }
+    DEEP_AGENT_OPTIONS = [
+        ("Claude Opus 4.6 - Most intelligent, agents and coding", "claude-opus-4-6"),
+        ("Claude Opus 4.5 - Premium, max intelligence", "claude-opus-4-5"),
+        ("Claude Sonnet 4.6 - Best speed and intelligence balance", "claude-sonnet-4-6"),
+        ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
+    ]
 
     choice = questionary.select(
         "Select Your [Deep-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in DEEP_AGENT_OPTIONS[provider.lower()]
+            for display, value in DEEP_AGENT_OPTIONS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -261,61 +212,6 @@ def select_deep_thinking_agent(provider) -> str:
         exit(1)
 
     return choice
-
-def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
-    BASE_URLS = [
-        ("OpenAI", "https://api.openai.com/v1"),
-        ("Google", "https://generativelanguage.googleapis.com/v1"),
-        ("Anthropic", "https://api.anthropic.com/"),
-        ("xAI", "https://api.x.ai/v1"),
-        ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),
-    ]
-    
-    choice = questionary.select(
-        "Select your LLM Provider:",
-        choices=[
-            questionary.Choice(display, value=(display, value))
-            for display, value in BASE_URLS
-        ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style(
-            [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
-            ]
-        ),
-    ).ask()
-    
-    if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
-        exit(1)
-    
-    display_name, url = choice
-    print(f"You selected: {display_name}\tURL: {url}")
-
-    return display_name, url
-
-
-def ask_openai_reasoning_effort() -> str:
-    """Ask for OpenAI reasoning effort level."""
-    choices = [
-        questionary.Choice("Medium (Default)", "medium"),
-        questionary.Choice("High (More thorough)", "high"),
-        questionary.Choice("Low (Faster)", "low"),
-    ]
-    return questionary.select(
-        "Select Reasoning Effort:",
-        choices=choices,
-        style=questionary.Style([
-            ("selected", "fg:cyan noinherit"),
-            ("highlighted", "fg:cyan noinherit"),
-            ("pointer", "fg:cyan noinherit"),
-        ]),
-    ).ask()
 
 
 def ask_anthropic_effort() -> str | None:
@@ -338,21 +234,3 @@ def ask_anthropic_effort() -> str | None:
     ).ask()
 
 
-def ask_gemini_thinking_config() -> str | None:
-    """Ask for Gemini thinking configuration.
-
-    Returns thinking_level: "high" or "minimal".
-    Client maps to appropriate API param based on model series.
-    """
-    return questionary.select(
-        "Select Thinking Mode:",
-        choices=[
-            questionary.Choice("Enable Thinking (recommended)", "high"),
-            questionary.Choice("Minimal/Disable Thinking", "minimal"),
-        ],
-        style=questionary.Style([
-            ("selected", "fg:green noinherit"),
-            ("highlighted", "fg:green noinherit"),
-            ("pointer", "fg:green noinherit"),
-        ]),
-    ).ask()

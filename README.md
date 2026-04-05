@@ -106,31 +106,33 @@ git clone https://github.com/TauricResearch/TradingAgents.git
 cd TradingAgents
 ```
 
-Create a virtual environment in any of your favorite environment managers:
+Create a virtual environment and activate it:
 ```bash
-conda create -n tradingagents python=3.13
-conda activate tradingagents
+python3 -m venv .venv
+source .venv/bin/activate        # macOS / Linux
+.venv\Scripts\activate           # Windows
 ```
+
+> Python 3.11+ is required. If your default Python is older, install a newer version first (e.g. via [pyenv](https://github.com/pyenv/pyenv): `pyenv install 3.13.0 && pyenv local 3.13.0`).
 
 Install the package and its dependencies:
 ```bash
 pip install .
 ```
 
-### Required APIs
-
-TradingAgents supports multiple LLM providers. Set the API key for your chosen provider:
-
+For development (editable install — source changes take effect immediately):
 ```bash
-export OPENAI_API_KEY=...          # OpenAI (GPT)
-export GOOGLE_API_KEY=...          # Google (Gemini)
-export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
-export XAI_API_KEY=...             # xAI (Grok)
-export OPENROUTER_API_KEY=...      # OpenRouter
-export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
+pip install -e .
 ```
 
-For local models, configure Ollama with `llm_provider: "ollama"` in your config.
+### Required APIs
+
+Set your Anthropic API key:
+
+```bash
+export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
+export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage (optional, for fundamental data)
+```
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
