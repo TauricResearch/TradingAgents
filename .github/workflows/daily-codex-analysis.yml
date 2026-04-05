@@ -1,0 +1,123 @@
+name: Daily Codex Analysis
+
+on:
+  schedule:
+    # 00:13 UTC = 09:13 Asia/Seoul
+    - cron: "13 0 * * *"
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "Optional comma-separated tickers override"
+        required: false
+        type: string
+      trade_date:
+        description: "Optional YYYY-MM-DD trade date override"
+        required: false
+        type: string
+      site_only:
+        description: "Only rebuild GitHub Pages from archived runs"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-codex-analysis
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: [self-hosted, Windows]
+    timeout-minutes: 240
+    env:
+      PYTHONUTF8: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      TRADINGAGENTS_SITE_DIR: ${{ github.workspace }}\site
+      TRADINGAGENTS_ARCHIVE_DIR: ${{ vars.TRADINGAGENTS_ARCHIVE_DIR }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install TradingAgents
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Verify Codex login and model availability
+        shell: pwsh
+        run: |
+          $workspaceDir = Join-Path $env:GITHUB_WORKSPACE ".codex-preflight"
+          @"
+from tradingagents.llm_clients.codex_preflight import run_codex_preflight
+result = run_codex_preflight(
+    codex_binary=None,
+    model="gpt-5.4",
+    request_timeout=30.0,
+    workspace_dir=r"$workspaceDir",
+    cleanup_threads=True,
+)
+print("Codex account:", result.account)
+print("First available models:", ", ".join(result.models[:8]))
+"@ | python -
+
+      - name: Run scheduled analysis and build site
+        shell: pwsh
+        run: |
+          $configPath = "config/scheduled_analysis.toml"
+          if (-not (Test-Path $configPath)) {
+            throw "Missing config/scheduled_analysis.toml. Copy config/scheduled_analysis.example.toml, set your real tickers, and commit the file before enabling the schedule."
+          }
+
+          $args = @("-m", "tradingagents.scheduled", "--config", $configPath, "--site-dir", $env:TRADINGAGENTS_SITE_DIR, "--label", "github-actions")
+
+          if (-not [string]::IsNullOrWhiteSpace($env:TRADINGAGENTS_ARCHIVE_DIR)) {
+            $args += @("--archive-dir", $env:TRADINGAGENTS_ARCHIVE_DIR)
+          } else {
+            Write-Warning "TRADINGAGENTS_ARCHIVE_DIR is not set. Run history will live under the repository checkout unless the config overrides it."
+          }
+
+          $manualTickers = "${{ github.event.inputs.tickers }}"
+          if (-not [string]::IsNullOrWhiteSpace($manualTickers)) {
+            $args += @("--tickers", $manualTickers)
+          }
+
+          $manualTradeDate = "${{ github.event.inputs.trade_date }}"
+          if (-not [string]::IsNullOrWhiteSpace($manualTradeDate)) {
+            $args += @("--trade-date", $manualTradeDate)
+          }
+
+          $siteOnly = "${{ github.event.inputs.site_only }}"
+          if ($siteOnly -eq "true") {
+            $args += "--site-only"
+          }
+
+          python @args
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: analyze
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

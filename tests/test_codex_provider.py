@@ -119,13 +119,57 @@ class CodexProviderTests(unittest.TestCase):
 
         self.assertEqual(resolved, str(candidate))
 
+    def test_resolve_codex_binary_skips_unusable_path_alias_on_windows(self):
+        fake_home = Path("C:/Users/tester")
+        alias_path = "C:/Program Files/WindowsApps/OpenAI.Codex/app/resources/codex.exe"
+        candidate = fake_home / ".vscode/extensions/openai.chatgpt-1.0.0/bin/windows-x86_64/codex.exe"
+
+        with (
+            patch("tradingagents.llm_clients.codex_binary.os.name", "nt"),
+            patch("tradingagents.llm_clients.codex_binary.Path.home", return_value=fake_home),
+            patch("tradingagents.llm_clients.codex_binary.shutil.which", return_value=alias_path),
+            patch(
+                "tradingagents.llm_clients.codex_binary.Path.glob",
+                return_value=[candidate],
+            ),
+            patch("pathlib.Path.is_file", return_value=True),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.stat") as mocked_stat,
+            patch(
+                "tradingagents.llm_clients.codex_binary._is_usable_codex_binary",
+                side_effect=lambda path: path != alias_path,
+            ),
+        ):
+            mocked_stat.return_value.st_mtime = 1
+            resolved = resolve_codex_binary(None)
+
+        self.assertEqual(resolved, str(candidate))
+
     def test_resolve_codex_binary_uses_env_override(self):
         with (
+            patch("tradingagents.llm_clients.codex_binary.os.name", "nt"),
             patch("tradingagents.llm_clients.codex_binary.shutil.which", return_value=None),
             patch.dict("os.environ", {"CODEX_BINARY": "C:/custom/codex.exe"}, clear=False),
             patch("pathlib.Path.is_file", return_value=True),
+            patch(
+                "tradingagents.llm_clients.codex_binary._is_usable_codex_binary",
+                return_value=True,
+            ),
         ):
             resolved = resolve_codex_binary(None)
+
+        self.assertEqual(Path(resolved), Path("C:/custom/codex.exe"))
+
+    def test_resolve_codex_binary_checks_explicit_binary_usability(self):
+        with (
+            patch("tradingagents.llm_clients.codex_binary.os.name", "nt"),
+            patch("pathlib.Path.is_file", return_value=True),
+            patch(
+                "tradingagents.llm_clients.codex_binary._is_usable_codex_binary",
+                return_value=False,
+            ),
+        ):
+            resolved = resolve_codex_binary("C:/custom/codex.exe")
 
         self.assertEqual(Path(resolved), Path("C:/custom/codex.exe"))
 
