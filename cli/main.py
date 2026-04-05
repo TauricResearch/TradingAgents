@@ -46,7 +46,7 @@ class MessageBuffer:
         "Research Team": ["Bull Researcher", "Bear Researcher", "Research Manager"],
         "Trading Team": ["Trader"],
         "Risk Management": ["Aggressive Analyst", "Neutral Analyst", "Conservative Analyst"],
-        "Portfolio Management": ["Portfolio Manager"],
+        "Portfolio Management": ["Portfolio Manager", "Trade Strategist"],
     }
 
     # Analyst name mapping
@@ -68,6 +68,7 @@ class MessageBuffer:
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
+        "trade_possibilities": (None, "Trade Strategist"),
     }
 
     def __init__(self, max_length=100):
@@ -1046,8 +1047,11 @@ def run_analysis():
             selections["ticker"], selections["analysis_date"]
         )
         # Pass callbacks to graph config for tool execution tracking
-        # (LLM tracking is handled separately via LLM constructor)
-        args = graph.propagator.get_graph_args(callbacks=[stats_handler])
+        args = graph.propagator.get_graph_args(
+            selections["ticker"], 
+            selections["analysis_date"], 
+            callbacks=[stats_handler]
+        )
 
         # Stream the analysis
         trace = []
@@ -1148,6 +1152,15 @@ def run_analysis():
                         message_buffer.update_agent_status("Conservative Analyst", "completed")
                         message_buffer.update_agent_status("Neutral Analyst", "completed")
                         message_buffer.update_agent_status("Portfolio Manager", "completed")
+                        message_buffer.update_agent_status("Trade Strategist", "in_progress")
+
+            # Trade Strategist
+            if chunk.get("trade_possibilities"):
+                message_buffer.update_report_section(
+                    "trade_possibilities", chunk["trade_possibilities"]
+                )
+                if message_buffer.agent_status.get("Trade Strategist") != "completed":
+                    message_buffer.update_agent_status("Trade Strategist", "completed")
 
             # Update the display
             update_display(layout, stats_handler=stats_handler, start_time=start_time)

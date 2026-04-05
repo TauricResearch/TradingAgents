@@ -200,7 +200,7 @@ class TradingAgentsGraph:
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date
         )
-        args = self.propagator.get_graph_args()
+        args = self.propagator.get_graph_args(company_name, trade_date)
 
         if self.debug:
             # Debug mode with tracing
@@ -256,6 +256,7 @@ class TradingAgentsGraph:
             },
             "investment_plan": final_state["investment_plan"],
             "final_trade_decision": final_state["final_trade_decision"],
+            "trade_possibilities": final_state.get("trade_possibilities", ""),
         }
 
         # Save to file

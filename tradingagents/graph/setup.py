@@ -2,11 +2,15 @@
 
 from typing import Dict, Any
 from langchain_openai import ChatOpenAI
+
 from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
+import sqlite3
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 from tradingagents.agents import *
 from tradingagents.agents.utils.agent_states import AgentState
+from tradingagents.agents.trade_strategist_node import create_trade_strategist
 
 from .conditional_logic import ConditionalLogic
 
@@ -104,6 +108,7 @@ class GraphSetup:
         portfolio_manager_node = create_portfolio_manager(
             self.deep_thinking_llm, self.portfolio_manager_memory
         )
+        trade_strategist_node = create_trade_strategist(self.quick_thinking_llm)
 
         # Create workflow
         workflow = StateGraph(AgentState)
@@ -125,6 +130,7 @@ class GraphSetup:
         workflow.add_node("Neutral Analyst", neutral_analyst)
         workflow.add_node("Conservative Analyst", conservative_analyst)
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
+        workflow.add_node("Trade Strategist", trade_strategist_node)
 
         # Define edges
         # Start with the first analyst
@@ -196,7 +202,10 @@ class GraphSetup:
             },
         )
 
-        workflow.add_edge("Portfolio Manager", END)
+        workflow.add_edge("Portfolio Manager", "Trade Strategist")
+        workflow.add_edge("Trade Strategist", END)
 
-        # Compile and return
-        return workflow.compile()
+        # Compile and return with SQLite memory
+        conn = sqlite3.connect("trading_agents_state.sqlite", check_same_thread=False)
+        memory = SqliteSaver(conn)
+        return workflow.compile(checkpointer=memory)

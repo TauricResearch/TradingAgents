@@ -11,7 +11,7 @@ from tradingagents.agents.utils.agent_states import (
 class Propagator:
     """Handles state initialization and propagation through the graph."""
 
-    def __init__(self, max_recur_limit=100):
+    def __init__(self, max_recur_limit=1000):
         """Initialize with configuration parameters."""
         self.max_recur_limit = max_recur_limit
 
@@ -51,16 +51,23 @@ class Propagator:
             "fundamentals_report": "",
             "sentiment_report": "",
             "news_report": "",
+            "trade_possibilities": "",
         }
 
-    def get_graph_args(self, callbacks: Optional[List] = None) -> Dict[str, Any]:
+    def get_graph_args(self, company_name: str, trade_date: str, callbacks: Optional[List] = None) -> Dict[str, Any]:
         """Get arguments for the graph invocation.
 
         Args:
+            company_name: The ticker being analyzed
+            trade_date: The date of analysis
             callbacks: Optional list of callback handlers for tool execution tracking.
                        Note: LLM callbacks are handled separately via LLM constructor.
         """
-        config = {"recursion_limit": self.max_recur_limit}
+        thread_id = f"{company_name}_{trade_date}"
+        config = {
+            "recursion_limit": self.max_recur_limit,
+            "configurable": {"thread_id": thread_id}
+        }
         if callbacks:
             config["callbacks"] = callbacks
         return {
