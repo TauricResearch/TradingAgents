@@ -1,0 +1,34 @@
+[run]
+tickers = ["GOOGL", "NVDA"]
+analysts = ["market", "social", "news", "fundamentals"]
+output_language = "Korean"
+trade_date_mode = "latest_available"
+timezone = "Asia/Seoul"
+max_debate_rounds = 1
+max_risk_discuss_rounds = 1
+latest_market_data_lookback_days = 14
+continue_on_ticker_error = true
+
+[llm]
+provider = "codex"
+# TradingAgents' current Codex provider path uses the frontier model id `gpt-5.4`
+# for Codex 5.4 sessions.
+quick_model = "gpt-5.4"
+deep_model = "gpt-5.4"
+codex_reasoning_effort = "medium"
+codex_summary = "none"
+codex_personality = "none"
+codex_request_timeout = 180.0
+codex_max_retries = 2
+codex_cleanup_threads = true
+
+[storage]
+# For a self-hosted runner, it is better to override this to a persistent absolute path
+# via the TRADINGAGENTS_ARCHIVE_DIR repository variable or by editing this file.
+archive_dir = "./.runtime/tradingagents-archive"
+site_dir = "./site"
+
+[site]
+title = "TradingAgents Daily Reports"
+subtitle = "Self-hosted Codex automation for scheduled multi-ticker analysis"
+max_runs_on_homepage = 30
