@@ -20,6 +20,7 @@ import requests
 
 from .binance_models import DepthParams, Kline, KlineInterval, KlineParams, TickerParams
 from .stockstats_utils import _clean_dataframe
+from .config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ def _get(path: str, params: dict) -> dict | list:
 def _date_to_ms(date_str: str) -> int:
     """Convert a YYYY-MM-DD string to a Unix millisecond timestamp (UTC midnight)."""
     dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    return int(dt.timestamp() * 1000)
+    return int(dt.timestamp() * 100)
 
 
 def _fetch_klines_range(params: KlineParams) -> list[Kline]:
@@ -66,7 +67,7 @@ def _fetch_klines_range(params: KlineParams) -> list[Kline]:
     query: dict = {
         "symbol": params.symbol.upper(),
         "interval": params.interval.value,
-        "limit": min(params.limit, 1000),
+        "limit": min(params.limit, 100),
     }
     if params.start_time is not None:
         query["startTime"] = params.start_time
@@ -116,22 +117,45 @@ def _klines_to_dataframe(klines: list[Kline], symbol: str) -> pd.DataFrame:
 # Public API — OHLCV / stock-data equivalent
 # ---------------------------------------------------------------------------
 
+def _resolve_kline_interval(override: KlineInterval | None = None) -> KlineInterval:
+    """Return the KlineInterval to use, preferring config then falling back to 1d."""
+    if override is not None:
+        return override
+    cfg_value = get_config().get("kline_interval")
+    if cfg_value:
+        try:
+            return KlineInterval(cfg_value)
+        except ValueError:
+            logger.warning("Unknown kline_interval '%s' in config, using 1d.", cfg_value)
+    return KlineInterval.ONE_DAY
+
+
 def get_binance_klines(
     symbol: Annotated[str, "Binance trading pair, e.g. BTCUSDT"],
     start_date: Annotated[str, "Start date in YYYY-MM-DD format"],
     end_date: Annotated[str, "End date in YYYY-MM-DD format"],
-    interval: KlineInterval = KlineInterval.ONE_DAY,
+    interval: KlineInterval | None = None,
 ) -> str:
     """Fetch OHLCV candlestick data from Binance for the given symbol and date range.
 
     Returns a CSV string with a descriptive header.
     """
+    from datetime import timedelta as _timedelta
+
+    cfg = get_config()
+    _today = datetime.now().strftime("%Y-%m-%d")
+    _two_months_ago = (datetime.now() - _timedelta(days=60)).strftime("%Y-%m-%d")
+
+    start_date = start_date or cfg.get("kline_start_date") or _two_months_ago
+    end_date = end_date or cfg.get("kline_end_date") or _today
+    resolved_interval = _resolve_kline_interval(interval)
+
     datetime.strptime(start_date, "%Y-%m-%d")
     datetime.strptime(end_date, "%Y-%m-%d")
 
     params = KlineParams(
         symbol=symbol.upper(),
-        interval=interval,
+        interval=resolved_interval,
         start_time=_date_to_ms(start_date),
         end_time=_date_to_ms(end_date),
         limit=1000,
@@ -145,7 +169,7 @@ def get_binance_klines(
         df[col] = df[col].round(2)
 
     header = f"# Binance kline data for {symbol.upper()} from {start_date} to {end_date}\n"
-    header += f"# Interval: {interval.value}\n"
+    header += f"# Interval: {resolved_interval.value}\n"
     header += f"# Total records: {len(df)}\n"
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     return header + df.to_csv(index=False)
@@ -160,14 +184,13 @@ def get_binance_indicators_window(
     indicator: Annotated[str, "Technical indicator name understood by stockstats"],
     curr_date: Annotated[str, "Current trading date, YYYY-MM-DD"],
     look_back_days: Annotated[int, "How many calendar days to look back"],
-    interval: KlineInterval = KlineInterval.ONE_DAY,
+    interval: KlineInterval | None = None,
 ) -> str:
-    """Calculate a technical indicator over a look-back window using Binance kline data.
-
-    Mirrors ``get_stock_stats_indicators_window`` but sources data from Binance.
-    """
+    """Calculate a technical indicator over a look-back window using Binance kline data."""
     from dateutil.relativedelta import relativedelta
     from stockstats import wrap
+
+    resolved_interval = _resolve_kline_interval(interval)
 
     INDICATOR_DESCRIPTIONS: dict[str, str] = {
         "close_50_sma": "50 SMA: Medium-term trend indicator.",
@@ -198,7 +221,7 @@ def get_binance_indicators_window(
 
     params = KlineParams(
         symbol=symbol.upper(),
-        interval=interval,
+        interval=resolved_interval,
         start_time=_date_to_ms(fetch_start.strftime("%Y-%m-%d")),
         end_time=_date_to_ms(curr_date),
         limit=1000,

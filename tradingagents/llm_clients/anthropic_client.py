@@ -44,13 +44,13 @@ class NormalizedChatAnthropic(ChatAnthropic):
     """ChatAnthropic with prompt logging and normalized content output."""
 
     def invoke(self, input, config=None, **kwargs):
-        prompt_str = _format_prompt(input)
-        logger.info(
-            "\n%s\n[CLAUDE PROMPT]\n%s\n%s",
-            "=" * 72,
-            prompt_str,
-            "=" * 72,
-        )
+        # prompt_str = _format_prompt(input)
+        # logger.info(
+        #     "\n%s\n[CLAUDE PROMPT]\n%s\n%s",
+        #     "=" * 72,
+        #     prompt_str,
+        #     "=" * 72,
+        # )
         return normalize_content(super().invoke(input, config, **kwargs))
 
 

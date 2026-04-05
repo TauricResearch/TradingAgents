@@ -561,6 +561,17 @@ def get_user_selections():
     )
     anthropic_effort = ask_anthropic_effort()
 
+    # Step 7: Kline config — only for crypto tickers routed to Binance
+    kline_config: dict = {}
+    if is_crypto_ticker(selected_ticker):
+        console.print(
+            create_question_box(
+                "Step 7: Kline Configuration",
+                "Configure Binance candlestick interval and date range",
+            )
+        )
+        kline_config = ask_kline_config()
+
     return {
         "ticker": selected_ticker,
         "analysis_date": analysis_date,
@@ -571,6 +582,7 @@ def get_user_selections():
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
         "anthropic_effort": anthropic_effort,
+        **kline_config,
     }
 
 
@@ -909,6 +921,10 @@ def run_analysis():
             "core_stock_apis": "binance",
             "technical_indicators": "binance",
         }
+        # Forward user-selected kline params if provided
+        for key in ("kline_interval", "kline_start_date", "kline_end_date"):
+            if key in selections:
+                config[key] = selections[key]
 
     # Create stats callback handler for tracking LLM/tool calls
     stats_handler = StatsCallbackHandler()

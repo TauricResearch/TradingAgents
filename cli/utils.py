@@ -214,6 +214,96 @@ def select_deep_thinking_agent() -> str:
     return choice
 
 
+def ask_kline_config() -> dict:
+    """Ask the user for Binance kline interval, start date, and end date.
+
+    Defaults:
+      - interval: 1d (daily)
+      - start_date: 2 months before today  (DD/MM/YYYY)
+      - end_date:   today                  (DD/MM/YYYY)
+    """
+    import re
+    from datetime import datetime, timedelta
+
+    DATE_FMT = "%d/%m/%Y"
+
+    today = datetime.now()
+    default_end = today.strftime(DATE_FMT)
+    default_start = (today - timedelta(days=60)).strftime(DATE_FMT)
+
+    # ── Interval ────────────────────────────────────────────────────────────
+    INTERVAL_OPTIONS = [
+        ("1 Day  (1d) — default, suitable for swing trading", "1d"),
+        ("1 Hour (1h) — intraday view", "1h"),
+        ("4 Hour (4h) — mid-session view", "4h"),
+        ("15 Min (15m)", "15m"),
+        ("5 Min  (5m)", "5m"),
+        ("1 Min  (1m) — high-frequency", "1m"),
+        ("1 Week (1w) — long-term trend", "1w"),
+        ("1 Month(1M) — macro trend", "1M"),
+    ]
+
+    interval = questionary.select(
+        "Select Kline Interval:",
+        choices=[
+            questionary.Choice(display, value=value)
+            for display, value in INTERVAL_OPTIONS
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style([
+            ("selected", "fg:yellow noinherit"),
+            ("highlighted", "fg:yellow noinherit"),
+            ("pointer", "fg:yellow noinherit"),
+        ]),
+    ).ask()
+
+    if interval is None:
+        console.print("\n[red]No kline interval selected. Exiting...[/red]")
+        exit(1)
+
+    # ── Date validation helper ───────────────────────────────────────────────
+    def _valid_date(s: str) -> bool:
+        try:
+            datetime.strptime(s, DATE_FMT)
+            return True
+        except ValueError:
+            return False
+
+    # ── Start date ──────────────────────────────────────────────────────────
+    start_date = questionary.text(
+        f"Kline start date (DD/MM/YYYY) [default: {default_start}]:",
+        default=default_start,
+        validate=lambda s: _valid_date(s) or "Please enter a valid date in DD/MM/YYYY format.",
+        style=questionary.Style([("text", "fg:green")]),
+    ).ask()
+
+    if start_date is None:
+        console.print("\n[red]No start date provided. Exiting...[/red]")
+        exit(1)
+
+    # ── End date ────────────────────────────────────────────────────────────
+    end_date = questionary.text(
+        f"Kline end date   (DD/MM/YYYY) [default: {default_end}]:",
+        default=default_end,
+        validate=lambda s: _valid_date(s) or "Please enter a valid date in DD/MM/YYYY format.",
+        style=questionary.Style([("text", "fg:green")]),
+    ).ask()
+
+    if end_date is None:
+        console.print("\n[red]No end date provided. Exiting...[/red]")
+        exit(1)
+
+    # ── Convert DD/MM/YYYY → YYYY-MM-DD for internal use ────────────────────
+    start_iso = datetime.strptime(start_date, DATE_FMT).strftime("%Y-%m-%d")
+    end_iso = datetime.strptime(end_date, DATE_FMT).strftime("%Y-%m-%d")
+
+    return {
+        "kline_interval": interval,
+        "kline_start_date": start_iso,
+        "kline_end_date": end_iso,
+    }
+
+
 def ask_anthropic_effort() -> str | None:
     """Ask for Anthropic effort level.
 

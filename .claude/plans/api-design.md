@@ -34,7 +34,9 @@ You review all projects, by default, the project call SPY and report. But my inp
 
 ### Task 7: Logs Enhancement
 - The first step, you must print promting string before call CLAUDE API.
-### Task 7.1 
+### Task 8: Questionary enhancement
+- You have to append the query to ask user about kline that usert want into CLI. You need to check binance_models, The query must be included internal and start_time and end_time. By defaults, start_time and end_endtime must be 2 months. start_time and end_time have formatted: DD/MM/YYY
+
 ---
 
 

@@ -18,6 +18,10 @@ DEFAULT_CONFIG = {
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
     "max_recur_limit": 100,
+    # Binance kline configuration (used when routing to Binance)
+    "kline_interval": "1d",      # Any KlineInterval value: 1m, 5m, 15m, 1h, 4h, 1d, 1w, 1M
+    "kline_start_date": None,    # YYYY-MM-DD; None = 2 months before today at runtime
+    "kline_end_date": None,      # YYYY-MM-DD; None = today at runtime
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {

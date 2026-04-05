@@ -39,7 +39,7 @@ class KlineParams:
     start_time: Optional[int] = None   # Unix ms
     end_time: Optional[int] = None     # Unix ms
     time_zone: str = "0"               # UTC offset, e.g. "0", "+08:00"
-    limit: int = 500                   # Max 1000
+    limit: int = 200                   # Max 1000
 
 
 @dataclass(frozen=True)
