@@ -158,7 +158,7 @@ Launch the interactive CLI:
 tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
-You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+You will see a screen where you can select your desired tickers, analysis date, an optional custom prompt for run-specific instructions, LLM provider, research depth, and more.
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -191,7 +191,11 @@ from tradingagents.default_config import DEFAULT_CONFIG
 ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 
 # forward propagate
-_, decision = ta.propagate("NVDA", "2026-01-15")
+_, decision = ta.propagate(
+    "NVDA",
+    "2026-01-15",
+    custom_prompt="Long-term horizon. Focus on earnings quality, capex discipline, and new entries only.",
+)
 print(decision)
 ```
 
@@ -208,7 +212,11 @@ config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
-_, decision = ta.propagate("NVDA", "2026-01-15")
+_, decision = ta.propagate(
+    "NVDA",
+    "2026-01-15",
+    custom_prompt="Short-term trading setup. Prioritize momentum, catalyst timing, and downside risk.",
+)
 print(decision)
 ```
 

@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple, Dict
 from rich.console import Console
 
 from cli.models import AnalystType
+from tradingagents.custom_prompt import CUSTOM_PROMPT_INPUT_PROMPT
 from tradingagents.llm_clients.model_catalog import get_model_options
 
 console = Console()
@@ -74,6 +75,25 @@ def get_analysis_date() -> str:
         exit(1)
 
     return date.strip()
+
+
+def ask_custom_prompt() -> str:
+    """Prompt for optional run-specific instructions."""
+    custom_prompt = questionary.text(
+        CUSTOM_PROMPT_INPUT_PROMPT,
+        default="",
+        style=questionary.Style(
+            [
+                ("text", "fg:green"),
+                ("highlighted", "noinherit"),
+            ]
+        ),
+    ).ask()
+
+    if custom_prompt is None:
+        return ""
+
+    return custom_prompt.strip()
 
 
 def select_analysts() -> List[AnalystType]:

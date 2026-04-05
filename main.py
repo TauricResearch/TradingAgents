@@ -24,7 +24,11 @@ config["data_vendors"] = {
 ta = TradingAgentsGraph(debug=True, config=config)
 
 # forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
+_, decision = ta.propagate(
+    "NVDA",
+    "2024-05-10",
+    custom_prompt="Long-term horizon. Focus on durable earnings power and capital allocation.",
+)
 print(decision)
 
 # Memorize mistakes and reflect

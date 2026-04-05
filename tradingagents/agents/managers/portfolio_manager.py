@@ -1,10 +1,15 @@
-from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
+from tradingagents.agents.utils.agent_utils import (
+    build_custom_prompt_context,
+    build_instrument_context,
+    get_language_instruction,
+)
 
 
 def create_portfolio_manager(llm, memory):
     def portfolio_manager_node(state) -> dict:
 
         instrument_context = build_instrument_context(state["company_of_interest"])
+        custom_prompt_context = build_custom_prompt_context(state.get("custom_prompt"))
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -15,7 +20,7 @@ def create_portfolio_manager(llm, memory):
         research_plan = state["investment_plan"]
         trader_plan = state["trader_investment_plan"]
 
-        curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
+        curr_situation = f"{custom_prompt_context}\n\n{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
 
         past_memory_str = ""
@@ -25,6 +30,7 @@ def create_portfolio_manager(llm, memory):
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
 {instrument_context}
+{custom_prompt_context}
 
 ---
 
