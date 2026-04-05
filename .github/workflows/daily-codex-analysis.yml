@@ -60,18 +60,19 @@ jobs:
         shell: pwsh
         run: |
           $workspaceDir = Join-Path $env:GITHUB_WORKSPACE ".codex-preflight"
-          @"
-from tradingagents.llm_clients.codex_preflight import run_codex_preflight
-result = run_codex_preflight(
-    codex_binary=None,
-    model="gpt-5.4",
-    request_timeout=30.0,
-    workspace_dir=r"$workspaceDir",
-    cleanup_threads=True,
-)
-print("Codex account:", result.account)
-print("First available models:", ", ".join(result.models[:8]))
-"@ | python -
+          $script = @(
+            "from tradingagents.llm_clients.codex_preflight import run_codex_preflight",
+            "result = run_codex_preflight(",
+            "    codex_binary=None,",
+            "    model='gpt-5.4',",
+            "    request_timeout=30.0,",
+            "    workspace_dir=r'$workspaceDir',",
+            "    cleanup_threads=True,",
+            ")",
+            "print('Codex account:', result.account)",
+            "print('First available models:', ', '.join(result.models[:8]))"
+          ) -join \"`n\"
+          $script | python -
 
       - name: Run scheduled analysis and build site
         shell: pwsh
