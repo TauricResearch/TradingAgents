@@ -71,7 +71,7 @@ jobs:
             ")",
             "print('Codex account:', result.account)",
             "print('First available models:', ', '.join(result.models[:8]))"
-          ) -join \"`n\"
+          ) -join "`n"
           $script | python -
 
       - name: Run scheduled analysis and build site
