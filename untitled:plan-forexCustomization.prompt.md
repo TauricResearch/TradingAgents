@@ -226,7 +226,7 @@ def calculate_position_size(
     risk_amount = account_equity * risk_percent
     pips_at_risk = stop_loss_pips
     
-    position_units = risk_amount / (pip_value * pips_at_risk / leverage)
+    position_units = (risk_amount / (pip_value * pips_at_risk)) * 1000
     return round(position_units / 1000) * 1000  # Round to micro lots
 ```
 
