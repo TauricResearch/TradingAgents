@@ -204,7 +204,7 @@ Strategies:
 
 **Algorithm**:
 ```
-position_size = (account_equity × risk_percent × leverage) / (spread_in_pips + stop_loss_in_pips)
+position_size = (account_equity × risk_percent) / (stop_loss_in_pips × pip_value_per_unit)
 ```
 
 **Constraints**:
