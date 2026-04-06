@@ -89,8 +89,7 @@ def build_strategy_memories(strategy_name: str, config: dict):
 
     strategy = STRATEGIES[strategy_name]
 
-    logger.info(
-        f"""
+    logger.info(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║  Building Memories: {strategy_name.upper().replace('_', ' ')}
 ╚══════════════════════════════════════════════════════════════╝
@@ -99,8 +98,7 @@ Strategy: {strategy['description']}
 Lookforward: {strategy['lookforward_days']} days
 Sampling: Every {strategy['interval_days']} days
 Tickers: {', '.join(strategy['tickers'])}
-    """
-    )
+    """)
 
     # Date range - last 2 years
     end_date = datetime.now()
@@ -159,8 +157,7 @@ Tickers: {', '.join(strategy['tickers'])}
 
 
 def main():
-    logger.info(
-        """
+    logger.info("""
 ╔══════════════════════════════════════════════════════════════╗
 ║   TradingAgents - Strategy-Specific Memory Builder          ║
 ╚══════════════════════════════════════════════════════════════╝
@@ -171,8 +168,7 @@ This script builds optimized memories for different trading styles:
 2. Swing Trading    - 7-day returns, weekly samples
 3. Position Trading - 30-day returns, monthly samples
 4. Long-term        - 90-day returns, quarterly samples
-    """
-    )
+    """)
 
     logger.info("Available strategies:")
     for i, (name, config) in enumerate(STRATEGIES.items(), 1):
@@ -220,13 +216,11 @@ This script builds optimized memories for different trading styles:
 
     logger.info("\n" + "=" * 70)
     logger.info("\n💡 TIP: To use a specific strategy's memories, update your config:")
-    logger.info(
-        """
+    logger.info("""
     config = DEFAULT_CONFIG.copy()
     config["memory_dir"] = "data/memories/swing_trading"  # or your strategy
     config["load_historical_memories"] = True
-    """
-    )
+    """)
 
 
 if __name__ == "__main__":

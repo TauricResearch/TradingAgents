@@ -226,6 +226,8 @@ class CandidateRanker:
             # New enrichment fields
             confluence_score = cand.get("confluence_score", 1)
             quant_score = cand.get("quant_score", "N/A")
+            z_score = cand.get("z_score", "N/A")
+            f_score = cand.get("f_score", "N/A")
 
             # ML prediction
             ml_win_prob = cand.get("ml_win_probability")
@@ -255,7 +257,7 @@ class CandidateRanker:
             summary = f"""### {ticker} (Priority: {priority.upper()})
 - **Strategy Match**: {strategy}
 - **Sources**: {source_str} | **Confluence**: {confluence_score} source(s)
-- **Quant Pre-Score**: {quant_score}/100 | **ML Win Probability**: {ml_str}
+- **Quant Pre-Score**: {quant_score}/100 | **ML Win Probability**: {ml_str} | **Altman Z-Score**: {z_score} | **Piotroski F-Score**: {f_score}
 - **Price**: {price_str} | **Current Price (numeric)**: {current_price if isinstance(current_price, (int, float)) else "N/A"} | **Intraday**: {intraday_str} | **Avg Volume**: {volume_str}
 - **Short Interest**: {short_str}
 - **Discovery Context**: {context}
@@ -305,6 +307,7 @@ Each candidate was discovered by a specific scanner. Evaluate them using the cri
 - **contrarian_value**: Focus on oversold technicals (RSI <30), fundamental support (earnings stability), and a clear reason why the selloff is overdone.
 - **news_catalyst**: Focus on the materiality of the news, whether it's already priced in (check intraday move), and the timeline of impact.
 - **sector_rotation**: Focus on relative strength vs sector ETF, whether the stock is a laggard in an accelerating sector.
+- **minervini**: Focus on the RS Rating (top 30% = RS>=70, top 10% = RS>=90) as the primary signal. Verify all 6 trend template conditions are met (price structure above rising SMAs). Strongest setups combine RS>=85 with price consolidating near highs (within 10-15% of 52w high) — these have minimal overhead supply. Penalize if RS Rating is borderline (70-75) without other confirming signals.
 - **ml_signal**: Use the ML Win Probability as a strong quantitative signal. Scores above 65% deserve significant weight.
 
 HISTORICAL INSIGHTS:
@@ -348,9 +351,24 @@ IMPORTANT: Return ONLY valid JSON. No markdown wrapping, no commentary outside t
             logger.info(f"Full ranking prompt:\n{prompt}")
 
         try:
-            # Use structured output with include_raw for debugging
-            structured_llm = self.llm.with_structured_output(RankingResponse, include_raw=True)
-            response = structured_llm.invoke([HumanMessage(content=prompt)])
+            # Invoke LLM directly — avoids with_structured_output which fails
+            # when the LLM wraps JSON in ```json...``` markdown blocks
+            response = self.llm.invoke([HumanMessage(content=prompt)])
+
+            # Extract text content from response
+            raw_text = ""
+            if hasattr(response, "content"):
+                content = response.content
+                if isinstance(content, str):
+                    raw_text = content
+                elif isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            raw_text = block.get("text", "")
+                            break
+                        elif isinstance(block, str):
+                            raw_text = block
+                            break
 
             tool_logs = state.get("tool_logs", [])
             append_llm_log(
@@ -359,72 +377,29 @@ IMPORTANT: Return ONLY valid JSON. No markdown wrapping, no commentary outside t
                 step="Rank candidates",
                 model=resolve_llm_name(self.llm),
                 prompt=prompt,
-                output=response,
+                output=raw_text[:2000],
             )
             state["tool_logs"] = tool_logs
 
-            # Handle the response (dict with raw, parsed, parsing_error)
-            if isinstance(response, dict):
-                result = response.get("parsed")
-                raw = response.get("raw")
-                parsing_error = response.get("parsing_error")
-
-                # Log debug info
-                logger.info(f"Structured output - parsed type: {type(result)}")
-                if parsing_error:
-                    logger.error(f"Parsing error: {parsing_error}")
-                if raw and hasattr(raw, "content"):
-                    logger.debug(f"Raw content preview: {str(raw.content)[:500]}...")
-            else:
-                # Direct RankingResponse (shouldn't happen with include_raw=True)
-                result = response
-
-            # Extract rankings - with fallback for markdown-wrapped JSON
-            if result is None:
-                logger.warning(
-                    "Structured output parsing returned None - attempting fallback extraction"
+            if not raw_text.strip():
+                raise ValueError(
+                    "LLM returned empty response. This may be due to content filtering or prompt length."
                 )
 
-                # Try to extract JSON from raw response (handles ```json...``` wrapping)
-                raw_text = None
-                if raw and hasattr(raw, "content"):
-                    content = raw.content
-                    if isinstance(content, str):
-                        raw_text = content
-                    elif isinstance(content, list):
-                        # Handle list of content blocks (e.g., [{'type': 'text', 'text': '...'}])
-                        for block in content:
-                            if isinstance(block, dict) and block.get("type") == "text":
-                                raw_text = block.get("text", "")
-                                break
-                            elif isinstance(block, str):
-                                raw_text = block
-                                break
+            # Strip markdown wrapper (```json...```) and parse JSON
+            json_str = extract_json_from_markdown(raw_text)
+            if not json_str:
+                raise ValueError(
+                    f"LLM response did not contain valid JSON. Preview: {raw_text[:500]}"
+                )
 
-                if raw_text:
-                    json_str = extract_json_from_markdown(raw_text)
-                    if json_str:
-                        try:
-                            parsed_data = json.loads(json_str)
-                            result = RankingResponse.model_validate(parsed_data)
-                            logger.info(
-                                "Successfully extracted JSON from markdown-wrapped response"
-                            )
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Failed to parse extracted JSON: {e}")
-                        except Exception as e:
-                            logger.error(f"Failed to validate extracted JSON: {e}")
+            try:
+                parsed_data = json.loads(json_str)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Failed to parse JSON from LLM response: {e}")
 
-                if result is None:
-                    logger.error("Parsed result is None - check raw response for clues")
-                    raise ValueError(
-                        "LLM returned None. This may be due to content filtering or prompt length. "
-                        "Check LOG_LEVEL=DEBUG for details."
-                    )
-
-            if not hasattr(result, "rankings"):
-                logger.error(f"Result missing 'rankings'. Type: {type(result)}, Value: {result}")
-                raise ValueError(f"Unexpected result format: {type(result)}")
+            result = RankingResponse.model_validate(parsed_data)
+            logger.info(f"Parsed {len(result.rankings)} rankings from LLM response")
 
             final_ranking_list = [ranking.model_dump() for ranking in result.rankings]
 

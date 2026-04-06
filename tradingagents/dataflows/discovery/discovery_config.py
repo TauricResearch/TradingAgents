@@ -24,6 +24,10 @@ class FilterConfig:
     compression_atr_pct_max: float = 2.0
     compression_bb_width_max: float = 6.0
     compression_min_volume_ratio: float = 1.3
+    # Fundamental Risk Filters
+    min_z_score: float = 1.81  # Default below 1.81 indicates distress
+    min_f_score: int = 4  # Default below 4 is poor
+    filter_fundamental_risk: bool = True
 
 
 @dataclass
@@ -139,6 +143,9 @@ class DiscoveryConfig:
             compression_min_volume_ratio=f.get(
                 "compression_min_volume_ratio", _fd.compression_min_volume_ratio
             ),
+            min_z_score=f.get("min_z_score", _fd.min_z_score),
+            min_f_score=f.get("min_f_score", _fd.min_f_score),
+            filter_fundamental_risk=f.get("filter_fundamental_risk", _fd.filter_fundamental_risk),
         )
 
         # Enrichment — nested under "enrichment" key, fallback to root

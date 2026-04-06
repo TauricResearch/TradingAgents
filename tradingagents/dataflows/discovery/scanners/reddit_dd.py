@@ -28,7 +28,7 @@ class RedditDDScanner(BaseScanner):
 
         try:
             # Use Reddit DD scanner tool
-            result = execute_tool("scan_reddit_dd", limit=self.limit)
+            result = execute_tool("scan_reddit_dd", top_n=self.limit, as_list=True)
 
             if not result:
                 logger.info("Found 0 DD posts")

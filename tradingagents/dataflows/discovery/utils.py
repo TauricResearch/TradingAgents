@@ -51,6 +51,7 @@ class Strategy(str, Enum):
     SOCIAL_DD = "social_dd"
     SECTOR_ROTATION = "sector_rotation"
     TECHNICAL_BREAKOUT = "technical_breakout"
+    MINERVINI = "minervini"
 
 
 PRIORITY_ORDER = {

@@ -63,6 +63,7 @@ from tradingagents.dataflows.reddit_api import (
     get_reddit_discussions,
     get_reddit_news,
     get_reddit_trending_tickers,
+    get_reddit_undiscovered_dd,
 )
 from tradingagents.dataflows.reddit_api import (
     get_reddit_global_news as get_reddit_api_global_news,
@@ -337,7 +338,7 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
             "reddit": get_reddit_api_global_news,
             # "alpha_vantage": get_alpha_vantage_global_news,
         },
-        "vendor_priority": ["openai", "google", "reddit"],
+        "vendor_priority": ["openai", "reddit"],
         "execution_mode": "aggregate",
         "parameters": {
             "date": {"type": "str", "description": "Date for news, yyyy-mm-dd"},
@@ -586,6 +587,34 @@ TOOL_REGISTRY: Dict[str, Dict[str, Any]] = {
             "to_date": {"type": "str", "description": "End date, yyyy-mm-dd"},
         },
         "returns": "str: Reddit discussions and sentiment",
+    },
+    "scan_reddit_dd": {
+        "description": "Scan Reddit for high-quality due diligence posts",
+        "category": "discovery",
+        "agents": ["social"],
+        "vendors": {
+            "reddit": get_reddit_undiscovered_dd,
+        },
+        "vendor_priority": ["reddit"],
+        "parameters": {
+            "lookback_hours": {"type": "int", "description": "Hours to look back", "default": 72},
+            "scan_limit": {
+                "type": "int",
+                "description": "Number of new posts to scan",
+                "default": 100,
+            },
+            "top_n": {
+                "type": "int",
+                "description": "Number of top DD posts to return",
+                "default": 10,
+            },
+            "num_comments": {
+                "type": "int",
+                "description": "Number of top comments to include",
+                "default": 10,
+            },
+        },
+        "returns": "str: Report of high-quality undiscovered DD",
     },
     "get_options_activity": {
         "description": "Get options activity for a specific ticker (volume, open interest, put/call ratios, unusual activity)",

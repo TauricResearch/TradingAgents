@@ -157,6 +157,7 @@ def select_shallow_thinking_agent(provider) -> str:
             ("Gemini 2.5 Pro - Most capable Gemini model", "gemini-2.5-pro"),
             ("Gemini 3.0 Pro Preview - Next generation preview", "gemini-3-pro-preview"),
             ("Gemini 3.0 Flash Preview - Latest generation preview", "gemini-3-flash-preview"),
+            ("Gemini 3.1 Preview - Newest model preview", "gemini-3.1-preview"),
         ],
         "openrouter": [
             ("Meta: Llama 4 Scout", "meta-llama/llama-4-scout:free"),
@@ -237,6 +238,7 @@ def select_deep_thinking_agent(provider) -> str:
             ("Gemini 2.5 Pro - Most capable Gemini model", "gemini-2.5-pro"),
             ("Gemini 3.0 Pro Preview - Next generation preview", "gemini-3-pro-preview"),
             ("Gemini 3.0 Flash Preview - Latest generation preview", "gemini-3-flash-preview"),
+            ("Gemini 3.1 Preview - Newest model preview", "gemini-3.1-preview"),
         ],
         "openrouter": [
             (

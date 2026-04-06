@@ -132,6 +132,11 @@ class CandidateFilter:
         self.compression_bb_width_max = dc.filters.compression_bb_width_max
         self.compression_min_volume_ratio = dc.filters.compression_min_volume_ratio
 
+        # Fundamental Risk
+        self.filter_fundamental_risk = dc.filters.filter_fundamental_risk
+        self.min_z_score = dc.filters.min_z_score
+        self.min_f_score = dc.filters.min_f_score
+
         # Enrichment settings
         self.batch_news_vendor = dc.enrichment.batch_news_vendor
         self.batch_news_batch_size = dc.enrichment.batch_news_batch_size
@@ -166,6 +171,7 @@ class CandidateFilter:
 
         volume_by_ticker = self._fetch_batch_volume(state, candidates)
         news_by_ticker = self._fetch_batch_news(start_date, end_date, candidates)
+        price_by_ticker = self._fetch_batch_prices(candidates)
 
         (
             filtered_candidates,
@@ -177,6 +183,7 @@ class CandidateFilter:
             candidates=candidates,
             volume_by_ticker=volume_by_ticker,
             news_by_ticker=news_by_ticker,
+            price_by_ticker=price_by_ticker,
             end_date=end_date,
         )
 
@@ -347,12 +354,65 @@ class CandidateFilter:
             logger.warning(f"Batch news fetch failed, will skip news enrichment: {e}")
             return {}
 
+    def _fetch_batch_prices(self, candidates: List[Dict[str, Any]]) -> Dict[str, float]:
+        """Batch-fetch current prices for all candidates in one request.
+
+        This avoids per-ticker yfinance calls that get rate-limited after
+        bulk downloads (e.g., ml_signal scanning 500+ tickers).
+        """
+        tickers = [c.get("ticker", "").upper() for c in candidates if c.get("ticker")]
+        if not tickers:
+            return {}
+
+        try:
+            import yfinance as yf
+
+            logger.info(f"💰 Batch fetching prices for {len(tickers)} tickers...")
+            # Call yf.download directly — the download_history wrapper only accepts
+            # a single string (calls symbol.upper()), but yf.download handles lists.
+            data = yf.download(
+                tickers,
+                period="5d",
+                interval="1d",
+                auto_adjust=True,
+                progress=False,
+            )
+
+            if data is None or data.empty:
+                logger.warning("Batch price download returned empty data")
+                return {}
+
+            prices = {}
+            if isinstance(data.columns, pd.MultiIndex):
+                available = data.columns.get_level_values(1).unique()
+                for ticker in tickers:
+                    try:
+                        if ticker in available:
+                            close = data.xs(ticker, axis=1, level=1)["Close"].dropna()
+                            if not close.empty:
+                                prices[ticker] = float(close.iloc[-1])
+                    except Exception:
+                        continue
+            else:
+                # Single ticker case
+                close = data["Close"].dropna()
+                if not close.empty and len(tickers) == 1:
+                    prices[tickers[0]] = float(close.iloc[-1])
+
+            logger.info(f"✓ Batch prices fetched for {len(prices)}/{len(tickers)} tickers")
+            return prices
+
+        except Exception as e:
+            logger.warning(f"Batch price fetch failed, will fall back to per-ticker: {e}")
+            return {}
+
     def _filter_and_enrich_candidates(
         self,
         state: Dict[str, Any],
         candidates: List[Dict[str, Any]],
         volume_by_ticker: Dict[str, Any],
         news_by_ticker: Dict[str, Any],
+        price_by_ticker: Dict[str, float],
         end_date: str,
     ):
         filtered_candidates = []
@@ -361,6 +421,8 @@ class CandidateFilter:
             "intraday_moved": 0,
             "recent_moved": 0,
             "market_cap": 0,
+            "z_score": 0,
+            "f_score": 0,
             "no_data": 0,
         }
 
@@ -458,8 +520,10 @@ class CandidateFilter:
                 try:
                     from tradingagents.dataflows.y_finance import get_fundamentals, get_stock_price
 
-                    # Get current price
-                    current_price = get_stock_price(ticker)
+                    # Get current price — prefer batch result, fall back to per-ticker
+                    current_price = price_by_ticker.get(ticker.upper())
+                    if current_price is None:
+                        current_price = get_stock_price(ticker)
                     cand["current_price"] = current_price
 
                     # Track failures for delisted cache
@@ -544,6 +608,27 @@ class CandidateFilter:
 
                 # Assign strategy based on source (prioritize leading indicators)
                 self._assign_strategy(cand)
+
+                # Fundamental Risk Check (Altman Z-Score & Piotroski F-Score)
+                if self.filter_fundamental_risk and cand.get("strategy") != "short_squeeze":
+                    from tradingagents.dataflows.discovery.risk_metrics import (
+                        calculate_altman_z_score,
+                        calculate_piotroski_f_score,
+                    )
+
+                    z_score = calculate_altman_z_score(ticker)
+                    f_score = calculate_piotroski_f_score(ticker)
+
+                    cand["z_score"] = z_score
+                    cand["f_score"] = f_score
+
+                    if z_score is not None and z_score < self.min_z_score:
+                        filtered_reasons["z_score"] += 1
+                        continue
+
+                    if f_score is not None and f_score < self.min_f_score:
+                        filtered_reasons["f_score"] += 1
+                        continue
 
                 # Technical Analysis Check (New)
                 today_str = end_date
@@ -747,6 +832,10 @@ class CandidateFilter:
             logger.info(f"      ❌ Low volume: {filtered_reasons['volume']}")
         if filtered_reasons.get("market_cap", 0) > 0:
             logger.info(f"      ❌ Below market cap: {filtered_reasons['market_cap']}")
+        if filtered_reasons.get("z_score", 0) > 0:
+            logger.info(f"      ❌ Low Altman Z-Score: {filtered_reasons['z_score']}")
+        if filtered_reasons.get("f_score", 0) > 0:
+            logger.info(f"      ❌ Low Piotroski F-Score: {filtered_reasons['f_score']}")
         if filtered_reasons.get("no_data", 0) > 0:
             logger.info(f"      ❌ No data available: {filtered_reasons['no_data']}")
         logger.info(f"      ✅ Passed filters: {len(filtered_candidates)}")

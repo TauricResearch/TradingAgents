@@ -139,7 +139,7 @@ DEFAULT_CONFIG = {
                 "min_volume": 1000,  # Minimum option volume to consider
                 # ticker_file: path to ticker list (defaults to tickers_file from root config)
                 # ticker_universe: explicit list overrides ticker_file if set
-                "max_tickers": 150,  # Max tickers to scan (from start of file)
+                "max_tickers": 1000,  # Max tickers to scan (from start of file)
                 "max_workers": 8,  # Parallel option chain fetch threads
             },
             "congress_trades": {
@@ -214,11 +214,21 @@ DEFAULT_CONFIG = {
                 "pipeline": "momentum",
                 "limit": 15,
                 "min_win_prob": 0.35,  # Minimum P(WIN) to surface as candidate
-                "lookback_period": "1y",  # OHLCV history to fetch (needs ~210 trading days)
+                "lookback_period": "6mo",  # OHLCV history to fetch (needs ~130 trading days)
                 # ticker_file: path to ticker list (defaults to tickers_file from root config)
                 # ticker_universe: explicit list overrides ticker_file if set
                 "fetch_market_cap": False,  # Skip for speed (1 NaN out of 30 features)
                 "max_workers": 8,  # Parallel feature computation threads
+            },
+            "minervini": {
+                "enabled": True,
+                "pipeline": "momentum",
+                "limit": 10,
+                "min_rs_rating": 70,  # Min IBD-style RS Rating (0-100)
+                "lookback_period": "1y",  # Needs 200 trading days for SMA200
+                "sma_200_slope_days": 20,  # Days back to check SMA200 slope
+                "min_pct_off_low": 30,  # Must be 30%+ above 52w low
+                "max_pct_from_high": 25,  # Must be within 25% of 52w high
             },
         },
     },
