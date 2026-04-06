@@ -1,5 +1,5 @@
 [run]
-tickers = ["GOOGL", "NVDA"]
+tickers = ["GOOGL", "NVDA", "TSM", "APPL", "ETN", "LLY", "GLDM", "VRT", "TSLA", "GEV", "VXUS", "RSP", "FANG", "ETHU", "ORCL", "MU"]
 analysts = ["market", "social", "news", "fundamentals"]
 output_language = "Korean"
 trade_date_mode = "latest_available"
