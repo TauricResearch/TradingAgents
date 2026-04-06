@@ -172,7 +172,13 @@ def _run_single_ticker(
         final_state, decision = graph.propagate(ticker, trade_date)
 
         report_dir = ticker_dir / "report"
-        report_file = save_report_bundle(final_state, ticker, report_dir, generated_at=ticker_started)
+        report_file = save_report_bundle(
+            final_state,
+            ticker,
+            report_dir,
+            generated_at=ticker_started,
+            language=config.run.output_language,
+        )
         final_state_path = ticker_dir / "final_state.json"
         _write_json(final_state_path, _serialize_final_state(final_state))
 
