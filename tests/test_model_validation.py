@@ -50,3 +50,6 @@ class ModelValidationTests(unittest.TestCase):
                     client.get_llm()
 
                 self.assertEqual(caught, [])
+
+    def test_validator_accepts_known_model_with_surrounding_whitespace(self):
+        self.assertTrue(validate_model(" openai ", " gpt-5.4 "))

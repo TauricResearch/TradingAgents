@@ -15,7 +15,8 @@ def validate_model(provider: str, model: str) -> bool:
 
     For ollama, openrouter - any model is accepted.
     """
-    provider_lower = provider.lower()
+    provider_lower = provider.lower().strip()
+    model_name = model.strip()
 
     if provider_lower in ("ollama", "openrouter"):
         return True
@@ -23,4 +24,4 @@ def validate_model(provider: str, model: str) -> bool:
     if provider_lower not in VALID_MODELS:
         return True
 
-    return model in VALID_MODELS[provider_lower]
+    return model_name in VALID_MODELS[provider_lower]
