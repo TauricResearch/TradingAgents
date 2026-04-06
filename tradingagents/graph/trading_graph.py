@@ -24,6 +24,7 @@ from tradingagents.dataflows.config import set_config
 from tradingagents.agents.utils.agent_utils import (
     get_stock_data,
     get_indicators,
+    get_fibonacci_retracement,
     get_fundamentals,
     get_balance_sheet,
     get_cashflow,
@@ -150,6 +151,8 @@ class TradingAgentsGraph:
                     get_stock_data,
                     # Technical indicators
                     get_indicators,
+                    # Fibonacci retracement
+                    get_fibonacci_retracement,
                 ]
             ),
             "social": ToolNode(

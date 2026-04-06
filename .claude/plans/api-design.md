@@ -53,6 +53,10 @@ You review all projects, by default, the project call SPY and report. But my inp
 21:38:13 [Data] No kline data found for symbol 'BTCUSDT' between 2024-01-01 and 2024-12-31
 ```
 I inputed 01/03/2026 formatted DD-M-YY, but the tools parse incorrectly. You must fix that.
+
+### Task 10: Fibonacci retracement
+Step 1: After you get stock in binance. You must calculate fibonaci  Fibonacci retracement at level: 0, 0.236, 0.382, 0.5. 0.618 and 1 as a new tools
+Step 2: You must update system_message, describe the fibonacci retracement and update prompt context. Noted that. If symbol is BTCUSDT, you must check 0.5, if the price above 0.5 that means short uptrend. Allcoin check 0.618
 ---
 
 

@@ -3,6 +3,7 @@ import time
 import json
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    get_fibonacci_retracement,
     get_indicators,
     get_stock_data,
 )
@@ -18,6 +19,7 @@ def create_market_analyst(llm):
         tools = [
             get_stock_data,
             get_indicators,
+            get_fibonacci_retracement,
         ]
 
         system_message = (
@@ -45,7 +47,14 @@ Volatility Indicators:
 Volume-Based Indicators:
 - vwma: VWMA: A moving average weighted by volume. Usage: Confirm trends by integrating price action with volume data. Tips: Watch for skewed results from volume spikes; use in combination with other volume analyses.
 
-- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first to retrieve the CSV that is needed to generate indicators. Then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
+Fibonacci Retracement:
+- get_fibonacci_retracement: Calculates Fibonacci retracement levels (0, 0.236, 0.382, 0.5, 0.618, 1.0) from the swing high and swing low over the analysis period. Always call this tool for crypto pairs to identify key support/resistance zones and trend bias.
+  Interpretation rules:
+  - BTCUSDT: if the last close is ABOVE the 0.5 level → short uptrend signal; below → downtrend/consolidation.
+  - All altcoins (e.g. ETHUSDT, SOLUSDT): if the last close is ABOVE the 0.618 level → short uptrend signal; below → downtrend/consolidation.
+  Usage: Call after get_stock_data. Use the same start_date and end_date you used for get_stock_data.
+
+- Select indicators that provide diverse and complementary information. Avoid redundancy (e.g., do not select both rsi and stochrsi). Also briefly explain why they are suitable for the given market context. When you tool call, please use the exact name of the indicators provided above as they are defined parameters, otherwise your call will fail. Please make sure to call get_stock_data first, then get_fibonacci_retracement, then use get_indicators with the specific indicator names. Write a very detailed and nuanced report of the trends you observe. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."""
             + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
         )
 

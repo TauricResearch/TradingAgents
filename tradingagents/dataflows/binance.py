@@ -67,7 +67,7 @@ def _fetch_klines_range(params: KlineParams) -> list[Kline]:
     query: dict = {
         "symbol": params.symbol.upper(),
         "interval": params.interval.value,
-        "limit": min(params.limit, 100),
+        "limit": min(params.limit, 500),
     }
 #     if params.start_time is not None:
 #         query["startTime"] = params.start_time
@@ -166,7 +166,7 @@ def get_binance_klines(
         interval=resolved_interval,
         start_time=_date_to_ms(start_date),
         end_time=_date_to_ms(end_date),
-        limit=1000,
+        limit=500,
     )
     klines = _fetch_klines_range(params)
     if not klines:
@@ -240,7 +240,7 @@ def get_binance_indicators_window(
         interval=resolved_interval,
         start_time=_date_to_ms(fetch_start.strftime("%Y-%m-%d")),
         end_time=_date_to_ms(curr_date),
-        limit=1000,
+        limit=500,
     )
     klines = _fetch_klines_range(params)
     if not klines:
@@ -354,3 +354,102 @@ def get_binance_depth(
         lines.append(f"  {price}  {qty}")
 
     return header + "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Public API — Fibonacci retracement
+# ---------------------------------------------------------------------------
+
+_FIB_LEVELS = [0.0, 0.236, 0.382, 0.5, 0.618, 1.0]
+
+
+def get_fibonacci_retracement(
+    symbol: Annotated[str, "Binance trading pair, e.g. BTCUSDT"],
+    start_date: Annotated[str, "Start date in YYYY-MM-DD format"],
+    end_date: Annotated[str, "End date in YYYY-MM-DD format"],
+    interval: KlineInterval | None = None,
+) -> str:
+    """Calculate Fibonacci retracement levels from Binance kline data.
+
+    Finds the highest high and lowest low over the date range, then computes
+    retracement levels at 0, 0.236, 0.382, 0.5, 0.618, and 1.0.
+
+    Returns a formatted report including the price levels, the last closing
+    price, and which zone it currently occupies.
+    """
+    from datetime import timedelta as _timedelta
+
+    cfg = get_config()
+    _today = datetime.now().strftime("%Y-%m-%d")
+    _two_months_ago = (datetime.now() - _timedelta(days=60)).strftime("%Y-%m-%d")
+
+    cfg_start = cfg.get("kline_start_date")
+    cfg_end = cfg.get("kline_end_date")
+    start_date = cfg_start or start_date or _two_months_ago
+    end_date = cfg_end or end_date or _today
+
+    resolved_interval = _resolve_kline_interval(interval)
+
+    params = KlineParams(
+        symbol=symbol.upper(),
+        interval=resolved_interval,
+        start_time=_date_to_ms(start_date),
+        end_time=_date_to_ms(end_date),
+        limit=500,
+    )
+    klines = _fetch_klines_range(params)
+    if not klines:
+        return f"No kline data available for '{symbol}' between {start_date} and {end_date}"
+
+    swing_high = max(k.high for k in klines)
+    swing_low = min(k.low for k in klines)
+    last_close = klines[-1].close
+    diff = swing_high - swing_low
+
+    levels: dict[float, float] = {
+        lvl: round(swing_high - diff * lvl, 8) for lvl in _FIB_LEVELS
+    }
+
+    # Determine which Fibonacci zone the current price occupies
+    sorted_prices = sorted(levels.values(), reverse=True)
+    zone = "below all levels"
+    for i in range(len(sorted_prices) - 1):
+        upper = sorted_prices[i]
+        lower = sorted_prices[i + 1]
+        if lower <= last_close <= upper:
+            upper_lvl = [k for k, v in levels.items() if v == upper][0]
+            lower_lvl = [k for k, v in levels.items() if v == lower][0]
+            zone = f"between {lower_lvl} ({lower:.2f}) and {upper_lvl} ({upper:.2f})"
+            break
+
+    header = (
+        f"# Fibonacci Retracement for {symbol.upper()}\n"
+        f"# Period: {start_date} to {end_date}  |  Interval: {resolved_interval.value}\n"
+        f"# Swing High: {swing_high:.2f}  |  Swing Low: {swing_low:.2f}\n"
+        f"# Last Close: {last_close:.2f}  |  Zone: {zone}\n\n"
+    )
+
+    rows = ["Level  | Price"]
+    rows.append("-------|----------")
+    for lvl in _FIB_LEVELS:
+        rows.append(f"{lvl:<6} | {levels[lvl]:.2f}")
+
+    # Trend signal based on symbol type
+    mid_level = levels[0.5]
+    golden_level = levels[0.618]
+    sym = symbol.upper()
+    rows.append("")
+    if sym == "BTCUSDT":
+        signal = "SHORT UPTREND" if last_close > mid_level else "DOWNTREND / CONSOLIDATION"
+        rows.append(
+            f"## BTC Signal (0.5 rule): price {'above' if last_close > mid_level else 'below'} "
+            f"0.5 level ({mid_level:.2f}) → {signal}"
+        )
+    else:
+        signal = "SHORT UPTREND" if last_close > golden_level else "DOWNTREND / CONSOLIDATION"
+        rows.append(
+            f"## Altcoin Signal (0.618 rule): price {'above' if last_close > golden_level else 'below'} "
+            f"0.618 level ({golden_level:.2f}) → {signal}"
+        )
+
+    return header + "\n".join(rows)
