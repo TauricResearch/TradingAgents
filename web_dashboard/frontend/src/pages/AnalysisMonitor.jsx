@@ -6,7 +6,7 @@ import { CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-des
 const ANALYSIS_STAGES = [
   { key: 'analysts', label: '分析师团队' },
   { key: 'research', label: '研究员辩论' },
-  { key: 'trader', label: '交易员' },
+  { key: 'trading', label: '交易员' },
   { key: 'risk', label: '风险管理' },
   { key: 'portfolio', label: '组合经理' },
 ]

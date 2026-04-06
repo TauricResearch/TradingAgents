@@ -231,6 +231,7 @@ async def start_analysis(request: AnalysisRequest):
         "status": "running",
         "progress": 0,
         "current_stage": "analysts",
+        "created_at": datetime.now().isoformat(),
         "elapsed": 0,
         "stages": [
             {"status": "running", "completed_at": None},
@@ -419,10 +420,10 @@ async def list_tasks():
             "progress": state.get("progress", 0),
             "decision": state.get("decision"),
             "error": state.get("error"),
-            "created_at": state.get("stages", [{}])[0].get("completed_at") if state.get("stages") else None,
+            "created_at": state.get("created_at"),
         })
-    # Sort by task_id (which includes timestamp) descending
-    tasks.sort(key=lambda x: x["task_id"], reverse=True)
+    # Sort by created_at descending (most recent first)
+    tasks.sort(key=lambda x: x.get("created_at") or "", reverse=True)
     return {"tasks": tasks, "total": len(tasks)}
 
 
@@ -446,6 +447,7 @@ async def cancel_task(task_id: str):
         task.cancel()
         app.state.task_results[task_id]["status"] = "failed"
         app.state.task_results[task_id]["error"] = "用户取消"
+        _save_task_status(task_id, app.state.task_results[task_id])
         await broadcast_progress(task_id, app.state.task_results[task_id])
 
     # Clean up temp script
