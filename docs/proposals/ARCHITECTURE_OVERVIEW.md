@@ -29,7 +29,7 @@ flowchart TD
         GRAPH --> LLM_FACTORY["create_llm_client() - factory.py"]
         LLM_FACTORY --> DEEP["deep_thinking_llm"]
         LLM_FACTORY --> QUICK["quick_thinking_llm"]
-        GRAPH --> MEM_INIT["Initialize Memories<br/>bull_memory, bear_memory, trader_memory"]
+        GRAPH --> MEM_INIT["Initialize 5 Memories<br/>bull_memory, bear_memory, trader_memory,<br/>invest_judge_memory, portfolio_manager_memory"]
     end
 
     USER --> PROPAGATOR["Propagator<br/>Creates initial state"]
@@ -79,7 +79,7 @@ flowchart TD
 
     SP --> DECISION["Final Decision Returned to User"]
 
-    style ANALYSTS fill:#e1f5fe,e1f5fe,stroke:#0277bd,stroke-width:2px,color:#01579b
+    style ANALYSTS fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#01579b
     style DEBATE fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#e65100
     style TRADE fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
     style RISK fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#880e4f

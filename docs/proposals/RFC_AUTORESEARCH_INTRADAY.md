@@ -37,7 +37,7 @@ This is essentially **walk-forward backtesting with self-improvement** — a pro
 
 | Risk | Mitigation |
 |---|---|
-| **LLM API costs** | Each day = ~12 agent calls with LLM. 30 days = 360+ LLM calls. Use `gpt-4o-mini` for quick_think |
+| **LLM API costs** | Each day = ~12 agent calls with LLM. 30 days = 360+ LLM calls. Reuse existing `quick_think_llm` (currently `gpt-5.4-mini` in `default_config.py`) for cheap agents; only use `deep_think_llm` where reasoning depth is required |
 | **Overfitting to past data** | Don't tune prompts to specific dates — tune the APPROACH (which tools matter, what indicators to prioritize) |
 | **Look-ahead bias** | When predicting day 11, the agents must ONLY see data up to day 10. Never leak future data |
 | **Rate limits** | yfinance and Alpha Vantage have limits. Add delays between runs |
@@ -110,7 +110,7 @@ flowchart TD
 
     subgraph LOGIC["How Training Window Works"]
         L1["Take training window of historical data"]
-        L2["Split: first N-10 days = context<br/>last 10 days = walk-forward test"]
+        L2["Split: first (N - test_window) days = context<br/>last test_window days = walk-forward test<br/>(test_window is configurable;<br/>default ~20% of N, min 5 days)"]
         L3["Predict day by day through test window"]
         L4["After test: use full window to predict FUTURE"]
     end
@@ -225,8 +225,10 @@ flowchart TD
         PR --> HARNESS["model_harness.py<br/>Orchestrates the full pipeline:<br/>setup → train → eval → predict → viz"]
         PR --> PROMPT_PY["prompt.py<br/>Configurable analysis prompts<br/>and research focus areas"]
         PR --> VIZ_PY["visualization.py<br/>Side-by-side charts<br/>(actual vs predicted)"]
-        PR --> RESULTS["results/<br/>Excel/CSV output files"]
     end
+
+    OUTPUTS_NOTE["All generated artifacts (Excel, CSV, charts)<br/>are written to config['results_dir']<br/>from default_config.py — NOT committed<br/>inside the source package"]
+    HARNESS -.->|"writes outputs to"| OUTPUTS_NOTE
 
     subgraph EXISTING_USED["Existing Files We Use (Don't Modify)"]
         EX1["tradingagents/graph/trading_graph.py<br/>TradingAgentsGraph class"]
@@ -259,7 +261,7 @@ flowchart TD
 
     FETCH["Fetch full historical data<br/>yfinance: get_stock_data(ticker, start, end)"]
 
-    SPLIT["Split data:<br/>context_days = window[:-10]<br/>test_days = window[-10:]"]
+    SPLIT["Split data (configurable test_window):<br/>context_days = window[:-test_window]<br/>test_days = window[-test_window:]<br/>Default: test_window = max(5, int(0.2 * N))"]
 
     INIT["Initialize TradingAgentsGraph<br/>with fresh memories"]
 
@@ -306,10 +308,10 @@ flowchart TD
         M6["Best/Worst Days<br/>Biggest wins and losses"]
     end
 
-    subgraph OUTPUT["Output Files"]
-        O1["results/training_log.xlsx<br/>Every prediction with details"]
-        O2["results/metrics_summary.xlsx<br/>All metrics in one sheet"]
-        O3["results/memory_dump.json<br/>What the agents learned"]
+    subgraph OUTPUT["Output Files (written to config['results_dir'])"]
+        O1["{results_dir}/training_log.xlsx<br/>Every prediction with details"]
+        O2["{results_dir}/metrics_summary.xlsx<br/>All metrics in one sheet"]
+        O3["{results_dir}/memory_dump.json<br/>What the agents learned"]
     end
 
     INPUT --> METRICS
@@ -369,7 +371,7 @@ flowchart TD
         H6["Phase 3: PREDICT<br/>model.predict_future()"]
         H7["Phase 4: VISUALIZE<br/>visualization.create_dashboard()"]
 
-        H8["Save all results to results/"]
+        H8["Save all results to config['results_dir']"]
 
         H1 --> H2 --> H3 --> H4 --> H5 --> H6 --> H7 --> H8
     end
