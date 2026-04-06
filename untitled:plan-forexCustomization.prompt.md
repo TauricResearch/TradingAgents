@@ -42,7 +42,7 @@ Transform the equity-focused trading agents architecture into a multi-asset syst
 class Instrument(ABC):
     symbol: str
     name: str
-    instrument_type: str  # "EQUITY" | "FOREX"
+    instrument_type: InstrumentType  # Enum: EQUITY, FOREX
     
 class CurrencyPair(Instrument):
     base_currency: str  # "EUR"
