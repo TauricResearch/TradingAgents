@@ -7,18 +7,21 @@ import {
   ClusterOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  WalletOutlined,
 } from '@ant-design/icons'
 
 const ScreeningPanel = lazy(() => import('./pages/ScreeningPanel'))
 const AnalysisMonitor = lazy(() => import('./pages/AnalysisMonitor'))
 const ReportsViewer = lazy(() => import('./pages/ReportsViewer'))
 const BatchManager = lazy(() => import('./pages/BatchManager'))
+const PortfolioPanel = lazy(() => import('./pages/PortfolioPanel'))
 
 const navItems = [
   { path: '/', icon: <FundOutlined />, label: '筛选', key: '1' },
   { path: '/monitor', icon: <MonitorOutlined />, label: '监控', key: '2' },
   { path: '/reports', icon: <FileTextOutlined />, label: '报告', key: '3' },
   { path: '/batch', icon: <ClusterOutlined />, label: '批量', key: '4' },
+  { path: '/portfolio', icon: <WalletOutlined />, label: '组合', key: '5' },
 ]
 
 function Layout({ children }) {
@@ -139,6 +142,7 @@ export default function App() {
         case '2': navigate('/monitor'); break
         case '3': navigate('/reports'); break
         case '4': navigate('/batch'); break
+        case '5': navigate('/portfolio'); break
         default: break
       }
     }
@@ -158,6 +162,7 @@ export default function App() {
           <Route path="/monitor" element={<AnalysisMonitor />} />
           <Route path="/reports" element={<ReportsViewer />} />
           <Route path="/batch" element={<BatchManager />} />
+          <Route path="/portfolio" element={<PortfolioPanel />} />
         </Routes>
       </Suspense>
     </Layout>

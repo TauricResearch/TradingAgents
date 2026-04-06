@@ -15,9 +15,10 @@ from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from fastapi.responses import Response
 
 # Path to TradingAgents repo root
 REPO_ROOT = Path(__file__).parent.parent.parent
@@ -564,6 +565,239 @@ async def get_report(ticker: str, date: str):
     if not content:
         raise HTTPException(status_code=404, detail="Report not found")
     return content
+
+
+# ============== Portfolio ==============
+
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from api.portfolio import (
+    get_watchlist, add_to_watchlist, remove_from_watchlist,
+    get_positions, add_position, remove_position,
+    get_accounts, create_account, delete_account,
+    get_recommendations, get_recommendation, save_recommendation,
+    RECOMMENDATIONS_DIR,
+)
+
+
+# --- Watchlist ---
+
+@app.get("/api/portfolio/watchlist")
+async def list_watchlist():
+    return {"watchlist": get_watchlist()}
+
+
+@app.post("/api/portfolio/watchlist")
+async def create_watchlist_entry(body: dict):
+    try:
+        entry = add_to_watchlist(body["ticker"], body.get("name", body["ticker"]))
+        return entry
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/portfolio/watchlist/{ticker}")
+async def delete_watchlist_entry(ticker: str):
+    if remove_from_watchlist(ticker):
+        return {"ok": True}
+    raise HTTPException(status_code=404, detail="Ticker not found in watchlist")
+
+
+# --- Accounts ---
+
+@app.get("/api/portfolio/accounts")
+async def list_accounts():
+    accounts = get_accounts()
+    return {"accounts": list(accounts.get("accounts", {}).keys())}
+
+
+@app.post("/api/portfolio/accounts")
+async def create_account_endpoint(body: dict):
+    try:
+        return create_account(body["account_name"])
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/portfolio/accounts/{account_name}")
+async def delete_account_endpoint(account_name: str):
+    if delete_account(account_name):
+        return {"ok": True}
+    raise HTTPException(status_code=404, detail="Account not found")
+
+
+# --- Positions ---
+
+@app.get("/api/portfolio/positions")
+async def list_positions(account: Optional[str] = Query(None)):
+    return {"positions": get_positions(account)}
+
+
+@app.post("/api/portfolio/positions")
+async def create_position(body: dict):
+    try:
+        pos = add_position(
+            ticker=body["ticker"],
+            shares=body["shares"],
+            cost_price=body["cost_price"],
+            purchase_date=body.get("purchase_date"),
+            notes=body.get("notes", ""),
+            account=body.get("account", "默认账户"),
+        )
+        return pos
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/portfolio/positions/{ticker}")
+async def delete_position(ticker: str, position_id: Optional[str] = Query(None), account: Optional[str] = Query(None)):
+    removed = remove_position(ticker, position_id or "", account)
+    if removed:
+        return {"ok": True}
+    raise HTTPException(status_code=404, detail="Position not found")
+
+
+@app.get("/api/portfolio/positions/export")
+async def export_positions_csv(account: Optional[str] = Query(None)):
+    positions = get_positions(account)
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["ticker", "shares", "cost_price", "purchase_date", "notes", "account"])
+    writer.writeheader()
+    for p in positions:
+        writer.writerow({k: p[k] for k in ["ticker", "shares", "cost_price", "purchase_date", "notes", "account"]})
+    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=positions.csv"})
+
+
+# --- Recommendations ---
+
+@app.get("/api/portfolio/recommendations")
+async def list_recommendations(date: Optional[str] = Query(None)):
+    return {"recommendations": get_recommendations(date)}
+
+
+@app.get("/api/portfolio/recommendations/{date}/{ticker}")
+async def get_recommendation_endpoint(date: str, ticker: str):
+    rec = get_recommendation(date, ticker)
+    if not rec:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    return rec
+
+
+# --- Batch Analysis ---
+
+@app.post("/api/portfolio/analyze")
+async def start_portfolio_analysis():
+    """
+    Trigger batch analysis for all watchlist tickers.
+    Runs serially, streaming progress via WebSocket (task_id prefixed with 'port_').
+    """
+    import uuid
+    date = datetime.now().strftime("%Y-%m-%d")
+    task_id = f"port_{date}_{uuid.uuid4().hex[:6]}"
+
+    watchlist = get_watchlist()
+    if not watchlist:
+        raise HTTPException(status_code=400, detail="自选股为空，请先添加股票")
+
+    total = len(watchlist)
+    app.state.task_results[task_id] = {
+        "task_id": task_id,
+        "type": "portfolio",
+        "status": "running",
+        "total": total,
+        "completed": 0,
+        "failed": 0,
+        "current_ticker": None,
+        "results": [],
+        "error": None,
+    }
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY environment variable not set")
+
+    await broadcast_progress(task_id, app.state.task_results[task_id])
+
+    async def run_portfolio_analysis():
+        try:
+            for i, stock in enumerate(watchlist):
+                ticker = stock["ticker"]
+                app.state.task_results[task_id]["current_ticker"] = ticker
+                app.state.task_results[task_id]["status"] = "running"
+                app.state.task_results[task_id]["completed"] = i
+                await broadcast_progress(task_id, app.state.task_results[task_id])
+
+                try:
+                    # Run analysis in subprocess (reuse existing script pattern)
+                    script_path = Path(f"/tmp/analysis_{task_id}_{i}.py")
+                    script_content = ANALYSIS_SCRIPT_TEMPLATE
+                    script_path.write_text(script_content)
+
+                    clean_env = {k: v for k, v in os.environ.items()
+                                if not k.startswith(("PYTHON", "CONDA", "VIRTUAL"))}
+                    clean_env["ANTHROPIC_API_KEY"] = api_key
+                    clean_env["ANTHROPIC_BASE_URL"] = "https://api.minimaxi.com/anthropic"
+
+                    proc = await asyncio.create_subprocess_exec(
+                        str(ANALYSIS_PYTHON), str(script_path), ticker, date, str(REPO_ROOT),
+                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                        env=clean_env,
+                    )
+                    app.state.processes[task_id] = proc
+
+                    stdout, stderr = await proc.communicate()
+
+                    try:
+                        script_path.unlink()
+                    except Exception:
+                        pass
+
+                    if proc.returncode == 0:
+                        output = stdout.decode()
+                        decision = "HOLD"
+                        for line in output.splitlines():
+                            if line.startswith("ANALYSIS_COMPLETE:"):
+                                decision = line.split(":", 1)[1].strip()
+                        app.state.task_results[task_id]["completed"] = i + 1
+                        rec = {
+                            "ticker": ticker,
+                            "name": stock.get("name", ticker),
+                            "analysis_date": date,
+                            "decision": decision,
+                            "created_at": datetime.now().isoformat(),
+                        }
+                        save_recommendation(date, ticker, rec)
+                        app.state.task_results[task_id]["results"].append(rec)
+                    else:
+                        app.state.task_results[task_id]["failed"] += 1
+
+                except Exception as e:
+                    app.state.task_results[task_id]["failed"] += 1
+
+                await broadcast_progress(task_id, app.state.task_results[task_id])
+
+            app.state.task_results[task_id]["status"] = "completed"
+            app.state.task_results[task_id]["current_ticker"] = None
+            _save_task_status(task_id, app.state.task_results[task_id])
+
+        except Exception as e:
+            app.state.task_results[task_id]["status"] = "failed"
+            app.state.task_results[task_id]["error"] = str(e)
+            _save_task_status(task_id, app.state.task_results[task_id])
+
+        await broadcast_progress(task_id, app.state.task_results[task_id])
+
+    task = asyncio.create_task(run_portfolio_analysis())
+    app.state.analysis_tasks[task_id] = task
+
+    return {
+        "task_id": task_id,
+        "total": total,
+        "status": "running",
+    }
+
 
 
 @app.get("/")
