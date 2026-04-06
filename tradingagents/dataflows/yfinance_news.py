@@ -1,10 +1,44 @@
 """yfinance-based news data fetching functions."""
 
-import yfinance as yf
-from datetime import datetime
+from datetime import datetime, timezone
+
 from dateutil.relativedelta import relativedelta
+import yfinance as yf
 
 from .stockstats_utils import yf_retry
+
+
+_TICKER_NEWS_FETCH_COUNTS = (20, 50, 100)
+_MAX_FILTERED_TICKER_ARTICLES = 25
+
+
+def _parse_pub_date(raw_value) -> datetime | None:
+    """Normalize yfinance pub date values into a timezone-aware datetime."""
+    if raw_value in (None, ""):
+        return None
+
+    if isinstance(raw_value, datetime):
+        return raw_value
+
+    if isinstance(raw_value, (int, float)):
+        try:
+            return datetime.fromtimestamp(raw_value, tz=timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            return None
+
+    if isinstance(raw_value, str):
+        normalized = raw_value.strip()
+        if not normalized:
+            return None
+        try:
+            return datetime.fromisoformat(normalized.replace("Z", "+00:00"))
+        except ValueError:
+            try:
+                return datetime.fromtimestamp(float(normalized), tz=timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                return None
+
+    return None
 
 
 def _extract_article_data(article: dict) -> dict:
@@ -22,13 +56,7 @@ def _extract_article_data(article: dict) -> dict:
         link = url_obj.get("url", "")
 
         # Get publish date
-        pub_date_str = content.get("pubDate", "")
-        pub_date = None
-        if pub_date_str:
-            try:
-                pub_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
-            except (ValueError, AttributeError):
-                pass
+        pub_date = _parse_pub_date(content.get("pubDate", ""))
 
         return {
             "title": title,
@@ -44,8 +72,77 @@ def _extract_article_data(article: dict) -> dict:
             "summary": article.get("summary", ""),
             "publisher": article.get("publisher", "Unknown"),
             "link": article.get("link", ""),
-            "pub_date": None,
+            "pub_date": _parse_pub_date(article.get("providerPublishTime")),
         }
+
+
+def _article_identity(article: dict) -> str:
+    """Return a stable identity key for deduplicating news articles."""
+    link = article.get("link", "").strip()
+    if link:
+        return link
+
+    title = article.get("title", "").strip()
+    publisher = article.get("publisher", "").strip()
+    pub_date = article.get("pub_date")
+    stamp = pub_date.isoformat() if isinstance(pub_date, datetime) else ""
+    return f"{publisher}::{title}::{stamp}"
+
+
+def _collect_ticker_news(
+    ticker: str,
+    start_dt: datetime,
+) -> tuple[list[dict], datetime | None, datetime | None]:
+    """Fetch increasingly larger ticker feeds until the requested window is covered."""
+    collected: list[dict] = []
+    seen: set[str] = set()
+    oldest_pub_date = None
+    newest_pub_date = None
+
+    for count in _TICKER_NEWS_FETCH_COUNTS:
+        news = yf_retry(lambda batch_size=count: yf.Ticker(ticker).get_news(count=batch_size))
+        if not news:
+            continue
+
+        for article in news:
+            data = _extract_article_data(article)
+            identity = _article_identity(data)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            collected.append(data)
+
+            pub_date = data.get("pub_date")
+            if pub_date:
+                if newest_pub_date is None or pub_date > newest_pub_date:
+                    newest_pub_date = pub_date
+                if oldest_pub_date is None or pub_date < oldest_pub_date:
+                    oldest_pub_date = pub_date
+
+        if oldest_pub_date and oldest_pub_date.replace(tzinfo=None) <= start_dt:
+            break
+        if len(news) < count:
+            break
+
+    collected.sort(
+        key=lambda article: article["pub_date"].timestamp() if article.get("pub_date") else float("-inf"),
+        reverse=True,
+    )
+    return collected, oldest_pub_date, newest_pub_date
+
+
+def _format_coverage_note(oldest_pub_date: datetime | None, newest_pub_date: datetime | None) -> str:
+    """Describe the yfinance coverage window when no article matches the requested range."""
+    if oldest_pub_date and newest_pub_date:
+        return (
+            "; the current yfinance ticker feed only covered "
+            f"{oldest_pub_date.strftime('%Y-%m-%d')} to {newest_pub_date.strftime('%Y-%m-%d')} at query time"
+        )
+    if oldest_pub_date:
+        return f"; the current yfinance ticker feed only reached back to {oldest_pub_date.strftime('%Y-%m-%d')}"
+    if newest_pub_date:
+        return f"; the current yfinance ticker feed only returned articles up to {newest_pub_date.strftime('%Y-%m-%d')}"
+    return ""
 
 
 def get_news_yfinance(
@@ -65,38 +162,40 @@ def get_news_yfinance(
         Formatted string containing news articles
     """
     try:
-        stock = yf.Ticker(ticker)
-        news = yf_retry(lambda: stock.get_news(count=20))
-
-        if not news:
-            return f"No news found for {ticker}"
-
-        # Parse date range for filtering
         start_dt = datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        articles, oldest_pub_date, newest_pub_date = _collect_ticker_news(ticker, start_dt)
+
+        if not articles:
+            return f"No news found for {ticker}"
 
         news_str = ""
         filtered_count = 0
 
-        for article in news:
-            data = _extract_article_data(article)
-
+        for data in articles:
             # Filter by date if publish time is available
             if data["pub_date"]:
                 pub_date_naive = data["pub_date"].replace(tzinfo=None)
                 if not (start_dt <= pub_date_naive <= end_dt + relativedelta(days=1)):
                     continue
 
-            news_str += f"### {data['title']} (source: {data['publisher']})\n"
+            date_prefix = ""
+            if data["pub_date"]:
+                date_prefix = f"[{data['pub_date'].strftime('%Y-%m-%d')}] "
+
+            news_str += f"### {date_prefix}{data['title']} (source: {data['publisher']})\n"
             if data["summary"]:
                 news_str += f"{data['summary']}\n"
             if data["link"]:
                 news_str += f"Link: {data['link']}\n"
             news_str += "\n"
             filtered_count += 1
+            if filtered_count >= _MAX_FILTERED_TICKER_ARTICLES:
+                break
 
         if filtered_count == 0:
-            return f"No news found for {ticker} between {start_date} and {end_date}"
+            coverage_note = _format_coverage_note(oldest_pub_date, newest_pub_date)
+            return f"No news found for {ticker} between {start_date} and {end_date}{coverage_note}"
 
         return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
 

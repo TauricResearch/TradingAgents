@@ -159,6 +159,7 @@ def _run_single_ticker(
 
     ticker_started = datetime.now(ZoneInfo(config.run.timezone))
     timer_start = perf_counter()
+    analysis_date = ticker_started.date().isoformat()
 
     try:
         trade_date = resolve_trade_date(ticker, config)
@@ -169,7 +170,11 @@ def _run_single_ticker(
             config=_graph_config(config, engine_results_dir),
             callbacks=[stats_handler],
         )
-        final_state, decision = graph.propagate(ticker, trade_date)
+        final_state, decision = graph.propagate(
+            ticker,
+            trade_date,
+            analysis_date=analysis_date,
+        )
 
         report_dir = ticker_dir / "report"
         report_file = save_report_bundle(
@@ -198,6 +203,7 @@ def _run_single_ticker(
             "ticker": ticker,
             "status": "success",
             "trade_date": trade_date,
+            "analysis_date": analysis_date,
             "decision": str(decision),
             "started_at": ticker_started.isoformat(),
             "finished_at": datetime.now(ZoneInfo(config.run.timezone)).isoformat(),
@@ -216,6 +222,7 @@ def _run_single_ticker(
             "ticker": ticker,
             "status": "success",
             "trade_date": trade_date,
+            "analysis_date": analysis_date,
             "decision": str(decision),
             "started_at": ticker_started.isoformat(),
             "finished_at": analysis_payload["finished_at"],
@@ -232,6 +239,7 @@ def _run_single_ticker(
         error_payload = {
             "ticker": ticker,
             "status": "failed",
+            "analysis_date": analysis_date,
             "error": str(exc),
             "traceback": traceback.format_exc(),
             "started_at": ticker_started.isoformat(),
@@ -244,6 +252,7 @@ def _run_single_ticker(
         return {
             "ticker": ticker,
             "status": "failed",
+            "analysis_date": analysis_date,
             "trade_date": None,
             "decision": None,
             "error": str(exc),
@@ -285,6 +294,7 @@ def _serialize_final_state(final_state: dict[str, Any]) -> dict[str, Any]:
     return {
         "company_of_interest": final_state.get("company_of_interest"),
         "trade_date": final_state.get("trade_date"),
+        "analysis_date": final_state.get("analysis_date"),
         "market_report": final_state.get("market_report"),
         "sentiment_report": final_state.get("sentiment_report"),
         "news_report": final_state.get("news_report"),

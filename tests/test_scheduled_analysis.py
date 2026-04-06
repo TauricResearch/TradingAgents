@@ -24,13 +24,14 @@ class _FakeTradingAgentsGraph:
         self.config = config or {}
         self.callbacks = callbacks or []
 
-    def propagate(self, ticker, trade_date):
+    def propagate(self, ticker, trade_date, analysis_date=None):
         if ticker == "FAIL":
             raise RuntimeError("synthetic failure")
 
         final_state = {
             "company_of_interest": ticker,
             "trade_date": trade_date,
+            "analysis_date": analysis_date or trade_date,
             "market_report": f"## Market\n{ticker} market analysis",
             "sentiment_report": f"## Sentiment\n{ticker} sentiment analysis",
             "news_report": f"## News\n{ticker} news analysis",
@@ -104,6 +105,7 @@ subtitle = "Automated"
             self.assertEqual(manifest["settings"]["provider"], "codex")
             self.assertEqual(manifest["settings"]["deep_model"], "gpt-5.4")
             self.assertEqual(manifest["settings"]["quick_model"], "gpt-5.4")
+            self.assertEqual(manifest["tickers"][0]["analysis_date"], manifest["started_at"][:10])
 
             run_dir = archive_dir / "runs" / manifest["started_at"][:4] / manifest["run_id"]
             self.assertTrue((run_dir / "run.json").exists())
@@ -118,6 +120,7 @@ subtitle = "Automated"
             self.assertIn("partial failure", index_html)
             self.assertIn("NVDA", run_html)
             self.assertIn("Rendered report", ticker_html)
+            self.assertIn("Analysis date", ticker_html)
             self.assertTrue((site_dir / "downloads" / manifest["run_id"] / "NVDA" / "complete_report.md").exists())
 
     def test_main_site_only_rebuilds_from_existing_archive(self):
@@ -162,6 +165,7 @@ subtitle = "Automated"
                             {
                                 "ticker": "NVDA",
                                 "status": "success",
+                                "analysis_date": "2026-04-05",
                                 "trade_date": "2026-04-04",
                                 "decision": "BUY",
                                 "started_at": "2026-04-05T09:13:00+09:00",
