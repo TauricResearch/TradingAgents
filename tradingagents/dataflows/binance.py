@@ -69,10 +69,10 @@ def _fetch_klines_range(params: KlineParams) -> list[Kline]:
         "interval": params.interval.value,
         "limit": min(params.limit, 100),
     }
-    if params.start_time is not None:
-        query["startTime"] = params.start_time
-    if params.end_time is not None:
-        query["endTime"] = params.end_time
+#     if params.start_time is not None:
+#         query["startTime"] = params.start_time
+#     if params.end_time is not None:
+#         query["endTime"] = params.end_time
 
     all_klines: list[Kline] = []
     while True:
@@ -146,12 +146,20 @@ def get_binance_klines(
     _today = datetime.now().strftime("%Y-%m-%d")
     _two_months_ago = (datetime.now() - _timedelta(days=60)).strftime("%Y-%m-%d")
 
-    start_date = start_date or cfg.get("kline_start_date") or _two_months_ago
-    end_date = end_date or cfg.get("kline_end_date") or _today
+    # User-configured dates always take precedence over agent-inferred dates.
+    # Without this, `start_date or cfg_value` never reaches the config because
+    # the agent always passes a non-empty string.
+    cfg_start = cfg.get("kline_start_date")
+    cfg_end = cfg.get("kline_end_date")
+    start_date = cfg_start or start_date or _two_months_ago
+    end_date = cfg_end or end_date or _today
     resolved_interval = _resolve_kline_interval(interval)
 
-    datetime.strptime(start_date, "%Y-%m-%d")
-    datetime.strptime(end_date, "%Y-%m-%d")
+    try:
+        datetime.strptime(start_date, "%Y-%m-%d")
+        datetime.strptime(end_date, "%Y-%m-%d")
+    except ValueError as exc:
+        return f"Invalid date format (expected YYYY-MM-DD): {exc}"
 
     params = KlineParams(
         symbol=symbol.upper(),
@@ -193,9 +201,9 @@ def get_binance_indicators_window(
     resolved_interval = _resolve_kline_interval(interval)
 
     INDICATOR_DESCRIPTIONS: dict[str, str] = {
-        "close_50_sma": "50 SMA: Medium-term trend indicator.",
-        "close_200_sma": "200 SMA: Long-term trend benchmark.",
-        "close_10_ema": "10 EMA: Responsive short-term average.",
+        "close_34_sma": "34 SMA: Short-to-medium-term Fibonacci trend indicator.",
+        "close_56_sma": "56 SMA: Medium-term trend indicator.",
+        "close_89_sma": "89 SMA: Long-term Fibonacci trend benchmark.",
         "macd": "MACD: Momentum via EMA differences.",
         "macds": "MACD Signal: EMA smoothing of the MACD line.",
         "macdh": "MACD Histogram: Gap between MACD and its signal.",
@@ -214,10 +222,18 @@ def get_binance_indicators_window(
             f"Choose from: {list(INDICATOR_DESCRIPTIONS.keys())}"
         )
 
+    # Honor user-configured end date if set; otherwise use agent-provided curr_date
+    cfg = get_config()
+    cfg_end = cfg.get("kline_end_date")
+    if cfg_end:
+        curr_date = cfg_end
+
     curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
     before_dt = curr_dt - relativedelta(days=look_back_days)
-    # Fetch extra history so indicators have enough warm-up data
-    fetch_start = curr_dt - relativedelta(years=1)
+
+    # Honor user-configured start date if set; otherwise look back 1 year for warm-up
+    cfg_start = cfg.get("kline_start_date")
+    fetch_start = datetime.strptime(cfg_start, "%Y-%m-%d") if cfg_start else curr_dt - relativedelta(years=1)
 
     params = KlineParams(
         symbol=symbol.upper(),

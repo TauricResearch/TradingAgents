@@ -28,9 +28,9 @@ def get_indicator(
     from dateutil.relativedelta import relativedelta
 
     supported_indicators = {
-        "close_50_sma": ("50 SMA", "close"),
-        "close_200_sma": ("200 SMA", "close"),
-        "close_10_ema": ("10 EMA", "close"),
+        "close_34_sma": ("34 SMA", "close"),
+        "close_56_sma": ("56 SMA", "close"),
+        "close_89_sma": ("89 SMA", "close"),
         "macd": ("MACD", "close"),
         "macds": ("MACD Signal", "close"),
         "macdh": ("MACD Histogram", "close"),
@@ -43,9 +43,9 @@ def get_indicator(
     }
 
     indicator_descriptions = {
-        "close_50_sma": "50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.",
-        "close_200_sma": "200 SMA: A long-term trend benchmark. Usage: Confirm overall market trend and identify golden/death cross setups. Tips: It reacts slowly; best for strategic trend confirmation rather than frequent trading entries.",
-        "close_10_ema": "10 EMA: A responsive short-term average. Usage: Capture quick shifts in momentum and potential entry points. Tips: Prone to noise in choppy markets; use alongside longer averages for filtering false signals.",
+        "close_34_sma": "34 SMA: A short-to-medium-term Fibonacci trend indicator. Usage: Identify near-term trend direction and dynamic support/resistance. Tips: Reacts faster than 56/89 SMA; use in confluence for stronger signals.",
+        "close_56_sma": "56 SMA: A medium-term trend indicator. Usage: Confirm intermediate trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.",
+        "close_89_sma": "89 SMA: A long-term Fibonacci trend benchmark. Usage: Confirm overall market trend and identify major trend reversals. Tips: It reacts slowly; best for strategic trend confirmation rather than frequent trading entries.",
         "macd": "MACD: Computes momentum via differences of EMAs. Usage: Look for crossovers and divergence as signals of trend changes. Tips: Confirm with other indicators in low-volatility or sideways markets.",
         "macds": "MACD Signal: An EMA smoothing of the MACD line. Usage: Use crossovers with the MACD line to trigger trades. Tips: Should be part of a broader strategy to avoid false positives.",
         "macdh": "MACD Histogram: Shows the gap between the MACD line and its signal. Usage: Visualize momentum strength and spot divergence early. Tips: Can be volatile; complement with additional filters in fast-moving markets.",
@@ -74,27 +74,27 @@ def get_indicator(
 
     try:
         # Get indicator data for the period
-        if indicator == "close_50_sma":
+        if indicator == "close_34_sma":
             data = _make_api_request("SMA", {
                 "symbol": symbol,
                 "interval": interval,
-                "time_period": "50",
+                "time_period": "34",
                 "series_type": series_type,
                 "datatype": "csv"
             })
-        elif indicator == "close_200_sma":
+        elif indicator == "close_56_sma":
             data = _make_api_request("SMA", {
                 "symbol": symbol,
                 "interval": interval,
-                "time_period": "200",
+                "time_period": "56",
                 "series_type": series_type,
                 "datatype": "csv"
             })
-        elif indicator == "close_10_ema":
-            data = _make_api_request("EMA", {
+        elif indicator == "close_89_sma":
+            data = _make_api_request("SMA", {
                 "symbol": symbol,
                 "interval": interval,
-                "time_period": "10",
+                "time_period": "89",
                 "series_type": series_type,
                 "datatype": "csv"
             })
@@ -165,8 +165,8 @@ def get_indicator(
         col_name_map = {
             "macd": "MACD", "macds": "MACD_Signal", "macdh": "MACD_Hist",
             "boll": "Real Middle Band", "boll_ub": "Real Upper Band", "boll_lb": "Real Lower Band",
-            "rsi": "RSI", "atr": "ATR", "close_10_ema": "EMA",
-            "close_50_sma": "SMA", "close_200_sma": "SMA"
+            "rsi": "RSI", "atr": "ATR",
+            "close_34_sma": "SMA", "close_56_sma": "SMA", "close_89_sma": "SMA"
         }
 
         target_col_name = col_name_map.get(indicator)

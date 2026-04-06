@@ -37,6 +37,22 @@ You review all projects, by default, the project call SPY and report. But my inp
 ### Task 8: Questionary enhancement
 - You have to append the query to ask user about kline that usert want into CLI. You need to check binance_models, The query must be included internal and start_time and end_time. By defaults, start_time and end_endtime must be 2 months. start_time and end_time have formatted: DD/MM/YYY
 
+### Task 9: SMA enhancemence
+- SMA is a indicators used in market_analysis. But sma 10, 50, 200 is not suitable for analysze. You must change to sma 34, sma 56, sma 89. Other indicators depended on sma must be change.
+
+### Task 9.1: Fix bug
+- Regrading logs
+```text
+21:38:04 [Tool Call] get_stock_data(symbol=BTCUSDT, start_date=2025-12-01, end_date=2026-04-05)
+21:38:04 [Data] No kline data found for symbol 'BTCUSDT' between 2025-12-01 and 2026-04-05
+21:38:08 [Tool Call] get_stock_data(symbol=BTCUSDT, start_date=2025-10-01, end_date=2026-04-05)
+21:38:08 [Data] No kline data found for symbol 'BTCUSDT' between 2025-10-01 and 2026-04-05
+21:38:10 [Tool Call] get_stock_data(symbol=BTCUSDT, start_date=2025-01-01, end_date=2025-12-31)
+21:38:10 [Data] No kline data found for symbol 'BTCUSDT' between 2025-01-01 and 2025-12-31
+21:38:12 [Tool Call] get_stock_data(symbol=BTCUSDT, start_date=2024-01-01, end_date=2024-12-31)
+21:38:13 [Data] No kline data found for symbol 'BTCUSDT' between 2024-01-01 and 2024-12-31
+```
+I inputed 01/03/2026 formatted DD-M-YY, but the tools parse incorrectly. You must fix that.
 ---
 
 

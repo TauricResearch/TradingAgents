@@ -24,9 +24,9 @@ def create_market_analyst(llm):
             """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
-- close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
-- close_200_sma: 200 SMA: A long-term trend benchmark. Usage: Confirm overall market trend and identify golden/death cross setups. Tips: It reacts slowly; best for strategic trend confirmation rather than frequent trading entries.
-- close_10_ema: 10 EMA: A responsive short-term average. Usage: Capture quick shifts in momentum and potential entry points. Tips: Prone to noise in choppy markets; use alongside longer averages for filtering false signals.
+- close_34_sma: 34 SMA: A short-to-medium-term trend indicator aligned with Fibonacci sequence. Usage: Identify near-term trend direction and dynamic support/resistance. Tips: Reacts faster than 56/89 SMA; use in confluence for stronger signals.
+- close_56_sma: 56 SMA: A medium-term trend indicator. Usage: Confirm intermediate trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.
+- close_89_sma: 89 SMA: A long-term trend benchmark based on the Fibonacci sequence. Usage: Confirm overall market trend and identify major trend reversals. Tips: It reacts slowly; best for strategic trend confirmation rather than frequent trading entries.
 
 MACD Related:
 - macd: MACD: Computes momentum via differences of EMAs. Usage: Look for crossovers and divergence as signals of trend changes. Tips: Confirm with other indicators in low-volatility or sideways markets.
