@@ -107,6 +107,24 @@ jobs:
 
           python @args
 
+      - name: Add Git Bash to PATH for Pages packaging
+        shell: powershell
+        run: |
+          $gitBinCandidates = @(
+            "C:\Program Files\Git\bin",
+            "C:\Program Files\Git\usr\bin"
+          )
+
+          foreach ($candidate in $gitBinCandidates) {
+            if (Test-Path (Join-Path $candidate "bash.exe")) {
+              Add-Content -Path $env:GITHUB_PATH -Value $candidate
+              Write-Host "Added Git Bash path: $candidate"
+              exit 0
+            }
+          }
+
+          throw "bash.exe was not found under the expected Git for Windows directories."
+
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
