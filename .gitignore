@@ -1,5 +1,6 @@
 .venv
-results
+results/*
+!results/discovery/
 env/
 __pycache__/
 .DS_Store

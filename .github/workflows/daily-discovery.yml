@@ -29,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: TradingAgent
     timeout-minutes: 30
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -55,6 +57,8 @@ jobs:
           fi
 
       - name: Run discovery pipeline
+        id: discovery
+        continue-on-error: true
         env:
           # LLM keys (set whichever provider you use)
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -73,29 +77,31 @@ jobs:
             --no-update-positions
 
       - name: Commit recommendations to repo
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Stage new/updated recommendation files
+          # Stage new/updated recommendation and run-log files
           git add data/recommendations/ || true
-          git add results/ || true
+          git add results/discovery/ || true
 
           # Only commit if there are changes
           if git diff --cached --quiet; then
             echo "No new recommendations to commit"
           else
             git commit -m "chore: daily discovery ${{ steps.date.outputs.analysis_date }}"
-            git push
+            git pull --rebase origin ${{ github.ref_name }}
+            git push origin ${{ github.ref_name }}
           fi
 
       - name: Track recommendation performance
-        if: success()
+        if: always()
         run: |
           python scripts/track_recommendation_performance.py
 
       - name: Commit performance updates
-        if: success()
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -104,18 +110,19 @@ jobs:
             echo "No performance updates"
           else
             git commit -m "chore: update performance tracking ${{ steps.date.outputs.analysis_date }}"
-            git push
+            git pull --rebase origin ${{ github.ref_name }}
+            git push origin ${{ github.ref_name }}
           fi
 
       - name: Update positions
-        if: success()
+        if: always()
         env:
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
         run: |
           python scripts/update_positions.py
 
       - name: Commit position updates
-        if: success()
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -124,7 +131,8 @@ jobs:
             echo "No position updates"
           else
             git commit -m "chore: update positions ${{ steps.date.outputs.analysis_date }}"
-            git push
+            git pull --rebase origin ${{ github.ref_name }}
+            git push origin ${{ github.ref_name }}
           fi
 
       - name: Upload results as artifact
