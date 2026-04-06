@@ -646,9 +646,9 @@ def get_analysis_date():
             )
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
+def save_report_to_disk(final_state, ticker: str, save_path: Path, *, language: str = "English"):
     """Save complete analysis report to disk with organized subfolders."""
-    return save_report_bundle(final_state, ticker, save_path)
+    return save_report_bundle(final_state, ticker, save_path, language=language)
 
 
 def display_complete_report(final_state):
@@ -1114,7 +1114,12 @@ def run_analysis():
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(
+                final_state,
+                selections["ticker"],
+                save_path,
+                language=selections.get("output_language", "English"),
+            )
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:

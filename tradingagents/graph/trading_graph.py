@@ -30,7 +30,9 @@ from tradingagents.agents.utils.agent_utils import (
     get_income_statement,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_output_language,
+    rewrite_in_output_language,
 )
 
 from .conditional_logic import ConditionalLogic
@@ -226,6 +228,9 @@ class TradingAgentsGraph:
             # Standard mode without tracing
             final_state = self.graph.invoke(init_agent_state, **args)
 
+        signal = self.process_signal(final_state["final_trade_decision"])
+        final_state = self._localize_final_state(final_state)
+
         # Store current state for reflection
         self.curr_state = final_state
 
@@ -233,7 +238,7 @@ class TradingAgentsGraph:
         self._log_state(trade_date, final_state)
 
         # Return decision and processed signal
-        return final_state, self.process_signal(final_state["final_trade_decision"])
+        return final_state, signal
 
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
@@ -296,3 +301,61 @@ class TradingAgentsGraph:
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""
         return self.signal_processor.process_signal(full_signal)
+
+    def _localize_final_state(self, final_state: Dict[str, Any]) -> Dict[str, Any]:
+        """Rewrite persisted user-facing outputs into the configured output language."""
+        language = get_output_language()
+        if language.lower() == "english":
+            return final_state
+
+        localized = dict(final_state)
+
+        for field_name, content_type in (
+            ("market_report", "market analyst report"),
+            ("sentiment_report", "social sentiment report"),
+            ("news_report", "news analyst report"),
+            ("fundamentals_report", "fundamentals analyst report"),
+            ("investment_plan", "research manager investment plan"),
+            ("trader_investment_plan", "trader plan"),
+            ("final_trade_decision", "portfolio manager final decision"),
+        ):
+            localized[field_name] = rewrite_in_output_language(
+                self.quick_thinking_llm,
+                localized.get(field_name, ""),
+                content_type=content_type,
+            )
+
+        investment_debate = dict(localized.get("investment_debate_state") or {})
+        for field_name, content_type in (
+            ("bull_history", "bull researcher debate history"),
+            ("bear_history", "bear researcher debate history"),
+            ("history", "investment debate transcript"),
+            ("current_response", "investment debate latest response"),
+            ("judge_decision", "research manager decision"),
+        ):
+            investment_debate[field_name] = rewrite_in_output_language(
+                self.quick_thinking_llm,
+                investment_debate.get(field_name, ""),
+                content_type=content_type,
+            )
+        localized["investment_debate_state"] = investment_debate
+
+        risk_debate = dict(localized.get("risk_debate_state") or {})
+        for field_name, content_type in (
+            ("aggressive_history", "aggressive risk analyst debate history"),
+            ("conservative_history", "conservative risk analyst debate history"),
+            ("neutral_history", "neutral risk analyst debate history"),
+            ("history", "risk debate transcript"),
+            ("current_aggressive_response", "aggressive risk analyst latest response"),
+            ("current_conservative_response", "conservative risk analyst latest response"),
+            ("current_neutral_response", "neutral risk analyst latest response"),
+            ("judge_decision", "portfolio manager decision"),
+        ):
+            risk_debate[field_name] = rewrite_in_output_language(
+                self.quick_thinking_llm,
+                risk_debate.get(field_name, ""),
+                content_type=content_type,
+            )
+        localized["risk_debate_state"] = risk_debate
+
+        return localized
