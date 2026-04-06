@@ -10,6 +10,8 @@ from tradingagents.reporting import save_report_bundle
 class ReportLocalizationTests(unittest.TestCase):
     def test_save_report_bundle_uses_korean_labels(self):
         final_state = {
+            "analysis_date": "2026-04-06",
+            "trade_date": "2026-04-02",
             "market_report": "시장 보고서 본문",
             "sentiment_report": "소셜 보고서 본문",
             "news_report": "뉴스 보고서 본문",
@@ -39,6 +41,8 @@ class ReportLocalizationTests(unittest.TestCase):
 
         self.assertIn("트레이딩 분석 리포트", report_text)
         self.assertIn("생성 시각", report_text)
+        self.assertIn("분석 기준일: 2026-04-06", report_text)
+        self.assertIn("시장 데이터 기준일: 2026-04-02", report_text)
         self.assertIn("애널리스트 팀 리포트", report_text)
         self.assertIn("포트폴리오 매니저 최종 판단", report_text)
         self.assertIn("시장 애널리스트", report_text)

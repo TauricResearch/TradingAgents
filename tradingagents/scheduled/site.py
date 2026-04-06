@@ -163,6 +163,7 @@ def _render_run_page(manifest: dict[str, Any], settings: SiteSettings) -> str:
                 <a href="{_escape(ticker_summary['ticker'])}.html">{_escape(ticker_summary['ticker'])}</a>
                 <span class="status {ticker_summary['status']}">{_escape(ticker_summary['status'])}</span>
               </div>
+              <p><strong>Analysis date</strong><span>{_escape(ticker_summary.get('analysis_date') or '-')}</span></p>
               <p><strong>Trade date</strong><span>{_escape(ticker_summary.get('trade_date') or '-')}</span></p>
               <p><strong>Duration</strong><span>{ticker_summary.get('duration_seconds', 0):.1f}s</span></p>
               <p><strong>Decision</strong><span>{_escape(ticker_summary.get('decision') or ticker_summary.get('error') or '-')}</span></p>
@@ -239,10 +240,12 @@ def _render_ticker_page(
       <div>
         <p class="eyebrow">Ticker report</p>
         <h1>{_escape(ticker_summary['ticker'])}</h1>
-        <p class="subtitle">{_escape(ticker_summary.get('trade_date') or '-')} / {_escape(ticker_summary['status'])}</p>
+        <p class="subtitle">Analysis {_escape(ticker_summary.get('analysis_date') or '-')} / Market {_escape(ticker_summary.get('trade_date') or '-')} / {_escape(ticker_summary['status'])}</p>
       </div>
       <div class="hero-card">
         <div class="status {ticker_summary['status']}">{_escape(ticker_summary['status'])}</div>
+        <p><strong>Analysis date</strong><span>{_escape(ticker_summary.get('analysis_date') or '-')}</span></p>
+        <p><strong>Trade date</strong><span>{_escape(ticker_summary.get('trade_date') or '-')}</span></p>
         <p><strong>Decision</strong><span>{_escape(ticker_summary.get('decision') or '-')}</span></p>
         <p><strong>Duration</strong><span>{ticker_summary.get('duration_seconds', 0):.1f}s</span></p>
         <p><strong>LLM calls</strong><span>{ticker_summary.get('metrics', {}).get('llm_calls', 0)}</span></p>

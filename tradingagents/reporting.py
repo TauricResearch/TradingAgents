@@ -19,6 +19,8 @@ def save_report_bundle(
     save_path = Path(save_path)
     save_path.mkdir(parents=True, exist_ok=True)
     labels = _labels_for(language)
+    analysis_date = _coerce_text(final_state.get("analysis_date"))
+    trade_date = _coerce_text(final_state.get("trade_date"))
 
     sections: list[str] = []
 
@@ -104,10 +106,13 @@ def save_report_bundle(
             f"### {labels['portfolio_manager']}\n{portfolio_decision}"
         )
 
-    header = (
-        f"# {labels['report_title']}: {ticker}\n\n"
-        f"{labels['generated_at']}: {generated_at.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-    )
+    metadata_lines = [f"{labels['generated_at']}: {generated_at.strftime('%Y-%m-%d %H:%M:%S')}"]
+    if analysis_date:
+        metadata_lines.append(f"{labels['analysis_date']}: {analysis_date}")
+    if trade_date:
+        metadata_lines.append(f"{labels['trade_date']}: {trade_date}")
+
+    header = f"# {labels['report_title']}: {ticker}\n\n" + "\n".join(metadata_lines) + "\n\n"
     complete_report = save_path / "complete_report.md"
     _write_text(complete_report, header + "\n\n".join(sections))
     return complete_report
@@ -132,6 +137,8 @@ def _labels_for(language: str) -> dict[str, str]:
         return {
             "report_title": "트레이딩 분석 리포트",
             "generated_at": "생성 시각",
+            "analysis_date": "분석 기준일",
+            "trade_date": "시장 데이터 기준일",
             "section_analysts": "I. 애널리스트 팀 리포트",
             "section_research": "II. 리서치 팀 판단",
             "section_trading": "III. 트레이딩 팀 계획",
@@ -154,6 +161,8 @@ def _labels_for(language: str) -> dict[str, str]:
     return {
         "report_title": "Trading Analysis Report",
         "generated_at": "Generated",
+        "analysis_date": "Analysis date",
+        "trade_date": "Market data date",
         "section_analysts": "I. Analyst Team Reports",
         "section_research": "II. Research Team Decision",
         "section_trading": "III. Trading Team Plan",
