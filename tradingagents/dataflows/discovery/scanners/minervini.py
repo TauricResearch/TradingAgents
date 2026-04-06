@@ -65,6 +65,7 @@ class MinerviniScanner(BaseScanner):
         self.sma_200_slope_days = self.scanner_config.get("sma_200_slope_days", 20)
         self.min_pct_off_low = self.scanner_config.get("min_pct_off_low", 30)
         self.max_pct_from_high = self.scanner_config.get("max_pct_from_high", 25)
+        self.max_tickers = self.scanner_config.get("max_tickers", 200)
 
     def scan(self, state: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not self.is_enabled():
@@ -76,6 +77,10 @@ class MinerviniScanner(BaseScanner):
         if not tickers:
             logger.warning("No tickers loaded for Minervini scan")
             return []
+
+        if self.max_tickers and len(tickers) > self.max_tickers:
+            logger.info(f"Limiting Minervini scan to {self.max_tickers}/{len(tickers)} tickers")
+            tickers = tickers[: self.max_tickers]
 
         # Batch download OHLCV — 1y needed for SMA200
         import yfinance as yf

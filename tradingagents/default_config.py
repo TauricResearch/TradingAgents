@@ -229,6 +229,7 @@ DEFAULT_CONFIG = {
                 "sma_200_slope_days": 20,  # Days back to check SMA200 slope
                 "min_pct_off_low": 30,  # Must be 30%+ above 52w low
                 "max_pct_from_high": 25,  # Must be within 25% of 52w high
+                "max_tickers": 200,  # Cap universe to keep download under scanner timeout
             },
         },
     },
