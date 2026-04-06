@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Card, Progress, Timeline, Badge, Empty, Button, Tag, Result, message } from 'antd'
+import { Card, Progress, Badge, Empty, Button, Result, message } from 'antd'
 import { CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons'
 
 const ANALYSIS_STAGES = [
-  { key: 'analysts', label: '分析师团队', description: 'Market / Social / News / Fundamentals' },
-  { key: 'research', label: '研究员辩论', description: 'Bull vs Bear Researcher debate' },
-  { key: 'trader', label: '交易员', description: 'Compose investment plan' },
-  { key: 'risk', label: '风险管理', description: 'Aggressive vs Conservative vs Neutral' },
-  { key: 'portfolio', label: '组合经理', description: 'Final BUY/HOLD/SELL decision' },
+  { key: 'analysts', label: '分析师团队' },
+  { key: 'research', label: '研究员辩论' },
+  { key: 'trader', label: '交易员' },
+  { key: 'risk', label: '风险管理' },
+  { key: 'portfolio', label: '组合经理' },
 ]
 
 export default function AnalysisMonitor() {
@@ -21,6 +21,7 @@ export default function AnalysisMonitor() {
   const wsRef = useRef(null)
 
   const fetchInitialState = useCallback(async () => {
+    if (!taskId) return
     setLoading(true)
     try {
       const res = await fetch(`/api/analysis/status/${taskId}`)
@@ -53,7 +54,7 @@ export default function AnalysisMonitor() {
           setTask(taskData)
         }
       } catch (e) {
-        // Ignore parse errors
+        // ignore parse errors
       }
     }
 
@@ -84,38 +85,46 @@ export default function AnalysisMonitor() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const getStageStatusIcon = (status) => {
+  const getStageIcon = (status) => {
     switch (status) {
       case 'completed':
-        return <CheckCircleOutlined style={{ color: 'var(--color-buy)' }} />
+        return <CheckCircleOutlined style={{ color: 'var(--color-buy)', fontSize: 16 }} />
       case 'running':
-        return <SyncOutlined spin style={{ color: 'var(--color-running)' }} />
+        return <SyncOutlined spin style={{ color: 'var(--color-running)', fontSize: 16 }} />
       case 'failed':
-        return <CloseCircleOutlined style={{ color: 'var(--color-sell)' }} />
+        return <CloseCircleOutlined style={{ color: 'var(--color-sell)', fontSize: 16 }} />
       default:
-        return <Badge status="default" />
+        return <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.12)', display: 'inline-block' }} />
     }
   }
 
   const getDecisionBadge = (decision) => {
     if (!decision) return null
-    const colorMap = {
-      BUY: 'var(--color-buy)',
-      SELL: 'var(--color-sell)',
-      HOLD: 'var(--color-hold)',
-    }
+    const badgeClass = decision === 'BUY' ? 'badge-buy' : decision === 'SELL' ? 'badge-sell' : 'badge-hold'
+    return <span className={badgeClass}>{decision}</span>
+  }
+
+  if (!taskId) {
     return (
-      <Tag
-        color={colorMap[decision]}
-        style={{
-          fontFamily: 'var(--font-data)',
-          fontWeight: 600,
-          fontSize: 14,
-          padding: '4px 12px',
-        }}
-      >
-        {decision}
-      </Tag>
+      <div className="card">
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </svg>
+          <div className="empty-state-title">暂无分析任务</div>
+          <div className="empty-state-description">
+            在股票筛选页面选择股票并点击"分析"开始
+          </div>
+          <button
+            className="btn-primary"
+            style={{ marginTop: 'var(--space-4)' }}
+            onClick={() => window.location.href = '/'}
+          >
+            去筛选
+          </button>
+        </div>
+      </div>
     )
   }
 
@@ -127,21 +136,25 @@ export default function AnalysisMonitor() {
         style={{ marginBottom: 'var(--space-6)' }}
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span>当前分析任务</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600 }}>
+              当前分析任务
+            </span>
             <Badge
-              status={error ? 'error' : wsConnected ? 'success' : 'error'}
-              text={error ? '错误' : wsConnected ? '实时连接' : '未连接'}
+              status={error ? 'error' : wsConnected ? 'success' : 'default'}
+              text={
+                <span style={{ fontSize: 12, color: error ? 'var(--color-sell)' : wsConnected ? 'var(--color-buy)' : 'rgba(0,0,0,0.48)' }}>
+                  {error ? '错误' : wsConnected ? '实时连接' : '连接中'}
+                </span>
+              }
             />
           </div>
         }
       >
         {loading ? (
           <div style={{ textAlign: 'center', padding: 'var(--space-12)' }}>
-            <div className="loading-pulse" style={{ color: 'var(--color-running)', fontSize: 16 }}>
-              连接中...
-            </div>
+            <div className="loading-pulse" style={{ fontSize: 16 }}>连接中...</div>
           </div>
-        ) : error ? (
+        ) : error && !task ? (
           <Result
             status="error"
             title="连接失败"
@@ -153,7 +166,6 @@ export default function AnalysisMonitor() {
                   fetchInitialState()
                   connectWebSocket()
                 }}
-                aria-label="重新连接"
               >
                 重新连接
               </Button>
@@ -164,128 +176,75 @@ export default function AnalysisMonitor() {
             {/* Task Header */}
             <div style={{ marginBottom: 'var(--space-6)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-                <span style={{ fontSize: 24, fontWeight: 600 }}>{task.name}</span>
-                <span style={{ fontFamily: 'var(--font-data)', color: 'var(--color-text-muted)' }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 600, letterSpacing: 0.196, lineHeight: 1.14 }}>
                   {task.ticker}
                 </span>
                 {getDecisionBadge(task.decision)}
               </div>
 
               {/* Progress */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <Progress
-                  percent={task.progress}
-                  status="active"
-                  strokeColor="var(--color-buy)"
-                  style={{ flex: 1 }}
-                />
-                <span
-                  style={{
-                    fontFamily: 'var(--font-data)',
-                    color: 'var(--color-text-muted)',
-                    minWidth: 50,
-                  }}
-                >
-                  {formatTime(task.elapsed)}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                <div className="progress-bar" style={{ flex: 1, height: 6 }}>
+                  <div className="progress-bar-fill" style={{ width: `${task.progress || 0}%` }} />
+                </div>
+                <span className="text-data" style={{ minWidth: 50, textAlign: 'right' }}>
+                  {task.progress || 0}%
                 </span>
               </div>
             </div>
 
             {/* Stages */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-              {ANALYSIS_STAGES.map((stage, index) => (
-                <div
-                  key={stage.key}
-                  style={{
-                    padding: '8px 16px',
-                    background:
-                      task.stages[index]?.status === 'running'
-                        ? 'rgba(168, 85, 247, 0.15)'
-                        : task.stages[index]?.status === 'completed'
-                        ? 'rgba(34, 197, 94, 0.15)'
-                        : 'var(--color-surface-elevated)',
-                    borderRadius: 'var(--radius-md)',
-                    border: `1px solid ${
-                      task.stages[index]?.status === 'running'
-                        ? 'var(--color-running)'
-                        : task.stages[index]?.status === 'completed'
-                        ? 'var(--color-buy)'
-                        : 'var(--color-border)'
-                    }`,
-                    opacity: task.stages[index]?.status === 'pending' ? 0.5 : 1,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {getStageStatusIcon(task.stages[index]?.status)}
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-6)' }}>
+              {ANALYSIS_STAGES.map((stage, index) => {
+                const stageState = task.stages?.[index]
+                const status = stageState?.status || 'pending'
+                return (
+                  <div key={stage.key} className={`stage-pill ${status}`}>
+                    {getStageIcon(status)}
                     <span>{stage.label}</span>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* Logs */}
             <div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: 'var(--color-text-muted)',
-                  marginBottom: 12,
-                  textTransform: 'uppercase',
-                }}
-              >
+              <div className="text-caption" style={{ marginBottom: 12, textTransform: 'uppercase', fontWeight: 600 }}>
                 实时日志
               </div>
               <div
-                aria-live="polite"
                 style={{
                   fontFamily: 'var(--font-data)',
                   fontSize: 12,
-                  background: 'var(--color-bg)',
+                  background: 'rgba(0,0,0,0.03)',
                   padding: 'var(--space-4)',
-                  borderRadius: 'var(--radius-md)',
-                  maxHeight: 300,
+                  borderRadius: 'var(--radius-standard)',
+                  maxHeight: 280,
                   overflow: 'auto',
                 }}
               >
-                {task.logs.map((log, i) => (
-                  <div key={i} style={{ marginBottom: 8 }}>
-                    <span style={{ color: 'var(--color-text-muted)' }}>[{log.time}]</span>{' '}
-                    <span style={{ color: 'var(--color-interactive)' }}>{log.stage}:</span>{' '}
-                    <span>{log.message}</span>
+                {task.logs?.length > 0 ? (
+                  task.logs.map((log, i) => (
+                    <div key={i} style={{ marginBottom: 8, lineHeight: 1.4 }}>
+                      <span style={{ color: 'rgba(0,0,0,0.48)' }}>[{log.time}]</span>{' '}
+                      <span style={{ fontWeight: 500 }}>{log.stage}:</span>{' '}
+                      <span>{log.message}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ color: 'rgba(0,0,0,0.48)', textAlign: 'center', padding: 'var(--space-4)' }}>
+                    等待日志输出...
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </>
         ) : (
-          <Empty description="暂无进行中的分析任务" image={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48 }}>
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v6l4 2" />
-            </svg>
-          } />
+          <div className="empty-state">
+            <div className="empty-state-title">暂无任务数据</div>
+          </div>
         )}
       </Card>
-
-      {/* No Active Task */}
-      {!task && (
-        <div className="card">
-          <div className="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v6l4 2" />
-            </svg>
-            <div className="empty-state-title">暂无进行中的分析</div>
-            <div className="empty-state-description">
-              在股票筛选页面选择股票并点击"分析"开始
-            </div>
-            <Button type="primary" style={{ marginTop: 16 }} aria-label="去筛选股票">
-              去筛选股票
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
