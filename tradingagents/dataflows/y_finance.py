@@ -1,5 +1,4 @@
 import os
-import sys
 import warnings
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -20,17 +19,39 @@ logger = get_logger(__name__)
 
 @contextmanager
 def suppress_yfinance_warnings():
-    """Suppress yfinance stderr warnings about delisted tickers."""
+    """Suppress yfinance log and warning output in a thread-safe way.
+
+    Previous implementation redirected sys.stderr to /dev/null, but that is
+    NOT thread-safe: concurrent scanner threads each mutate the process-global
+    sys.stderr, causing race conditions where one thread closes a file descriptor
+    that another thread is still writing to ("I/O operation on closed file").
+
+    This implementation suppresses at the Python logging level, which is
+    protected by internal locks and therefore safe to call from many threads.
+    """
+    import logging
+
+    yf_logger_names = [
+        "yfinance",
+        "yfinance.base",
+        "yfinance.utils",
+        "peewee",
+        "urllib3.connectionpool",
+        "urllib3",
+    ]
+    saved_levels = {}
+    for name in yf_logger_names:
+        lgr = logging.getLogger(name)
+        saved_levels[name] = lgr.level
+        lgr.setLevel(logging.CRITICAL)
+
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore")
-        # Redirect stderr to devnull temporarily
-        old_stderr = sys.stderr
-        sys.stderr = open(os.devnull, "w")
         try:
             yield
         finally:
-            sys.stderr.close()
-            sys.stderr = old_stderr
+            for name, level in saved_levels.items():
+                logging.getLogger(name).setLevel(level)
 
 
 def get_ticker_info(symbol: str) -> dict:
