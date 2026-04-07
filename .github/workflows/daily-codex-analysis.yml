@@ -69,7 +69,6 @@ jobs:
             Write-Host "Skipping Codex runtime resolution because site_only=true."
             exit 0
           }
-
           function Test-CodexCandidate {
             param([string]$Candidate)
 
@@ -128,6 +127,7 @@ jobs:
           }
 
       - name: Verify Codex login and model availability
+        if: ${{ github.event.inputs.site_only != 'true' }}
         run: |
           $siteOnly = "${{ github.event.inputs.site_only }}"
           if ($siteOnly -eq "true") {
