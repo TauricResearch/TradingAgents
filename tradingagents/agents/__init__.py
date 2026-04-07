@@ -13,6 +13,7 @@ from .researchers.bull_researcher import create_bull_researcher
 from .risk_mgmt.aggressive_debator import create_aggressive_debator
 from .risk_mgmt.conservative_debator import create_conservative_debator
 from .risk_mgmt.neutral_debator import create_neutral_debator
+from .risk_mgmt.market_gate import create_market_gate
 
 from .managers.research_manager import create_research_manager
 from .managers.portfolio_manager import create_portfolio_manager
@@ -37,4 +38,5 @@ __all__ = [
     "create_conservative_debator",
     "create_social_media_analyst",
     "create_trader",
+    "create_market_gate",
 ]
