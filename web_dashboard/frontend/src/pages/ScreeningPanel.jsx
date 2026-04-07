@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Table, Button, Select, Input, Space, Statistic, Row, Col, Skeleton, Result, message, Popconfirm, Tooltip } from 'antd'
+import { Table, Button, Select, Space, Row, Col, Skeleton, Result, message, Popconfirm, Tooltip } from 'antd'
 import { PlayCircleOutlined, ReloadOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 
 const SCREEN_MODES = [
@@ -15,7 +15,6 @@ export default function ScreeningPanel() {
   const navigate = useNavigate()
   const [mode, setMode] = useState('china_strict')
   const [loading, setLoading] = useState(true)
-  const [screening, setScreening] = useState(false)
   const [results, setResults] = useState([])
   const [stats, setStats] = useState({ total: 0, passed: 0 })
   const [error, setError] = useState(null)
@@ -41,6 +40,22 @@ export default function ScreeningPanel() {
     fetchResults()
   }, [mode])
 
+  const handleStartAnalysis = async (stock) => {
+    try {
+      const res = await fetch('/api/analysis/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker: stock.ticker }),
+      })
+      if (!res.ok) throw new Error('启动分析失败')
+      const data = await res.json()
+      message.success(`已提交分析任务: ${stock.name} (${stock.ticker})`)
+      navigate(`/monitor?task_id=${data.task_id}`)
+    } catch (err) {
+      message.error(err.message)
+    }
+  }
+
   const columns = [
     {
       title: '代码',
@@ -48,7 +63,7 @@ export default function ScreeningPanel() {
       key: 'ticker',
       width: 120,
       render: (text) => (
-        <span style={{ fontFamily: 'var(--font-data)' }}>{text}</span>
+        <span className="text-data">{text}</span>
       ),
     },
     {
@@ -56,18 +71,24 @@ export default function ScreeningPanel() {
       dataIndex: 'name',
       key: 'name',
       width: 120,
+      render: (text) => (
+        <span style={{ fontWeight: 500 }}>{text}</span>
+      ),
     },
     {
       title: (
         <Tooltip title="营业收入同比增长率">
-          <span>营收增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--color-text-muted)' }} /></span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            营收增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'rgba(0,0,0,0.48)' }} />
+          </span>
         </Tooltip>
       ),
       dataIndex: 'revenue_growth',
       key: 'revenue_growth',
       align: 'right',
+      width: 100,
       render: (val) => (
-        <span style={{ fontFamily: 'var(--font-data)' }}>
+        <span className="text-data" style={{ color: val > 0 ? 'var(--color-buy)' : 'var(--color-sell)' }}>
           {val?.toFixed(1)}%
         </span>
       ),
@@ -75,14 +96,17 @@ export default function ScreeningPanel() {
     {
       title: (
         <Tooltip title="净利润同比增长率">
-          <span>利润增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--color-text-muted)' }} /></span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            利润增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'rgba(0,0,0,0.48)' }} />
+          </span>
         </Tooltip>
       ),
       dataIndex: 'profit_growth',
       key: 'profit_growth',
       align: 'right',
+      width: 100,
       render: (val) => (
-        <span style={{ fontFamily: 'var(--font-data)' }}>
+        <span className="text-data" style={{ color: val > 0 ? 'var(--color-buy)' : 'var(--color-sell)' }}>
           {val?.toFixed(1)}%
         </span>
       ),
@@ -90,16 +114,17 @@ export default function ScreeningPanel() {
     {
       title: (
         <Tooltip title="净资产收益率 = 净利润/净资产">
-          <span>ROE <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--color-text-muted)' }} /></span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            ROE <QuestionCircleOutlined style={{ fontSize: 10, color: 'rgba(0,0,0,0.48)' }} />
+          </span>
         </Tooltip>
       ),
       dataIndex: 'roe',
       key: 'roe',
       align: 'right',
+      width: 80,
       render: (val) => (
-        <span style={{ fontFamily: 'var(--font-data)' }}>
-          {val?.toFixed(1)}%
-        </span>
+        <span className="text-data">{val?.toFixed(1)}%</span>
       ),
     },
     {
@@ -107,31 +132,31 @@ export default function ScreeningPanel() {
       dataIndex: 'current_price',
       key: 'current_price',
       align: 'right',
+      width: 100,
       render: (val) => (
-        <span style={{ fontFamily: 'var(--font-data)' }}>
-          ¥{val?.toFixed(2)}
-        </span>
+        <span className="text-data">¥{val?.toFixed(2)}</span>
       ),
     },
     {
       title: (
         <Tooltip title="当前成交量/过去20日平均成交量">
-          <span>Vol比 <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--color-text-muted)' }} /></span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            Vol比 <QuestionCircleOutlined style={{ fontSize: 10, color: 'rgba(0,0,0,0.48)' }} />
+          </span>
         </Tooltip>
       ),
       dataIndex: 'vol_ratio',
       key: 'vol_ratio',
       align: 'right',
+      width: 80,
       render: (val) => (
-        <span style={{ fontFamily: 'var(--font-data)' }}>
-          {val?.toFixed(2)}x
-        </span>
+        <span className="text-data">{val?.toFixed(2)}x</span>
       ),
     },
     {
       title: '操作',
       key: 'action',
-      width: 140,
+      width: 100,
       render: (_, record) => (
         <Popconfirm
           title={`确认分析 ${record.name} (${record.ticker})？`}
@@ -152,53 +177,28 @@ export default function ScreeningPanel() {
     },
   ]
 
-  const handleStartAnalysis = async (stock) => {
-    try {
-      const res = await fetch('/api/analysis/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker: stock.ticker }),
-      })
-      if (!res.ok) throw new Error('启动分析失败')
-      const data = await res.json()
-      message.success(`已提交分析任务: ${stock.name} (${stock.ticker})`)
-      navigate(`/monitor?task_id=${data.task_id}`)
-    } catch (err) {
-      message.error(err.message)
-    }
-  }
-
   return (
     <div>
-      {/* Stats Row */}
+      {/* Stats Row - Apple style */}
       <Row gutter={16} style={{ marginBottom: 'var(--space-6)' }}>
         <Col xs={24} sm={8}>
           <div className="card">
-            <Statistic
-              title="筛选模式"
-              value={SCREEN_MODES.find(m => m.value === mode)?.label}
-            />
+            <div className="text-caption" style={{ marginBottom: 4 }}>筛选模式</div>
+            <div style={{ fontFamily: 'var(--font-text)', fontSize: 15, fontWeight: 500 }}>
+              {SCREEN_MODES.find(m => m.value === mode)?.label}
+            </div>
           </div>
         </Col>
         <Col xs={24} sm={8}>
           <div className="card">
-            <Statistic
-              title="股票总数"
-              value={stats.total}
-              valueStyle={{ fontFamily: 'var(--font-data)' }}
-            />
+            <div className="text-caption" style={{ marginBottom: 4 }}>股票总数</div>
+            <div className="text-data" style={{ fontSize: 28, fontWeight: 600 }}>{stats.total}</div>
           </div>
         </Col>
         <Col xs={24} sm={8}>
           <div className="card">
-            <Statistic
-              title="通过数量"
-              value={stats.passed}
-              valueStyle={{
-                fontFamily: 'var(--font-data)',
-                color: 'var(--color-buy)',
-              }}
-            />
+            <div className="text-caption" style={{ marginBottom: 4 }}>通过数量</div>
+            <div className="text-data" style={{ fontSize: 28, fontWeight: 600, color: 'var(--color-buy)' }}>{stats.passed}</div>
           </div>
         </Col>
       </Row>
@@ -213,6 +213,7 @@ export default function ScreeningPanel() {
               onChange={setMode}
               options={SCREEN_MODES}
               style={{ width: 200 }}
+              popupMatchSelectWidth={false}
             />
             <Button
               icon={<ReloadOutlined />}
@@ -239,12 +240,10 @@ export default function ScreeningPanel() {
                 type="primary"
                 icon={<ReloadOutlined />}
                 onClick={fetchResults}
-                aria-label="重试"
               >
                 重试
               </Button>
             }
-            style={{ border: '1px solid var(--color-sell)', borderRadius: 'var(--radius-md)' }}
           />
         ) : results.length === 0 ? (
           <div className="empty-state">
@@ -265,6 +264,7 @@ export default function ScreeningPanel() {
             rowKey="ticker"
             pagination={{ pageSize: 10 }}
             size="middle"
+            scroll={{ x: 700 }}
           />
         )}
       </div>
