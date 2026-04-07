@@ -79,7 +79,7 @@ export default function ScreeningPanel() {
       title: (
         <Tooltip title="营业收入同比增长率">
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            营收增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'rgba(0,0,0,0.48)' }} />
+            营收增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--text-muted)' }} />
           </span>
         </Tooltip>
       ),
@@ -97,7 +97,7 @@ export default function ScreeningPanel() {
       title: (
         <Tooltip title="净利润同比增长率">
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            利润增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'rgba(0,0,0,0.48)' }} />
+            利润增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--text-muted)' }} />
           </span>
         </Tooltip>
       ),
@@ -115,7 +115,7 @@ export default function ScreeningPanel() {
       title: (
         <Tooltip title="净资产收益率 = 净利润/净资产">
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            ROE <QuestionCircleOutlined style={{ fontSize: 10, color: 'rgba(0,0,0,0.48)' }} />
+            ROE <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--text-muted)' }} />
           </span>
         </Tooltip>
       ),
@@ -141,7 +141,7 @@ export default function ScreeningPanel() {
       title: (
         <Tooltip title="当前成交量/过去20日平均成交量">
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            Vol比 <QuestionCircleOutlined style={{ fontSize: 10, color: 'rgba(0,0,0,0.48)' }} />
+            Vol比 <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--text-muted)' }} />
           </span>
         </Tooltip>
       ),
@@ -184,7 +184,7 @@ export default function ScreeningPanel() {
         <Col xs={24} sm={8}>
           <div className="card">
             <div className="text-caption" style={{ marginBottom: 4 }}>筛选模式</div>
-            <div style={{ fontFamily: 'var(--font-text)', fontSize: 15, fontWeight: 500 }}>
+            <div style={{ fontFamily: 'var(--font-ui)', fontSize: 15, fontWeight: 500 }}>
               {SCREEN_MODES.find(m => m.value === mode)?.label}
             </div>
           </div>
@@ -198,7 +198,7 @@ export default function ScreeningPanel() {
         <Col xs={24} sm={8}>
           <div className="card">
             <div className="text-caption" style={{ marginBottom: 4 }}>通过数量</div>
-            <div className="text-data" style={{ fontSize: 28, fontWeight: 600, color: 'var(--color-buy)' }}>{stats.passed}</div>
+            <div className="text-data" style={{ fontSize: 28, fontWeight: 600, color: 'var(--buy)' }}>{stats.passed}</div>
           </div>
         </Col>
       </Row>

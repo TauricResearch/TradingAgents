@@ -272,7 +272,7 @@ function PositionsTab() {
         <Table columns={columns} dataSource={data} rowKey="position_id" loading={loading} pagination={false} size="middle" scroll={{ x: 700 }} />
         {data.length === 0 && !loading && (
           <div className="empty-state">
-            <AccountBookOutlined style={{ fontSize: 40, color: 'rgba(0,0,0,0.2)' }} />
+            <AccountBookOutlined style={{ fontSize: 40, color: 'var(--text-muted)' }} />
             <div className="empty-state-title">暂无持仓</div>
             <div className="empty-state-description">点击"添加持仓"录入您的股票仓位</div>
           </div>
@@ -391,8 +391,8 @@ function RecommendationsTab() {
           <div className="card-title">今日建议</div>
           <Space>
             {analyzing && progress && (
-              <span className="text-caption">
-                {wsConnected ? '🟢' : '🔴'}
+              <span className="text-caption" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span className={`status-dot ${wsConnected ? 'connected' : 'error'}`} />
                 {progress.completed || 0} / {progress.total || 0}
               </span>
             )}
@@ -411,7 +411,7 @@ function RecommendationsTab() {
           <Progress
             percent={Math.round(((progress.completed || 0) / (progress.total || 1)) * 100)}
             status="active"
-            strokeColor="var(--color-apple-blue)"
+            strokeColor="var(--accent)"
           />
         )}
       </div>

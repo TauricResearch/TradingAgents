@@ -87,7 +87,7 @@ export default function ReportsViewer() {
       key: 'ticker',
       width: 120,
       render: (text) => (
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 15 }}>{text}</span>
+        <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 15 }}>{text}</span>
       ),
     },
     {
@@ -126,7 +126,7 @@ export default function ReportsViewer() {
             allowClear
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,0.48)' }} />}
+            prefix={<SearchOutlined style={{ color: 'var(--text-muted)' }} />}
             size="large"
             style={{ flex: 1 }}
           />
@@ -169,10 +169,10 @@ export default function ReportsViewer() {
         title={
           selectedReport ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600 }}>
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 17, fontWeight: 600 }}>
                 {selectedReport.ticker}
               </span>
-              <span style={{ color: 'rgba(0,0,0,0.48)', fontSize: 14 }}>{selectedReport.date}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>{selectedReport.date}</span>
             </div>
           ) : null
         }
@@ -201,7 +201,7 @@ export default function ReportsViewer() {
         styles={{
           wrapper: { maxWidth: '95vw' },
           body: { maxHeight: '70vh', overflow: 'auto', padding: 'var(--space-6)' },
-          header: { padding: 'var(--space-4) var(--space-6)', borderBottom: '1px solid rgba(0,0,0,0.08)' },
+          header: { padding: 'var(--space-4) var(--space-6)', borderBottom: '1px solid var(--border)' },
         }}
       >
         {loadingContent ? (
@@ -211,7 +211,7 @@ export default function ReportsViewer() {
         ) : reportContent ? (
           <div
             style={{
-              fontFamily: 'var(--font-text)',
+              fontFamily: 'var(--font-ui)',
               lineHeight: 1.8,
               fontSize: 15,
             }}

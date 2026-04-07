@@ -70,22 +70,22 @@ export default function BatchManager() {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'completed':
-        return <CheckCircleOutlined style={{ color: 'var(--color-buy)', fontSize: 16 }} />
+        return <CheckCircleOutlined style={{ color: 'var(--buy)', fontSize: 16 }} />
       case 'failed':
-        return <CloseCircleOutlined style={{ color: 'var(--color-sell)', fontSize: 16 }} />
+        return <CloseCircleOutlined style={{ color: 'var(--sell)', fontSize: 16 }} />
       case 'running':
-        return <SyncOutlined spin style={{ color: 'var(--color-running)', fontSize: 16 }} />
+        return <SyncOutlined spin style={{ color: 'var(--running)', fontSize: 16 }} />
       default:
-        return <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.2)', display: 'inline-block' }} />
+        return <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid var(--border-strong)', display: 'inline-block' }} />
     }
   }
 
   const getStatusTag = (status) => {
     const map = {
-      pending: { text: '等待', bg: 'rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.48)' },
-      running: { text: '分析中', bg: 'rgba(168,85,247,0.12)', color: 'var(--color-running)' },
-      completed: { text: '完成', bg: 'rgba(34,197,94,0.12)', color: 'var(--color-buy)' },
-      failed: { text: '失败', bg: 'rgba(220,38,38,0.12)', color: 'var(--color-sell)' },
+      pending: { text: '等待', bg: 'var(--bg-elevated)', color: 'var(--text-muted)' },
+      running: { text: '分析中', bg: 'var(--running-dim)', color: 'var(--running)' },
+      completed: { text: '完成', bg: 'var(--buy-dim)', color: 'var(--buy)' },
+      failed: { text: '失败', bg: 'var(--sell-dim)', color: 'var(--sell)' },
     }
     const s = map[status] || map.pending
     return (
@@ -118,7 +118,7 @@ export default function BatchManager() {
       dataIndex: 'ticker',
       key: 'ticker',
       render: (text) => (
-        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 15 }}>{text}</span>
+        <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 15 }}>{text}</span>
       ),
     },
     {
@@ -131,8 +131,8 @@ export default function BatchManager() {
           <Progress
             percent={val || 0}
             size="small"
-            strokeColor="var(--color-apple-blue)"
-            trailColor="rgba(0,0,0,0.08)"
+            strokeColor="var(--accent)"
+            trailColor="rgba(255,255,255,0.06)"
           />
         ) : (
           <span className="text-data">{val || 0}%</span>
@@ -152,12 +152,12 @@ export default function BatchManager() {
       width: 220,
       render: (text) => (
         <Tooltip title={text} placement="topLeft">
-          <span className="text-data" style={{ fontSize: 11, color: 'rgba(0,0,0,0.48)', cursor: 'default' }}>
+          <span className="text-data" style={{ fontSize: 11, color: 'var(--text-muted)', cursor: 'default' }}>
             {text.slice(0, 18)}...
           </span>
           <button
             onClick={(e) => { e.stopPropagation(); handleCopyTaskId(text) }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: 'rgba(0,0,0,0.48)', display: 'inline-flex', alignItems: 'center' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center' }}
             title="复制任务ID"
           >
             <CopyOutlined style={{ fontSize: 12 }} />
@@ -213,24 +213,37 @@ export default function BatchManager() {
 
   return (
     <div>
-      {/* Stats */}
-      <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
-        <Card size="small" className="card" style={{ flex: 1 }}>
-          <div className="text-data" style={{ fontSize: 32, fontWeight: 600 }}>{pendingCount}</div>
-          <div className="text-caption">等待中</div>
-        </Card>
-        <Card size="small" className="card" style={{ flex: 1 }}>
-          <div className="text-data" style={{ fontSize: 32, fontWeight: 600, color: 'var(--color-running)' }}>{runningCount}</div>
-          <div className="text-caption">分析中</div>
-        </Card>
-        <Card size="small" className="card" style={{ flex: 1 }}>
-          <div className="text-data" style={{ fontSize: 32, fontWeight: 600, color: 'var(--color-buy)' }}>{completedCount}</div>
-          <div className="text-caption">已完成</div>
-        </Card>
-        <Card size="small" className="card" style={{ flex: 1 }}>
-          <div className="text-data" style={{ fontSize: 32, fontWeight: 600, color: 'var(--color-sell)' }}>{failedCount}</div>
-          <div className="text-caption">失败</div>
-        </Card>
+      {/* Compact stat strip — no card nesting, left-aligned with colored accents */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: 'var(--space-1)',
+        marginBottom: 'var(--space-6)',
+        background: 'var(--border)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-1)',
+      }}>
+        {[
+          { label: '等待中', value: pendingCount, color: 'var(--text-muted)', border: 'var(--text-muted)' },
+          { label: '分析中', value: runningCount, color: 'var(--running)', border: 'var(--running)' },
+          { label: '已完成', value: completedCount, color: 'var(--buy)', border: 'var(--buy)' },
+          { label: '失败', value: failedCount, color: 'var(--sell)', border: 'var(--sell)' },
+        ].map(({ label, value, color, border }) => (
+          <div key={label} style={{
+            background: 'var(--bg-surface)',
+            borderRadius: 'var(--radius-md)',
+            padding: 'var(--space-3) var(--space-4)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-3)',
+          }}>
+            <div style={{ width: 3, height: 32, background: border, borderRadius: 2, flexShrink: 0 }} />
+            <div>
+              <div className="text-data" style={{ fontSize: 22, fontWeight: 600, color, lineHeight: 1 }}>{value}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Tasks Table */}

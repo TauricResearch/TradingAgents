@@ -94,7 +94,7 @@ export default function AnalysisMonitor() {
       case 'failed':
         return <CloseCircleOutlined style={{ color: 'var(--color-sell)', fontSize: 16 }} />
       default:
-        return <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.12)', display: 'inline-block' }} />
+        return <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid var(--border-strong)', display: 'inline-block' }} />
     }
   }
 
@@ -136,13 +136,13 @@ export default function AnalysisMonitor() {
         style={{ marginBottom: 'var(--space-6)' }}
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 600 }}>
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 17, fontWeight: 600 }}>
               当前分析任务
             </span>
             <Badge
               status={error ? 'error' : wsConnected ? 'success' : 'default'}
               text={
-                <span style={{ fontSize: 12, color: error ? 'var(--color-sell)' : wsConnected ? 'var(--color-buy)' : 'rgba(0,0,0,0.48)' }}>
+                <span style={{ fontSize: 12, color: error ? 'var(--sell)' : wsConnected ? 'var(--buy)' : 'var(--text-muted)' }}>
                   {error ? '错误' : wsConnected ? '实时连接' : '连接中'}
                 </span>
               }
@@ -176,7 +176,7 @@ export default function AnalysisMonitor() {
             {/* Task Header */}
             <div style={{ marginBottom: 'var(--space-6)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 600, letterSpacing: 0.196, lineHeight: 1.14 }}>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 28, fontWeight: 600, letterSpacing: 0.196, lineHeight: 1.14 }}>
                   {task.ticker}
                 </span>
                 {getDecisionBadge(task.decision)}
@@ -216,7 +216,7 @@ export default function AnalysisMonitor() {
                 style={{
                   fontFamily: 'var(--font-data)',
                   fontSize: 12,
-                  background: 'rgba(0,0,0,0.03)',
+                  background: 'var(--bg-elevated)',
                   padding: 'var(--space-4)',
                   borderRadius: 'var(--radius-standard)',
                   maxHeight: 280,
@@ -226,13 +226,13 @@ export default function AnalysisMonitor() {
                 {task.logs?.length > 0 ? (
                   task.logs.map((log, i) => (
                     <div key={i} style={{ marginBottom: 8, lineHeight: 1.4 }}>
-                      <span style={{ color: 'rgba(0,0,0,0.48)' }}>[{log.time}]</span>{' '}
+                      <span style={{ color: 'var(--text-muted)' }}>[{log.time}]</span>{' '}
                       <span style={{ fontWeight: 500 }}>{log.stage}:</span>{' '}
                       <span>{log.message}</span>
                     </div>
                   ))
                 ) : (
-                  <div style={{ color: 'rgba(0,0,0,0.48)', textAlign: 'center', padding: 'var(--space-4)' }}>
+                  <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 'var(--space-4)' }}>
                     等待日志输出...
                   </div>
                 )}
