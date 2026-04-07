@@ -1401,8 +1401,9 @@ def check_intraday_movement(
     """
     Check if a stock has already moved significantly today (intraday).
 
-    This helps filter out stocks that have already experienced their major price move,
-    avoiding "chasing" stocks that have already run.
+    This helps filter out stocks that have already run up significantly today,
+    avoiding "chasing" stocks that already made their upward move.
+    Downside movers are NOT filtered — they are evaluated normally by the analysis layer.
 
     Args:
         ticker: Stock symbol to check
@@ -1410,7 +1411,7 @@ def check_intraday_movement(
 
     Returns:
         Dict with:
-        - 'already_moved': bool (True if price moved more than threshold)
+        - 'already_moved': bool (True if price is UP more than threshold from open)
         - 'intraday_change_pct': float (% change from open to current/last)
         - 'open_price': float
         - 'current_price': float
@@ -1446,8 +1447,11 @@ def check_intraday_movement(
             # Calculate intraday change percentage
             intraday_change_pct = ((current_price - open_price) / open_price) * 100
 
-            # Determine if stock already moved significantly
-            already_moved = abs(intraday_change_pct) >= movement_threshold
+            # Determine if stock already moved significantly (upward only).
+            # We only filter stocks that already *ran up* — the intent is to avoid chasing.
+            # A stock that dropped significantly is not "stale" in the chase sense; the
+            # analysis layer should decide whether it's a buy or not.
+            already_moved = intraday_change_pct >= movement_threshold
 
             return {
                 "already_moved": already_moved,
