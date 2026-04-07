@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Card, Progress, Badge, Empty, Button, Result, message } from 'antd'
-import { CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import DecisionBadge from '../components/DecisionBadge'
+import { StatusIcon } from '../components/StatusIcon'
 
 const ANALYSIS_STAGES = [
   { key: 'analysts', label: '分析师团队' },
@@ -79,31 +80,6 @@ export default function AnalysisMonitor() {
     }
   }, [taskId, fetchInitialState, connectWebSocket])
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const getStageIcon = (status) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircleOutlined style={{ color: 'var(--color-buy)', fontSize: 16 }} />
-      case 'running':
-        return <SyncOutlined spin style={{ color: 'var(--color-running)', fontSize: 16 }} />
-      case 'failed':
-        return <CloseCircleOutlined style={{ color: 'var(--color-sell)', fontSize: 16 }} />
-      default:
-        return <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid var(--border-strong)', display: 'inline-block' }} />
-    }
-  }
-
-  const getDecisionBadge = (decision) => {
-    if (!decision) return null
-    const badgeClass = decision === 'BUY' ? 'badge-buy' : decision === 'SELL' ? 'badge-sell' : 'badge-hold'
-    return <span className={badgeClass}>{decision}</span>
-  }
-
   if (!taskId) {
     return (
       <div className="card">
@@ -179,7 +155,7 @@ export default function AnalysisMonitor() {
                 <span style={{ fontFamily: 'var(--font-ui)', fontSize: 28, fontWeight: 600, letterSpacing: 0.196, lineHeight: 1.14 }}>
                   {task.ticker}
                 </span>
-                {getDecisionBadge(task.decision)}
+                <DecisionBadge decision={task.decision} />
               </div>
 
               {/* Progress */}
@@ -200,7 +176,7 @@ export default function AnalysisMonitor() {
                 const status = stageState?.status || 'pending'
                 return (
                   <div key={stage.key} className={`stage-pill ${status}`}>
-                    {getStageIcon(status)}
+                    <StatusIcon status={status} />
                     <span>{stage.label}</span>
                   </div>
                 )

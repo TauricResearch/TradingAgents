@@ -1,17 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Table, Button, Progress, Result, Empty, Card, message, Popconfirm, Tooltip } from 'antd'
-import { CheckCircleOutlined, CloseCircleOutlined, SyncOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons'
-
-const MAX_CONCURRENT = 3
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Table, Button, Progress, Result, Card, message, Popconfirm, Tooltip } from 'antd'
+import { DeleteOutlined, CopyOutlined, SyncOutlined } from '@ant-design/icons'
+import DecisionBadge from '../components/DecisionBadge'
+import { StatusIcon, StatusTag } from '../components/StatusIcon'
 
 export default function BatchManager() {
   const [tasks, setTasks] = useState([])
-  const [maxConcurrent] = useState(MAX_CONCURRENT)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchTasks = useCallback(async () => {
-    setLoading(true)
+  const fetchTasks = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true)
     try {
       const res = await fetch('/api/analysis/tasks')
       if (!res.ok) throw new Error('获取任务列表失败')
@@ -21,13 +20,13 @@ export default function BatchManager() {
     } catch (err) {
       setError(err.message)
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchTasks()
-    const interval = setInterval(fetchTasks, 5000)
+    fetchTasks(true)
+    const interval = setInterval(() => fetchTasks(false), 5000)
     return () => clearInterval(interval)
   }, [fetchTasks])
 
@@ -36,7 +35,7 @@ export default function BatchManager() {
       const res = await fetch(`/api/analysis/cancel/${taskId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('取消失败')
       message.success('任务已取消')
-      fetchTasks()
+      fetchTasks(false)
     } catch (err) {
       message.error(err.message)
     }
@@ -53,7 +52,7 @@ export default function BatchManager() {
       })
       if (!res.ok) throw new Error('重试失败')
       message.success('任务已重新提交')
-      fetchTasks()
+      fetchTasks(false)
     } catch (err) {
       message.error(err.message)
     }
@@ -67,50 +66,16 @@ export default function BatchManager() {
     })
   }
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircleOutlined style={{ color: 'var(--buy)', fontSize: 16 }} />
-      case 'failed':
-        return <CloseCircleOutlined style={{ color: 'var(--sell)', fontSize: 16 }} />
-      case 'running':
-        return <SyncOutlined spin style={{ color: 'var(--running)', fontSize: 16 }} />
-      default:
-        return <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid var(--border-strong)', display: 'inline-block' }} />
-    }
-  }
-
-  const getStatusTag = (status) => {
-    const map = {
-      pending: { text: '等待', bg: 'var(--bg-elevated)', color: 'var(--text-muted)' },
-      running: { text: '分析中', bg: 'var(--running-dim)', color: 'var(--running)' },
-      completed: { text: '完成', bg: 'var(--buy-dim)', color: 'var(--buy)' },
-      failed: { text: '失败', bg: 'var(--sell-dim)', color: 'var(--sell)' },
-    }
-    const s = map[status] || map.pending
-    return (
-      <span style={{ background: s.bg, color: s.color, padding: '2px 10px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 600 }}>
-        {s.text}
-      </span>
-    )
-  }
-
-  const getDecisionBadge = (decision) => {
-    if (!decision) return null
-    const cls = decision === 'BUY' ? 'badge-buy' : decision === 'SELL' ? 'badge-sell' : 'badge-hold'
-    return <span className={cls}>{decision}</span>
-  }
-
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: '状态',
       key: 'status',
       width: 110,
       render: (_, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {getStatusIcon(record.status)}
-          {getStatusTag(record.status)}
-        </div>
+        <>
+          <StatusIcon status={record.status} />
+          <StatusTag status={record.status} />
+        </>
       ),
     },
     {
@@ -143,7 +108,7 @@ export default function BatchManager() {
       dataIndex: 'decision',
       key: 'decision',
       width: 80,
-      render: getDecisionBadge,
+      render: (decision) => <DecisionBadge decision={decision} />,
     },
     {
       title: '任务ID',
@@ -174,7 +139,7 @@ export default function BatchManager() {
       render: (error) =>
         error ? (
           <Tooltip title={error} placement="topLeft">
-            <span style={{ color: 'var(--color-sell)', fontSize: 12, display: 'block' }}>{error}</span>
+            <span style={{ color: 'var(--sell)', fontSize: 12, display: 'block' }}>{error}</span>
           </Tooltip>
         ) : null,
     },
@@ -204,16 +169,18 @@ export default function BatchManager() {
         </div>
       ),
     },
-  ]
+  ], [tasks]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pendingCount = tasks.filter(t => t.status === 'pending').length
-  const runningCount = tasks.filter(t => t.status === 'running').length
-  const completedCount = tasks.filter(t => t.status === 'completed').length
-  const failedCount = tasks.filter(t => t.status === 'failed').length
+  const stats = useMemo(() => ({
+    pending: tasks.filter(t => t.status === 'pending').length,
+    running: tasks.filter(t => t.status === 'running').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+    failed: tasks.filter(t => t.status === 'failed').length,
+  }), [tasks])
 
   return (
     <div>
-      {/* Compact stat strip — no card nesting, left-aligned with colored accents */}
+      {/* Compact stat strip */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(4, 1fr)',
@@ -224,12 +191,12 @@ export default function BatchManager() {
         padding: 'var(--space-1)',
       }}>
         {[
-          { label: '等待中', value: pendingCount, color: 'var(--text-muted)', border: 'var(--text-muted)' },
-          { label: '分析中', value: runningCount, color: 'var(--running)', border: 'var(--running)' },
-          { label: '已完成', value: completedCount, color: 'var(--buy)', border: 'var(--buy)' },
-          { label: '失败', value: failedCount, color: 'var(--sell)', border: 'var(--sell)' },
-        ].map(({ label, value, color, border }) => (
-          <div key={label} style={{
+          { label: '等待中', key: 'pending', color: 'var(--text-muted)', border: 'var(--text-muted)' },
+          { label: '分析中', key: 'running', color: 'var(--running)', border: 'var(--running)' },
+          { label: '已完成', key: 'completed', color: 'var(--buy)', border: 'var(--buy)' },
+          { label: '失败', key: 'failed', color: 'var(--sell)', border: 'var(--sell)' },
+        ].map(({ label, key, color, border }) => (
+          <div key={key} style={{
             background: 'var(--bg-surface)',
             borderRadius: 'var(--radius-md)',
             padding: 'var(--space-3) var(--space-4)',
@@ -239,7 +206,7 @@ export default function BatchManager() {
           }}>
             <div style={{ width: 3, height: 32, background: border, borderRadius: 2, flexShrink: 0 }} />
             <div>
-              <div className="text-data" style={{ fontSize: 22, fontWeight: 600, color, lineHeight: 1 }}>{value}</div>
+              <div className="text-data" style={{ fontSize: 22, fontWeight: 600, color, lineHeight: 1 }}>{stats[key]}</div>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
             </div>
           </div>
@@ -258,7 +225,7 @@ export default function BatchManager() {
             title="加载失败"
             subTitle={error}
             extra={
-              <Button type="primary" onClick={fetchTasks}>
+              <Button type="primary" onClick={() => fetchTasks(true)}>
                 重试
               </Button>
             }

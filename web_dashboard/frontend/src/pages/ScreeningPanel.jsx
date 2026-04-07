@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Table, Button, Select, Space, Row, Col, Skeleton, Result, message, Popconfirm, Tooltip } from 'antd'
 import { PlayCircleOutlined, ReloadOutlined, QuestionCircleOutlined } from '@ant-design/icons'
@@ -10,6 +10,9 @@ const SCREEN_MODES = [
   { value: 'relaxed', label: '宽松 (Relaxed)' },
   { value: 'fundamentals_only', label: '纯基本面 (Fundamentals Only)' },
 ]
+
+const HEADER_LABEL_STYLE = { display: 'inline-flex', alignItems: 'center', gap: 4 }
+const HEADER_ICON_STYLE = { fontSize: 10, color: 'var(--text-muted)' }
 
 export default function ScreeningPanel() {
   const navigate = useNavigate()
@@ -56,7 +59,7 @@ export default function ScreeningPanel() {
     }
   }
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: '代码',
       dataIndex: 'ticker',
@@ -78,8 +81,8 @@ export default function ScreeningPanel() {
     {
       title: (
         <Tooltip title="营业收入同比增长率">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            营收增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--text-muted)' }} />
+          <span style={HEADER_LABEL_STYLE}>
+            营收增速 <QuestionCircleOutlined style={HEADER_ICON_STYLE} />
           </span>
         </Tooltip>
       ),
@@ -88,7 +91,7 @@ export default function ScreeningPanel() {
       align: 'right',
       width: 100,
       render: (val) => (
-        <span className="text-data" style={{ color: val > 0 ? 'var(--color-buy)' : 'var(--color-sell)' }}>
+        <span className="text-data" style={{ color: val > 0 ? 'var(--buy)' : 'var(--sell)' }}>
           {val?.toFixed(1)}%
         </span>
       ),
@@ -96,8 +99,8 @@ export default function ScreeningPanel() {
     {
       title: (
         <Tooltip title="净利润同比增长率">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            利润增速 <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--text-muted)' }} />
+          <span style={HEADER_LABEL_STYLE}>
+            利润增速 <QuestionCircleOutlined style={HEADER_ICON_STYLE} />
           </span>
         </Tooltip>
       ),
@@ -106,7 +109,7 @@ export default function ScreeningPanel() {
       align: 'right',
       width: 100,
       render: (val) => (
-        <span className="text-data" style={{ color: val > 0 ? 'var(--color-buy)' : 'var(--color-sell)' }}>
+        <span className="text-data" style={{ color: val > 0 ? 'var(--buy)' : 'var(--sell)' }}>
           {val?.toFixed(1)}%
         </span>
       ),
@@ -114,8 +117,8 @@ export default function ScreeningPanel() {
     {
       title: (
         <Tooltip title="净资产收益率 = 净利润/净资产">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            ROE <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--text-muted)' }} />
+          <span style={HEADER_LABEL_STYLE}>
+            ROE <QuestionCircleOutlined style={HEADER_ICON_STYLE} />
           </span>
         </Tooltip>
       ),
@@ -140,8 +143,8 @@ export default function ScreeningPanel() {
     {
       title: (
         <Tooltip title="当前成交量/过去20日平均成交量">
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            Vol比 <QuestionCircleOutlined style={{ fontSize: 10, color: 'var(--text-muted)' }} />
+          <span style={HEADER_LABEL_STYLE}>
+            Vol比 <QuestionCircleOutlined style={HEADER_ICON_STYLE} />
           </span>
         </Tooltip>
       ),
@@ -175,7 +178,7 @@ export default function ScreeningPanel() {
         </Popconfirm>
       ),
     },
-  ]
+  ], [])
 
   return (
     <div>

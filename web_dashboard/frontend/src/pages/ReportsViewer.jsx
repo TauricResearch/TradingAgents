@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Table, Input, Modal, Skeleton, Button, Space, message } from 'antd'
 import { FileTextOutlined, SearchOutlined, CloseOutlined, DownloadOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
@@ -74,13 +74,16 @@ export default function ReportsViewer() {
     }
   }
 
-  const filteredReports = reports.filter(
-    (r) =>
-      r.ticker.toLowerCase().includes(searchText.toLowerCase()) ||
-      r.date.includes(searchText)
+  const filteredReports = useMemo(() =>
+    reports.filter(
+      (r) =>
+        r.ticker.toLowerCase().includes(searchText.toLowerCase()) ||
+        r.date.includes(searchText)
+    ),
+    [reports, searchText]
   )
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: '代码',
       dataIndex: 'ticker',
@@ -114,7 +117,7 @@ export default function ReportsViewer() {
         </Button>
       ),
     },
-  ]
+  ], [])
 
   return (
     <div>

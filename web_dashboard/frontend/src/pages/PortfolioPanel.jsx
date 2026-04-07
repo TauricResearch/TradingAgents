@@ -1,30 +1,24 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
-  Table, Button, Input, Select, Space, Row, Col, Card, Progress, Result,
-  message, Popconfirm, Modal, Tabs, Tag, Tooltip, Upload, Form, Typography,
+  Table, Button, Input, Select, Space, Row, Col, Card, Progress,
+  message, Popconfirm, Modal, Tabs, Tooltip, Form, Typography,
 } from 'antd'
 import {
   PlusOutlined, DeleteOutlined, PlayCircleOutlined, UploadOutlined,
-  DownloadOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  AccountBookOutlined,
+  DownloadOutlined, SyncOutlined, AccountBookOutlined,
 } from '@ant-design/icons'
 import { portfolioApi } from '../services/portfolioApi'
+import DecisionBadge from '../components/DecisionBadge'
 
 const { Text } = Typography
 
-// ============== Helpers ==============
+const DEFAULT_ACCOUNT = '默认账户'
 
 const formatMoney = (v) =>
   v == null ? '—' : `¥${v.toFixed(2)}`;
 
 const formatPct = (v) =>
   v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
-
-const DecisionBadge = ({ decision }) => {
-  if (!decision) return null
-  const cls = decision === 'BUY' ? 'badge-buy' : decision === 'SELL' ? 'badge-sell' : 'badge-hold'
-  return <span className={cls}>{decision}</span>
-}
 
 // ============== Tab 1: Watchlist ==============
 
@@ -129,7 +123,7 @@ function WatchlistTab() {
 
 function PositionsTab() {
   const [data, setData] = useState([])
-  const [accounts, setAccounts] = useState(['默认账户'])
+  const [accounts, setAccounts] = useState([DEFAULT_ACCOUNT])
   const [account, setAccount] = useState(null)
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
@@ -143,7 +137,7 @@ function PositionsTab() {
         portfolioApi.getAccounts(),
       ])
       setData(posRes.positions || [])
-      setAccounts(accRes.accounts || ['默认账户'])
+      setAccounts(accRes.accounts || [DEFAULT_ACCOUNT])
     } catch {
       message.error('加载失败')
     } finally {
@@ -155,7 +149,7 @@ function PositionsTab() {
 
   const handleAdd = async (vals) => {
     try {
-      await portfolioApi.addPosition({ ...vals, account: account || '默认账户' })
+      await portfolioApi.addPosition({ ...vals, account: account || DEFAULT_ACCOUNT })
       message.success('已添加')
       setAddOpen(false)
       form.resetFields()
@@ -187,7 +181,7 @@ function PositionsTab() {
     }
   }
 
-  const totalPnl = data.reduce((s, p) => s + (p.unrealized_pnl || 0), 0)
+  const totalPnl = useMemo(() => data.reduce((s, p) => s + (p.unrealized_pnl || 0), 0), [data])
 
   const columns = [
     { title: '代码', dataIndex: 'ticker', key: 'ticker', width: 110,
@@ -342,11 +336,19 @@ function RecommendationsTab() {
     ws.onopen = () => setWsConnected(true)
     ws.onmessage = (e) => {
       const d = JSON.parse(e.data)
-      if (d.type === 'progress') setProgress(d)
+      if (d.type === 'progress') {
+        setProgress(d)
+        if (d.status === 'completed' || d.status === 'failed') {
+          setAnalyzing(false)
+          setTaskId(null)
+          setProgress(null)
+          fetchRecs(selectedDate)
+        }
+      }
     }
     ws.onclose = () => setWsConnected(false)
     wsRef.current = ws
-  }, [])
+  }, [fetchRecs, selectedDate])
 
   const handleAnalyze = async () => {
     try {
@@ -362,15 +364,13 @@ function RecommendationsTab() {
   }
 
   useEffect(() => {
-    if (progress?.status === 'completed' || progress?.status === 'failed') {
-      setAnalyzing(false)
-      setTaskId(null)
-      setProgress(null)
-      fetchRecs(selectedDate)
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
     }
-  }, [progress?.status])
-
-  useEffect(() => () => { if (wsRef.current) wsRef.current.close() }, [])
+  }, [])
 
   const columns = [
     { title: '代码', dataIndex: 'ticker', key: 'ticker', width: 110,
