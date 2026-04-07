@@ -63,8 +63,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Resolve Codex runtime
-        if: ${{ github.event.inputs.site_only != 'true' }}
         run: |
+          $siteOnly = "${{ github.event.inputs.site_only }}"
+          if ($siteOnly -eq "true") {
+            Write-Host "Skipping Codex runtime resolution because site_only=true."
+            exit 0
+          }
+
           function Test-CodexCandidate {
             param([string]$Candidate)
 
@@ -123,8 +128,13 @@ jobs:
           }
 
       - name: Verify Codex login and model availability
-        if: ${{ github.event.inputs.site_only != 'true' }}
         run: |
+          $siteOnly = "${{ github.event.inputs.site_only }}"
+          if ($siteOnly -eq "true") {
+            Write-Host "Skipping Codex preflight because site_only=true."
+            exit 0
+          }
+
           $workspaceDir = Join-Path $env:GITHUB_WORKSPACE ".codex-preflight"
           $script = @"
 import os
