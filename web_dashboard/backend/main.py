@@ -567,6 +567,134 @@ async def get_report(ticker: str, date: str):
     return content
 
 
+# ============== Report Export ==============
+
+import csv
+import io
+import re
+from fpdf import FPDF
+
+
+def _extract_decision(markdown_text: str) -> str:
+    """Extract BUY/SELL/HOLD from markdown bold text."""
+    match = re.search(r'\*\*(BUY|SELL|HOLD)\*\*', markdown_text)
+    return match.group(1) if match else 'UNKNOWN'
+
+
+def _extract_summary(markdown_text: str) -> str:
+    """Extract first ~200 chars after '## 分析摘要'."""
+    match = re.search(r'## 分析摘要\s*\n+(.{0,300}?)(?=\n##|\Z)', markdown_text, re.DOTALL)
+    if match:
+        text = match.group(1).strip()
+        # Strip markdown formatting
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        text = re.sub(r'\*(.*?)\*', r'\1', text)
+        text = re.sub(r'[#\n]+', ' ', text)
+        return text[:200].strip()
+    return ''
+
+
+@app.get("/api/reports/export")
+async def export_reports_csv():
+    """Export all reports as CSV: ticker,date,decision,summary."""
+    reports = get_reports_list()
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["ticker", "date", "decision", "summary"])
+    writer.writeheader()
+    for r in reports:
+        content = get_report_content(r["ticker"], r["date"])
+        if content and content.get("report"):
+            writer.writerow({
+                "ticker": r["ticker"],
+                "date": r["date"],
+                "decision": _extract_decision(content["report"]),
+                "summary": _extract_summary(content["report"]),
+            })
+        else:
+            writer.writerow({
+                "ticker": r["ticker"],
+                "date": r["date"],
+                "decision": "UNKNOWN",
+                "summary": "",
+            })
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=tradingagents_reports.csv"},
+    )
+
+
+@app.get("/api/reports/{ticker}/{date}/pdf")
+async def export_report_pdf(ticker: str, date: str):
+    """Export a single report as PDF."""
+    content = get_report_content(ticker, date)
+    if not content or not content.get("report"):
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    markdown_text = content["report"]
+    decision = _extract_decision(markdown_text)
+    summary = _extract_summary(markdown_text)
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.add_font("DejaVu", "", "/System/Library/Fonts/Supplemental/DejaVuSans.ttf", unicode=True)
+    pdf.add_font("DejaVu", "B", "/System/Library/Fonts/Supplemental/DejaVuSans-Bold.ttf", unicode=True)
+
+    pdf.add_page()
+    pdf.set_font("DejaVu", "B", 18)
+    pdf.cell(0, 12, f"TradingAgents 分析报告", ln=True, align="C")
+    pdf.ln(5)
+
+    pdf.set_font("DejaVu", "", 11)
+    pdf.cell(0, 8, f"股票: {ticker}    日期: {date}", ln=True)
+    pdf.ln(3)
+
+    # Decision badge
+    pdf.set_font("DejaVu", "B", 14)
+    if decision == "BUY":
+        pdf.set_text_color(34, 197, 94)
+    elif decision == "SELL":
+        pdf.set_text_color(220, 38, 38)
+    else:
+        pdf.set_text_color(245, 158, 11)
+    pdf.cell(0, 10, f"决策: {decision}", ln=True)
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(5)
+
+    # Summary
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.cell(0, 8, "分析摘要", ln=True)
+    pdf.set_font("DejaVu", "", 10)
+    pdf.multi_cell(0, 6, summary or "无")
+    pdf.ln(5)
+
+    # Full report text (stripped of heavy markdown)
+    pdf.set_font("DejaVu", "B", 12)
+    pdf.cell(0, 8, "完整报告", ln=True)
+    pdf.set_font("DejaVu", "", 9)
+    # Split into lines, filter out very long lines
+    for line in markdown_text.splitlines():
+        line = re.sub(r'\*\*(.*?)\*\*', r'\1', line)
+        line = re.sub(r'\*(.*?)\*', r'\1', line)
+        line = re.sub(r'#{1,6} ', '', line)
+        line = line.strip()
+        if not line:
+            pdf.ln(2)
+            continue
+        if len(line) > 120:
+            line = line[:120] + "..."
+        try:
+            pdf.multi_cell(0, 5, line)
+        except Exception:
+            pass
+
+    return Response(
+        content=pdf.output(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={ticker}_{date}_report.pdf"},
+    )
+
+
 # ============== Portfolio ==============
 
 import sys

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Table, Input, Modal, Skeleton, Button } from 'antd'
-import { FileTextOutlined, SearchOutlined, CloseOutlined } from '@ant-design/icons'
+import { Table, Input, Modal, Skeleton, Button, Space, message } from 'antd'
+import { FileTextOutlined, SearchOutlined, CloseOutlined, DownloadOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
 
 const { Search } = Input
@@ -24,14 +24,38 @@ export default function ReportsViewer() {
       if (!res.ok) throw new Error(`请求失败: ${res.status}`)
       const data = await res.json()
       setReports(data)
-    } catch (err) {
-      console.error('Failed to fetch reports:', err)
-      setReports([
-        { ticker: '300750.SZ', date: '2026-04-05', path: '/results/300750.SZ/2026-04-05' },
-        { ticker: '600519.SS', date: '2026-03-20', path: '/results/600519.SS/2026-03-20' },
-      ])
+    } catch {
+      setReports([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleExportCsv = async () => {
+    try {
+      const res = await fetch('/api/reports/export')
+      if (!res.ok) throw new Error('导出失败')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = 'tradingagents_reports.csv'; a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      message.error(e.message)
+    }
+  }
+
+  const handleExportPdf = async (ticker, date) => {
+    try {
+      const res = await fetch(`/api/reports/${ticker}/${date}/pdf`)
+      if (!res.ok) throw new Error('导出失败')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `${ticker}_${date}_report.pdf`; a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      message.error(e.message)
     }
   }
 
@@ -95,17 +119,22 @@ export default function ReportsViewer() {
 
   return (
     <div>
-      {/* Search */}
+      {/* Search + Export */}
       <div className="card" style={{ marginBottom: 'var(--space-6)' }}>
-        <Search
-          placeholder="搜索股票代码或日期..."
-          allowClear
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,0.48)' }} />}
-          size="large"
-          style={{ width: '100%' }}
-        />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Search
+            placeholder="搜索股票代码或日期..."
+            allowClear
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,0.48)' }} />}
+            size="large"
+            style={{ flex: 1 }}
+          />
+          <Button icon={<DownloadOutlined />} onClick={handleExportCsv} disabled={reports.length === 0}>
+            导出CSV
+          </Button>
+        </div>
       </div>
 
       {/* Reports Table */}
@@ -153,7 +182,21 @@ export default function ReportsViewer() {
           setSelectedReport(null)
           setReportContent(null)
         }}
-        footer={null}
+        footer={
+          selectedReport ? (
+            <Space>
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={() => handleExportPdf(selectedReport.ticker, selectedReport.date)}
+              >
+                导出PDF
+              </Button>
+              <Button onClick={() => { setSelectedReport(null); setReportContent(null) }}>
+                关闭
+              </Button>
+            </Space>
+          ) : null
+        }
         width={800}
         closeIcon={<CloseOutlined style={{ fontSize: 16 }} />}
         styles={{
