@@ -79,6 +79,9 @@ class ScreenRequest(BaseModel):
 
 CACHE_DIR = Path(__file__).parent.parent / "cache"
 CACHE_TTL_SECONDS = 300  # 5 minutes
+MAX_RETRY_COUNT = 2
+RETRY_BASE_DELAY_SECS = 1
+MAX_CONCURRENT_YFINANCE = 5
 
 
 def _get_cache_path(mode: str) -> Path:
@@ -545,7 +548,17 @@ def get_reports_list():
 
 def get_report_content(ticker: str, date: str) -> Optional[dict]:
     """Get report content for a specific ticker and date"""
+    # Validate inputs to prevent path traversal
+    if ".." in ticker or "/" in ticker or "\\" in ticker:
+        return None
+    if ".." in date or "/" in date or "\\" in date:
+        return None
     report_dir = get_results_dir() / ticker / date
+    # Strict traversal check: resolved path must be within get_results_dir()
+    try:
+        report_dir.resolve().relative_to(get_results_dir().resolve())
+    except ValueError:
+        return None
     if not report_dir.exists():
         return None
     content = {}
@@ -883,12 +896,12 @@ async def start_portfolio_analysis():
     await broadcast_progress(task_id, app.state.task_results[task_id])
 
     async def run_portfolio_analysis():
-        MAX_RETRIES = 2
+        max_retries = MAX_RETRY_COUNT
 
         async def run_single_analysis(ticker: str, stock: dict) -> tuple[bool, str, dict | None]:
             """Run analysis for one ticker. Returns (success, decision, rec_or_error)."""
             last_error = None
-            for attempt in range(MAX_RETRIES + 1):
+            for attempt in range(max_retries + 1):
                 script_path = None
                 try:
                     fd, script_path_str = tempfile.mkstemp(suffix=".py", prefix=f"analysis_{task_id}_{stock['_idx']}_")
@@ -941,8 +954,8 @@ async def start_portfolio_analysis():
                             script_path.unlink()
                         except Exception:
                             pass
-                if attempt < MAX_RETRIES:
-                    await asyncio.sleep(2 ** attempt)  # exponential backoff: 1s, 2s
+                if attempt < max_retries:
+                    await asyncio.sleep(RETRY_BASE_DELAY_SECS ** attempt)  # exponential backoff: 1s, 2s
 
             return False, "HOLD", None
 

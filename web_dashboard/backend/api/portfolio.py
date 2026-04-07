@@ -136,7 +136,8 @@ def delete_account(account_name: str) -> bool:
 # ============== Positions =============
 
 # Semaphore to limit concurrent yfinance requests (avoid rate limiting)
-_yfinance_semaphore: asyncio.Semaphore = asyncio.Semaphore(5)
+MAX_CONCURRENT_YFINANCE_REQUESTS = 5
+_yfinance_semaphore: asyncio.Semaphore = asyncio.Semaphore(MAX_CONCURRENT_YFINANCE_REQUESTS)
 
 
 def _fetch_price(ticker: str) -> float | None:
@@ -241,6 +242,8 @@ def add_position(ticker: str, shares: float, cost_price: float,
 
 
 def remove_position(ticker: str, position_id: str, account: Optional[str]) -> bool:
+    if not position_id:
+        return False  # Require explicit position_id to prevent mass deletion
     with open(POSITIONS_LOCK, "w") as lf:
         fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
         try:
@@ -300,8 +303,18 @@ def get_recommendations(date: Optional[str] = None) -> list:
 
 
 def get_recommendation(date: str, ticker: str) -> Optional[dict]:
+    # Validate inputs to prevent path traversal
+    if ".." in ticker or "/" in ticker or "\\" in ticker:
+        return None
+    if ".." in date or "/" in date or "\\" in date:
+        return None
     path = RECOMMENDATIONS_DIR / date / f"{ticker}.json"
     if not path.exists():
+        return None
+    # Ensure resolved path is within RECOMMENDATIONS_DIR (strict traversal check)
+    try:
+        path.resolve().relative_to(RECOMMENDATIONS_DIR.resolve())
+    except ValueError:
         return None
     return json.loads(path.read_text())
 
