@@ -438,6 +438,9 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         self.assertEqual(saved_state["instrument_key"], "equity:AAPL")
         self.assertEqual(saved_state["instrument_type"], "common_stock")
         self.assertEqual(saved_state["market_report_structured"]["status"], "completed")
+        self.assertIn("pipeline_node_results", saved_state)
+        self.assertEqual(saved_state["pipeline_node_results"]["market_report"], "market is bullish")
+        self.assertEqual(saved_state["pipeline_node_results"]["final_trade_decision"], "BUY AAPL")
 
     def test_run_pipeline_writes_complete_report_md(self):
         """run_pipeline should call _write_complete_report_md."""
@@ -874,6 +877,54 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
             f"Expected incomplete-analysis warning. Got: {log_messages}",
         )
 
+    def test_run_portfolio_saves_node_results_payload(self):
+        """run_portfolio should persist a dedicated node-results artifact."""
+        engine = LangGraphEngine()
+
+        final_state = {
+            "portfolio_data": '{"portfolio_id":"p1"}',
+            "risk_metrics": '{"volatility":0.2}',
+            "holding_reviews": '{"AAPL":{"verdict":"hold"}}',
+            "prioritized_candidates": '["AAPL","MSFT"]',
+            "macro_brief": "Macro looks constructive",
+            "micro_brief": "Micro signal improving",
+            "pm_decision": '{"actions":[]}',
+            "cash_sweep": '{"symbol":"SGOV"}',
+            "execution_result": '{"status":"ok"}',
+        }
+
+        async def mock_astream(*args, **kwargs):
+            yield _root_chain_end_event(final_state)
+
+        mock_graph = MagicMock()
+        mock_graph.astream_events = mock_astream
+        mock_pg = MagicMock()
+        mock_pg.graph = mock_graph
+
+        fake_daily_dir = MagicMock(spec=Path)
+        fake_daily_dir.exists.return_value = True
+        fake_daily_dir.iterdir.return_value = []
+
+        with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=fake_daily_dir):
+            mock_store = MagicMock()
+            mock_store.load_scan.return_value = {}
+            mock_store.load_analysis.return_value = None
+            mock_rs_cls.return_value = mock_store
+
+            asyncio.run(_collect(engine.run_portfolio("run1", {"date": "2026-01-01", "portfolio_id": "p1"})))
+
+        mock_store.save_portfolio_node_results.assert_called_once()
+        save_args = mock_store.save_portfolio_node_results.call_args[0]
+        self.assertEqual(save_args[0], "2026-01-01")
+        self.assertEqual(save_args[1], "p1")
+        payload = save_args[2]
+        self.assertEqual(payload["portfolio_id"], "p1")
+        self.assertEqual(payload["analysis_date"], "2026-01-01")
+        self.assertIn("node_results", payload)
+        self.assertEqual(payload["node_results"]["pm_decision"], '{"actions":[]}')
+
 
 # ---------------------------------------------------------------------------
 # TestRunAutoTickerSource
@@ -995,6 +1046,92 @@ class TestRunAutoTickerSource(unittest.TestCase):
             any("retrying with fallback" in m for m in log_messages),
             f"Expected fallback retry log. Got: {log_messages}",
         )
+
+    def test_run_auto_fallback_scan_also_fails_yields_log_and_raises(self):
+        """When both primary and fallback scans fail, run_auto logs both and
+        re-raises the fallback exception."""
+        engine = LangGraphEngine()
+        engine.config = {
+            **engine.config,
+            "mid_think_llm": "qwen/qwen3.6-plus-preview:free",
+            "mid_think_fallback_llm": "fallback-mid",
+        }
+        scan_calls = []
+
+        async def fake_run_scan(run_id, params):
+            scan_calls.append(run_id)
+            if "fallback" in run_id:
+                raise RuntimeError("APIError: Provider returned error")
+            raise RuntimeError(
+                "429 - qwen/qwen3.6-plus-preview:free is temporarily rate-limited upstream."
+            )
+            yield  # unreachable; marks this as an async generator
+
+        engine.run_scan = fake_run_scan
+        engine._load_scan_state = MagicMock(return_value={"scan_date": "2026-01-01"})
+
+        mock_store = MagicMock()
+        mock_store.load_scan.return_value = None
+
+        with patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=MagicMock(spec=Path)), \
+             patch.object(engine, "_start_run_logger", return_value=MagicMock(callback=None)), \
+             patch.object(engine, "_finish_run_logger"):
+            with self.assertRaises(RuntimeError):
+                asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        self.assertEqual(len(scan_calls), 2, "Both primary and fallback scans should have been called")
+        # Config must be restored after fallback failure
+        self.assertEqual(engine.config.get("mid_think_llm"), "qwen/qwen3.6-plus-preview:free")
+
+    def test_run_auto_fallback_applied_when_tier_unknown(self):
+        """When infer_fallback_tier cannot identify the tier (model not in error
+        text), build_fallback_config applies all configured tier fallbacks."""
+        engine = LangGraphEngine()
+        engine.config = {
+            **engine.config,
+            "quick_think_llm": "primary-quick",
+            "mid_think_llm": "primary-mid",
+            "deep_think_llm": "primary-deep",
+            "quick_think_fallback_llm": "fallback-quick",
+            "mid_think_fallback_llm": "fallback-mid",
+            "deep_think_fallback_llm": "fallback-deep",
+        }
+        scan_calls = []
+
+        async def fake_run_scan(run_id, params):
+            scan_calls.append(
+                (
+                    run_id,
+                    engine.config.get("quick_think_llm"),
+                    engine.config.get("mid_think_llm"),
+                    engine.config.get("deep_think_llm"),
+                )
+            )
+            if len(scan_calls) == 1:
+                # Rate-limit error with no model name — tier cannot be inferred
+                raise RuntimeError("429 - upstream rate limit exceeded, retry shortly.")
+            yield {"type": "log", "message": "scan fallback ok"}
+
+        async def fake_after_scan(**kwargs):
+            yield {"type": "log", "message": "after scan"}
+
+        engine.run_scan = fake_run_scan
+        engine._load_scan_state = MagicMock(return_value={"scan_date": "2026-01-01"})
+        engine._run_auto_after_scan = fake_after_scan
+
+        mock_store = MagicMock()
+        mock_store.load_scan.return_value = None
+
+        with patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=MagicMock(spec=Path)), \
+             patch.object(engine, "_start_run_logger", return_value=MagicMock(callback=None)), \
+             patch.object(engine, "_finish_run_logger"):
+            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        self.assertEqual(len(scan_calls), 2)
+        # All three tiers should be switched to their fallbacks
+        self.assertEqual(scan_calls[1][1:], ("fallback-quick", "fallback-mid", "fallback-deep"))
 
     def test_run_auto_gets_tickers_from_scan_report(self):
         """run_auto should run pipeline for AAPL and TSLA from the scan report."""

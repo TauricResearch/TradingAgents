@@ -1,10 +1,22 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.scanner_tools import get_sector_performance
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 
 
 def create_sector_scanner(llm):
     def sector_scanner_node(state):
+        # 1. Idempotency Check
+        existing_report = check_and_load_report(state, "sector_performance_report")
+        if existing_report:
+            return {
+                "sector_performance_report": existing_report,
+                "sender": "sector_scanner",
+            }
+
         scan_date = state["scan_date"]
 
         tools = [get_sector_performance]
@@ -45,6 +57,10 @@ def create_sector_scanner(llm):
         result = run_tool_loop(chain, state["messages"], tools)
 
         report = result.content or ""
+
+        # 3. Resumability: Save after completion
+        if report:
+            save_node_report(state, "sector_performance_report", report)
 
         return {
             "messages": [result],

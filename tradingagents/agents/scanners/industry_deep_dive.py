@@ -4,6 +4,10 @@ import re
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.scanner_tools import get_industry_performance, get_topic_news
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 
 # All valid sector keys accepted by yfinance Sector() and get_industry_performance.
 VALID_SECTOR_KEYS = [
@@ -123,6 +127,14 @@ def _extract_top_sectors(sector_report: str, top_n: int = 3) -> list[str]:
 
 def create_industry_deep_dive(llm):
     def industry_deep_dive_node(state):
+        # 1. Idempotency Check
+        existing_report = check_and_load_report(state, "industry_deep_dive_report")
+        if existing_report:
+            return {
+                "industry_deep_dive_report": existing_report,
+                "sender": "industry_deep_dive",
+            }
+
         scan_date = state["scan_date"]
 
         tools = [get_industry_performance, get_topic_news]
@@ -179,6 +191,10 @@ def create_industry_deep_dive(llm):
         result = run_tool_loop(chain, state["messages"], tools)
 
         report = result.content or ""
+
+        # 3. Resumability: Save after completion
+        if report:
+            save_node_report(state, "industry_deep_dive_report", report)
 
         return {
             "messages": [result],

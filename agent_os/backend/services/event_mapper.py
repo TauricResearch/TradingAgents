@@ -232,6 +232,10 @@ class EventMapper:
         if kind == "on_chain_start":
             metadata = event.get("metadata") or {}
             if metadata.get("langgraph_node"):
+                # Only log the top-level node execution (parent_ids is length 1)
+                # to avoid double-logging for internal chains and subgraphs.
+                if len(event.get("parent_ids", [])) != 1:
+                    return None
                 starts[node_timer_key] = time.monotonic()
                 logger.info("Node start node=%s run=%s", node_name, run_id)
                 return {

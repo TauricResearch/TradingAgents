@@ -57,6 +57,7 @@ def _is_transient_openai_error(exc: Exception) -> bool:
                 "timed out",
                 "timeout",
                 "temporarily unavailable",
+                "provider returned error",  # OpenRouter SSE stream error; usually transient
             )
         )
 

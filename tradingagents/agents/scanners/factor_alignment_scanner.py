@@ -4,10 +4,22 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.scanner_tools import get_earnings_calendar, get_topic_news
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 
 
 def create_factor_alignment_scanner(llm):
     def factor_alignment_scanner_node(state):
+        # 1. Idempotency Check
+        existing_report = check_and_load_report(state, "factor_alignment_report")
+        if existing_report:
+            return {
+                "factor_alignment_report": existing_report,
+                "sender": "factor_alignment_scanner",
+            }
+
         scan_date = state["scan_date"]
         tools = [get_topic_news, get_earnings_calendar]
 
@@ -62,9 +74,15 @@ def create_factor_alignment_scanner(llm):
         chain = prompt | llm.bind_tools(tools)
         result = run_tool_loop(chain, state["messages"], tools)
 
+        report = result.content or ""
+
+        # 3. Resumability: Save after completion
+        if report:
+            save_node_report(state, "factor_alignment_report", report)
+
         return {
             "messages": [result],
-            "factor_alignment_report": result.content or "",
+            "factor_alignment_report": report,
             "sender": "factor_alignment_scanner",
         }
 

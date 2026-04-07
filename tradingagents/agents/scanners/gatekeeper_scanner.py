@@ -2,10 +2,22 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.scanner_tools import get_gatekeeper_universe
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 
 
 def create_gatekeeper_scanner(llm):
     def gatekeeper_scanner_node(state):
+        # 1. Idempotency Check
+        existing_report = check_and_load_report(state, "gatekeeper_universe_report")
+        if existing_report:
+            return {
+                "gatekeeper_universe_report": existing_report,
+                "sender": "gatekeeper_scanner",
+            }
+
         scan_date = state["scan_date"]
 
         tools = [get_gatekeeper_universe]
@@ -44,9 +56,15 @@ def create_gatekeeper_scanner(llm):
         chain = prompt | llm.bind_tools(tools)
         result = run_tool_loop(chain, state["messages"], tools)
 
+        report = result.content or ""
+
+        # 3. Resumability: Save after completion
+        if report:
+            save_node_report(state, "gatekeeper_universe_report", report)
+
         return {
             "messages": [result],
-            "gatekeeper_universe_report": result.content or "",
+            "gatekeeper_universe_report": report,
             "sender": "gatekeeper_scanner",
         }
 

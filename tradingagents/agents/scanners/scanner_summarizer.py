@@ -11,6 +11,10 @@ from tradingagents.agents.managers.summary_rules import (
     SCANNER_REPORT_SUMMARY,
     generate_summary_prompt,
 )
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +48,14 @@ def create_scanner_summarizer(llm, report_key: str, summary_key: str):
     """
 
     def summarizer_node(state: dict) -> dict:
+        # 1. Idempotency Check
+        existing_summary = check_and_load_report(state, summary_key)
+        if existing_summary and existing_summary != "No data available for summarization.":
+            return {
+                summary_key: existing_summary,
+                "sender": f"summarizer_{report_key}",
+            }
+
         raw_report = state.get(report_key, "")
         if not raw_report or raw_report == "Not available":
             return {summary_key: "No data available for summarization."}
@@ -52,6 +64,10 @@ def create_scanner_summarizer(llm, report_key: str, summary_key: str):
 
         result = llm.invoke(prompt)
         summary = result.content or ""
+
+        # 3. Resumability: Save after completion
+        if summary:
+            save_node_report(state, summary_key, summary)
 
         return {
             summary_key: summary,

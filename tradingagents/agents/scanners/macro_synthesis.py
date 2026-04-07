@@ -7,6 +7,10 @@ from typing import Any, Dict
 from langchain_core.prompts import ChatPromptTemplate
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.instruments import CanonicalInstrument, resolve_instrument, is_equity_pipeline_supported
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 
 logger = logging.getLogger(__name__)
 _TICKER_RE = re.compile(r"\b[A-Z]{1,5}\b")
@@ -246,6 +250,14 @@ def _repair_macro_summary(
 
 def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: int = 30):
     def macro_synthesis_node(state):
+        # 1. Idempotency Check
+        existing_report = check_and_load_report(state, "macro_scan_summary")
+        if existing_report:
+            return {
+                "macro_scan_summary": existing_report,
+                "sender": "macro_synthesis",
+            }
+
         scan_date = state["scan_date"]
         horizon_label = _format_horizon_label(scan_horizon_days)
 
@@ -323,6 +335,10 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
                 "storing raw content (first 200 chars): %s",
                 report[:200],
             )
+
+        # 3. Resumability: Save after completion
+        if report:
+            save_node_report(state, "macro_scan_summary", report)
 
         return {
             "messages": [result],

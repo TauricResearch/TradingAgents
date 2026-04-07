@@ -87,17 +87,17 @@ def infer_fallback_tier(config: dict[str, Any], exc: Exception) -> str | None:
 
 
 def build_fallback_config(config: dict[str, Any], tier: str | None = None) -> dict | None:
-    """Return config with fallback substitution for a specific tier.
+    """Return config with fallback substitution.
 
     Args:
         config: Current runtime config.
-        tier: Target tier to fallback. If None, no replacement is applied.
+        tier: Target tier to substitute. When provided, only that tier is
+              replaced (e.g. "mid_think"). When None or unrecognised, all
+              configured tier fallbacks are applied as a safe default.
     """
-    if tier not in _LLM_TIERS:
-        return None
+    tiers = (tier,) if tier in _LLM_TIERS else _LLM_TIERS
 
     replacements: dict = {}
-    tiers = (tier,)
     for tier in tiers:
         fb_llm = config.get(f"{tier}_fallback_llm")
         fb_prov = config.get(f"{tier}_fallback_llm_provider")

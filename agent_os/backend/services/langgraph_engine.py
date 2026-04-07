@@ -191,9 +191,64 @@ SCAN_NODE_TO_REPORT_FIELD = {
     "smart_money_scanner": "smart_money_report",
     "industry_deep_dive": "industry_deep_dive_report",
     "macro_synthesis": "macro_scan_summary",
+    # Summaries
+    "summarize_gatekeeper": "gatekeeper_summary",
+    "summarize_geopolitical": "geopolitical_summary",
+    "summarize_market_movers": "market_movers_summary",
+    "summarize_sector": "sector_summary",
+    "summarize_factor_alignment": "factor_alignment_summary",
+    "summarize_drift": "drift_opportunities_summary",
+    "summarize_smart_money": "smart_money_summary",
+    "summarize_industry_deep_dive": "industry_deep_dive_summary",
 }
 # Keys checked when saving analyst checkpoints
 _ANALYST_KEYS = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
+
+_PIPELINE_NODE_RESULT_FIELDS = (
+    "market_report",
+    "sentiment_report",
+    "news_report",
+    "fundamentals_report",
+    "research_packet_summary",
+    "investment_debate_state",
+    "investment_plan",
+    "trader_investment_plan",
+    "risk_debate_state",
+    "risk_r1_aggressive",
+    "risk_r1_conservative",
+    "risk_r1_neutral",
+    "risk_r2_aggressive",
+    "risk_r2_conservative",
+    "risk_r2_neutral",
+    "final_trade_decision",
+    "analysis_status",
+    "terminal_action",
+    "critical_abort_reason",
+)
+
+_PORTFOLIO_NODE_RESULT_FIELDS = (
+    "portfolio_data",
+    "risk_metrics",
+    "holding_reviews",
+    "prioritized_candidates",
+    "macro_brief",
+    "micro_brief",
+    "pm_decision",
+    "cash_sweep",
+    "execution_result",
+)
+
+
+def _extract_node_results(
+    state: Dict[str, Any],
+    fields: tuple[str, ...],
+) -> Dict[str, Any]:
+    """Return a compact node-results payload with non-empty values only."""
+    return {
+        field: state[field]
+        for field in fields
+        if field in state and state[field] not in (None, "", [], {})
+    }
 
 
 class LangGraphEngine:
@@ -253,16 +308,16 @@ class LangGraphEngine:
         logger.info("Starting SCAN run=%s date=%s", root_run_id, date)
         yield system_log(f"Starting macro scan for {date}")
 
-        initial_state = {
-            "scan_date": date,
-            "messages": [],
-            "geopolitical_report": "",
-            "market_movers_report": "",
-            "sector_performance_report": "",
-            "industry_deep_dive_report": "",
-            "macro_scan_summary": "",
-            "sender": "",
-        }
+        initial_state = self._load_scan_state(root_run_id=root_run_id, date=date, store=store)
+        # Ensure graph-required fields are present
+        initial_state.setdefault("messages", [])
+        initial_state.setdefault("sender", "")
+        initial_state.setdefault("run_id", root_run_id)
+
+        # Initialize missing report fields to empty strings for safety
+        for key in SCAN_NODE_TO_REPORT_FIELD.values():
+            initial_state.setdefault(key, "")
+        initial_state.setdefault("macro_scan_summary", "")
 
         self._event_mapper.register_run(execution_key, "MARKET")
         final_state: Dict[str, Any] = {}
@@ -578,6 +633,12 @@ class LangGraphEngine:
                 serializable_state.update(instrument.to_metadata())
                 serializable_state["ticker"] = ticker
                 serializable_state["analysis_status"] = normalize_analysis_status(serializable_state)
+                pipeline_node_results = _extract_node_results(
+                    serializable_state,
+                    _PIPELINE_NODE_RESULT_FIELDS,
+                )
+                if pipeline_node_results:
+                    serializable_state["pipeline_node_results"] = pipeline_node_results
 
                 # Save JSON via store (complete_report.json)
                 store.save_analysis(date, ticker, serializable_state)
@@ -785,6 +846,22 @@ class LangGraphEngine:
         # Save portfolio reports (Holding Reviews, Risk Metrics, PM Decision, Execution Result)
         if final_state:
             try:
+                serializable_final_state = sanitize_for_json(final_state)
+                portfolio_node_results = _extract_node_results(
+                    serializable_final_state,
+                    _PORTFOLIO_NODE_RESULT_FIELDS,
+                )
+                if portfolio_node_results:
+                    store.save_portfolio_node_results(
+                        date,
+                        portfolio_id,
+                        {
+                            "portfolio_id": portfolio_id,
+                            "analysis_date": date,
+                            "node_results": portfolio_node_results,
+                        },
+                    )
+
                 # 1. Holding Reviews — save the raw string via store
                 holding_reviews_str = final_state.get("holding_reviews")
                 if holding_reviews_str:
@@ -964,6 +1041,12 @@ class LangGraphEngine:
                 if final_state:
                     serializable_state = sanitize_for_json(final_state)
                     serializable_state["analysis_status"] = normalize_analysis_status(serializable_state)
+                    pipeline_node_results = _extract_node_results(
+                        serializable_state,
+                        _PIPELINE_NODE_RESULT_FIELDS,
+                    )
+                    if pipeline_node_results:
+                        serializable_state["pipeline_node_results"] = pipeline_node_results
                     writer_store.save_analysis(date, ticker, serializable_state)
                     # Overwrite checkpoints
                     if final_state.get("trader_investment_plan"):
@@ -1032,6 +1115,12 @@ class LangGraphEngine:
                 if final_state:
                     serializable_state = sanitize_for_json(final_state)
                     serializable_state["analysis_status"] = normalize_analysis_status(serializable_state)
+                    pipeline_node_results = _extract_node_results(
+                        serializable_state,
+                        _PIPELINE_NODE_RESULT_FIELDS,
+                    )
+                    if pipeline_node_results:
+                        serializable_state["pipeline_node_results"] = pipeline_node_results
                     writer_store.save_analysis(date, ticker, serializable_state)
 
                 self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
@@ -1099,6 +1188,18 @@ class LangGraphEngine:
                                     },
                                 ):
                                     yield evt
+                            except Exception as fallback_exc:
+                                logger.error(
+                                    "Fallback scan also failed run=%s: %s",
+                                    root_run_id,
+                                    fallback_exc,
+                                )
+                                yield system_log(
+                                    f"Phase 1/3: fallback scan also failed "
+                                    f"({type(fallback_exc).__name__}): {fallback_exc}. "
+                                    f"Both primary and fallback models are unavailable."
+                                )
+                                raise
                             finally:
                                 self.config = original_config
                         else:
