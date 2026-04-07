@@ -131,32 +131,38 @@ class TradingAgentsGraph:
         )
 
     @staticmethod
-    def _extract_event_preview(event) -> str:
-        """Safely extract a text preview from an ADK event."""
+    def _extract_event_text(event) -> str:
+        """Extract the full text content from an ADK event.
+
+        Returns the concatenated text from all text parts, or a description
+        of non-text parts (function calls/responses).
+        """
         try:
             if not hasattr(event, 'content') or not event.content:
-                return "(no content)"
+                return ""
             parts = getattr(event.content, 'parts', None)
             if not parts:
-                return "(no parts)"
+                return ""
+
+            texts = []
             for part in parts:
-                # Try text first
                 text = getattr(part, 'text', None)
                 if text:
-                    return text[:200] + "..." if len(text) > 200 else text
-                # Function call
-                fn_call = getattr(part, 'function_call', None)
-                if fn_call:
-                    fn_name = getattr(fn_call, 'name', 'unknown')
-                    return f"[tool call: {fn_name}]"
-                # Function response
-                fn_resp = getattr(part, 'function_response', None)
-                if fn_resp:
-                    fn_name = getattr(fn_resp, 'name', 'unknown')
-                    return f"[tool response: {fn_name}]"
-            return "(non-text parts)"
-        except Exception:
-            return "(error reading event)"
+                    texts.append(text)
+                else:
+                    fn_call = getattr(part, 'function_call', None)
+                    if fn_call:
+                        fn_name = getattr(fn_call, 'name', 'unknown')
+                        fn_args = getattr(fn_call, 'args', {})
+                        texts.append(f"[tool call: {fn_name}({fn_args})]")
+                    fn_resp = getattr(part, 'function_response', None)
+                    if fn_resp:
+                        fn_name = getattr(fn_resp, 'name', 'unknown')
+                        texts.append(f"[tool response: {fn_name}]")
+
+            return "\n".join(texts)
+        except Exception as e:
+            return f"(error reading event: {e})"
 
     @staticmethod
     def _event_has_text(event) -> bool:
@@ -218,15 +224,25 @@ class TradingAgentsGraph:
 
         # Run the pipeline
         final_response = None
+        last_author = None
         async for event in self.runner.run_async(
             user_id="trader",
             session_id=session.id,
             new_message=user_message,
         ):
+            author = getattr(event, 'author', 'unknown')
+
             if self.debug:
-                author = getattr(event, 'author', 'unknown')
-                content_preview = self._extract_event_preview(event)
-                print(f"  [{author}] {content_preview}")
+                # Print a separator when a new agent starts speaking
+                if author != last_author:
+                    print(f"\n{'─'*60}")
+                    print(f"  Agent: {author}")
+                    print(f"{'─'*60}")
+                    last_author = author
+
+                event_text = self._extract_event_text(event)
+                if event_text:
+                    print(event_text)
 
             # Track the last event that has text content
             if self._event_has_text(event):
@@ -240,6 +256,14 @@ class TradingAgentsGraph:
         )
 
         state = final_session.state if final_session else {}
+
+        if self.debug:
+            print(f"\n{'='*60}")
+            print("  STATE KEYS POPULATED")
+            print(f"{'='*60}")
+            for key, val in state.items():
+                status = f"{len(val)} chars" if isinstance(val, str) and val else "empty"
+                print(f"  {key}: {status}")
 
         return {
             "state": state,

@@ -67,25 +67,42 @@ async def main():
 
     result = await ta.propagate(args.company, args.date)
 
-    # Print results
+    # Print final decision (always shown)
     print(f"\n{'='*60}")
     print(f"  FINAL TRADING DECISION for {args.company}")
     print(f"{'='*60}\n")
-    print(result["final_decision"])
 
-    # Print state summary if debug
+    final = result["final_decision"]
+    if final:
+        print(final)
+    else:
+        print("(No final decision was produced. Run with --debug to investigate.)")
+
+    # In debug mode, print full output from every stage
     if args.debug:
         print(f"\n{'='*60}")
-        print("  DETAILED STATE SUMMARY")
+        print("  FULL REPORTS FROM EACH STAGE")
         print(f"{'='*60}")
-        for key in ["market_report", "fundamentals_report", "news_report",
-                     "investment_plan", "trader_decision"]:
+
+        reports = [
+            ("MARKET REPORT", "market_report"),
+            ("FUNDAMENTALS REPORT", "fundamentals_report"),
+            ("NEWS REPORT", "news_report"),
+            ("INVESTMENT PLAN (Research Manager)", "investment_plan"),
+            ("TRADER DECISION", "trader_decision"),
+            ("FINAL DECISION (Portfolio Manager)", "final_decision"),
+        ]
+
+        for label, key in reports:
             val = result.get(key, "")
+            print(f"\n{'━'*60}")
+            print(f"  {label}")
+            print(f"{'━'*60}")
             if val:
-                print(f"\n{'─'*40}")
-                print(f"  {key.upper().replace('_', ' ')}")
-                print(f"{'─'*40}")
-                print(val[:800] + "\n  ..." if len(val) > 800 else val)
+                print(val)
+            else:
+                print(f"  (empty — {key} was not populated)")
+            print()
 
 
 def _sync_main():
