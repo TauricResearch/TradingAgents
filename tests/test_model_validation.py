@@ -2,6 +2,8 @@ import unittest
 import warnings
 
 from tradingagents.llm_clients.base_client import BaseLLMClient
+from tradingagents.llm_clients.deepseek_client import DeepSeekClient
+from tradingagents.llm_clients.factory import create_llm_client
 from tradingagents.llm_clients.model_catalog import get_known_models
 from tradingagents.llm_clients.validators import validate_model
 
@@ -40,6 +42,17 @@ class ModelValidationTests(unittest.TestCase):
         self.assertIn("not-a-real-openai-model", str(caught[0].message))
         self.assertIn("openai", str(caught[0].message))
 
+    def test_unknown_deepseek_model_emits_warning(self):
+        client = DummyLLMClient("deepseek", "not-a-real-deepseek-model")
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            client.get_llm()
+
+        self.assertEqual(len(caught), 1)
+        self.assertIn("not-a-real-deepseek-model", str(caught[0].message))
+        self.assertIn("deepseek", str(caught[0].message))
+
     def test_openrouter_and_ollama_accept_custom_models_without_warning(self):
         for provider in ("openrouter", "ollama"):
             client = DummyLLMClient(provider, "custom-model-name")
@@ -50,3 +63,8 @@ class ModelValidationTests(unittest.TestCase):
                     client.get_llm()
 
                 self.assertEqual(caught, [])
+
+    def test_factory_creates_deepseek_client(self):
+        client = create_llm_client("deepseek", "deepseek-chat")
+
+        self.assertIsInstance(client, DeepSeekClient)

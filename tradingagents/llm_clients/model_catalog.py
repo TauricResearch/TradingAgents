@@ -50,6 +50,16 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Gemini 2.5 Flash - Balanced, stable", "gemini-2.5-flash"),
         ],
     },
+    "deepseek": {
+        "quick": [
+            ("DeepSeek Chat - Fast non-thinking mode", "deepseek-chat"),
+            ("DeepSeek Reasoner - Thinking mode for harder tasks", "deepseek-reasoner"),
+        ],
+        "deep": [
+            ("DeepSeek Reasoner - Thinking mode for harder tasks", "deepseek-reasoner"),
+            ("DeepSeek Chat - Fast non-thinking mode", "deepseek-chat"),
+        ],
+    },
     "xai": {
         "quick": [
             ("Grok 4.1 Fast (Non-Reasoning) - Speed optimized, 2M ctx", "grok-4-1-fast-non-reasoning"),

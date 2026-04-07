@@ -239,6 +239,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("OpenAI", "https://api.openai.com/v1"),
         ("Google", None),  # google-genai SDK manages its own endpoint
         ("Anthropic", "https://api.anthropic.com/"),
+        ("DeepSeek", "https://api.deepseek.com"),
         ("xAI", "https://api.x.ai/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
         ("Ollama", "http://localhost:11434/v1"),
