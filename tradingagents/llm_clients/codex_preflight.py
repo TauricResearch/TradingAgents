@@ -27,6 +27,8 @@ def run_codex_preflight(
     session_factory: Callable[..., CodexAppServerSession] = CodexAppServerSession,
 ) -> CodexPreflightResult:
     binary = resolve_codex_binary(codex_binary)
+    if not binary and codex_binary and session_factory is not CodexAppServerSession:
+        binary = codex_binary
     if not binary:
         raise CodexAppServerBinaryError(codex_binary_error_message(codex_binary))
 
