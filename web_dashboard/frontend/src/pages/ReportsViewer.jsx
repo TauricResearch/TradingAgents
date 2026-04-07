@@ -64,12 +64,11 @@ export default function ReportsViewer() {
     setLoadingContent(true)
     try {
       const res = await fetch(`/api/reports/${record.ticker}/${record.date}`)
+      if (!res.ok) throw new Error(`加载失败: ${res.status}`)
       const data = await res.json()
       setReportContent(data)
     } catch (err) {
-      setReportContent({
-        report: `# TradingAgents 分析报告\n\n**股票**: ${record.ticker}\n**日期**: ${record.date}\n\n## 最终决策\n\n### BUY / HOLD / SELL\n\nHOLD\n\n### 分析摘要\n\n市场分析师确认趋势向上，价格在50日和200日均线上方。\n\n基本面分析师：ROE=23.8%, 营收增速36.6%, 利润增速50.1%\n\n研究员辩论后，建议观望等待回调。`,
-      })
+      setReportContent({ report: `# 加载失败\n\n无法加载报告: ${err.message}` })
     } finally {
       setLoadingContent(false)
     }
