@@ -30,6 +30,11 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+
+    "google-adk>=1.0.0",
+    "google-genai>=1.0.0",
+    "python-dotenv>=1.0.0",
+
 ]
 
 [project.scripts]
