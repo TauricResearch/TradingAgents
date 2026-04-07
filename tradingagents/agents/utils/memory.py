@@ -1,144 +1,120 @@
-"""Financial situation memory using BM25 for lexical similarity matching.
+"""Financial situation memory using hybrid BM25 plus regime-tag retrieval."""
 
-Uses BM25 (Best Matching 25) algorithm for retrieval - no API calls,
-no token limits, works offline with any LLM provider.
-"""
+from __future__ import annotations
 
 from rank_bm25 import BM25Okapi
-from typing import List, Tuple
+from typing import Any, List, Tuple
 import re
 
 
 class FinancialSituationMemory:
-    """Memory system for storing and retrieving financial situations using BM25."""
+    """Memory system for storing and retrieving financial situations."""
 
-    def __init__(self, name: str, config: dict = None):
-        """Initialize the memory system.
-
-        Args:
-            name: Name identifier for this memory instance
-            config: Configuration dict (kept for API compatibility, not used for BM25)
-        """
+    def __init__(self, name: str, config: dict | None = None):
         self.name = name
+        self.config = config or {}
         self.documents: List[str] = []
         self.recommendations: List[str] = []
+        self.metadata: List[dict[str, Any]] = []
         self.bm25 = None
+        self.default_n_matches = int(self.config.get("memory_n_matches", 2))
 
     def _tokenize(self, text: str) -> List[str]:
-        """Tokenize text for BM25 indexing.
+        return re.findall(r"\b\w+\b", text.lower())
 
-        Simple whitespace + punctuation tokenization with lowercasing.
-        """
-        # Lowercase and split on non-alphanumeric characters
-        tokens = re.findall(r'\b\w+\b', text.lower())
-        return tokens
+    def _extract_regime_tags(self, text: str) -> set[str]:
+        lowered = text.lower()
+        tags: set[str] = set()
+        keyword_groups = {
+            "volatility": ("volatility", "atr", "drawdown", "swing", "high-volatility"),
+            "trend_up": ("uptrend", "trending up", "breakout", "bullish", "momentum"),
+            "trend_down": ("downtrend", "trending down", "selloff", "bearish", "breakdown"),
+            "range_bound": ("range-bound", "sideways", "consolidation", "choppy"),
+            "rates": ("interest rate", "fed", "fomc", "yield", "monetary"),
+            "earnings": ("earnings", "guidance", "quarter", "revenue", "eps"),
+            "insider": ("insider", "buyback", "share issuance"),
+            "kr": ("krx", ".ks", ".kq", "korea", "한국", "원", "krw"),
+            "us": ("nasdaq", "nyse", "usd", "federal reserve", "u.s.", "us/eastern"),
+            "sentiment": ("sentiment", "narrative", "social", "headline"),
+            "macro": ("inflation", "cpi", "gdp", "macro", "employment"),
+        }
+        for tag, keywords in keyword_groups.items():
+            if any(keyword in lowered for keyword in keywords):
+                tags.add(tag)
+        return tags
 
     def _rebuild_index(self):
-        """Rebuild the BM25 index after adding documents."""
         if self.documents:
             tokenized_docs = [self._tokenize(doc) for doc in self.documents]
             self.bm25 = BM25Okapi(tokenized_docs)
         else:
             self.bm25 = None
 
-    def add_situations(self, situations_and_advice: List[Tuple[str, str]]):
-        """Add financial situations and their corresponding advice.
+    def add_situations(self, situations_and_advice: List[Tuple]):
+        for item in situations_and_advice:
+            if len(item) == 2:
+                situation, recommendation = item
+                metadata = {}
+            elif len(item) == 3:
+                situation, recommendation, metadata = item
+            else:
+                raise ValueError("Each memory entry must be (situation, recommendation) or (situation, recommendation, metadata).")
 
-        Args:
-            situations_and_advice: List of tuples (situation, recommendation)
-        """
-        for situation, recommendation in situations_and_advice:
-            self.documents.append(situation)
-            self.recommendations.append(recommendation)
+            combined_metadata = dict(metadata or {})
+            combined_metadata.setdefault("regime_tags", sorted(self._extract_regime_tags(str(situation))))
+            self.documents.append(str(situation))
+            self.recommendations.append(str(recommendation))
+            self.metadata.append(combined_metadata)
 
-        # Rebuild BM25 index with new documents
         self._rebuild_index()
 
-    def get_memories(self, current_situation: str, n_matches: int = 1) -> List[dict]:
-        """Find matching recommendations using BM25 similarity.
-
-        Args:
-            current_situation: The current financial situation to match against
-            n_matches: Number of top matches to return
-
-        Returns:
-            List of dicts with matched_situation, recommendation, and similarity_score
-        """
+    def get_memories(
+        self,
+        current_situation: str,
+        n_matches: int | None = None,
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> List[dict]:
         if not self.documents or self.bm25 is None:
             return []
 
-        # Tokenize query
+        limit = n_matches if n_matches is not None else self.default_n_matches
         query_tokens = self._tokenize(current_situation)
-
-        # Get BM25 scores for all documents
+        query_tags = self._extract_regime_tags(current_situation)
         scores = self.bm25.get_scores(query_tokens)
+        max_score = max(scores) if max(scores) > 0 else 1
 
-        # Get top-n indices sorted by score (descending)
-        top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:n_matches]
+        ranked_results = []
+        for idx, score in enumerate(scores):
+            metadata = self.metadata[idx] if idx < len(self.metadata) else {}
+            if metadata_filters:
+                if any(metadata.get(key) != value for key, value in metadata_filters.items()):
+                    continue
 
-        # Build results
+            normalized_bm25 = score / max_score if max_score > 0 else 0
+            doc_tags = set(metadata.get("regime_tags", []))
+            tag_score = len(query_tags & doc_tags) / len(query_tags | doc_tags) if (query_tags or doc_tags) else 0
+            hybrid_score = 0.75 * normalized_bm25 + 0.25 * tag_score
+            ranked_results.append((hybrid_score, normalized_bm25, tag_score, idx, metadata))
+
+        ranked_results.sort(key=lambda item: item[0], reverse=True)
+
         results = []
-        max_score = max(scores) if max(scores) > 0 else 1  # Normalize scores
-
-        for idx in top_indices:
-            # Normalize score to 0-1 range for consistency
-            normalized_score = scores[idx] / max_score if max_score > 0 else 0
-            results.append({
-                "matched_situation": self.documents[idx],
-                "recommendation": self.recommendations[idx],
-                "similarity_score": normalized_score,
-            })
+        for hybrid_score, normalized_bm25, tag_score, idx, metadata in ranked_results[:limit]:
+            results.append(
+                {
+                    "matched_situation": self.documents[idx],
+                    "recommendation": self.recommendations[idx],
+                    "similarity_score": hybrid_score,
+                    "bm25_score": normalized_bm25,
+                    "tag_overlap_score": tag_score,
+                    "metadata": metadata,
+                }
+            )
 
         return results
 
     def clear(self):
-        """Clear all stored memories."""
         self.documents = []
         self.recommendations = []
+        self.metadata = []
         self.bm25 = None
-
-
-if __name__ == "__main__":
-    # Example usage
-    matcher = FinancialSituationMemory("test_memory")
-
-    # Example data
-    example_data = [
-        (
-            "High inflation rate with rising interest rates and declining consumer spending",
-            "Consider defensive sectors like consumer staples and utilities. Review fixed-income portfolio duration.",
-        ),
-        (
-            "Tech sector showing high volatility with increasing institutional selling pressure",
-            "Reduce exposure to high-growth tech stocks. Look for value opportunities in established tech companies with strong cash flows.",
-        ),
-        (
-            "Strong dollar affecting emerging markets with increasing forex volatility",
-            "Hedge currency exposure in international positions. Consider reducing allocation to emerging market debt.",
-        ),
-        (
-            "Market showing signs of sector rotation with rising yields",
-            "Rebalance portfolio to maintain target allocations. Consider increasing exposure to sectors benefiting from higher rates.",
-        ),
-    ]
-
-    # Add the example situations and recommendations
-    matcher.add_situations(example_data)
-
-    # Example query
-    current_situation = """
-    Market showing increased volatility in tech sector, with institutional investors
-    reducing positions and rising interest rates affecting growth stock valuations
-    """
-
-    try:
-        recommendations = matcher.get_memories(current_situation, n_matches=2)
-
-        for i, rec in enumerate(recommendations, 1):
-            print(f"\nMatch {i}:")
-            print(f"Similarity Score: {rec['similarity_score']:.2f}")
-            print(f"Matched Situation: {rec['matched_situation']}")
-            print(f"Recommendation: {rec['recommendation']}")
-
-    except Exception as e:
-        print(f"Error during recommendation: {str(e)}")

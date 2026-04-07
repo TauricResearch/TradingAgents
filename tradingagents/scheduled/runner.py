@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 import yfinance as yf
 
+from tradingagents.agents.utils.instrument_resolver import resolve_instrument
 from cli.stats_handler import StatsCallbackHandler
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -119,6 +120,7 @@ def resolve_trade_date(
     ticker: str,
     config: ScheduledAnalysisConfig,
 ) -> str:
+    normalized_symbol = resolve_instrument(ticker).primary_symbol
     mode = config.run.trade_date_mode
     if mode == "explicit" and config.run.explicit_trade_date:
         return config.run.explicit_trade_date
@@ -129,14 +131,14 @@ def resolve_trade_date(
     if mode == "previous_business_day":
         return _previous_business_day(now.date()).isoformat()
 
-    history = yf.Ticker(ticker).history(
+    history = yf.Ticker(normalized_symbol).history(
         period=f"{config.run.latest_market_data_lookback_days}d",
         interval="1d",
         auto_adjust=False,
     )
     if history.empty:
         raise RuntimeError(
-            f"Could not resolve the latest available trade date for {ticker}; yfinance returned no rows."
+            f"Could not resolve the latest available trade date for {ticker} ({normalized_symbol}); yfinance returned no rows."
         )
 
     last_index = history.index[-1]

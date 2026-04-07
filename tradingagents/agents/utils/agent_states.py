@@ -44,7 +44,9 @@ class RiskDebateState(TypedDict):
 
 
 class AgentState(MessagesState):
+    input_instrument: Annotated[str, "Original instrument input provided by the user"]
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
+    instrument_profile: Annotated[dict, "Normalized instrument metadata"]
     trade_date: Annotated[str, "What date we are trading at"]
     analysis_date: Annotated[str, "What date the full analysis is being generated on"]
 

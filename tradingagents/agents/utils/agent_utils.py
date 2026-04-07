@@ -15,10 +15,15 @@ from tradingagents.agents.utils.fundamental_data_tools import (
     get_income_statement
 )
 from tradingagents.agents.utils.news_data_tools import (
+    get_company_news,
+    get_disclosures,
+    get_macro_news,
     get_news,
     get_insider_transactions,
-    get_global_news
+    get_global_news,
+    get_social_sentiment,
 )
+from tradingagents.agents.utils.instrument_resolver import InstrumentProfile
 
 
 def get_language_instruction() -> str:
@@ -111,13 +116,36 @@ def _normalize_localized_finance_terms(content: str, language: str) -> str:
     return normalized
 
 
-def build_instrument_context(ticker: str) -> str:
+def build_instrument_context(
+    ticker: str,
+    instrument_profile: dict | InstrumentProfile | None = None,
+) -> str:
     """Describe the exact instrument so agents preserve exchange-qualified tickers."""
+    profile = instrument_profile.to_dict() if isinstance(instrument_profile, InstrumentProfile) else instrument_profile
+    if not profile:
+        return (
+            f"The instrument to analyze is `{ticker}`. "
+            "Use this exact ticker in every tool call, report, and recommendation, "
+            "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
+        )
+
+    display_name = profile.get("display_name") or ticker
+    primary_symbol = profile.get("primary_symbol") or ticker
+    exchange = profile.get("exchange") or "unknown exchange"
+    country = profile.get("country") or "unknown country"
+    timezone = profile.get("timezone") or "unknown timezone"
+    currency = profile.get("currency") or "unknown currency"
     return (
-        f"The instrument to analyze is `{ticker}`. "
-        "Use this exact ticker in every tool call, report, and recommendation, "
-        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
+        f"The instrument to analyze is `{primary_symbol}` ({display_name}). "
+        f"It trades on {exchange} in {country}, with market timezone {timezone} and reporting currency {currency}. "
+        "Use the normalized primary symbol in every tool call, report, and recommendation, "
+        "preserving any exchange suffix."
     )
+
+
+def get_memory_matches(memory, current_situation: str, n_matches: int | None = None):
+    """Retrieve memory matches while respecting configurable defaults."""
+    return memory.get_memories(current_situation, n_matches=n_matches)
 
 def create_msg_delete():
     def delete_messages(state):

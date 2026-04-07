@@ -1,101 +1,99 @@
-"""yfinance-based news data fetching functions."""
+"""yfinance-based news, macro, and sentiment helpers."""
+
+from __future__ import annotations
 
 from datetime import datetime, timezone
 
 from dateutil.relativedelta import relativedelta
 import yfinance as yf
 
+from .news_models import (
+    NewsItem,
+    dedupe_news_items,
+    filter_news_items_by_date,
+    format_news_items_report,
+    normalize_datetime,
+)
 from .stockstats_utils import yf_retry
 
 
 _TICKER_NEWS_FETCH_COUNTS = (20, 50, 100)
 _MAX_FILTERED_TICKER_ARTICLES = 25
+_GLOBAL_QUERY_PRESETS = {
+    "US": [
+        "stock market economy",
+        "Federal Reserve interest rates",
+        "inflation economic outlook",
+        "global markets trading",
+    ],
+    "KR": [
+        "한국 증시",
+        "한국은행 기준금리",
+        "원달러 환율",
+        "반도체 수출",
+    ],
+    "GLOBAL": [
+        "stock market economy",
+        "global markets trading",
+        "economy monetary policy",
+        "inflation growth outlook",
+    ],
+}
 
 
-def _parse_pub_date(raw_value) -> datetime | None:
-    """Normalize yfinance pub date values into a timezone-aware datetime."""
-    if raw_value in (None, ""):
-        return None
-
-    if isinstance(raw_value, datetime):
-        return raw_value
-
-    if isinstance(raw_value, (int, float)):
-        try:
-            return datetime.fromtimestamp(raw_value, tz=timezone.utc)
-        except (OverflowError, OSError, ValueError):
-            return None
-
-    if isinstance(raw_value, str):
-        normalized = raw_value.strip()
-        if not normalized:
-            return None
-        try:
-            return datetime.fromisoformat(normalized.replace("Z", "+00:00"))
-        except ValueError:
-            try:
-                return datetime.fromtimestamp(float(normalized), tz=timezone.utc)
-            except (OverflowError, OSError, ValueError):
-                return None
-
-    return None
-
-
-def _extract_article_data(article: dict) -> dict:
-    """Extract article data from yfinance news format (handles nested 'content' structure)."""
-    # Handle nested content structure
+def _extract_article_fields(article: dict) -> dict:
+    """Extract article data from yfinance news format."""
     if "content" in article:
         content = article["content"]
-        title = content.get("title", "No title")
-        summary = content.get("summary", "")
         provider = content.get("provider", {})
-        publisher = provider.get("displayName", "Unknown")
-
-        # Get URL from canonicalUrl or clickThroughUrl
         url_obj = content.get("canonicalUrl") or content.get("clickThroughUrl") or {}
-        link = url_obj.get("url", "")
-
-        # Get publish date
-        pub_date = _parse_pub_date(content.get("pubDate", ""))
-
         return {
-            "title": title,
-            "summary": summary,
-            "publisher": publisher,
-            "link": link,
-            "pub_date": pub_date,
-        }
-    else:
-        # Fallback for flat structure
-        return {
-            "title": article.get("title", "No title"),
-            "summary": article.get("summary", ""),
-            "publisher": article.get("publisher", "Unknown"),
-            "link": article.get("link", ""),
-            "pub_date": _parse_pub_date(article.get("providerPublishTime")),
+            "title": content.get("title", "No title"),
+            "summary": content.get("summary", ""),
+            "publisher": provider.get("displayName", "Unknown"),
+            "link": url_obj.get("url", ""),
+            "pub_date": normalize_datetime(content.get("pubDate")),
+            "raw_symbols": content.get("relatedTickers") or [],
         }
 
+    return {
+        "title": article.get("title", "No title"),
+        "summary": article.get("summary", ""),
+        "publisher": article.get("publisher", "Unknown"),
+        "link": article.get("link", ""),
+        "pub_date": normalize_datetime(article.get("providerPublishTime")),
+        "raw_symbols": article.get("relatedTickers") or [],
+    }
 
-def _article_identity(article: dict) -> str:
-    """Return a stable identity key for deduplicating news articles."""
-    link = article.get("link", "").strip()
-    if link:
-        return link
 
-    title = article.get("title", "").strip()
-    publisher = article.get("publisher", "").strip()
-    pub_date = article.get("pub_date")
-    stamp = pub_date.isoformat() if isinstance(pub_date, datetime) else ""
-    return f"{publisher}::{title}::{stamp}"
+def normalize_yfinance_article(article: dict, *, fallback_symbol: str | None = None, country: str | None = None) -> NewsItem:
+    data = _extract_article_fields(article)
+    symbols = [str(symbol).upper() for symbol in data["raw_symbols"] if str(symbol).strip()]
+    if fallback_symbol and fallback_symbol.upper() not in symbols:
+        symbols.append(fallback_symbol.upper())
+    return NewsItem(
+        title=data["title"],
+        source=data["publisher"],
+        published_at=data["pub_date"],
+        language=None,
+        country=country,
+        symbols=symbols,
+        topic_tags=[],
+        sentiment=None,
+        relevance=None,
+        reliability=None,
+        url=data["link"],
+        summary=data["summary"],
+        raw_vendor="yfinance",
+    )
 
 
 def _collect_ticker_news(
     ticker: str,
     start_dt: datetime,
-) -> tuple[list[dict], datetime | None, datetime | None]:
+) -> tuple[list[NewsItem], datetime | None, datetime | None]:
     """Fetch increasingly larger ticker feeds until the requested window is covered."""
-    collected: list[dict] = []
-    seen: set[str] = set()
+    collected: list[NewsItem] = []
     oldest_pub_date = None
     newest_pub_date = None
 
@@ -104,15 +102,13 @@ def _collect_ticker_news(
         if not news:
             continue
 
-        for article in news:
-            data = _extract_article_data(article)
-            identity = _article_identity(data)
-            if identity in seen:
-                continue
-            seen.add(identity)
-            collected.append(data)
+        batch = dedupe_news_items(
+            [normalize_yfinance_article(article, fallback_symbol=ticker) for article in news]
+        )
 
-            pub_date = data.get("pub_date")
+        for item in batch:
+            collected.append(item)
+            pub_date = item.published_at
             if pub_date:
                 if newest_pub_date is None or pub_date > newest_pub_date:
                     newest_pub_date = pub_date
@@ -124,15 +120,15 @@ def _collect_ticker_news(
         if len(news) < count:
             break
 
+    collected = dedupe_news_items(collected)
     collected.sort(
-        key=lambda article: article["pub_date"].timestamp() if article.get("pub_date") else float("-inf"),
+        key=lambda article: article.published_at.timestamp() if article.published_at else float("-inf"),
         reverse=True,
     )
     return collected, oldest_pub_date, newest_pub_date
 
 
 def _format_coverage_note(oldest_pub_date: datetime | None, newest_pub_date: datetime | None) -> str:
-    """Describe the yfinance coverage window when no article matches the requested range."""
     if oldest_pub_date and newest_pub_date:
         return (
             "; the current yfinance ticker feed only covered "
@@ -145,152 +141,137 @@ def _format_coverage_note(oldest_pub_date: datetime | None, newest_pub_date: dat
     return ""
 
 
-def get_news_yfinance(
+def fetch_company_news_yfinance(
+    ticker: str,
+    start_date: str,
+    end_date: str,
+) -> tuple[list[NewsItem], datetime | None, datetime | None]:
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d") + relativedelta(days=1)
+    articles, oldest_pub_date, newest_pub_date = _collect_ticker_news(ticker, start_dt)
+    filtered = filter_news_items_by_date(articles, start_date=start_dt, end_date=end_dt)
+    return filtered[:_MAX_FILTERED_TICKER_ARTICLES], oldest_pub_date, newest_pub_date
+
+
+def get_company_news_yfinance(
     ticker: str,
     start_date: str,
     end_date: str,
 ) -> str:
-    """
-    Retrieve news for a specific stock ticker using yfinance.
-
-    Args:
-        ticker: Stock ticker symbol (e.g., "AAPL")
-        start_date: Start date in yyyy-mm-dd format
-        end_date: End date in yyyy-mm-dd format
-
-    Returns:
-        Formatted string containing news articles
-    """
     try:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-        articles, oldest_pub_date, newest_pub_date = _collect_ticker_news(ticker, start_dt)
-
-        if not articles:
-            return f"No news found for {ticker}"
-
-        news_str = ""
-        filtered_count = 0
-
-        for data in articles:
-            # Filter by date if publish time is available
-            if data["pub_date"]:
-                pub_date_naive = data["pub_date"].replace(tzinfo=None)
-                if not (start_dt <= pub_date_naive <= end_dt + relativedelta(days=1)):
-                    continue
-
-            date_prefix = ""
-            if data["pub_date"]:
-                date_prefix = f"[{data['pub_date'].strftime('%Y-%m-%d')}] "
-
-            news_str += f"### {date_prefix}{data['title']} (source: {data['publisher']})\n"
-            if data["summary"]:
-                news_str += f"{data['summary']}\n"
-            if data["link"]:
-                news_str += f"Link: {data['link']}\n"
-            news_str += "\n"
-            filtered_count += 1
-            if filtered_count >= _MAX_FILTERED_TICKER_ARTICLES:
-                break
-
-        if filtered_count == 0:
+        filtered, oldest_pub_date, newest_pub_date = fetch_company_news_yfinance(ticker, start_date, end_date)
+        if not filtered:
             coverage_note = _format_coverage_note(oldest_pub_date, newest_pub_date)
             return f"No news found for {ticker} between {start_date} and {end_date}{coverage_note}"
+        return format_news_items_report(
+            f"{ticker} Company News, from {start_date} to {end_date}",
+            filtered,
+            max_items=_MAX_FILTERED_TICKER_ARTICLES,
+        )
+    except Exception as exc:
+        return f"Error fetching news for {ticker}: {exc}"
 
-        return f"## {ticker} News, from {start_date} to {end_date}:\n\n{news_str}"
 
-    except Exception as e:
-        return f"Error fetching news for {ticker}: {str(e)}"
+def _get_query_preset(region: str | None) -> list[str]:
+    if not region:
+        return _GLOBAL_QUERY_PRESETS["GLOBAL"]
+    return _GLOBAL_QUERY_PRESETS.get(region.upper(), _GLOBAL_QUERY_PRESETS["GLOBAL"])
 
 
-def get_global_news_yfinance(
+def fetch_macro_news_yfinance(
     curr_date: str,
     look_back_days: int = 7,
     limit: int = 10,
-) -> str:
-    """
-    Retrieve global/macro economic news using yfinance Search.
+    region: str | None = None,
+    language: str | None = None,
+) -> list[NewsItem]:
+    curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    start_dt = curr_dt - relativedelta(days=look_back_days)
+    country = (region or "GLOBAL").upper()
 
-    Args:
-        curr_date: Current date in yyyy-mm-dd format
-        look_back_days: Number of days to look back
-        limit: Maximum number of articles to return
-
-    Returns:
-        Formatted string containing global news articles
-    """
-    # Search queries for macro/global news
-    search_queries = [
-        "stock market economy",
-        "Federal Reserve interest rates",
-        "inflation economic outlook",
-        "global markets trading",
-    ]
-
-    all_news = []
-    seen_titles = set()
-
-    try:
-        for query in search_queries:
-            search = yf_retry(lambda q=query: yf.Search(
-                query=q,
+    all_news: list[NewsItem] = []
+    for query in _get_query_preset(region):
+        search = yf_retry(
+            lambda q=query: yf.Search(
+                query=q if not language else f"{q} {language}",
                 news_count=limit,
                 enable_fuzzy_query=True,
-            ))
+            )
+        )
+        search_news = getattr(search, "news", None) or []
+        batch = [normalize_yfinance_article(article, country=country) for article in search_news]
+        all_news.extend(batch)
+        if len(all_news) >= limit * len(_get_query_preset(region)):
+            break
 
-            if search.news:
-                for article in search.news:
-                    # Handle both flat and nested structures
-                    if "content" in article:
-                        data = _extract_article_data(article)
-                        title = data["title"]
-                    else:
-                        title = article.get("title", "")
+    filtered = []
+    for item in dedupe_news_items(all_news):
+        if item.published_at:
+            published = item.published_at.replace(tzinfo=None)
+            if published < start_dt or published > curr_dt + relativedelta(days=1):
+                continue
+        filtered.append(item)
 
-                    # Deduplicate by title
-                    if title and title not in seen_titles:
-                        seen_titles.add(title)
-                        all_news.append(article)
+    filtered.sort(
+        key=lambda article: article.published_at.timestamp() if article.published_at else float("-inf"),
+        reverse=True,
+    )
+    return filtered[:limit]
 
-            if len(all_news) >= limit:
-                break
 
-        if not all_news:
+def get_macro_news_yfinance(
+    curr_date: str,
+    look_back_days: int = 7,
+    limit: int = 10,
+    region: str | None = None,
+    language: str | None = None,
+) -> str:
+    try:
+        items = fetch_macro_news_yfinance(
+            curr_date,
+            look_back_days=look_back_days,
+            limit=limit,
+            region=region,
+            language=language,
+        )
+        if not items:
             return f"No global news found for {curr_date}"
+        start_date = (datetime.strptime(curr_date, "%Y-%m-%d") - relativedelta(days=look_back_days)).strftime("%Y-%m-%d")
+        region_label = (region or "GLOBAL").upper()
+        return format_news_items_report(
+            f"{region_label} Macro News, from {start_date} to {curr_date}",
+            items,
+            max_items=limit,
+        )
+    except Exception as exc:
+        return f"Error fetching global news: {exc}"
 
-        # Calculate date range
-        curr_dt = datetime.strptime(curr_date, "%Y-%m-%d")
-        start_dt = curr_dt - relativedelta(days=look_back_days)
-        start_date = start_dt.strftime("%Y-%m-%d")
 
-        news_str = ""
-        for article in all_news[:limit]:
-            # Handle both flat and nested structures
-            if "content" in article:
-                data = _extract_article_data(article)
-                # Skip articles published after curr_date (look-ahead guard)
-                if data.get("pub_date"):
-                    pub_naive = data["pub_date"].replace(tzinfo=None) if hasattr(data["pub_date"], "replace") else data["pub_date"]
-                    if pub_naive > curr_dt + relativedelta(days=1):
-                        continue
-                title = data["title"]
-                publisher = data["publisher"]
-                link = data["link"]
-                summary = data["summary"]
-            else:
-                title = article.get("title", "No title")
-                publisher = article.get("publisher", "Unknown")
-                link = article.get("link", "")
-                summary = ""
+def get_social_sentiment_yfinance(
+    symbol: str,
+    start_date: str,
+    end_date: str,
+) -> str:
+    articles, _, _ = fetch_company_news_yfinance(symbol, start_date, end_date)
+    if not articles:
+        return (
+            f"Dedicated social provider unavailable; no news-derived sentiment was found for {symbol} "
+            f"between {start_date} and {end_date}."
+        )
 
-            news_str += f"### {title} (source: {publisher})\n"
-            if summary:
-                news_str += f"{summary}\n"
-            if link:
-                news_str += f"Link: {link}\n"
-            news_str += "\n"
+    report_lines = [
+        f"Dedicated social provider unavailable; using news-derived sentiment for {symbol} from {start_date} to {end_date}.",
+        "Use this as public-narrative context rather than a literal social-media feed.",
+        "",
+    ]
+    for item in articles[:10]:
+        date_prefix = item.published_at.strftime("%Y-%m-%d") if item.published_at else "undated"
+        summary = item.summary or "No summary available."
+        report_lines.append(f"- {date_prefix}: {item.title} ({item.source})")
+        report_lines.append(f"  Narrative: {summary}")
+    return "\n".join(report_lines)
 
-        return f"## Global Market News, from {start_date} to {curr_date}:\n\n{news_str}"
 
-    except Exception as e:
-        return f"Error fetching global news: {str(e)}"
+# Backward-compatible aliases
+get_news_yfinance = get_company_news_yfinance
+get_global_news_yfinance = get_macro_news_yfinance

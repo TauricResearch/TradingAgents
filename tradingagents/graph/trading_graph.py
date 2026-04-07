@@ -19,6 +19,7 @@ from tradingagents.agents.utils.agent_states import (
     RiskDebateState,
 )
 from tradingagents.dataflows.config import set_config
+from tradingagents.schemas import StructuredDecisionValidationError, parse_structured_decision
 
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
@@ -28,9 +29,13 @@ from tradingagents.agents.utils.agent_utils import (
     get_balance_sheet,
     get_cashflow,
     get_income_statement,
+    get_company_news,
+    get_disclosures,
+    get_macro_news,
     get_news,
     get_insider_transactions,
     get_global_news,
+    get_social_sentiment,
     get_output_language,
     rewrite_in_output_language,
 )
@@ -123,7 +128,7 @@ class TradingAgentsGraph:
             self.conditional_logic,
         )
 
-        self.propagator = Propagator()
+        self.propagator = Propagator(self.config["max_recur_limit"])
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
 
@@ -179,15 +184,17 @@ class TradingAgentsGraph:
             ),
             "social": ToolNode(
                 [
-                    # News tools for social media analysis
-                    get_news,
+                    # Dedicated or news-derived sentiment tools
+                    get_social_sentiment,
+                    get_company_news,
                 ]
             ),
             "news": ToolNode(
                 [
-                    # News and insider information
-                    get_news,
-                    get_global_news,
+                    # News, macro, and disclosure information
+                    get_company_news,
+                    get_macro_news,
+                    get_disclosures,
                     get_insider_transactions,
                 ]
             ),
@@ -198,6 +205,7 @@ class TradingAgentsGraph:
                     get_balance_sheet,
                     get_cashflow,
                     get_income_statement,
+                    get_insider_transactions,
                 ]
             ),
         }
@@ -205,12 +213,11 @@ class TradingAgentsGraph:
     def propagate(self, company_name, trade_date, analysis_date=None):
         """Run the trading agents graph for a company on a specific date."""
 
-        self.ticker = company_name
-
         # Initialize state
         init_agent_state = self.propagator.create_initial_state(
             company_name, trade_date, analysis_date=analysis_date
         )
+        self.ticker = init_agent_state["company_of_interest"]
         args = self.propagator.get_graph_args()
 
         if self.debug:
@@ -243,7 +250,9 @@ class TradingAgentsGraph:
     def _log_state(self, trade_date, final_state):
         """Log the final state to a JSON file."""
         self.log_states_dict[str(trade_date)] = {
+            "input_instrument": final_state.get("input_instrument", final_state["company_of_interest"]),
             "company_of_interest": final_state["company_of_interest"],
+            "instrument_profile": final_state.get("instrument_profile", {}),
             "trade_date": final_state["trade_date"],
             "analysis_date": final_state.get("analysis_date", final_state["trade_date"]),
             "market_report": final_state["market_report"],
@@ -311,6 +320,17 @@ class TradingAgentsGraph:
 
         localized = dict(final_state)
 
+        def maybe_localize(content: str, *, content_type: str) -> str:
+            try:
+                parse_structured_decision(content)
+                return content
+            except StructuredDecisionValidationError:
+                return rewrite_in_output_language(
+                    self.quick_thinking_llm,
+                    content,
+                    content_type=content_type,
+                )
+
         for field_name, content_type in (
             ("market_report", "market analyst report"),
             ("sentiment_report", "social sentiment report"),
@@ -320,8 +340,7 @@ class TradingAgentsGraph:
             ("trader_investment_plan", "trader plan"),
             ("final_trade_decision", "portfolio manager final decision"),
         ):
-            localized[field_name] = rewrite_in_output_language(
-                self.quick_thinking_llm,
+            localized[field_name] = maybe_localize(
                 localized.get(field_name, ""),
                 content_type=content_type,
             )
@@ -334,8 +353,7 @@ class TradingAgentsGraph:
             ("current_response", "investment debate latest response"),
             ("judge_decision", "research manager decision"),
         ):
-            investment_debate[field_name] = rewrite_in_output_language(
-                self.quick_thinking_llm,
+            investment_debate[field_name] = maybe_localize(
                 investment_debate.get(field_name, ""),
                 content_type=content_type,
             )
@@ -352,8 +370,7 @@ class TradingAgentsGraph:
             ("current_neutral_response", "neutral risk analyst latest response"),
             ("judge_decision", "portfolio manager decision"),
         ):
-            risk_debate[field_name] = rewrite_in_output_language(
-                self.quick_thinking_llm,
+            risk_debate[field_name] = maybe_localize(
                 risk_debate.get(field_name, ""),
                 content_type=content_type,
             )

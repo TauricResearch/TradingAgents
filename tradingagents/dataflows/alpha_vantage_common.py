@@ -5,13 +5,17 @@ import json
 from datetime import datetime
 from io import StringIO
 
+from .api_keys import get_api_key as get_documented_api_key
+from .config import get_config
+from .vendor_exceptions import VendorConfigurationError, VendorTransientError
+
 API_BASE_URL = "https://www.alphavantage.co/query"
 
 def get_api_key() -> str:
     """Retrieve the API key for Alpha Vantage from environment variables."""
-    api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
+    api_key = os.getenv("ALPHA_VANTAGE_API_KEY") or get_documented_api_key("ALPHA_VANTAGE_API_KEY")
     if not api_key:
-        raise ValueError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
+        raise VendorConfigurationError("ALPHA_VANTAGE_API_KEY is not configured.")
     return api_key
 
 def format_datetime_for_api(date_input) -> str:
@@ -63,8 +67,15 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
     
-    response = requests.get(API_BASE_URL, params=api_params)
-    response.raise_for_status()
+    try:
+        response = requests.get(
+            API_BASE_URL,
+            params=api_params,
+            timeout=float(get_config().get("vendor_timeout", 15)),
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        raise VendorTransientError(f"Alpha Vantage request failed: {exc}") from exc
 
     response_text = response.text
     

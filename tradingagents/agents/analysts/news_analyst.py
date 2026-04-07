@@ -1,26 +1,37 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
-    get_global_news,
+    get_company_news,
+    get_disclosures,
     get_language_instruction,
-    get_news,
+    get_macro_news,
 )
-from tradingagents.dataflows.config import get_config
 
 
 def create_news_analyst(llm):
     def news_analyst_node(state):
         current_date = state.get("analysis_date") or state["trade_date"]
-        instrument_context = build_instrument_context(state["company_of_interest"])
+        instrument_context = build_instrument_context(
+            state["company_of_interest"],
+            state.get("instrument_profile"),
+        )
 
         tools = [
-            get_news,
-            get_global_news,
+            get_company_news,
+            get_macro_news,
+            get_disclosures,
         ]
 
         system_message = (
-            "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Use the available tools: get_news(query, start_date, end_date) for company-specific or targeted news searches, and get_global_news(curr_date, look_back_days, limit) for broader macroeconomic news. Provide specific, actionable insights with supporting evidence to help traders make informed decisions."
-            + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            "You are a news and event analyst. "
+            "Build the report from three evidence blocks: company news, macro news, and disclosures. "
+            "Use `get_company_news(symbol, start_date, end_date)` for company-specific coverage, "
+            "`get_macro_news(curr_date, look_back_days, limit, region, language)` for broader market context, "
+            "and `get_disclosures(symbol, start_date, end_date)` for filing or disclosure events when available. "
+            "Do not describe unsupported tool signatures or imaginary search capabilities. "
+            "Present 3 to 5 key events with event type, source, why it matters, bullish implication, bearish implication, and confidence. "
+            "Finish with a concise Markdown table summarizing the evidence."
             + get_language_instruction()
         )
 
@@ -32,10 +43,9 @@ def create_news_analyst(llm):
                     " Use the provided tools to progress towards answering the question."
                     " If you are unable to fully answer, that's OK; another assistant with different tools"
                     " will help where you left off. Execute what you can to make progress."
-                    " If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,"
-                    " prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop."
+                    " Return the completed news report directly once you have enough evidence."
                     " You have access to the following tools: {tool_names}.\n{system_message}"
-                    "For your reference, the current date is {current_date}. {instrument_context}",
+                    " For your reference, the current date is {current_date}. {instrument_context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
@@ -50,7 +60,6 @@ def create_news_analyst(llm):
         result = chain.invoke(state["messages"])
 
         report = ""
-
         if len(result.tool_calls) == 0:
             report = result.content
 

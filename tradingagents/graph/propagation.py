@@ -1,17 +1,19 @@
 # TradingAgents/graph/propagation.py
 
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+
 from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
     RiskDebateState,
 )
+from tradingagents.agents.utils.instrument_resolver import resolve_instrument
 
 
 class Propagator:
     """Handles state initialization and propagation through the graph."""
 
-    def __init__(self, max_recur_limit=100):
+    def __init__(self, max_recur_limit: int = 100):
         """Initialize with configuration parameters."""
         self.max_recur_limit = max_recur_limit
 
@@ -22,9 +24,12 @@ class Propagator:
         analysis_date: str | None = None,
     ) -> Dict[str, Any]:
         """Create the initial state for the agent graph."""
+        instrument_profile = resolve_instrument(company_name)
         return {
-            "messages": [("human", company_name)],
-            "company_of_interest": company_name,
+            "messages": [("human", instrument_profile.primary_symbol)],
+            "input_instrument": company_name,
+            "company_of_interest": instrument_profile.primary_symbol,
+            "instrument_profile": instrument_profile.to_dict(),
             "trade_date": str(trade_date),
             "analysis_date": str(analysis_date or trade_date),
             "investment_debate_state": InvestDebateState(

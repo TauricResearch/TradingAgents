@@ -2,6 +2,8 @@
 
 from typing import Any, Dict
 
+from tradingagents.schemas import parse_structured_decision
+
 
 class Reflector:
     """Handles reflection on decisions and updating memory."""
@@ -93,28 +95,43 @@ Adhere strictly to these instructions, and ensure your output is detailed, accur
         """Reflect on trader's decision and update memory."""
         situation = self._extract_current_situation(current_state)
         trader_decision = current_state["trader_investment_plan"]
+        metadata = {"returns_losses": returns_losses, "component": "trader"}
+        try:
+            metadata["rating"] = parse_structured_decision(trader_decision).rating.value
+        except Exception:
+            pass
 
         result = self._reflect_on_component(
             "TRADER", trader_decision, situation, returns_losses
         )
-        trader_memory.add_situations([(situation, result)])
+        trader_memory.add_situations([(situation, result, metadata)])
 
     def reflect_invest_judge(self, current_state, returns_losses, invest_judge_memory):
         """Reflect on investment judge's decision and update memory."""
         situation = self._extract_current_situation(current_state)
         judge_decision = current_state["investment_debate_state"]["judge_decision"]
+        metadata = {"returns_losses": returns_losses, "component": "research_manager"}
+        try:
+            metadata["rating"] = parse_structured_decision(judge_decision).rating.value
+        except Exception:
+            pass
 
         result = self._reflect_on_component(
             "INVEST JUDGE", judge_decision, situation, returns_losses
         )
-        invest_judge_memory.add_situations([(situation, result)])
+        invest_judge_memory.add_situations([(situation, result, metadata)])
 
     def reflect_portfolio_manager(self, current_state, returns_losses, portfolio_manager_memory):
         """Reflect on portfolio manager's decision and update memory."""
         situation = self._extract_current_situation(current_state)
         judge_decision = current_state["risk_debate_state"]["judge_decision"]
+        metadata = {"returns_losses": returns_losses, "component": "portfolio_manager"}
+        try:
+            metadata["rating"] = parse_structured_decision(judge_decision).rating.value
+        except Exception:
+            pass
 
         result = self._reflect_on_component(
             "PORTFOLIO MANAGER", judge_decision, situation, returns_losses
         )
-        portfolio_manager_memory.add_situations([(situation, result)])
+        portfolio_manager_memory.add_situations([(situation, result, metadata)])

@@ -1,3 +1,4 @@
+from tradingagents.agents.utils.agent_utils import get_memory_matches
 
 
 def create_bear_researcher(llm, memory):
@@ -13,7 +14,7 @@ def create_bear_researcher(llm, memory):
         fundamentals_report = state["fundamentals_report"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        past_memories = get_memory_matches(memory, curr_situation)
 
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):

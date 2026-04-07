@@ -29,19 +29,31 @@ DEFAULT_CONFIG = {
     # Internal agent debate stays in English for reasoning quality
     "output_language": "English",
     # Debate and discussion settings
-    "max_debate_rounds": 1,
-    "max_risk_discuss_rounds": 1,
+    "max_debate_rounds": 2,
+    "max_risk_discuss_rounds": 2,
     "max_recur_limit": 100,
+    "market_country": "US",
+    "timezone": "US/Eastern",
+    "enable_no_trade": True,
+    "vendor_timeout": 15,
+    "empty_result_fallback": True,
+    "memory_n_matches": 3,
     # Data vendor configuration
     # Category-level configuration (default for all tools in category)
     "data_vendors": {
         "core_stock_apis": "yfinance",       # Options: alpha_vantage, yfinance
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance
-        "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+        "news_data": "alpha_vantage,yfinance",  # Options: alpha_vantage, yfinance, naver
+        "macro_data": "alpha_vantage,yfinance",  # Options: alpha_vantage, yfinance, ecos
+        "disclosure_data": "opendart",  # Options: opendart
+        "social_data": "yfinance",  # Options: yfinance, naver
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {
-        # Example: "get_stock_data": "alpha_vantage",  # Override category default
+        # Example: "get_company_news": "naver,yfinance",  # Override category default
+        # Example: "get_macro_news": "ecos,alpha_vantage,yfinance",
+        # Example: "get_stock_data": "alpha_vantage",
     },
+    "api_keys_path": str(Path(__file__).resolve().parents[1] / "Docs" / "list_api_keys.md"),
 }

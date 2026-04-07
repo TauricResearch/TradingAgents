@@ -1,10 +1,17 @@
-from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
+from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    get_language_instruction,
+    get_memory_matches,
+)
+from tradingagents.schemas import build_decision_output_instructions, ensure_structured_decision_json
 
 
 def create_portfolio_manager(llm, memory):
     def portfolio_manager_node(state) -> dict:
-
-        instrument_context = build_instrument_context(state["company_of_interest"])
+        instrument_context = build_instrument_context(
+            state["company_of_interest"],
+            state.get("instrument_profile"),
+        )
 
         history = state["risk_debate_state"]["history"]
         risk_debate_state = state["risk_debate_state"]
@@ -16,48 +23,35 @@ def create_portfolio_manager(llm, memory):
         trader_plan = state["trader_investment_plan"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        past_memories = get_memory_matches(memory, curr_situation)
 
         past_memory_str = ""
-        for i, rec in enumerate(past_memories, 1):
+        for rec in past_memories:
             past_memory_str += rec["recommendation"] + "\n\n"
 
         prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
 {instrument_context}
 
----
+Use the common decision schema and be explicit about rating, confidence, time horizon, entry logic, exit logic, position sizing, risk limits, catalysts, and invalidators.
+NO_TRADE is allowed and should be used whenever the setup is not compelling enough to allocate capital.
 
-**Rating Scale** (use exactly one):
-- **Buy**: Strong conviction to enter or add to position
-- **Overweight**: Favorable outlook, gradually increase exposure
-- **Hold**: Maintain current position, no action needed
-- **Underweight**: Reduce exposure, take partial profits
-- **Sell**: Exit position or avoid entry
+Context:
+- Research Manager investment plan JSON: {research_plan}
+- Trader execution plan JSON: {trader_plan}
+- Lessons from past decisions: {past_memory_str or "No past reflections available."}
 
-**Context:**
-- Research Manager's investment plan: **{research_plan}**
-- Trader's transaction proposal: **{trader_plan}**
-- Lessons from past decisions: **{past_memory_str}**
-
-**Required Output Structure:**
-1. **Rating**: State one of Buy / Overweight / Hold / Underweight / Sell.
-2. **Executive Summary**: A concise action plan covering entry strategy, position sizing, key risk levels, and time horizon.
-3. **Investment Thesis**: Detailed reasoning anchored in the analysts' debate and past reflections.
-
----
-
-**Risk Analysts Debate History:**
+Risk Analysts Debate History:
 {history}
 
----
-
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+Ground every conclusion in specific evidence from the analysts. {get_language_instruction()}
+{build_decision_output_instructions("portfolio manager final decision")}"""
 
         response = llm.invoke(prompt)
+        decision_json = ensure_structured_decision_json(response.content)
 
         new_risk_debate_state = {
-            "judge_decision": response.content,
+            "judge_decision": decision_json,
             "history": risk_debate_state["history"],
             "aggressive_history": risk_debate_state["aggressive_history"],
             "conservative_history": risk_debate_state["conservative_history"],
@@ -71,7 +65,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts.{
 
         return {
             "risk_debate_state": new_risk_debate_state,
-            "final_trade_decision": response.content,
+            "final_trade_decision": decision_json,
         }
 
     return portfolio_manager_node
