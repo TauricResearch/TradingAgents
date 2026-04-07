@@ -131,14 +131,22 @@ def resolve_trade_date(
     if mode == "previous_business_day":
         return _previous_business_day(now.date()).isoformat()
 
+    if not _looks_like_yahoo_ticker_format(normalized_symbol):
+        raise RuntimeError(
+            f"Could not resolve the latest available trade date for {ticker} ({normalized_symbol}); "
+            f"symbol format looks invalid for Yahoo Finance. Expected examples: AAPL, BRK.B, 005930.KS."
+        )
+
     history = yf.Ticker(normalized_symbol).history(
         period=f"{config.run.latest_market_data_lookback_days}d",
         interval="1d",
         auto_adjust=False,
     )
     if history.empty:
+        symbol_hint = _ticker_hint(normalized_symbol)
         raise RuntimeError(
-            f"Could not resolve the latest available trade date for {ticker} ({normalized_symbol}); yfinance returned no rows."
+            f"Could not resolve the latest available trade date for {ticker} ({normalized_symbol}); "
+            f"yfinance returned no rows.{symbol_hint}"
         )
 
     last_index = history.index[-1]
@@ -147,6 +155,30 @@ def resolve_trade_date(
     if not isinstance(last_date, date):
         raise RuntimeError(f"Unexpected trade date index value for {ticker}: {last_index!r}")
     return last_date.isoformat()
+
+
+def _looks_like_yahoo_ticker_format(symbol: str) -> bool:
+    if not symbol:
+        return False
+    if symbol.count(".") > 1:
+        return False
+    if symbol[0] == "." or symbol[-1] == ".":
+        return False
+    for ch in symbol:
+        if not (ch.isalnum() or ch in ".-"):
+            return False
+    return True
+
+
+def _ticker_hint(symbol: str) -> str:
+    normalized = symbol.upper()
+    common_typos = {
+        "APPL": " APPL is likely an invalid ticker; if you intended Apple, use 'AAPL'.",
+    }
+    return common_typos.get(
+        normalized,
+        " The symbol may be wrong (typo or delisted) or currently unavailable on Yahoo Finance.",
+    )
 
 
 def _run_single_ticker(
