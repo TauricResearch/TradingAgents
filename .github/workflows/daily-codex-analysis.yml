@@ -41,6 +41,8 @@ jobs:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       TRADINGAGENTS_SITE_DIR: ${{ github.workspace }}\site
       TRADINGAGENTS_ARCHIVE_DIR: ${{ vars.TRADINGAGENTS_ARCHIVE_DIR }}
+      CODEX_BINARY: ${{ vars.CODEX_BINARY }}
+      CODEX_HOME: ${{ vars.CODEX_HOME }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -60,21 +62,138 @@ jobs:
           python -m pip install -e .
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
+      - name: Resolve Codex runtime
+        if: ${{ github.event.inputs.site_only != 'true' }}
+        run: |
+          function Test-CodexCandidate {
+            param([string]$Candidate)
+
+            if ([string]::IsNullOrWhiteSpace($Candidate) -or -not (Test-Path $Candidate)) {
+              return $false
+            }
+
+            try {
+              & $Candidate --version | Out-Null
+              return ($LASTEXITCODE -eq 0)
+            } catch {
+              Write-Warning "Codex candidate failed: $Candidate :: $($_.Exception.Message)"
+              return $false
+            }
+          }
+
+          $candidates = [System.Collections.Generic.List[string]]::new()
+
+          if (-not [string]::IsNullOrWhiteSpace($env:CODEX_BINARY)) {
+            $candidates.Add($env:CODEX_BINARY)
+          }
+
+          $candidates.Add((Join-Path $env:USERPROFILE ".codex\.sandbox-bin\codex.exe"))
+
+          Get-ChildItem -Path "C:\Users\*\.codex\.sandbox-bin\codex.exe" -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            ForEach-Object { $candidates.Add($_.FullName) }
+
+          Get-ChildItem -Path "C:\Users\*\.vscode\extensions\openai.chatgpt-*\bin\windows-x86_64\codex.exe" -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            ForEach-Object { $candidates.Add($_.FullName) }
+
+          $resolvedBinary = $null
+          foreach ($candidate in $candidates) {
+            if (Test-CodexCandidate $candidate) {
+              $resolvedBinary = $candidate
+              break
+            }
+          }
+
+          if (-not $resolvedBinary) {
+            throw "Could not find a usable Codex binary. Set the CODEX_BINARY repository variable or install Codex for the runner service account."
+          }
+
+          Add-Content -Path $env:GITHUB_ENV -Value "CODEX_BINARY=$resolvedBinary"
+          Write-Host "Resolved Codex binary: $resolvedBinary"
+
+          $resolvedHome = $env:CODEX_HOME
+          if ([string]::IsNullOrWhiteSpace($resolvedHome) -and $resolvedBinary -like "*.codex\.sandbox-bin\codex.exe") {
+            $resolvedHome = Split-Path (Split-Path $resolvedBinary -Parent) -Parent
+          }
+
+          if (-not [string]::IsNullOrWhiteSpace($resolvedHome)) {
+            Add-Content -Path $env:GITHUB_ENV -Value "CODEX_HOME=$resolvedHome"
+            Write-Host "Using CODEX_HOME: $resolvedHome"
+          }
+
       - name: Verify Codex login and model availability
+        if: ${{ github.event.inputs.site_only != 'true' }}
         run: |
           $workspaceDir = Join-Path $env:GITHUB_WORKSPACE ".codex-preflight"
-          $script = @(
-            "from tradingagents.llm_clients.codex_preflight import run_codex_preflight",
-            "result = run_codex_preflight(",
-            "    codex_binary=None,",
-            "    model='gpt-5.4',",
-            "    request_timeout=30.0,",
-            "    workspace_dir=r'$workspaceDir',",
-            "    cleanup_threads=True,",
-            ")",
-            "print('Codex account:', result.account)",
-            "print('First available models:', ', '.join(result.models[:8]))"
-          ) -join "`n"
+          $script = @"
+import os
+from tradingagents.llm_clients.codex_app_server import CodexAppServerAuthError, CodexAppServerBinaryError
+from tradingagents.llm_clients.codex_preflight import run_codex_preflight
+
+workspace_dir = r"$workspaceDir"
+summary_path = os.getenv("GITHUB_STEP_SUMMARY")
+
+def write_summary(lines):
+    if not summary_path:
+        return
+    with open(summary_path, "a", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+
+try:
+    result = run_codex_preflight(
+        codex_binary=None,
+        model="gpt-5.4",
+        request_timeout=30.0,
+        workspace_dir=workspace_dir,
+        cleanup_threads=True,
+    )
+except CodexAppServerAuthError as exc:
+    message = (
+        "Codex is installed but not logged in for the runner. "
+        "Run `codex login` or `codex login --device-auth` on the runner machine, "
+        "then retry the workflow."
+    )
+    print(f"::error::{message}")
+    print(exc)
+    write_summary(
+        [
+            "## Codex login required",
+            "",
+            message,
+        ]
+    )
+    raise SystemExit(1)
+except CodexAppServerBinaryError as exc:
+    message = (
+        "A usable Codex binary is not available for the runner. "
+        "Check the `CODEX_BINARY` repository variable or install Codex for the runner service account."
+    )
+    print(f"::error::{message}")
+    print(exc)
+    write_summary(
+        [
+            "## Codex runtime issue",
+            "",
+            message,
+            "",
+            str(exc),
+        ]
+    )
+    raise SystemExit(1)
+
+print("Codex account:", result.account)
+print("First available models:", ", ".join(result.models[:8]))
+write_summary(
+    [
+        "## Codex preflight passed",
+        "",
+        f"- Account: {result.account}",
+        f"- Models: {', '.join(result.models[:8])}",
+        f"- Binary: {os.getenv('CODEX_BINARY', '(auto)')}",
+    ]
+)
+"@
           $script | python -
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
