@@ -279,27 +279,38 @@ def remove_position(ticker: str, position_id: str, account: Optional[str]) -> bo
 
 # ============== Recommendations ==============
 
-def get_recommendations(date: Optional[str] = None) -> list:
-    """List recommendations, optionally filtered by date."""
+# Pagination defaults (must match main.py constants)
+DEFAULT_PAGE_SIZE = 50
+MAX_PAGE_SIZE = 500
+
+
+def get_recommendations(date: Optional[str] = None, limit: int = DEFAULT_PAGE_SIZE, offset: int = 0) -> dict:
+    """List recommendations, optionally filtered by date. Returns paginated results."""
     RECOMMENDATIONS_DIR.mkdir(parents=True, exist_ok=True)
+    all_recs = []
+
     if date:
         date_dir = RECOMMENDATIONS_DIR / date
-        if not date_dir.exists():
-            return []
-        return [
-            json.loads(f.read_text())
-            for f in date_dir.glob("*.json")
-            if f.suffix == ".json"
-        ]
+        if date_dir.exists():
+            all_recs = [
+                json.loads(f.read_text())
+                for f in sorted(date_dir.glob("*.json"), reverse=True)
+                if f.suffix == ".json"
+            ]
     else:
-        # Return most recent first
-        all_recs = []
         for date_dir in sorted(RECOMMENDATIONS_DIR.iterdir(), reverse=True):
             if date_dir.is_dir() and date_dir.name.startswith("20"):
-                for f in date_dir.glob("*.json"):
+                for f in sorted(date_dir.glob("*.json"), reverse=True):
                     if f.suffix == ".json":
                         all_recs.append(json.loads(f.read_text()))
-        return all_recs
+
+    total = len(all_recs)
+    return {
+        "recommendations": all_recs[offset : offset + limit],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 def get_recommendation(date: str, ticker: str) -> Optional[dict]:
