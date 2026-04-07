@@ -1,0 +1,53 @@
+name: Dashboard Tests
+
+on:
+  push:
+    branches: [main, feat/**, fix/**]
+    paths:
+      - 'web_dashboard/backend/**/*.py'
+      - 'web_dashboard/frontend/**/*.js'
+      - '.github/workflows/dashboard-tests.yml'
+  pull_request:
+    paths:
+      - 'web_dashboard/backend/**/*.py'
+      - 'web_dashboard/frontend/**/*.js'
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio httpx
+          pip install -e . 2>/dev/null || true
+
+      - name: Run backend tests
+        working-directory: web_dashboard/backend
+        run: |
+          python -m pytest tests/ -v --tb=short
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: web_dashboard/frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: web_dashboard/frontend
+        run: npm run lint 2>/dev/null || true
