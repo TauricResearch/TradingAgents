@@ -947,7 +947,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
         engine.config = {
             **engine.config,
             "quick_think_llm": "primary-quick",
-            "mid_think_llm": "primary-mid",
+            "mid_think_llm": "qwen/qwen3.6-plus-preview:free",
             "deep_think_llm": "primary-deep",
             "quick_think_fallback_llm": "fallback-quick",
             "mid_think_fallback_llm": "fallback-mid",
@@ -988,8 +988,8 @@ class TestRunAutoTickerSource(unittest.TestCase):
             events = asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
 
         self.assertEqual(len(scan_calls), 2)
-        self.assertEqual(scan_calls[0][1:], ("primary-quick", "primary-mid", "primary-deep"))
-        self.assertEqual(scan_calls[1][1:], ("fallback-quick", "fallback-mid", "fallback-deep"))
+        self.assertEqual(scan_calls[0][1:], ("primary-quick", "qwen/qwen3.6-plus-preview:free", "primary-deep"))
+        self.assertEqual(scan_calls[1][1:], ("primary-quick", "fallback-mid", "primary-deep"))
         log_messages = [e.get("message", "") for e in events if e.get("type") == "log"]
         self.assertTrue(
             any("retrying with fallback" in m for m in log_messages),

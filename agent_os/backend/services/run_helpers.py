@@ -13,6 +13,18 @@ from agent_os.backend.store import runs as live_runs
 
 logger = logging.getLogger("agent_os.engine")
 
+_LLM_TIERS = ("quick_think", "mid_think", "deep_think")
+
+# Keep backend defaults aligned with client/provider adapters.
+_PROVIDER_DEFAULT_BACKEND_URLS = {
+    "openai": "https://api.openai.com/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
+    "xai": "https://api.x.ai/v1",
+    "ollama": "http://localhost:11434",
+    "anthropic": "https://api.anthropic.com",
+    "google": "https://generativelanguage.googleapis.com/v1beta/openai/",
+}
+
 
 # ---------------------------------------------------------------------------
 # LLM policy / 404 error helpers
@@ -56,17 +68,47 @@ def is_fallback_eligible_error(exc: Exception) -> bool:
     return is_policy_error(exc) or is_rate_limit_error(exc)
 
 
-def build_fallback_config(config: dict) -> dict | None:
-    """Return config with per-tier fallback models substituted, or None if none set."""
-    tiers = ("quick_think", "mid_think", "deep_think")
+def infer_fallback_tier(config: dict[str, Any], exc: Exception) -> str | None:
+    """Infer which LLM tier failed based on model-id hints in the exception text.
+
+    Returns:
+        The matched tier name when exactly one tier model is found in the error,
+        otherwise None.
+    """
+    msg = str(exc).lower()
+    matched_tiers: list[str] = []
+    for tier in _LLM_TIERS:
+        model = str(config.get(f"{tier}_llm") or "").strip().lower()
+        if model and model in msg:
+            matched_tiers.append(tier)
+    if len(matched_tiers) == 1:
+        return matched_tiers[0]
+    return None
+
+
+def build_fallback_config(config: dict[str, Any], tier: str | None = None) -> dict | None:
+    """Return config with fallback substitution for a specific tier.
+
+    Args:
+        config: Current runtime config.
+        tier: Target tier to fallback. If None, no replacement is applied.
+    """
+    if tier not in _LLM_TIERS:
+        return None
+
     replacements: dict = {}
+    tiers = (tier,)
     for tier in tiers:
         fb_llm = config.get(f"{tier}_fallback_llm")
         fb_prov = config.get(f"{tier}_fallback_llm_provider")
         if fb_llm:
             replacements[f"{tier}_llm"] = fb_llm
         if fb_prov:
-            replacements[f"{tier}_llm_provider"] = fb_prov
+            provider = str(fb_prov).strip().lower()
+            replacements[f"{tier}_llm_provider"] = provider
+            fallback_backend_url = _PROVIDER_DEFAULT_BACKEND_URLS.get(provider)
+            if fallback_backend_url:
+                replacements[f"{tier}_backend_url"] = fallback_backend_url
     if not replacements:
         return None
     return {**config, **replacements}
@@ -75,7 +117,7 @@ def build_fallback_config(config: dict) -> dict | None:
 def fallback_model_summary(current_config: dict, fallback_config: dict) -> str:
     return ", ".join(
         f"{tier}={fallback_config.get(f'{tier}_llm', 'same')}"
-        for tier in ("quick_think", "mid_think", "deep_think")
+        for tier in _LLM_TIERS
         if fallback_config.get(f"{tier}_llm") != current_config.get(f"{tier}_llm")
     )
 

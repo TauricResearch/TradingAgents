@@ -53,6 +53,7 @@ from agent_os.backend.services.run_helpers import (
     build_fallback_config,
     fallback_model_summary,
     fetch_prices,
+    infer_fallback_tier,
     is_fallback_eligible_error,
     is_policy_error,
     normalize_analysis_status,
@@ -1078,7 +1079,8 @@ class LangGraphEngine:
                         yield evt
                 except Exception as exc:
                     if is_fallback_eligible_error(exc):
-                        fallback_config = build_fallback_config(self.config)
+                        failing_tier = infer_fallback_tier(self.config, exc)
+                        fallback_config = build_fallback_config(self.config, tier=failing_tier)
                         if fallback_config:
                             fallback_models = fallback_model_summary(self.config, fallback_config)
                             await asyncio.sleep(0)
@@ -1326,7 +1328,8 @@ class LangGraphEngine:
                             root_run_id,
                             exc,
                         )
-                        fallback_config = build_fallback_config(self.config)
+                        failing_tier = infer_fallback_tier(self.config, exc)
+                        fallback_config = build_fallback_config(self.config, tier=failing_tier)
                         if fallback_config:
                             fallback_models = fallback_model_summary(self.config, fallback_config)
                             await pipeline_queue.put(

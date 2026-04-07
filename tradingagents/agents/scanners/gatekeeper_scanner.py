@@ -11,8 +11,7 @@ def create_gatekeeper_scanner(llm):
         tools = [get_gatekeeper_universe]
 
         system_message = (
-            "You are a Senior Systems Architect and Quantitative Analyst acting as the Gatekeeper. "
-            "Your objective is to define the boundary conditions for the investable stock universe. "
+            "You are a Senior Investment Economist and your objective is to define the boundary conditions for the investable stock universe. "
             "STRICT CONSTRAINTS: Output only bulleted quantitative analysis. NO conversational filler. "
             "You MUST call get_gatekeeper_universe before writing your report. "
             "Report must include: "
