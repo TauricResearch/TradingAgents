@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 import traceback
 from datetime import datetime
@@ -15,7 +16,7 @@ from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, UploadFile, File
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.responses import Response
@@ -60,7 +61,6 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -99,6 +99,17 @@ def _load_from_cache(mode: str) -> Optional[dict]:
         return None
 
 
+def _save_to_cache(mode: str, data: dict):
+    """Save screening result to cache"""
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_path = _get_cache_path(mode)
+        with open(cache_path, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+
 def _save_task_status(task_id: str, data: dict):
     """Persist task state to disk"""
     try:
@@ -112,13 +123,6 @@ def _delete_task_status(task_id: str):
     """Remove persisted task state from disk"""
     try:
         (TASK_STATUS_DIR / f"{task_id}.json").unlink(missing_ok=True)
-    except Exception:
-        pass
-    try:
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        cache_path = _get_cache_path(mode)
-        with open(cache_path, "w") as f:
-            json.dump(data, f)
     except Exception:
         pass
 
@@ -224,6 +228,11 @@ async def start_analysis(request: AnalysisRequest):
     task_id = f"{request.ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
     date = request.date or datetime.now().strftime("%Y-%m-%d")
 
+    # Validate API key before storing any task state
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY environment variable not set")
+
     # Initialize task state
     app.state.task_results[task_id] = {
         "task_id": task_id,
@@ -245,17 +254,14 @@ async def start_analysis(request: AnalysisRequest):
         "decision": None,
         "error": None,
     }
-    # Get API key - fail fast before storing a running task
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY environment variable not set")
-
     await broadcast_progress(task_id, app.state.task_results[task_id])
 
-    # Write analysis script to temp file (avoids subprocess -c quoting issues)
-    script_path = Path(f"/tmp/analysis_{task_id}.py")
-    script_content = ANALYSIS_SCRIPT_TEMPLATE
-    script_path.write_text(script_content)
+    # Write analysis script to temp file with restrictive permissions (avoids subprocess -c quoting issues)
+    fd, script_path_str = tempfile.mkstemp(suffix=".py", prefix=f"analysis_{task_id}_")
+    script_path = Path(script_path_str)
+    os.chmod(script_path, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(ANALYSIS_SCRIPT_TEMPLATE)
 
     # Store process reference for cancellation
     app.state.processes = getattr(app.state, 'processes', {})
