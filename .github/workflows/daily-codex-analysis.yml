@@ -33,6 +33,9 @@ jobs:
   analyze:
     runs-on: [self-hosted, Windows]
     timeout-minutes: 240
+    defaults:
+      run:
+        shell: powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
     env:
       PYTHONUTF8: "1"
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
@@ -51,13 +54,13 @@ jobs:
           python-version: "3.13"
 
       - name: Install TradingAgents
-        shell: powershell
         run: |
           python -m pip install --upgrade pip
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -m pip install -e .
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Verify Codex login and model availability
-        shell: powershell
         run: |
           $workspaceDir = Join-Path $env:GITHUB_WORKSPACE ".codex-preflight"
           $script = @(
@@ -73,9 +76,9 @@ jobs:
             "print('First available models:', ', '.join(result.models[:8]))"
           ) -join "`n"
           $script | python -
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Run scheduled analysis and build site
-        shell: powershell
         run: |
           $configPath = "config/scheduled_analysis.toml"
           if (-not (Test-Path $configPath)) {
@@ -106,9 +109,9 @@ jobs:
           }
 
           python @args
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Add Git Bash to PATH for Pages packaging
-        shell: powershell
         run: |
           $gitBinCandidates = @(
             "C:\Program Files\Git\bin",
