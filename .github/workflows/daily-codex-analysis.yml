@@ -137,73 +137,73 @@ jobs:
 
           $workspaceDir = Join-Path $env:GITHUB_WORKSPACE ".codex-preflight"
           $script = @"
-import os
-from tradingagents.llm_clients.codex_app_server import CodexAppServerAuthError, CodexAppServerBinaryError
-from tradingagents.llm_clients.codex_preflight import run_codex_preflight
+          import os
+          from tradingagents.llm_clients.codex_app_server import CodexAppServerAuthError, CodexAppServerBinaryError
+          from tradingagents.llm_clients.codex_preflight import run_codex_preflight
 
-workspace_dir = r"$workspaceDir"
-summary_path = os.getenv("GITHUB_STEP_SUMMARY")
+          workspace_dir = r"$workspaceDir"
+          summary_path = os.getenv("GITHUB_STEP_SUMMARY")
 
-def write_summary(lines):
-    if not summary_path:
-        return
-    with open(summary_path, "a", encoding="utf-8") as handle:
-        handle.write("\n".join(lines) + "\n")
+          def write_summary(lines):
+              if not summary_path:
+                  return
+              with open(summary_path, "a", encoding="utf-8") as handle:
+                  handle.write("\n".join(lines) + "\n")
 
-try:
-    result = run_codex_preflight(
-        codex_binary=None,
-        model="gpt-5.4",
-        request_timeout=30.0,
-        workspace_dir=workspace_dir,
-        cleanup_threads=True,
-    )
-except CodexAppServerAuthError as exc:
-    message = (
-        "Codex is installed but not logged in for the runner. "
-        "Run `codex login` or `codex login --device-auth` on the runner machine, "
-        "then retry the workflow."
-    )
-    print(f"::error::{message}")
-    print(exc)
-    write_summary(
-        [
-            "## Codex login required",
-            "",
-            message,
-        ]
-    )
-    raise SystemExit(1)
-except CodexAppServerBinaryError as exc:
-    message = (
-        "A usable Codex binary is not available for the runner. "
-        "Check the `CODEX_BINARY` repository variable or install Codex for the runner service account."
-    )
-    print(f"::error::{message}")
-    print(exc)
-    write_summary(
-        [
-            "## Codex runtime issue",
-            "",
-            message,
-            "",
-            str(exc),
-        ]
-    )
-    raise SystemExit(1)
+          try:
+              result = run_codex_preflight(
+                  codex_binary=None,
+                  model="gpt-5.4",
+                  request_timeout=30.0,
+                  workspace_dir=workspace_dir,
+                  cleanup_threads=True,
+              )
+          except CodexAppServerAuthError as exc:
+              message = (
+                  "Codex is installed but not logged in for the runner. "
+                  "Run `codex login` or `codex login --device-auth` on the runner machine, "
+                  "then retry the workflow."
+              )
+              print(f"::error::{message}")
+              print(exc)
+              write_summary(
+                  [
+                      "## Codex login required",
+                      "",
+                      message,
+                  ]
+              )
+              raise SystemExit(1)
+          except CodexAppServerBinaryError as exc:
+              message = (
+                  "A usable Codex binary is not available for the runner. "
+                  "Check the `CODEX_BINARY` repository variable or install Codex for the runner service account."
+              )
+              print(f"::error::{message}")
+              print(exc)
+              write_summary(
+                  [
+                      "## Codex runtime issue",
+                      "",
+                      message,
+                      "",
+                      str(exc),
+                  ]
+              )
+              raise SystemExit(1)
 
-print("Codex account:", result.account)
-print("First available models:", ", ".join(result.models[:8]))
-write_summary(
-    [
-        "## Codex preflight passed",
-        "",
-        f"- Account: {result.account}",
-        f"- Models: {', '.join(result.models[:8])}",
-        f"- Binary: {os.getenv('CODEX_BINARY', '(auto)')}",
-    ]
-)
-"@
+          print("Codex account:", result.account)
+          print("First available models:", ", ".join(result.models[:8]))
+          write_summary(
+              [
+                  "## Codex preflight passed",
+                  "",
+                  f"- Account: {result.account}",
+                  f"- Models: {', '.join(result.models[:8])}",
+                  f"- Binary: {os.getenv('CODEX_BINARY', '(auto)')}",
+              ]
+          )
+          "@
           $script | python -
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
