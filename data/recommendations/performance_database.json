@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-04-07 23:40:44",
-  "total_recommendations": 586,
+  "last_updated": "2026-04-07 23:46:03",
+  "total_recommendations": 591,
   "recommendations_by_date": {
     "2026-02-10": [
       {
@@ -13728,6 +13728,103 @@
         "last_updated": "2026-04-07",
         "return_1d": -4.55,
         "win_1d": false
+      }
+    ],
+    "2026-04-07": [
+      {
+        "ticker": "HMH",
+        "rank": 1,
+        "company_name": "HMH Holding Inc.",
+        "description": "HMH Holding Inc. provides offshore and onshore oil and gas drilling equipment, systems, and aftermarket services worldwide.",
+        "strategy_match": "insider_buying",
+        "pipeline": "insider_buying",
+        "final_score": 85,
+        "confidence": 8,
+        "risk_level": "moderate",
+        "reason": "A compelling cluster of insider buying highlights this setup, led by a massive $1,000,000 purchase from the CFO and involvement from 4 distinct insiders. The stock has been heavily sold off, resulting in an extremely rare RSI reading of 0.0, indicating it is deeply oversold. This severe technical dislocation combined with aggressive insider accumulation suggests an imminent mean-reversion bounce. The primary risk is the continuation of its current downtrend if macroeconomic energy weakness persists.",
+        "entry_price": 18.25,
+        "discovery_date": "2026-04-07",
+        "status": "open",
+        "current_price": 18.25,
+        "return_pct": 0.0,
+        "days_held": 0,
+        "last_updated": "2026-04-07"
+      },
+      {
+        "ticker": "SCVL",
+        "rank": 2,
+        "company_name": "Shoe Carnival, Inc.",
+        "description": "Shoe Carnival operates as a family footwear retailer offering dress, casual, and athletic shoes across the United States.",
+        "strategy_match": "insider_buying",
+        "pipeline": "insider_buying",
+        "final_score": 82,
+        "confidence": 8,
+        "risk_level": "moderate",
+        "reason": "SCVL presents a potent confluence of fundamental insider support and bullish options flow, highlighted by the CFO's $500,030 open-market purchase. Options activity strongly confirms this conviction with an unusually low put/call ratio of 0.089 and focused unusual call buying against zero unusual puts. With the stock technically oversold (RSI 34.8) and the Stochastic indicator signaling a bullish crossover, a near-term reversal is highly probable. The thesis could be invalidated if broader retail sector weakness accelerates and breaks the $14.88 technical support level.",
+        "entry_price": 15.989999771118164,
+        "discovery_date": "2026-04-07",
+        "status": "open",
+        "current_price": 15.989999771118164,
+        "return_pct": 0.0,
+        "days_held": 0,
+        "last_updated": "2026-04-07"
+      },
+      {
+        "ticker": "ALB",
+        "rank": 3,
+        "company_name": "Albemarle Corporation",
+        "description": "Albemarle Corporation is a premier specialty chemicals company and a leading global provider of lithium and energy storage solutions.",
+        "strategy_match": "minervini",
+        "pipeline": "minervini",
+        "final_score": 78,
+        "confidence": 7,
+        "risk_level": "high",
+        "reason": "ALB demonstrates exceptional technical strength, scoring a 98/100 RS Rating while consolidating within 11% of its 52-week high in a confirmed Minervini Stage 2 uptrend. Bullish sentiment is corroborated by unusual options flow, featuring 3 unusual call trades versus zero puts and an overall volume put/call ratio of 0.913. The company's recent announcement to upsize its debt tender offer to $650M signals a proactive commitment to deleveraging. While a recent $2M CEO stock sale poses a headwind, the powerful price structure above its 50 SMA and options flow suggest the breakout remains viable.",
+        "entry_price": 173.52999877929688,
+        "discovery_date": "2026-04-07",
+        "status": "open",
+        "current_price": 173.52999877929688,
+        "return_pct": 0.0,
+        "days_held": 0,
+        "last_updated": "2026-04-07"
+      },
+      {
+        "ticker": "APLD",
+        "rank": 4,
+        "company_name": "Applied Digital Corporation",
+        "description": "Applied Digital Corporation develops and operates next-generation digital infrastructure solutions for high-performance computing and AI workloads.",
+        "strategy_match": "earnings_play",
+        "pipeline": "earnings_play",
+        "final_score": 75,
+        "confidence": 7,
+        "risk_level": "high",
+        "reason": "APLD is a high-reward earnings squeeze candidate, carrying a massive 30.6% short interest heading into its earnings report in 1 day. The stock is exhibiting powerful pre-earnings momentum, up 22.61% over the last 5 days, accompanied by rising On-Balance Volume that indicates aggressive institutional accumulation. Options traders are heavily positioning for further upside, reflected in an overwhelmingly bullish 0.44 volume put/call ratio. The binary risk of the earnings event is the primary threat; a revenue miss could trigger a sharp technical breakdown instead of the anticipated short squeeze.",
+        "entry_price": 25.18000030517578,
+        "discovery_date": "2026-04-07",
+        "status": "open",
+        "current_price": 25.18000030517578,
+        "return_pct": 0.0,
+        "days_held": 0,
+        "last_updated": "2026-04-07"
+      },
+      {
+        "ticker": "NTWK",
+        "rank": 5,
+        "company_name": "NetSol Technologies, Inc.",
+        "description": "NetSol Technologies designs and develops enterprise software solutions for the automotive financing and leasing industries globally.",
+        "strategy_match": "analyst_upgrade",
+        "pipeline": "analyst_upgrade",
+        "final_score": 65,
+        "confidence": 6,
+        "risk_level": "speculative",
+        "reason": "NTWK offers a speculative catalyst-driven opportunity following news that Toyota's Thailand leasing arm is upgrading its core finance system with the company. Options activity is heavily skewed to the upside with an ultra-low put/call ratio of 0.069, suggesting traders expect this contract win to materially move the stock. Despite currently trading just below its 50 SMA, On-Balance Volume has been steadily rising (2.9M), indicating quiet accumulation. As a microcap stock, extreme volatility is the key risk, and a failure to hold the $3.24 Fibonacci support level would negate the setup.",
+        "entry_price": 3.440000057220459,
+        "discovery_date": "2026-04-07",
+        "status": "open",
+        "current_price": 3.440000057220459,
+        "return_pct": 0.0,
+        "days_held": 0,
+        "last_updated": "2026-04-07"
       }
     ]
   }
