@@ -457,12 +457,12 @@ async def cancel_task(task_id: str):
         _save_task_status(task_id, app.state.task_results[task_id])
         await broadcast_progress(task_id, app.state.task_results[task_id])
 
-    # Clean up temp script
-    script_path = Path(f"/tmp/analysis_{task_id}.py")
-    try:
-        script_path.unlink()
-    except Exception:
-        pass
+    # Clean up temp script (may use tempfile.mkstemp with random suffix)
+    for p in Path("/tmp").glob(f"analysis_{task_id}_*.py"):
+        try:
+            p.unlink()
+        except Exception:
+            pass
 
     # Remove persisted task state
     _delete_task_status(task_id)
@@ -873,6 +873,12 @@ async def start_portfolio_analysis():
                                 if not k.startswith(("PYTHON", "CONDA", "VIRTUAL"))}
                     clean_env["ANTHROPIC_API_KEY"] = api_key
                     clean_env["ANTHROPIC_BASE_URL"] = "https://api.minimaxi.com/anthropic"
+
+                    fd, script_path_str = tempfile.mkstemp(suffix=".py", prefix=f"analysis_{task_id}_{i}_")
+                    script_path = Path(script_path_str)
+                    os.chmod(script_path, 0o600)
+                    with os.fdopen(fd, "w") as f:
+                        f.write(ANALYSIS_SCRIPT_TEMPLATE)
 
                     proc = await asyncio.create_subprocess_exec(
                         str(ANALYSIS_PYTHON), str(script_path), ticker, date, str(REPO_ROOT),
