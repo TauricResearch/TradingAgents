@@ -135,6 +135,10 @@ def delete_account(account_name: str) -> bool:
 
 # ============== Positions =============
 
+# Semaphore to limit concurrent yfinance requests (avoid rate limiting)
+_yfinance_semaphore: asyncio.Semaphore = asyncio.Semaphore(5)
+
+
 def _fetch_price(ticker: str) -> float | None:
     """Fetch current price synchronously (called in thread executor)"""
     try:
@@ -145,10 +149,16 @@ def _fetch_price(ticker: str) -> float | None:
         return None
 
 
+async def _fetch_price_throttled(ticker: str) -> float | None:
+    """Fetch price with semaphore throttling."""
+    async with _yfinance_semaphore:
+        return _fetch_price(ticker)
+
+
 async def get_positions(account: Optional[str] = None) -> list:
     """
     Returns positions with live price from yfinance and computed P&L.
-    Uses asyncio executor to avoid blocking the event loop on yfinance HTTP calls.
+    Uses asyncio executor with concurrency limit (max 5 simultaneous requests).
     """
     accounts = get_accounts()
 
@@ -169,9 +179,8 @@ async def get_positions(account: Optional[str] = None) -> list:
     if not positions:
         return []
 
-    loop = asyncio.get_event_loop()
     tickers = [t for t, _ in positions]
-    prices = await asyncio.gather(*[loop.run_in_executor(None, _fetch_price, t) for t in tickers])
+    prices = await asyncio.gather(*[_fetch_price_throttled(t) for t in tickers])
 
     result = []
     for (ticker, pos), current_price in zip(positions, prices):

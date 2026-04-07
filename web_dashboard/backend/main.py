@@ -643,20 +643,48 @@ async def export_report_pdf(ticker: str, date: str):
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=20)
-    pdf.add_font("DejaVu", "", "/System/Library/Fonts/Supplemental/DejaVuSans.ttf", unicode=True)
-    pdf.add_font("DejaVu", "B", "/System/Library/Fonts/Supplemental/DejaVuSans-Bold.ttf", unicode=True)
+
+    # Try multiple font paths for cross-platform support
+    font_paths = [
+        "/System/Library/Fonts/Supplemental/DejaVuSans.ttf",
+        "/System/Library/Fonts/Supplemental/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+        str(Path.home() / ".local/share/fonts/DejaVuSans.ttf"),
+        str(Path.home() / ".fonts/DejaVuSans.ttf"),
+    ]
+    regular_font = None
+    bold_font = None
+    for p in font_paths:
+        if Path(p).exists():
+            if "Bold" in p and bold_font is None:
+                bold_font = p
+            elif regular_font is None and "Bold" not in p:
+                regular_font = p
+
+    use_dejavu = bool(regular_font and bold_font)
+    if use_dejavu:
+        pdf.add_font("DejaVu", "", regular_font, unicode=True)
+        pdf.add_font("DejaVu", "B", bold_font, unicode=True)
+        font_regular = "DejaVu"
+        font_bold = "DejaVu"
+    else:
+        font_regular = "Helvetica"
+        font_bold = "Helvetica"
 
     pdf.add_page()
-    pdf.set_font("DejaVu", "B", 18)
+    pdf.set_font(font_bold, "B", 18)
     pdf.cell(0, 12, f"TradingAgents 分析报告", ln=True, align="C")
     pdf.ln(5)
 
-    pdf.set_font("DejaVu", "", 11)
+    pdf.set_font(font_regular, "", 11)
     pdf.cell(0, 8, f"股票: {ticker}    日期: {date}", ln=True)
     pdf.ln(3)
 
     # Decision badge
-    pdf.set_font("DejaVu", "B", 14)
+    pdf.set_font(font_bold, "B", 14)
     if decision == "BUY":
         pdf.set_text_color(34, 197, 94)
     elif decision == "SELL":
@@ -668,16 +696,16 @@ async def export_report_pdf(ticker: str, date: str):
     pdf.ln(5)
 
     # Summary
-    pdf.set_font("DejaVu", "B", 12)
+    pdf.set_font(font_bold, "B", 12)
     pdf.cell(0, 8, "分析摘要", ln=True)
-    pdf.set_font("DejaVu", "", 10)
+    pdf.set_font(font_regular, "", 10)
     pdf.multi_cell(0, 6, summary or "无")
     pdf.ln(5)
 
     # Full report text (stripped of heavy markdown)
-    pdf.set_font("DejaVu", "B", 12)
+    pdf.set_font(font_bold, "B", 12)
     pdf.cell(0, 8, "完整报告", ln=True)
-    pdf.set_font("DejaVu", "", 9)
+    pdf.set_font(font_regular, "", 9)
     # Split into lines, filter out very long lines
     for line in markdown_text.splitlines():
         line = re.sub(r'\*\*(.*?)\*\*', r'\1', line)
@@ -855,30 +883,24 @@ async def start_portfolio_analysis():
     await broadcast_progress(task_id, app.state.task_results[task_id])
 
     async def run_portfolio_analysis():
-        try:
-            for i, stock in enumerate(watchlist):
-                ticker = stock["ticker"]
-                app.state.task_results[task_id]["current_ticker"] = ticker
-                app.state.task_results[task_id]["status"] = "running"
-                app.state.task_results[task_id]["completed"] = i
-                await broadcast_progress(task_id, app.state.task_results[task_id])
+        MAX_RETRIES = 2
 
+        async def run_single_analysis(ticker: str, stock: dict) -> tuple[bool, str, dict | None]:
+            """Run analysis for one ticker. Returns (success, decision, rec_or_error)."""
+            last_error = None
+            for attempt in range(MAX_RETRIES + 1):
+                script_path = None
                 try:
-                    # Run analysis in subprocess (reuse existing script pattern)
-                    script_path = Path(f"/tmp/analysis_{task_id}_{i}.py")
-                    script_content = ANALYSIS_SCRIPT_TEMPLATE
-                    script_path.write_text(script_content)
+                    fd, script_path_str = tempfile.mkstemp(suffix=".py", prefix=f"analysis_{task_id}_{stock['_idx']}_")
+                    script_path = Path(script_path_str)
+                    os.chmod(script_path, 0o600)
+                    with os.fdopen(fd, "w") as f:
+                        f.write(ANALYSIS_SCRIPT_TEMPLATE)
 
                     clean_env = {k: v for k, v in os.environ.items()
                                 if not k.startswith(("PYTHON", "CONDA", "VIRTUAL"))}
                     clean_env["ANTHROPIC_API_KEY"] = api_key
                     clean_env["ANTHROPIC_BASE_URL"] = "https://api.minimaxi.com/anthropic"
-
-                    fd, script_path_str = tempfile.mkstemp(suffix=".py", prefix=f"analysis_{task_id}_{i}_")
-                    script_path = Path(script_path_str)
-                    os.chmod(script_path, 0o600)
-                    with os.fdopen(fd, "w") as f:
-                        f.write(ANALYSIS_SCRIPT_TEMPLATE)
 
                     proc = await asyncio.create_subprocess_exec(
                         str(ANALYSIS_PYTHON), str(script_path), ticker, date, str(REPO_ROOT),
@@ -900,7 +922,6 @@ async def start_portfolio_analysis():
                         for line in output.splitlines():
                             if line.startswith("ANALYSIS_COMPLETE:"):
                                 decision = line.split(":", 1)[1].strip()
-                        app.state.task_results[task_id]["completed"] = i + 1
                         rec = {
                             "ticker": ticker,
                             "name": stock.get("name", ticker),
@@ -909,11 +930,36 @@ async def start_portfolio_analysis():
                             "created_at": datetime.now().isoformat(),
                         }
                         save_recommendation(date, ticker, rec)
-                        app.state.task_results[task_id]["results"].append(rec)
+                        return True, decision, rec
                     else:
-                        app.state.task_results[task_id]["failed"] += 1
-
+                        last_error = stderr.decode()[-500:] if stderr else f"exit {proc.returncode}"
                 except Exception as e:
+                    last_error = str(e)
+                finally:
+                    if script_path:
+                        try:
+                            script_path.unlink()
+                        except Exception:
+                            pass
+                if attempt < MAX_RETRIES:
+                    await asyncio.sleep(2 ** attempt)  # exponential backoff: 1s, 2s
+
+            return False, "HOLD", None
+
+        try:
+            for i, stock in enumerate(watchlist):
+                stock["_idx"] = i  # used in temp file name
+                ticker = stock["ticker"]
+                app.state.task_results[task_id]["current_ticker"] = ticker
+                app.state.task_results[task_id]["status"] = "running"
+                app.state.task_results[task_id]["completed"] = i
+                await broadcast_progress(task_id, app.state.task_results[task_id])
+
+                success, decision, rec = await run_single_analysis(ticker, stock)
+                if success:
+                    app.state.task_results[task_id]["completed"] = i + 1
+                    app.state.task_results[task_id]["results"].append(rec)
+                else:
                     app.state.task_results[task_id]["failed"] += 1
 
                 await broadcast_progress(task_id, app.state.task_results[task_id])
