@@ -44,16 +44,13 @@ docs/iterations/
 │   ├── ml_signal.md
 │   ├── minervini.md
 │   └── ... (one file per scanner)
-├── strategies/
-│   ├── analyst_upgrade.md
-│   ├── momentum.md
-│   ├── accumulation.md
-│   └── ... (one file per strategy pattern)
 ├── pipeline/
 │   └── scoring.md                      ← LLM scoring, confidence calibration, ranking
 └── research/
     └── YYYY-MM-DD-<topic>.md           ← web research findings (append-only, dated)
 ```
+
+Each scanner file captures both the implementation learnings and the underlying market thesis — no separate strategies folder since scanners and strategies are currently 1:1.
 
 ### Domain File Schema
 
