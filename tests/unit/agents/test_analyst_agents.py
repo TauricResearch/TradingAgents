@@ -140,9 +140,77 @@ def valid_news_report():
 
 def test_fundamentals_analyst_tool_loop(mock_state, mock_llm_with_tool_call):
     """Fundamentals analyst: pre-fetches 4 tools, runs iterative loop for raw statements."""
-    node = create_fundamentals_analyst(mock_llm_with_tool_call)
-    result = node(mock_state)
+    with patch(
+        "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
+        return_value={
+            "TTM Analysis (8-Quarter Trend)": "TTM context",
+            "Fundamental Ratios Snapshot": "Ratios context",
+            "Peer Comparison": "Peer context",
+            "Sector Relative Performance": "Sector context",
+        },
+    ):
+        node = create_fundamentals_analyst(mock_llm_with_tool_call)
+        result = node(mock_state)
     assert "This is the final report after running the tool." in result["fundamentals_report"]
+    assert result["fundamentals_report_structured"]["ticker"] == "AAPL"
+    assert result["fundamentals_report_structured"]["status"] == "completed"
+    assert result["fundamentals_report_structured"]["prefetch"]["section_count"] == 4
+
+
+def test_fundamentals_analyst_timeout_fallback_builds_structured_report(mock_state):
+    with patch(
+        "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
+        return_value={
+            "TTM Analysis (8-Quarter Trend)": "TTM context",
+            "Fundamental Ratios Snapshot": "Ratios context",
+            "Peer Comparison": "Peer context",
+            "Sector Relative Performance": "Sector context",
+        },
+    ), patch(
+        "tradingagents.agents.analysts.fundamentals_analyst.run_tool_loop",
+        return_value=AIMessage(
+            content=(
+                "- Tool-using analyst timed out after 60s.\n"
+                "- Available tools for this node: get_balance_sheet, get_cashflow, get_income_statement.\n"
+                "- Treat this node as incomplete and do not infer additional unsourced claims."
+            )
+        ),
+    ):
+        node = create_fundamentals_analyst(MockLLM([]))
+        result = node(mock_state)
+
+    structured = result["fundamentals_report_structured"]
+    assert structured["status"] == "timeout_fallback"
+    assert structured["ticker"] == "AAPL"
+    assert structured["prefetch"]["present_sections"] == [
+        "TTM Analysis (8-Quarter Trend)",
+        "Fundamental Ratios Snapshot",
+        "Peer Comparison",
+        "Sector Relative Performance",
+    ]
+    assert "Fundamentals Analysis" in result["fundamentals_report"]
+
+
+def test_fundamentals_analyst_empty_output_uses_structured_fallback(mock_state):
+    with patch(
+        "tradingagents.agents.analysts.fundamentals_analyst.prefetch_tools_parallel",
+        return_value={
+            "TTM Analysis (8-Quarter Trend)": "TTM context",
+            "Fundamental Ratios Snapshot": "Ratios context",
+            "Peer Comparison": "Peer context",
+            "Sector Relative Performance": "Sector context",
+        },
+    ), patch(
+        "tradingagents.agents.analysts.fundamentals_analyst.run_tool_loop",
+        return_value=AIMessage(content=""),
+    ):
+        node = create_fundamentals_analyst(MockLLM([]))
+        result = node(mock_state)
+
+    structured = result["fundamentals_report_structured"]
+    assert structured["status"] == "empty"
+    assert structured["ticker"] == "AAPL"
+    assert "Fundamentals Analysis" in result["fundamentals_report"]
 
 
 def test_market_analyst_direct_invoke(mock_state, mock_llm_direct_report):
@@ -162,7 +230,11 @@ def test_social_media_analyst_direct_invoke(mock_state, mock_llm_direct_report):
     node = create_social_media_analyst(mock_llm_direct_report)
     result = node(mock_state)
     assert "This is the final report after running the tool." in result["sentiment_report"]
-
+    assert "sentiment_report_structured" in result
+    structured = result["sentiment_report_structured"]
+    assert structured["ticker"] == "AAPL"
+    assert structured["status"] in {"completed", "timeout_fallback", "empty", "aborted"}
+    assert structured["contract_version"] == "sentiment_summary_v1"
 
 def test_news_analyst_direct_invoke(mock_state, valid_news_report):
     """News analyst: full pre-fetch, direct LLM invoke (no tool loop)."""
@@ -396,6 +468,27 @@ def test_news_analyst_aborts_after_two_invalid_attempts(mock_state):
 
     assert mock_llm.runnable.call_count == 2
     assert result["news_report"].startswith("[CRITICAL ABORT]")
+
+
+def test_news_analyst_timeout_builds_structured_evidence_fallback(mock_state):
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={},
+    ), patch(
+        "tradingagents.agents.analysts.news_analyst.invoke_with_timeout",
+        return_value=(None, TimeoutError("llm invoke exceeded")),
+    ):
+        node = create_news_analyst(
+            MockLLM([]),
+            evidence_store=FakeNewsEvidenceStore(),
+        )
+        result = node(mock_state)
+
+    structured = result["news_report_structured"]
+    assert isinstance(structured, dict)
+    assert structured["ticker"] == "AAPL"
+    assert len(structured["claims"]) >= 1
+    assert "art_aapl_001" in result["news_report"]
 
 
 def test_news_analyst_prompt_forbids_internal_headers_as_sources():

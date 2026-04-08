@@ -208,6 +208,21 @@ class ReportStore:
     def load_execution_result(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
         return self._load_latest_from_runs(date, "portfolio/report", f"{portfolio_id}_execution_result.json")
 
+    def save_portfolio_node_results(
+        self,
+        date: str,
+        portfolio_id: str,
+        data: dict[str, Any],
+    ) -> Path:
+        """Persist node-level portfolio outputs for a single run."""
+        pdir = self._portfolio_dir(date, for_write=True)
+        path = pdir / "report" / f"{ts_now()}_{portfolio_id}_node_results.json"
+        return self._write_json(path, data)
+
+    def load_portfolio_node_results(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
+        """Load the latest node-level portfolio output payload."""
+        return self._load_latest_from_runs(date, "portfolio/report", f"{portfolio_id}_node_results.json")
+
     def clear_portfolio_stage(self, date: str, portfolio_id: str) -> list[str]:
         deleted: list[str] = []
         for root in self._run_roots(date):

@@ -70,7 +70,10 @@ def run_tool_loop(
         or DEFAULT_CONFIG.get("llm_timeout")
         or 120.0
     )
-    timeout_seconds = min(timeout_seconds, 60.0)
+    timeout_seconds = min(
+        timeout_seconds,
+        float(DEFAULT_CONFIG.get("tool_loop_timeout_cap") or 60.0),
+    )
 
     for _ in range(max_rounds):
         try:

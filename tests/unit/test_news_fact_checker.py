@@ -118,3 +118,55 @@ def test_news_fact_checker_returns_placeholder_when_only_fake_structured_claims_
     assert result["sender"] == "news_fact_checker"
     assert not result["news_report"].startswith("[CRITICAL ABORT]")
     assert "No validated news claims remained" in result["news_report"]
+
+
+def test_news_fact_checker_returns_structured_placeholder_when_payload_missing():
+    node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
+    state = {
+        "run_id": "run-001",
+        "company_of_interest": "CSTM",
+        "trade_date": "2026-04-02",
+        "news_report": "CSTM News Analysis",
+        "news_report_structured": {},
+    }
+
+    result = node(state)
+
+    structured = result["news_report_structured"]
+    assert structured["ticker"] == "CSTM"
+    assert structured["claims"] == []
+    assert structured["summary_table"] == []
+    assert structured["status"] == "missing_structured_payload"
+    assert "No validated news claims were produced" in result["news_report"]
+
+
+def test_news_fact_checker_returns_structured_placeholder_when_payload_invalid():
+    node = create_news_fact_checker(evidence_store=FakeEvidenceStore(_records()))
+    state = {
+        "run_id": "run-001",
+        "company_of_interest": "CSTM",
+        "trade_date": "2026-04-02",
+        "news_report": "CSTM News Analysis",
+        "news_report_structured": {
+            "ticker": "OTHER",
+            "report_title": "CSTM News Analysis",
+            "claims": [
+                {
+                    "claim": "CSTM demand improved 8% and CSTM held pricing support at $48.02.",
+                    "source": "Reuters",
+                    "published_at": "2026-04-02",
+                    "evidence_id": "art_reuters_001",
+                }
+            ],
+            "summary_table": [],
+        },
+    }
+
+    result = node(state)
+
+    structured = result["news_report_structured"]
+    assert structured["ticker"] == "CSTM"
+    assert structured["claims"] == []
+    assert structured["summary_table"] == []
+    assert structured["status"] == "invalid_structured_payload"
+    assert result["news_report"].startswith("[CRITICAL ABORT]")

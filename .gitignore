@@ -233,12 +233,13 @@ Y/
 node_modules/
 agent_os/frontend/dist/
 
-.claude/worktrees.worktrees/
+.claude/worktrees/
 .obsidian/
 .intent/
 .DS_Store
 .codex/
 .vscode/
+.idea/
 docs/scratch/
 
 

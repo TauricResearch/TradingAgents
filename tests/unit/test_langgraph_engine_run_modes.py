@@ -23,8 +23,12 @@ if _project_root not in sys.path:
 
 from agent_os.backend.services.langgraph_engine import (
     LangGraphEngine,
-    _fallback_model_summary,
-    _is_rate_limit_error,
+    _load_injected_market_report,
+)
+from agent_os.backend.services.report_helpers import extract_tickers_from_scan_data
+from agent_os.backend.services.run_helpers import (
+    fallback_model_summary,
+    is_rate_limit_error,
 )
 
 
@@ -54,20 +58,20 @@ def _root_chain_end_event(output: dict) -> dict:
 
 
 class TestLangGraphHelperClassifiers(unittest.TestCase):
-    def test_is_rate_limit_error_matches_status_code(self):
+    def testis_rate_limit_error_matches_status_code(self):
         exc = RuntimeError("boom")
         exc.status_code = 429
-        self.assertTrue(_is_rate_limit_error(exc))
+        self.assertTrue(is_rate_limit_error(exc))
 
-    def test_is_rate_limit_error_matches_upstream_message(self):
+    def testis_rate_limit_error_matches_upstream_message(self):
         exc = RuntimeError("provider is temporarily rate-limited upstream, retry shortly")
-        self.assertTrue(_is_rate_limit_error(exc))
+        self.assertTrue(is_rate_limit_error(exc))
 
-    def test_is_rate_limit_error_returns_false_for_other_errors(self):
+    def testis_rate_limit_error_returns_false_for_other_errors(self):
         exc = RuntimeError("provider policy blocked model")
-        self.assertFalse(_is_rate_limit_error(exc))
+        self.assertFalse(is_rate_limit_error(exc))
 
-    def test_fallback_model_summary_lists_only_changed_tiers(self):
+    def testfallback_model_summary_lists_only_changed_tiers(self):
         current = {
             "quick_think_llm": "q1",
             "mid_think_llm": "m1",
@@ -79,7 +83,7 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             "deep_think_llm": "d2",
         }
 
-        summary = _fallback_model_summary(current, fallback)
+        summary = fallback_model_summary(current, fallback)
 
         self.assertEqual(summary, "quick_think=q2, deep_think=d2")
 
@@ -90,10 +94,11 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             report_path = tmpdir / "market_report.md"
             report_path.write_text("# Market\nSaved report", encoding="utf-8")
 
-            loaded = LangGraphEngine._load_injected_market_report(str(report_path))
+            loaded = _load_injected_market_report(str(report_path))
 
             self.assertEqual(loaded["market_report"], "# Market\nSaved report")
             self.assertEqual(loaded["macro_regime_report"], "")
+            self.assertEqual(loaded["market_report_structured"], {})
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -112,10 +117,35 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            loaded = LangGraphEngine._load_injected_market_report(str(report_path))
+            loaded = _load_injected_market_report(str(report_path))
 
             self.assertEqual(loaded["market_report"], "Saved market report")
             self.assertEqual(loaded["macro_regime_report"], "risk-off")
+            self.assertEqual(loaded["market_report_structured"]["status"], "completed")
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def test_load_injected_market_report_from_macro_scan_json(self):
+        tmpdir = Path.cwd() / "_test_injected_reports"
+        tmpdir.mkdir(exist_ok=True)
+        try:
+            report_path = tmpdir / "macro_scan_summary.json"
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "timeframe": "1 month",
+                        "executive_summary": "Energy premium remains elevated.",
+                        "key_themes": [{"theme": "Energy"}],
+                        "stocks_to_investigate": [{"ticker": "JPM"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            loaded = _load_injected_market_report(str(report_path))
+
+            self.assertIn('"executive_summary": "Energy premium remains elevated."', loaded["market_report"])
+            self.assertEqual(loaded["market_report_structured"]["status"], "completed")
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -125,7 +155,7 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             report_path = Path(tmpdir) / "secret.md"
             report_path.write_text("should not be readable", encoding="utf-8")
             with self.assertRaises(PermissionError):
-                LangGraphEngine._load_injected_market_report(str(report_path))
+                _load_injected_market_report(str(report_path))
 
     def test_load_injected_market_report_rejects_malformed_json(self):
         """Verify malformed JSON raises ValueError, not json.JSONDecodeError."""
@@ -135,7 +165,7 @@ class TestLangGraphHelperClassifiers(unittest.TestCase):
             report_path = tmpdir / "bad.json"
             report_path.write_text("{invalid json", encoding="utf-8")
             with self.assertRaises(ValueError) as ctx:
-                LangGraphEngine._load_injected_market_report(str(report_path))
+                _load_injected_market_report(str(report_path))
             self.assertIn("malformed", str(ctx.exception))
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
@@ -390,7 +420,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -408,6 +438,9 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         self.assertEqual(saved_state["instrument_key"], "equity:AAPL")
         self.assertEqual(saved_state["instrument_type"], "common_stock")
         self.assertEqual(saved_state["market_report_structured"]["status"], "completed")
+        self.assertIn("pipeline_node_results", saved_state)
+        self.assertEqual(saved_state["pipeline_node_results"]["market_report"], "market is bullish")
+        self.assertEqual(saved_state["pipeline_node_results"]["final_trade_decision"], "BUY AAPL")
 
     def test_run_pipeline_writes_complete_report_md(self):
         """run_pipeline should call _write_complete_report_md."""
@@ -418,7 +451,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md") as mock_write_md:
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md") as mock_write_md:
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -436,7 +469,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -462,7 +495,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest") as mock_digest, \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -485,7 +518,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -552,7 +585,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
                  patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
                  patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
                  patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-                 patch.object(LangGraphEngine, "_write_complete_report_md"):
+                 patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
                 fake_dir = MagicMock(spec=Path)
                 fake_dir.mkdir = MagicMock()
                 mock_gtd.return_value = fake_dir
@@ -577,6 +610,10 @@ class TestRunPipelineReportStorage(unittest.TestCase):
         self.assertEqual(create_initial_state.call_count, 1)
         self.assertEqual(create_initial_state.call_args.kwargs["market_report"], "Injected market report")
         self.assertEqual(create_initial_state.call_args.kwargs["macro_regime_report"], "")
+        self.assertEqual(
+            create_initial_state.call_args.kwargs["market_report_structured"]["status"],
+            "completed",
+        )
 
     def test_run_pipeline_uses_selected_analysts_when_analysts_missing(self):
         mock_wrapper = self._make_mock_graph_wrapper()
@@ -586,7 +623,7 @@ class TestRunPipelineReportStorage(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.get_ticker_dir") as mock_gtd, \
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
-             patch.object(LangGraphEngine, "_write_complete_report_md"):
+             patch("agent_os.backend.services.langgraph_engine.write_complete_report_md"):
             fake_dir = MagicMock(spec=Path)
             fake_dir.mkdir = MagicMock()
             mock_gtd.return_value = fake_dir
@@ -840,6 +877,54 @@ class TestRunPortfolioReportLoading(unittest.TestCase):
             f"Expected incomplete-analysis warning. Got: {log_messages}",
         )
 
+    def test_run_portfolio_saves_node_results_payload(self):
+        """run_portfolio should persist a dedicated node-results artifact."""
+        engine = LangGraphEngine()
+
+        final_state = {
+            "portfolio_data": '{"portfolio_id":"p1"}',
+            "risk_metrics": '{"volatility":0.2}',
+            "holding_reviews": '{"AAPL":{"verdict":"hold"}}',
+            "prioritized_candidates": '["AAPL","MSFT"]',
+            "macro_brief": "Macro looks constructive",
+            "micro_brief": "Micro signal improving",
+            "pm_decision": '{"actions":[]}',
+            "cash_sweep": '{"symbol":"SGOV"}',
+            "execution_result": '{"status":"ok"}',
+        }
+
+        async def mock_astream(*args, **kwargs):
+            yield _root_chain_end_event(final_state)
+
+        mock_graph = MagicMock()
+        mock_graph.astream_events = mock_astream
+        mock_pg = MagicMock()
+        mock_pg.graph = mock_graph
+
+        fake_daily_dir = MagicMock(spec=Path)
+        fake_daily_dir.exists.return_value = True
+        fake_daily_dir.iterdir.return_value = []
+
+        with patch("agent_os.backend.services.langgraph_engine.PortfolioGraph", return_value=mock_pg), \
+             patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=fake_daily_dir):
+            mock_store = MagicMock()
+            mock_store.load_scan.return_value = {}
+            mock_store.load_analysis.return_value = None
+            mock_rs_cls.return_value = mock_store
+
+            asyncio.run(_collect(engine.run_portfolio("run1", {"date": "2026-01-01", "portfolio_id": "p1"})))
+
+        mock_store.save_portfolio_node_results.assert_called_once()
+        save_args = mock_store.save_portfolio_node_results.call_args[0]
+        self.assertEqual(save_args[0], "2026-01-01")
+        self.assertEqual(save_args[1], "p1")
+        payload = save_args[2]
+        self.assertEqual(payload["portfolio_id"], "p1")
+        self.assertEqual(payload["analysis_date"], "2026-01-01")
+        self.assertIn("node_results", payload)
+        self.assertEqual(payload["node_results"]["pm_decision"], '{"actions":[]}')
+
 
 # ---------------------------------------------------------------------------
 # TestRunAutoTickerSource
@@ -913,7 +998,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
         engine.config = {
             **engine.config,
             "quick_think_llm": "primary-quick",
-            "mid_think_llm": "primary-mid",
+            "mid_think_llm": "qwen/qwen3.6-plus-preview:free",
             "deep_think_llm": "primary-deep",
             "quick_think_fallback_llm": "fallback-quick",
             "mid_think_fallback_llm": "fallback-mid",
@@ -954,13 +1039,99 @@ class TestRunAutoTickerSource(unittest.TestCase):
             events = asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
 
         self.assertEqual(len(scan_calls), 2)
-        self.assertEqual(scan_calls[0][1:], ("primary-quick", "primary-mid", "primary-deep"))
-        self.assertEqual(scan_calls[1][1:], ("fallback-quick", "fallback-mid", "fallback-deep"))
+        self.assertEqual(scan_calls[0][1:], ("primary-quick", "qwen/qwen3.6-plus-preview:free", "primary-deep"))
+        self.assertEqual(scan_calls[1][1:], ("primary-quick", "fallback-mid", "primary-deep"))
         log_messages = [e.get("message", "") for e in events if e.get("type") == "log"]
         self.assertTrue(
             any("retrying with fallback" in m for m in log_messages),
             f"Expected fallback retry log. Got: {log_messages}",
         )
+
+    def test_run_auto_fallback_scan_also_fails_yields_log_and_raises(self):
+        """When both primary and fallback scans fail, run_auto logs both and
+        re-raises the fallback exception."""
+        engine = LangGraphEngine()
+        engine.config = {
+            **engine.config,
+            "mid_think_llm": "qwen/qwen3.6-plus-preview:free",
+            "mid_think_fallback_llm": "fallback-mid",
+        }
+        scan_calls = []
+
+        async def fake_run_scan(run_id, params):
+            scan_calls.append(run_id)
+            if "fallback" in run_id:
+                raise RuntimeError("APIError: Provider returned error")
+            raise RuntimeError(
+                "429 - qwen/qwen3.6-plus-preview:free is temporarily rate-limited upstream."
+            )
+            yield  # unreachable; marks this as an async generator
+
+        engine.run_scan = fake_run_scan
+        engine._load_scan_state = MagicMock(return_value={"scan_date": "2026-01-01"})
+
+        mock_store = MagicMock()
+        mock_store.load_scan.return_value = None
+
+        with patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=MagicMock(spec=Path)), \
+             patch.object(engine, "_start_run_logger", return_value=MagicMock(callback=None)), \
+             patch.object(engine, "_finish_run_logger"):
+            with self.assertRaises(RuntimeError):
+                asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        self.assertEqual(len(scan_calls), 2, "Both primary and fallback scans should have been called")
+        # Config must be restored after fallback failure
+        self.assertEqual(engine.config.get("mid_think_llm"), "qwen/qwen3.6-plus-preview:free")
+
+    def test_run_auto_fallback_applied_when_tier_unknown(self):
+        """When infer_fallback_tier cannot identify the tier (model not in error
+        text), build_fallback_config applies all configured tier fallbacks."""
+        engine = LangGraphEngine()
+        engine.config = {
+            **engine.config,
+            "quick_think_llm": "primary-quick",
+            "mid_think_llm": "primary-mid",
+            "deep_think_llm": "primary-deep",
+            "quick_think_fallback_llm": "fallback-quick",
+            "mid_think_fallback_llm": "fallback-mid",
+            "deep_think_fallback_llm": "fallback-deep",
+        }
+        scan_calls = []
+
+        async def fake_run_scan(run_id, params):
+            scan_calls.append(
+                (
+                    run_id,
+                    engine.config.get("quick_think_llm"),
+                    engine.config.get("mid_think_llm"),
+                    engine.config.get("deep_think_llm"),
+                )
+            )
+            if len(scan_calls) == 1:
+                # Rate-limit error with no model name — tier cannot be inferred
+                raise RuntimeError("429 - upstream rate limit exceeded, retry shortly.")
+            yield {"type": "log", "message": "scan fallback ok"}
+
+        async def fake_after_scan(**kwargs):
+            yield {"type": "log", "message": "after scan"}
+
+        engine.run_scan = fake_run_scan
+        engine._load_scan_state = MagicMock(return_value={"scan_date": "2026-01-01"})
+        engine._run_auto_after_scan = fake_after_scan
+
+        mock_store = MagicMock()
+        mock_store.load_scan.return_value = None
+
+        with patch("agent_os.backend.services.langgraph_engine.create_report_store", return_value=mock_store), \
+             patch("agent_os.backend.services.langgraph_engine.get_daily_dir", return_value=MagicMock(spec=Path)), \
+             patch.object(engine, "_start_run_logger", return_value=MagicMock(callback=None)), \
+             patch.object(engine, "_finish_run_logger"):
+            asyncio.run(_collect(engine.run_auto("auto1", {"date": "2026-01-01"})))
+
+        self.assertEqual(len(scan_calls), 2)
+        # All three tiers should be switched to their fallbacks
+        self.assertEqual(scan_calls[1][1:], ("fallback-quick", "fallback-mid", "fallback-deep"))
 
     def test_run_auto_gets_tickers_from_scan_report(self):
         """run_auto should run pipeline for AAPL and TSLA from the scan report."""
@@ -1268,7 +1439,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
             ticker = params.get("ticker")
             pipeline_calls.append(ticker)
             completed_tickers.add(ticker)
-            from agent_os.backend.services.langgraph_engine import live_runs
+            from agent_os.backend.store import runs as live_runs
 
             live_runs.setdefault("auto1", {})["stop_requested"] = True
             for _ in ():
@@ -1290,7 +1461,7 @@ class TestRunAutoTickerSource(unittest.TestCase):
              patch("agent_os.backend.services.langgraph_engine.create_report_store") as mock_rs_cls, \
              patch("agent_os.backend.services.langgraph_engine.append_to_digest"), \
              patch("agent_os.backend.services.langgraph_engine.extract_json", return_value=scan_data), \
-             patch.dict("agent_os.backend.services.langgraph_engine.live_runs", {"auto1": {"stop_requested": False}}, clear=False):
+             patch.dict("agent_os.backend.services.run_helpers.live_runs", {"auto1": {"stop_requested": False}}, clear=False):
             fake_mdir = MagicMock(spec=Path)
             fake_mdir.__truediv__ = MagicMock(return_value=MagicMock(spec=Path))
             fake_mdir.mkdir = MagicMock()
@@ -1965,34 +2136,34 @@ class TestExtractTickersFromScanData(unittest.TestCase):
 
     def test_list_of_strings(self):
         scan = {"stocks_to_investigate": ["AAPL", "tsla"]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
 
     def test_list_of_dicts_with_ticker_key(self):
         scan = {"stocks_to_investigate": [{"ticker": "AAPL"}, {"ticker": "MSFT"}]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL", "MSFT"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["AAPL", "MSFT"])
 
     def test_list_of_dicts_with_symbol_key(self):
         scan = {"stocks_to_investigate": [{"symbol": "nvda"}]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["NVDA"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["NVDA"])
 
     def test_watchlist_fallback(self):
         scan = {"watchlist": ["GOOG"]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["GOOG"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["GOOG"])
 
     def test_deduplication(self):
         scan = {"stocks_to_investigate": ["AAPL", "aapl", "AAPL"]}
-        result = self.engine._extract_tickers_from_scan_data(scan)
+        result = extract_tickers_from_scan_data(scan)
         self.assertEqual(result, ["AAPL"])
 
     def test_empty_or_none(self):
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(None), [])
-        self.assertEqual(self.engine._extract_tickers_from_scan_data({}), [])
-        self.assertEqual(self.engine._extract_tickers_from_scan_data({"stocks_to_investigate": []}), [])
+        self.assertEqual(extract_tickers_from_scan_data(None), [])
+        self.assertEqual(extract_tickers_from_scan_data({}), [])
+        self.assertEqual(extract_tickers_from_scan_data({"stocks_to_investigate": []}), [])
 
     def test_mixed_types_skipped(self):
         """Items that are not str or dict should be silently skipped."""
         scan = {"stocks_to_investigate": ["AAPL", 42, None, ["nested"], {"ticker": "MSFT"}]}
-        result = self.engine._extract_tickers_from_scan_data(scan)
+        result = extract_tickers_from_scan_data(scan)
         self.assertIn("AAPL", result)
         self.assertIn("MSFT", result)
         # Non-string/non-dict items should not produce entries
@@ -2000,7 +2171,7 @@ class TestExtractTickersFromScanData(unittest.TestCase):
 
     def test_non_stock_symbols_are_filtered(self):
         scan = {"stocks_to_investigate": ["AAPL", "SPY", "BTC", "TSLA"]}
-        self.assertEqual(self.engine._extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
+        self.assertEqual(extract_tickers_from_scan_data(scan), ["AAPL", "TSLA"])
 
 
 class TestRunPipelineFromPhase(unittest.TestCase):

@@ -14,6 +14,17 @@ from tradingagents.agents.utils.json_utils import extract_json
 
 logger = logging.getLogger(__name__)
 
+_SCRATCHPAD_PHRASES = (
+    "we need to",
+    "we have limited data",
+    "we can create",
+    "let's extract",
+    "let's craft",
+    "we'll just use",
+    "now produce final answer",
+    "could format as",
+)
+
 
 @dataclass(frozen=True)
 class ValidationResult:
@@ -239,6 +250,487 @@ def build_market_report_structured(
             "summary_table_rows": summary_table_rows,
             "report_char_count": len(report),
         },
+    }
+
+
+def _compact_text(text: str, *, max_chars: int = 200) -> str:
+    line = " ".join(str(text or "").strip().split())
+    if not line:
+        return ""
+    if len(line) <= max_chars:
+        return line
+    return line[: max_chars - 3].rstrip() + "..."
+
+
+def _summarize_prefetched_sections(
+    prefetched_sections: dict[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    sections: dict[str, dict[str, Any]] = {}
+    if not isinstance(prefetched_sections, dict):
+        return sections
+
+    for label, raw_value in prefetched_sections.items():
+        content = str(raw_value or "").strip()
+        sections[str(label)] = {
+            "present": bool(content),
+            "error": content.startswith("[Error fetching") or content.startswith("[Error]"),
+            "char_count": len(content),
+            "excerpt": _compact_text(content, max_chars=180),
+        }
+    return sections
+
+
+def build_fundamentals_report_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    fundamentals_report: str,
+    macro_regime_report: str,
+    prefetched_sections: dict[str, Any] | None = None,
+    contract_version: str = "fundamentals_summary_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for fundamentals node output."""
+    report = str(fundamentals_report or "").strip()
+    abort_prefix = "[CRITICAL ABORT]"
+    timeout_detected = is_timeout_fallback or "timed out after" in report.lower()
+    if report.startswith(abort_prefix):
+        status = "aborted"
+        abort_reason = report[len(abort_prefix):].strip(" :\n\t")
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    elif not report:
+        status = "empty"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", report))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", report, re.IGNORECASE)
+    )
+    summary_table_rows = _count_summary_table_rows(report)
+    sections = _summarize_prefetched_sections(prefetched_sections)
+    present_sections = [label for label, meta in sections.items() if meta.get("present")]
+    error_sections = [label for label, meta in sections.items() if meta.get("error")]
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "bullet_count": bullet_count,
+        "macro_regime": infer_macro_regime_from_prefetched_report(macro_regime_report),
+        "macro_regime_report_present": bool(str(macro_regime_report or "").strip()),
+        "prefetch": {
+            "section_count": len(sections),
+            "present_sections": present_sections,
+            "error_sections": error_sections,
+            "sections": sections,
+        },
+        "key_metrics": {
+            "numeric_mentions": numeric_mentions,
+            "summary_table_rows": summary_table_rows,
+            "report_char_count": len(report),
+        },
+        "report_excerpt": _compact_text(report, max_chars=260),
+    }
+
+
+def render_fundamentals_report_structured(payload: dict[str, Any]) -> str:
+    """Render fundamentals structured data into a deterministic markdown fallback."""
+    ticker_upper = str(payload.get("ticker") or "").strip().upper()
+    report_title = f"{ticker_upper} Fundamentals Analysis" if ticker_upper else "Fundamentals Analysis"
+    key_metrics = payload.get("key_metrics") or {}
+    prefetch = payload.get("prefetch") or {}
+    sections = prefetch.get("sections") if isinstance(prefetch, dict) else {}
+    present_sections = prefetch.get("present_sections") if isinstance(prefetch, dict) else []
+    error_sections = prefetch.get("error_sections") if isinstance(prefetch, dict) else []
+
+    lines = [
+        report_title,
+        "",
+        f"- Ticker: {ticker_upper or 'N/A'}",
+        f"- As of Date: {payload.get('as_of_date') or 'N/A'}",
+        f"- Status: {payload.get('status') or 'unknown'}",
+        f"- Contract Version: {payload.get('contract_version') or 'unknown'}",
+        f"- Macro Regime: {payload.get('macro_regime') or 'unknown'}",
+        f"- Macro Regime Present: {bool(payload.get('macro_regime_report_present'))}",
+        f"- Bullet Count: {payload.get('bullet_count', 0)}",
+        f"- Numeric Mentions: {key_metrics.get('numeric_mentions', 0)}",
+        f"- Summary Table Rows: {key_metrics.get('summary_table_rows', 0)}",
+    ]
+
+    if payload.get("report_excerpt"):
+        lines.extend(["", "### Report Excerpt", "", str(payload["report_excerpt"])])
+
+    if isinstance(sections, dict) and sections:
+        lines.extend(["", "### Prefetched Sections"])
+        for label, meta in sections.items():
+            if not isinstance(meta, dict):
+                continue
+            status = "present" if meta.get("present") else "missing"
+            if meta.get("error"):
+                status = "error"
+            excerpt = str(meta.get("excerpt") or "").strip()
+            char_count = meta.get("char_count", 0)
+            lines.append(f"- {label}: {status} ({char_count} chars)")
+            if excerpt:
+                lines.append(f"  - {excerpt}")
+
+    if present_sections:
+        lines.extend(["", f"- Present Sections: {', '.join(str(item) for item in present_sections)}"])
+    if error_sections:
+        lines.extend(["", f"- Error Sections: {', '.join(str(item) for item in error_sections)}"])
+
+    return "\n".join(lines).strip()
+
+
+def output_contains_scratchpad(text: str) -> bool:
+    normalized = " ".join(str(text or "").strip().split()).lower()
+    if not normalized:
+        return False
+    return any(phrase in normalized for phrase in _SCRATCHPAD_PHRASES)
+
+
+def build_research_manager_fallback(state: dict[str, Any]) -> str:
+    ticker = str(state.get("company_of_interest") or "").strip().upper()
+    news_structured = state.get("news_report_structured") or {}
+    fundamentals_structured = state.get("fundamentals_report_structured") or {}
+    market_structured = state.get("market_report_structured") or {}
+
+    lines: list[str] = []
+
+    for claim in (news_structured.get("claims") or [])[:3]:
+        if not isinstance(claim, dict):
+            continue
+        claim_text = str(claim.get("claim") or "").strip()
+        source = str(claim.get("source") or "").strip()
+        published_at = str(claim.get("published_at") or "").strip()
+        if claim_text:
+            provenance = " ".join(part for part in (source, published_at) if part)
+            lines.append(f"- Bull: {claim_text}" + (f" [{provenance}]" if provenance else "") + " (MED)")
+
+    key_levels = market_structured.get("key_levels") or []
+    if isinstance(key_levels, list) and key_levels:
+        lines.append(f"- Bull: Market context includes {len(key_levels)} validated price levels ({', '.join(str(v) for v in key_levels[:3])}) (LOW)")
+
+    key_metrics = fundamentals_structured.get("key_metrics") or {}
+    if fundamentals_structured.get("status") == "timeout_fallback":
+        lines.append("- Bear: Fundamentals analysis timed out after 60s, leaving quantitative coverage incomplete (HIGH)")
+    if key_metrics.get("numeric_mentions", 0) == 0:
+        lines.append("- Bear: Fundamentals structured contract reports 0 numeric mentions (HIGH)")
+    macro_regime = str(fundamentals_structured.get("macro_regime") or "").strip().lower()
+    if macro_regime in {"", "unknown"}:
+        lines.append("- Bear: Fundamentals structured contract classifies macro regime as unknown (MED)")
+
+    has_high_bear = any("(HIGH)" in line and line.startswith("- Bear:") for line in lines)
+    has_bull = any(line.startswith("- Bull:") for line in lines)
+    recommendation = "HOLD" if has_high_bear else ("BUY" if has_bull else "HOLD")
+    rationale = (
+        "positive validated news is offset by incomplete fundamentals coverage"
+        if has_bull and has_high_bear
+        else "validated evidence is insufficient for a directional upgrade"
+    )
+    key_level_count = len(key_levels) if isinstance(key_levels, list) else 0
+    lines.append(f"- Recommendation: {recommendation} (HIGH)")
+    lines.append(f"- Rationale: {rationale} for {ticker or 'the instrument'} (HIGH)")
+    lines.append(f"- Strategic Action: wait for refreshed fundamentals and {key_level_count} validated market price levels before sizing new risk (HIGH)")
+    return "\n".join(lines).strip()
+
+
+def build_trader_plan_fallback(state: dict[str, Any]) -> str:
+    investment_plan = str(state.get("investment_plan") or "")
+    upper_plan = investment_plan.upper()
+    if "SELL" in upper_plan:
+        recommendation = "SELL"
+    elif "BUY" in upper_plan:
+        recommendation = "BUY"
+    else:
+        recommendation = "HOLD"
+
+    market_structured = state.get("market_report_structured") or {}
+    key_levels = market_structured.get("key_levels") or []
+    price_level_count = len(key_levels) if isinstance(key_levels, list) else 0
+    fundamentals_structured = state.get("fundamentals_report_structured") or {}
+    fundamentals_status = str(fundamentals_structured.get("status") or "unknown")
+
+    if price_level_count == 0 or fundamentals_status == "timeout_fallback":
+        recommendation = "HOLD"
+
+    return "\n".join(
+        [
+            f"- Research Manager's Verdict: {recommendation} derived from validated upstream evidence (HIGH)",
+            f"- Entry Setup: no new entry because {price_level_count} validated market price levels are available in the structured packet (HIGH)",
+            "- Risk Parameters: preserve existing risk controls and do not place a fresh order until fundamentals are complete (HIGH)",
+            "- Catalyst Timeline: use only scanner ground-truth dates already present upstream; no new date inference was added here (MED)",
+            f"- FINAL TRANSACTION PROPOSAL: **{recommendation}**",
+        ]
+    ).strip()
+
+
+def _infer_recommendation(text: str) -> str:
+    """Return the dominant BUY/SELL/HOLD signal from free-form text."""
+    upper = str(text or "").upper()
+    if "SELL" in upper:
+        return "SELL"
+    if "BUY" in upper:
+        return "BUY"
+    return "HOLD"
+
+
+def _infer_sentiment_direction(text: str) -> str:
+    """Return dominant sentiment direction from prose."""
+    upper = str(text or "").upper()
+    bullish = upper.count("BULLISH") + upper.count("POSITIVE") + upper.count("OPTIMISTIC")
+    bearish = upper.count("BEARISH") + upper.count("NEGATIVE") + upper.count("PESSIMISTIC")
+    if bullish > bearish:
+        return "bullish"
+    if bearish > bullish:
+        return "bearish"
+    if bullish == bearish and bullish > 0:
+        return "mixed"
+    return "neutral"
+
+
+def build_sentiment_report_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    sentiment_report: str,
+    contract_version: str = "sentiment_summary_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for social-media/sentiment node output."""
+    report = str(sentiment_report or "").strip()
+    abort_prefix = "[CRITICAL ABORT]"
+    timeout_detected = is_timeout_fallback or "timed out after" in report.lower()
+    if report.startswith(abort_prefix):
+        status = "aborted"
+        abort_reason = report[len(abort_prefix):].strip(" :\n\t")
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    elif not report:
+        status = "empty"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", report))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", report, re.IGNORECASE)
+    )
+    source_mentions = len(re.findall(r"\b(?:twitter|reddit|stocktwits|seeking alpha|social media|forum|youtube)\b", report, re.IGNORECASE))
+    sentiment_direction = _infer_sentiment_direction(report)
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "claim_count": bullet_count,
+        "sentiment_direction": sentiment_direction,
+        "key_metrics": {
+            "numeric_mentions": numeric_mentions,
+            "source_mentions": source_mentions,
+            "report_char_count": len(report),
+        },
+    }
+
+
+def build_investment_plan_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    investment_plan: str,
+    contract_version: str = "investment_plan_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for research-manager output."""
+    plan = str(investment_plan or "").strip()
+    timeout_detected = is_timeout_fallback or "timed out" in plan.lower()
+    if not plan:
+        status = "empty"
+        abort_reason = ""
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    recommendation = _infer_recommendation(plan)
+    bullet_count = len(re.findall(r"(?m)^\s*[-*]\s+", plan))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", plan, re.IGNORECASE)
+    )
+    high_confidence = len(re.findall(r"\(HIGH\)", plan, re.IGNORECASE))
+    med_confidence = len(re.findall(r"\(MED\)", plan, re.IGNORECASE))
+    low_confidence = len(re.findall(r"\(LOW\)", plan, re.IGNORECASE))
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "recommendation": recommendation,
+        "key_metrics": {
+            "bullet_count": bullet_count,
+            "numeric_mentions": numeric_mentions,
+            "high_confidence_claims": high_confidence,
+            "med_confidence_claims": med_confidence,
+            "low_confidence_claims": low_confidence,
+            "plan_char_count": len(plan),
+        },
+    }
+
+
+def build_trader_plan_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    trader_plan: str,
+    contract_version: str = "trader_plan_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for trader node output."""
+    plan = str(trader_plan or "").strip()
+    timeout_detected = is_timeout_fallback or "timed out" in plan.lower()
+    if not plan:
+        status = "empty"
+        abort_reason = ""
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    final_action = _infer_recommendation(plan)
+    has_entry = bool(re.search(r"entry\s*(price|setup|point)", plan, re.IGNORECASE))
+    has_stop = bool(re.search(r"stop[.\- ]?loss", plan, re.IGNORECASE))
+    has_target = bool(re.search(r"take[.\- ]?profit|target\s*price", plan, re.IGNORECASE))
+    has_catalyst = bool(re.search(r"catalyst|timeline|earnings|fomc|cpi|ex[.\- ]?div", plan, re.IGNORECASE))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", plan, re.IGNORECASE)
+    )
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "final_action": final_action,
+        "key_metrics": {
+            "entry_setup_present": has_entry,
+            "stop_loss_present": has_stop,
+            "take_profit_present": has_target,
+            "catalyst_dates_present": has_catalyst,
+            "numeric_mentions": numeric_mentions,
+            "plan_char_count": len(plan),
+        },
+    }
+
+
+def build_risk_synthesis_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    risk_synthesis: str,
+    contract_version: str = "risk_synthesis_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for risk synthesis node output."""
+    text = str(risk_synthesis or "").strip()
+    timeout_detected = is_timeout_fallback or "timed out" in text.lower()
+    if not text:
+        status = "empty"
+        abort_reason = ""
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    consensus_direction = _infer_recommendation(text)
+    agreements = len(re.findall(r"(?i)\b(all\s+(?:three\s+)?analysts\s+agree|unanimous|shared\s+view|common\s+ground)", text))
+    disagreements = len(re.findall(r"(?i)\b(disagree|dissent|contention|conflict\s+between|opposing\s+view)", text))
+    risk_mentions = len(re.findall(r"(?i)\b(risk|downside|drawdown|tail\s+risk|volatility)\b", text))
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", text, re.IGNORECASE)
+    )
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "consensus_direction": consensus_direction,
+        "key_metrics": {
+            "agreement_mentions": agreements,
+            "disagreement_mentions": disagreements,
+            "risk_mentions": risk_mentions,
+            "numeric_mentions": numeric_mentions,
+            "synthesis_char_count": len(text),
+        },
+    }
+
+
+def build_final_decision_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    final_decision: str,
+    contract_version: str = "final_decision_v1",
+    is_timeout_fallback: bool = False,
+) -> dict[str, Any]:
+    """Build a compact canonical contract for portfolio-manager final decision."""
+    text = str(final_decision or "").strip()
+    timeout_detected = is_timeout_fallback or "timed out" in text.lower()
+    if not text:
+        status = "empty"
+        abort_reason = ""
+    elif timeout_detected:
+        status = "timeout_fallback"
+        abort_reason = ""
+    else:
+        status = "completed"
+        abort_reason = ""
+
+    action = _infer_recommendation(text)
+    numeric_mentions = len(
+        re.findall(r"\$[0-9]|[0-9]+(?:\.[0-9]+)?%|[0-9]+(?:\.[0-9]+)?\s*bps", text, re.IGNORECASE)
+    )
+    has_stop = bool(re.search(r"stop[.\- ]?loss", text, re.IGNORECASE))
+    has_target = bool(re.search(r"take[.\- ]?profit|target\s*price", text, re.IGNORECASE))
+    has_position_size = bool(re.search(r"position\s*(size|sizing|weight|allocation)", text, re.IGNORECASE))
+    excerpt = " ".join(text.split())[:200]
+
+    return {
+        "ticker": str(ticker or "").strip().upper(),
+        "as_of_date": str(as_of_date or "").strip(),
+        "status": status,
+        "contract_version": contract_version,
+        "abort_reason": abort_reason,
+        "action": action,
+        "key_metrics": {
+            "numeric_mentions": numeric_mentions,
+            "stop_loss_present": has_stop,
+            "take_profit_present": has_target,
+            "position_size_present": has_position_size,
+            "decision_char_count": len(text),
+        },
+        "decision_excerpt": excerpt,
     }
 
 

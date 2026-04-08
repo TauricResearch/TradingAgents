@@ -1,10 +1,22 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.scanner_tools import get_market_indices
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 
 
 def create_market_movers_scanner(llm):
     def market_movers_scanner_node(state):
+        # 1. Idempotency Check
+        existing_report = check_and_load_report(state, "market_movers_report")
+        if existing_report:
+            return {
+                "market_movers_report": existing_report,
+                "sender": "market_movers_scanner",
+            }
+
         scan_date = state["scan_date"]
 
         tools = [get_market_indices]
@@ -45,6 +57,10 @@ def create_market_movers_scanner(llm):
         result = run_tool_loop(chain, state["messages"], tools)
 
         report = result.content or ""
+
+        # 3. Resumability: Save after completion
+        if report:
+            save_node_report(state, "market_movers_report", report)
 
         return {
             "messages": [result],

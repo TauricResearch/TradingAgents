@@ -193,6 +193,7 @@ So in the current code path, the analyst stage usually exits each analyst direct
 
 - `run_pipeline()` in `LangGraphEngine` builds initial state through `Propagator.create_initial_state()`, streams events, captures the root final state, and persists analysis JSON plus markdown checkpoints.
 - `TradingAgentsGraph` exposes `debate_graph` and `risk_graph` subgraphs for reruns from checkpoints.
+- Nodes are designed to hard-crash on execution timeouts or underlying network failures (via `invoke_with_timeout` throwing exceptions). By preventing nodes from returning graceful fallback states, the pipeline properly halts so it can be resumed via UI based clean checkpoints.
 
 ## 3. Portfolio Graph
 

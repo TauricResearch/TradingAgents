@@ -10,10 +10,22 @@ from tradingagents.agents.utils.scanner_tools import (
     get_topic_news,
 )
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 
 
 def create_geopolitical_scanner(llm):
     def geopolitical_scanner_node(state):
+        # 1. Idempotency Check
+        existing_report = check_and_load_report(state, "geopolitical_report")
+        if existing_report:
+            return {
+                "geopolitical_report": existing_report,
+                "sender": "geopolitical_scanner",
+            }
+
         scan_date = state["scan_date"]
 
         tools = [
@@ -69,6 +81,10 @@ def create_geopolitical_scanner(llm):
         result = run_tool_loop(chain, state["messages"], tools)
 
         report = result.content or ""
+
+        # 3. Resumability: Save after completion
+        if report:
+            save_node_report(state, "geopolitical_report", report)
 
         return {
             "messages": [result],

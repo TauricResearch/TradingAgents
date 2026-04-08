@@ -3,6 +3,7 @@
 from langchain_core.messages import AIMessage
 
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.output_validation import build_risk_synthesis_structured
 from tradingagents.agents.utils.summary_context import build_research_packet
 from tradingagents.default_config import DEFAULT_CONFIG
 
@@ -83,7 +84,7 @@ Output a structured risk synthesis in under 400 words."""
 
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            60.0,
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 60.0),
         )
         response, invoke_error = invoke_with_timeout(
             llm,
@@ -92,19 +93,16 @@ Output a structured risk synthesis in under 400 words."""
             max_tokens=900,
         )
         if invoke_error is not None:
-            if isinstance(invoke_error, TimeoutError):
-                response = AIMessage(
-                    content=(
-                        "- Risk synthesis timed out; using fallback summary.\n"
-                        "- Agreements: Preserve only risk controls already shared by debators.\n"
-                        "- Disagreements: Treat unresolved upside/downside disputes as open.\n"
-                        "- Material Risks: Use scanner-context dates and validated report evidence only.\n"
-                        "- Balanced Assessment: Hold risk posture until synthesis can be recomputed."
-                    )
-                )
-            else:
-                raise invoke_error
+            err_type = type(invoke_error).__name__
+            raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
         summary = response.content.strip()
+        is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
+        structured = build_risk_synthesis_structured(
+            ticker=state.get("company_of_interest", ""),
+            as_of_date=state.get("trade_date", ""),
+            risk_synthesis=summary,
+            is_timeout_fallback=is_timeout,
+        )
 
         # Build risk_debate_state for Portfolio Manager backward compatibility
         risk_debate_state = {
@@ -123,6 +121,7 @@ Output a structured risk synthesis in under 400 words."""
 
         return {
             "risk_debate_state": risk_debate_state,
+            "risk_synthesis_structured": structured,
             "sender": "risk_synthesis",
         }
 

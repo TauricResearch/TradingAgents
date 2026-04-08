@@ -1,6 +1,11 @@
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.output_validation import (
+    build_investment_plan_structured,
+    build_research_manager_fallback,
+    output_contains_scratchpad,
+)
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
     get_investment_debate_summary,
@@ -79,7 +84,7 @@ Debate History:
 {anon_history}"""
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            60.0,
+            float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 60.0),
         )
         response, invoke_error = invoke_with_timeout(
             llm,
@@ -88,22 +93,22 @@ Debate History:
             max_tokens=1000,
         )
         if invoke_error is not None:
-            if isinstance(invoke_error, TimeoutError):
-                response = AIMessage(
-                    content=(
-                        "- Strongest Bull Evidence: Reuse only validated bullish points already present in the debate history.\n"
-                        "- Strongest Bear Evidence: Reuse only validated bearish points already present in the debate history.\n"
-                        "- Recommendation: HOLD.\n"
-                        "- Rationale: Research manager timed out and no new synthesis was produced; preserve capital until the debate can be recomputed.\n"
-                        "- Strategic Actions: Do not add exposure, keep monitoring catalyst dates from scanner ground truth, and rerun research synthesis."
-                    )
-                )
-            else:
-                raise invoke_error
+            err_type = type(invoke_error).__name__
+            raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
 
         # De-anonymize: replace TICKER_A back with the real ticker so downstream
         # nodes (Trader, Portfolio Manager) receive the correct symbol.
         output_content = response.content.replace("TICKER_A", ticker)
+        is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
+        if output_contains_scratchpad(output_content):
+            output_content = build_research_manager_fallback(state)
+
+        structured = build_investment_plan_structured(
+            ticker=ticker,
+            as_of_date=state.get("trade_date", ""),
+            investment_plan=output_content,
+            is_timeout_fallback=is_timeout,
+        )
 
         new_investment_debate_state = {
             "judge_decision": output_content,
@@ -117,6 +122,7 @@ Debate History:
         return {
             "investment_debate_state": new_investment_debate_state,
             "investment_plan": output_content,
+            "investment_plan_structured": structured,
         }
 
     return research_manager_node

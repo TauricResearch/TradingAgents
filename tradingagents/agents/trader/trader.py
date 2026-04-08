@@ -3,6 +3,11 @@ import functools
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.output_validation import (
+    build_trader_plan_fallback,
+    build_trader_plan_structured,
+    output_contains_scratchpad,
+)
 from tradingagents.default_config import DEFAULT_CONFIG
 from langchain_core.messages import AIMessage
 
@@ -77,7 +82,7 @@ Apply lessons from past decisions:
 
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            60.0,
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 60.0),
         )
         result, invoke_error = invoke_with_timeout(
             llm,
@@ -86,25 +91,26 @@ Apply lessons from past decisions:
             max_tokens=900,
         )
         if invoke_error is not None:
-            if isinstance(invoke_error, TimeoutError):
-                result = AIMessage(
-                    content=(
-                        "- Research Manager's Verdict: HOLD via timeout fallback.\n"
-                        "- Entry Setup: No new entry until the trading plan can be regenerated.\n"
-                        "- Risk Parameters: No new order; preserve existing position controls only.\n"
-                        "- Catalyst Timeline: Use only scanner ground-truth dates already present in upstream context.\n"
-                        "- FINAL TRANSACTION PROPOSAL: **HOLD**"
-                    )
-                )
-            else:
-                raise invoke_error
+            err_type = type(invoke_error).__name__
+            raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
 
         # De-anonymize: replace TICKER_A back with the real ticker.
         output_content = result.content.replace("TICKER_A", ticker)
+        is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
+        if output_contains_scratchpad(output_content):
+            output_content = build_trader_plan_fallback(state)
+
+        structured = build_trader_plan_structured(
+            ticker=ticker,
+            as_of_date=state.get("trade_date", ""),
+            trader_plan=output_content,
+            is_timeout_fallback=is_timeout,
+        )
 
         return {
             "messages": [result],
             "trader_investment_plan": output_content,
+            "trader_plan_structured": structured,
             "sender": name,
         }
 

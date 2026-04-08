@@ -12,6 +12,19 @@ from tradingagents.agents.utils.output_validation import (
 from tradingagents.memory.news_evidence import NewsEvidenceStore
 
 
+def _news_structured_placeholder(ticker: str, *, status: str, reason: str = "") -> dict:
+    payload = {
+        "ticker": str(ticker or "").strip().upper(),
+        "report_title": f"{str(ticker or '').strip().upper()} News Analysis",
+        "claims": [],
+        "summary_table": [],
+        "status": status,
+    }
+    if reason:
+        payload["reason"] = reason
+    return payload
+
+
 def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
     store = evidence_store or NewsEvidenceStore()
 
@@ -33,7 +46,11 @@ def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
         if not isinstance(structured_payload, dict) or not structured_payload:
             return {
                 "news_report": f"{ticker} News Analysis\n\n- No validated news claims were produced for this run.",
-                "news_report_structured": {},
+                "news_report_structured": _news_structured_placeholder(
+                    ticker,
+                    status="missing_structured_payload",
+                    reason="No structured payload was supplied by the analyst node.",
+                ),
                 "sender": "news_fact_checker",
             }
 
@@ -48,7 +65,11 @@ def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
                     "[CRITICAL ABORT] Reason: News fact checker rejected structured payload "
                     f"for {ticker} ({structured_validation.code}) - {structured_validation.reason}"
                 ),
-                "news_report_structured": {},
+                "news_report_structured": _news_structured_placeholder(
+                    ticker,
+                    status="invalid_structured_payload",
+                    reason=f"{structured_validation.code}: {structured_validation.reason}",
+                ),
                 "sender": "news_fact_checker",
             }
 

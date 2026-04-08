@@ -30,3 +30,9 @@
   - frontend stream status handling
 - If `awaiting_decision` is changed or renamed, update the route layer, websocket payload, stream hook, history UI, and tests in the same change. A partial update will strand runs in a pseudo-running state.
 - When introducing new sub-run execution keys, keep root run logger cleanup in a `finally` block. This regression was easy to introduce once auto pause/retry logic split the flow across methods.
+
+## Phase 4: Hard Failures on Pipeline Timeouts
+
+- Discovered that gracefully injecting "timeout fallback" statuses (such as fake HOLD recommendations) when an upstream analyst hits an LLM timeout actually poisoned downstream nodes. It caused synthesis agents (e.g. Portfolio Manager, Trader) to hallucinate debate details to meet their prompt constraints using the fallback text.
+- More importantly, generating a silent fallback meant the LangGraph node "succeeded", saving the poisoned state to the checkpointer database. This destroyed the system's ability to cleanly resume the pipeline from UI.
+- **Learning**: Resilient systems with a checkpointer backend should favor hard failures over graceful logical degradation. When `invoke_with_timeout` encounters an LLM timeout or HTTP connection error, it must forcefully raise an exception to halt LangGraph immediately. This preserves the graph state perfectly up to the prior node, allowing seamless UI retries without manual state-cleaning or dataset hallucination.

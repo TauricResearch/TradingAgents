@@ -18,10 +18,22 @@ from tradingagents.agents.utils.scanner_tools import (
     get_unusual_volume_stocks,
 )
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.scanner_idempotency import (
+    check_and_load_report,
+    save_node_report,
+)
 
 
 def create_smart_money_scanner(llm):
     def smart_money_scanner_node(state):
+        # 1. Idempotency Check
+        existing_report = check_and_load_report(state, "smart_money_report")
+        if existing_report:
+            return {
+                "smart_money_report": existing_report,
+                "sender": "smart_money_scanner",
+            }
+
         scan_date = state["scan_date"]
         tools = [
             get_insider_buying_stocks,
@@ -74,6 +86,10 @@ def create_smart_money_scanner(llm):
             f"[Source: Finviz Smart Money Scanner | Scan Date: {scan_date}]"
         )
         report = f"{provenance_header}\n\n{report_body}" if report_body else provenance_header
+
+        # 3. Resumability: Save after completion
+        if report:
+            save_node_report(state, "smart_money_report", report)
 
         return {
             "messages": [result],

@@ -71,6 +71,7 @@ uvicorn agent_os.backend.main:app --reload --port 8088
 - Scanner agents use inline tool execution with `run_tool_loop()`.
 - Portfolio flow includes parallel `macro_summary` and `micro_summary` before PM decision.
 - REST endpoints start background execution; WebSocket streams cached and persisted events.
+- **Pipeline Failures**: Nodes will hard-crash (raise exceptions) on LLM timeouts or network errors instead of generating silent fallback states. This allows intermediate checkpoints to remain clean for UI resumption.
 
 ## Main Architecture
 

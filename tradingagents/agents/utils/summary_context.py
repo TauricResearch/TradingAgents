@@ -41,6 +41,58 @@ def _format_market_structured(structured: object) -> str:
     return "\n".join(line for line in lines if line.split(":", 1)[1].strip())
 
 
+def _format_fundamentals_structured(structured: object) -> str:
+    if not isinstance(structured, dict):
+        return ""
+    key_metrics = structured.get("key_metrics") or {}
+    if not isinstance(key_metrics, dict):
+        key_metrics = {}
+    prefetch = structured.get("prefetch") or {}
+    if not isinstance(prefetch, dict):
+        prefetch = {}
+    present_sections = prefetch.get("present_sections") or []
+    if not isinstance(present_sections, list):
+        present_sections = []
+    error_sections = prefetch.get("error_sections") or []
+    if not isinstance(error_sections, list):
+        error_sections = []
+    lines = [
+        f"- status: {structured.get('status', '')}",
+        f"- contract_version: {structured.get('contract_version', '')}",
+        f"- macro_regime: {structured.get('macro_regime', '')}",
+        f"- bullet_count: {structured.get('bullet_count', '')}",
+        f"- numeric_mentions: {key_metrics.get('numeric_mentions', '')}",
+        f"- summary_table_rows: {key_metrics.get('summary_table_rows', '')}",
+        f"- present_sections: {', '.join(str(item) for item in present_sections[:4])}",
+        f"- error_sections: {', '.join(str(item) for item in error_sections[:4])}",
+    ]
+    return "\n".join(line for line in lines if line.split(":", 1)[1].strip())
+
+
+def _has_value_after_colon(line: str) -> bool:
+    """Return True if the line has a non-empty value after its first colon."""
+    parts = line.split(":", 1)
+    return len(parts) == 2 and bool(parts[1].strip())
+
+
+def _format_sentiment_structured(structured: object) -> str:
+    if not isinstance(structured, dict):
+        return ""
+    key_metrics = structured.get("key_metrics") or {}
+    if not isinstance(key_metrics, dict):
+        key_metrics = {}
+    lines = [
+        f"- status: {structured.get('status', '')}",
+        f"- contract_version: {structured.get('contract_version', '')}",
+        f"- sentiment_direction: {structured.get('sentiment_direction', '')}",
+        f"- claim_count: {structured.get('claim_count', '')}",
+        f"- numeric_mentions: {key_metrics.get('numeric_mentions', '')}",
+        f"- source_mentions: {key_metrics.get('source_mentions', '')}",
+    ]
+    return "\n".join(line for line in lines if _has_value_after_colon(line))
+
+
+
 def build_research_packet(state: dict) -> str:
     """Return the canonical deterministic analyst packet for downstream nodes."""
     sections: list[str] = []
@@ -56,6 +108,16 @@ def build_research_packet(state: dict) -> str:
     market_structured = _format_market_structured(state.get("market_report_structured"))
     if market_structured:
         sections.append(f"## Market Structured Contract\n{market_structured}")
+
+    fundamentals_structured = _format_fundamentals_structured(
+        state.get("fundamentals_report_structured")
+    )
+    if fundamentals_structured:
+        sections.append(f"## Fundamentals Structured Contract\n{fundamentals_structured}")
+
+    sentiment_structured = _format_sentiment_structured(state.get("sentiment_report_structured"))
+    if sentiment_structured:
+        sections.append(f"## Sentiment Structured Contract\n{sentiment_structured}")
 
     block_specs = [
         ("## Market Report", state.get("market_report"), 10, 2200),

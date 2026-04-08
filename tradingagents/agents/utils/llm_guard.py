@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextvars
 import queue
 import threading
 from typing import Any
@@ -24,10 +25,12 @@ def invoke_with_timeout(
 ) -> tuple[Any | None, Exception | None]:
     guarded_llm = bind_max_tokens_if_supported(llm, max_tokens=max_tokens)
     result_queue: "queue.Queue[tuple[str, object]]" = queue.Queue(maxsize=1)
+    parent_context = contextvars.copy_context()
 
     def _runner() -> None:
         try:
-            result_queue.put(("ok", guarded_llm.invoke(prompt_or_messages)))
+            result = parent_context.run(guarded_llm.invoke, prompt_or_messages)
+            result_queue.put(("ok", result))
         except Exception as exc:  # pragma: no cover - exercised through callers
             result_queue.put(("err", exc))
 

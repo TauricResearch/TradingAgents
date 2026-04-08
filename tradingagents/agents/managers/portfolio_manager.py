@@ -4,6 +4,7 @@ from tradingagents.agents.utils.critical_abort import (
     state_has_critical_abort,
 )
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
+from tradingagents.agents.utils.output_validation import build_final_decision_structured
 from tradingagents.agents.utils.summary_context import (
     build_research_packet,
     get_risk_debate_summary,
@@ -44,7 +45,6 @@ def create_portfolio_manager(llm, memory):
 
         macro_context = f"\n\nCurrent Macro Regime:\n{macro_regime_report}\nEnsure your risk assessment reflects the macro environment — in risk-off regimes, apply higher standards for position entry and tighter risk controls.\n" if macro_regime_report else ""
 
-        # Build prompt based on whether this is a critical abort scenario
         if is_critical_abort:
             # Critical abort: Use the aborting analyst's report and recommend SELL/AVOID
             _, abort_report = extract_abort_report(
@@ -77,7 +77,7 @@ def create_portfolio_manager(llm, memory):
 
             timeout_seconds = min(
                 float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-                60.0,
+                float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 60.0),
             )
             response, invoke_error = invoke_with_timeout(
                 llm,
@@ -86,16 +86,8 @@ def create_portfolio_manager(llm, memory):
                 max_tokens=900,
             )
             if invoke_error is not None:
-                if isinstance(invoke_error, TimeoutError):
-                    response = AIMessage(
-                        content=(
-                            "Rating: Sell\n"
-                            "Executive Summary: Critical-abort fallback preserved; avoid entry until the aborting condition is re-evaluated.\n"
-                            "Investment Thesis: Portfolio manager timed out while a critical abort was active, so the fail-safe decision remains Sell/Avoid."
-                        )
-                    )
-                else:
-                    raise invoke_error
+                err_type = type(invoke_error).__name__
+                raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
         else:
             # Normal flow: Synthesize all reports and make decision
             prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
@@ -136,7 +128,7 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
 
             timeout_seconds = min(
                 float(DEFAULT_CONFIG.get("deep_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-                60.0,
+                float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 60.0),
             )
             response, invoke_error = invoke_with_timeout(
                 llm,
@@ -145,16 +137,9 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
                 max_tokens=900,
             )
             if invoke_error is not None:
-                if isinstance(invoke_error, TimeoutError):
-                    response = AIMessage(
-                        content=(
-                            "Rating: Hold\n"
-                            "Executive Summary: No new portfolio action while portfolio-manager synthesis is incomplete.\n"
-                            "Investment Thesis: Portfolio manager timed out, so the fail-safe decision is Hold until the risk debate can be recomputed."
-                        )
-                    )
-                else:
-                    raise invoke_error
+                err_type = type(invoke_error).__name__
+                raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
+
 
         new_risk_debate_state = {
             "judge_decision": response.content,
@@ -170,9 +155,17 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
             "count": risk_debate_state.get("count", 0),
         }
 
+        final_decision_text = response.content
+        structured = build_final_decision_structured(
+            ticker=state.get("company_of_interest", ""),
+            as_of_date=state.get("trade_date", ""),
+            final_decision=final_decision_text,
+        )
+
         return {
             "risk_debate_state": new_risk_debate_state,
-            "final_trade_decision": response.content,
+            "final_trade_decision": final_decision_text,
+            "final_trade_decision_structured": structured,
         }
 
     return portfolio_manager_node
