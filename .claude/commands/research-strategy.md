@@ -163,7 +163,13 @@ Then check for an existing open PR on branch `research/current`:
 EXISTING=$(gh pr list --head research/current --state open --json number --jq '.[0].number // empty')
 ```
 
-If one exists: push to that branch and update PR description with new findings.
+If one exists:
+```bash
+git push origin HEAD:research/current
+gh pr edit "$EXISTING" \
+  --body "$(cat docs/iterations/LEARNINGS.md | head -30)"
+```
+
 If none exists:
 ```bash
 git checkout -b research/current
