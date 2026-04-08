@@ -122,17 +122,16 @@ Each file in `scanners/`, `strategies/`, and `pipeline/` follows this structure:
    - In automated mode: implements without confirmation gate
    - In manual mode: presents diff for approval before writing
 
-6. **Commit + PR**
-   - Creates branch `iterate/YYYY-MM-DD`
-   - Commits learning files and code changes together:
-     `learn(iterate): <date> — <one-line summary of key finding>`
-   - Opens PR against `main` with a summary of what changed and why
+6. **Commit + rolling PR**
+   - Checks for an existing open PR with branch prefix `iterate/current`
+   - If one exists: pushes new commits onto that branch, updates PR description with the latest findings appended
+   - If none exists: creates branch `iterate/current`, opens a new PR against `main`
+   - Commit message format: `learn(iterate): <date> — <one-line summary of key finding>`
    - In manual mode: commits directly to current branch (no PR unless on `main`)
+   - On merge: next run automatically opens a fresh PR
 
 ### Output
-Per automated run: one PR containing both:
-- `docs/iterations/` — updated knowledge files
-- `tradingagents/` — code changes that encode the knowledge
+At most one open `iterate/current` PR at any time. It accumulates daily learnings until merged. Merging resets the cycle.
 
 Human reviews PR, merges or closes. No code reaches `main` unreviewed.
 
@@ -185,13 +184,14 @@ No topic given. Skill drives its own research agenda based on current weak spots
    - Saves findings to `docs/iterations/research/YYYY-MM-DD-<topic>.md` for all findings
    - Adds entries to `LEARNINGS.md`
 
-6. **Implement and open PR**
+6. **Implement and rolling PR**
    - In automated mode: implements the top-ranked finding automatically (score threshold: data availability = present, evidence quality ≥ qualitative, complexity ≤ moderate)
    - In manual directed mode: presents ranked findings, implements user-selected one
-   - Creates branch `research/YYYY-MM-DD-<topic>`
-   - Implements scanner following `@SCANNER_REGISTRY.register()` pattern
+   - Checks for an existing open PR with branch prefix `research/current`
+   - If one exists: pushes new commits onto that branch, updates PR description with new findings appended
+   - If none exists: creates branch `research/current`, opens a new PR against `main`
    - Commits: `research(<topic>): add <scanner-name> scanner — <one-line rationale>`
-   - Opens PR against `main` with research findings summary and implementation notes
+   - On merge: next run automatically opens a fresh PR
 
 ### Safety threshold for autonomous implementation
 Only auto-implement if ALL of:
