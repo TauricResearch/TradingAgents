@@ -96,7 +96,6 @@ jobs:
 
           if [ -n "$EXISTING_PR" ]; then
             git fetch origin "$BRANCH" 2>/dev/null || true
-            git pull --rebase origin main
             git push origin HEAD:"$BRANCH" --force-with-lease
             {
               cat docs/iterations/LEARNINGS.md
