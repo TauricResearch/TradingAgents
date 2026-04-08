@@ -93,18 +93,8 @@ Output a structured risk synthesis in under 400 words."""
             max_tokens=900,
         )
         if invoke_error is not None:
-            if isinstance(invoke_error, TimeoutError):
-                response = AIMessage(
-                    content=(
-                        "- Risk synthesis timed out; using fallback summary.\n"
-                        "- Agreements: Preserve only risk controls already shared by debators.\n"
-                        "- Disagreements: Treat unresolved upside/downside disputes as open.\n"
-                        "- Material Risks: Use scanner-context dates and validated report evidence only.\n"
-                        "- Balanced Assessment: Hold risk posture until synthesis can be recomputed."
-                    )
-                )
-            else:
-                raise invoke_error
+            err_type = type(invoke_error).__name__
+            raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
         summary = response.content.strip()
         is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
         structured = build_risk_synthesis_structured(

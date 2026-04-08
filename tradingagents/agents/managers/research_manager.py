@@ -93,18 +93,8 @@ Debate History:
             max_tokens=1000,
         )
         if invoke_error is not None:
-            if isinstance(invoke_error, TimeoutError):
-                response = AIMessage(
-                    content=(
-                        "- Strongest Bull Evidence: Reuse only validated bullish points already present in the debate history.\n"
-                        "- Strongest Bear Evidence: Reuse only validated bearish points already present in the debate history.\n"
-                        "- Recommendation: HOLD.\n"
-                        "- Rationale: Research manager timed out and no new synthesis was produced; preserve capital until the debate can be recomputed.\n"
-                        "- Strategic Actions: Do not add exposure, keep monitoring catalyst dates from scanner ground truth, and rerun research synthesis."
-                    )
-                )
-            else:
-                raise invoke_error
+            err_type = type(invoke_error).__name__
+            raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
 
         # De-anonymize: replace TICKER_A back with the real ticker so downstream
         # nodes (Trader, Portfolio Manager) receive the correct symbol.

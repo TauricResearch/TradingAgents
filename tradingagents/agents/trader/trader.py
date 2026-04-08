@@ -91,18 +91,8 @@ Apply lessons from past decisions:
             max_tokens=900,
         )
         if invoke_error is not None:
-            if isinstance(invoke_error, TimeoutError):
-                result = AIMessage(
-                    content=(
-                        "- Research Manager's Verdict: HOLD via timeout fallback.\n"
-                        "- Entry Setup: No new entry until the trading plan can be regenerated.\n"
-                        "- Risk Parameters: No new order; preserve existing position controls only.\n"
-                        "- Catalyst Timeline: Use only scanner ground-truth dates already present in upstream context.\n"
-                        "- FINAL TRANSACTION PROPOSAL: **HOLD**"
-                    )
-                )
-            else:
-                raise invoke_error
+            err_type = type(invoke_error).__name__
+            raise RuntimeError(f"Node execution failed: {err_type} - {str(invoke_error)}") from invoke_error
 
         # De-anonymize: replace TICKER_A back with the real ticker.
         output_content = result.content.replace("TICKER_A", ticker)

@@ -231,10 +231,10 @@ def build_default_config(
             "QUICK_THINK_LLM_TIMEOUT_SEC", env=env
         ),
         "deep_think_llm_timeout_cap": _env_float(
-            "DEEP_THINK_LLM_TIMEOUT_CAP_SEC", 60.0, env=env
+            "DEEP_THINK_LLM_TIMEOUT_CAP_SEC", 360.0, env=env
         ),
         "mid_think_llm_timeout_cap": _env_float(
-            "MID_THINK_LLM_TIMEOUT_CAP_SEC", 60.0, env=env
+            "MID_THINK_LLM_TIMEOUT_CAP_SEC", 240.0, env=env
         ),
         "quick_think_llm_timeout_cap": _env_float(
             "QUICK_THINK_LLM_TIMEOUT_CAP_SEC", 45.0, env=env
