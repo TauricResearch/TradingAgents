@@ -10,10 +10,10 @@ workflow handles branching and PR creation.
 ## Step 1: Determine What to Analyze
 
 Read `docs/iterations/LEARNINGS.md` to find the **Last analyzed run** date.
+If the file does not exist (first run), treat the Last analyzed run date as `1970-01-01` and proceed.
 
 Then scan `results/discovery/` for all run directories with dates AFTER the
-last analyzed date. Each run directory contains `discovery_result.json` and
-`tool_execution_logs.json`. Collect all unanalyzed runs.
+last analyzed date. Each run directory contains `discovery_result.json`. Collect all unanalyzed runs.
 
 Also scan `data/recommendations/` for JSON files dated 5 or more days ago.
 Load each file and extract all recommendations. These are mature enough to
@@ -104,8 +104,9 @@ If the environment variable `CI` is set, stop here. The workflow handles git.
 Otherwise:
 ```bash
 git add docs/iterations/ tradingagents/
-git commit -m "learn(iterate): $(date +%Y-%m-%d) — <one-line summary of key findings>"
 ```
+
+Run `git commit` with a message in the format: `learn(iterate): YYYY-MM-DD — <your one-sentence summary of findings>`
 
 Then check for an existing open PR on branch `iterate/current`:
 ```bash
@@ -113,4 +114,13 @@ EXISTING=$(gh pr list --head iterate/current --state open --json number --jq '.[
 ```
 
 If one exists: push to that branch and update the PR description with your findings appended.
-If none exists: create branch `iterate/current`, push, open PR against `main`.
+If none exists: create branch `iterate/current`, push, open PR against `main`:
+```bash
+git checkout -b iterate/current
+git push -u origin iterate/current
+gh pr create \
+  --title "learn(iterate): automated improvements — $(date +%Y-%m-%d)" \
+  --body "$(cat docs/iterations/LEARNINGS.md)" \
+  --label "automated,iteration" \
+  --base main
+```
