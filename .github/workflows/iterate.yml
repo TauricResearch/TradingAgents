@@ -87,8 +87,9 @@ jobs:
             --jq '.[0].number // empty')
 
           if [ -n "$EXISTING_PR" ]; then
-            git push origin HEAD:"$BRANCH" --force-with-lease 2>/dev/null || \
-              git push origin HEAD:"$BRANCH"
+            git fetch origin "$BRANCH" 2>/dev/null || true
+            git pull --rebase origin main
+            git push origin HEAD:"$BRANCH" --force-with-lease
             {
               cat docs/iterations/LEARNINGS.md
               echo ""
@@ -99,7 +100,7 @@ jobs:
             echo "Updated existing PR #${EXISTING_PR}"
           else
             git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
-            git push -u origin "$BRANCH"
+            git push -u origin "$BRANCH" --force-with-lease
             {
               cat docs/iterations/LEARNINGS.md
               echo ""
