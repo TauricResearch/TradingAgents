@@ -115,6 +115,8 @@ jobs:
               echo "*Opened: ${DATE} by automated research-strategy workflow*"
               echo "*Merge to apply research findings and reset the research cycle.*"
             } > /tmp/pr_body.md
+            gh label create "automated" --color "0075ca" --description "Automated workflow" 2>/dev/null || true
+            gh label create "research" --color "d93f0b" --description "Research findings" 2>/dev/null || true
             gh pr create \
               --title "research: new strategy findings — ${DATE}" \
               --body-file /tmp/pr_body.md \

@@ -108,6 +108,8 @@ jobs:
               echo "*Opened: ${DATE} by automated iterate workflow*"
               echo "*Merge to apply learnings and reset the iteration cycle.*"
             } > /tmp/pr_body.md
+            gh label create "automated" --color "0075ca" --description "Automated workflow" 2>/dev/null || true
+            gh label create "iteration" --color "e4e669" --description "Iteration system" 2>/dev/null || true
             gh pr create \
               --title "learn(iterate): automated improvements — ${DATE}" \
               --body-file /tmp/pr_body.md \
