@@ -20,7 +20,7 @@ Currently there is no structured way to capture learnings across runs, trace cod
 
 ## Solution
 
-Two Claude Code skills + a versioned knowledge base in `docs/iterations/`.
+Two Claude Code skills + a versioned knowledge base in `docs/iterations/` + two GitHub Actions workflows that run the skills on a schedule and open PRs for review.
 
 ---
 
@@ -93,10 +93,11 @@ Each file in `scanners/`, `strategies/`, and `pipeline/` follows this structure:
 
 ## Skill 1: `/iterate`
 
-**Location:** `~/.claude/plugins/cache/.../skills/iterate.md` (or project-local skills dir)
+**Location:** project-local `.claude/skills/iterate.md`
 
 ### Trigger
-Invoked manually after a discovery run or after positions are old enough for outcome data (5+ days).
+- **Automated:** GitHub Actions cron, daily at 06:00 UTC (after overnight discovery runs settle)
+- **Manual:** invoke `/iterate` at any time for an on-demand iteration cycle
 
 ### Steps
 
@@ -121,23 +122,32 @@ Invoked manually after a discovery run or after positions are old enough for out
 
 5. **Implement changes**
    - Translates learnings into concrete code changes: scanner thresholds, priority logic, LLM prompt wording, scanner enable/disable
-   - Presents a diff for approval before writing
-   - On approval: implements and stages changes
+   - In automated mode: implements without confirmation gate
+   - In manual mode: presents diff for approval before writing
 
-6. **Commit**
-   - Commits learning files and code changes together with message format:
+6. **Commit + PR**
+   - Creates branch `iterate/YYYY-MM-DD`
+   - Commits learning files and code changes together:
      `learn(iterate): <date> — <one-line summary of key finding>`
+   - Opens PR against `main` with a summary of what changed and why
+   - In manual mode: commits directly to current branch (no PR unless on `main`)
 
 ### Output
-Two committed changesets traceable to the same run date:
-- `docs/iterations/` — updated knowledge
-- `tradingagents/` — code that encodes the knowledge
+Per automated run: one PR containing both:
+- `docs/iterations/` — updated knowledge files
+- `tradingagents/` — code changes that encode the knowledge
+
+Human reviews PR, merges or closes. No code reaches `main` unreviewed.
 
 ---
 
 ## Skill 2: `/research-strategy`
 
-**Location:** same skills directory as `/iterate`
+**Location:** project-local `.claude/skills/research-strategy.md`
+
+### Trigger
+- **Automated:** GitHub Actions cron, weekly on Monday at 07:00 UTC
+- **Manual:** `/research-strategy` (autonomous) or `/research-strategy "<topic>"` (directed)
 
 ### Two Modes
 
@@ -178,13 +188,20 @@ No topic given. Skill drives its own research agenda based on current weak spots
    - Saves findings to `docs/iterations/research/YYYY-MM-DD-<topic>.md` for all findings
    - Adds entries to `LEARNINGS.md`
 
-6. **Propose and implement**
-   - Presents ranked findings with scores
-   - For the top-ranked finding (or user-selected one): drafts a scanner spec (data needed, signal logic, priority/confidence output)
-   - On approval: implements scanner following `@SCANNER_REGISTRY.register()` pattern, commits
+6. **Implement and open PR**
+   - In automated mode: implements the top-ranked finding automatically (score threshold: data availability = present, evidence quality ≥ qualitative, complexity ≤ moderate)
+   - In manual directed mode: presents ranked findings, implements user-selected one
+   - Creates branch `research/YYYY-MM-DD-<topic>`
+   - Implements scanner following `@SCANNER_REGISTRY.register()` pattern
+   - Commits: `research(<topic>): add <scanner-name> scanner — <one-line rationale>`
+   - Opens PR against `main` with research findings summary and implementation notes
 
-### Commit format
-`research(<topic>): add <scanner-name> scanner — <one-line rationale>`
+### Safety threshold for autonomous implementation
+Only auto-implement if ALL of:
+- Required data source already integrated (no new API keys needed)
+- Complexity estimate: trivial or moderate
+- Signal uniqueness score: low overlap with existing scanners
+Otherwise: commits research files only, opens PR flagged `needs-review` with explanation of why auto-implementation was skipped.
 
 ---
 
@@ -201,8 +218,33 @@ The folder structure and skill steps are unchanged.
 
 ---
 
+## GitHub Actions Workflows
+
+### `.github/workflows/iterate.yml`
+```
+schedule: cron '0 6 * * *'   # daily at 06:00 UTC
+```
+- Checks out repo
+- Runs Claude Code with `/iterate` skill non-interactively
+- Uses `ANTHROPIC_API_KEY` secret
+- Creates branch `iterate/YYYY-MM-DD`, commits, opens PR
+
+### `.github/workflows/research-strategy.yml`
+```
+schedule: cron '0 7 * * 1'   # weekly, Monday at 07:00 UTC
+```
+- Same setup as above, runs `/research-strategy` (autonomous mode)
+- Creates branch `research/YYYY-MM-DD`, commits, opens PR
+- If safety threshold not met: opens PR with `needs-review` label, no code changes
+
+### Required secrets
+- `ANTHROPIC_API_KEY` — Claude API access
+- `GH_TOKEN` — PAT with `repo` scope for branch creation and PR opening
+
+---
+
 ## Non-Goals
 
-- No automated triggering — skills are always invoked manually
+- No auto-merge — all PRs require human review before reaching `main`
 - No dashboard or UI — all output is markdown + git commits
 - No cross-project knowledge sharing — each project's `docs/iterations/` is independent
