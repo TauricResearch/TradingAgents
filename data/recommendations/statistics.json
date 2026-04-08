@@ -33,16 +33,16 @@
     },
     "insider_buying": {
       "count": 173,
-      "wins_1d": 63,
-      "losses_1d": 107,
+      "wins_1d": 64,
+      "losses_1d": 108,
       "wins_7d": 73,
       "losses_7d": 86,
       "wins_30d": 26,
       "losses_30d": 63,
-      "avg_return_1d": -0.11,
+      "avg_return_1d": -0.08,
       "avg_return_7d": -0.42,
       "avg_return_30d": -2.02,
-      "win_rate_1d": 37.1,
+      "win_rate_1d": 37.2,
       "win_rate_7d": 45.9,
       "win_rate_30d": 29.2
     },
@@ -63,16 +63,16 @@
     },
     "earnings_play": {
       "count": 62,
-      "wins_1d": 22,
+      "wins_1d": 23,
       "losses_1d": 39,
       "wins_7d": 22,
       "losses_7d": 33,
       "wins_30d": 24,
       "losses_30d": 26,
-      "avg_return_1d": -0.62,
+      "avg_return_1d": -0.44,
       "avg_return_7d": -2.03,
       "avg_return_30d": -2.0,
-      "win_rate_1d": 36.1,
+      "win_rate_1d": 37.1,
       "win_rate_7d": 40.0,
       "win_rate_30d": 48.0
     },
@@ -139,7 +139,7 @@
     "analyst_upgrade": {
       "count": 32,
       "wins_1d": 11,
-      "losses_1d": 20,
+      "losses_1d": 21,
       "wins_7d": 12,
       "losses_7d": 13,
       "wins_30d": 7,
@@ -147,7 +147,7 @@
       "avg_return_1d": 0.09,
       "avg_return_7d": -0.9,
       "avg_return_30d": -3.64,
-      "win_rate_1d": 35.5,
+      "win_rate_1d": 34.4,
       "win_rate_7d": 48.0,
       "win_rate_30d": 30.4
     },
@@ -198,22 +198,23 @@
     },
     "minervini": {
       "count": 1,
-      "wins_1d": 0,
+      "wins_1d": 1,
       "losses_1d": 0,
       "wins_7d": 0,
       "losses_7d": 0,
       "wins_30d": 0,
       "losses_30d": 0,
-      "avg_return_1d": 0,
+      "avg_return_1d": 1.61,
       "avg_return_7d": 0,
-      "avg_return_30d": 0
+      "avg_return_30d": 0,
+      "win_rate_1d": 100.0
     }
   },
   "overall_1d": {
-    "count": 585,
-    "wins": 221,
-    "avg_return": -0.3,
-    "win_rate": 37.8
+    "count": 590,
+    "wins": 224,
+    "avg_return": -0.27,
+    "win_rate": 38.0
   },
   "overall_7d": {
     "count": 554,
