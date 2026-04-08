@@ -1,0 +1,117 @@
+name: Daily Iterate
+
+on:
+  schedule:
+    # 6:00 AM UTC daily — analyzes previous day's discovery run
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force iterate even if no new runs detected"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  iterate:
+    runs-on: ubuntu-latest
+    environment: TradingAgent
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Set up git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run /iterate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CI: "true"
+        run: |
+          claude -p "/iterate" --dangerously-skip-permissions
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add docs/iterations/ tradingagents/ || true
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes produced by /iterate"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit changes
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          git commit -m "learn(iterate): ${DATE} — automated iteration run"
+
+      - name: Handle rolling PR
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          BRANCH="iterate/current"
+          DATE=$(date -u +%Y-%m-%d)
+          SEPARATOR="---"
+
+          EXISTING_PR=$(gh pr list \
+            --head "$BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            git fetch origin "$BRANCH" 2>/dev/null || true
+            git pull --rebase origin main
+            git push origin HEAD:"$BRANCH" --force-with-lease
+            {
+              cat docs/iterations/LEARNINGS.md
+              echo ""
+              echo "$SEPARATOR"
+              echo "*Last updated: ${DATE} by automated iterate workflow*"
+            } > /tmp/pr_body.md
+            gh pr edit "$EXISTING_PR" --body-file /tmp/pr_body.md
+            echo "Updated existing PR #${EXISTING_PR}"
+          else
+            git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
+            git push -u origin "$BRANCH" --force-with-lease
+            {
+              cat docs/iterations/LEARNINGS.md
+              echo ""
+              echo "$SEPARATOR"
+              echo "*Opened: ${DATE} by automated iterate workflow*"
+              echo "*Merge to apply learnings and reset the iteration cycle.*"
+            } > /tmp/pr_body.md
+            gh pr create \
+              --title "learn(iterate): automated improvements — ${DATE}" \
+              --body-file /tmp/pr_body.md \
+              --label "automated,iteration" \
+              --base main
+            echo "Opened new PR"
+          fi

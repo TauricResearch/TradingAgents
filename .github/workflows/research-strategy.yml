@@ -1,0 +1,124 @@
+name: Weekly Research Strategy
+
+on:
+  schedule:
+    # 7:00 AM UTC every Monday — runs autonomous research on trading strategies
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "Research topic (blank = autonomous mode)"
+        required: false
+        default: ""
+        type: string
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    environment: TradingAgent
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Set up git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run /research-strategy
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CI: "true"
+          TOPIC: ${{ inputs.topic }}
+        run: |
+          if [ -n "$TOPIC" ]; then
+            claude -p "/research-strategy \"$TOPIC\"" --dangerously-skip-permissions
+          else
+            claude -p "/research-strategy" --dangerously-skip-permissions
+          fi
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add docs/iterations/research/ tradingagents/ docs/iterations/LEARNINGS.md || true
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No changes produced by /research-strategy"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit changes
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          TOPIC: ${{ inputs.topic }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          if [ -n "$TOPIC" ]; then
+            git commit -m "research(${TOPIC}): ${DATE} — automated research run"
+          else
+            git commit -m "research(autonomous): ${DATE} — automated research run"
+          fi
+
+      - name: Handle rolling PR
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          BRANCH="research/current"
+          DATE=$(date -u +%Y-%m-%d)
+          SEPARATOR="---"
+
+          EXISTING_PR=$(gh pr list \
+            --head "$BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            git fetch origin "$BRANCH" 2>/dev/null || true
+            git push origin HEAD:"$BRANCH" --force-with-lease
+            {
+              cat docs/iterations/LEARNINGS.md
+              echo ""
+              echo "$SEPARATOR"
+              echo "*Last updated: ${DATE} by automated research-strategy workflow*"
+            } > /tmp/pr_body.md
+            gh pr edit "$EXISTING_PR" --body-file /tmp/pr_body.md
+            echo "Updated existing PR #${EXISTING_PR}"
+          else
+            git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
+            git push -u origin "$BRANCH" --force-with-lease
+            {
+              cat docs/iterations/LEARNINGS.md
+              echo ""
+              echo "$SEPARATOR"
+              echo "*Opened: ${DATE} by automated research-strategy workflow*"
+              echo "*Merge to apply research findings and reset the research cycle.*"
+            } > /tmp/pr_body.md
+            gh pr create \
+              --title "research: new strategy findings — ${DATE}" \
+              --body-file /tmp/pr_body.md \
+              --label "automated,research" \
+              --base main
+            echo "Opened new PR"
+          fi
