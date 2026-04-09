@@ -271,10 +271,21 @@ result = orchestrator.get_combined_signal(ticker, date)
 print("STAGE:risk", flush=True)
 
 # Map direction + confidence to 5-level signal
-direction = result.get("direction", 0)
-confidence = result.get("confidence", 0.0)
-llm_signal = result.get("llm_signal", "HOLD")
-quant_signal = result.get("quant_signal", "HOLD")
+# FinalSignal is a dataclass, access via attributes not .get()
+direction = result.direction
+confidence = result.confidence
+llm_sig_obj = result.llm_signal
+quant_sig_obj = result.quant_signal
+# LLM metadata has "rating" field; quant metadata does not — derive from direction
+llm_signal = llm_sig_obj.metadata.get("rating", "HOLD") if llm_sig_obj else "HOLD"
+if quant_sig_obj is None:
+    quant_signal = "HOLD"
+elif quant_sig_obj.direction == 1:
+    quant_signal = "BUY" if quant_sig_obj.confidence >= 0.7 else "OVERWEIGHT"
+elif quant_sig_obj.direction == -1:
+    quant_signal = "SELL" if quant_sig_obj.confidence >= 0.7 else "UNDERWEIGHT"
+else:
+    quant_signal = "HOLD"
 
 if direction == 1:
     signal = "BUY" if confidence >= 0.7 else "OVERWEIGHT"
@@ -297,7 +308,7 @@ report_content = (
     "- Quant 信号: " + quant_signal + "\\n"
     "- 置信度: " + f"{confidence:.1%}" + "\\n\\n"
     "## 分析摘要\\n\\n"
-    + result.get("summary", "N/A") + "\\n"
+    "N/A\\n"
 )
 
 report_path = results_dir / "complete_report.md"
