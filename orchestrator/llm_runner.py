@@ -26,17 +26,18 @@ class LLMRunner:
 
     def get_signal(self, ticker: str, date: str) -> Signal:
         """获取指定股票在指定日期的 LLM 信号，带缓存。"""
-        cache_path = os.path.join(self.cache_dir, f"{ticker}_{date}.json")
+        safe_ticker = ticker.replace("/", "_")  # sanitize for filesystem (e.g. BRK/B)
+        cache_path = os.path.join(self.cache_dir, f"{safe_ticker}_{date}.json")
 
         if os.path.exists(cache_path):
             logger.info("LLMRunner: cache hit for %s %s", ticker, date)
             with open(cache_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            direction, confidence = self._map_rating(data["rating"])
+            # Use stored direction/confidence directly to avoid re-mapping drift
             return Signal(
                 ticker=ticker,
-                direction=direction,
-                confidence=confidence,
+                direction=data["direction"],
+                confidence=data["confidence"],
                 source="llm",
                 timestamp=datetime.fromisoformat(data["timestamp"]),
                 metadata=data,
