@@ -11,12 +11,18 @@ logger = logging.getLogger(__name__)
 
 class LLMRunner:
     def __init__(self, config: OrchestratorConfig):
-        from tradingagents.graph.trading_graph import TradingAgentsGraph
-
-        trading_cfg = config.trading_agents_config if config.trading_agents_config else None
-        self.graph = TradingAgentsGraph(config=trading_cfg)
+        self._config = config
+        self._graph = None  # Lazy-initialized on first get_signal() call (requires API key)
         self.cache_dir = config.cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
+
+    def _get_graph(self):
+        """Lazy-initialize TradingAgentsGraph (heavy, requires API key at init time)."""
+        if self._graph is None:
+            from tradingagents.graph.trading_graph import TradingAgentsGraph
+            trading_cfg = self._config.trading_agents_config if self._config.trading_agents_config else None
+            self._graph = TradingAgentsGraph(config=trading_cfg)
+        return self._graph
 
     def get_signal(self, ticker: str, date: str) -> Signal:
         """获取指定股票在指定日期的 LLM 信号，带缓存。"""
@@ -37,7 +43,7 @@ class LLMRunner:
             )
 
         try:
-            _final_state, processed_signal = self.graph.propagate(ticker, date)
+            _final_state, processed_signal = self._get_graph().propagate(ticker, date)
             rating = processed_signal if isinstance(processed_signal, str) else str(processed_signal)
             direction, confidence = self._map_rating(rating)
             now = datetime.now(timezone.utc)
