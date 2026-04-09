@@ -89,7 +89,7 @@ async def check_config():
     """Check if the app is configured (API key is set).
     The FastAPI backend receives ANTHROPIC_API_KEY as an env var when spawned by Tauri.
     """
-    configured = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    configured = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MINIMAX_API_KEY"))
     return {"configured": configured}
 
 
@@ -257,6 +257,7 @@ config = OrchestratorConfig(
         "backend_url": "https://api.minimaxi.com/anthropic",
         "max_debate_rounds": 1,
         "max_risk_discuss_rounds": 1,
+        "project_dir": os.path.join(repo_root, "tradingagents"),
     }
 )
 
@@ -333,7 +334,7 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
         _auth_error()
 
     # Validate ANTHROPIC_API_KEY for the analysis subprocess
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MINIMAX_API_KEY")
     if not anthropic_key:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY environment variable not set")
 
@@ -1068,7 +1069,7 @@ async def start_portfolio_analysis(api_key: Optional[str] = Header(None)):
         "error": None,
     }
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MINIMAX_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY environment variable not set")
 
