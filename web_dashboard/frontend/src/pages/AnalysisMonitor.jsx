@@ -158,6 +158,21 @@ export default function AnalysisMonitor() {
                 <DecisionBadge decision={task.decision} />
               </div>
 
+              {/* Signal Detail Row */}
+              {task.status === 'completed' && (task.llm_signal || task.quant_signal || task.confidence != null) && (
+                <div style={{ display: 'flex', gap: 24, marginBottom: 12, fontSize: 'var(--text-sm)', fontFamily: 'var(--font-ui)', color: 'var(--text-secondary)' }}>
+                  {task.llm_signal && (
+                    <span>LLM: <DecisionBadge decision={task.llm_signal} /></span>
+                  )}
+                  {task.quant_signal && (
+                    <span>Quant: <DecisionBadge decision={task.quant_signal} /></span>
+                  )}
+                  {task.confidence != null && (
+                    <span>置信度: <strong style={{ color: 'var(--text-primary)' }}>{(task.confidence * 100).toFixed(0)}%</strong></span>
+                  )}
+                </div>
+              )}
+
               {/* Progress */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
                 <div className="progress-bar" style={{ flex: 1, height: 6 }}>

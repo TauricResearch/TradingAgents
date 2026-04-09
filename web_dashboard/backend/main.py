@@ -19,8 +19,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from fastapi.responses import Response
+import os
 
 # Path to TradingAgents repo root
 REPO_ROOT = Path(__file__).parent.parent.parent
@@ -78,6 +80,35 @@ class AnalysisRequest(BaseModel):
 
 class ScreenRequest(BaseModel):
     mode: str = "china_strict"
+
+
+# ============== Config Commands (Tauri IPC) ==============
+
+@app.get("/api/config/check")
+async def check_config():
+    """Check if the app is configured (API key is set).
+    The FastAPI backend receives ANTHROPIC_API_KEY as an env var when spawned by Tauri.
+    """
+    configured = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return {"configured": configured}
+
+
+@app.post("/api/config/apikey")
+async def save_apikey(body: dict = None, api_key: Optional[str] = Header(None)):
+    """Save API key via Tauri command. Used by the setup wizard."""
+    if not body or "api_key" not in body:
+        raise HTTPException(status_code=400, detail="api_key is required")
+
+    apikey = body["api_key"].strip()
+    if not apikey:
+        raise HTTPException(status_code=400, detail="api_key cannot be empty")
+
+    try:
+        result = _tauri_invoke("set_config", {"key": "api_key", "value": apikey})
+        # If we get here without error, the key was saved
+        return {"ok": True, "saved": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save API key: {e}")
 
 
 # ============== Cache Helpers ==============
@@ -201,6 +232,7 @@ async def screen_stocks(mode: str = Query("china_strict"), refresh: bool = Query
 ANALYSIS_SCRIPT_TEMPLATE = """
 import sys
 import os
+import json
 ticker = sys.argv[1]
 date = sys.argv[2]
 repo_root = sys.argv[3]
@@ -209,49 +241,71 @@ sys.path.insert(0, repo_root)
 os.environ["ANTHROPIC_BASE_URL"] = "https://api.minimaxi.com/anthropic"
 import py_mini_racer
 sys.modules["mini_racer"] = py_mini_racer
-from tradingagents.graph.trading_graph import TradingAgentsGraph
-from tradingagents.default_config import DEFAULT_CONFIG
 from pathlib import Path
 
 print("STAGE:analysts", flush=True)
 
-config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "anthropic"
-config["deep_think_llm"] = "MiniMax-M2.7-highspeed"
-config["quick_think_llm"] = "MiniMax-M2.7-highspeed"
-config["backend_url"] = "https://api.minimaxi.com/anthropic"
-config["max_debate_rounds"] = 1
-config["max_risk_discuss_rounds"] = 1
+from orchestrator.config import OrchestratorConfig
+from orchestrator.orchestrator import TradingOrchestrator
+
+config = OrchestratorConfig(
+    quant_backtest_path=os.environ.get("QUANT_BACKTEST_PATH", ""),
+    trading_agents_config={
+        "llm_provider": "anthropic",
+        "deep_think_llm": "MiniMax-M2.7-highspeed",
+        "quick_think_llm": "MiniMax-M2.7-highspeed",
+        "backend_url": "https://api.minimaxi.com/anthropic",
+        "max_debate_rounds": 1,
+        "max_risk_discuss_rounds": 1,
+    }
+)
 
 print("STAGE:research", flush=True)
 
-ta = TradingAgentsGraph(debug=False, config=config)
+orchestrator = TradingOrchestrator(config)
+
 print("STAGE:trading", flush=True)
 
-final_state, decision = ta.propagate(ticker, date)
+result = orchestrator.get_combined_signal(ticker, date)
 
 print("STAGE:risk", flush=True)
+
+# Map direction + confidence to 5-level signal
+direction = result.get("direction", 0)
+confidence = result.get("confidence", 0.0)
+llm_signal = result.get("llm_signal", "HOLD")
+quant_signal = result.get("quant_signal", "HOLD")
+
+if direction == 1:
+    signal = "BUY" if confidence >= 0.7 else "OVERWEIGHT"
+elif direction == -1:
+    signal = "SELL" if confidence >= 0.7 else "UNDERWEIGHT"
+else:
+    signal = "HOLD"
 
 results_dir = Path(repo_root) / "results" / ticker / date
 results_dir.mkdir(parents=True, exist_ok=True)
 
-signal = decision if isinstance(decision, str) else decision.get("signal", "HOLD")
 report_content = (
     "# TradingAgents 分析报告\\n\\n"
     "**股票**: " + ticker + "\\n"
     "**日期**: " + date + "\\n\\n"
     "## 最终决策\\n\\n"
     "**" + signal + "**\\n\\n"
+    "## 信号详情\\n\\n"
+    "- LLM 信号: " + llm_signal + "\\n"
+    "- Quant 信号: " + quant_signal + "\\n"
+    "- 置信度: " + f"{confidence:.1%}" + "\\n\\n"
     "## 分析摘要\\n\\n"
-    + final_state.get("market_report", "N/A") + "\\n\\n"
-    "## 基本面\\n\\n"
-    + final_state.get("fundamentals_report", "N/A") + "\\n"
+    + result.get("summary", "N/A") + "\\n"
 )
 
 report_path = results_dir / "complete_report.md"
 report_path.write_text(report_content)
 
 print("STAGE:portfolio", flush=True)
+signal_detail = json.dumps({"llm_signal": llm_signal, "quant_signal": quant_signal, "confidence": confidence})
+print("SIGNAL_DETAIL:" + signal_detail, flush=True)
 print("ANALYSIS_COMPLETE:" + signal, flush=True)
 """
 
@@ -291,6 +345,9 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
         ],
         "logs": [],
         "decision": None,
+        "quant_signal": None,
+        "llm_signal": None,
+        "confidence": None,
         "error": None,
     }
     await broadcast_progress(task_id, app.state.task_results[task_id])
@@ -403,6 +460,14 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
                 output = stdout.decode()
                 decision = "HOLD"
                 for line in output.splitlines():
+                    if line.startswith("SIGNAL_DETAIL:"):
+                        try:
+                            detail = json.loads(line.split(":", 1)[1].strip())
+                            app.state.task_results[task_id]["quant_signal"] = detail.get("quant_signal")
+                            app.state.task_results[task_id]["llm_signal"] = detail.get("llm_signal")
+                            app.state.task_results[task_id]["confidence"] = detail.get("confidence")
+                        except Exception:
+                            pass
                     if line.startswith("ANALYSIS_COMPLETE:"):
                         decision = line.split(":", 1)[1].strip()
 
@@ -657,8 +722,8 @@ from fpdf import FPDF
 
 
 def _extract_decision(markdown_text: str) -> str:
-    """Extract BUY/SELL/HOLD from markdown bold text."""
-    match = re.search(r'\*\*(BUY|SELL|HOLD)\*\*', markdown_text)
+    """Extract BUY/OVERWEIGHT/SELL/UNDERWEIGHT/HOLD from markdown bold text."""
+    match = re.search(r'\*\*(BUY|SELL|HOLD|OVERWEIGHT|UNDERWEIGHT)\*\*', markdown_text)
     return match.group(1) if match else 'UNKNOWN'
 
 
@@ -768,8 +833,12 @@ async def export_report_pdf(ticker: str, date: str, api_key: Optional[str] = Hea
     pdf.set_font(font_bold, "B", 14)
     if decision == "BUY":
         pdf.set_text_color(34, 197, 94)
+    elif decision == "OVERWEIGHT":
+        pdf.set_text_color(134, 239, 172)
     elif decision == "SELL":
         pdf.set_text_color(220, 38, 38)
+    elif decision == "UNDERWEIGHT":
+        pdf.set_text_color(252, 165, 165)
     else:
         pdf.set_text_color(245, 158, 11)
     pdf.cell(0, 10, f"决策: {decision}", ln=True)
@@ -1031,7 +1100,18 @@ async def start_portfolio_analysis(api_key: Optional[str] = Header(None)):
                     if proc.returncode == 0:
                         output = stdout.decode()
                         decision = "HOLD"
+                        quant_signal = None
+                        llm_signal = None
+                        confidence = None
                         for line in output.splitlines():
+                            if line.startswith("SIGNAL_DETAIL:"):
+                                try:
+                                    detail = json.loads(line.split(":", 1)[1].strip())
+                                    quant_signal = detail.get("quant_signal")
+                                    llm_signal = detail.get("llm_signal")
+                                    confidence = detail.get("confidence")
+                                except Exception:
+                                    pass
                             if line.startswith("ANALYSIS_COMPLETE:"):
                                 decision = line.split(":", 1)[1].strip()
                         rec = {
@@ -1039,6 +1119,9 @@ async def start_portfolio_analysis(api_key: Optional[str] = Header(None)):
                             "name": stock.get("name", ticker),
                             "analysis_date": date,
                             "decision": decision,
+                            "quant_signal": quant_signal,
+                            "llm_signal": llm_signal,
+                            "confidence": confidence,
                             "created_at": datetime.now().isoformat(),
                         }
                         save_recommendation(date, ticker, rec)
@@ -1100,6 +1183,10 @@ async def start_portfolio_analysis(api_key: Optional[str] = Header(None)):
 
 @app.get("/")
 async def root():
+    # Production mode: serve the built React frontend
+    frontend_dist = Path(__file__).parent.parent / "frontend" / "dist" / "index.html"
+    if frontend_dist.exists():
+        return FileResponse(str(frontend_dist))
     return {"message": "TradingAgents Web Dashboard API", "version": "0.1.0"}
 
 
@@ -1142,8 +1229,17 @@ async def ws_orchestrator(websocket: WebSocket, api_key: Optional[str] = None):
             pass
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 if __name__ == "__main__":
     import uvicorn
-    # Run with: cd web_dashboard && ../env312/bin/python -m uvicorn main:app --reload
-    # Or: cd web_dashboard/backend && python3 main.py  (requires env312 in PATH)
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", "8000"))
+    # Production mode: serve the built React frontend
+    frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+    if frontend_dist.exists():
+        app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+    uvicorn.run(app, host=host, port=port)

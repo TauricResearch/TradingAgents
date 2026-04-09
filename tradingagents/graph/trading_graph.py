@@ -147,6 +147,9 @@ class TradingAgentsGraph:
             reasoning_effort = self.config.get("openai_reasoning_effort")
             if reasoning_effort:
                 kwargs["reasoning_effort"] = reasoning_effort
+            # Allow disabling Responses API for third-party OpenAI-compatible providers
+            if "use_responses_api" in self.config:
+                kwargs["use_responses_api"] = self.config["use_responses_api"]
 
         elif provider == "anthropic":
             effort = self.config.get("anthropic_effort")

@@ -1,5 +1,12 @@
 export default function DecisionBadge({ decision }) {
   if (!decision) return null
-  const cls = decision === 'BUY' ? 'badge-buy' : decision === 'SELL' ? 'badge-sell' : 'badge-hold'
+  const classMap = {
+    BUY: 'badge-buy',
+    OVERWEIGHT: 'badge-overweight',
+    HOLD: 'badge-hold',
+    UNDERWEIGHT: 'badge-underweight',
+    SELL: 'badge-sell',
+  }
+  const cls = classMap[decision] || 'badge-hold'
   return <span className={cls}>{decision}</span>
 }

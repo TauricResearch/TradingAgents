@@ -60,7 +60,7 @@ class Propagator:
             callbacks: Optional list of callback handlers for tool execution tracking.
                        Note: LLM callbacks are handled separately via LLM constructor.
         """
-        config = {"recursion_limit": self.max_recur_limit}
+        config = {"recursion_limit": self.max_recur_limit, "max_concurrency": 1}
         if callbacks:
             config["callbacks"] = callbacks
         return {

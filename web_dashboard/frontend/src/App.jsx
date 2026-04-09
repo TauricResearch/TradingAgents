@@ -15,6 +15,7 @@ const AnalysisMonitor = lazy(() => import('./pages/AnalysisMonitor'))
 const ReportsViewer = lazy(() => import('./pages/ReportsViewer'))
 const BatchManager = lazy(() => import('./pages/BatchManager'))
 const PortfolioPanel = lazy(() => import('./pages/PortfolioPanel'))
+const SetupWizard = lazy(() => import('./pages/SetupWizard'))
 
 const navItems = [
   { path: '/', icon: <FundOutlined />, label: '筛选', key: '1' },
@@ -127,6 +128,30 @@ function Layout({ children }) {
 
 export default function App() {
   const navigate = useNavigate()
+  const [configured, setConfigured] = useState(null) // null = checking, true/false
+
+  // Check if API key is configured on mount
+  useEffect(() => {
+    const checkConfig = async () => {
+      try {
+        // Check via Tauri command first (desktop app)
+        if (window.__TAURI__) {
+          const { invoke } = window.__TAURI__.core
+          const isConfigured = await invoke('is_configured')
+          setConfigured(isConfigured)
+        } else {
+          // Fallback: call backend API
+          const res = await fetch('/api/config/check')
+          const data = await res.json()
+          setConfigured(data.configured)
+        }
+      } catch (e) {
+        // Backend might not be ready yet, assume not configured
+        setConfigured(false)
+      }
+    }
+    checkConfig()
+  }, [])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -149,6 +174,28 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [navigate])
+
+  // Still checking config
+  if (configured === null) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)' }}>
+        <div className="loading-pulse">加载中...</div>
+      </div>
+    )
+  }
+
+  // Not configured - show setup wizard
+  if (!configured) {
+    return (
+      <Suspense fallback={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)' }}>
+          <div className="loading-pulse">加载中...</div>
+        </div>
+      }>
+        <SetupWizard onComplete={() => setConfigured(true)} />
+      </Suspense>
+    )
+  }
 
   return (
     <Layout>
