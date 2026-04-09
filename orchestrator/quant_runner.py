@@ -21,6 +21,7 @@ class QuantRunner:
         path = config.quant_backtest_path
         if path not in sys.path:
             sys.path.insert(0, path)
+        self._db_path = f"{path}/research_results/runs.db"
 
     def get_signal(self, ticker: str, date: str) -> Signal:
         """
@@ -28,7 +29,7 @@ class QuantRunner:
         date 格式：'YYYY-MM-DD'
         返回 Signal(source="quant")
         """
-        result = self._load_best_params(ticker)
+        result = self._load_best_params()
         params: dict = result["params"]
         sharpe: float = result["sharpe_ratio"]
 
@@ -53,6 +54,7 @@ class QuantRunner:
         df.columns = [c[0].lower() if isinstance(c, tuple) else c.lower() for c in df.columns]
 
         # 用最佳参数创建 BollingerStrategy 实例
+        # Lazy import: requires quant_backtest_path to be in sys.path (set in __init__)
         from strategies.momentum import BollingerStrategy
         from core.data_models import Bar, OrderDirection
 
@@ -66,6 +68,7 @@ class QuantRunner:
 
         # 逐 bar 喂给策略，模拟历史回放
         direction = 0
+        orders: list = []
         context: dict[str, Any] = {"positions": {}}
 
         for ts, row in df.iterrows():
@@ -97,14 +100,12 @@ class QuantRunner:
                 break
 
         # 计算 max_sharpe（从 DB 中取全局最大值）
-        db_path = f"{self._config.quant_backtest_path}/research_results/runs.db"
         try:
-            conn = sqlite3.connect(db_path)
-            cur = conn.cursor()
-            cur.execute("SELECT MAX(sharpe_ratio) FROM backtest_results")
-            row = cur.fetchone()
-            max_sharpe = float(row[0]) if row and row[0] is not None else sharpe
-            conn.close()
+            with sqlite3.connect(self._db_path) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT MAX(sharpe_ratio) FROM backtest_results")
+                row = cur.fetchone()
+                max_sharpe = float(row[0]) if row and row[0] is not None else sharpe
         except Exception:
             max_sharpe = sharpe
 
@@ -119,14 +120,13 @@ class QuantRunner:
             metadata={"params": params, "sharpe_ratio": sharpe, "max_sharpe": max_sharpe},
         )
 
-    def _load_best_params(self, ticker: str) -> dict:
+    def _load_best_params(self) -> dict:
         """
         直接查 SQLite 获取 BollingerStrategy 最佳参数。
+        参数是全局最优，不区分股票（backtest_results 表无 ticker 列，优化是全局的）。
         strategy_type 支持 'BollingerStrategy' 和 'bollinger'（兼容两种写法）。
         """
-        db_path = f"{self._config.quant_backtest_path}/research_results/runs.db"
-        conn = sqlite3.connect(db_path)
-        try:
+        with sqlite3.connect(self._db_path) as conn:
             cur = conn.cursor()
             # 先按规格查 'BollingerStrategy'，再 fallback 到 'bollinger'
             cur.execute(
@@ -139,8 +139,6 @@ class QuantRunner:
                 """,
             )
             row = cur.fetchone()
-        finally:
-            conn.close()
 
         if row is None:
             raise ValueError(
