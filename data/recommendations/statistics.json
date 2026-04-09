@@ -1,5 +1,5 @@
 {
-  "total_recommendations": 597,
+  "total_recommendations": 604,
   "by_strategy": {
     "momentum": {
       "count": 136,
@@ -32,7 +32,7 @@
       "win_rate_30d": 31.2
     },
     "insider_buying": {
-      "count": 174,
+      "count": 177,
       "wins_1d": 64,
       "losses_1d": 109,
       "wins_7d": 73,
@@ -47,7 +47,7 @@
       "win_rate_30d": 29.2
     },
     "options_flow": {
-      "count": 92,
+      "count": 94,
       "wins_1d": 31,
       "losses_1d": 61,
       "wins_7d": 41,
@@ -62,7 +62,7 @@
       "win_rate_30d": 28.4
     },
     "earnings_play": {
-      "count": 62,
+      "count": 63,
       "wins_1d": 23,
       "losses_1d": 39,
       "wins_7d": 22,
@@ -197,7 +197,7 @@
       "win_rate_30d": 57.9
     },
     "minervini": {
-      "count": 2,
+      "count": 3,
       "wins_1d": 2,
       "losses_1d": 0,
       "wins_7d": 0,
