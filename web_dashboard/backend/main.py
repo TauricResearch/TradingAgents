@@ -4,6 +4,7 @@ FastAPI REST API + WebSocket for real-time analysis progress
 """
 import asyncio
 import fcntl
+import hmac
 import json
 import os
 import subprocess
@@ -105,7 +106,9 @@ def _check_api_key(api_key: Optional[str]) -> bool:
     required = _get_api_key()
     if not required:
         return True
-    return api_key == required
+    if not api_key:
+        return False
+    return hmac.compare_digest(api_key, required)
 
 def _auth_error():
     raise HTTPException(status_code=401, detail="Unauthorized: valid X-API-Key header required")
@@ -363,7 +366,7 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
             # Use clean environment - don't inherit parent env
             clean_env = {k: v for k, v in os.environ.items()
                         if not k.startswith(("PYTHON", "CONDA", "VIRTUAL"))}
-            clean_env["ANTHROPIC_API_KEY"] = api_key
+            clean_env["ANTHROPIC_API_KEY"] = anthropic_key
             clean_env["ANTHROPIC_BASE_URL"] = "https://api.minimaxi.com/anthropic"
 
             proc = await asyncio.create_subprocess_exec(
@@ -1098,6 +1101,45 @@ async def start_portfolio_analysis(api_key: Optional[str] = Header(None)):
 @app.get("/")
 async def root():
     return {"message": "TradingAgents Web Dashboard API", "version": "0.1.0"}
+
+
+@app.websocket("/ws/orchestrator")
+async def ws_orchestrator(websocket: WebSocket, api_key: Optional[str] = None):
+    """WebSocket endpoint for orchestrator live signals."""
+    # Auth check before accepting — reject unauthenticated connections
+    if not _check_api_key(api_key):
+        await websocket.close(code=4401)
+        return
+
+    import sys
+    sys.path.insert(0, str(REPO_ROOT))
+    from orchestrator.config import OrchestratorConfig
+    from orchestrator.orchestrator import TradingOrchestrator
+    from orchestrator.live_mode import LiveMode
+
+    config = OrchestratorConfig(
+        quant_backtest_path=os.environ.get("QUANT_BACKTEST_PATH", ""),
+    )
+    orchestrator = TradingOrchestrator(config)
+    live = LiveMode(orchestrator)
+
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            payload = json.loads(data)
+            tickers = payload.get("tickers", [])
+            date = payload.get("date")
+
+            results = await live.run_once(tickers, date)
+            await websocket.send_text(json.dumps({"signals": results}))
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_text(json.dumps({"error": str(e)}))
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
