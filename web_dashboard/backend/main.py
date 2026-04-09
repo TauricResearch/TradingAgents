@@ -1100,6 +1100,40 @@ async def root():
     return {"message": "TradingAgents Web Dashboard API", "version": "0.1.0"}
 
 
+@app.websocket("/ws/orchestrator")
+async def ws_orchestrator(websocket: WebSocket):
+    """WebSocket endpoint for orchestrator live signals."""
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            payload = json.loads(data)
+            tickers = payload.get("tickers", [])
+            date = payload.get("date")
+
+            # Lazy import to avoid loading heavy deps at startup
+            import sys
+            sys.path.insert(0, str(REPO_ROOT))
+            from orchestrator.config import OrchestratorConfig
+            from orchestrator.orchestrator import TradingOrchestrator
+            from orchestrator.live_mode import LiveMode
+
+            config = OrchestratorConfig(
+                quant_backtest_path=os.environ.get("QUANT_BACKTEST_PATH", ""),
+            )
+            orchestrator = TradingOrchestrator(config)
+            live = LiveMode(orchestrator)
+            results = await live.run_once(tickers, date)
+            await websocket.send_text(json.dumps({"signals": results}))
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_text(json.dumps({"error": str(e)}))
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
     import uvicorn
     # Run with: cd web_dashboard && ../env312/bin/python -m uvicorn main:app --reload
