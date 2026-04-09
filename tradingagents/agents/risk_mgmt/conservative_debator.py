@@ -25,9 +25,10 @@ def create_conservative_debator(llm, round_num=1):
         anon_trader_decision = anonymize_ticker(
             truncate_text(trader_decision, max_chars=1800), ticker
         )
+        _cap = float(DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            float(DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 45.0),
+            float(DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            _cap,
         )
 
         if round_num == 1:

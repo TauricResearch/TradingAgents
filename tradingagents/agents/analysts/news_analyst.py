@@ -281,9 +281,10 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
         # No tools remain — use direct invocation (no bind_tools, no tool loop)
         chain = prompt | llm
 
+        _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 60.0),
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            _cap,
         )
         first_result, invoke_error = invoke_with_timeout(
             llm=chain,

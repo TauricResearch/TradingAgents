@@ -64,15 +64,10 @@ def run_tool_loop(
     current_messages = list(messages)
     first_round = True
     result = None
-    timeout_seconds = float(
-        invoke_timeout_seconds
-        or DEFAULT_CONFIG.get("mid_think_llm_timeout")
-        or DEFAULT_CONFIG.get("llm_timeout")
-        or 120.0
-    )
+    _cap = float(DEFAULT_CONFIG.get("tool_loop_timeout_cap") or DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
     timeout_seconds = min(
-        timeout_seconds,
-        float(DEFAULT_CONFIG.get("tool_loop_timeout_cap") or 60.0),
+        float(invoke_timeout_seconds or DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+        _cap,
     )
 
     for _ in range(max_rounds):

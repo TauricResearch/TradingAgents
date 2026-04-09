@@ -124,10 +124,21 @@ class SupabaseClient:
         return self._row_to_portfolio(row)
 
     def get_portfolio(self, portfolio_id: str) -> Portfolio:
-        """Fetch a portfolio by ID."""
-        with self._cursor() as cur:
-            cur.execute("SELECT * FROM portfolios WHERE portfolio_id = %s", (portfolio_id,))
-            row = cur.fetchone()
+        """Fetch a portfolio by UUID or by name.
+
+        When *portfolio_id* is not a valid UUID (e.g. the human-readable default
+        ``"main_portfolio"`` from config), the lookup falls back to a name-based
+        query so the caller does not need to know the underlying UUID.
+        """
+        try:
+            with self._cursor() as cur:
+                cur.execute("SELECT * FROM portfolios WHERE portfolio_id = %s", (portfolio_id,))
+                row = cur.fetchone()
+        except psycopg2.errors.InvalidTextRepresentation:
+            # portfolio_id is not a valid UUID — try by name instead.
+            with self._cursor() as cur:
+                cur.execute("SELECT * FROM portfolios WHERE name = %s ORDER BY created_at DESC LIMIT 1", (portfolio_id,))
+                row = cur.fetchone()
         if not row:
             raise PortfolioNotFoundError(f"Portfolio not found: {portfolio_id}")
         return self._row_to_portfolio(row)
