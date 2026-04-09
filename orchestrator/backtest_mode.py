@@ -1,9 +1,8 @@
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List
 
-from orchestrator.config import OrchestratorConfig
 from orchestrator.signals import FinalSignal
 
 logger = logging.getLogger(__name__)

@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -27,7 +26,9 @@ class LiveMode:
         results = []
         for ticker in tickers:
             try:
-                sig = self._orchestrator.get_combined_signal(ticker, date)
+                sig = await asyncio.to_thread(
+                    self._orchestrator.get_combined_signal, ticker, date
+                )
                 results.append({
                     "ticker": ticker,
                     "date": date,

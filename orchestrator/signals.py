@@ -52,8 +52,6 @@ class SignalMerger:
 
         # 只有 LLM（quant 失败）
         if quant is None:
-            if llm is None:
-                raise ValueError("llm signal is None when quant is None")
             return FinalSignal(
                 ticker=ticker,
                 direction=llm.direction,

@@ -363,7 +363,7 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
             # Use clean environment - don't inherit parent env
             clean_env = {k: v for k, v in os.environ.items()
                         if not k.startswith(("PYTHON", "CONDA", "VIRTUAL"))}
-            clean_env["ANTHROPIC_API_KEY"] = api_key
+            clean_env["ANTHROPIC_API_KEY"] = anthropic_key
             clean_env["ANTHROPIC_BASE_URL"] = "https://api.minimaxi.com/anthropic"
 
             proc = await asyncio.create_subprocess_exec(
@@ -1103,6 +1103,18 @@ async def root():
 @app.websocket("/ws/orchestrator")
 async def ws_orchestrator(websocket: WebSocket):
     """WebSocket endpoint for orchestrator live signals."""
+    import sys
+    sys.path.insert(0, str(REPO_ROOT))
+    from orchestrator.config import OrchestratorConfig
+    from orchestrator.orchestrator import TradingOrchestrator
+    from orchestrator.live_mode import LiveMode
+
+    config = OrchestratorConfig(
+        quant_backtest_path=os.environ.get("QUANT_BACKTEST_PATH", ""),
+    )
+    orchestrator = TradingOrchestrator(config)
+    live = LiveMode(orchestrator)
+
     await websocket.accept()
     try:
         while True:
@@ -1111,18 +1123,6 @@ async def ws_orchestrator(websocket: WebSocket):
             tickers = payload.get("tickers", [])
             date = payload.get("date")
 
-            # Lazy import to avoid loading heavy deps at startup
-            import sys
-            sys.path.insert(0, str(REPO_ROOT))
-            from orchestrator.config import OrchestratorConfig
-            from orchestrator.orchestrator import TradingOrchestrator
-            from orchestrator.live_mode import LiveMode
-
-            config = OrchestratorConfig(
-                quant_backtest_path=os.environ.get("QUANT_BACKTEST_PATH", ""),
-            )
-            orchestrator = TradingOrchestrator(config)
-            live = LiveMode(orchestrator)
             results = await live.run_once(tickers, date)
             await websocket.send_text(json.dumps({"signals": results}))
     except WebSocketDisconnect:
