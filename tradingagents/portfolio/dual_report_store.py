@@ -159,6 +159,33 @@ class DualReportStore:
         return self._local.list_run_metas()
 
     # ------------------------------------------------------------------
+    # Portfolio Node Results
+    # ------------------------------------------------------------------
+
+    def save_portfolio_node_results(
+        self,
+        date: str,
+        portfolio_id: str,
+        data: dict[str, Any],
+    ) -> Any:
+        local_result = self._local.save_portfolio_node_results(date, portfolio_id, data)
+        self._try_mongo(
+            lambda: self._mongo.save_portfolio_node_results(date, portfolio_id, data)
+            if hasattr(self._mongo, "save_portfolio_node_results")
+            else None,
+            None,
+        )
+        return local_result
+
+    def load_portfolio_node_results(self, date: str, portfolio_id: str) -> dict[str, Any] | None:
+        return self._try_mongo(
+            lambda: self._mongo.load_portfolio_node_results(date, portfolio_id)
+            if hasattr(self._mongo, "load_portfolio_node_results")
+            else None,
+            None,
+        ) or self._local.load_portfolio_node_results(date, portfolio_id)
+
+    # ------------------------------------------------------------------
     # Analyst / Trader Checkpoints
     # ------------------------------------------------------------------
 

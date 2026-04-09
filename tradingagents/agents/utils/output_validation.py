@@ -905,7 +905,11 @@ def validate_structured_news_payload(
                     code="missing_evidence_id",
                 )
 
-        if ticker_upper in summary.upper():
+        # Accept claim as ticker-relevant if the claim text mentions the ticker symbol
+        # OR if the claim is anchored to a specific evidence record (the news feed was
+        # already pre-filtered for this ticker, so an evidence_id guarantees relevance
+        # even when the model uses the company's full name rather than its symbol).
+        if ticker_upper in summary.upper() or bool(evidence_id):
             valid_claims += 1
 
     if valid_claims == 0:
