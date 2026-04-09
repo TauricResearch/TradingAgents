@@ -80,9 +80,10 @@ Apply lessons from past decisions:
             context,
         ]
 
+        _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
         timeout_seconds = min(
-            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or 120.0),
-            float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 60.0),
+            float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
+            _cap,
         )
         result, invoke_error = invoke_with_timeout(
             llm,

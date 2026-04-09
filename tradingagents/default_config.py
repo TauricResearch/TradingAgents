@@ -220,7 +220,7 @@ def build_default_config(
             "DEEP_THINK_FALLBACK_LLM_PROVIDER", env=env
         ),
         # Provider-specific thinking configuration (global + per role).
-        "llm_timeout": _env_float("LLM_TIMEOUT_SEC", 180.0, env=env),
+        "llm_timeout": _env_float("LLM_TIMEOUT_SEC", 300.0, env=env),
         "deep_think_llm_timeout": _env_float(
             "DEEP_THINK_LLM_TIMEOUT_SEC", env=env
         ),
@@ -237,10 +237,10 @@ def build_default_config(
             "MID_THINK_LLM_TIMEOUT_CAP_SEC", 240.0, env=env
         ),
         "quick_think_llm_timeout_cap": _env_float(
-            "QUICK_THINK_LLM_TIMEOUT_CAP_SEC", 45.0, env=env
+            "QUICK_THINK_LLM_TIMEOUT_CAP_SEC", 300.0, env=env
         ),
         "tool_loop_timeout_cap": _env_float(
-            "TOOL_LOOP_TIMEOUT_CAP_SEC", 60.0, env=env
+            "TOOL_LOOP_TIMEOUT_CAP_SEC", 300.0, env=env
         ),
         "google_thinking_level": _env("GOOGLE_THINKING_LEVEL", env=env),
         "openai_reasoning_effort": _env("OPENAI_REASONING_EFFORT", env=env),
