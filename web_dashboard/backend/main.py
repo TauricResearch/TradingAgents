@@ -4,6 +4,7 @@ FastAPI REST API + WebSocket for real-time analysis progress
 """
 import asyncio
 import fcntl
+import hmac
 import json
 import os
 import subprocess
@@ -105,7 +106,9 @@ def _check_api_key(api_key: Optional[str]) -> bool:
     required = _get_api_key()
     if not required:
         return True
-    return api_key == required
+    if not api_key:
+        return False
+    return hmac.compare_digest(api_key, required)
 
 def _auth_error():
     raise HTTPException(status_code=401, detail="Unauthorized: valid X-API-Key header required")
@@ -1101,8 +1104,13 @@ async def root():
 
 
 @app.websocket("/ws/orchestrator")
-async def ws_orchestrator(websocket: WebSocket):
+async def ws_orchestrator(websocket: WebSocket, api_key: Optional[str] = None):
     """WebSocket endpoint for orchestrator live signals."""
+    # Auth check before accepting — reject unauthenticated connections
+    if not _check_api_key(api_key):
+        await websocket.close(code=4401)
+        return
+
     import sys
     sys.path.insert(0, str(REPO_ROOT))
     from orchestrator.config import OrchestratorConfig

@@ -75,9 +75,12 @@ class SignalMerger:
             )
 
         # 两者都有：加权合并
+        # Cap each signal's contribution before merging
+        quant_conf = min(quant.confidence, self._config.quant_weight_cap)
+        llm_conf = min(llm.confidence, self._config.llm_weight_cap)
         weighted_sum = (
-            quant.direction * quant.confidence
-            + llm.direction * llm.confidence
+            quant.direction * quant_conf
+            + llm.direction * llm_conf
         )
         final_direction = _sign(weighted_sum)
         if final_direction == 0:
@@ -85,10 +88,8 @@ class SignalMerger:
                 "SignalMerger: weighted_sum=0 for %s — signals cancel out, HOLD",
                 ticker,
             )
-        total_conf = quant.confidence + llm.confidence
-        raw_confidence = abs(weighted_sum) / total_conf if total_conf > 0 else 0.0
-        final_confidence = min(raw_confidence, self._config.quant_weight_cap,
-                               self._config.llm_weight_cap)
+        total_conf = quant_conf + llm_conf
+        final_confidence = abs(weighted_sum) / total_conf if total_conf > 0 else 0.0
 
         return FinalSignal(
             ticker=ticker,

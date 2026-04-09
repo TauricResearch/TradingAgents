@@ -78,11 +78,12 @@ def test_merge_both_same_direction(merger):
     l = _make_signal(direction=1, confidence=0.8, source="llm")
     result = merger.merge(q, l)
     assert result.direction == 1
-    weighted_sum = 1 * 0.6 + 1 * 0.8  # 1.4
-    total_conf = 0.6 + 0.8             # 1.4
-    raw_conf = abs(weighted_sum) / total_conf  # 1.0
-    # actual code caps at min(raw, quant_weight_cap, llm_weight_cap)
-    expected_conf = min(raw_conf, cfg.quant_weight_cap, cfg.llm_weight_cap)
+    # caps applied per-signal before merging
+    quant_conf = min(0.6, cfg.quant_weight_cap)  # 0.6
+    llm_conf = min(0.8, cfg.llm_weight_cap)      # 0.8
+    weighted_sum = 1 * quant_conf + 1 * llm_conf  # 1.4
+    total_conf = quant_conf + llm_conf             # 1.4
+    expected_conf = abs(weighted_sum) / total_conf  # 1.0
     assert math.isclose(result.confidence, expected_conf)
 
 
@@ -93,11 +94,13 @@ def test_merge_both_opposite_direction_quant_wins(merger):
     q = _make_signal(direction=1, confidence=0.9, source="quant")
     l = _make_signal(direction=-1, confidence=0.3, source="llm")
     result = merger.merge(q, l)
-    weighted_sum = 1 * 0.9 + (-1) * 0.3  # 0.6
     assert result.direction == 1
-    total_conf = 0.9 + 0.3
-    raw_conf = abs(weighted_sum) / total_conf
-    expected_conf = min(raw_conf, cfg.quant_weight_cap, cfg.llm_weight_cap)
+    # caps applied per-signal before merging
+    quant_conf = min(0.9, cfg.quant_weight_cap)  # 0.8
+    llm_conf = min(0.3, cfg.llm_weight_cap)      # 0.3
+    weighted_sum = 1 * quant_conf + (-1) * llm_conf  # 0.5
+    total_conf = quant_conf + llm_conf                # 1.1
+    expected_conf = abs(weighted_sum) / total_conf
     assert math.isclose(result.confidence, expected_conf)
 
 
