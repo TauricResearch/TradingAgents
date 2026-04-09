@@ -1,7 +1,9 @@
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+
+from orchestrator.config import OrchestratorConfig
 
 logger = logging.getLogger(__name__)
 
@@ -36,30 +38,27 @@ def _sign(x: float) -> int:
 
 
 class SignalMerger:
+    def __init__(self, config: OrchestratorConfig) -> None:
+        self._config = config
+
     def merge(self, quant: Optional[Signal], llm: Optional[Signal]) -> FinalSignal:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # 两者均失败
         if quant is None and llm is None:
-            ticker = ""
-            return FinalSignal(
-                ticker=ticker,
-                direction=0,
-                confidence=0.0,
-                quant_signal=None,
-                llm_signal=None,
-                timestamp=now,
-            )
+            raise ValueError("both quant and llm signals are None")
 
         ticker = (quant or llm).ticker  # type: ignore[union-attr]
 
         # 只有 LLM（quant 失败）
         if quant is None:
-            assert llm is not None
+            if llm is None:
+                raise ValueError("llm signal is None when quant is None")
             return FinalSignal(
                 ticker=ticker,
                 direction=llm.direction,
-                confidence=llm.confidence * 0.7,
+                confidence=min(llm.confidence * self._config.llm_solo_penalty,
+                               self._config.llm_weight_cap),
                 quant_signal=None,
                 llm_signal=llm,
                 timestamp=now,
@@ -70,7 +69,8 @@ class SignalMerger:
             return FinalSignal(
                 ticker=ticker,
                 direction=quant.direction,
-                confidence=quant.confidence * 0.8,
+                confidence=min(quant.confidence * self._config.quant_solo_penalty,
+                               self._config.quant_weight_cap),
                 quant_signal=quant,
                 llm_signal=None,
                 timestamp=now,
@@ -88,7 +88,9 @@ class SignalMerger:
                 ticker,
             )
         total_conf = quant.confidence + llm.confidence
-        final_confidence = abs(weighted_sum) / total_conf if total_conf > 0 else 0.0
+        raw_confidence = abs(weighted_sum) / total_conf if total_conf > 0 else 0.0
+        final_confidence = min(raw_confidence, self._config.quant_weight_cap,
+                               self._config.llm_weight_cap)
 
         return FinalSignal(
             ticker=ticker,
