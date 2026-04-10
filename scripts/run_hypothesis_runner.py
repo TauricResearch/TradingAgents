@@ -333,9 +333,7 @@ def conclude_hypothesis(hyp: dict) -> bool:
     analysis_section = f"\n\n## Analysis\n{analysis}" if analysis else ""
 
     confound_section = (
-        f"\n\n> ⚠️ **Baseline drift detected:** {confound_warning}"
-        if confound_warning
-        else ""
+        f"\n\n> ⚠️ **Baseline drift detected:** {confound_warning}" if confound_warning else ""
     )
 
     period_start = hyp.get("created_at", TODAY)
@@ -427,6 +425,14 @@ def promote_pending(registry: dict) -> None:
 
 
 def main():
+    # Skip weekends — markets are closed, picks would be noise and days_elapsed
+    # would count non-trading days toward min_days.
+    weekday = datetime.utcnow().weekday()  # 0=Mon … 6=Sun
+    if weekday >= 5:
+        day_name = "Saturday" if weekday == 5 else "Sunday"
+        print(f"Skipping hypothesis runner — today is {day_name} (market closed).", flush=True)
+        return
+
     registry = load_registry()
     filter_id = os.environ.get("FILTER_ID", "").strip()
 
