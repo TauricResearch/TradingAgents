@@ -1,0 +1,74 @@
+name: Hypothesis Runner
+
+on:
+  schedule:
+    # 8:00 AM UTC daily — runs after iterate (06:00 UTC)
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+    inputs:
+      hypothesis_id:
+        description: "Run a specific hypothesis ID only (blank = all running)"
+        required: false
+        default: ""
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  run-hypotheses:
+    runs-on: ubuntu-latest
+    environment: TradingAgent
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Set up git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install --upgrade pip && pip install -e .
+
+      - name: Run hypothesis experiments
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          TRADIER_API_KEY: ${{ secrets.TRADIER_API_KEY }}
+          FILTER_ID: ${{ inputs.hypothesis_id }}
+        run: |
+          python scripts/run_hypothesis_runner.py
+
+      - name: Commit active.json updates
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          git add docs/iterations/hypotheses/active.json docs/iterations/hypotheses/concluded/ || true
+          if git diff --cached --quiet; then
+            echo "No registry changes"
+          else
+            git commit -m "chore(hypotheses): update registry $(date -u +%Y-%m-%d)"
+            git pull --rebase origin main
+            git push origin main
+          fi
