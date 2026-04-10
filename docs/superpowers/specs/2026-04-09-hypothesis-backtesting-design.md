@@ -61,8 +61,8 @@ The `active.json` file lives on `main`. Each hypothesis branch (`hypothesis/<sca
 | Field | Description |
 |---|---|
 | `id` | `<scanner>-<slug>` — unique, used for branch and file names |
-| `status` | `running` / `paused` / `concluded` |
-| `priority` | 1–10 (higher = more important); auto-pause lowest when at capacity |
+| `status` | `running` / `pending` / `concluded` |
+| `priority` | 1–9 (higher = more important); determines queue order for `pending` hypotheses |
 | `hypothesis_type` | `statistical` (answer from existing data) or `implementation` (requires branch + forward testing) |
 | `min_days` | Minimum picks days before conclusion analysis runs |
 | `picks_log` | Dates when the runner collected picks on this branch |
@@ -83,12 +83,14 @@ The `active.json` file lives on `main`. Each hypothesis branch (`hypothesis/<sca
 2. **Statistical path:** Run the analysis immediately against existing performance data. Write conclusion to the relevant scanner domain file (`docs/iterations/scanners/<scanner>.md`). Done — no branch created.
 
 3. **Implementation path:**
-   a. Read `active.json`. If `running` count < 5, proceed. If at 5, auto-pause the entry with the lowest `priority` (set `status: "paused"`, keep branch alive).
+   a. Read `active.json`. If `running` count < 5, start immediately. If all 5 slots are occupied by running experiments, add the new hypothesis as `status: "pending"` — running experiments are never interrupted (pausing mid-experiment breaks the picks streak and invalidates the statistical comparison).
    b. Create branch `hypothesis/<scanner>-<slug>` from `main`.
    c. Implement the minimal code change on the branch.
    d. Open a draft PR: title `hypothesis(<scanner>): <title>`, body describes the hypothesis, expected impact, and `min_days`.
-   e. Write new entry to `active.json` on `main` with `status: "running"`.
-   f. Print summary: branch name, PR number, expected conclusion date.
+   e. Write new entry to `active.json` on `main` with `status: "running"` (or `"pending"` if at capacity).
+   f. Print summary: branch name, PR number, expected start date (if pending), expected conclusion date (if running).
+
+**Pending → running promotion:** At the end of each daily runner cycle, after any experiments conclude, the runner checks for `pending` entries and promotes the highest-priority one to `running` if a slot opened up.
 
 **Priority scoring** (set at creation time):
 
@@ -175,7 +177,7 @@ New "Hypotheses" tab in the Streamlit dashboard.
 | Hypothesis | Scanner | Status | Days | Picks | Expected Ready | Priority |
 |---|---|---|---|---|---|---|
 | Scan 3 expirations | options_flow | running | 3/14 | 4 | 2026-04-23 | 8 |
-| ITM-only filter | options_flow | paused | 1/14 | 1 | — | 5 |
+| ITM-only filter | options_flow | pending | 0/14 | 0 | waiting for slot | 5 |
 
 **Concluded experiments table:**
 
