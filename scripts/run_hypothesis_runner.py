@@ -19,6 +19,7 @@ Environment variables:
 
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime
@@ -116,6 +117,10 @@ def save_picks_to_worktree(worktree: str, hypothesis_id: str, scanner: str, pick
 def run_hypothesis(hyp: dict) -> bool:
     """Run one hypothesis experiment cycle. Returns True if the experiment concluded."""
     hid = hyp["id"]
+    # Validate id to prevent path traversal in worktree path
+    if not re.fullmatch(r"[a-zA-Z0-9_\-]+", hid):
+        print(f"  Skipping hypothesis with invalid id: {hid!r}", flush=True)
+        return False
     branch = hyp["branch"]
     scanner = hyp["scanner"]
     worktree = f"/tmp/hyp-{hid}"
@@ -287,8 +292,12 @@ def main():
     if not running:
         print("No running hypotheses to process.", flush=True)
     else:
+        run(["git", "worktree", "prune"], check=False)
         for hyp in running:
-            run_hypothesis(hyp)
+            try:
+                run_hypothesis(hyp)
+            except Exception as e:
+                print(f"  Error processing {hyp['id']}: {e}", flush=True)
 
     promote_pending(registry)
     save_registry(registry)

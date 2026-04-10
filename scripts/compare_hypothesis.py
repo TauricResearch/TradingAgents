@@ -56,7 +56,7 @@ def compute_7d_return(ticker: str, pick_date: str) -> Tuple[Optional[float], Opt
 
 def enrich_picks_with_returns(picks: list) -> list:
     """Compute 7d return for each pick >= 7 days old that lacks return_7d."""
-    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+    cutoff = (datetime.utcnow() - timedelta(days=14)).strftime("%Y-%m-%d")
     for pick in picks:
         if pick.get("return_7d") is not None:
             continue
