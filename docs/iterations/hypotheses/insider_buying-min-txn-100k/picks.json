@@ -1,5 +1,33 @@
 {
   "hypothesis_id": "insider_buying-min-txn-100k",
   "scanner": "insider_buying",
-  "picks": []
+  "picks": [
+    {
+      "date": "2026-04-10",
+      "ticker": "OSCR",
+      "score": 85,
+      "confidence": 9,
+      "scanner": "insider_buying",
+      "return_7d": null,
+      "win_7d": null
+    },
+    {
+      "date": "2026-04-10",
+      "ticker": "GAM",
+      "score": 65,
+      "confidence": 6,
+      "scanner": "insider_buying",
+      "return_7d": null,
+      "win_7d": null
+    },
+    {
+      "date": "2026-04-10",
+      "ticker": "VSCO",
+      "score": 65,
+      "confidence": 6,
+      "scanner": "insider_buying",
+      "return_7d": null,
+      "win_7d": null
+    }
+  ]
 }
