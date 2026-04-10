@@ -2,30 +2,19 @@ from typing import Any, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from .base_client import BaseLLMClient
+from .base_client import BaseLLMClient, normalize_content
 from .validators import validate_model
 
 
 class NormalizedChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
     """ChatGoogleGenerativeAI with normalized content output.
 
-    Gemini 3 models return content as list: [{'type': 'text', 'text': '...'}]
+    Gemini 3 models return content as list of typed blocks.
     This normalizes to string for consistent downstream handling.
     """
 
-    def _normalize_content(self, response):
-        content = response.content
-        if isinstance(content, list):
-            texts = [
-                item.get("text", "") if isinstance(item, dict) and item.get("type") == "text"
-                else item if isinstance(item, str) else ""
-                for item in content
-            ]
-            response.content = "\n".join(t for t in texts if t)
-        return response
-
     def invoke(self, input, config=None, **kwargs):
-        return self._normalize_content(super().invoke(input, config, **kwargs))
+        return normalize_content(super().invoke(input, config, **kwargs))
 
 
 class GoogleClient(BaseLLMClient):
@@ -36,11 +25,20 @@ class GoogleClient(BaseLLMClient):
 
     def get_llm(self) -> Any:
         """Return configured ChatGoogleGenerativeAI instance."""
+        self.warn_if_unknown_model()
         llm_kwargs = {"model": self.model}
 
-        for key in ("timeout", "max_retries", "google_api_key", "callbacks", "http_client", "http_async_client"):
+        if self.base_url:
+            llm_kwargs["base_url"] = self.base_url
+
+        for key in ("timeout", "max_retries", "callbacks", "http_client", "http_async_client"):
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]
+
+        # Unified api_key maps to provider-specific google_api_key
+        google_api_key = self.kwargs.get("api_key") or self.kwargs.get("google_api_key")
+        if google_api_key:
+            llm_kwargs["google_api_key"] = google_api_key
 
         # Map thinking_level to appropriate API param based on model
         # Gemini 3 Pro: low, high

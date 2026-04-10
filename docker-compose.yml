@@ -1,0 +1,34 @@
+services:
+  tradingagents:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./results:/home/appuser/app/results
+    tty: true
+    stdin_open: true
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    profiles:
+      - ollama
+
+  tradingagents-ollama:
+    build: .
+    env_file:
+      - .env
+    environment:
+      - LLM_PROVIDER=ollama
+    volumes:
+      - ./results:/home/appuser/app/results
+    depends_on:
+      - ollama
+    tty: true
+    stdin_open: true
+    profiles:
+      - ollama
+
+volumes:
+  ollama_data:

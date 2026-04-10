@@ -28,7 +28,8 @@
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
 ## News
-- [2026-03] **TradingAgents v0.2.1** released with GPT-5.4, Gemini 3.1, Claude 4.6 model coverage and improved system stability.
+- [2026-03] **TradingAgents v0.2.3** released with multi-language support, GPT-5.4 family models, unified model catalog, backtesting date fidelity, and proxy support.
+- [2026-03] **TradingAgents v0.2.2** released with GPT-5.4/Gemini 3.1/Claude 4.6 model coverage, five-tier rating scale, OpenAI Responses API, Anthropic effort control, and cross-platform stability.
 - [2026-02] **TradingAgents v0.2.0** released with multi-provider LLM support (GPT-5.x, Gemini 3.x, Claude 4.x, Grok 4.x) and improved system architecture.
 - [2026-01] **Trading-R1** [Technical Report](https://arxiv.org/abs/2509.11420) released, with [Terminal](https://github.com/TauricResearch/Trading-R1) expected to land soon.
 
@@ -112,9 +113,22 @@ conda create -n tradingagents python=3.13
 conda activate tradingagents
 ```
 
-Install dependencies:
+Install the package and its dependencies:
 ```bash
-pip install -r requirements.txt
+pip install .
+```
+
+### Docker
+
+Alternatively, run with Docker:
+```bash
+cp .env.example .env  # add your API keys
+docker compose run --rm tradingagents
+```
+
+For local models with Ollama:
+```bash
+docker compose --profile ollama run --rm tradingagents-ollama
 ```
 
 ### Required APIs
@@ -139,11 +153,12 @@ cp .env.example .env
 
 ### CLI Usage
 
-You can also try out the CLI directly by running:
+Launch the interactive CLI:
 ```bash
-python -m cli.main
+tradingagents          # installed command
+python -m cli.main     # alternative: run directly from source
 ```
-You will see a screen where you can select your desired tickers, date, LLMs, research depth, etc.
+You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -188,8 +203,8 @@ from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
 config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
-config["deep_think_llm"] = "gpt-5.2"     # Model for complex reasoning
-config["quick_think_llm"] = "gpt-5-mini" # Model for quick tasks
+config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
+config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2
 
 ta = TradingAgentsGraph(debug=True, config=config)
