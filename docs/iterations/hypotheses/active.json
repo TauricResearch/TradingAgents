@@ -1,4 +1,23 @@
 {
   "max_active": 5,
-  "hypotheses": []
+  "hypotheses": [
+    {
+      "id": "insider_buying-min-txn-100k",
+      "scanner": "insider_buying",
+      "title": "Raise min_transaction_value to $100K",
+      "description": "Hypothesis: filtering to insider purchases ≥$100K (vs. current $25K) produces higher-quality picks by excluding routine small-lot grants and focusing on high-conviction, out-of-pocket capital deployment. Research (Lakonishok & Lee 2001; Cohen et al. 2012) shows large-value insider buys predict forward returns; small ones do not.",
+      "branch": "hypothesis/insider_buying-min-txn-100k",
+      "pr_number": 529,
+      "status": "running",
+      "priority": 3,
+      "expected_impact": "medium",
+      "hypothesis_type": "implementation",
+      "created_at": "2026-04-10",
+      "min_days": 21,
+      "days_elapsed": 0,
+      "picks_log": [],
+      "baseline_scanner": "insider_buying",
+      "conclusion": null
+    }
+  ]
 }
