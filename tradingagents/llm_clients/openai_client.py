@@ -66,6 +66,10 @@ class OpenAIClient(BaseLLMClient):
                     llm_kwargs["api_key"] = api_key
             else:
                 llm_kwargs["api_key"] = "ollama"
+        elif self.provider == "llamacpp":
+            base_url = os.environ.get("BACKEND_URL") or os.environ.get("LLAMACPP_BASE_URL", "http://localhost:8080/v1")
+            llm_kwargs["base_url"] = base_url
+            llm_kwargs["api_key"] = "no-key-needed"  # llama-server doesn't require auth
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
 
