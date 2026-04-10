@@ -105,7 +105,10 @@ def make_decision(hypothesis: dict, baseline: dict) -> Tuple[str, str]:
     """Decide accepted/rejected. Requires _MIN_EVALUATED evaluated picks."""
     evaluated = hypothesis.get("evaluated", 0)
     if evaluated < _MIN_EVALUATED:
-        return "rejected", f"Insufficient data: only {evaluated} evaluated picks (need {_MIN_EVALUATED})"
+        return (
+            "rejected",
+            f"Insufficient data: only {evaluated} evaluated picks (need {_MIN_EVALUATED})",
+        )
     hyp_wr = hypothesis.get("win_rate")
     hyp_ret = hypothesis.get("avg_return")
     base_wr = baseline.get("win_rate")
@@ -114,15 +117,23 @@ def make_decision(hypothesis: dict, baseline: dict) -> Tuple[str, str]:
     if hyp_wr is not None and base_wr is not None:
         delta_wr = hyp_wr - base_wr
         if delta_wr > _WIN_RATE_DELTA_THRESHOLD:
-            reasons.append(f"win rate improved by {delta_wr:+.1f}pp ({base_wr:.1f}% → {hyp_wr:.1f}%)")
+            reasons.append(
+                f"win rate improved by {delta_wr:+.1f}pp ({base_wr:.1f}% → {hyp_wr:.1f}%)"
+            )
     if hyp_ret is not None and base_ret is not None:
         delta_ret = hyp_ret - base_ret
         if delta_ret > _AVG_RETURN_DELTA_THRESHOLD:
-            reasons.append(f"avg return improved by {delta_ret:+.2f}% ({base_ret:+.2f}% → {hyp_ret:+.2f}%)")
+            reasons.append(
+                f"avg return improved by {delta_ret:+.2f}% ({base_ret:+.2f}% → {hyp_ret:+.2f}%)"
+            )
     if reasons:
         return "accepted", "; ".join(reasons)
-    wr_str = f"{hyp_wr:.1f}% vs baseline {base_wr:.1f}%" if hyp_wr is not None else "no win rate data"
-    ret_str = f"{hyp_ret:+.2f}% vs baseline {base_ret:+.2f}%" if hyp_ret is not None else "no return data"
+    wr_str = (
+        f"{hyp_wr:.1f}% vs baseline {base_wr:.1f}%" if hyp_wr is not None else "no win rate data"
+    )
+    ret_str = (
+        f"{hyp_ret:+.2f}% vs baseline {base_ret:+.2f}%" if hyp_ret is not None else "no return data"
+    )
     return "rejected", f"No significant improvement — win rate: {wr_str}; avg return: {ret_str}"
 
 
