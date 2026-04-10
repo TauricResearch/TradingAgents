@@ -44,7 +44,7 @@ def compute_7d_return(ticker: str, pick_date: str) -> Tuple[Optional[float], Opt
             return None, None
         close = df["Close"]
         entry_price = float(close.iloc[0])
-        exit_idx = min(5, len(close) - 1)
+        exit_idx = min(6, len(close) - 1)
         exit_price = float(close.iloc[exit_idx])
         if entry_price <= 0:
             return None, None
