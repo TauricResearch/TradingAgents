@@ -39,6 +39,12 @@ except Exception as _e:
     _logger.error("Failed to import settings page: %s", _e, exc_info=True)
     settings = None
 
+try:
+    from tradingagents.ui.pages import hypotheses
+except Exception as _e:
+    _logger.error("Failed to import hypotheses page: %s", _e, exc_info=True)
+    hypotheses = None
+
 
 __all__ = [
     "home",
@@ -46,4 +52,5 @@ __all__ = [
     "portfolio",
     "performance",
     "settings",
+    "hypotheses",
 ]
