@@ -5,6 +5,14 @@ The active objective is to remove hallucination-prone prose handoffs, preserve e
 
 # Recent Progress
 
+- **claude/dazzling-raman** (run failure root-cause + hardening):
+  - Diagnosed and fixed `_parse_financial_csv` in `ttm_analysis.py`: vendor functions prepend `# header` lines before CSV data; `pd.read_csv` without `comment='#'` threw `ParserError` → `None` → `quarters_available: 0` for every ticker. Added `comment='#', skip_blank_lines=True` to the read call.
+  - Added banking/financial-sector column aliases to TTM normaliser (`Net Interest Income`, `Total Net Revenue`, `Net Revenue`, `Interest And Dividend Income`, `Long Term Debt And Capital Lease Obligation`, `Total Liabilities Net Minority Interest`) so BAC-class tickers yield real numeric metrics.
+  - Guarded `portfolio_manager.py` against LLM returning empty `response.content` (seen with minimax): derives a minimal decision from `risk_synthesis_structured.action` so `final_trade_decision` is never empty.
+  - Improved `analysis_has_deep_dive` (`run_helpers.py`) to check `final_trade_decision_structured.status == "completed"` as an alternative signal when the text field is empty.
+  - Extended `run_tool_loop` nudge to fire up to `MAX_NUDGES=2` times (was 1) when the model produces no tool_calls and a short text response, but only before any tools have been used — prevents weaker models from bypassing tool calls entirely.
+
+
 - `codex/structured-contracts-plan`:
   - Removed `Research Packet Summary` from the main analyst-to-researcher graph path in [setup.py](/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/setup.py)
   - Preserved analyst-to-downstream contracts by switching downstream packet consumers to deterministic packet assembly in [summary_context.py](/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/utils/summary_context.py)

@@ -20,11 +20,17 @@ from tradingagents.default_config import DEFAULT_CONFIG
 # 5 provides headroom for complex scenarios while preventing runaway loops.
 MAX_TOOL_ROUNDS = 5
 
-# If the LLM's first response has no tool calls AND is shorter than this,
+# If the LLM produces no tool calls AND the response is shorter than this,
 # a nudge message is appended to encourage tool usage.
 # Set high enough to catch models that dump planning text (~500-1000 chars)
 # without actually calling tools.
 MIN_REPORT_LENGTH = 2000
+
+# Maximum number of nudges to send when the model keeps producing short
+# text-only responses instead of calling tools.  More than 1 nudge is
+# needed for weaker models (e.g. minimax) that acknowledge the nudge but
+# still don't emit tool_calls on the first retry.
+MAX_NUDGES = 2
 
 # Bound tool outputs fed back into the model to avoid oversized second-turn
 # prompts that can stall local tool-calling models.
@@ -62,7 +68,8 @@ def run_tool_loop(
     """
     tool_map = {t.name: t for t in tools}
     current_messages = list(messages)
-    first_round = True
+    nudge_count = 0
+    tools_ever_used = False
     result = None
     _cap = float(DEFAULT_CONFIG.get("tool_loop_timeout_cap") or DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
     timeout_seconds = min(
@@ -100,9 +107,17 @@ def run_tool_loop(
         current_messages.append(result)
 
         if not result.tool_calls:
-            # Nudge: if the LLM skipped tools on its first turn and the
-            # response is suspiciously short, ask it to try again with tools.
-            if first_round and len(result.content or "") < min_report_length:
+            # Nudge: if the LLM has not yet used any tools and the response is
+            # suspiciously short, ask it to call tools.  Allow up to MAX_NUDGES
+            # retries so that weaker models (e.g. minimax) that acknowledge the
+            # nudge in text but don't immediately emit tool_calls still get a
+            # second chance.  Never nudge after tools have already been used —
+            # at that point the LLM is writing its final synthesis.
+            if (
+                not tools_ever_used
+                and nudge_count < MAX_NUDGES
+                and len(result.content or "") < min_report_length
+            ):
                 tool_names = ", ".join(tool_map.keys())
                 nudge = (
                     "Your response was too brief. You MUST call at least one tool "
@@ -112,12 +127,11 @@ def run_tool_loop(
                 current_messages.append(
                     HumanMessage(content=nudge)
                 )
-                first_round = False
+                nudge_count += 1
                 continue
             return result
 
-        first_round = False
-
+        tools_ever_used = True
         # Execute each requested tool call and append ToolMessages
         from tradingagents.observability import get_run_logger
 

@@ -158,6 +158,21 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
         }
 
         final_decision_text = response.content
+        if not final_decision_text.strip():
+            # LLM returned empty content without raising an error (seen with minimax).
+            # Derive a minimal decision from the risk synthesis so the pipeline
+            # produces a usable final_trade_decision instead of blocking the run.
+            risk_syn = state.get("risk_synthesis_structured") or {}
+            action = (
+                risk_syn.get("action", "HOLD")
+                if isinstance(risk_syn, dict)
+                else "HOLD"
+            )
+            final_decision_text = (
+                f"**Rating**: **{action}**\n\n"
+                "_Portfolio Manager returned an empty response. "
+                "Decision derived from risk synthesis._"
+            )
         structured = build_final_decision_structured(
             ticker=state.get("company_of_interest", ""),
             as_of_date=state.get("trade_date", ""),
