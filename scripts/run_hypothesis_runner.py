@@ -242,6 +242,40 @@ Be direct. Do not restate the numbers — interpret them. Do not recommend mergi
         return None
 
 
+def _detect_baseline_drift(scanner: str, since: str) -> Optional[str]:
+    """
+    Check if the scanner's source file changed on main since the experiment started.
+
+    Returns a warning string if drift is detected, None otherwise.
+
+    When main's scanner code changes mid-experiment, the baseline picks in
+    performance_database.json start reflecting the new code. The comparison
+    becomes confounded: hypothesis vs. original-main for early picks, but
+    hypothesis vs. new-main for later picks.
+    """
+    scanner_file = f"tradingagents/dataflows/discovery/scanners/{scanner}.py"
+    result = subprocess.run(
+        ["git", "log", "main", f"--since={since}", "--oneline", "--", scanner_file],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+
+    commits = result.stdout.strip().splitlines()
+    latest = commits[0]
+    count = len(commits)
+    noun = "commit" if count == 1 else "commits"
+    warning = (
+        f"`{scanner_file}` changed {count} {noun} on main since {since} "
+        f"(latest: {latest}). Baseline picks may reflect the updated code — "
+        f"interpret the delta with caution."
+    )
+    print(f"    ⚠️  Baseline drift: {warning}", flush=True)
+    return warning
+
+
 def conclude_hypothesis(hyp: dict) -> bool:
     """Run comparison, write conclusion doc, close/merge PR. Returns True."""
     hid = hyp["id"]
@@ -285,6 +319,11 @@ def conclude_hypothesis(hyp: dict) -> bool:
     hyp_metrics = conclusion["hypothesis"]
     base_metrics = conclusion["baseline"]
 
+    # Detect if the scanner file changed on main since the experiment started.
+    # If it did, the baseline picks (from main's daily runs) may no longer reflect
+    # the original code — the comparison could be confounded.
+    confound_warning = _detect_baseline_drift(scanner, hyp.get("created_at", TODAY))
+
     # Load scanner domain knowledge (may not exist yet — that's fine)
     scanner_domain_path = ROOT / "docs" / "iterations" / "scanners" / f"{scanner}.md"
     scanner_domain = scanner_domain_path.read_text() if scanner_domain_path.exists() else ""
@@ -292,6 +331,12 @@ def conclude_hypothesis(hyp: dict) -> bool:
     # Optional LLM analysis — enriches the conclusion without overriding the decision
     analysis = llm_analysis(hyp, conclusion, scanner_domain)
     analysis_section = f"\n\n## Analysis\n{analysis}" if analysis else ""
+
+    confound_section = (
+        f"\n\n> ⚠️ **Baseline drift detected:** {confound_warning}"
+        if confound_warning
+        else ""
+    )
 
     period_start = hyp.get("created_at", TODAY)
     concluded_doc = CONCLUDED_DIR / f"{TODAY}-{hid}.md"
@@ -313,6 +358,7 @@ def conclude_hypothesis(hyp: dict) -> bool:
         f"{_delta_str(hyp_metrics.get('avg_return'), base_metrics.get('avg_return'), '%')} |\n"
         f"| Picks | {base_metrics.get('count', '—')} | {hyp_metrics.get('count', '—')} | — |\n\n"
         f"## Decision\n{conclusion['reason']}\n"
+        f"{confound_section}"
         f"{analysis_section}\n\n"
         f"## Action\n"
         f"{'Ready to merge — awaiting manual review.' if decision == 'accepted' else 'Experiment concluded — awaiting manual review before closing.'}\n"
@@ -326,6 +372,9 @@ def conclude_hypothesis(hyp: dict) -> bool:
         # The PR is NOT merged or closed automatically — the user reviews and decides.
         outcome_emoji = "✅ accepted" if decision == "accepted" else "❌ rejected"
         analysis_block = f"\n\n**Analysis**\n{analysis}" if analysis else ""
+        confound_block = (
+            f"\n\n> ⚠️ **Baseline drift:** {confound_warning}" if confound_warning else ""
+        )
         comment = (
             f"**Hypothesis concluded: {outcome_emoji}**\n\n"
             f"{conclusion['reason']}\n\n"
@@ -333,6 +382,7 @@ def conclude_hypothesis(hyp: dict) -> bool:
             f"|---|---|---|\n"
             f"| 7d win rate | {base_metrics.get('win_rate') or '—'}% | {hyp_metrics.get('win_rate') or '—'}% |\n"
             f"| Avg return | {base_metrics.get('avg_return') or '—'}% | {hyp_metrics.get('avg_return') or '—'}% |\n"
+            f"{confound_block}"
             f"{analysis_block}\n\n"
             f"{'Merge this PR to apply the change.' if decision == 'accepted' else 'Close this PR to discard the experiment.'}"
         )
