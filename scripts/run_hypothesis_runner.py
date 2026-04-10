@@ -131,6 +131,13 @@ def run_hypothesis(hyp: dict) -> bool:
     run(["git", "fetch", "origin", branch], check=False)
     run(["git", "worktree", "add", worktree, branch])
 
+    # Symlink .env from main repo into worktree so load_dotenv() finds it locally.
+    # In CI, secrets are env vars already — the symlink is a no-op there.
+    env_src = ROOT / ".env"
+    env_dst = Path(worktree) / ".env"
+    if env_src.exists() and not env_dst.exists():
+        env_dst.symlink_to(env_src)
+
     try:
         result = subprocess.run(
             [
