@@ -229,25 +229,35 @@ def conclude_hypothesis(hyp: dict) -> bool:
         f"| Picks | {base_metrics.get('count', '—')} | {hyp_metrics.get('count', '—')} | — |\n\n"
         f"## Decision\n{conclusion['reason']}\n\n"
         f"## Action\n"
-        f"{'Branch merged into main.' if decision == 'accepted' else 'Branch closed without merging.'}\n"
+        f"{'Ready to merge — awaiting manual review.' if decision == 'accepted' else 'Experiment concluded — awaiting manual review before closing.'}\n"
     )
 
     run(["git", "add", str(concluded_doc)], check=False)
 
     pr = hyp.get("pr_number")
     if pr:
-        if decision == "accepted":
-            subprocess.run(
-                ["gh", "pr", "merge", str(pr), "--squash", "--delete-branch"],
-                cwd=str(ROOT),
-                check=False,
-            )
-        else:
-            subprocess.run(
-                ["gh", "pr", "close", str(pr), "--delete-branch"],
-                cwd=str(ROOT),
-                check=False,
-            )
+        # Mark PR ready for review (removes draft status) and post conclusion as a comment.
+        # The PR is NOT merged or closed automatically — the user reviews and decides.
+        outcome_emoji = "✅ accepted" if decision == "accepted" else "❌ rejected"
+        comment = (
+            f"**Hypothesis concluded: {outcome_emoji}**\n\n"
+            f"{conclusion['reason']}\n\n"
+            f"| Metric | Baseline | Experiment |\n"
+            f"|---|---|---|\n"
+            f"| 7d win rate | {base_metrics.get('win_rate') or '—'}% | {hyp_metrics.get('win_rate') or '—'}% |\n"
+            f"| Avg return | {base_metrics.get('avg_return') or '—'}% | {hyp_metrics.get('avg_return') or '—'}% |\n\n"
+            f"{'Merge this PR to apply the change.' if decision == 'accepted' else 'Close this PR to discard the experiment.'}"
+        )
+        subprocess.run(
+            ["gh", "pr", "ready", str(pr)],
+            cwd=str(ROOT),
+            check=False,
+        )
+        subprocess.run(
+            ["gh", "pr", "comment", str(pr), "--body", comment],
+            cwd=str(ROOT),
+            check=False,
+        )
 
     hyp["status"] = "concluded"
     hyp["conclusion"] = decision
