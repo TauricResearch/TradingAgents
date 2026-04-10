@@ -64,15 +64,17 @@ def extract_picks(worktree: str, scanner: str) -> list:
                 data = json.load(f)
             for item in data.get("final_ranking", []):
                 if item.get("strategy_match") == scanner:
-                    picks.append({
-                        "date": TODAY,
-                        "ticker": item["ticker"],
-                        "score": item.get("final_score"),
-                        "confidence": item.get("confidence"),
-                        "scanner": scanner,
-                        "return_7d": None,
-                        "win_7d": None,
-                    })
+                    picks.append(
+                        {
+                            "date": TODAY,
+                            "ticker": item["ticker"],
+                            "score": item.get("final_score"),
+                            "confidence": item.get("confidence"),
+                            "scanner": scanner,
+                            "return_7d": None,
+                            "win_7d": None,
+                        }
+                    )
         except Exception as e:
             print(f"    Warning: could not read {result_file}: {e}", flush=True)
     return picks
@@ -125,7 +127,13 @@ def run_hypothesis(hyp: dict) -> bool:
 
     try:
         result = subprocess.run(
-            [sys.executable, "scripts/run_daily_discovery.py", "--date", TODAY, "--no-update-positions"],
+            [
+                sys.executable,
+                "scripts/run_daily_discovery.py",
+                "--date",
+                TODAY,
+                "--no-update-positions",
+            ],
             cwd=worktree,
             check=False,
         )
@@ -139,12 +147,12 @@ def run_hypothesis(hyp: dict) -> bool:
             save_picks_to_worktree(worktree, hid, scanner, merged)
             run(["git", "push", "origin", f"HEAD:{branch}"], cwd=worktree)
 
-        if TODAY not in hyp.get("picks_log", []):
-            hyp.setdefault("picks_log", []).append(TODAY)
-        hyp["days_elapsed"] = len(hyp["picks_log"])
+            if TODAY not in hyp.get("picks_log", []):
+                hyp.setdefault("picks_log", []).append(TODAY)
+            hyp["days_elapsed"] = len(hyp["picks_log"])
 
-        if hyp["days_elapsed"] >= hyp["min_days"]:
-            return conclude_hypothesis(hyp)
+            if hyp["days_elapsed"] >= hyp["min_days"]:
+                return conclude_hypothesis(hyp)
 
     finally:
         run(["git", "worktree", "remove", "--force", worktree], check=False)
@@ -171,11 +179,16 @@ def conclude_hypothesis(hyp: dict) -> bool:
     else:
         result = subprocess.run(
             [
-                sys.executable, "scripts/compare_hypothesis.py",
-                "--hypothesis-id", hid,
-                "--picks-json", json.dumps(picks),
-                "--scanner", scanner,
-                "--db-path", str(DB_PATH),
+                sys.executable,
+                "scripts/compare_hypothesis.py",
+                "--hypothesis-id",
+                hid,
+                "--picks-json",
+                json.dumps(picks),
+                "--scanner",
+                scanner,
+                "--db-path",
+                str(DB_PATH),
             ],
             cwd=str(ROOT),
             capture_output=True,
@@ -221,12 +234,14 @@ def conclude_hypothesis(hyp: dict) -> bool:
         if decision == "accepted":
             subprocess.run(
                 ["gh", "pr", "merge", str(pr), "--squash", "--delete-branch"],
-                cwd=str(ROOT), check=False,
+                cwd=str(ROOT),
+                check=False,
             )
         else:
             subprocess.run(
                 ["gh", "pr", "close", str(pr), "--delete-branch"],
-                cwd=str(ROOT), check=False,
+                cwd=str(ROOT),
+                check=False,
             )
 
     hyp["status"] = "concluded"
@@ -264,7 +279,8 @@ def main():
 
     hypotheses = registry.get("hypotheses", [])
     running = [
-        h for h in hypotheses
+        h
+        for h in hypotheses
         if h["status"] == "running" and (not filter_id or h["id"] == filter_id)
     ]
 
