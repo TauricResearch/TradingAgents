@@ -24,6 +24,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -165,6 +166,75 @@ def run_hypothesis(hyp: dict) -> bool:
     return False
 
 
+def llm_analysis(hyp: dict, conclusion: dict, scanner_domain: str) -> Optional[str]:
+    """
+    Ask Claude to interpret the experiment results and provide richer context.
+
+    Returns a markdown string to embed in the PR comment, or None if the API
+    call fails or ANTHROPIC_API_KEY is not set.
+
+    The LLM does NOT override the programmatic decision — it adds nuance:
+    sample-size caveats, market-condition context, follow-up hypotheses.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+
+    try:
+        import anthropic
+    except ImportError:
+        print("    anthropic SDK not installed, skipping LLM analysis", flush=True)
+        return None
+
+    hyp_metrics = conclusion["hypothesis"]
+    base_metrics = conclusion["baseline"]
+    decision = conclusion["decision"]
+
+    prompt = f"""You are analyzing the results of a scanner hypothesis experiment for an automated trading discovery system.
+
+## Hypothesis
+**ID:** {hyp["id"]}
+**Title:** {hyp.get("title", "")}
+**Description:** {hyp.get("description", hyp.get("title", ""))}
+**Scanner:** {hyp["scanner"]}
+**Period:** {hyp.get("created_at")} → {TODAY} ({hyp.get("days_elapsed")} days)
+
+## Statistical Results
+**Decision (programmatic):** {decision}
+**Reason:** {conclusion["reason"]}
+
+| Metric | Baseline | Experiment | Delta |
+|---|---|---|---|
+| 7d win rate | {base_metrics.get("win_rate") or "—"}% | {hyp_metrics.get("win_rate") or "—"}% | {_delta_str(hyp_metrics.get("win_rate"), base_metrics.get("win_rate"), "pp")} |
+| Avg 7d return | {base_metrics.get("avg_return") or "—"}% | {hyp_metrics.get("avg_return") or "—"}% | {_delta_str(hyp_metrics.get("avg_return"), base_metrics.get("avg_return"), "%")} |
+| Picks evaluated | {base_metrics.get("evaluated", base_metrics.get("count", "—"))} | {hyp_metrics.get("evaluated", hyp_metrics.get("count", "—"))} | — |
+
+## Scanner Domain Knowledge
+{scanner_domain}
+
+---
+
+Provide a concise analysis (3–5 sentences) covering:
+1. Whether the sample size is sufficient to trust the result, or if more data is needed
+2. Any caveats about the measurement period (e.g., unusual market conditions)
+3. What the numbers suggest about the underlying hypothesis — even if the decision is "rejected", is the direction meaningful?
+4. One concrete follow-up hypothesis worth testing next
+
+Be direct. Do not restate the numbers — interpret them. Do not recommend merging or closing the PR."""
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return message.content[0].text.strip()
+    except Exception as e:
+        print(f"    LLM analysis failed: {e}", flush=True)
+        return None
+
+
 def conclude_hypothesis(hyp: dict) -> bool:
     """Run comparison, write conclusion doc, close/merge PR. Returns True."""
     hid = hyp["id"]
@@ -208,6 +278,14 @@ def conclude_hypothesis(hyp: dict) -> bool:
     hyp_metrics = conclusion["hypothesis"]
     base_metrics = conclusion["baseline"]
 
+    # Load scanner domain knowledge (may not exist yet — that's fine)
+    scanner_domain_path = ROOT / "docs" / "iterations" / "scanners" / f"{scanner}.md"
+    scanner_domain = scanner_domain_path.read_text() if scanner_domain_path.exists() else ""
+
+    # Optional LLM analysis — enriches the conclusion without overriding the decision
+    analysis = llm_analysis(hyp, conclusion, scanner_domain)
+    analysis_section = f"\n\n## Analysis\n{analysis}" if analysis else ""
+
     period_start = hyp.get("created_at", TODAY)
     concluded_doc = CONCLUDED_DIR / f"{TODAY}-{hid}.md"
     concluded_doc.write_text(
@@ -227,7 +305,8 @@ def conclude_hypothesis(hyp: dict) -> bool:
         f"{hyp_metrics.get('avg_return') or '—'}% | "
         f"{_delta_str(hyp_metrics.get('avg_return'), base_metrics.get('avg_return'), '%')} |\n"
         f"| Picks | {base_metrics.get('count', '—')} | {hyp_metrics.get('count', '—')} | — |\n\n"
-        f"## Decision\n{conclusion['reason']}\n\n"
+        f"## Decision\n{conclusion['reason']}\n"
+        f"{analysis_section}\n\n"
         f"## Action\n"
         f"{'Ready to merge — awaiting manual review.' if decision == 'accepted' else 'Experiment concluded — awaiting manual review before closing.'}\n"
     )
@@ -239,13 +318,15 @@ def conclude_hypothesis(hyp: dict) -> bool:
         # Mark PR ready for review (removes draft status) and post conclusion as a comment.
         # The PR is NOT merged or closed automatically — the user reviews and decides.
         outcome_emoji = "✅ accepted" if decision == "accepted" else "❌ rejected"
+        analysis_block = f"\n\n**Analysis**\n{analysis}" if analysis else ""
         comment = (
             f"**Hypothesis concluded: {outcome_emoji}**\n\n"
             f"{conclusion['reason']}\n\n"
             f"| Metric | Baseline | Experiment |\n"
             f"|---|---|---|\n"
             f"| 7d win rate | {base_metrics.get('win_rate') or '—'}% | {hyp_metrics.get('win_rate') or '—'}% |\n"
-            f"| Avg return | {base_metrics.get('avg_return') or '—'}% | {hyp_metrics.get('avg_return') or '—'}% |\n\n"
+            f"| Avg return | {base_metrics.get('avg_return') or '—'}% | {hyp_metrics.get('avg_return') or '—'}% |\n"
+            f"{analysis_block}\n\n"
             f"{'Merge this PR to apply the change.' if decision == 'accepted' else 'Close this PR to discard the experiment.'}"
         )
         subprocess.run(
