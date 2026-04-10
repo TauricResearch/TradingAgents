@@ -1,0 +1,640 @@
+[
+  {
+    "timestamp": "2026-04-10T13:56:55.904905",
+    "type": "tool",
+    "node": "filter",
+    "step": "Check average volume (batch)",
+    "tool": "get_average_volume_batch",
+    "parameters": {
+      "symbols": [
+        "ALB",
+        "AA",
+        "AMAT",
+        "APA",
+        "AMD",
+        "OSCR",
+        "HMH",
+        "BETR",
+        "SCVL",
+        "FUL",
+        "XAGE",
+        "HUIZ",
+        "LPCN",
+        "VSCO",
+        "GAM",
+        "CMTV",
+        "AMZN",
+        "OTRK",
+        "AVGO",
+        "APH",
+        "ADM",
+        "AME",
+        "CGCT",
+        "BOT",
+        "GF",
+        "LCFY",
+        "MKZR",
+        "SWZ",
+        "XZO",
+        "NKE",
+        "STX",
+        "DLR",
+        "CGNT",
+        "BBY",
+        "JPM",
+        "ADBE",
+        "CSCO",
+        "IT",
+        "AEP",
+        "AAPL",
+        "CRM",
+        "COIN",
+        "CAT",
+        "ACN",
+        "AFL",
+        "AXP",
+        "COST",
+        "BAC",
+        "BSX",
+        "C",
+        "PLSR",
+        "IV",
+        "THE",
+        "US",
+        "AI",
+        "ALOT",
+        "GAME",
+        "ABVC",
+        "FBK",
+        "FAST",
+        "WINT",
+        "PPSI",
+        "GS",
+        "IVDA",
+        "II",
+        "IMF",
+        "FAKE",
+        "CPI",
+        "DATA",
+        "AWS",
+        "NVO",
+        "WE",
+        "JL",
+        "MSFT",
+        "HERE",
+        "LLM",
+        "QQQ"
+      ],
+      "lookback_days": 10,
+      "curr_date": "2026-04-10",
+      "cache_key": "default"
+    },
+    "context": "",
+    "output": "{\"ALB\": {\"symbol\": \"ALB\", \"average_volume\": 1485141.9, \"latest_volume\": 107319.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AA\": {\"symbol\": \"AA\", \"average_volume\": 6341996.1, \"latest_volume\": 456161.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AMAT\": {\"symbol\": \"AMAT\", \"average_volume\": 5148256.9, \"latest_volume\": 819469.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"APA\": {\"symbol\": \"APA\", \"average_volume\": 10137623.4, \"latest_volume\": 487334.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AMD\": {\"symbol\": \"AMD\", \"average_volume\": 32129622.5, \"latest_volume\": 9585025.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AMZN\": {\"symbol\": \"AMZN\", \"average_volume\": 42006208.0, \"latest_volume\": 11500880.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AVGO\": {\"symbol\": \"AVGO\", \"average_volume\": 21716167.6, \"latest_volume\": 5587976.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"APH\": {\"symbol\": \"APH\", \"average_volume\": 6263515.0, \"latest_volume\": 705850.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"ADM\": {\"symbol\": \"ADM\", \"average_volume\": 3314651.8, \"latest_volume\": 185618.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AME\": {\"symbol\": \"AME\", \"average_volume\": 961387.9, \"latest_volume\": 35379.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"NKE\": {\"symbol\": \"NKE\", \"average_volume\": 36583353.1, \"latest_volume\": 3177531.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"STX\": {\"symbol\": \"STX\", \"average_volume\": 3449656.0, \"latest_volume\": 639460.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"DLR\": {\"symbol\": \"DLR\", \"average_volume\": 2026980.9, \"latest_volume\": 125409.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"BBY\": {\"symbol\": \"BBY\", \"average_volume\": 2999791.1, \"latest_volume\": 142611.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"JPM\": {\"symbol\": \"JPM\", \"average_volume\": 8533204.7, \"latest_volume\": 663347.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"ADBE\": {\"symbol\": \"ADBE\", \"average_volume\": 3846981.3, \"latest_volume\": 792813.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"CSCO\": {\"symbol\": \"CSCO\", \"average_volume\": 17251819.2, \"latest_volume\": 1556392.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"IT\": {\"symbol\": \"IT\", \"average_volume\": 1237068.8, \"latest_volume\": 57888.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AEP\": {\"symbol\": \"AEP\", \"average_volume\": 2356018.8, \"latest_volume\": 105588.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AAPL\": {\"symbol\": \"AAPL\", \"average_volume\": 37207175.1, \"latest_volume\": 3183451.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"CRM\": {\"symbol\": \"CRM\", \"average_volume\": 11955828.0, \"latest_volume\": 2642380.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"COIN\": {\"symbol\": \"COIN\", \"average_volume\": 9145111.5, \"latest_volume\": 1743215.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"CAT\": {\"symbol\": \"CAT\", \"average_volume\": 2070428.1, \"latest_volume\": 221981.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"ACN\": {\"symbol\": \"ACN\", \"average_volume\": 4767484.8, \"latest_volume\": 591248.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AFL\": {\"symbol\": \"AFL\", \"average_volume\": 1778191.0, \"latest_volume\": 172510.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"AXP\": {\"symbol\": \"AXP\", \"average_volume\": 2598384.5, \"latest_volume\": 256245.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"COST\": {\"symbol\": \"COST\", \"average_volume\": 1647292.5, \"latest_volume\": 180525.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"BAC\": {\"symbol\": \"BAC\", \"average_volume\": 31764579.1, \"latest_volume\": 2479091.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"BSX\": {\"symbol\": \"BSX\", \"average_volume\": 18089170.9, \"latest_volume\": 978509.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"C\": {\"symbol\": \"C\", \"average_volume\": 13243293.1, \"latest_volume\": 685831.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"FAST\": {\"symbol\": \"FAST\", \"average_volume\": 6576902.8, \"latest_volume\": 793428.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"GS\": {\"symbol\": \"GS\", \"average_volume\": 1726277.0, \"latest_volume\": 145770.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"MSFT\": {\"symbol\": \"MSFT\", \"average_volume\": 28685130.0, \"latest_volume\": 4404300.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-10\", \"error\": null}, \"OSCR\": {\"symbol\": \"OSCR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"HMH\": {\"symbol\": \"HMH\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"BETR\": {\"symbol\": \"BETR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"SCVL\": {\"symbol\": \"SCVL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"FUL\": {\"symbol\": \"FUL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"XAGE\": {\"symbol\": \"XAGE\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"HUIZ\": {\"symbol\": \"HUIZ\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"LPCN\": {\"symbol\": \"LPCN\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"VSCO\": {\"symbol\": \"VSCO\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"GAM\": {\"symbol\": \"GAM\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"CMTV\": {\"symbol\": \"CMTV\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"OTRK\": {\"symbol\": \"OTRK\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"CGCT\": {\"symbol\": \"CGCT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"BOT\": {\"symbol\": \"BOT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"GF\": {\"symbol\": \"GF\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"LCFY\": {\"symbol\": \"LCFY\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"MKZR\": {\"symbol\": \"MKZR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"SWZ\": {\"symbol\": \"SWZ\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"XZO\": {\"symbol\": \"XZO\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"CGNT\": {\"symbol\": \"CGNT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"PLSR\": {\"symbol\": \"PLSR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"IV\": {\"symbol\": \"IV\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"THE\": {\"symbol\": \"THE\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"US\": {\"symbol\": \"US\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"AI\": {\"symbol\": \"AI\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"ALOT\": {\"symbol\": \"ALOT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"GAME\": {\"symbol\": \"GAME\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"ABVC\": {\"symbol\": \"ABVC\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"FBK\": {\"symbol\": \"FBK\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"WINT\": {\"symbol\": \"WINT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"PPSI\": {\"symbol\": \"PPSI\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"IVDA\": {\"symbol\": \"IVDA\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"II\": {\"symbol\": \"II\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"IMF\": {\"symbol\": \"IMF\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"FAKE\": {\"symbol\": \"FAKE\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"CPI\": {\"symbol\": \"CPI\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"DATA\": {\"symbol\": \"DATA\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"AWS\": {\"symbol\": \"AWS\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"NVO\": {\"symbol\": \"NVO\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"WE\": {\"symbol\": \"WE\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"JL\": {\"symbol\": \"JL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"HERE\": {\"symbol\": \"HERE\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"LLM\": {\"symbol\": \"LLM\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}, \"QQQ\": {\"symbol\": \"QQQ\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-10\", \"error\": \"No volume data found\"}}",
+    "output_length": 13295,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:08.378157",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "XAGE",
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "# Technical Analysis for XAGE\n**Date:** 2026-04-10\n**Current Price:** $0.32\n\n## Price Action\n- **Daily Change:** +17.91%\n- **5-Day Change:** +12.46%\n\n## RSI (14)\n- **Value:** 49.6 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -0.008\n- **Signal Line:** -0.000\n- **Histogram:** -0.008 (Weakening \u2193)\n- **Signal:** Bearish\n\n## Moving Averages\n- **50 SMA:** $0.31 (+2.1% from price)\n- **200 SMA:** $1.15 (-72.6% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $0.45\n- **Middle:** $0.34\n- **Lower:** $0.23\n- **Band Position:** 38%\n- **Bandwidth:** 64.3% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $0.04 (12.6% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $0.26 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 32.8\n- **%D:** 28.9\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 10.2 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $0.32 (-0.2% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 102.3M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $0.33\n- **Current vs VWAP:** -5.2%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $0.43\n- **Recent Low:** $0.23\n- **Next Resistance:** $0.33 (50.0%)\n- **Next Support:** $0.31 (61.8%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1513,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:08.559342",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "XAGE"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for XAGE: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:08.823639",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "XAGE"
+    },
+    "context": "",
+    "output": "No recommendation trends data found for XAGE",
+    "output_length": 44,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:08.909444",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "XAGE",
+      "num_expirations": 3,
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for XAGE: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:10.905498",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "HUIZ",
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "# Technical Analysis for HUIZ\n**Date:** 2026-04-10\n**Current Price:** $1.47\n\n## Price Action\n- **Daily Change:** -3.92%\n- **5-Day Change:** +2.80%\n\n## RSI (14)\n- **Value:** 41.2 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -0.116\n- **Signal Line:** -0.124\n- **Histogram:** 0.007 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $1.82 (-19.3% from price)\n- **200 SMA:** $2.66 (-44.7% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $1.93\n- **Middle:** $1.60\n- **Lower:** $1.27\n- **Band Position:** 31%\n- **Bandwidth:** 41.1% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $0.16 (11.0% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $1.23 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 50.4\n- **%D:** 41.2\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 23.1 (Weakening \u2193)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $1.59 (-7.5% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 25.3M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $1.52\n- **Current vs VWAP:** -3.4%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $2.25\n- **Recent Low:** $1.18\n- **Next Resistance:** $1.59 (61.8%)\n- **Next Support:** $1.41 (78.6%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1500,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:11.040640",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "HUIZ"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for HUIZ: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:11.315120",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "HUIZ"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for HUIZ\n\n### 2026-04-01\n- **Strong Buy**: 3\n- **Buy**: 3\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 7\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 3\n- **Buy**: 3\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 7\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 3\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 7\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 3\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 7\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n",
+    "output_length": 707,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:11.390713",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "HUIZ",
+      "num_expirations": 3,
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for HUIZ: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:12.444637",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "VSCO",
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "# Technical Analysis for VSCO\n**Date:** 2026-04-10\n**Current Price:** $51.54\n\n## Price Action\n- **Daily Change:** -0.04%\n- **5-Day Change:** +12.04%\n\n## RSI (14)\n- **Value:** 56.1 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.952\n- **Signal Line:** -2.204\n- **Histogram:** 1.252 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $53.41 (-3.5% from price)\n- **200 SMA:** $38.87 (+32.6% from price)\n- **Trend:** Downtrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $51.23\n- **Middle:** $46.25\n- **Lower:** $41.27\n- **Band Position:** 103%\n- **Bandwidth:** 21.6% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $3.03 (5.9% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $47.00 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 80.3\n- **%D:** 68.3\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 13.0 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $48.32 (+6.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 38.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $46.29\n- **Current vs VWAP:** +11.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $65.80\n- **Recent Low:** $41.99\n- **Next Resistance:** $53.90 (50.0%)\n- **Next Support:** $51.09 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1550,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:12.581924",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "VSCO"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for VSCO: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:12.834929",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "VSCO"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for VSCO\n\n### 2026-04-01\n- **Strong Buy**: 3\n- **Buy**: 8\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 17\n\n**Sentiment**: 64.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 3\n- **Buy**: 8\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 16\n\n**Sentiment**: 68.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 8\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 16\n\n**Sentiment**: 68.8% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 7\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 15\n\n**Sentiment**: 66.7% Bullish, 0.0% Bearish\n\n",
+    "output_length": 711,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:12.911643",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "VSCO",
+      "num_expirations": 3,
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for VSCO: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:14.580865",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "AVGO",
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "# Technical Analysis for AVGO\n**Date:** 2026-04-10\n**Current Price:** $354.91\n\n## Price Action\n- **Daily Change:** +1.22%\n- **5-Day Change:** +12.83%\n\n## RSI (14)\n- **Value:** 65.9 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 2.663\n- **Signal Line:** -2.391\n- **Histogram:** 5.054 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $325.34 (+9.1% from price)\n- **200 SMA:** $328.39 (+8.1% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $349.58\n- **Middle:** $320.03\n- **Lower:** $290.48\n- **Band Position:** 109%\n- **Bandwidth:** 18.5% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $12.79 (3.6% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $335.73 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 84.0\n- **%D:** 68.6\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 20.8 (Weakening \u2193)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $324.27 (+9.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 326.1M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $320.56\n- **Current vs VWAP:** +10.7%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $358.70\n- **Recent Low:** $289.96\n- **Next Resistance:** $358.70 (0.0% (High))\n- **Next Support:** $342.48 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1546,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:14.695817",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "AVGO"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for AVGO: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:14.961698",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "AVGO"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for AVGO\n\n### 2026-04-01\n- **Strong Buy**: 17\n- **Buy**: 37\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 57\n\n**Sentiment**: 94.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 17\n- **Buy**: 38\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 58\n\n**Sentiment**: 94.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 17\n- **Buy**: 37\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 56\n\n**Sentiment**: 96.4% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 17\n- **Buy**: 36\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 56\n\n**Sentiment**: 94.6% Bullish, 0.0% Bearish\n\n",
+    "output_length": 719,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:15.035926",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "AVGO",
+      "num_expirations": 3,
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for AVGO: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:17.538653",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "LCFY",
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "# Technical Analysis for LCFY\n**Date:** 2026-04-10\n**Current Price:** $4.72\n\n## Price Action\n- **Daily Change:** +1.92%\n- **5-Day Change:** +14.01%\n\n## RSI (14)\n- **Value:** 58.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.094\n- **Signal Line:** 0.091\n- **Histogram:** 0.004 (Weakening \u2193)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $4.07 (+15.9% from price)\n- **200 SMA:** $4.51 (+4.6% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $4.84\n- **Middle:** $4.45\n- **Lower:** $4.07\n- **Band Position:** 85%\n- **Bandwidth:** 17.2% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $0.28 (5.9% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $4.30 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 71.6\n- **%D:** 57.0\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 16.5 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $4.45 (+6.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 170.1M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $4.45\n- **Current vs VWAP:** +6.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $5.10\n- **Recent Low:** $2.50\n- **Next Resistance:** $5.10 (0.0% (High))\n- **Next Support:** $4.49 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1516,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:17.663140",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "LCFY"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for LCFY: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:17.904363",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "LCFY"
+    },
+    "context": "",
+    "output": "No recommendation trends data found for LCFY",
+    "output_length": 44,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:19.025489",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "LCFY",
+      "num_expirations": 3,
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for LCFY: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:21.473882",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "SWZ",
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "# Technical Analysis for SWZ\n**Date:** 2026-04-10\n**Current Price:** $6.08\n\n## Price Action\n- **Daily Change:** +1.16%\n- **5-Day Change:** +2.53%\n\n## RSI (14)\n- **Value:** 59.6 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.010\n- **Signal Line:** -0.027\n- **Histogram:** 0.017 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $6.02 (+1.0% from price)\n- **200 SMA:** $6.09 (-0.2% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $6.07\n- **Middle:** $5.96\n- **Lower:** $5.86\n- **Band Position:** 107%\n- **Bandwidth:** 3.4% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.07 (1.1% of price)\n- **Level:** Low volatility\n- **Suggested Stop-Loss:** $5.98 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 56.7\n- **%D:** 40.5\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 16.3 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $5.98 (+1.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -405.7K\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $5.96\n- **Current vs VWAP:** +1.9%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $6.21\n- **Recent Low:** $5.87\n- **Next Resistance:** $6.08 (38.2%)\n- **Next Support:** $6.04 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1544,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:21.638555",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "SWZ"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for SWZ: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 98,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:21.905790",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "SWZ"
+    },
+    "context": "",
+    "output": "No recommendation trends data found for SWZ",
+    "output_length": 43,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:21.983358",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "SWZ",
+      "num_expirations": 3,
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for SWZ: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 94,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:24.369680",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "DLR",
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "# Technical Analysis for DLR\n**Date:** 2026-04-10\n**Current Price:** $188.15\n\n## Price Action\n- **Daily Change:** +1.36%\n- **5-Day Change:** +3.56%\n\n## RSI (14)\n- **Value:** 69.9 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 2.511\n- **Signal Line:** 1.695\n- **Histogram:** 0.816 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $175.86 (+7.0% from price)\n- **200 SMA:** $167.05 (+12.6% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $186.91\n- **Middle:** $179.30\n- **Lower:** $171.69\n- **Band Position:** 108%\n- **Bandwidth:** 8.5% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $4.04 (2.1% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $182.09 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 86.1\n- **%D:** 76.8\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 22.3 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $179.96 (+4.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 27.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $179.92\n- **Current vs VWAP:** +4.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $190.08\n- **Recent Low:** $161.27\n- **Next Resistance:** $190.08 (0.0% (High))\n- **Next Support:** $183.28 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1553,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:24.503159",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "DLR"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for DLR: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 98,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:24.733499",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "DLR"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for DLR\n\n### 2026-04-01\n- **Strong Buy**: 9\n- **Buy**: 17\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 36\n\n**Sentiment**: 72.2% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 8\n- **Buy**: 17\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 71.4% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 8\n- **Buy**: 17\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 71.4% Bullish, 2.9% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 9\n- **Buy**: 15\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 34\n\n**Sentiment**: 70.6% Bullish, 2.9% Bearish\n\n",
+    "output_length": 716,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:24.810375",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "DLR",
+      "num_expirations": 3,
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for DLR: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 94,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:29.818412",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "ALOT",
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "# Technical Analysis for ALOT\n**Date:** 2026-04-10\n**Current Price:** $11.58\n\n## Price Action\n- **Daily Change:** +6.73%\n- **5-Day Change:** +27.11%\n\n## RSI (14)\n- **Value:** 76.7 \u2191\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## MACD\n- **MACD Line:** 0.429\n- **Signal Line:** 0.148\n- **Histogram:** 0.281 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $9.20 (+25.9% from price)\n- **200 SMA:** $9.66 (+19.9% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $10.95\n- **Middle:** $9.24\n- **Lower:** $7.53\n- **Band Position:** 118%\n- **Bandwidth:** 37.0% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.50 (4.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $10.83 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 81.0\n- **%D:** 70.1\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 39.7 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $9.56 (+21.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 627.5K\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $9.76\n- **Current vs VWAP:** +18.7%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $11.59\n- **Recent Low:** $8.29\n- **Next Resistance:** $11.59 (0.0% (High))\n- **Next Support:** $10.81 (23.6%)\n\n## Summary\n- **Key Signals:** RSI overbought, Above 50 SMA\n",
+    "output_length": 1557,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:29.945096",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "ALOT"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for ALOT: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:30.196462",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "ALOT"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for ALOT\n\n### 2022-08-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2022-07-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2022-06-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2022-05-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n",
+    "output_length": 707,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:30.276121",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "ALOT",
+      "num_expirations": 3,
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for ALOT: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:31.561335",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "FBK",
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "# Technical Analysis for FBK\n**Date:** 2026-04-10\n**Current Price:** $56.44\n\n## Price Action\n- **Daily Change:** +0.97%\n- **5-Day Change:** +5.67%\n\n## RSI (14)\n- **Value:** 68.4 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.149\n- **Signal Line:** -0.594\n- **Histogram:** 0.743 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $55.22 (+2.2% from price)\n- **200 SMA:** $53.78 (+5.0% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $55.56\n- **Middle:** $52.36\n- **Lower:** $49.17\n- **Band Position:** 114%\n- **Bandwidth:** 12.2% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $1.41 (2.5% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $54.32 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 89.8\n- **%D:** 82.5\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 19.5 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $53.41 (+5.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 5.1M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $52.28\n- **Current vs VWAP:** +8.0%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $62.13\n- **Recent Low:** $49.24\n- **Next Resistance:** $57.20 (38.2%)\n- **Next Support:** $55.68 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1562,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:31.676245",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "FBK"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for FBK: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 98,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:31.913217",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "FBK"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for FBK\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 6\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 6\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 5\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 6\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n",
+    "output_length": 710,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:58:31.993642",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "FBK",
+      "num_expirations": 3,
+      "curr_date": "2026-04-10"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for FBK: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 94,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-10T13:59:22.789553",
+    "type": "llm",
+    "node": "ranker",
+    "step": "Rank candidates",
+    "model": "gemini-3-pro-preview",
+    "prompt": "You are a professional stock analyst selecting the best short-term trading opportunities from a pre-filtered candidate list.\n\nCURRENT DATE: 2026-04-10\n\nGOAL: Select UP TO 15 stocks with the highest probability of generating >5.0% returns within 1-7 days. If fewer than 15 candidates meet the quality bar, return only the ones that do. Quality over quantity \u2014 never pad the list with weak picks.\n\nMINIMUM QUALITY BAR:\n- Only include candidates where you have genuine conviction (final_score >= 55).\n- If a candidate lacks a clear catalyst or has contradictory signals, SKIP it.\n- It is better to return 5 excellent picks than 15 mediocre ones.\n\nSTRATEGY-SPECIFIC EVALUATION CRITERIA:\nEach candidate was discovered by a specific scanner. Evaluate them using the criteria most relevant to their strategy:\n- **insider_buying**: Focus on insider transaction SIZE relative to market cap, insider ROLE (CEO/CFO > Director), number of distinct insiders buying, and whether the stock is near support. Large cluster buys are strongest.\n- **options_flow**: Focus on put/call ratio, absolute call VOLUME vs open interest, premium size, and whether flow aligns with the technical trend. Unusually low P/C ratios (<0.1) with high volume are strongest.\n- **momentum / technical_breakout**: Focus on volume confirmation (>2x average), trend alignment (above key SMAs), and whether momentum is accelerating or fading. Avoid chasing extended moves (RSI >80).\n- **earnings_play**: Focus on short interest (squeeze potential), pre-earnings accumulation signals, analyst estimate trends, and historical earnings surprise rate. Binary risk must be acknowledged.\n- **social_dd / social_hype**: Treat as SPECULATIVE. Require corroborating technical or fundamental evidence. Pure social sentiment without data backing should score low.\n- **short_squeeze**: Focus on short interest %, days to cover, cost to borrow, and whether a catalyst exists to trigger covering. High SI alone is not enough.\n- **contrarian_value**: Focus on oversold technicals (RSI <30), fundamental support (earnings stability), and a clear reason why the selloff is overdone.\n- **news_catalyst**: Focus on the materiality of the news, whether it's already priced in (check intraday move), and the timeline of impact.\n- **sector_rotation**: Focus on relative strength vs sector ETF, whether the stock is a laggard in an accelerating sector.\n- **minervini**: Focus on the RS Rating (top 30% = RS>=70, top 10% = RS>=90) as the primary signal. Verify all 6 trend template conditions are met (price structure above rising SMAs). Strongest setups combine RS>=85 with price consolidating near highs (within 10-15% of 52w high) \u2014 these have minimal overhead supply. Penalize if RS Rating is borderline (70-75) without other confirming signals.\n- **ml_signal**: Use the ML Win Probability as a strong quantitative signal. Scores above 65% deserve significant weight.\n\nHISTORICAL INSIGHTS:\n\"Historical 1-day win rate: 38.6% (603 tracked)\\nHistorical 7-day win rate: 42.3% (560 tracked)\\nHistorical 30-day win rate: 33.8% (458 tracked)\\n\\nBest performing strategies (7-day):\\n  - short_squeeze: 60.0% win rate (10 samples)\\n  - analyst_upgrade: 48.0% win rate (25 samples)\\n  - insider_buying: 46.3% win rate (162 samples)\"\n\nCANDIDATES FOR REVIEW:\n### XAGE (Priority: CRITICAL)\n- **Strategy Match**: insider_buying\n- **Sources**: insider_buying | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $0.32 | **Current Price (numeric)**: 0.3160000145435333 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: CEO, 10% Ajjarapu J. Ram purchased +$200,000 of XAGE\n- **Business**: XAGE - Business description not available.\n- **News**: \n\n**Technical Analysis**:\n# Technical Analysis for XAGE\n**Date:** 2026-04-10\n**Current Price:** $0.32\n\n## Price Action\n- **Daily Change:** +17.91%\n- **5-Day Change:** +12.46%\n\n## RSI (14)\n- **Value:** 49.6 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -0.008\n- **Signal Line:** -0.000\n- **Histogram:** -0.008 (Weakening \u2193)\n- **Signal:** Bearish\n\n## Moving Averages\n- **50 SMA:** $0.31 (+2.1% from price)\n- **200 SMA:** $1.15 (-72.6% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $0.45\n- **Middle:** $0.34\n- **Lower:** $0.23\n- **Band Position:** 38%\n- **Bandwidth:** 64.3% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $0.04 (12.6% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $0.26 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 32.8\n- **%D:** 28.9\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 10.2 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $0.32 (-0.2% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 102.3M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $0.33\n- **Current vs VWAP:** -5.2%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $0.43\n- **Recent Low:** $0.23\n- **Next Resistance:** $0.33 (50.0%)\n- **Next Support:** $0.31 (61.8%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for XAGE: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\nNo recommendation trends data found for XAGE\n\n**Options Activity**:\nError retrieving options activity for XAGE: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### HUIZ (Priority: CRITICAL)\n- **Strategy Match**: insider_buying\n- **Sources**: insider_buying | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $1.47 | **Current Price (numeric)**: 1.4700000286102295 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: CEO, 10% Ma Cunjun purchased +$113,976 of HUIZ\n- **Business**: HUIZ - Business description not available.\n- **News**: \n\n**Technical Analysis**:\n# Technical Analysis for HUIZ\n**Date:** 2026-04-10\n**Current Price:** $1.47\n\n## Price Action\n- **Daily Change:** -3.92%\n- **5-Day Change:** +2.80%\n\n## RSI (14)\n- **Value:** 41.2 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -0.116\n- **Signal Line:** -0.124\n- **Histogram:** 0.007 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $1.82 (-19.3% from price)\n- **200 SMA:** $2.66 (-44.7% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $1.93\n- **Middle:** $1.60\n- **Lower:** $1.27\n- **Band Position:** 31%\n- **Bandwidth:** 41.1% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $0.16 (11.0% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $1.23 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 50.4\n- **%D:** 41.2\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 23.1 (Weakening \u2193)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $1.59 (-7.5% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 25.3M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $1.52\n- **Current vs VWAP:** -3.4%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $2.25\n- **Recent Low:** $1.18\n- **Next Resistance:** $1.59 (61.8%)\n- **Next Support:** $1.41 (78.6%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for HUIZ: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for HUIZ\n\n### 2026-04-01\n- **Strong Buy**: 3\n- **Buy**: 3\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 7\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 3\n- **Buy**: 3\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 7\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 3\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 7\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 3\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 7\n\n**Sentiment**: 85.7% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for HUIZ: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### VSCO (Priority: CRITICAL)\n- **Strategy Match**: insider_buying\n- **Sources**: insider_buying | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $50.49 | **Current Price (numeric)**: 50.494998931884766 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Cluster: 2 insiders buying VSCO. Largest: Dir Sheehan Anne purchased +$222,054\n- **Business**: VSCO - Business description not available.\n- **News**: \n\n**Technical Analysis**:\n# Technical Analysis for VSCO\n**Date:** 2026-04-10\n**Current Price:** $51.54\n\n## Price Action\n- **Daily Change:** -0.04%\n- **5-Day Change:** +12.04%\n\n## RSI (14)\n- **Value:** 56.1 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.952\n- **Signal Line:** -2.204\n- **Histogram:** 1.252 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $53.41 (-3.5% from price)\n- **200 SMA:** $38.87 (+32.6% from price)\n- **Trend:** Downtrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $51.23\n- **Middle:** $46.25\n- **Lower:** $41.27\n- **Band Position:** 103%\n- **Bandwidth:** 21.6% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $3.03 (5.9% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $47.00 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 80.3\n- **%D:** 68.3\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 13.0 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $48.32 (+6.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 38.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $46.29\n- **Current vs VWAP:** +11.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $65.80\n- **Recent Low:** $41.99\n- **Next Resistance:** $53.90 (50.0%)\n- **Next Support:** $51.09 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for VSCO: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for VSCO\n\n### 2026-04-01\n- **Strong Buy**: 3\n- **Buy**: 8\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 17\n\n**Sentiment**: 64.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 3\n- **Buy**: 8\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 16\n\n**Sentiment**: 68.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 8\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 16\n\n**Sentiment**: 68.8% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 7\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 15\n\n**Sentiment**: 66.7% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for VSCO: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### AVGO (Priority: HIGH)\n- **Strategy Match**: minervini\n- **Sources**: minervini, options_flow | **Confluence**: 2 source(s)\n- **Quant Pre-Score**: 20/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $372.00 | **Current Price (numeric)**: 371.99859619140625 | **Intraday**: +0.0% | **Avg Volume**: 21,716,168\n- **Short Interest**: N/A\n- **Discovery Context**: Minervini Stage 2: P>SMA50>SMA150>SMA200, +126% off 52w low, within 9% of 52w high, RS Rating 90/100; Also: Unusual options: 10 strikes across 3 exp, P/C=999.00 (bearish), 5 unusual calls / 5 unusual puts\n- **Business**: AVGO - Business description not available.\n- **News**: \n\n**Technical Analysis**:\n# Technical Analysis for AVGO\n**Date:** 2026-04-10\n**Current Price:** $354.91\n\n## Price Action\n- **Daily Change:** +1.22%\n- **5-Day Change:** +12.83%\n\n## RSI (14)\n- **Value:** 65.9 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 2.663\n- **Signal Line:** -2.391\n- **Histogram:** 5.054 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $325.34 (+9.1% from price)\n- **200 SMA:** $328.39 (+8.1% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $349.58\n- **Middle:** $320.03\n- **Lower:** $290.48\n- **Band Position:** 109%\n- **Bandwidth:** 18.5% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $12.79 (3.6% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $335.73 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 84.0\n- **%D:** 68.6\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 20.8 (Weakening \u2193)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $324.27 (+9.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 326.1M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $320.56\n- **Current vs VWAP:** +10.7%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $358.70\n- **Recent Low:** $289.96\n- **Next Resistance:** $358.70 (0.0% (High))\n- **Next Support:** $342.48 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for AVGO: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for AVGO\n\n### 2026-04-01\n- **Strong Buy**: 17\n- **Buy**: 37\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 57\n\n**Sentiment**: 94.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 17\n- **Buy**: 38\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 58\n\n**Sentiment**: 94.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 17\n- **Buy**: 37\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 56\n\n**Sentiment**: 96.4% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 17\n- **Buy**: 36\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 56\n\n**Sentiment**: 94.6% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for AVGO: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### LCFY (Priority: HIGH)\n- **Strategy Match**: insider_buying\n- **Sources**: insider_buying | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $4.52 | **Current Price (numeric)**: 4.51639986038208 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: COO Jackson Jason Dale purchased +$38,997 of LCFY\n- **Business**: LCFY - Business description not available.\n- **News**: \n\n**Technical Analysis**:\n# Technical Analysis for LCFY\n**Date:** 2026-04-10\n**Current Price:** $4.72\n\n## Price Action\n- **Daily Change:** +1.92%\n- **5-Day Change:** +14.01%\n\n## RSI (14)\n- **Value:** 58.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.094\n- **Signal Line:** 0.091\n- **Histogram:** 0.004 (Weakening \u2193)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $4.07 (+15.9% from price)\n- **200 SMA:** $4.51 (+4.6% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $4.84\n- **Middle:** $4.45\n- **Lower:** $4.07\n- **Band Position:** 85%\n- **Bandwidth:** 17.2% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $0.28 (5.9% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $4.30 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 71.6\n- **%D:** 57.0\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 16.5 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $4.45 (+6.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 170.1M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $4.45\n- **Current vs VWAP:** +6.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $5.10\n- **Recent Low:** $2.50\n- **Next Resistance:** $5.10 (0.0% (High))\n- **Next Support:** $4.49 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for LCFY: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\nNo recommendation trends data found for LCFY\n\n**Options Activity**:\nError retrieving options activity for LCFY: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### SWZ (Priority: HIGH)\n- **Strategy Match**: insider_buying\n- **Sources**: insider_buying | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $6.07 | **Current Price (numeric)**: 6.065000057220459 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Pres, CEO Dakos Andrew purchased +$29,423 of SWZ\n- **Business**: SWZ - Business description not available.\n- **News**: \n\n**Technical Analysis**:\n# Technical Analysis for SWZ\n**Date:** 2026-04-10\n**Current Price:** $6.08\n\n## Price Action\n- **Daily Change:** +1.16%\n- **5-Day Change:** +2.53%\n\n## RSI (14)\n- **Value:** 59.6 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.010\n- **Signal Line:** -0.027\n- **Histogram:** 0.017 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $6.02 (+1.0% from price)\n- **200 SMA:** $6.09 (-0.2% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $6.07\n- **Middle:** $5.96\n- **Lower:** $5.86\n- **Band Position:** 107%\n- **Bandwidth:** 3.4% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.07 (1.1% of price)\n- **Level:** Low volatility\n- **Suggested Stop-Loss:** $5.98 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 56.7\n- **%D:** 40.5\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 16.3 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $5.98 (+1.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -405.7K\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $5.96\n- **Current vs VWAP:** +1.9%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $6.21\n- **Recent Low:** $5.87\n- **Next Resistance:** $6.08 (38.2%)\n- **Next Support:** $6.04 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for SWZ: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\nNo recommendation trends data found for SWZ\n\n**Options Activity**:\nError retrieving options activity for SWZ: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### DLR (Priority: HIGH)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $189.12 | **Current Price (numeric)**: 189.125 | **Intraday**: +0.0% | **Avg Volume**: 2,026,981\n- **Short Interest**: N/A\n- **Discovery Context**: Analyst upgrade: 7,779 Shares in Digital Realty Trust, Inc. $DLR Bought by V Square Quantitative Management LLC\n- **Business**: DLR - Business description not available.\n- **News**: \n\n**Technical Analysis**:\n# Technical Analysis for DLR\n**Date:** 2026-04-10\n**Current Price:** $188.15\n\n## Price Action\n- **Daily Change:** +1.36%\n- **5-Day Change:** +3.56%\n\n## RSI (14)\n- **Value:** 69.9 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 2.511\n- **Signal Line:** 1.695\n- **Histogram:** 0.816 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $175.86 (+7.0% from price)\n- **200 SMA:** $167.05 (+12.6% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $186.91\n- **Middle:** $179.30\n- **Lower:** $171.69\n- **Band Position:** 108%\n- **Bandwidth:** 8.5% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $4.04 (2.1% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $182.09 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 86.1\n- **%D:** 76.8\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 22.3 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $179.96 (+4.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 27.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $179.92\n- **Current vs VWAP:** +4.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $190.08\n- **Recent Low:** $161.27\n- **Next Resistance:** $190.08 (0.0% (High))\n- **Next Support:** $183.28 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for DLR: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for DLR\n\n### 2026-04-01\n- **Strong Buy**: 9\n- **Buy**: 17\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 36\n\n**Sentiment**: 72.2% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 8\n- **Buy**: 17\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 71.4% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 8\n- **Buy**: 17\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 71.4% Bullish, 2.9% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 9\n- **Buy**: 15\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 34\n\n**Sentiment**: 70.6% Bullish, 2.9% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for DLR: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 13 days (2026-04-23): EPS Est $0.50, Rev Est $1,613,850,114\n\n### ALOT (Priority: MEDIUM)\n- **Strategy Match**: earnings_play\n- **Sources**: earnings_calendar | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $11.43 | **Current Price (numeric)**: 11.43220043182373 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Earnings amc in 3 day(s) on 2026-04-13\n- **Business**: ALOT - Business description not available.\n- **News**: \n\n**Technical Analysis**:\n# Technical Analysis for ALOT\n**Date:** 2026-04-10\n**Current Price:** $11.58\n\n## Price Action\n- **Daily Change:** +6.73%\n- **5-Day Change:** +27.11%\n\n## RSI (14)\n- **Value:** 76.7 \u2191\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## MACD\n- **MACD Line:** 0.429\n- **Signal Line:** 0.148\n- **Histogram:** 0.281 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $9.20 (+25.9% from price)\n- **200 SMA:** $9.66 (+19.9% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $10.95\n- **Middle:** $9.24\n- **Lower:** $7.53\n- **Band Position:** 118%\n- **Bandwidth:** 37.0% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.50 (4.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $10.83 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 81.0\n- **%D:** 70.1\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 39.7 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $9.56 (+21.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 627.5K\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $9.76\n- **Current vs VWAP:** +18.7%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $11.59\n- **Recent Low:** $8.29\n- **Next Resistance:** $11.59 (0.0% (High))\n- **Next Support:** $10.81 (23.6%)\n\n## Summary\n- **Key Signals:** RSI overbought, Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for ALOT: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for ALOT\n\n### 2022-08-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2022-07-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2022-06-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2022-05-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for ALOT: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 3 days (2026-04-13): EPS Est N/A, Rev Est N/A\n\n### FBK (Priority: MEDIUM)\n- **Strategy Match**: earnings_play\n- **Sources**: earnings_calendar | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $55.60 | **Current Price (numeric)**: 55.595001220703125 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Earnings amc in 3 day(s) on 2026-04-13\n- **Business**: FBK - Business description not available.\n- **News**: \n\n**Technical Analysis**:\n# Technical Analysis for FBK\n**Date:** 2026-04-10\n**Current Price:** $56.44\n\n## Price Action\n- **Daily Change:** +0.97%\n- **5-Day Change:** +5.67%\n\n## RSI (14)\n- **Value:** 68.4 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.149\n- **Signal Line:** -0.594\n- **Histogram:** 0.743 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $55.22 (+2.2% from price)\n- **200 SMA:** $53.78 (+5.0% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $55.56\n- **Middle:** $52.36\n- **Lower:** $49.17\n- **Band Position:** 114%\n- **Bandwidth:** 12.2% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $1.41 (2.5% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $54.32 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 89.8\n- **%D:** 82.5\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 19.5 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $53.41 (+5.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 5.1M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $52.28\n- **Current vs VWAP:** +8.0%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $62.13\n- **Recent Low:** $49.24\n- **Next Resistance:** $57.20 (38.2%)\n- **Next Support:** $55.68 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for FBK: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for FBK\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 6\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 6\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 5\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 72.7% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 6\n- **Hold**: 2\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for FBK: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 3 days (2026-04-13): EPS Est $1.13, Rev Est $178,407,410\n\n\nRANKING INSTRUCTIONS:\n1. Evaluate each candidate through the lens of its specific strategy (see criteria above).\n2. Cross-reference the strategy signal with Technicals, Fundamentals, and Options data for confirmation.\n3. Use the Quantitative Pre-Score as an objective baseline \u2014 scores above 50 indicate strong multi-factor alignment.\n4. The ML Win Probability is a trained model's estimate of hitting +5.0% within 7 days. Treat >60% as strong confirmation, >70% as very strong.\n5. Prioritize LEADING indicators (Insider Buying, Pre-Earnings Accumulation, Options Flow) over lagging ones (momentum chasing, social hype).\n6. Penalize contradictory signals: e.g., bullish options but heavy insider SELLING, or strong momentum but overbought RSI with declining volume.\n7. Use ONLY the information provided in the candidates section. Do NOT invent catalysts, prices, or metrics that are not explicitly stated.\n8. If a data field is missing, note it as N/A \u2014 do not fabricate values.\n9. Only rank tickers from the candidates list.\n10. Each reason MUST cite at least two specific data points from the candidate context (e.g., \"P/C ratio of 0.02\", \"Director purchased $5.2M\").\n\nOUTPUT FORMAT \u2014 JSON object with a 'rankings' list. Each item:\n- rank: sequential from 1\n- ticker: stock symbol (must be from candidate list)\n- company_name: company name\n- current_price: numeric price from candidate data\n- strategy_match: the candidate's strategy (use the value from the candidate, do not change it)\n- final_score: 0-100 (your holistic assessment: 55+ = included, 80+ = high conviction, 90+ = exceptional)\n- confidence: 1-10 (how confident are you in THIS specific trade)\n- risk_level: one of \"low\", \"moderate\", \"high\", \"speculative\"\n- reason: Investment thesis in 4-6 sentences. Structure: (1) What is the edge/catalyst, (2) Why NOW \u2014 what makes the timing urgent, (3) Risk/reward profile, (4) Key risk or what could invalidate the thesis. Cite specific numbers.\n- description: One-sentence company description\n\nIMPORTANT: Return ONLY valid JSON. No markdown wrapping, no commentary outside the JSON. All numeric fields must be numbers, not strings.",
+    "prompt_length": 32225,
+    "output": "{\n  \"rankings\": [\n    {\n      \"rank\": 1,\n      \"ticker\": \"AVGO\",\n      \"company_name\": \"AVGO\",\n      \"current_price\": 371.99859619140625,\n      \"strategy_match\": \"minervini\",\n      \"final_score\": 85,\n      \"confidence\": 8,\n      \"risk_level\": \"moderate\",\n      \"reason\": \"The edge is driven by an elite Minervini Stage 2 setup featuring an exceptional 90/100 RS Rating, with the stock surging 126% off its 52-week low. Timing is urgent as immediate momentum is confirming further upside, highlighted by a fresh MACD bullish crossover, rising OBV (326.1M), and strong price action trading 10.7% above the 20-period VWAP. The risk/reward profile is highly favorable for a continuation trade, supported by a massive 94.7% bullish sentiment across 57 analysts. However, the key risk lies in the unusual options activity displaying an extreme put/call ratio of 999.00, which indicates heavy institutional bearish hedging that could stall momentum.\",\n      \"description\": \"AVGO - Business description not available.\"\n    },\n    {\n      \"rank\": 2,\n      \"ticker\": \"DLR\",\n      \"company_name\": \"Digital Realty Trust, Inc.\",\n      \"current_price\": 189.125,\n      \"strategy_match\": \"analyst_upgrade\",\n      \"final_score\": 75,\n      \"confidence\": 7,\n      \"risk_level\": \"moderate\",\n      \"reason\": \"The core catalyst is recent institutional accumulation by entities like V Square Quantitative Management, acting as a bullish proxy alongside a 72.2% bullish consensus from 36 analysts. Now is the time to act because the stock is exhibiting a powerful structural uptrend, newly confirmed by a MACD bullish crossover and an On-Balance Volume rising to 27.6M just 13 days ahead of its earnings report. This presents a moderate-risk upside profile, as the price remains comfortably supported above its 50-day (+7.0%) and 200-day (+12.6%) moving averages. The primary risk to the thesis is short-term overextension, with the stock trading at the upper Bollinger Band (108%), which could prompt a technical pullback b",
+    "output_length": 2000,
+    "error": ""
+  }
+]
