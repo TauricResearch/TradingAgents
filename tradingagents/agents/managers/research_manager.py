@@ -46,7 +46,7 @@ def create_research_manager(llm, memory):
         anon_debate_summary = anonymize_ticker(
             truncate_text(debate_summary, max_chars=1800), ticker
         )
-        anon_history = anonymize_ticker(truncate_text(history, max_chars=2600), ticker)
+        anon_history = anonymize_ticker(truncate_text(history, max_chars=1500), ticker)
         anon_past_memory_str = anonymize_ticker(
             truncate_text(past_memory_str, max_chars=1600), ticker
         )
@@ -91,7 +91,7 @@ Debate History:
             llm,
             prompt,
             timeout_seconds=timeout_seconds,
-            max_tokens=1000,
+            max_tokens=800,
         )
         if invoke_error is not None:
             err_type = type(invoke_error).__name__
