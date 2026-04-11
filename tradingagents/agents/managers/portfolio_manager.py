@@ -170,9 +170,11 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
                 else "HOLD"
             )
             final_decision_text = (
-                f"**Rating**: **{action}**\n\n"
-                "_Portfolio Manager returned an empty response. "
-                "Decision derived from risk synthesis._"
+                f"[PM_EMPTY_RESPONSE] Portfolio Manager LLM returned empty content — "
+                f"no genuine rating was produced.\n\n"
+                f"**Risk synthesis fallback action**: {action} "
+                f"(derived from `risk_synthesis_structured`, not a PM decision)\n\n"
+                "_Operators: check `run_log.jsonl` for the `warning` event from this node._"
             )
             rl = get_run_logger()
             if rl:

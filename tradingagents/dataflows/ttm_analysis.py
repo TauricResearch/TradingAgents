@@ -16,7 +16,8 @@ import pandas as pd
 _INCOME_REVENUE_COLS = [
     "Total Revenue", "TotalRevenue", "totalRevenue",
     "Revenue", "revenue",
-    # Banking / financial-sector equivalents
+    # Banking / financial-sector equivalents — schema-based proxies only;
+    # not financially equivalent to Total Revenue for non-bank firms.
     "Net Interest Income", "Total Net Revenue", "Net Revenue",
     "Interest And Dividend Income", "Total Banking Revenue",
     "Interest Income",
@@ -43,7 +44,8 @@ _BALANCE_TOTAL_ASSETS_COLS = [
 _BALANCE_TOTAL_DEBT_COLS = [
     "Total Debt", "TotalDebt", "totalDebt",
     "Long Term Debt", "LongTermDebt",
-    # Banking / financial-sector equivalents
+    # Banking / financial-sector equivalents — schema-based proxies only;
+    # not financially equivalent to Total Debt for non-bank firms.
     "Long Term Debt And Capital Lease Obligation",
     "Total Liabilities Net Minority Interest",
 ]

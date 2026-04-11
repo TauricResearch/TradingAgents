@@ -49,11 +49,13 @@ def run_tool_loop(
     """Invoke *chain* in a loop, executing any tool calls until the LLM
     produces a final text response (i.e. no more tool_calls).
 
-    If the very first LLM response contains no tool calls **and** the text
-    is shorter than *min_report_length*, the loop appends a nudge message
-    asking the LLM to call tools first, then re-invokes once before
-    accepting the response.  This prevents under-powered models from
-    skipping tool use when overwhelmed by long context.
+    If the LLM response contains no tool calls **and** the text is shorter
+    than *min_report_length* **and** no tools have been used yet in this
+    loop, the loop appends a nudge message asking the LLM to call tools
+    first and re-invokes — up to ``MAX_NUDGES`` (2) times.  Once any tool
+    has been used, nudging stops so the final synthesis pass is never
+    interrupted.  This prevents under-powered models from skipping tool
+    use when overwhelmed by long context.
 
     Args:
         chain: A LangChain runnable (prompt | llm.bind_tools(tools)).
