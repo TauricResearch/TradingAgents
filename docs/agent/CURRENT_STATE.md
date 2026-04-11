@@ -5,10 +5,18 @@ The active objective is to remove hallucination-prone prose handoffs, preserve e
 
 # Recent Progress
 
+- **claude/dazzling-raman** (run failure root-cause + hardening):
+  - Diagnosed and fixed `_parse_financial_csv` in `ttm_analysis.py`: vendor functions prepend `# header` lines before CSV data; `pd.read_csv` without `comment='#'` threw `ParserError` → `None` → `quarters_available: 0` for every ticker. Added `comment='#', skip_blank_lines=True` to the read call.
+  - Added banking/financial-sector column aliases to TTM normaliser (`Net Interest Income`, `Total Net Revenue`, `Net Revenue`, `Interest And Dividend Income`, `Long Term Debt And Capital Lease Obligation`, `Total Liabilities Net Minority Interest`) so BAC-class tickers yield real numeric metrics.
+  - Guarded `portfolio_manager.py` against LLM returning empty `response.content` (seen with minimax): derives a minimal decision from `risk_synthesis_structured.action` so `final_trade_decision` is never empty.
+  - Improved `analysis_has_deep_dive` (`run_helpers.py`) to check `final_trade_decision_structured.status == "completed"` as an alternative signal when the text field is empty.
+  - Extended `run_tool_loop` nudge to fire up to `MAX_NUDGES=2` times (was 1) when the model produces no tool_calls and a short text response, but only before any tools have been used — prevents weaker models from bypassing tool calls entirely.
+
+
 - `codex/structured-contracts-plan`:
-  - Removed `Research Packet Summary` from the main analyst-to-researcher graph path in [setup.py](/Users/Ahmet/Repo/TradingAgents/tradingagents/graph/setup.py)
-  - Preserved analyst-to-downstream contracts by switching downstream packet consumers to deterministic packet assembly in [summary_context.py](/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/utils/summary_context.py)
-  - Kept `research_packet_summary` as a derived artifact only, via [context_summaries.py](/Users/Ahmet/Repo/TradingAgents/tradingagents/agents/managers/context_summaries.py)
+  - Removed `Research Packet Summary` from the main analyst-to-researcher graph path in `tradingagents/graph/setup.py`
+  - Preserved analyst-to-downstream contracts by switching downstream packet consumers to deterministic packet assembly in `tradingagents/agents/utils/summary_context.py`
+  - Kept `research_packet_summary` as a derived artifact only, via `tradingagents/agents/managers/context_summaries.py`
   - Hardened market/news/social and downstream LLM nodes with timeout guards and bounded fallback behavior
   - Added runner-side validation for:
     - summary bypass before `Bull Researcher`
@@ -79,9 +87,9 @@ The active objective is to remove hallucination-prone prose handoffs, preserve e
 
 - Continue node-by-node hardening for the remaining downstream runtime path until a full pipeline run completes cleanly through final report generation
 - Fix the API-backed run/event wrapper behavior that can stall or fail to surface analyst node progress even when direct graph execution advances
-- Execute the live-run recovery handoff in [022 Live Run Issue Handoff](/Users/Ahmet/Repo/TradingAgents/docs/agent/plans/022-live-run-issue-handoff.md)
+- Execute the live-run recovery handoff in [022 Live Run Issue Handoff](docs/agent/plans/022-live-run-issue-handoff.md)
 - Harden scanner-context enrichment so context packets remain fully populated when one upstream vendor fails
-- Perform final cleanup refactor on [langgraph_engine.py](/Users/Ahmet/Repo/TradingAgents/agent_os/backend/services/langgraph_engine.py):
+- Perform final cleanup refactor on `agent_os/backend/services/langgraph_engine.py`:
   - remove unused helpers / dead branches
   - extract event mapping, pipeline runner, portfolio runner, and scan-state helpers into smaller modules
   - keep behavior unchanged while tightening regression coverage
@@ -95,7 +103,7 @@ The active objective is to remove hallucination-prone prose handoffs, preserve e
 # Active Blockers
 
 - API-backed pipeline runs can remain opaque at the event layer even when direct LangGraph execution progresses; this slows live validation and needs cleanup in the backend orchestration layer
-- Handoff for that blocker is now captured in [022 Live Run Issue Handoff](/Users/Ahmet/Repo/TradingAgents/docs/agent/plans/022-live-run-issue-handoff.md)
+- Handoff for that blocker is now captured in [022 Live Run Issue Handoff](docs/agent/plans/022-live-run-issue-handoff.md)
 
 # Key Architectural Decisions Active
 

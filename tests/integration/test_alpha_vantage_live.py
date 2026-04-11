@@ -20,6 +20,7 @@ from tradingagents.dataflows.alpha_vantage_common import (
 
 
 @pytest.mark.integration
+@pytest.mark.enable_socket
 class TestMakeApiRequestErrors:
     """Test _make_api_request error handling with real HTTP calls."""
 

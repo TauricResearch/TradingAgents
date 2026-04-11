@@ -219,6 +219,7 @@ TO: Energy, Materials, Industrials (cyclical rotation)
 
 
 @pytest.mark.integration
+@pytest.mark.enable_socket
 class TestScannerContextFilteringLiveAV:
     """Integration tests using real AlphaVantage API calls."""
 

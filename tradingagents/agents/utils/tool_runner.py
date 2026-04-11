@@ -20,11 +20,17 @@ from tradingagents.default_config import DEFAULT_CONFIG
 # 5 provides headroom for complex scenarios while preventing runaway loops.
 MAX_TOOL_ROUNDS = 5
 
-# If the LLM's first response has no tool calls AND is shorter than this,
+# If the LLM produces no tool calls AND the response is shorter than this,
 # a nudge message is appended to encourage tool usage.
 # Set high enough to catch models that dump planning text (~500-1000 chars)
 # without actually calling tools.
 MIN_REPORT_LENGTH = 2000
+
+# Maximum number of nudges to send when the model keeps producing short
+# text-only responses instead of calling tools.  More than 1 nudge is
+# needed for weaker models (e.g. minimax) that acknowledge the nudge but
+# still don't emit tool_calls on the first retry.
+MAX_NUDGES = 2
 
 # Bound tool outputs fed back into the model to avoid oversized second-turn
 # prompts that can stall local tool-calling models.
@@ -43,11 +49,13 @@ def run_tool_loop(
     """Invoke *chain* in a loop, executing any tool calls until the LLM
     produces a final text response (i.e. no more tool_calls).
 
-    If the very first LLM response contains no tool calls **and** the text
-    is shorter than *min_report_length*, the loop appends a nudge message
-    asking the LLM to call tools first, then re-invokes once before
-    accepting the response.  This prevents under-powered models from
-    skipping tool use when overwhelmed by long context.
+    If the LLM response contains no tool calls **and** the text is shorter
+    than *min_report_length* **and** no tools have been used yet in this
+    loop, the loop appends a nudge message asking the LLM to call tools
+    first and re-invokes — up to ``MAX_NUDGES`` (2) times.  Once any tool
+    has been used, nudging stops so the final synthesis pass is never
+    interrupted.  This prevents under-powered models from skipping tool
+    use when overwhelmed by long context.
 
     Args:
         chain: A LangChain runnable (prompt | llm.bind_tools(tools)).
@@ -62,7 +70,8 @@ def run_tool_loop(
     """
     tool_map = {t.name: t for t in tools}
     current_messages = list(messages)
-    first_round = True
+    nudge_count = 0
+    tools_ever_used = False
     result = None
     _cap = float(DEFAULT_CONFIG.get("tool_loop_timeout_cap") or DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
     timeout_seconds = min(
@@ -100,9 +109,17 @@ def run_tool_loop(
         current_messages.append(result)
 
         if not result.tool_calls:
-            # Nudge: if the LLM skipped tools on its first turn and the
-            # response is suspiciously short, ask it to try again with tools.
-            if first_round and len(result.content or "") < min_report_length:
+            # Nudge: if the LLM has not yet used any tools and the response is
+            # suspiciously short, ask it to call tools.  Allow up to MAX_NUDGES
+            # retries so that weaker models (e.g. minimax) that acknowledge the
+            # nudge in text but don't immediately emit tool_calls still get a
+            # second chance.  Never nudge after tools have already been used —
+            # at that point the LLM is writing its final synthesis.
+            if (
+                not tools_ever_used
+                and nudge_count < MAX_NUDGES
+                and len(result.content or "") < min_report_length
+            ):
                 tool_names = ", ".join(tool_map.keys())
                 nudge = (
                     "Your response was too brief. You MUST call at least one tool "
@@ -112,28 +129,37 @@ def run_tool_loop(
                 current_messages.append(
                     HumanMessage(content=nudge)
                 )
-                first_round = False
+                nudge_count += 1
                 continue
             return result
-
-        first_round = False
 
         # Execute each requested tool call and append ToolMessages
         from tradingagents.observability import get_run_logger
 
         rl = get_run_logger()
+        any_tool_succeeded = False
         for tc in result.tool_calls:
             tool_name = tc["name"]
             tool_args = tc["args"]
             tool_fn = tool_map.get(tool_name)
             if tool_fn is None:
-                tool_output = f"Error: unknown tool '{tool_name}'"
+                valid_names = ", ".join(tool_map.keys())
+                tool_output = (
+                    f"Error: unknown tool '{tool_name}'. "
+                    f"Valid tools are: {valid_names}. "
+                    "Please call one of the valid tools instead."
+                )
                 if rl:
+                    rl.log_warning(
+                        f"LLM called unknown tool '{tool_name}' — hallucinated name; "
+                        f"valid tools: {valid_names}"
+                    )
                     rl.log_tool_call(tool_name, str(tool_args)[:120], False, 0, error="unknown tool")
             else:
                 t0 = time.time()
                 try:
                     tool_output = tool_fn.invoke(tool_args)
+                    any_tool_succeeded = True
                     if rl:
                         rl.log_tool_call(tool_name, str(tool_args)[:120], True, (time.time() - t0) * 1000)
                 except Exception as e:
@@ -153,6 +179,12 @@ def run_tool_loop(
             current_messages.append(
                 ToolMessage(content=tool_output_text, tool_call_id=tc["id"])
             )
+
+        # Only count this round as "tools used" if at least one call succeeded.
+        # Hallucinated tool names return error ToolMessages but should not
+        # suppress the nudge — the LLM still needs to call a real tool.
+        if any_tool_succeeded:
+            tools_ever_used = True
 
     # If we exhausted max_rounds, return the last AIMessage
     # (it may have tool_calls but we treat the content as the report)

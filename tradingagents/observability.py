@@ -132,6 +132,33 @@ class RunLogger:
         evt = _Event(kind="report", ts=time.time(), data={"path": path})
         self._append(evt)
 
+    def log_warning(
+        self,
+        node: str,
+        ticker: str,
+        message: str,
+        details: dict | None = None,
+    ) -> None:
+        """Record a named warning from a graph node — visible in run_log.jsonl.
+
+        Use this when a node detects a recoverable but notable problem (e.g.
+        TTM parse failed, vendor returned empty data, LLM returned empty
+        content) so that operators can diagnose failures without reading the
+        full event stream.
+        """
+        evt = _Event(
+            kind="warning",
+            ts=time.time(),
+            data={
+                "node": node,
+                "ticker": ticker,
+                "message": message,
+                "details": details or {},
+            },
+        )
+        self._append(evt)
+        _py_logger.warning("[%s][%s] %s %s", node, ticker, message, details or "")
+
     # -- summary ---------------------------------------------------------------
 
     def summary(self) -> dict:

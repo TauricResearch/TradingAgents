@@ -1,3 +1,4 @@
+from tradingagents.observability import get_run_logger
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.critical_abort import (
     extract_abort_report,
@@ -158,6 +159,31 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
         }
 
         final_decision_text = response.content
+        if not final_decision_text.strip():
+            # LLM returned empty content without raising an error (seen with minimax).
+            # Derive a minimal decision from the risk synthesis so the pipeline
+            # produces a usable final_trade_decision instead of blocking the run.
+            risk_syn = state.get("risk_synthesis_structured") or {}
+            action = (
+                risk_syn.get("action", "HOLD")
+                if isinstance(risk_syn, dict)
+                else "HOLD"
+            )
+            final_decision_text = (
+                f"[PM_EMPTY_RESPONSE] Portfolio Manager LLM returned empty content — "
+                f"no genuine rating was produced.\n\n"
+                f"**Risk synthesis fallback action**: {action} "
+                f"(derived from `risk_synthesis_structured`, not a PM decision)\n\n"
+                "_Operators: check `run_log.jsonl` for the `warning` event from this node._"
+            )
+            rl = get_run_logger()
+            if rl:
+                rl.log_warning(
+                    node="Portfolio Manager",
+                    ticker=state.get("company_of_interest", ""),
+                    message="LLM returned empty content — decision derived from risk synthesis",
+                    details={"fallback_action": action},
+                )
         structured = build_final_decision_structured(
             ticker=state.get("company_of_interest", ""),
             as_of_date=state.get("trade_date", ""),

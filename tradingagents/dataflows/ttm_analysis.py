@@ -16,6 +16,11 @@ import pandas as pd
 _INCOME_REVENUE_COLS = [
     "Total Revenue", "TotalRevenue", "totalRevenue",
     "Revenue", "revenue",
+    # Banking / financial-sector equivalents — schema-based proxies only;
+    # not financially equivalent to Total Revenue for non-bank firms.
+    "Net Interest Income", "Total Net Revenue", "Net Revenue",
+    "Interest And Dividend Income", "Total Banking Revenue",
+    "Interest Income",
 ]
 _INCOME_GROSS_PROFIT_COLS = [
     "Gross Profit", "GrossProfit", "grossProfit",
@@ -39,6 +44,10 @@ _BALANCE_TOTAL_ASSETS_COLS = [
 _BALANCE_TOTAL_DEBT_COLS = [
     "Total Debt", "TotalDebt", "totalDebt",
     "Long Term Debt", "LongTermDebt",
+    # Banking / financial-sector equivalents — schema-based proxies only;
+    # not financially equivalent to Total Debt for non-bank firms.
+    "Long Term Debt And Capital Lease Obligation",
+    "Total Liabilities Net Minority Interest",
 ]
 _BALANCE_EQUITY_COLS = [
     "Stockholders Equity", "StockholdersEquity",
@@ -84,7 +93,14 @@ def _parse_financial_csv(csv_text: str) -> Optional[pd.DataFrame]:
     if not csv_text or not csv_text.strip():
         return None
     try:
-        df = pd.read_csv(StringIO(csv_text), index_col=0)
+        # Vendor functions (y_finance.py, alpha_vantage_fundamentals.py) prepend
+        # "# Header lines\n\n" before the CSV body.  pandas reads the first "# ..."
+        # line as the column-header row (1 field), then the actual data rows have
+        # many more fields → ParserError.  comment='#' makes pandas skip those
+        # lines and skip_blank_lines=True drops the trailing blank separator.
+        df = pd.read_csv(
+            StringIO(csv_text), index_col=0, comment="#", skip_blank_lines=True
+        )
     except Exception:
         return None
 

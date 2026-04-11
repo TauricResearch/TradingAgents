@@ -155,6 +155,12 @@ def analysis_has_deep_dive(analysis: Any) -> bool:
         return False
     if status == "completed":
         return True
+    # Check the structured decision payload as an alternative signal — the PM
+    # node populates this even when final_trade_decision text is empty (e.g.
+    # when the LLM returned empty content and a fallback was applied).
+    structured = analysis.get("final_trade_decision_structured") or {}
+    if isinstance(structured, dict) and structured.get("status") == "completed":
+        return True
     return bool(str(analysis.get("final_trade_decision") or "").strip())
 
 

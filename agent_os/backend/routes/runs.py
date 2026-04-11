@@ -848,6 +848,12 @@ async def get_run_status(run_id: str, user: dict = Depends(get_current_user)):
         if run.get("hydrated_from_disk") and run.get("status") == "running":
             run["status"] = "failed"
             run["error"] = "Run did not complete (server restarted)"
+        # Derive nodes_fired from events for client compatibility
+        events = run.get("events") or []
+        run["nodes_fired"] = sorted({
+            e["node_id"] for e in events
+            if isinstance(e, dict) and e.get("node_id") and e.get("node_id") != "__system__"
+        })
         return run
 
     # Not in memory — try MongoDB

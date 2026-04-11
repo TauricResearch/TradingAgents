@@ -1,5 +1,6 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+from tradingagents.observability import get_run_logger
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     format_prefetched_context,
@@ -34,6 +35,7 @@ def create_fundamentals_analyst(llm):
         # 4 LLM round-trips.  The raw financial statements (balance sheet,
         # cashflow, income statement) stay iterative: the LLM may request them
         # only if it spots anomalies worth investigating in the pre-loaded data.
+        rl = get_run_logger()
         prefetched = prefetch_tools_parallel(
             [
                 {
@@ -59,6 +61,18 @@ def create_fundamentals_analyst(llm):
             ]
         )
         prefetched_context = format_prefetched_context(prefetched)
+
+        # Warn when pre-loaded TTM data is degraded so the issue shows up in
+        # run_log.jsonl before the LLM is invoked (not buried in the output).
+        ttm_result = prefetched.get("TTM Analysis (8-Quarter Trend)", "")
+        if "quarters available: 0" in ttm_result or "[Error" in ttm_result:
+            if rl:
+                rl.log_warning(
+                    node="Fundamentals Analyst",
+                    ticker=ticker,
+                    message="Pre-loaded TTM data is empty or failed — LLM will fall back to raw statement tools",
+                    details={"ttm_excerpt": ttm_result[:200]},
+                )
 
         # ── Only the raw statement tools remain iterative ─────────────────────
         tools = [get_balance_sheet, get_cashflow, get_income_statement]
@@ -187,6 +201,13 @@ def create_fundamentals_analyst(llm):
 
         if not report.strip() or structured_payload["status"] in {"timeout_fallback", "empty"}:
             report = render_fundamentals_report_structured(structured_payload)
+            if structured_payload["status"] == "empty":
+                report = (
+                    "[CRITICAL ABORT] Reason: Fundamentals Analyst returned no data — "
+                    "all tool calls failed or produced empty output. "
+                    "Cannot proceed without financial statements.\n\n"
+                    + report
+                )
 
         return {
             "messages": [result],
