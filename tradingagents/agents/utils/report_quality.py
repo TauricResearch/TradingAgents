@@ -71,8 +71,10 @@ def assess_report_quality(
 
     stripped = text.strip()
 
-    # Check for structured insufficient-evidence marker from tool_runner
-    if stripped.startswith(_INSUFFICIENT_EVIDENCE_PREFIX):
+    # Check for structured insufficient-evidence marker from tool_runner.
+    # Some nodes add provenance around the model body; the marker must still
+    # dominate quality assessment so scan dates are not misread as evidence.
+    if _INSUFFICIENT_EVIDENCE_PREFIX in stripped:
         return {
             "quality": "empty",
             "issues": ["insufficient_evidence_marker"],

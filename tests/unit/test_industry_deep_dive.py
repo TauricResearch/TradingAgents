@@ -164,6 +164,27 @@ class TestToolLoopNudge:
         assert result.content == long_text
         assert chain.invoke.call_count == 1
 
+    def test_require_tool_result_rejects_long_no_tool_response(self):
+        long_text = "Ungrounded scanner prose. " * 100
+        response = AIMessage(content=long_text, tool_calls=[])
+        chain = self._make_chain([response])
+        tool = self._make_tool("get_market_indices")
+
+        result = run_tool_loop(
+            chain,
+            [],
+            [tool],
+            require_tool_result=True,
+            node_name="market_movers_scanner",
+            min_report_length=800,
+        )
+
+        assert result.content.startswith("[INSUFFICIENT_EVIDENCE]")
+        assert "Missing evidence" in result.content
+        assert "get_market_indices" in result.content
+        assert "Attempted tools: none" in result.content
+        assert chain.invoke.call_count == 1
+
     def test_short_response_triggers_nudge(self):
         short_resp = AIMessage(content="Brief.", tool_calls=[])
         long_resp = AIMessage(content="A" * 2100, tool_calls=[])
