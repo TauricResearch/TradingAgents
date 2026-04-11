@@ -34,13 +34,25 @@ def av_api_key():
     """
     import socket
 
+    # pytest-socket raises SocketBlockedError (a subclass of RuntimeError) when
+    # socket access is disabled.  Catch it explicitly so the test skips cleanly
+    # instead of erroring with an unhelpful socket-permission message.
+    try:
+        from pytest_socket import SocketBlockedError as _SocketBlockedError
+    except ImportError:
+        _SocketBlockedError = None  # type: ignore[assignment,misc]
+
     try:
         socket.setdefaulttimeout(3)
         socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(
             ("www.alphavantage.co", 443)
         )
-    except (socket.error, OSError, RuntimeError):
-        pytest.skip("Alpha Vantage API not reachable — skipping live API test")
+    except Exception as exc:
+        if _SocketBlockedError is not None and isinstance(exc, _SocketBlockedError):
+            pytest.skip("pytest-socket blocked — cannot reach Alpha Vantage; skipping live API test")
+        if isinstance(exc, (socket.error, OSError, RuntimeError)):
+            pytest.skip("Alpha Vantage API not reachable — skipping live API test")
+        raise
 
     return os.environ.get("ALPHA_VANTAGE_API_KEY", _DEMO_KEY)
 
