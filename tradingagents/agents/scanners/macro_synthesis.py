@@ -4,7 +4,10 @@ import re
 from collections import defaultdict
 from typing import Any, Dict
 
+from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate
+from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.instruments import CanonicalInstrument, resolve_instrument, is_equity_pipeline_supported
 from tradingagents.agents.utils.scanner_idempotency import (
@@ -320,28 +323,63 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
         prompt = prompt.partial(current_date=scan_date)
 
         chain = prompt | llm
-        result = chain.invoke({})
+        # Keep macro synthesis bounded so auto runs cannot hang for many minutes.
+        timeout_cap = min(
+            float(DEFAULT_CONFIG.get("deep_think_llm_timeout_cap") or 360.0),
+            240.0,
+        )
+        timeout_seconds = min(
+            float(
+                DEFAULT_CONFIG.get("deep_think_llm_timeout")
+                or DEFAULT_CONFIG.get("llm_timeout")
+                or timeout_cap
+            ),
+            timeout_cap,
+        )
 
-        report = result.content
+        result, invoke_error = invoke_with_timeout(
+            chain,
+            {},
+            timeout_seconds=timeout_seconds,
+            max_tokens=2200,
+        )
+
+        if invoke_error is not None:
+            logger.warning(
+                "macro_synthesis invoke failed (%s): %s",
+                type(invoke_error).__name__,
+                invoke_error,
+            )
+            fallback_payload = _repair_macro_summary({}, state, max_scan_tickers, horizon_label)
+            fallback_payload["executive_summary"] = (
+                f"Macro synthesis timed out after {timeout_seconds:.0f}s; "
+                "returning deterministic fallback summary from scanner rankings."
+            )
+            report = json.dumps(fallback_payload)
+            result_message = AIMessage(content=report)
+        else:
+            report = str(getattr(result, "content", "") or "")
+            result_message = result
 
         # Sanitize LLM output: strip markdown fences / <think> blocks before storing
-        try:
-            parsed = extract_json(report)
-            parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
-            report = json.dumps(parsed)
-        except (ValueError, json.JSONDecodeError):
-            logger.warning(
-                "macro_synthesis: could not extract JSON from LLM output; "
-                "storing raw content (first 200 chars): %s",
-                report[:200],
-            )
+        if invoke_error is None:
+            try:
+                parsed = extract_json(report)
+                parsed = _repair_macro_summary(parsed, state, max_scan_tickers, horizon_label)
+                report = json.dumps(parsed)
+            except (ValueError, json.JSONDecodeError):
+                logger.warning(
+                    "macro_synthesis: could not extract JSON from LLM output; "
+                    "storing raw content (first 200 chars): %s",
+                    report[:200],
+                )
 
         # 3. Resumability: Save after completion
         if report:
             save_node_report(state, "macro_scan_summary", report)
 
         return {
-            "messages": [result],
+            "messages": [result_message],
             "macro_scan_summary": report,
             "sender": "macro_synthesis",
         }
