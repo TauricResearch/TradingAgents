@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.scanner_tools import get_gatekeeper_universe
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     save_node_report,
@@ -54,9 +55,24 @@ def create_gatekeeper_scanner(llm):
         prompt = prompt.partial(current_date=scan_date)
 
         chain = prompt | llm.bind_tools(tools)
-        result = run_tool_loop(chain, state["messages"], tools)
+        # Use only the initial message to avoid context bloat from accumulated
+        # tool outputs and nudge messages in the shared graph state.
+        initial_messages = state["messages"][:1] if state["messages"] else []
+        result = run_tool_loop(
+            chain,
+            initial_messages,
+            tools,
+            require_tool_result=True,
+            node_name="gatekeeper_scanner",
+            min_report_length=800,
+            max_tool_output_chars=1200,
+        )
 
-        report = result.content or ""
+        report = tag_report(
+            result.content or "",
+            node_name="gatekeeper_scanner",
+            tools_used="get_gatekeeper_universe",
+        )
 
         # 3. Resumability: Save after completion
         if report:

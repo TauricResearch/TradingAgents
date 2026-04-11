@@ -198,6 +198,12 @@ def build_default_config(
         # Falls back to quick_think_llm when None.
         "mid_think_llm": _env("MID_THINK_LLM", env=env),
         "quick_think_llm": _env("QUICK_THINK_LLM", "gpt-5-mini", env=env),
+        # Scanner LLM tier — prioritise tool-call compliance over reasoning.
+        # Falls back to quick_think_llm when unset.
+        "scanner_llm": _env("SCANNER_LLM", env=env),
+        "scanner_llm_provider": _env("SCANNER_LLM_PROVIDER", env=env),
+        "scanner_backend_url": _env("SCANNER_BACKEND_URL", env=env),
+        "scanner_llm_timeout": _env_float("SCANNER_LLM_TIMEOUT_SEC", env=env),
         "backend_url": _env("BACKEND_URL", "https://api.openai.com/v1", env=env),
         # Per-role provider overrides (fallback to shared llm_provider/backend_url).
         "deep_think_llm_provider": _env("DEEP_THINK_LLM_PROVIDER", env=env),

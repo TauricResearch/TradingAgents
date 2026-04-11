@@ -3,6 +3,9 @@ from datetime import datetime, timedelta
 from langchain_core.messages import AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
+import logging
+import re
+
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     format_prefetched_context,
@@ -11,6 +14,11 @@ from tradingagents.agents.utils.agent_utils import (
 from tradingagents.agents.utils.core_stock_tools import get_stock_data
 from tradingagents.agents.utils.fundamental_data_tools import get_macro_regime
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout
+
+_logger = logging.getLogger(__name__)
+
+# Regex to extract a VIX numeric value from text (e.g. "VIX: 14.50" or "VIX at 19.2")
+_VIX_RE = re.compile(r"VIX[:\s]+(?:at\s+)?(\d+\.?\d*)", re.IGNORECASE)
 from tradingagents.agents.utils.output_validation import (
     build_market_report_structured,
     infer_macro_regime_from_prefetched_report,
@@ -158,6 +166,27 @@ def create_market_analyst(llm):
         regime_data = prefetched.get("Macro Regime Classification", "")
         if regime_data and not regime_data.startswith("[Error"):
             macro_regime_report = regime_data
+
+        # VIX reconciliation: scanner_context_packet is closer to the scan
+        # timestamp.  If the pre-fetched macro regime report contains a VIX
+        # value that diverges >20% from the scanner's VIX, log a warning and
+        # patch the macro regime text so the analyst doesn't use stale data.
+        if scanner_context and macro_regime_report:
+            scanner_vix_match = _VIX_RE.search(scanner_context)
+            regime_vix_match = _VIX_RE.search(macro_regime_report)
+            if scanner_vix_match and regime_vix_match:
+                scanner_vix = float(scanner_vix_match.group(1))
+                regime_vix = float(regime_vix_match.group(1))
+                if scanner_vix > 0 and abs(regime_vix - scanner_vix) / scanner_vix > 0.20:
+                    _logger.warning(
+                        "VIX divergence for %s: scanner=%.2f, macro_regime=%.2f (>20%%). "
+                        "Patching macro regime to use scanner value.",
+                        ticker, scanner_vix, regime_vix,
+                    )
+                    macro_regime_report = macro_regime_report.replace(
+                        regime_vix_match.group(0),
+                        f"VIX: {scanner_vix:.2f}",
+                    )
 
         indicator_prefetched = prefetch_tools_parallel(
             _build_indicator_prefetches(

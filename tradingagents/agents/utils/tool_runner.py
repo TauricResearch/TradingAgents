@@ -45,6 +45,8 @@ def run_tool_loop(
     min_report_length: int = MIN_REPORT_LENGTH,
     max_tool_output_chars: int = MAX_TOOL_OUTPUT_CHARS,
     invoke_timeout_seconds: float | None = None,
+    require_tool_result: bool = False,
+    node_name: str = "",
 ) -> AIMessage:
     """Invoke *chain* in a loop, executing any tool calls until the LLM
     produces a final text response (i.e. no more tool_calls).
@@ -64,6 +66,11 @@ def run_tool_loop(
         max_rounds: Maximum number of tool-calling rounds before forcing a stop.
         min_report_length: Minimum acceptable length (chars) of a text-only
             first response.  Shorter responses trigger a nudge to use tools.
+        require_tool_result: When True and no tool was ever successfully called,
+            return a structured ``[INSUFFICIENT_EVIDENCE]`` message instead of
+            whatever text the model produced.
+        node_name: Human-readable node identifier included in timeout and
+            insufficient-evidence messages for downstream diagnostics.
 
     Returns:
         The final AIMessage with a text ``content`` (report).
@@ -89,10 +96,11 @@ def run_tool_loop(
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):
                     tool_names = ", ".join(tool_map.keys()) or "preloaded tools"
+                    label = f" ({node_name})" if node_name else ""
                     return AIMessage(
                         content=(
-                            f"- Tool-using analyst timed out after {timeout_seconds:.0f}s.\n"
-                            f"- Available tools for this node: {tool_names}.\n"
+                            f"[INSUFFICIENT_EVIDENCE] Node{label} timed out after {timeout_seconds:.0f}s.\n"
+                            f"- Available tools: {tool_names}.\n"
                             "- Treat this node as incomplete and do not infer additional unsourced claims."
                         )
                     )
@@ -190,4 +198,18 @@ def run_tool_loop(
     # (it may have tool_calls but we treat the content as the report)
     if result is None:
         raise RuntimeError("Tool loop did not produce any LLM response")
+
+    # When tools are required but none succeeded, return a structured
+    # insufficient-evidence message so downstream nodes can detect failure.
+    if require_tool_result and not tools_ever_used:
+        tool_names = ", ".join(tool_map.keys())
+        label = node_name or "unknown"
+        return AIMessage(
+            content=(
+                f"[INSUFFICIENT_EVIDENCE] Node: {label}. "
+                f"Required tools: {tool_names}. "
+                f"No tool results obtained after {max_rounds} rounds."
+            )
+        )
+
     return result

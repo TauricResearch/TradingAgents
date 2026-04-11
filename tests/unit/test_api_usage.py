@@ -5,6 +5,8 @@ import pytest
 from tradingagents.api_usage import (
     AV_FREE_DAILY_LIMIT,
     AV_PREMIUM_PER_MINUTE,
+    TokenCount,
+    TokenTierEstimate,
     UsageEstimate,
     VendorEstimate,
     estimate_analyze,
@@ -29,6 +31,19 @@ class TestVendorEstimate:
     def test_default_zeros(self):
         ve = VendorEstimate()
         assert ve.total == 0
+
+
+class TestTokenTierEstimate:
+    def test_total_tokens_by_tier(self):
+        tiers = TokenTierEstimate(
+            scanner=TokenCount(requests=2, input_tokens=100, output_tokens=20),
+            quick=TokenCount(requests=1, input_tokens=50, output_tokens=10),
+        )
+
+        assert tiers.total_requests == 3
+        assert tiers.total_input_tokens == 150
+        assert tiers.total_output_tokens == 30
+        assert tiers.total_tokens == 180
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -160,6 +175,13 @@ class TestEstimateAnalyze:
         est = estimate_analyze()
         assert len(est.notes) > 0
 
+    def test_analyze_tokens_use_quick_mid_deep_not_scanner(self):
+        est = estimate_analyze(selected_analysts=["market", "news"])
+        assert est.llm_tokens.scanner.total == 0
+        assert est.llm_tokens.quick.total > 0
+        assert est.llm_tokens.mid.total > 0
+        assert est.llm_tokens.deep.total > 0
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # estimate_scan — default config (yfinance primary)
@@ -201,6 +223,13 @@ class TestEstimateScan:
         est = estimate_scan()
         assert any("Macro Synthesis" in note and "no external tool calls" in note for note in est.notes)
 
+    def test_scan_tokens_keep_scanner_separate_from_quick(self):
+        est = estimate_scan()
+        assert est.llm_tokens.scanner.total > 0
+        assert est.llm_tokens.quick.total > 0
+        assert est.llm_tokens.scanner.total != est.llm_tokens.quick.total
+        assert any("kept separate from quick-tier" in note for note in est.notes)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # estimate_pipeline
@@ -234,6 +263,16 @@ class TestEstimatePipeline:
         est = estimate_pipeline(config=av_config, num_tickers=5)
         assert est.vendor_calls.alpha_vantage > 0
 
+    def test_pipeline_token_estimate_scales_analyze_tiers_but_not_scan(self):
+        scan_est = estimate_scan()
+        analyze_est = estimate_analyze(selected_analysts=["market"])
+        pipe_est = estimate_pipeline(num_tickers=2, selected_analysts=["market"])
+
+        assert pipe_est.llm_tokens.scanner.total == scan_est.llm_tokens.scanner.total
+        assert pipe_est.llm_tokens.mid.total == (
+            scan_est.llm_tokens.mid.total + analyze_est.llm_tokens.mid.total * 2
+        )
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # format_estimate
@@ -260,6 +299,15 @@ class TestFormatEstimate:
         est = estimate_analyze()
         text = format_estimate(est)
         assert "Alpha Vantage Assessment" in text
+
+    def test_format_includes_llm_token_tiers(self):
+        est = estimate_pipeline(num_tickers=2)
+        text = format_estimate(est)
+        assert "LLM tokens (approximate)" in text
+        assert "scanner:" in text
+        assert "quick:" in text
+        assert "mid:" in text
+        assert "deep:" in text
 
     def test_av_shows_assessment(self):
         av_config = {

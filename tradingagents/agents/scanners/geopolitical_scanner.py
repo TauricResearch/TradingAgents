@@ -10,6 +10,7 @@ from tradingagents.agents.utils.scanner_tools import (
     get_topic_news,
 )
 from tradingagents.agents.utils.tool_runner import run_tool_loop
+from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     save_node_report,
@@ -78,9 +79,23 @@ def create_geopolitical_scanner(llm):
         prompt = prompt.partial(current_date=scan_date)
 
         chain = prompt | llm.bind_tools(tools)
-        result = run_tool_loop(chain, state["messages"], tools)
+        initial_messages = state["messages"][:1] if state["messages"] else []
+        result = run_tool_loop(
+            chain,
+            initial_messages,
+            tools,
+            require_tool_result=True,
+            node_name="geopolitical_scanner",
+            min_report_length=800,
+            max_tool_output_chars=1200,
+        )
 
-        report = result.content or ""
+        tool_names = ", ".join(t.name for t in tools)
+        report = tag_report(
+            result.content or "",
+            node_name="geopolitical_scanner",
+            tools_used=tool_names,
+        )
 
         # 3. Resumability: Save after completion
         if report:
