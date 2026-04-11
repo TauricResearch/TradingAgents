@@ -301,7 +301,7 @@ const AgentNode = ({ data }: NodeProps) => {
           )}
         </Flex>
 
-        {data.metrics?.model && data.metrics.model !== 'unknown' && (
+        {data.metrics?.model && data.metrics.model.toLowerCase() !== 'unknown' && data.metrics.model.toLowerCase() !== 'langgraph_node' && (
           <Tooltip label={data.metrics.model} placement="top" hasArrow openDelay={300}>
             <Badge
               variant="outline"
@@ -666,8 +666,9 @@ function buildGraph(
   });
 
   const tickerBase = analystOrder.length;
-  Object.entries(TICKER_FIXED_ORDER).forEach(([normalizedId, order]) => {
-    tickerRowOrder.set(normalizedId, tickerBase + Math.floor((order - 100) / 10));
+  let fixedRow = tickerBase;
+  Object.keys(TICKER_FIXED_ORDER).forEach((normalizedId) => {
+    tickerRowOrder.set(normalizedId, fixedRow++);
   });
 
   const unknownTickerNodes = [...records.values()]
@@ -675,7 +676,7 @@ function buildGraph(
     .sort((a, b) => a.firstSeen - b.firstSeen);
 
   unknownTickerNodes.forEach((record, index) => {
-    tickerRowOrder.set(record.normalizedId, tickerBase + 8 + index);
+    tickerRowOrder.set(record.normalizedId, fixedRow + index);
   });
 
   const maxScanColumns = scanRecords.reduce((max, record) => {
@@ -752,17 +753,9 @@ function buildGraph(
       return (tickerRowOrder.get(a.normalizedId) ?? 999) - (tickerRowOrder.get(b.normalizedId) ?? 999) || a.firstSeen - b.firstSeen;
     });
 
-  const tickerCompactRowByRecord = new Map<string, number>();
-  const tickerRowCountByIdentifier = new Map<string, number>();
-  tickerRecords.forEach((record) => {
-    const nextRow = tickerRowCountByIdentifier.get(record.identifier) ?? 0;
-    tickerCompactRowByRecord.set(record.id, nextRow);
-    tickerRowCountByIdentifier.set(record.identifier, nextRow + 1);
-  });
-
   tickerRecords.forEach((record) => {
     const colIndex = tickerIdentifiers.indexOf(record.identifier);
-    const rowIndex = tickerCompactRowByRecord.get(record.id) ?? 0;
+    const rowIndex = tickerRowOrder.get(record.normalizedId) ?? 999;
     nodes.push({
       id: record.id,
       type: 'agentNode',
@@ -793,7 +786,9 @@ function buildGraph(
     }
   });
 
-  const maxTickerRows = [...tickerRowCountByIdentifier.values()].reduce((max, count) => Math.max(max, count), 0);
+  const maxTickerRows = tickerRecords.length > 0
+    ? Math.max(...tickerRecords.map((r) => tickerRowOrder.get(r.normalizedId) ?? 0)) + 1
+    : 0;
   const portfolioStartY = tickerStartY + TICKER_HDR_H + TICKER_HDR_TO_NODE_GAP + (maxTickerRows > 0 ? maxTickerRows * ROW_HEIGHT + TICKER_GAP : 0);
 
   const portfolioByLevel = new Map<number, GraphRecord[]>();

@@ -385,10 +385,26 @@ const NodeEventsDetail: React.FC<{ nodeId: string; identifier?: string | null; e
     return <Text color="whiteAlpha.500" fontSize="sm">No events recorded for this node yet.</Text>;
   }
 
+  const errorEvent = nodeEvents.find((e) => e.status === 'error');
+  const errorMsg = errorEvent?.error || errorEvent?.message;
+
   return (
     <VStack align="stretch" spacing={4}>
+      {errorMsg && (
+        <Box bg="red.900" border="1px solid" borderColor="red.500" borderRadius="md" p={3}>
+          <Text fontSize="xs" fontWeight="bold" color="red.300" mb={1}>Failure Reason</Text>
+          <Text fontSize="xs" color="red.200" fontFamily="mono" whiteSpace="pre-wrap">{errorMsg}</Text>
+        </Box>
+      )}
       {nodeEvents.map((evt) => (
-        <Box key={evt.id} bg="whiteAlpha.50" p={3} borderRadius="md" border="1px solid" borderColor="whiteAlpha.100">
+        <Box
+          key={evt.id}
+          bg={evt.status === 'error' ? 'red.950' : 'whiteAlpha.50'}
+          p={3}
+          borderRadius="md"
+          border="1px solid"
+          borderColor={evt.status === 'error' ? 'red.700' : 'whiteAlpha.100'}
+        >
           <EventDetail event={evt} onOpenModal={onOpenModal} />
         </Box>
       ))}
@@ -437,6 +453,7 @@ export const Dashboard: React.FC = () => {
   // Terminal search filter
   const [terminalSearchTerm, setTerminalSearchTerm] = useState('');
   const [eventScope, setEventScope] = useState<EventScope>('latest');
+  const [tickerFilter, setTickerFilter] = useState<string | null>(null);
 
   const rerunSeqs = useMemo(() => {
     const unique = new Set<number>();
@@ -459,16 +476,27 @@ export const Dashboard: React.FC = () => {
     return events.filter((evt) => (typeof evt.rerun_seq === 'number' ? evt.rerun_seq : 0) === scopedSeq);
   }, [events, scopedSeq]);
 
+  const availableIdentifiers = useMemo(() => {
+    const ids = new Set<string>();
+    scopedEvents.forEach((e) => {
+      if (e.identifier && e.identifier !== 'MARKET' && e.identifier !== 'PORTFOLIO') ids.add(e.identifier);
+    });
+    return [...ids].sort();
+  }, [scopedEvents]);
+
   const filteredEvents = useMemo(() => {
-    if (!terminalSearchTerm.trim()) return scopedEvents;
+    let result = scopedEvents;
+    if (tickerFilter) result = result.filter((e) => e.identifier === tickerFilter);
+    if (!terminalSearchTerm.trim()) return result;
     const term = terminalSearchTerm.toLowerCase();
-    return scopedEvents.filter(evt => 
+    return result.filter(evt =>
       evt.agent?.toLowerCase().includes(term) ||
       evt.node_id?.toLowerCase().includes(term) ||
       evt.service?.toLowerCase().includes(term) ||
-      evt.message?.toLowerCase().includes(term)
+      evt.message?.toLowerCase().includes(term) ||
+      evt.identifier?.toLowerCase().includes(term)
     );
-  }, [scopedEvents, terminalSearchTerm]);
+  }, [scopedEvents, tickerFilter, terminalSearchTerm]);
   const [params, setParams] = useState<RunParams>({
     date: new Date().toISOString().split('T')[0],
     ticker: 'AAPL',
@@ -1340,7 +1368,16 @@ export const Dashboard: React.FC = () => {
                    {filteredEvents.length} / {scopedEvents.length}
                  </Text>
               </Flex>
-              
+
+              {availableIdentifiers.length > 0 && (
+                <Flex gap={1} px={3} py={1.5} borderBottom="1px solid" borderColor="whiteAlpha.100" flexWrap="wrap" bg="blackAlpha.300">
+                  <Button size="xs" variant={tickerFilter === null ? 'solid' : 'ghost'} colorScheme="cyan" onClick={() => setTickerFilter(null)}>All</Button>
+                  {availableIdentifiers.map((id) => (
+                    <Button key={id} size="xs" variant={tickerFilter === id ? 'solid' : 'ghost'} colorScheme="purple" onClick={() => setTickerFilter(tickerFilter === id ? null : id)}>{id}</Button>
+                  ))}
+                </Flex>
+              )}
+
               <Box flex="1" overflowY="auto" p={4} sx={{
                 '&::-webkit-scrollbar': { width: '4px' },
                 '&::-webkit-scrollbar-track': { background: 'transparent' },
@@ -1369,6 +1406,9 @@ export const Dashboard: React.FC = () => {
                        <Text color={eventColor(evt.type, evt.status)} fontWeight="bold" flexShrink={0}>
                           {evt.agent}
                        </Text>
+                       {evt.identifier && evt.identifier !== 'MARKET' && evt.identifier !== 'PORTFOLIO' && (
+                         <Badge fontSize="2xs" colorScheme="purple" variant="subtle" flexShrink={0}>{evt.identifier}</Badge>
+                       )}
                        {evt.service && (
                          <Text color="teal.300" fontSize="2xs" flexShrink={0}>[{evt.service}]</Text>
                        )}
@@ -1404,7 +1444,7 @@ export const Dashboard: React.FC = () => {
               <EventDetail event={selectedEvent} onOpenModal={openModal} />
             )}
             {drawerMode === 'node' && selectedNodeId && (
-              <NodeEventsDetail nodeId={selectedNodeId} identifier={selectedNodeIdentifier} events={filteredEvents} onOpenModal={openModal} />
+              <NodeEventsDetail nodeId={selectedNodeId} identifier={selectedNodeIdentifier} events={scopedEvents} onOpenModal={openModal} />
             )}
           </DrawerBody>
         </DrawerContent>
