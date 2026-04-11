@@ -93,6 +93,83 @@ def _format_sentiment_structured(structured: object) -> str:
 
 
 
+def build_debate_evidence_brief(state: dict) -> str:
+    """Build a compact evidence brief for debaters from structured contracts.
+
+    This is a deterministic extraction (no LLM call) that replaces the full
+    research packet in debater prompts, cutting input from ~5000ch to ~1500ch.
+    The Research Manager still receives the full packet via build_research_packet().
+    """
+    sections: list[str] = []
+
+    # Scanner ground truth (verified prices, FX, dates)
+    scanner = _compact_lines(
+        str(state.get("scanner_context_packet") or ""),
+        max_lines=6,
+        max_chars=800,
+    )
+    if scanner:
+        sections.append(f"## Ground Truth\n{scanner}")
+
+    # Market structured: macro regime + key levels
+    market_s = state.get("market_report_structured")
+    if isinstance(market_s, dict):
+        lines = []
+        macro = market_s.get("macro_regime", "")
+        if macro:
+            lines.append(f"- Macro regime: {macro}")
+        key_levels = market_s.get("key_levels") or []
+        if isinstance(key_levels, list) and key_levels:
+            lines.append(f"- Key levels: {', '.join(str(lv) for lv in key_levels[:4])}")
+        claim_count = market_s.get("claim_count", "")
+        if claim_count:
+            lines.append(f"- Market claims: {claim_count}")
+        if lines:
+            sections.append(f"## Market\n" + "\n".join(lines))
+
+    # Fundamentals structured: excerpt + section availability
+    fund_s = state.get("fundamentals_report_structured")
+    if isinstance(fund_s, dict):
+        lines = []
+        excerpt = str(fund_s.get("report_excerpt") or "").strip()
+        if excerpt:
+            lines.append(excerpt)
+        prefetch = fund_s.get("prefetch") or {}
+        if isinstance(prefetch, dict):
+            present = prefetch.get("present_sections") or []
+            errors = prefetch.get("error_sections") or []
+            if present:
+                lines.append(f"- Sections available: {', '.join(str(s) for s in present[:5])}")
+            if errors:
+                lines.append(f"- Sections with errors: {', '.join(str(s) for s in errors[:3])}")
+        if lines:
+            sections.append(f"## Fundamentals\n" + "\n".join(lines))
+
+    # Sentiment structured: direction + claim count
+    sent_s = state.get("sentiment_report_structured")
+    if isinstance(sent_s, dict):
+        lines = []
+        direction = sent_s.get("sentiment_direction", "")
+        if direction:
+            lines.append(f"- Sentiment direction: {direction}")
+        claim_count = sent_s.get("claim_count", "")
+        if claim_count:
+            lines.append(f"- Sentiment claims: {claim_count}")
+        if lines:
+            sections.append(f"## Sentiment\n" + "\n".join(lines))
+
+    # Macro regime report (compact)
+    macro_report = _compact_lines(
+        str(state.get("macro_regime_report") or ""),
+        max_lines=4,
+        max_chars=600,
+    )
+    if macro_report:
+        sections.append(f"## Macro\n{macro_report}")
+
+    return "\n\n".join(sections).strip()
+
+
 def build_research_packet(state: dict) -> str:
     """Return the canonical deterministic analyst packet for downstream nodes."""
     sections: list[str] = []

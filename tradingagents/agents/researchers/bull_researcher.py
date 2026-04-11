@@ -1,6 +1,7 @@
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.summary_context import (
+    build_debate_evidence_brief,
     build_investment_debate_summary,
     build_research_packet,
     get_investment_debate_summary,
@@ -17,6 +18,7 @@ def create_bull_researcher(llm, memory):
         bull_history = investment_debate_state.get("bull_history", "")
 
         current_response = investment_debate_state.get("current_response", "")
+        evidence_brief = build_debate_evidence_brief(state)
         research_packet = build_research_packet(state)
         debate_summary = get_investment_debate_summary(state)
 
@@ -28,48 +30,51 @@ def create_bull_researcher(llm, memory):
             past_memory_str += rec["recommendation"] + "\n\n"
 
         # Anonymize data variables to prevent training-data bias
+        is_round2 = investment_debate_state.get("count", 0) >= 2
         anon_research_packet = anonymize_ticker(
-            truncate_text(research_packet, max_chars=5000), ticker
+            truncate_text(evidence_brief, max_chars=2000), ticker
         )
         anon_debate_summary = anonymize_ticker(
             truncate_text(debate_summary, max_chars=1800), ticker
         )
-        anon_history = anonymize_ticker(truncate_text(history, max_chars=2200), ticker)
+        # Round 2: rely on rolling summary only, skip raw history to cut tokens
+        anon_history = "" if is_round2 else anonymize_ticker(
+            truncate_text(history, max_chars=1200), ticker
+        )
         anon_current_response = anonymize_ticker(
-            truncate_text(current_response, max_chars=1200), ticker
+            truncate_text(current_response, max_chars=800), ticker
         )
         anon_past_memory_str = anonymize_ticker(
             truncate_text(past_memory_str, max_chars=1600), ticker
         )
 
-        prompt = f"""You are a Senior Quantitative Analyst and Economist building a clinical bull case for the stock. Your objective is to present a data-dense, objective argument for investment based on fundamental and technical delta-changes.
+        prompt = f"""You are a Senior Quantitative Analyst building a clinical bull case for the stock.
 
 STRICT CONSTRAINTS:
-- Output ONLY bulleted quantitative analysis.
-- Cite exact values in standard format: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives ("massive", "huge", "significant"). Every claim must reference a specific number, date, or source.
-- NO conversational filler, roleplay, or first-person perspective (e.g., "I believe", "Leans forward").
-- Focus strictly on objective data: growth projections, competitive moats, and validated catalysts.
-- Address bear counterpoints using hard numbers and logic, not rhetoric.
-- CONFIDENCE: Append (HIGH/MED/LOW) to each claim based on data recency and source quality. HIGH = verified from pre-loaded data or tools. MED = inferred from partial evidence. LOW = directional estimate.
-
-CORE ANALYTICAL VECTORS:
-1. **Growth Delta**: Quantitative revenue/margin projections and addressable market expansion.
-2. **Competitive Edge**: Structural moats (unit economics, network effects, IP) backed by evidence.
-3. **Execution Signal**: Recent financial health improvements or positive guidance shifts.
-4. **Bear Rebuttal**: State the single strongest data point from the opposing argument. Then explain why your thesis holds despite it, using evidence from the research packet.
+- Cite exact values: $X.XX, +Y.Y% YoY, X.Xbps. No superlatives. Every claim needs a specific number.
+- NO conversational filler, roleplay, or first-person perspective.
+- CONFIDENCE: Append (HIGH/MED/LOW) to each claim. HIGH = verified data. MED = partial evidence. LOW = directional estimate.
 
 RESOURCES:
 - Compressed Research: {anon_research_packet}
 - Rolling Debate Summary: {anon_debate_summary}
-- Raw Debate History: {anon_history}
+- Debate History: {anon_history}
 - Last Bear Argument: {anon_current_response}
 - Historical Lessons: {anon_past_memory_str}
 
-Synthesize these into a clinical bull thesis. Address past mistakes by ensuring current evidence is validated against historical outcomes.
+OUTPUT FORMAT (follow exactly — no prose, no extra sections):
 
-Output your response in two sections:
-1. THE DEBATE: Your clinical rebuttal/argument.
-2. SUMMARY POINTS: A concise bulleted list of your 3 most critical bullish points for this round.
+CLAIMS:
+- [HIGH/MED/LOW] Growth delta claim with exact numbers
+- [HIGH/MED/LOW] Competitive edge or execution signal claim with exact numbers
+- [HIGH/MED/LOW] Third strongest bullish data point with exact numbers
+
+COUNTERPOINT: State the single strongest bear data point from opponent's argument.
+REBUTTAL: Why your thesis holds despite it — one line, hard numbers only.
+
+SIGNAL: supports_buy | supports_hold | neutral
+
+Rules: Exactly 3 claims max. One counterpoint. One rebuttal. No paragraphs.
 """
 
         _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
@@ -81,20 +86,19 @@ Output your response in two sections:
             llm,
             prompt,
             timeout_seconds=timeout_seconds,
-            max_tokens=900,
+            max_tokens=600,
         )
         if invoke_error is not None:
             if isinstance(invoke_error, TimeoutError):
                 response = AIMessage(
                     content=(
-                        "THE DEBATE:\n"
-                        f"- Bull researcher timed out after {timeout_seconds:.0f}s; no new bullish expansion was added this round.\n"
-                        "- Preserve the strongest validated upside evidence already present in the compressed research packet.\n"
-                        "- Treat this round as incomplete and avoid adding unsourced bullish claims.\n\n"
-                        "SUMMARY POINTS:\n"
-                        "- No new bullish claims added due timeout fallback.\n"
-                        "- Reuse validated growth, moat, and catalyst evidence from prior analyst reports only.\n"
-                        "- Escalate with current packet and existing debate state."
+                        "CLAIMS:\n"
+                        f"- [LOW] Bull researcher timed out after {timeout_seconds:.0f}s; no new bullish claims this round\n"
+                        "- [LOW] Reuse validated growth/moat/catalyst evidence from prior analyst reports\n"
+                        "- [LOW] Escalate with current packet and existing debate state\n\n"
+                        "COUNTERPOINT: N/A (timeout)\n"
+                        "REBUTTAL: N/A (timeout)\n\n"
+                        "SIGNAL: neutral"
                     )
                 )
             else:
@@ -102,9 +106,14 @@ Output your response in two sections:
 
         argument = f"Bull Analyst: {response.content}"
 
-        # Extract summary points for fast aggregation
+        # Extract claims for fast aggregation (supports both new CLAIMS: and legacy SUMMARY POINTS:)
         summary_section = ""
-        if "SUMMARY POINTS:" in response.content:
+        if "CLAIMS:" in response.content:
+            summary_section = response.content.split("CLAIMS:")[-1].strip()
+            # Trim at COUNTERPOINT if present to get only the claims
+            if "COUNTERPOINT:" in summary_section:
+                summary_section = summary_section.split("COUNTERPOINT:")[0].strip()
+        elif "SUMMARY POINTS:" in response.content:
             summary_section = response.content.split("SUMMARY POINTS:")[-1].strip()
 
         current_bull_summary = summary_section or str(
