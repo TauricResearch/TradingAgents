@@ -237,14 +237,64 @@ class NewsEvidenceStore:
 
 
 def _extract_articles(payload: str) -> list[dict]:
-    try:
-        parsed = json.loads(payload)
-    except (TypeError, json.JSONDecodeError):
+    """Extract article dicts from a vendor payload.
+
+    Supports two formats:
+    1. Alpha Vantage JSON: ``{"feed": [{...}, ...]}``
+    2. yfinance Markdown: ``## TICKER News, from ... to ...:\\n\\n### Title (source: X)\\nSummary\\nLink: url``
+    """
+    if not payload or not isinstance(payload, str):
         return []
-    feed = parsed.get("feed")
-    if not isinstance(feed, list):
-        return []
-    return [article for article in feed if isinstance(article, dict)]
+
+    # --- Format 1: Alpha Vantage JSON feed -----------------------------------
+    stripped = payload.lstrip()
+    if stripped.startswith("{") or stripped.startswith("["):
+        try:
+            parsed = json.loads(payload)
+        except (TypeError, json.JSONDecodeError):
+            return []
+        feed = parsed.get("feed")
+        if not isinstance(feed, list):
+            return []
+        return [article for article in feed if isinstance(article, dict)]
+
+    # --- Format 2: yfinance Markdown -----------------------------------------
+    # Header: "## TICKER News, from YYYY-MM-DD to YYYY-MM-DD:"
+    # Articles: "### Title (source: Publisher)\nSummary\nLink: URL\n\n"
+    articles: list[dict] = []
+    # Split on h3 article headers; the first chunk is the h2 section header.
+    sections = re.split(r"\n### ", payload)
+    for section in sections[1:]:  # skip header chunk
+        lines = section.strip().splitlines()
+        if not lines:
+            continue
+        header = lines[0]
+        # Extract source from "(source: ...)" suffix, supporting nested parens.
+        source_match = re.search(r"\(source:\s*(.+?)\)\s*$", header)
+        if source_match:
+            source = source_match.group(1).strip()
+            title = header[: source_match.start()].strip()
+        else:
+            source = "Unknown"
+            title = header.strip()
+
+        url = ""
+        summary_lines: list[str] = []
+        for line in lines[1:]:
+            if line.startswith("Link:"):
+                url = line[len("Link:"):].strip()
+            else:
+                summary_lines.append(line)
+
+        articles.append(
+            {
+                "title": title,
+                "source": source,
+                "url": url,
+                "summary": " ".join(summary_lines).strip(),
+            }
+        )
+    return articles
 
 
 def _build_record(
