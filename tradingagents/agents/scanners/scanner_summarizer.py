@@ -2,6 +2,10 @@
 
 Pure-reasoning LLM node that compresses raw scanner reports into clinical
 summaries using the SCANNER_REPORT_SUMMARY ruleset.
+
+Quality-aware: reports tagged with ``[QUALITY: empty]`` or
+``[QUALITY: degraded]`` with zero evidence are short-circuited to a
+deterministic ``[NO_EVIDENCE]`` marker without invoking the LLM.
 """
 
 from __future__ import annotations
@@ -11,12 +15,21 @@ from tradingagents.agents.managers.summary_rules import (
     SCANNER_REPORT_SUMMARY,
     generate_summary_prompt,
 )
+from tradingagents.agents.utils.report_quality import parse_quality_header
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     save_node_report,
 )
 
 logger = logging.getLogger(__name__)
+
+# Degenerate outputs that should bypass the LLM entirely.
+_DEGENERATE_OUTPUTS = frozenset({
+    "Completed.",
+    "N/A",
+    "Not available",
+    "{}",
+})
 
 
 def _build_scanner_summary_prompt(report_key: str, raw_report: str) -> str:
@@ -57,8 +70,22 @@ def create_scanner_summarizer(llm, report_key: str, summary_key: str):
             }
 
         raw_report = state.get(report_key, "")
-        if not raw_report or raw_report == "Not available":
-            return {summary_key: "No data available for summarization."}
+        report_label = report_key.replace("_report", "").replace("_", " ").strip() or report_key
+
+        # Gate: skip LLM for empty, degenerate, or quality-tagged-empty reports.
+        if not raw_report or raw_report.strip() in _DEGENERATE_OUTPUTS:
+            no_ev = f"[NO_EVIDENCE] Source: {report_label}. Upstream scanner produced no usable data. Exclude from synthesis."
+            return {summary_key: no_ev, "sender": f"summarizer_{report_key}"}
+
+        quality = parse_quality_header(raw_report)
+        if quality and (
+            quality["quality"] == "empty"
+            or (quality["quality"] == "degraded" and quality["evidence_count"] == 0)
+        ):
+            issues = ", ".join(quality.get("issues", [])) or "unknown"
+            no_ev = f"[NO_EVIDENCE] Source: {report_label}. Upstream quality: {quality['quality']} ({issues}). Exclude from synthesis."
+            logger.info("Summarizer skipping LLM for %s: quality=%s", report_key, quality["quality"])
+            return {summary_key: no_ev, "sender": f"summarizer_{report_key}"}
 
         prompt = _build_scanner_summary_prompt(report_key, raw_report)
 

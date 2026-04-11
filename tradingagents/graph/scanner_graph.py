@@ -50,20 +50,23 @@ class ScannerGraph:
         set_config(self.config)
 
         quick_llm = self._create_llm("quick_think")
+        scanner_llm = self._create_llm("scanner")
         mid_llm = self._create_llm("mid_think")
         deep_llm = self._create_llm("deep_think")
 
         max_scan_tickers = int(self.config.get("max_auto_tickers", 10))
         scan_horizon_days = int(self.config.get("scan_horizon_days", 30))
 
+        # Scanner nodes use the scanner_llm tier (tool-call compliant model).
+        # Summarizers use quick_llm (no tool calling needed).
         self.agents = {
-            "gatekeeper_scanner": create_gatekeeper_scanner(quick_llm),
-            "geopolitical_scanner": create_geopolitical_scanner(quick_llm),
-            "market_movers_scanner": create_market_movers_scanner(quick_llm),
-            "sector_scanner": create_sector_scanner(quick_llm),
-            "factor_alignment_scanner": create_factor_alignment_scanner(quick_llm),
-            "drift_scanner": create_drift_scanner(quick_llm),
-            "smart_money_scanner": create_smart_money_scanner(quick_llm),
+            "gatekeeper_scanner": create_gatekeeper_scanner(scanner_llm),
+            "geopolitical_scanner": create_geopolitical_scanner(scanner_llm),
+            "market_movers_scanner": create_market_movers_scanner(scanner_llm),
+            "sector_scanner": create_sector_scanner(scanner_llm),
+            "factor_alignment_scanner": create_factor_alignment_scanner(scanner_llm),
+            "drift_scanner": create_drift_scanner(scanner_llm),
+            "smart_money_scanner": create_smart_money_scanner(scanner_llm),
             "industry_deep_dive": create_industry_deep_dive(mid_llm),
             "macro_synthesis": create_macro_synthesis(
                 deep_llm,
@@ -115,7 +118,23 @@ class ScannerGraph:
         """
         kwargs = self._get_provider_kwargs(tier)
 
-        if tier == "mid_think":
+        if tier == "scanner":
+            # Scanner tier falls back to quick_think when unset.
+            model = (
+                self.config.get("scanner_llm")
+                or self.config["quick_think_llm"]
+            )
+            provider = (
+                self.config.get("scanner_llm_provider")
+                or self.config.get("quick_think_llm_provider")
+                or self.config["llm_provider"]
+            )
+            backend_url = (
+                self.config.get("scanner_backend_url")
+                or self.config.get("quick_think_backend_url")
+                or self.config.get("backend_url")
+            )
+        elif tier == "mid_think":
             model = self.config.get("mid_think_llm") or self.config["quick_think_llm"]
             provider = (
                 self.config.get("mid_think_llm_provider")
@@ -153,11 +172,21 @@ class ScannerGraph:
             Dict of extra kwargs to pass to the LLM client constructor.
         """
         kwargs: dict[str, Any] = {}
-        prefix = f"{tier}_"
+        # Scanner tier resolves provider kwargs through quick_think when unset.
+        if tier == "scanner":
+            prefix = "scanner_"
+            fallback_prefix = "quick_think_"
+        else:
+            prefix = f"{tier}_"
+            fallback_prefix = None
         provider = (
-            self.config.get(f"{prefix}llm_provider") or self.config.get("llm_provider", "")
+            self.config.get(f"{prefix}llm_provider")
+            or (self.config.get(f"{fallback_prefix}llm_provider") if fallback_prefix else None)
+            or self.config.get("llm_provider", "")
         ).lower()
         timeout = self.config.get(f"{prefix}llm_timeout")
+        if timeout is None and fallback_prefix:
+            timeout = self.config.get(f"{fallback_prefix}llm_timeout")
         if timeout is None:
             timeout = self.config.get("llm_timeout")
         if timeout is not None:

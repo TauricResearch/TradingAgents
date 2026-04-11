@@ -285,9 +285,24 @@ def create_macro_synthesis(llm, max_scan_tickers: int = 10, scan_horizon_days: i
 {ranking_section}
 """
 
+        # Count usable vs unavailable sources for the synthesis prompt.
+        _summary_keys = [
+            "geopolitical_summary", "market_movers_summary", "sector_summary",
+            "factor_alignment_summary", "drift_opportunities_summary",
+            "smart_money_summary", "industry_deep_dive_summary",
+        ]
+        _usable = sum(
+            1 for k in _summary_keys
+            if not (state.get(k, "") or "").startswith("[NO_EVIDENCE]")
+            and state.get(k, "").strip()
+        )
+        _total = len(_summary_keys)
+
         system_message = (
             "You are a Senior Macro Strategist and Systems Architect synthesizing research into a clinical investment thesis. "
             "Your objective is to produce a data-dense macro summary and identify top-tier ticker candidates. "
+            f"IMPORTANT: {_usable} of {_total} upstream sources provided usable evidence. "
+            "Summaries marked [NO_EVIDENCE] are UNAVAILABLE — do NOT extract candidate tickers from them. "
             "STRICT CONSTRAINTS: Output ONLY valid JSON. NO preamble or conversational filler. "
             "Apply the 'Golden Overlap': prioritize Smart Money tickers that align with the top-down macro regime. "
             "Synthesize all evidence into a structured output following this schema: "

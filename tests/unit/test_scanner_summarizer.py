@@ -25,7 +25,13 @@ def test_scanner_summarizer_returns_no_data_placeholder():
 
     result = node({"smart_money_report": ""})
 
-    assert result == {"smart_money_summary": "No data available for summarization."}
+    assert result == {
+        "smart_money_summary": (
+            "[NO_EVIDENCE] Source: smart money. "
+            "Upstream scanner produced no usable data. Exclude from synthesis."
+        ),
+        "sender": "summarizer_smart_money_report",
+    }
     llm.invoke.assert_not_called()
 
 
