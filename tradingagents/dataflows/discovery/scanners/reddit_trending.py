@@ -65,10 +65,13 @@ class RedditTrendingScanner(BaseScanner):
 
                 if count >= 50:
                     priority = Priority.HIGH.value
-                elif count >= 20:
-                    priority = Priority.MEDIUM.value
                 else:
-                    priority = Priority.LOW.value
+                    # Skip MEDIUM (20-49) and LOW (<20) priority candidates.
+                    # P&L data showed social_hype at -10.64% avg 30d return across
+                    # 22 recommendations — low-count mentions are noise, not signal.
+                    # Only genuinely viral tickers (>=50 mentions) have a plausible
+                    # momentum thesis worth surfacing.
+                    continue
 
                 context = f"Trending on Reddit: ~{count} mentions"
 

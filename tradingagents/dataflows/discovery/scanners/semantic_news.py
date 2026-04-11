@@ -130,9 +130,14 @@ class SemanticNewsScanner(BaseScanner):
             for ticker, headline in list(ticker_headlines.items())[: self.limit]:
                 priority = self._classify_catalyst(headline)
 
-                context = (
-                    f"News catalyst: {headline}" if headline else "Mentioned in recent market news"
-                )
+                # Only emit candidates with CRITICAL catalysts (FDA approval,
+                # acquisition, merger, etc.). HIGH and MEDIUM candidates include
+                # negative events (downgrades, lawsuits) that produce false positives
+                # and dragged news_catalyst to -17.5% avg 30d return (0% 7d win rate).
+                if priority != Priority.CRITICAL.value:
+                    continue
+
+                context = f"News catalyst: {headline}"
 
                 candidates.append(
                     {

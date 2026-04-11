@@ -19,7 +19,10 @@ class InsiderBuyingScanner(BaseScanner):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         self.lookback_days = self.scanner_config.get("lookback_days", 7)
-        self.min_transaction_value = self.scanner_config.get("min_transaction_value", 25000)
+        # Raised from $25K to $100K: P&L data (178 recs, -2.05% 30d avg) suggests
+        # sub-$100K transactions add noise. Tests the insider_buying-min-txn-100k
+        # hypothesis registered 2026-04-07.
+        self.min_transaction_value = self.scanner_config.get("min_transaction_value", 100_000)
 
     def scan(self, state: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not self.is_enabled():
