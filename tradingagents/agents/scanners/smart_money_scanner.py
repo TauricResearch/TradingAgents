@@ -10,6 +10,8 @@ when interpreting and prioritizing Finviz signals. Each screener tool has no
 parameters — filters are hardcoded to prevent LLM hallucinations.
 """
 
+import logging
+
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from tradingagents.agents.utils.scanner_tools import (
@@ -23,6 +25,8 @@ from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
     save_node_report,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def create_smart_money_scanner(llm):
@@ -95,7 +99,13 @@ def create_smart_money_scanner(llm):
             f"Scan Date: {scan_date}\n"
             f"[Source: Finviz Smart Money Scanner | Scan Date: {scan_date}]"
         )
-        raw_report = f"{provenance_header}\n\n{report_body}" if report_body else provenance_header
+        if report_body.startswith("[INSUFFICIENT_EVIDENCE]"):
+            logger.warning(
+                "smart_money_scanner produced insufficient evidence; preserving marker before provenance"
+            )
+            raw_report = f"{report_body}\n\n{provenance_header}"
+        else:
+            raw_report = f"{provenance_header}\n\n{report_body}" if report_body else provenance_header
         tool_names = ", ".join(t.name for t in tools)
         report = tag_report(
             raw_report,

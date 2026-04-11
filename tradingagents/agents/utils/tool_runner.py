@@ -7,6 +7,7 @@ phase — so they need an inline tool-execution loop.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, List
 
@@ -35,6 +36,8 @@ MAX_NUDGES = 2
 # Bound tool outputs fed back into the model to avoid oversized second-turn
 # prompts that can stall local tool-calling models.
 MAX_TOOL_OUTPUT_CHARS = 1800
+
+logger = logging.getLogger(__name__)
 
 
 def run_tool_loop(
@@ -79,12 +82,51 @@ def run_tool_loop(
     current_messages = list(messages)
     nudge_count = 0
     tools_ever_used = False
+    attempted_tools: list[str] = []
+    successful_tools: list[str] = []
     result = None
     _cap = float(DEFAULT_CONFIG.get("tool_loop_timeout_cap") or DEFAULT_CONFIG.get("quick_think_llm_timeout_cap") or 300.0)
     timeout_seconds = min(
         float(invoke_timeout_seconds or DEFAULT_CONFIG.get("quick_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
         _cap,
     )
+
+    def _insufficient_evidence(reason: str) -> AIMessage:
+        required_tools = ", ".join(tool_map.keys()) or "none"
+        attempted = ", ".join(attempted_tools) or "none"
+        missing_tools = [
+            tool_name for tool_name in tool_map
+            if tool_name not in set(successful_tools)
+        ]
+        missing = ", ".join(missing_tools) or "none"
+        label = node_name or "unknown"
+        warning = (
+            f"Insufficient evidence in {label}: {reason}; "
+            f"missing successful tool results for {missing}; attempted={attempted}"
+        )
+        logger.warning(warning)
+        try:
+            from tradingagents.observability import get_run_logger
+
+            rl = get_run_logger()
+            if rl:
+                rl.log_warning(warning)
+        except Exception:
+            # Observability should never turn a controlled fallback into a node failure.
+            pass
+
+        return AIMessage(
+            content=(
+                "[INSUFFICIENT_EVIDENCE]\n"
+                f"Node: {label}\n"
+                f"Reason: {reason}\n"
+                f"Missing evidence: no successful tool results from required tools: {missing}.\n"
+                f"Required tools: {required_tools}\n"
+                f"Attempted tools: {attempted}\n"
+                "Downstream handling: treat this node as incomplete; exclude its claims "
+                "and do not infer additional unsourced candidates."
+            )
+        )
 
     for _ in range(max_rounds):
         try:
@@ -95,14 +137,8 @@ def run_tool_loop(
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):
-                    tool_names = ", ".join(tool_map.keys()) or "preloaded tools"
-                    label = f" ({node_name})" if node_name else ""
-                    return AIMessage(
-                        content=(
-                            f"[INSUFFICIENT_EVIDENCE] Node{label} timed out after {timeout_seconds:.0f}s.\n"
-                            f"- Available tools: {tool_names}.\n"
-                            "- Treat this node as incomplete and do not infer additional unsourced claims."
-                        )
+                    return _insufficient_evidence(
+                        f"node timed out after {timeout_seconds:.0f}s before producing usable tool-grounded analysis"
                     )
                 raise invoke_error
         except Exception as exc:
@@ -139,6 +175,10 @@ def run_tool_loop(
                 )
                 nudge_count += 1
                 continue
+            if require_tool_result and not tools_ever_used:
+                return _insufficient_evidence(
+                    "model produced final prose without any successful required tool result"
+                )
             return result
 
         # Execute each requested tool call and append ToolMessages
@@ -148,6 +188,7 @@ def run_tool_loop(
         any_tool_succeeded = False
         for tc in result.tool_calls:
             tool_name = tc["name"]
+            attempted_tools.append(tool_name)
             tool_args = tc["args"]
             tool_fn = tool_map.get(tool_name)
             if tool_fn is None:
@@ -168,6 +209,7 @@ def run_tool_loop(
                 try:
                     tool_output = tool_fn.invoke(tool_args)
                     any_tool_succeeded = True
+                    successful_tools.append(tool_name)
                     if rl:
                         rl.log_tool_call(tool_name, str(tool_args)[:120], True, (time.time() - t0) * 1000)
                 except Exception as e:
@@ -202,14 +244,8 @@ def run_tool_loop(
     # When tools are required but none succeeded, return a structured
     # insufficient-evidence message so downstream nodes can detect failure.
     if require_tool_result and not tools_ever_used:
-        tool_names = ", ".join(tool_map.keys())
-        label = node_name or "unknown"
-        return AIMessage(
-            content=(
-                f"[INSUFFICIENT_EVIDENCE] Node: {label}. "
-                f"Required tools: {tool_names}. "
-                f"No tool results obtained after {max_rounds} rounds."
-            )
+        return _insufficient_evidence(
+            f"no successful tool results obtained after {max_rounds} rounds"
         )
 
     return result

@@ -103,6 +103,12 @@ def audit_run(reports_dir: Path) -> dict:
         header = parse_quality_header(text)
         if header:
             report_qualities[key] = header
+            if header["quality"] != "ok":
+                issues.append({
+                    "file": filename,
+                    "issue": "quality_degraded",
+                    "detail": header,
+                })
         else:
             # No header — assess directly
             assessment = assess_report_quality(text, node_name=key)
