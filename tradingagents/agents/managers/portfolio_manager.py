@@ -1,3 +1,4 @@
+from tradingagents.observability import get_run_logger
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.critical_abort import (
     extract_abort_report,
@@ -173,6 +174,14 @@ Be decisive and ground every conclusion in specific evidence from the analysts."
                 "_Portfolio Manager returned an empty response. "
                 "Decision derived from risk synthesis._"
             )
+            rl = get_run_logger()
+            if rl:
+                rl.log_warning(
+                    node="Portfolio Manager",
+                    ticker=state.get("company_of_interest", ""),
+                    message="LLM returned empty content — decision derived from risk synthesis",
+                    details={"fallback_action": action},
+                )
         structured = build_final_decision_structured(
             ticker=state.get("company_of_interest", ""),
             as_of_date=state.get("trade_date", ""),

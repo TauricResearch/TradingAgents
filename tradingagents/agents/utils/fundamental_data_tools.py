@@ -100,6 +100,20 @@ def get_ttm_analysis(
     balance_csv = route_to_vendor("get_balance_sheet", ticker, "quarterly", curr_date)
     cashflow_csv = route_to_vendor("get_cashflow", ticker, "quarterly", curr_date)
     metrics = compute_ttm_metrics(income_csv, balance_csv, cashflow_csv, n_quarters=8)
+
+    parse_errors = metrics["metadata"].get("parse_errors", [])
+    quarters = metrics["quarters_available"]
+    if parse_errors or quarters == 0:
+        from tradingagents.observability import get_run_logger
+        rl = get_run_logger()
+        if rl:
+            rl.log_warning(
+                node="get_ttm_analysis",
+                ticker=ticker,
+                message=f"TTM parse produced {quarters} quarters (target 8)",
+                details={"parse_errors": parse_errors},
+            )
+
     return format_ttm_report(metrics, ticker)
 
 
