@@ -133,23 +133,33 @@ def run_tool_loop(
                 continue
             return result
 
-        tools_ever_used = True
         # Execute each requested tool call and append ToolMessages
         from tradingagents.observability import get_run_logger
 
         rl = get_run_logger()
+        any_tool_succeeded = False
         for tc in result.tool_calls:
             tool_name = tc["name"]
             tool_args = tc["args"]
             tool_fn = tool_map.get(tool_name)
             if tool_fn is None:
-                tool_output = f"Error: unknown tool '{tool_name}'"
+                valid_names = ", ".join(tool_map.keys())
+                tool_output = (
+                    f"Error: unknown tool '{tool_name}'. "
+                    f"Valid tools are: {valid_names}. "
+                    "Please call one of the valid tools instead."
+                )
                 if rl:
+                    rl.log_warning(
+                        f"LLM called unknown tool '{tool_name}' — hallucinated name; "
+                        f"valid tools: {valid_names}"
+                    )
                     rl.log_tool_call(tool_name, str(tool_args)[:120], False, 0, error="unknown tool")
             else:
                 t0 = time.time()
                 try:
                     tool_output = tool_fn.invoke(tool_args)
+                    any_tool_succeeded = True
                     if rl:
                         rl.log_tool_call(tool_name, str(tool_args)[:120], True, (time.time() - t0) * 1000)
                 except Exception as e:
@@ -169,6 +179,12 @@ def run_tool_loop(
             current_messages.append(
                 ToolMessage(content=tool_output_text, tool_call_id=tc["id"])
             )
+
+        # Only count this round as "tools used" if at least one call succeeded.
+        # Hallucinated tool names return error ToolMessages but should not
+        # suppress the nudge — the LLM still needs to call a real tool.
+        if any_tool_succeeded:
+            tools_ever_used = True
 
     # If we exhausted max_rounds, return the last AIMessage
     # (it may have tool_calls but we treat the content as the report)

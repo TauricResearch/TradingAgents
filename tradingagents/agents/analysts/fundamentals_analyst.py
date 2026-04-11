@@ -201,6 +201,13 @@ def create_fundamentals_analyst(llm):
 
         if not report.strip() or structured_payload["status"] in {"timeout_fallback", "empty"}:
             report = render_fundamentals_report_structured(structured_payload)
+            if structured_payload["status"] == "empty":
+                report = (
+                    "[CRITICAL ABORT] Reason: Fundamentals Analyst returned no data — "
+                    "all tool calls failed or produced empty output. "
+                    "Cannot proceed without financial statements.\n\n"
+                    + report
+                )
 
         return {
             "messages": [result],
