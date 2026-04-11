@@ -1,5 +1,5 @@
 {
-  "total_recommendations": 608,
+  "total_recommendations": 610,
   "by_strategy": {
     "momentum": {
       "count": 136,
@@ -197,7 +197,7 @@
       "win_rate_30d": 55.0
     },
     "minervini": {
-      "count": 4,
+      "count": 6,
       "wins_1d": 3,
       "losses_1d": 0,
       "wins_7d": 0,
