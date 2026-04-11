@@ -67,12 +67,67 @@ class VendorEstimate:
 
 
 @dataclass
+class TokenCount:
+    """Approximate LLM token usage for one model tier."""
+
+    requests: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+    @property
+    def total(self) -> int:
+        return self.input_tokens + self.output_tokens
+
+
+@dataclass
+class TokenTierEstimate:
+    """Approximate LLM token usage split by model tier."""
+
+    scanner: TokenCount = field(default_factory=TokenCount)
+    quick: TokenCount = field(default_factory=TokenCount)
+    mid: TokenCount = field(default_factory=TokenCount)
+    deep: TokenCount = field(default_factory=TokenCount)
+
+    @property
+    def total_requests(self) -> int:
+        return (
+            self.scanner.requests
+            + self.quick.requests
+            + self.mid.requests
+            + self.deep.requests
+        )
+
+    @property
+    def total_input_tokens(self) -> int:
+        return (
+            self.scanner.input_tokens
+            + self.quick.input_tokens
+            + self.mid.input_tokens
+            + self.deep.input_tokens
+        )
+
+    @property
+    def total_output_tokens(self) -> int:
+        return (
+            self.scanner.output_tokens
+            + self.quick.output_tokens
+            + self.mid.output_tokens
+            + self.deep.output_tokens
+        )
+
+    @property
+    def total_tokens(self) -> int:
+        return self.total_input_tokens + self.total_output_tokens
+
+
+@dataclass
 class UsageEstimate:
     """Full API usage estimate for a command."""
 
     command: str
     description: str
     vendor_calls: VendorEstimate = field(default_factory=VendorEstimate)
+    llm_tokens: TokenTierEstimate = field(default_factory=TokenTierEstimate)
     # Breakdown of calls by method → count (only for non-zero vendors)
     method_breakdown: dict[str, dict[str, int]] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
@@ -128,6 +183,35 @@ def _resolve_vendor(config: dict, method: str) -> str:
     return available_vendors[0] if available_vendors else "unknown"
 
 
+def _add_token_estimate(
+    est: UsageEstimate,
+    tier: str,
+    *,
+    requests: int,
+    input_per_request: int,
+    output_per_request: int,
+) -> None:
+    """Add coarse LLM token planning numbers to one tier."""
+    bucket = getattr(est.llm_tokens, tier)
+    bucket.requests += requests
+    bucket.input_tokens += requests * input_per_request
+    bucket.output_tokens += requests * output_per_request
+
+
+def _merge_token_estimate(
+    target: TokenTierEstimate,
+    source: TokenTierEstimate,
+    *,
+    multiplier: int = 1,
+) -> None:
+    for tier in ("scanner", "quick", "mid", "deep"):
+        target_bucket = getattr(target, tier)
+        source_bucket = getattr(source, tier)
+        target_bucket.requests += source_bucket.requests * multiplier
+        target_bucket.input_tokens += source_bucket.input_tokens * multiplier
+        target_bucket.output_tokens += source_bucket.output_tokens * multiplier
+
+
 def estimate_analyze(
     config: dict | None = None,
     selected_analysts: list[str] | None = None,
@@ -177,6 +261,13 @@ def estimate_analyze(
         _add("get_stock_data")
         for _ in range(num_indicators):
             _add("get_indicators")
+        _add_token_estimate(
+            est,
+            "mid",
+            requests=1,
+            input_per_request=4_500,
+            output_per_request=2_500,
+        )
         est.notes.append(
             f"Market analyst: 1 stock data + ~{num_indicators} indicator calls "
             f"(LLM chooses which indicators; actual count may vary)"
@@ -189,6 +280,13 @@ def estimate_analyze(
         _add("get_balance_sheet")
         _add("get_cashflow")
         _add("get_insider_transactions")
+        _add_token_estimate(
+            est,
+            "mid",
+            requests=2,
+            input_per_request=4_500,
+            output_per_request=3_000,
+        )
         est.notes.append(
             "Fundamentals analyst: overview + 3 financial statements + insider transactions"
         )
@@ -197,12 +295,53 @@ def estimate_analyze(
     if "news" in selected_analysts:
         _add("get_news")
         _add("get_global_news")
+        _add_token_estimate(
+            est,
+            "mid",
+            requests=1,
+            input_per_request=5_000,
+            output_per_request=2_500,
+        )
         est.notes.append("News analyst: ticker news + global news")
 
     # Social Media Analyst (uses same news tools)
     if "social" in selected_analysts:
         _add("get_news")
+        _add_token_estimate(
+            est,
+            "mid",
+            requests=1,
+            input_per_request=3_000,
+            output_per_request=1_500,
+        )
         est.notes.append("Social analyst: ticker news/sentiment")
+
+    # Full downstream debate/risk path. Critical-abort tickers use less.
+    _add_token_estimate(
+        est,
+        "mid",
+        requests=6,
+        input_per_request=4_800,
+        output_per_request=3_400,
+    )
+    _add_token_estimate(
+        est,
+        "quick",
+        requests=6,
+        input_per_request=2_500,
+        output_per_request=700,
+    )
+    _add_token_estimate(
+        est,
+        "deep",
+        requests=2,
+        input_per_request=4_000,
+        output_per_request=2_400,
+    )
+    est.notes.append(
+        "LLM token estimate: includes full debate/trader/risk/PM path; "
+        "critical-abort paths use materially fewer tokens."
+    )
 
     est.method_breakdown = breakdown
     return est
@@ -251,6 +390,17 @@ def estimate_scan(config: dict | None = None) -> UsageEstimate:
     est.notes.append(
         f"Phase 1A (Geopolitical): ~{topic_news_calls} topic news calls + gold/oil/bitcoin price checks"
     )
+    _add_token_estimate(
+        est,
+        "scanner",
+        requests=18,
+        input_per_request=1_300,
+        output_per_request=250,
+    )
+    est.notes.append(
+        "Scanner LLM tier: ~18 tool-loop model turns across scanner nodes; "
+        "kept separate from quick-tier summarizers."
+    )
 
     # Phase 1B: Gatekeeper universe — 1 bounded yfinance query
     _add("get_gatekeeper_universe")
@@ -286,6 +436,31 @@ def estimate_scan(config: dict | None = None) -> UsageEstimate:
 
     # Phase 3: Macro Synthesis — pure LLM reasoning, no external tools
     est.notes.append("Phase 3 (Macro Synthesis): no external tool calls")
+    _add_token_estimate(
+        est,
+        "quick",
+        requests=8,
+        input_per_request=1_400,
+        output_per_request=300,
+    )
+    _add_token_estimate(
+        est,
+        "mid",
+        requests=2,
+        input_per_request=4_500,
+        output_per_request=900,
+    )
+    _add_token_estimate(
+        est,
+        "deep",
+        requests=1,
+        input_per_request=2_500,
+        output_per_request=3_000,
+    )
+    est.notes.append(
+        "LLM token estimate: quick=scanner summaries, mid=industry deep dive, "
+        "deep=macro synthesis."
+    )
 
     est.method_breakdown = breakdown
     return est
@@ -327,6 +502,8 @@ def estimate_pipeline(
     est.vendor_calls.alpha_vantage += analyze_est.vendor_calls.alpha_vantage * num_tickers
     est.vendor_calls.finnhub += analyze_est.vendor_calls.finnhub * num_tickers
     est.vendor_calls.finviz += analyze_est.vendor_calls.finviz * num_tickers
+    _merge_token_estimate(est.llm_tokens, scan_est.llm_tokens)
+    _merge_token_estimate(est.llm_tokens, analyze_est.llm_tokens, multiplier=num_tickers)
 
     # Merge breakdowns
     merged: dict[str, dict[str, int]] = {}
@@ -372,6 +549,30 @@ def format_estimate(est: UsageEstimate) -> str:
     if vc.finviz:
         lines.append(f"    Finviz:         {vc.finviz:>3} calls  (HTML scrape, bounded use)")
     lines.append(f"    Total:         {vc.total:>4} vendor API calls")
+
+    tokens = est.llm_tokens
+    if tokens.total_tokens:
+        lines.append("")
+        lines.append("  LLM tokens (approximate):")
+        for tier, label in (
+            ("scanner", "scanner"),
+            ("quick", "quick"),
+            ("mid", "mid"),
+            ("deep", "deep"),
+        ):
+            bucket = getattr(tokens, tier)
+            if not bucket.total:
+                continue
+            lines.append(
+                f"    {label:>7}: {bucket.total:>7,} tokens "
+                f"({bucket.input_tokens:>7,} in / {bucket.output_tokens:>6,} out, "
+                f"~{bucket.requests} req)"
+            )
+        lines.append(
+            f"    Total:   {tokens.total_tokens:>7,} tokens "
+            f"({tokens.total_input_tokens:>7,} in / "
+            f"{tokens.total_output_tokens:>6,} out, ~{tokens.total_requests} req)"
+        )
 
     # Alpha Vantage assessment
     if vc.alpha_vantage > 0:

@@ -46,6 +46,20 @@ The following phrases and shapes should be treated as quality failures in final 
 - `Completed.` as the only substantive output
 - bare JSON tool arguments such as `{"topic": "...", "limit": 5}` when no `tool_result` is present
 
+## Token Planning Baseline
+
+Scanner nodes now have their own runtime LLM tier (`scanner`) and should be tracked separately from the `quick` tier. For the completed two-ticker live shape (`scan + 2 ticker analyses + portfolio flow`), use these planning estimates:
+
+| Tier | Scope | Approx tokens |
+| --- | --- | ---: |
+| `scanner` | tool-loop scanner nodes only | 27,900 |
+| `quick` | scanner summaries + risk debate rounds | 52,000 |
+| `mid` | ticker analysts, industry deep dive, researchers, trader, risk synthesis | 177,200 |
+| `deep` | macro synthesis, research manager, final ticker PM | 31,100 |
+| `total` | end-to-end two-ticker pipeline estimate | 288,200 |
+
+These numbers are approximate and should be treated as capacity-planning values, not billing truth. Actual totals depend on provider accounting, tool-loop retries, abort paths, retrieved evidence size, and configured debate rounds.
+
 ## Implementation Plan
 
 ### Phase 0: Stabilize Long-Running Synthesis
@@ -354,4 +368,3 @@ This work is complete when:
 - auto runs with `max_tickers=2` and no holdings complete consistently
 - final portfolio decisions only use completed ticker analyses
 - a quality audit command can flag weak artifacts before a report is trusted
-
