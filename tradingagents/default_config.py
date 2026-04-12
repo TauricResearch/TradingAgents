@@ -30,6 +30,7 @@ DEFAULT_CONFIG = {
         "technical_indicators": "yfinance",  # Options: alpha_vantage, yfinance
         "fundamental_data": "yfinance",      # Options: alpha_vantage, yfinance, simfin
         "news_data": "yfinance",             # Options: alpha_vantage, yfinance, finnhub
+        "social_media_data": "reddit",       # Options: reddit, reddit_cache
     },
     # Tool-level configuration (takes precedence over category-level)
     "tool_vendors": {

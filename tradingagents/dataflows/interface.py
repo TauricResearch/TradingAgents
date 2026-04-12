@@ -33,6 +33,7 @@ from .alpha_vantage import (
     get_global_news as get_alpha_vantage_global_news,
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
+from .reddit import get_reddit_posts, get_reddit_posts_from_cache
 
 # Configuration and routing logic
 from .config import get_config
@@ -67,7 +68,13 @@ TOOLS_CATEGORIES = {
             "get_global_news",
             "get_insider_transactions",
         ]
-    }
+    },
+    "social_media_data": {
+        "description": "Social media posts and sentiment",
+        "tools": [
+            "get_social_media_posts",
+        ]
+    },
 }
 
 VENDOR_LIST = [
@@ -75,6 +82,7 @@ VENDOR_LIST = [
     "alpha_vantage",
     "finnhub",
     "simfin",
+    "reddit",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -125,6 +133,11 @@ VENDOR_METHODS = {
         "yfinance": get_yfinance_insider_transactions,
         "finnhub": get_finnhub_insider_transactions,
     },
+    # social_media_data
+    "get_social_media_posts": {
+        "reddit": get_reddit_posts,
+        "reddit_cache": get_reddit_posts_from_cache,
+    },
 }
 
 def get_category_for_method(method: str) -> str:
@@ -134,7 +147,7 @@ def get_category_for_method(method: str) -> str:
             return category
     raise ValueError(f"Method '{method}' not found in any category")
 
-def get_vendor(category: str, method: str = None) -> str:
+def get_vendor(category: str, method: str | None = None) -> str:
     """Get the configured vendor for a data category or specific tool method.
     Tool-level configuration takes precedence over category-level.
     """

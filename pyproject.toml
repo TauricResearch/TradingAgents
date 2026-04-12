@@ -27,6 +27,7 @@ dependencies = [
     "typer>=0.21.0",
     "setuptools>=80.9.0",
     "finnhub-python>=2.4.20",
+    "praw>=7.8.1",
     "python-dateutil>=2.9.0",
     "simfin>=1.0.3",
     "stockstats>=0.6.5",
