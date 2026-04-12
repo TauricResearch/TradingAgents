@@ -788,3 +788,271 @@ class TestFinalDecisionStructuredContract:
             final_decision=long_text,
         )
         assert len(structured["decision_excerpt"]) <= 200
+
+
+class TestNewsStructuredContract:
+    """Test suite for build_news_report_structured canonical normalizer."""
+    
+    def test_build_news_report_structured_completed(self):
+        """Test completed status with verified claims."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        payload = {
+            "ticker": "MRVL",
+            "report_title": "MRVL News Analysis",
+            "claims": [
+                {
+                    "claim": "Marvell received upgrade from Barclays",
+                    "source": "Barron's",
+                    "published_at": "2026-04-09",
+                    "evidence_id": "art_123",
+                },
+                {
+                    "claim": "MRVL announces new AI chip",
+                    "source": "Reuters",
+                    "published_at": "2026-04-10",
+                    "evidence_id": "art_456",
+                },
+            ],
+            "summary_table": [],
+        }
+        
+        result = build_news_report_structured(
+            ticker="MRVL",
+            as_of_date="2026-04-10",
+            payload=payload,
+            status="completed",
+        )
+        
+        assert result["status"] == "completed"
+        assert result["contract_version"] == "news_report_v1"
+        assert result["key_metrics"]["claim_count"] == 2
+        assert result["key_metrics"]["evidence_ids"] == 2
+        assert result["key_metrics"]["removed_claims"] == 0
+    
+    def test_build_news_report_structured_empty(self):
+        """Test empty status with no claims."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        result = build_news_report_structured(
+            ticker="LWLG",
+            as_of_date="2026-04-10",
+            payload={"ticker": "LWLG", "claims": [], "summary_table": []},
+            status="empty",
+        )
+        
+        assert result["status"] == "empty"
+        assert result["contract_version"] == "news_report_v1"
+        assert result["key_metrics"]["claim_count"] == 0
+    
+    def test_build_news_report_structured_strips_null_scan_date(self):
+        """Test that scan_date is stripped from non-scanner claims."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        payload = {
+            "claims": [
+                {
+                    "claim": "Article claim",
+                    "source": "Reuters",
+                    "published_at": "2026-04-10",
+                    "evidence_id": "art_123",
+                    "scan_date": None,  # Should be stripped
+                },
+            ],
+            "summary_table": [],
+        }
+        
+        result = build_news_report_structured(
+            ticker="TEST",
+            as_of_date="2026-04-10",
+            payload=payload,
+            status="completed",
+        )
+        
+        assert "scan_date" not in result["claims"][0]
+        assert result["claims"][0]["evidence_id"] == "art_123"
+    
+    def test_build_news_report_structured_retains_scanner_scan_date(self):
+        """Test that scan_date is retained for scanner claims."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        payload = {
+            "claims": [
+                {
+                    "claim": "Smart money detected unusual activity",
+                    "source": "Finviz Smart Money Scanner",
+                    "scan_date": "2026-04-10",
+                    "published_at": "",
+                    "evidence_id": "",
+                },
+            ],
+            "summary_table": [],
+        }
+        
+        result = build_news_report_structured(
+            ticker="TEST",
+            as_of_date="2026-04-10",
+            payload=payload,
+            status="completed",
+        )
+        
+        assert result["claims"][0]["scan_date"] == "2026-04-10"
+        assert "evidence_id" not in result["claims"][0] or result["claims"][0].get("evidence_id") == ""
+    
+    def test_build_news_report_structured_computes_key_metrics(self):
+        """Test key_metrics computation."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        removed = [{"claim": "Rejected claim"}]
+        payload = {
+            "claims": [
+                {"claim": "C1", "source": "S1", "published_at": "2026-04-10", "evidence_id": "art_1"},
+                {"claim": "C2", "source": "S2", "published_at": "2026-04-10", "evidence_id": "art_2"},
+                {"claim": "C3", "source": "S3", "published_at": "2026-04-10", "evidence_id": "art_1"},  # Duplicate evidence_id
+            ],
+            "summary_table": [
+                {"date": "2026-04-10", "event": "E1", "metric": "M", "value": "V", "source": "S1", "evidence_id": "art_1"},
+                {"date": "2026-04-10", "event": "E2", "metric": "M", "value": "V", "source": "S2", "evidence_id": "art_2"},
+            ],
+            "below_min_claims": True,
+        }
+        
+        result = build_news_report_structured(
+            ticker="TEST",
+            as_of_date="2026-04-10",
+            payload=payload,
+            status="completed",
+            removed_claims=removed,
+        )
+        
+        assert result["key_metrics"]["claim_count"] == 3
+        assert result["key_metrics"]["summary_rows"] == 2
+        assert result["key_metrics"]["evidence_ids"] == 2  # Unique count
+        assert result["key_metrics"]["removed_claims"] == 1
+        assert result["key_metrics"]["below_min_claims"] is True
+    
+    def test_build_news_report_structured_survives_malformed_payload(self):
+        """Test defensive behavior with malformed payload."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        # Malformed claim entry (not a dict) - should fail  
+        result = build_news_report_structured(
+            ticker="TEST",
+            as_of_date="2026-04-10",
+            payload={"claims": ["not a dict"], "summary_table": []},
+            status="completed",
+        )
+        assert result["status"] == "invalid_structured_payload"
+        assert "Malformed claim entry" in result["abort_reason"]
+        
+        # Malformed summary_table entry (not a dict) - should fail
+        result = build_news_report_structured(
+            ticker="TEST",
+            as_of_date="2026-04-10",
+            payload={"claims": [], "summary_table": ["not a dict"]},
+            status="completed",
+        )
+        assert result["status"] == "invalid_structured_payload"
+        assert "Malformed summary_table entry" in result["abort_reason"]
+        
+        # None payload with completed status - converts to {} and returns completed with 0 claims
+        result = build_news_report_structured(
+            ticker="TEST",
+            as_of_date="2026-04-10",
+            payload=None,
+            status="completed",
+        )
+        assert result["contract_version"] == "news_report_v1"
+        assert result["status"] == "completed"
+        assert result["key_metrics"]["claim_count"] == 0
+    
+    def test_build_news_report_structured_rejects_unknown_status(self):
+        """Test that non-canonical status is rejected."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        result = build_news_report_structured(
+            ticker="TEST",
+            as_of_date="2026-04-10",
+            payload={"claims": [], "summary_table": []},
+            status="timeout_fallback",  # Non-canonical for news
+        )
+        
+        assert result["status"] == "invalid_structured_payload"
+        assert "Non-canonical status" in result["abort_reason"]
+    
+    def test_build_news_report_structured_requires_article_evidence_id(self):
+        """Test that non-scanner claims must have evidence_id."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        payload = {
+            "claims": [
+                {
+                    "claim": "Article without evidence ID",
+                    "source": "Reuters",
+                    "published_at": "2026-04-10",
+                    "evidence_id": "",  # Missing!
+                },
+            ],
+            "summary_table": [],
+        }
+        
+        result = build_news_report_structured(
+            ticker="TEST",
+            as_of_date="2026-04-10",
+            payload=payload,
+            status="completed",
+        )
+        
+        assert result["status"] == "invalid_structured_payload"
+        assert "evidence_id" in result["abort_reason"]
+    
+    def test_build_news_report_structured_omits_blank_scanner_optional_fields(self):
+        """Test that blank optional scanner fields are omitted."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        payload = {
+            "claims": [
+                {
+                    "claim": "Scanner claim",
+                    "source": "Finviz Smart Money Scanner",
+                    "scan_date": "2026-04-10",
+                    "published_at": "",  # Blank optional
+                    "evidence_id": "",   # Blank optional
+                },
+            ],
+            "summary_table": [],
+        }
+        
+        result = build_news_report_structured(
+            ticker="TEST",
+            as_of_date="2026-04-10",
+            payload=payload,
+            status="completed",
+        )
+        
+        claim = result["claims"][0]
+        assert claim["scan_date"] == "2026-04-10"
+        # Blank optional fields should be omitted, not included as empty strings
+        assert "published_at" not in claim or claim.get("published_at") == ""
+        assert "evidence_id" not in claim or claim.get("evidence_id") == ""
+    
+    def test_regression_news_status_never_null(self):
+        """Regression test: news_report_structured.status must never be null."""
+        from tradingagents.agents.utils.output_validation import build_news_report_structured
+        
+        # Test all canonical statuses
+        for status in ["completed", "empty", "invalid_structured_payload", "missing_structured_payload", "aborted"]:
+            result = build_news_report_structured(
+                ticker="TEST",
+                as_of_date="2026-04-10",
+                payload={},
+                status=status,
+            )
+            assert result["status"] in {
+                "completed", "empty", "invalid_structured_payload",
+                "missing_structured_payload", "aborted",
+            }
+            assert result["contract_version"] == "news_report_v1"
+            assert isinstance(result["key_metrics"], dict)
+            assert isinstance(result["key_metrics"]["claim_count"], int)
+
