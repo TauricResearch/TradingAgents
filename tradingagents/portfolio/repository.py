@@ -92,7 +92,8 @@ class PortfolioRepository:
     ) -> tuple[Portfolio, list[Holding]]:
         """Fetch portfolio + all holdings, optionally enriched with current prices."""
         portfolio = self._client.get_portfolio(portfolio_id)
-        holdings = self._client.list_holdings(portfolio_id)
+        canonical_id = portfolio.portfolio_id
+        holdings = self._client.list_holdings(canonical_id)
         if prices:
             # First pass: compute equity for total_value
             equity = sum(
@@ -129,6 +130,7 @@ class PortfolioRepository:
 
         cost = shares * price
         portfolio = self._client.get_portfolio(portfolio_id)
+        canonical_id = portfolio.portfolio_id
 
         if portfolio.cash < cost:
             raise InsufficientCashError(
@@ -136,7 +138,7 @@ class PortfolioRepository:
             )
 
         # Check for existing holding to update avg cost
-        existing = self._client.get_holding(portfolio_id, ticker)
+        existing = self._client.get_holding(canonical_id, ticker)
         if existing:
             new_total_shares = existing.shares + shares
             new_avg_cost = (
@@ -152,7 +154,7 @@ class PortfolioRepository:
         else:
             holding = Holding(
                 holding_id=str(uuid.uuid4()),
-                portfolio_id=portfolio_id,
+                portfolio_id=canonical_id,
                 ticker=ticker.upper(),
                 shares=shares,
                 avg_cost=price,
@@ -168,7 +170,7 @@ class PortfolioRepository:
         # Record trade
         trade = Trade(
             trade_id=str(uuid.uuid4()),
-            portfolio_id=portfolio_id,
+            portfolio_id=canonical_id,
             ticker=ticker.upper(),
             action="BUY",
             shares=shares,
@@ -196,7 +198,9 @@ class PortfolioRepository:
         if price <= 0:
             raise ValueError(f"price must be > 0, got {price}")
 
-        existing = self._client.get_holding(portfolio_id, ticker)
+        portfolio = self._client.get_portfolio(portfolio_id)
+        canonical_id = portfolio.portfolio_id
+        existing = self._client.get_holding(canonical_id, ticker)
         if not existing:
             raise HoldingNotFoundError(
                 f"No holding for {ticker} in portfolio {portfolio_id}"
@@ -208,11 +212,10 @@ class PortfolioRepository:
             )
 
         proceeds = shares * price
-        portfolio = self._client.get_portfolio(portfolio_id)
 
         if existing.shares == shares:
             # Full sell — delete holding
-            self._client.delete_holding(portfolio_id, ticker)
+            self._client.delete_holding(canonical_id, ticker)
             result = None
         else:
             existing.shares -= shares
@@ -225,7 +228,7 @@ class PortfolioRepository:
         # Record trade
         trade = Trade(
             trade_id=str(uuid.uuid4()),
-            portfolio_id=portfolio_id,
+            portfolio_id=canonical_id,
             ticker=ticker.upper(),
             action="SELL",
             shares=shares,
@@ -263,7 +266,8 @@ class PortfolioRepository:
 
         # Pre-fetch portfolio and holdings once
         portfolio = self._client.get_portfolio(portfolio_id)
-        current_holdings = {h.ticker.upper(): h for h in self._client.list_holdings(portfolio_id)}
+        canonical_id = portfolio.portfolio_id
+        current_holdings = {h.ticker.upper(): h for h in self._client.list_holdings(canonical_id)}
 
         holdings_to_upsert = {}
         tickers_to_delete = set()
@@ -309,7 +313,7 @@ class PortfolioRepository:
 
             trade = Trade(
                 trade_id=str(uuid.uuid4()),
-                portfolio_id=portfolio_id,
+                portfolio_id=canonical_id,
                 ticker=ticker.upper(),
                 action="SELL",
                 shares=shares,
@@ -336,7 +340,7 @@ class PortfolioRepository:
         try:
             # Apply database writes in batch
             if tickers_to_delete:
-                self._client.batch_delete_holdings(portfolio_id, list(tickers_to_delete))
+                self._client.batch_delete_holdings(canonical_id, list(tickers_to_delete))
             if holdings_to_upsert:
                 self._client.batch_upsert_holdings(list(holdings_to_upsert.values()))
 
@@ -363,7 +367,7 @@ class PortfolioRepository:
         portfolio, holdings = self.get_portfolio_with_holdings(portfolio_id, prices)
         snapshot = PortfolioSnapshot(
             snapshot_id=str(uuid.uuid4()),
-            portfolio_id=portfolio_id,
+            portfolio_id=portfolio.portfolio_id,
             snapshot_date=datetime.now(timezone.utc).isoformat(),
             total_value=portfolio.total_value or portfolio.cash,
             cash=portfolio.cash,
