@@ -442,7 +442,11 @@ def build_research_manager_fallback(state: dict[str, Any]) -> str:
     return "\n".join(lines).strip()
 
 
-def build_trader_plan_fallback(state: dict[str, Any]) -> str:
+def build_trader_plan_fallback(
+    state: dict[str, Any],
+    reason: str = "",
+    force_recommendation: str = "",
+) -> str:
     investment_plan = str(state.get("investment_plan") or "")
     upper_plan = investment_plan.upper()
     if "SELL" in upper_plan:
@@ -458,18 +462,21 @@ def build_trader_plan_fallback(state: dict[str, Any]) -> str:
     fundamentals_structured = state.get("fundamentals_report_structured") or {}
     fundamentals_status = str(fundamentals_structured.get("status") or "unknown")
 
+    if force_recommendation:
+        recommendation = force_recommendation.upper().strip()
     if price_level_count == 0 or fundamentals_status == "timeout_fallback":
         recommendation = "HOLD"
 
-    return "\n".join(
-        [
+    lines = [
             f"- Research Manager's Verdict: {recommendation} derived from validated upstream evidence (HIGH)",
             f"- Entry Setup: no new entry because {price_level_count} validated market price levels are available in the structured packet (HIGH)",
             "- Risk Parameters: preserve existing risk controls and do not place a fresh order until fundamentals are complete (HIGH)",
             "- Catalyst Timeline: use only scanner ground-truth dates already present upstream; no new date inference was added here (MED)",
             f"- FINAL TRANSACTION PROPOSAL: **{recommendation}**",
         ]
-    ).strip()
+    if reason:
+        lines.insert(1, f"- Validation Guardrail: {reason} (HIGH)")
+    return "\n".join(lines).strip()
 
 
 def _infer_recommendation(text: str) -> str:

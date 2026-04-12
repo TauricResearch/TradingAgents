@@ -15,6 +15,7 @@ from tradingagents.agents.managers.summary_rules import (
     SCANNER_REPORT_SUMMARY,
     generate_summary_prompt,
 )
+from tradingagents.agents.utils.llm_guard import invoke_with_timeout
 from tradingagents.agents.utils.report_quality import parse_quality_header
 from tradingagents.agents.utils.scanner_idempotency import (
     check_and_load_report,
@@ -89,8 +90,22 @@ def create_scanner_summarizer(llm, report_key: str, summary_key: str):
 
         prompt = _build_scanner_summary_prompt(report_key, raw_report)
 
-        result = llm.invoke(prompt)
+        result, invoke_error = invoke_with_timeout(
+            llm=llm,
+            prompt_or_messages=prompt,
+            timeout_seconds=180.0,
+        )
+        if invoke_error is not None:
+            raise RuntimeError(
+                f"Summarizer invoke failed for {report_key}: "
+                f"{type(invoke_error).__name__}: {invoke_error}"
+            ) from invoke_error
+
         summary = result.content or ""
+        if not str(summary).strip():
+            raise RuntimeError(
+                f"Summarizer produced empty output for {report_key}; refusing fallback persistence."
+            )
 
         # 3. Resumability: Save after completion
         if summary:

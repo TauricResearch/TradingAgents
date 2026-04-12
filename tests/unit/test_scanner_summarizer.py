@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 from tradingagents.agents.scanners.scanner_summarizer import (
     _build_scanner_summary_prompt,
     create_scanner_summarizer,
@@ -47,3 +49,21 @@ def test_scanner_summarizer_invokes_llm_with_tightened_prompt():
     prompt = llm.invoke.call_args.args[0]
     assert "Scanner source: smart money" in prompt
     assert "Preserve dates exactly as written." in prompt
+
+
+def test_scanner_summarizer_timeout_raises_runtime_error(monkeypatch):
+    llm = MagicMock()
+    node = create_scanner_summarizer(llm, "smart_money_report", "smart_money_summary")
+
+    def _timeout(**kwargs):
+        return None, TimeoutError("timed out")
+
+    monkeypatch.setattr(
+        "tradingagents.agents.scanners.scanner_summarizer.invoke_with_timeout",
+        _timeout,
+    )
+
+    with pytest.raises(RuntimeError) as exc:
+        node({"smart_money_report": "RIG insider buying at $45.20 on 2026-04-02"})
+
+    assert "Summarizer invoke failed" in str(exc.value)

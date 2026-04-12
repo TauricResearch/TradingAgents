@@ -1725,6 +1725,7 @@ class LangGraphEngine:
         date = params.get("date", time.strftime("%Y-%m-%d"))
         force = bool(params.get("force", False))
         store = create_report_store(run_id=root_run_id)
+        from agent_os.backend.store import runs as live_runs
         run_record = live_runs.get(root_run_id) or {}
         pending = run_record.get("pending_phase3_decision") or {}
         incomplete = pending.get("incomplete_tickers") or []
