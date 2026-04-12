@@ -11,6 +11,7 @@ from .y_finance import (
     get_insider_transactions as get_yfinance_insider_transactions,
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
+from .akshare_news import get_news_akshare
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
     get_indicator as get_alpha_vantage_indicator,
@@ -63,6 +64,7 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "akshare",  # 新增 A股 数据源
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -98,6 +100,7 @@ VENDOR_METHODS = {
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "akshare": get_news_akshare,  # 新增映射
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
@@ -134,8 +137,18 @@ def get_vendor(category: str, method: str = None) -> str:
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
-    vendor_config = get_vendor(category, method)
-    primary_vendors = [v.strip() for v in vendor_config.split(',')]
+    if len(args) > 0 and isinstance(args[0], str):
+        print(f"AAAAAA args: {args}")
+        ticker = args[0].upper()
+        # 如果带有上海(.SS)或深圳(.SZ)后缀，强制优先使用 akshare
+        if ticker.endswith(".SS") or ticker.endswith(".SZ"):
+            primary_vendors = ["akshare"]
+        else:
+            vendor_config = get_vendor(category, method)
+            primary_vendors = [v.strip() for v in vendor_config.split(',')]
+    else:
+        vendor_config = get_vendor(category, method)
+        primary_vendors = [v.strip() for v in vendor_config.split(',')]
 
     if method not in VENDOR_METHODS:
         raise ValueError(f"Method '{method}' not supported")
