@@ -11,7 +11,7 @@ DEFAULT_CONFIG = {
     "llm_provider": "openai",
     "deep_think_llm": "qwen-35b",
     "quick_think_llm": "qwen-35b",
-    "backend_url": "https://ai.ghosthouse.uk/v1/chat/completions",
+    "backend_url": "https://ai.ghosthouse.uk/v1",
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
