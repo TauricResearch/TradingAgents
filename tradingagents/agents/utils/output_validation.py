@@ -404,15 +404,27 @@ def build_research_manager_fallback(state: dict[str, Any]) -> str:
 
     lines: list[str] = []
 
-    for claim in (news_structured.get("claims") or [])[:3]:
-        if not isinstance(claim, dict):
-            continue
-        claim_text = str(claim.get("claim") or "").strip()
-        source = str(claim.get("source") or "").strip()
-        published_at = str(claim.get("published_at") or "").strip()
-        if claim_text:
-            provenance = " ".join(part for part in (source, published_at) if part)
-            lines.append(f"- Bull: {claim_text}" + (f" [{provenance}]" if provenance else "") + " (MED)")
+    # Check news status and usability before iterating claims
+    news_status = str(news_structured.get("status") or "").strip()
+    key_metrics = news_structured.get("key_metrics") or {}
+    claim_count = key_metrics.get("claim_count", 0) if isinstance(key_metrics, dict) else 0
+    news_has_usable_evidence = news_status == "completed" and claim_count > 0
+    
+    if news_has_usable_evidence:
+        # Gate news claim iteration behind usable evidence check
+        for claim in (news_structured.get("claims") or [])[:3]:
+            if not isinstance(claim, dict):
+                continue
+            claim_text = str(claim.get("claim") or "").strip()
+            source = str(claim.get("source") or "").strip()
+            published_at = str(claim.get("published_at") or "").strip()
+            if claim_text:
+                provenance = " ".join(part for part in (source, published_at) if part)
+                lines.append(f"- Bull: {claim_text}" + (f" [{provenance}]" if provenance else "") + " (MED)")
+    else:
+        # News structured contract is not usable evidence
+        if news_status:
+            lines.append(f"- Bear: News structured contract has status '{news_status}' (MED)")
 
     key_levels = market_structured.get("key_levels") or []
     if isinstance(key_levels, list) and key_levels:
@@ -549,6 +561,284 @@ def build_sentiment_report_structured(
             "report_char_count": len(report),
         },
     }
+
+
+def build_news_report_structured(
+    *,
+    ticker: str,
+    as_of_date: str,
+    payload: dict[str, Any],
+    status: str,
+    abort_reason: str = "",
+    removed_claims: list[dict] | None = None,
+) -> dict[str, Any]:
+    """Build a canonical news_report_v1 contract from a sanitized payload.
+    
+    This is the sole normalization point for news structured output. It validates
+    the status, stamps contract metadata, computes key_metrics, and ensures the
+    returned contract is always valid, even when given malformed inputs.
+    
+    Args:
+        ticker: Company ticker symbol
+        as_of_date: Report date in YYYY-MM-DD format
+        payload: Sanitized news payload from validate/sanitize flow, or {} for failures
+        status: One of: completed, empty, invalid_structured_payload, 
+                missing_structured_payload, aborted
+        abort_reason: Error description for non-completed statuses
+        removed_claims: Claims rejected during sanitization (for metrics)
+    
+    Returns:
+        dict: Always a valid news_report_v1 contract, never raises
+    """
+    try:
+        # Canonical news status set - no timeout_fallback or completed_sparse for news
+        canonical_statuses = {
+            "completed",
+            "empty",
+            "invalid_structured_payload",
+            "missing_structured_payload",
+            "aborted",
+        }
+        
+        # Validate status
+        status_str = str(status or "").strip()
+        if status_str not in canonical_statuses:
+            # Non-canonical status - return invalid contract
+            return {
+                "ticker": str(ticker or "").strip().upper(),
+                "as_of_date": str(as_of_date or "").strip(),
+                "status": "invalid_structured_payload",
+                "contract_version": "news_report_v1",
+                "abort_reason": f"Non-canonical status supplied: {status_str}",
+                "report_title": f"{str(ticker or '').strip().upper()} News Analysis",
+                "claims": [],
+                "summary_table": [],
+                "key_metrics": {
+                    "claim_count": 0,
+                    "summary_rows": 0,
+                    "evidence_ids": 0,
+                    "removed_claims": len(removed_claims or []),
+                    "below_min_claims": False,
+                },
+            }
+        
+        # Validate payload is a dict
+        if not isinstance(payload, dict):
+            payload = {}
+        
+        # Extract and validate claims
+        claims_raw = payload.get("claims") or []
+        if not isinstance(claims_raw, list):
+            claims_raw = []
+        
+        # Reconstruct claims with whitelisted fields and scan_date cleanup
+        output_claims = []
+        for claim in claims_raw:
+            if not isinstance(claim, dict):
+                # Malformed claim - treat as invalid_structured_payload
+                return {
+                    "ticker": str(ticker or "").strip().upper(),
+                    "as_of_date": str(as_of_date or "").strip(),
+                    "status": "invalid_structured_payload",
+                    "contract_version": "news_report_v1",
+                    "abort_reason": "Malformed claim entry in payload",
+                    "report_title": f"{str(ticker or '').strip().upper()} News Analysis",
+                    "claims": [],
+                    "summary_table": [],
+                    "key_metrics": {
+                        "claim_count": 0,
+                        "summary_rows": 0,
+                        "evidence_ids": 0,
+                        "removed_claims": len(removed_claims or []),
+                        "below_min_claims": False,
+                    },
+                }
+            
+            source = str(claim.get("source") or "").strip()
+            is_scanner = source == "Finviz Smart Money Scanner"
+            
+            # Build output claim with whitelisted fields
+            output_claim = {
+                "claim": str(claim.get("claim") or "").strip(),
+                "source": source,
+            }
+            
+            if is_scanner:
+                # Scanner claims: retain scan_date, omit blank optional fields
+                scan_date = str(claim.get("scan_date") or "").strip()
+                if scan_date:
+                    output_claim["scan_date"] = scan_date
+                # Scanner claims may have blank published_at and evidence_id - omit if blank
+                published_at = str(claim.get("published_at") or "").strip()
+                if published_at:
+                    output_claim["published_at"] = published_at
+                evidence_id = str(claim.get("evidence_id") or "").strip()
+                if evidence_id:
+                    output_claim["evidence_id"] = evidence_id
+            else:
+                # Article claims: require non-empty evidence_id, include published_at, strip scan_date
+                published_at = str(claim.get("published_at") or "").strip()
+                evidence_id = str(claim.get("evidence_id") or "").strip()
+                if not evidence_id:
+                    # Non-scanner claim without evidence_id is invalid
+                    return {
+                        "ticker": str(ticker or "").strip().upper(),
+                        "as_of_date": str(as_of_date or "").strip(),
+                        "status": "invalid_structured_payload",
+                        "contract_version": "news_report_v1",
+                        "abort_reason": "Non-scanner claim missing required evidence_id",
+                        "report_title": f"{str(ticker or '').strip().upper()} News Analysis",
+                        "claims": [],
+                        "summary_table": [],
+                        "key_metrics": {
+                            "claim_count": 0,
+                            "summary_rows": 0,
+                            "evidence_ids": 0,
+                            "removed_claims": len(removed_claims or []),
+                            "below_min_claims": False,
+                        },
+                    }
+                output_claim["published_at"] = published_at
+                output_claim["evidence_id"] = evidence_id
+                # scan_date is stripped for non-scanner claims
+            
+            output_claims.append(output_claim)
+        
+        # Extract and validate summary table
+        summary_raw = payload.get("summary_table") or []
+        if not isinstance(summary_raw, list):
+            summary_raw = []
+        
+        # Reconstruct summary rows with whitelisted fields
+        output_summary = []
+        for row in summary_raw:
+            if not isinstance(row, dict):
+                # Malformed row - treat as invalid_structured_payload
+                return {
+                    "ticker": str(ticker or "").strip().upper(),
+                    "as_of_date": str(as_of_date or "").strip(),
+                    "status": "invalid_structured_payload",
+                    "contract_version": "news_report_v1",
+                    "abort_reason": "Malformed summary_table entry in payload",
+                    "report_title": f"{str(ticker or '').strip().upper()} News Analysis",
+                    "claims": [],
+                    "summary_table": [],
+                    "key_metrics": {
+                        "claim_count": 0,
+                        "summary_rows": 0,
+                        "evidence_ids": 0,
+                        "removed_claims": len(removed_claims or []),
+                        "below_min_claims": False,
+                    },
+                }
+            
+            source = str(row.get("source") or "").strip()
+            is_scanner = source == "Finviz Smart Money Scanner"
+            
+            # Build output row with whitelisted fields
+            output_row = {
+                "date": str(row.get("date") or "").strip(),
+                "event": str(row.get("event") or "").strip(),
+                "metric": str(row.get("metric") or "").strip(),
+                "value": str(row.get("value") or "").strip(),
+                "source": source,
+            }
+            
+            if is_scanner:
+                # Scanner rows: retain scan_date
+                scan_date = str(row.get("scan_date") or "").strip()
+                if scan_date:
+                    output_row["scan_date"] = scan_date
+                # Scanner rows may have blank evidence_id - include if present
+                evidence_id = str(row.get("evidence_id") or "").strip()
+                if evidence_id:
+                    output_row["evidence_id"] = evidence_id
+            else:
+                # Non-scanner rows: require evidence_id, strip scan_date
+                evidence_id = str(row.get("evidence_id") or "").strip()
+                if not evidence_id:
+                    # Non-scanner row without evidence_id is invalid
+                    return {
+                        "ticker": str(ticker or "").strip().upper(),
+                        "as_of_date": str(as_of_date or "").strip(),
+                        "status": "invalid_structured_payload",
+                        "contract_version": "news_report_v1",
+                        "abort_reason": "Non-scanner summary_table row missing required evidence_id",
+                        "report_title": f"{str(ticker or '').strip().upper()} News Analysis",
+                        "claims": [],
+                        "summary_table": [],
+                        "key_metrics": {
+                            "claim_count": 0,
+                            "summary_rows": 0,
+                            "evidence_ids": 0,
+                            "removed_claims": len(removed_claims or []),
+                            "below_min_claims": False,
+                        },
+                    }
+                output_row["evidence_id"] = evidence_id
+            
+            output_summary.append(output_row)
+        
+        # Compute key_metrics
+        claim_count = len(output_claims)
+        summary_rows = len(output_summary)
+        
+        # Count unique evidence_ids across claims (non-empty)
+        evidence_ids = set()
+        for claim in output_claims:
+            eid = claim.get("evidence_id")
+            if eid:
+                evidence_ids.add(eid)
+        evidence_id_count = len(evidence_ids)
+        
+        removed_count = len(removed_claims or [])
+        below_min_claims = bool(payload.get("below_min_claims"))
+        
+        # Synthesize report_title if missing
+        report_title = payload.get("report_title")
+        if not report_title:
+            ticker_upper = str(ticker or "").strip().upper()
+            report_title = f"{ticker_upper} News Analysis"
+        
+        # Build canonical contract
+        return {
+            "ticker": str(ticker or "").strip().upper(),
+            "as_of_date": str(as_of_date or "").strip(),
+            "status": status_str,
+            "contract_version": "news_report_v1",
+            "abort_reason": str(abort_reason or "").strip(),
+            "report_title": str(report_title or "").strip(),
+            "claims": output_claims,
+            "summary_table": output_summary,
+            "key_metrics": {
+                "claim_count": claim_count,
+                "summary_rows": summary_rows,
+                "evidence_ids": evidence_id_count,
+                "removed_claims": removed_count,
+                "below_min_claims": below_min_claims,
+            },
+        }
+    
+    except Exception as e:
+        # Defensive: if anything fails, return a valid invalid_structured_payload contract
+        logger.exception("build_news_report_structured failed with exception")
+        return {
+            "ticker": str(ticker or "").strip().upper(),
+            "as_of_date": str(as_of_date or "").strip(),
+            "status": "invalid_structured_payload",
+            "contract_version": "news_report_v1",
+            "abort_reason": f"Normalizer exception: {str(e)}",
+            "report_title": f"{str(ticker or '').strip().upper()} News Analysis",
+            "claims": [],
+            "summary_table": [],
+            "key_metrics": {
+                "claim_count": 0,
+                "summary_rows": 0,
+                "evidence_ids": 0,
+                "removed_claims": len(removed_claims or []),
+                "below_min_claims": False,
+            },
+        }
 
 
 def build_investment_plan_structured(
@@ -1066,7 +1356,7 @@ def render_structured_news_payload(payload: dict[str, Any], ticker: str) -> str:
 
     rows = payload.get("summary_table") or []
     if rows:
-        lines.extend(["", "### Summary Table", "", "| Date | Event | Metric | Value | Source |", "|------|-------|--------|-------|--------|"])
+        lines.extend(["", "### Summary Table", "", "| Date | Event | Metric | Value | Source | Evidence ID |", "|------|-------|--------|-------|--------|-------------|"])
         for row in rows:
             if not isinstance(row, dict):
                 continue
@@ -1075,8 +1365,9 @@ def render_structured_news_payload(payload: dict[str, Any], ticker: str) -> str:
             metric = str(row.get("metric") or "").strip()
             value = str(row.get("value") or "").strip()
             source = str(row.get("source") or "").strip()
+            evidence_id = str(row.get("evidence_id") or "").strip()
             lines.append(
-                f"| {date} | {event} | {metric} | {value} | {source} |"
+                f"| {date} | {event} | {metric} | {value} | {source} | {evidence_id} |"
             )
 
     return "\n".join(line for line in lines if line is not None).strip()

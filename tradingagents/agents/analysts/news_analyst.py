@@ -40,51 +40,7 @@ def _extract_scanner_citation_hint(scanner_context: str, fallback_date: str) -> 
     return f"[Source: {source_name} | Scan Date: {scan_date}]"
 
 
-def _build_timeout_structured_payload(
-    *,
-    ticker: str,
-    records: list,
-    fallback_date: str,
-    max_claims: int = 3,
-) -> dict:
-    ticker_upper = str(ticker or "").upper()
-    claims: list[dict] = []
-    summary_rows: list[dict] = []
-
-    for record in records[:max_claims]:
-        published_at = str(getattr(record, "published_at", "") or fallback_date).strip()
-        source = str(getattr(record, "source", "") or "Unknown").strip()
-        evidence_id = str(getattr(record, "evidence_id", "")).strip()
-        title = str(getattr(record, "title", "")).strip()
-        if not title or not evidence_id:
-            continue
-
-        claim_text = f"{ticker_upper}: {title} ({published_at})."
-        claims.append(
-            {
-                "claim": claim_text,
-                "source": source,
-                "published_at": published_at,
-                "evidence_id": evidence_id,
-            }
-        )
-        summary_rows.append(
-            {
-                "date": published_at,
-                "event": title[:80],
-                "metric": "Article",
-                "value": "Captured",
-                "source": source,
-                "evidence_id": evidence_id,
-            }
-        )
-
-    return {
-        "ticker": ticker_upper,
-        "report_title": f"{ticker_upper} News Analysis",
-        "claims": claims,
-        "summary_table": summary_rows,
-    }
+# Removed _build_timeout_structured_payload - news timeouts are now treated as critical aborts
 
 
 def _build_compact_news_context(
@@ -175,6 +131,31 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             trade_date=current_date,
             prefetched=prefetched,
         )
+        
+        # Prefetch health gate: check if all or most prefetch sections failed
+        company_news = prefetched.get("Company-Specific News (Last 7 Days)", "")
+        global_news = prefetched.get("Global Macroeconomic News (Last 7 Days)", "")
+        company_failed = str(company_news).strip().startswith("[Error fetching") or str(company_news).strip().startswith("[Error]")
+        global_failed = str(global_news).strip().startswith("[Error fetching") or str(global_news).strip().startswith("[Error]")
+        
+        # If both prefetch sections failed and no evidence records were persisted, abort
+        if company_failed and global_failed and not evidence_records:
+            report = f"[CRITICAL ABORT] Reason: News prefetch failed for {ticker} - both company-specific and global news feeds returned errors"
+            return {
+                "messages": [AIMessage(content=report)],
+                "news_report": report,
+                "news_report_structured": {},
+            }
+        
+        # If prefetch succeeded but no evidence records were persisted, return deterministic no-news
+        if not evidence_records:
+            report = f"{ticker} News Analysis\n\n- No news evidence was available for this run."
+            return {
+                "messages": [AIMessage(content=report)],
+                "news_report": report,
+                "news_report_structured": {},
+            }
+        
         compact_news_context = _build_compact_news_context(records=evidence_records)
         macro_regime_report = state.get("macro_regime_report", "")
         macro_regime_section = (
@@ -200,11 +181,12 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             "Use the provided **Economic Calendar** to contextulize news events — "
             "do NOT hallucinate dates for FOMC, CPI, or other macro releases.\n\n"
             "STRICT CONSTRAINTS:\n"
-            "- Output ONLY valid JSON. Do not wrap the JSON in markdown fences.\n"
+            "- Prefer valid JSON using the schema below. If you cannot produce valid JSON, return a concise cited markdown report instead of inventing structure.\n"
+            "- Do not wrap JSON in markdown fences.\n"
             "- Cite exact values in standard format inside claim text: $X.XX, +Y.Y% YoY. No superlatives (\"massive\", \"huge\", \"significant\"). Every claim must reference a specific number, date, or source.\n"
             "- Prioritize material news with quantifiable impact over speculative commentary.\n"
             "- Attribute each claim to a specific source and date.\n\n"
-            "Return a JSON object with this schema:\n"
+            "Preferred JSON schema:\n"
             "{\n"
             f'  "ticker": "{ticker}",\n'
             f'  "report_title": "{ticker} News Analysis",\n'
@@ -293,16 +275,11 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
         )
         if invoke_error is not None:
             if isinstance(invoke_error, TimeoutError):
-                timeout_payload = _build_timeout_structured_payload(
-                    ticker=ticker,
-                    records=evidence_records,
-                    fallback_date=current_date,
-                )
-                timeout_report = render_structured_news_payload(timeout_payload, ticker)
+                report = f"[CRITICAL ABORT] Reason: News analyst timed out after {timeout_seconds}s for {ticker}"
                 return {
-                    "messages": [AIMessage(content=timeout_report)],
-                    "news_report": timeout_report,
-                    "news_report_structured": timeout_payload,
+                    "messages": [AIMessage(content=report)],
+                    "news_report": report,
+                    "news_report_structured": {},
                 }
             raise invoke_error
         raw_output = first_result.content or ""
@@ -343,7 +320,8 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
                     f"Failure reason: {structured_validation.reason}\n"
                     "The same full scanner context, pre-loaded news feeds, and persisted evidence records "
                     "remain available on this retry.\n"
-                    "Rewrite the report from scratch using only the provided context and return valid JSON only. "
+                    "Rewrite the report from scratch using only the provided context. "
+                    "Prefer valid JSON using the schema provided earlier. If you cannot produce valid JSON, return a concise cited markdown report. "
                     "Only cite publications or data sources present in the provided feeds. "
                     "Do not cite internal prompt labels or section headers like "
                     "\"Macro Regime Classification\", \"Scanner Context\", or "
@@ -359,16 +337,11 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):
-                    timeout_payload = _build_timeout_structured_payload(
-                        ticker=ticker,
-                        records=evidence_records,
-                        fallback_date=current_date,
-                    )
-                    report = render_structured_news_payload(timeout_payload, ticker)
+                    report = f"[CRITICAL ABORT] Reason: News analyst timed out after {timeout_seconds}s for {ticker} (retry attempt)"
                     return {
                         "messages": [AIMessage(content=report)],
                         "news_report": report,
-                        "news_report_structured": timeout_payload,
+                        "news_report_structured": {},
                     }
                 raise invoke_error
             raw_output = result.content or ""

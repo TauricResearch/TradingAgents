@@ -784,29 +784,52 @@ class AgentState(MessagesState):
 
 ```json
 {
-  "ticker": "string",                           // REQUIRED
+  "ticker": "string",                           // REQUIRED — company ticker symbol
+  "as_of_date": "YYYY-MM-DD",                   // REQUIRED — report date
+  "status": "completed|empty|invalid_structured_payload|missing_structured_payload|aborted",  // REQUIRED
+  "contract_version": "news_report_v1",         // REQUIRED — canonical contract version
+  "abort_reason": "string",                     // REQUIRED — error description for non-completed statuses
   "report_title": "string",                     // REQUIRED
-  "claims": [                                   // REQUIRED
+  "claims": [                                   // REQUIRED — verified claims array
     {
       "claim": "string",                        // REQUIRED — one-sentence grounded claim
       "source": "string",                       // REQUIRED — exact source name
-      "published_at": "YYYY-MM-DD",             // REQUIRED
-      "evidence_id": "art_...",                 // REQUIRED — stable evidence handle
-      "scan_date": "YYYY-MM-DD"                 // OPTIONAL — only for Finviz scanner claims
+      "published_at": "YYYY-MM-DD",             // REQUIRED for article claims
+      "evidence_id": "art_...",                 // REQUIRED for article claims — stable evidence handle
+      "scan_date": "YYYY-MM-DD"                 // REQUIRED for Finviz scanner claims
     }
   ],
-  "summary_table": [                            // REQUIRED
+  "summary_table": [                            // REQUIRED — summary table rows
     {
       "date": "YYYY-MM-DD",                     // REQUIRED
       "event": "string",                        // REQUIRED — short label
       "metric": "string",                       // REQUIRED
       "value": "string",                        // REQUIRED — exact value
       "source": "string",                       // REQUIRED
-      "evidence_id": "art_..."                  // REQUIRED
+      "evidence_id": "art_...",                 // REQUIRED for article rows
+      "scan_date": "YYYY-MM-DD"                 // REQUIRED for scanner rows
     }
-  ]
+  ],
+  "key_metrics": {                              // REQUIRED — computed metrics
+    "claim_count": 0,                           // REQUIRED — number of claims
+    "summary_rows": 0,                          // REQUIRED — number of summary table rows
+    "evidence_ids": 0,                          // REQUIRED — count of unique evidence IDs
+    "removed_claims": 0,                        // REQUIRED — claims removed during sanitization
+    "below_min_claims": false                   // REQUIRED — flag for sparse output
+  }
 }
 ```
+
+**Status Values:**
+- `completed`: At least one verified claim remains after fact-checking
+- `empty`: No validated claims available (successful run with no evidence)
+- `invalid_structured_payload`: Malformed payload or all claims rejected
+- `missing_structured_payload`: Analyst produced no structured payload
+- `aborted`: Critical failure (analyst timeout or prefetch failure)
+
+**Contract Version:** `news_report_v1` is the canonical news contract. Previous non-canonical statuses (`timeout_fallback`, `completed_sparse`) are no longer used for news.
+
+**Downstream Usage:** Consumers should check `status == "completed"` and `key_metrics.claim_count > 0` before using news as evidence.
 
 #### 4.2.5 `fundamentals_report_structured` — Fundamentals Analyst Output
 
