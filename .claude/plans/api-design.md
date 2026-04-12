@@ -57,7 +57,18 @@ I inputed 01/03/2026 formatted DD-M-YY, but the tools parse incorrectly. You mus
 ### Task 10: Fibonacci retracement
 Step 1: After you get stock in binance. You must calculate fibonaci  Fibonacci retracement at level: 0, 0.236, 0.382, 0.5. 0.618 and 1 as a new tools
 Step 2: You must update system_message, describe the fibonacci retracement and update prompt context. Noted that. If symbol is BTCUSDT, you must check 0.5, if the price above 0.5 that means short uptrend. Allcoin check 0.618
+
+### Task 11: Binace new klIne API
+- You must check https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1d
+- This new endpoint and compare the data formatted with old endpoint, if the same, you must replace. If not let tell me and do not implement it.
+
+### Task 12:Delivery Paper
+- Requirement: After finished all reports, user confirm save. You mission to publish to notion
+- Notion: reuqire Key if needed, the key need to be saved at .env
+- All reqport must be wrapped in a page and seperated by title.
+- Setup a connection to connect Notion
 ---
+
 
 
 

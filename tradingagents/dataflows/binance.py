@@ -1,7 +1,7 @@
 """Binance public REST API data fetcher.
 
 Covers three endpoints as per Task 3 design:
-  - klines:  https://api.binance.com/api/v3/klines
+  - klines:  https://fapi.binance.com/fapi/v1/klines
   - ticker:  https://api.binance.com/api/v3/ticker/
   - depth:   https://api.binance.com/api/v3/depth
 
@@ -24,7 +24,7 @@ from .config import get_config
 
 logger = logging.getLogger(__name__)
 
-_BASE_URL = "https://api.binance.com"
+_BASE_URL = "https://fapi.binance.com"
 
 # Binance rate-limit: HTTP 429 → back off before retrying
 _MAX_RETRIES = 3
@@ -67,7 +67,7 @@ def _fetch_klines_range(params: KlineParams) -> list[Kline]:
     query: dict = {
         "symbol": params.symbol.upper(),
         "interval": params.interval.value,
-        "limit": min(params.limit, 500),
+        "limit": min(params.limit, 200),
     }
 #     if params.start_time is not None:
 #         query["startTime"] = params.start_time
@@ -76,7 +76,7 @@ def _fetch_klines_range(params: KlineParams) -> list[Kline]:
 
     all_klines: list[Kline] = []
     while True:
-        raw: list = _get("/api/v3/klines", query)  # type: ignore[assignment]
+        raw: list = _get("/fapi/v1/klines", query)  # type: ignore[assignment]
         if not raw:
             break
         batch = [Kline.from_raw(r) for r in raw]
@@ -166,7 +166,7 @@ def get_binance_klines(
         interval=resolved_interval,
         start_time=_date_to_ms(start_date),
         end_time=_date_to_ms(end_date),
-        limit=500,
+        limit=200,
     )
     klines = _fetch_klines_range(params)
     if not klines:
@@ -240,7 +240,7 @@ def get_binance_indicators_window(
         interval=resolved_interval,
         start_time=_date_to_ms(fetch_start.strftime("%Y-%m-%d")),
         end_time=_date_to_ms(curr_date),
-        limit=500,
+        limit=200,
     )
     klines = _fetch_klines_range(params)
     if not klines:
@@ -318,7 +318,7 @@ def get_binance_ticker(
 
 def get_binance_depth(
     symbol: Annotated[str, "Binance trading pair, e.g. BTCUSDT"],
-    limit: Annotated[int, "Number of price levels to return (max 5000)"] = 100,
+    limit: Annotated[int, "Number of price levels to return (max 200)"] = 100,
 ) -> str:
     """Fetch the current order book (bids and asks) for a symbol from Binance.
 
@@ -395,7 +395,7 @@ def get_fibonacci_retracement(
         interval=resolved_interval,
         start_time=_date_to_ms(start_date),
         end_time=_date_to_ms(end_date),
-        limit=500,
+        limit=200,
     )
     klines = _fetch_klines_range(params)
     if not klines:
