@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>graphify - graphify-out/graph.html</title>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; overflow: hidden; }
+  #graph { flex: 1; }
+  #sidebar { width: 280px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; }
+  #search-wrap { padding: 12px; border-bottom: 1px solid #2a2a4e; }
+  #search { width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e0; padding: 7px 10px; border-radius: 6px; font-size: 13px; outline: none; }
+  #search:focus { border-color: #4E79A7; }
+  #search-results { max-height: 140px; overflow-y: auto; padding: 4px 12px; border-bottom: 1px solid #2a2a4e; display: none; }
+  .search-item { padding: 4px 6px; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-item:hover { background: #2a2a4e; }
+  #info-panel { padding: 14px; border-bottom: 1px solid #2a2a4e; min-height: 140px; }
+  #info-panel h3 { font-size: 13px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  #info-content { font-size: 13px; color: #ccc; line-height: 1.6; }
+  #info-content .field { margin-bottom: 5px; }
+  #info-content .field b { color: #e0e0e0; }
+  #info-content .empty { color: #555; font-style: italic; }
+  .neighbor-link { display: block; padding: 2px 6px; margin: 2px 0; border-radius: 3px; cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid #333; }
+  .neighbor-link:hover { background: #2a2a4e; }
+  #neighbors-list { max-height: 160px; overflow-y: auto; margin-top: 4px; }
+  #legend-wrap { flex: 1; overflow-y: auto; padding: 12px; }
+  #legend-wrap h3 { font-size: 13px; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; border-radius: 4px; font-size: 12px; }
+  .legend-item:hover { background: #2a2a4e; padding-left: 4px; }
+  .legend-item.dimmed { opacity: 0.35; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .legend-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .legend-count { color: #666; font-size: 11px; }
+  #stats { padding: 10px 14px; border-top: 1px solid #2a2a4e; font-size: 11px; color: #555; }
+</style>
+</head>
+<body>
+<div id="graph"></div>
+<div id="sidebar">
+  <div id="search-wrap">
+    <input id="search" type="text" placeholder="Search nodes..." autocomplete="off">
+    <div id="search-results"></div>
+  </div>
+  <div id="info-panel">
+    <h3>Node Info</h3>
+    <div id="info-content"><span class="empty">Click a node to inspect it</span></div>
+  </div>
+  <div id="legend-wrap">
+    <h3>Communities</h3>
+    <div id="legend"></div>
+  </div>
+  <div id="stats">62 nodes &middot; 60 edges &middot; 17 communities</div>
+</div>
+<script>
+const RAW_NODES = [{"id": "tailwind_config_js", "label": "tailwind.config.js", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "tailwind.config.js", "community": 11, "community_name": "Tailwind Config", "source_file": "tailwind.config.js", "file_type": "code", "degree": 0}, {"id": "vite_config_ts", "label": "vite.config.ts", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "vite.config.ts", "community": 12, "community_name": "Vite Config", "source_file": "vite.config.ts", "file_type": "code", "degree": 0}, {"id": "postcss_config_js", "label": "postcss.config.js", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "postcss.config.js", "community": 13, "community_name": "PostCSS Config", "source_file": "postcss.config.js", "file_type": "code", "degree": 0}, {"id": "src_app_tsx", "label": "App.tsx", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "App.tsx", "community": 6, "community_name": "App Entry Point", "source_file": "src/App.tsx", "file_type": "code", "degree": 1}, {"id": "app_app", "label": "App()", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "App()", "community": 6, "community_name": "App Entry Point", "source_file": "src/App.tsx", "file_type": "code", "degree": 1}, {"id": "src_main_tsx", "label": "main.tsx", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "main.tsx", "community": 14, "community_name": "Main Entry", "source_file": "src/main.tsx", "file_type": "code", "degree": 0}, {"id": "src_dashboard_tsx", "label": "Dashboard.tsx", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 40.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Dashboard.tsx", "community": 2, "community_name": "Event & Run Lifecycle", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 15}, {"id": "dashboard_parsetickerinput", "label": "parseTickerInput()", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "parseTickerInput()", "community": 7, "community_name": "Ticker & Run Start", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 2}, {"id": "dashboard_restoretickerinput", "label": "restoreTickerInput()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "restoreTickerInput()", "community": 2, "community_name": "Event & Run Lifecycle", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 1}, {"id": "dashboard_eventcolor", "label": "eventColor()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "eventColor()", "community": 2, "community_name": "Event & Run Lifecycle", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 1}, {"id": "dashboard_eventlabel", "label": "eventLabel()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "eventLabel()", "community": 2, "community_name": "Event & Run Lifecycle", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 1}, {"id": "dashboard_eventsummary", "label": "eventSummary()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "eventSummary()", "community": 2, "community_name": "Event & Run Lifecycle", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 1}, {"id": "dashboard_fetchconfig", "label": "fetchConfig()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "fetchConfig()", "community": 2, "community_name": "Event & Run Lifecycle", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 1}, {"id": "dashboard_loadpausedrun", "label": "loadPausedRun()", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "loadPausedRun()", "community": 3, "community_name": "Run Control Flow", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 2}, {"id": "dashboard_startrun", "label": "startRun()", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "startRun()", "community": 7, "community_name": "Ticker & Run Start", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 2}, {"id": "dashboard_resetportfoliostage", "label": "resetPortfolioStage()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "resetPortfolioStage()", "community": 2, "community_name": "Event & Run Lifecycle", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 1}, {"id": "dashboard_loadhistory", "label": "loadHistory()", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 20.0, "font": {"size": 12, "color": "#ffffff"}, "title": "loadHistory()", "community": 3, "community_name": "Run Control Flow", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 5}, {"id": "dashboard_loadrun", "label": "loadRun()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "loadRun()", "community": 2, "community_name": "Event & Run Lifecycle", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 1}, {"id": "dashboard_resumerun", "label": "resumeRun()", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "resumeRun()", "community": 3, "community_name": "Run Control Flow", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 2}, {"id": "dashboard_stoprun", "label": "stopRun()", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "stopRun()", "community": 3, "community_name": "Run Control Flow", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 2}, {"id": "dashboard_submitphase3decision", "label": "submitPhase3Decision()", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "submitPhase3Decision()", "community": 3, "community_name": "Run Control Flow", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 2}, {"id": "dashboard_triggernodererun", "label": "triggerNodeRerun()", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "triggerNodeRerun()", "community": 2, "community_name": "Event & Run Lifecycle", "source_file": "src/Dashboard.tsx", "file_type": "code", "degree": 1}, {"id": "src_vite_env_d_ts", "label": "vite-env.d.ts", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "vite-env.d.ts", "community": 15, "community_name": "Vite Env Types", "source_file": "src/vite-env.d.ts", "file_type": "code", "degree": 0}, {"id": "src_theme_ts", "label": "theme.ts", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 10.0, "font": {"size": 0, "color": "#ffffff"}, "title": "theme.ts", "community": 16, "community_name": "Theme Config", "source_file": "src/theme.ts", "file_type": "code", "degree": 0}, {"id": "src_config_api_ts", "label": "api.ts", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "api.ts", "community": 4, "community_name": "API & WebSocket Config", "source_file": "src/config/api.ts", "file_type": "code", "degree": 3}, {"id": "api_trimtrailingslash", "label": "trimTrailingSlash()", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "trimTrailingSlash()", "community": 4, "community_name": "API & WebSocket Config", "source_file": "src/config/api.ts", "file_type": "code", "degree": 1}, {"id": "api_getbackendorigin", "label": "getBackendOrigin()", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "getBackendOrigin()", "community": 4, "community_name": "API & WebSocket Config", "source_file": "src/config/api.ts", "file_type": "code", "degree": 2}, {"id": "api_buildwebsocketurl", "label": "buildWebSocketUrl()", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "buildWebSocketUrl()", "community": 4, "community_name": "API & WebSocket Config", "source_file": "src/config/api.ts", "file_type": "code", "degree": 2}, {"id": "src_components_metricheader_tsx", "label": "MetricHeader.tsx", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "MetricHeader.tsx", "community": 8, "community_name": "Metric Header UI", "source_file": "src/components/MetricHeader.tsx", "file_type": "code", "degree": 1}, {"id": "metricheader_metricheader", "label": "MetricHeader()", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "MetricHeader()", "community": 8, "community_name": "Metric Header UI", "source_file": "src/components/MetricHeader.tsx", "file_type": "code", "degree": 1}, {"id": "src_components_portfolioviewer_tsx", "label": "PortfolioViewer.tsx", "color": {"background": "#BAB0AC", "border": "#BAB0AC", "highlight": {"background": "#ffffff", "border": "#BAB0AC"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "PortfolioViewer.tsx", "community": 9, "community_name": "Portfolio Viewer", "source_file": "src/components/PortfolioViewer.tsx", "file_type": "code", "degree": 1}, {"id": "portfolioviewer_fetchlist", "label": "fetchList()", "color": {"background": "#BAB0AC", "border": "#BAB0AC", "highlight": {"background": "#ffffff", "border": "#BAB0AC"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "fetchList()", "community": 9, "community_name": "Portfolio Viewer", "source_file": "src/components/PortfolioViewer.tsx", "file_type": "code", "degree": 1}, {"id": "src_components_agentgraph_tsx", "label": "AgentGraph.tsx", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 36.0, "font": {"size": 12, "color": "#ffffff"}, "title": "AgentGraph.tsx", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 13}, {"id": "agentgraph_normalizenodeid", "label": "normalizeNodeId()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "normalizeNodeId()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_tolabel", "label": "toLabel()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "toLabel()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_scopeid", "label": "scopeId()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "scopeId()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_classifynode", "label": "classifyNode()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "classifyNode()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_canrerunnode", "label": "canRerunNode()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "canRerunNode()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_geteventrerunseq", "label": "getEventRerunSeq()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "getEventRerunSeq()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_getnodeorder", "label": "getNodeOrder()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "getNodeOrder()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_statuscolor", "label": "statusColor()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "statusColor()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_identifiercolor", "label": "identifierColor()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "identifierColor()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_geticon", "label": "getIcon()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "getIcon()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_pushedge", "label": "pushEdge()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "pushEdge()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_tickerx", "label": "tickerX()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "tickerX()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "agentgraph_agentgraph", "label": "AgentGraph()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "AgentGraph()", "community": 0, "community_name": "Graph Node Utils", "source_file": "src/components/AgentGraph.tsx", "file_type": "code", "degree": 1}, {"id": "src_hooks_useagentstream_ts", "label": "useAgentStream.ts", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "useAgentStream.ts", "community": 10, "community_name": "Agent Stream Hook", "source_file": "src/hooks/useAgentStream.ts", "file_type": "code", "degree": 1}, {"id": "useagentstream_useagentstream", "label": "useAgentStream()", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "useAgentStream()", "community": 10, "community_name": "Agent Stream Hook", "source_file": "src/hooks/useAgentStream.ts", "file_type": "code", "degree": 1}, {"id": "readme_agentos_frontend", "label": "AgentOS Frontend", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 32.0, "font": {"size": 12, "color": "#ffffff"}, "title": "AgentOS Frontend", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 11}, {"id": "readme_react", "label": "React", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "React", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 2}, {"id": "readme_vite", "label": "Vite", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Vite", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 2}, {"id": "readme_chakra_ui", "label": "Chakra UI", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Chakra UI", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 1}, {"id": "readme_axios", "label": "Axios", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Axios", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 2}, {"id": "readme_websockets", "label": "WebSockets", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "WebSockets", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 3}, {"id": "readme_react_context_hooks", "label": "React Context / Hooks", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "React Context / Hooks", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 1}, {"id": "readme_command_center", "label": "CommandCenter Component", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "CommandCenter Component", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 3}, {"id": "readme_portfolio_component", "label": "Portfolio Component", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 14.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Portfolio Component", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 2}, {"id": "readme_useagentstream", "label": "useAgentStream Hook", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "useAgentStream Hook", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 3}, {"id": "readme_authcontext", "label": "AuthContext", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "AuthContext", "community": 5, "community_name": "Auth & Multi-Tenancy", "source_file": "README.md", "file_type": "document", "degree": 3}, {"id": "readme_tradingagents", "label": "TradingAgents Observability Dashboard", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "TradingAgents Observability Dashboard", "community": 1, "community_name": "Frontend Stack & Core Components", "source_file": "README.md", "file_type": "document", "degree": 3}, {"id": "readme_multi_tenant", "label": "Multi-Tenant Support", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Multi-Tenant Support", "community": 5, "community_name": "Auth & Multi-Tenancy", "source_file": "README.md", "file_type": "document", "degree": 1}, {"id": "readme_mock_auth", "label": "Mock Auth", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 12.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Mock Auth", "community": 5, "community_name": "Auth & Multi-Tenancy", "source_file": "README.md", "file_type": "document", "degree": 1}];
+const RAW_EDGES = [{"from": "src_app_tsx", "to": "app_app", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_parsetickerinput", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_restoretickerinput", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_eventcolor", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_eventlabel", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_eventsummary", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_fetchconfig", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_loadpausedrun", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_startrun", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_resetportfoliostage", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_loadhistory", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_loadrun", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_resumerun", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_stoprun", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_submitphase3decision", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_dashboard_tsx", "to": "dashboard_triggernodererun", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "dashboard_parsetickerinput", "to": "dashboard_startrun", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "dashboard_loadpausedrun", "to": "dashboard_loadhistory", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "dashboard_loadhistory", "to": "dashboard_resumerun", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "dashboard_loadhistory", "to": "dashboard_stoprun", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "dashboard_loadhistory", "to": "dashboard_submitphase3decision", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_api_ts", "to": "api_trimtrailingslash", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_api_ts", "to": "api_getbackendorigin", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_config_api_ts", "to": "api_buildwebsocketurl", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "api_getbackendorigin", "to": "api_buildwebsocketurl", "label": "calls", "title": "calls [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_metricheader_tsx", "to": "metricheader_metricheader", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_portfolioviewer_tsx", "to": "portfolioviewer_fetchlist", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_normalizenodeid", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_tolabel", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_scopeid", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_classifynode", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_canrerunnode", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_geteventrerunseq", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_getnodeorder", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_statuscolor", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_identifiercolor", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_geticon", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_pushedge", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_tickerx", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_components_agentgraph_tsx", "to": "agentgraph_agentgraph", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "src_hooks_useagentstream_ts", "to": "useagentstream_useagentstream", "label": "contains", "title": "contains [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_tradingagents", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_react", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_vite", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_chakra_ui", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_react_context_hooks", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_axios", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_websockets", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_command_center", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_portfolio_component", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_useagentstream", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_agentos_frontend", "to": "readme_authcontext", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_react", "to": "readme_vite", "label": "conceptually_related_to", "title": "conceptually_related_to [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_axios", "to": "readme_websockets", "label": "conceptually_related_to", "title": "conceptually_related_to [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_websockets", "to": "readme_useagentstream", "label": "implements", "title": "implements [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_command_center", "to": "readme_tradingagents", "label": "conceptually_related_to", "title": "conceptually_related_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "readme_command_center", "to": "readme_useagentstream", "label": "conceptually_related_to", "title": "conceptually_related_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "readme_portfolio_component", "to": "readme_tradingagents", "label": "conceptually_related_to", "title": "conceptually_related_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "readme_authcontext", "to": "readme_mock_auth", "label": "implements", "title": "implements [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "readme_authcontext", "to": "readme_multi_tenant", "label": "implements", "title": "implements [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}];
+const LEGEND = [{"cid": 0, "color": "#4E79A7", "label": "Graph Node Utils", "count": 14}, {"cid": 1, "color": "#F28E2B", "label": "Frontend Stack &amp; Core Components", "count": 11}, {"cid": 2, "color": "#E15759", "label": "Event &amp; Run Lifecycle", "count": 9}, {"cid": 3, "color": "#76B7B2", "label": "Run Control Flow", "count": 5}, {"cid": 4, "color": "#59A14F", "label": "API &amp; WebSocket Config", "count": 4}, {"cid": 5, "color": "#EDC948", "label": "Auth &amp; Multi-Tenancy", "count": 3}, {"cid": 6, "color": "#B07AA1", "label": "App Entry Point", "count": 2}, {"cid": 7, "color": "#FF9DA7", "label": "Ticker &amp; Run Start", "count": 2}, {"cid": 8, "color": "#9C755F", "label": "Metric Header UI", "count": 2}, {"cid": 9, "color": "#BAB0AC", "label": "Portfolio Viewer", "count": 2}, {"cid": 10, "color": "#4E79A7", "label": "Agent Stream Hook", "count": 2}, {"cid": 11, "color": "#F28E2B", "label": "Tailwind Config", "count": 1}, {"cid": 12, "color": "#E15759", "label": "Vite Config", "count": 1}, {"cid": 13, "color": "#76B7B2", "label": "PostCSS Config", "count": 1}, {"cid": 14, "color": "#59A14F", "label": "Main Entry", "count": 1}, {"cid": 15, "color": "#EDC948", "label": "Vite Env Types", "count": 1}, {"cid": 16, "color": "#B07AA1", "label": "Theme Config", "count": 1}];
+
+// HTML-escape helper — prevents XSS when injecting graph data into innerHTML
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Build vis datasets
+const nodesDS = new vis.DataSet(RAW_NODES.map(n => ({
+  id: n.id, label: n.label, color: n.color, size: n.size,
+  font: n.font, title: n.title,
+  _community: n.community, _community_name: n.community_name,
+  _source_file: n.source_file, _file_type: n.file_type, _degree: n.degree,
+})));
+
+const edgesDS = new vis.DataSet(RAW_EDGES.map((e, i) => ({
+  id: i, from: e.from, to: e.to,
+  label: '',
+  title: e.title,
+  dashes: e.dashes,
+  width: e.width,
+  color: e.color,
+  arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+})));
+
+const container = document.getElementById('graph');
+const network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, {
+  physics: {
+    enabled: true,
+    solver: 'forceAtlas2Based',
+    forceAtlas2Based: {
+      gravitationalConstant: -60,
+      centralGravity: 0.005,
+      springLength: 120,
+      springConstant: 0.08,
+      damping: 0.4,
+      avoidOverlap: 0.8,
+    },
+    stabilization: { iterations: 200, fit: true },
+  },
+  interaction: {
+    hover: true,
+    tooltipDelay: 100,
+    hideEdgesOnDrag: true,
+    navigationButtons: false,
+    keyboard: false,
+  },
+  nodes: { shape: 'dot', borderWidth: 1.5 },
+  edges: { smooth: { type: 'continuous', roundness: 0.2 }, selectionWidth: 3 },
+});
+
+network.once('stabilizationIterationsDone', () => {
+  network.setOptions({ physics: { enabled: false } });
+});
+
+function showInfo(nodeId) {
+  const n = nodesDS.get(nodeId);
+  if (!n) return;
+  const neighborIds = network.getConnectedNodes(nodeId);
+  const neighborItems = neighborIds.map(nid => {
+    const nb = nodesDS.get(nid);
+    const color = nb ? nb.color.background : '#555';
+    return `<span class="neighbor-link" style="border-left-color:${esc(color)}" onclick="focusNode(${JSON.stringify(nid)})">${esc(nb ? nb.label : nid)}</span>`;
+  }).join('');
+  document.getElementById('info-content').innerHTML = `
+    <div class="field"><b>${esc(n.label)}</b></div>
+    <div class="field">Type: ${esc(n._file_type || 'unknown')}</div>
+    <div class="field">Community: ${esc(n._community_name)}</div>
+    <div class="field">Source: ${esc(n._source_file || '-')}</div>
+    <div class="field">Degree: ${n._degree}</div>
+    ${neighborIds.length ? `<div class="field" style="margin-top:8px;color:#aaa;font-size:11px">Neighbors (${neighborIds.length})</div><div id="neighbors-list">${neighborItems}</div>` : ''}
+  `;
+}
+
+function focusNode(nodeId) {
+  network.focus(nodeId, { scale: 1.4, animation: true });
+  network.selectNodes([nodeId]);
+  showInfo(nodeId);
+}
+
+// Track hovered node — hover detection is more reliable than click params
+let hoveredNodeId = null;
+network.on('hoverNode', params => {
+  hoveredNodeId = params.node;
+  container.style.cursor = 'pointer';
+});
+network.on('blurNode', () => {
+  hoveredNodeId = null;
+  container.style.cursor = 'default';
+});
+container.addEventListener('click', () => {
+  if (hoveredNodeId !== null) {
+    showInfo(hoveredNodeId);
+    network.selectNodes([hoveredNodeId]);
+  }
+});
+network.on('click', params => {
+  if (params.nodes.length > 0) {
+    showInfo(params.nodes[0]);
+  } else if (hoveredNodeId === null) {
+    document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+  }
+});
+
+const searchInput = document.getElementById('search');
+const searchResults = document.getElementById('search-results');
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  searchResults.innerHTML = '';
+  if (!q) { searchResults.style.display = 'none'; return; }
+  const matches = RAW_NODES.filter(n => n.label.toLowerCase().includes(q)).slice(0, 20);
+  if (!matches.length) { searchResults.style.display = 'none'; return; }
+  searchResults.style.display = 'block';
+  matches.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'search-item';
+    el.textContent = n.label;
+    el.style.borderLeft = `3px solid ${n.color.background}`;
+    el.style.paddingLeft = '8px';
+    el.onclick = () => {
+      network.focus(n.id, { scale: 1.5, animation: true });
+      network.selectNodes([n.id]);
+      showInfo(n.id);
+      searchResults.style.display = 'none';
+      searchInput.value = '';
+    };
+    searchResults.appendChild(el);
+  });
+});
+document.addEventListener('click', e => {
+  if (!searchResults.contains(e.target) && e.target !== searchInput)
+    searchResults.style.display = 'none';
+});
+
+const hiddenCommunities = new Set();
+const legendEl = document.getElementById('legend');
+LEGEND.forEach(c => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = `<div class="legend-dot" style="background:${c.color}"></div>
+    <span class="legend-label">${c.label}</span>
+    <span class="legend-count">${c.count}</span>`;
+  item.onclick = () => {
+    if (hiddenCommunities.has(c.cid)) {
+      hiddenCommunities.delete(c.cid);
+      item.classList.remove('dimmed');
+    } else {
+      hiddenCommunities.add(c.cid);
+      item.classList.add('dimmed');
+    }
+    const updates = RAW_NODES
+      .filter(n => n.community === c.cid)
+      .map(n => ({ id: n.id, hidden: hiddenCommunities.has(c.cid) }));
+    nodesDS.update(updates);
+  };
+  legendEl.appendChild(item);
+});
+</script>
+<script>
+// Render hyperedges as shaded regions
+const hyperedges = [{"id": "frontend_tech_stack", "label": "AgentOS Frontend Tech Stack", "nodes": ["readme_react", "readme_vite", "readme_chakra_ui", "readme_axios", "readme_websockets", "readme_react_context_hooks"], "relation": "form", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "README.md"}, {"id": "frontend_core_components", "label": "AgentOS Frontend Core Components", "nodes": ["readme_command_center", "readme_portfolio_component", "readme_useagentstream", "readme_authcontext"], "relation": "implement", "confidence": "EXTRACTED", "confidence_score": 1.0, "source_file": "README.md"}, {"id": "agentos_communication_layer", "label": "AgentOS Communication Layer", "nodes": ["readme_axios", "readme_websockets", "readme_useagentstream"], "relation": "participate_in", "confidence": "INFERRED", "confidence_score": 0.85, "source_file": "README.md"}];
+function drawHyperedges() {
+    const canvas = network.canvas.frame.canvas;
+    const ctx = canvas.getContext('2d');
+    hyperedges.forEach(h => {
+        const positions = h.nodes
+            .map(nid => network.getPositions([nid])[nid])
+            .filter(p => p !== undefined);
+        if (positions.length < 2) return;
+        // Draw convex hull as filled polygon
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = '#6366f1';
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const scale = network.getScale();
+        const offset = network.getViewPosition();
+        const toCanvas = (p) => ({
+            x: (p.x - offset.x) * scale + canvas.width / 2,
+            y: (p.y - offset.y) * scale + canvas.height / 2
+        });
+        const pts = positions.map(toCanvas);
+        // Expand hull slightly
+        const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+        const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+        const expanded = pts.map(p => ({
+            x: cx + (p.x - cx) * 1.15,
+            y: cy + (p.y - cy) * 1.15
+        }));
+        ctx.moveTo(expanded[0].x, expanded[0].y);
+        expanded.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.4;
+        ctx.stroke();
+        // Label
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#4f46e5';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(h.label, cx, cy - 5);
+        ctx.restore();
+    });
+}
+network.on('afterDrawing', drawHyperedges);
+</script>
+</body>
+</html>

@@ -1,0 +1,1372 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {
+    "hyperedges": [
+      {
+        "id": "frontend_tech_stack",
+        "label": "AgentOS Frontend Tech Stack",
+        "nodes": [
+          "readme_react",
+          "readme_vite",
+          "readme_chakra_ui",
+          "readme_axios",
+          "readme_websockets",
+          "readme_react_context_hooks"
+        ],
+        "relation": "form",
+        "confidence": "EXTRACTED",
+        "confidence_score": 1.0,
+        "source_file": "README.md"
+      },
+      {
+        "id": "frontend_core_components",
+        "label": "AgentOS Frontend Core Components",
+        "nodes": [
+          "readme_command_center",
+          "readme_portfolio_component",
+          "readme_useagentstream",
+          "readme_authcontext"
+        ],
+        "relation": "implement",
+        "confidence": "EXTRACTED",
+        "confidence_score": 1.0,
+        "source_file": "README.md"
+      },
+      {
+        "id": "agentos_communication_layer",
+        "label": "AgentOS Communication Layer",
+        "nodes": [
+          "readme_axios",
+          "readme_websockets",
+          "readme_useagentstream"
+        ],
+        "relation": "participate_in",
+        "confidence": "INFERRED",
+        "confidence_score": 0.85,
+        "source_file": "README.md"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "label": "tailwind.config.js",
+      "file_type": "code",
+      "source_file": "tailwind.config.js",
+      "source_location": "L1",
+      "id": "tailwind_config_js",
+      "community": 11
+    },
+    {
+      "label": "vite.config.ts",
+      "file_type": "code",
+      "source_file": "vite.config.ts",
+      "source_location": "L1",
+      "id": "vite_config_ts",
+      "community": 12
+    },
+    {
+      "label": "postcss.config.js",
+      "file_type": "code",
+      "source_file": "postcss.config.js",
+      "source_location": "L1",
+      "id": "postcss_config_js",
+      "community": 13
+    },
+    {
+      "label": "App.tsx",
+      "file_type": "code",
+      "source_file": "src/App.tsx",
+      "source_location": "L1",
+      "id": "src_app_tsx",
+      "community": 6
+    },
+    {
+      "label": "App()",
+      "file_type": "code",
+      "source_file": "src/App.tsx",
+      "source_location": "L5",
+      "id": "app_app",
+      "community": 6
+    },
+    {
+      "label": "main.tsx",
+      "file_type": "code",
+      "source_file": "src/main.tsx",
+      "source_location": "L1",
+      "id": "src_main_tsx",
+      "community": 14
+    },
+    {
+      "label": "Dashboard.tsx",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L1",
+      "id": "src_dashboard_tsx",
+      "community": 2
+    },
+    {
+      "label": "parseTickerInput()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L75",
+      "id": "dashboard_parsetickerinput",
+      "community": 7
+    },
+    {
+      "label": "restoreTickerInput()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L81",
+      "id": "dashboard_restoretickerinput",
+      "community": 2
+    },
+    {
+      "label": "eventColor()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L111",
+      "id": "dashboard_eventcolor",
+      "community": 2
+    },
+    {
+      "label": "eventLabel()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L126",
+      "id": "dashboard_eventlabel",
+      "community": 2
+    },
+    {
+      "label": "eventSummary()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L140",
+      "id": "dashboard_eventsummary",
+      "community": 2
+    },
+    {
+      "label": "fetchConfig()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L517",
+      "id": "dashboard_fetchconfig",
+      "community": 2
+    },
+    {
+      "label": "loadPausedRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L547",
+      "id": "dashboard_loadpausedrun",
+      "community": 3
+    },
+    {
+      "label": "startRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L605",
+      "id": "dashboard_startrun",
+      "community": 7
+    },
+    {
+      "label": "resetPortfolioStage()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L688",
+      "id": "dashboard_resetportfoliostage",
+      "community": 2
+    },
+    {
+      "label": "loadHistory()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L713",
+      "id": "dashboard_loadhistory",
+      "community": 3
+    },
+    {
+      "label": "loadRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L726",
+      "id": "dashboard_loadrun",
+      "community": 2
+    },
+    {
+      "label": "resumeRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L763",
+      "id": "dashboard_resumerun",
+      "community": 3
+    },
+    {
+      "label": "stopRun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L804",
+      "id": "dashboard_stoprun",
+      "community": 3
+    },
+    {
+      "label": "submitPhase3Decision()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L838",
+      "id": "dashboard_submitphase3decision",
+      "community": 3
+    },
+    {
+      "label": "triggerNodeRerun()",
+      "file_type": "code",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L875",
+      "id": "dashboard_triggernodererun",
+      "community": 2
+    },
+    {
+      "label": "vite-env.d.ts",
+      "file_type": "code",
+      "source_file": "src/vite-env.d.ts",
+      "source_location": "L1",
+      "id": "src_vite_env_d_ts",
+      "community": 15
+    },
+    {
+      "label": "theme.ts",
+      "file_type": "code",
+      "source_file": "src/theme.ts",
+      "source_location": "L1",
+      "id": "src_theme_ts",
+      "community": 16
+    },
+    {
+      "label": "api.ts",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L1",
+      "id": "src_config_api_ts",
+      "community": 4
+    },
+    {
+      "label": "trimTrailingSlash()",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L4",
+      "id": "api_trimtrailingslash",
+      "community": 4
+    },
+    {
+      "label": "getBackendOrigin()",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L8",
+      "id": "api_getbackendorigin",
+      "community": 4
+    },
+    {
+      "label": "buildWebSocketUrl()",
+      "file_type": "code",
+      "source_file": "src/config/api.ts",
+      "source_location": "L23",
+      "id": "api_buildwebsocketurl",
+      "community": 4
+    },
+    {
+      "label": "MetricHeader.tsx",
+      "file_type": "code",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L1",
+      "id": "src_components_metricheader_tsx",
+      "community": 8
+    },
+    {
+      "label": "MetricHeader()",
+      "file_type": "code",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L20",
+      "id": "metricheader_metricheader",
+      "community": 8
+    },
+    {
+      "label": "PortfolioViewer.tsx",
+      "file_type": "code",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L1",
+      "id": "src_components_portfolioviewer_tsx",
+      "community": 9
+    },
+    {
+      "label": "fetchList()",
+      "file_type": "code",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L80",
+      "id": "portfolioviewer_fetchlist",
+      "community": 9
+    },
+    {
+      "label": "AgentGraph.tsx",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L1",
+      "id": "src_components_agentgraph_tsx",
+      "community": 0
+    },
+    {
+      "label": "normalizeNodeId()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L156",
+      "id": "agentgraph_normalizenodeid",
+      "community": 0
+    },
+    {
+      "label": "toLabel()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L170",
+      "id": "agentgraph_tolabel",
+      "community": 0
+    },
+    {
+      "label": "scopeId()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L177",
+      "id": "agentgraph_scopeid",
+      "community": 0
+    },
+    {
+      "label": "classifyNode()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L181",
+      "id": "agentgraph_classifynode",
+      "community": 0
+    },
+    {
+      "label": "canRerunNode()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L189",
+      "id": "agentgraph_canrerunnode",
+      "community": 0
+    },
+    {
+      "label": "getEventRerunSeq()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L194",
+      "id": "agentgraph_geteventrerunseq",
+      "community": 0
+    },
+    {
+      "label": "getNodeOrder()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L214",
+      "id": "agentgraph_getnodeorder",
+      "community": 0
+    },
+    {
+      "label": "statusColor()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L227",
+      "id": "agentgraph_statuscolor",
+      "community": 0
+    },
+    {
+      "label": "identifierColor()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L236",
+      "id": "agentgraph_identifiercolor",
+      "community": 0
+    },
+    {
+      "label": "getIcon()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L245",
+      "id": "agentgraph_geticon",
+      "community": 0
+    },
+    {
+      "label": "pushEdge()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L482",
+      "id": "agentgraph_pushedge",
+      "community": 0
+    },
+    {
+      "label": "tickerX()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L728",
+      "id": "agentgraph_tickerx",
+      "community": 0
+    },
+    {
+      "label": "AgentGraph()",
+      "file_type": "code",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L828",
+      "id": "agentgraph_agentgraph",
+      "community": 0
+    },
+    {
+      "label": "useAgentStream.ts",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L1",
+      "id": "src_hooks_useagentstream_ts",
+      "community": 10
+    },
+    {
+      "label": "useAgentStream()",
+      "file_type": "code",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L43",
+      "id": "useagentstream_useagentstream",
+      "community": 10
+    },
+    {
+      "label": "AgentOS Frontend",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_agentos_frontend",
+      "community": 1
+    },
+    {
+      "label": "React",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_react",
+      "community": 1
+    },
+    {
+      "label": "Vite",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_vite",
+      "community": 1
+    },
+    {
+      "label": "Chakra UI",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_chakra_ui",
+      "community": 1
+    },
+    {
+      "label": "Axios",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_axios",
+      "community": 1
+    },
+    {
+      "label": "WebSockets",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_websockets",
+      "community": 1
+    },
+    {
+      "label": "React Context / Hooks",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_react_context_hooks",
+      "community": 1
+    },
+    {
+      "label": "CommandCenter Component",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "src/components/CommandCenter/",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_command_center",
+      "community": 1
+    },
+    {
+      "label": "Portfolio Component",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "src/components/Portfolio/",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_portfolio_component",
+      "community": 1
+    },
+    {
+      "label": "useAgentStream Hook",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "src/hooks/useAgentStream.ts",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_useagentstream",
+      "community": 1
+    },
+    {
+      "label": "AuthContext",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": "src/context/AuthContext.tsx",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_authcontext",
+      "community": 5
+    },
+    {
+      "label": "TradingAgents Observability Dashboard",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_tradingagents",
+      "community": 1
+    },
+    {
+      "label": "Multi-Tenant Support",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_multi_tenant",
+      "community": 5
+    },
+    {
+      "label": "Mock Auth",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_mock_auth",
+      "community": 5
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/App.tsx",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_src": "src_app_tsx",
+      "_tgt": "app_app",
+      "source": "src_app_tsx",
+      "target": "app_app",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L75",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_parsetickerinput",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_parsetickerinput",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L81",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_restoretickerinput",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_restoretickerinput",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L111",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_eventcolor",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_eventcolor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L126",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_eventlabel",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_eventlabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L140",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_eventsummary",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_eventsummary",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L517",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_fetchconfig",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_fetchconfig",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L547",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_loadpausedrun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_loadpausedrun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L605",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_startrun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_startrun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L688",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_resetportfoliostage",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_resetportfoliostage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L713",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_loadhistory",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_loadhistory",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L726",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_loadrun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_loadrun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L763",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_resumerun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_resumerun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L804",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_stoprun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_stoprun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L838",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_submitphase3decision",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_submitphase3decision",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L875",
+      "weight": 1.0,
+      "_src": "src_dashboard_tsx",
+      "_tgt": "dashboard_triggernodererun",
+      "source": "src_dashboard_tsx",
+      "target": "dashboard_triggernodererun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L631",
+      "weight": 1.0,
+      "_src": "dashboard_startrun",
+      "_tgt": "dashboard_parsetickerinput",
+      "source": "dashboard_parsetickerinput",
+      "target": "dashboard_startrun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L552",
+      "weight": 1.0,
+      "_src": "dashboard_loadpausedrun",
+      "_tgt": "dashboard_loadhistory",
+      "source": "dashboard_loadpausedrun",
+      "target": "dashboard_loadhistory",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L788",
+      "weight": 1.0,
+      "_src": "dashboard_resumerun",
+      "_tgt": "dashboard_loadhistory",
+      "source": "dashboard_loadhistory",
+      "target": "dashboard_resumerun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L822",
+      "weight": 1.0,
+      "_src": "dashboard_stoprun",
+      "_tgt": "dashboard_loadhistory",
+      "source": "dashboard_loadhistory",
+      "target": "dashboard_stoprun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/Dashboard.tsx",
+      "source_location": "L852",
+      "weight": 1.0,
+      "_src": "dashboard_submitphase3decision",
+      "_tgt": "dashboard_loadhistory",
+      "source": "dashboard_loadhistory",
+      "target": "dashboard_submitphase3decision",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_src": "src_config_api_ts",
+      "_tgt": "api_trimtrailingslash",
+      "source": "src_config_api_ts",
+      "target": "api_trimtrailingslash",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_src": "src_config_api_ts",
+      "_tgt": "api_getbackendorigin",
+      "source": "src_config_api_ts",
+      "target": "api_getbackendorigin",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_src": "src_config_api_ts",
+      "_tgt": "api_buildwebsocketurl",
+      "source": "src_config_api_ts",
+      "target": "api_buildwebsocketurl",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "src/config/api.ts",
+      "source_location": "L24",
+      "weight": 1.0,
+      "_src": "api_buildwebsocketurl",
+      "_tgt": "api_getbackendorigin",
+      "source": "api_getbackendorigin",
+      "target": "api_buildwebsocketurl",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/MetricHeader.tsx",
+      "source_location": "L20",
+      "weight": 1.0,
+      "_src": "src_components_metricheader_tsx",
+      "_tgt": "metricheader_metricheader",
+      "source": "src_components_metricheader_tsx",
+      "target": "metricheader_metricheader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/PortfolioViewer.tsx",
+      "source_location": "L80",
+      "weight": 1.0,
+      "_src": "src_components_portfolioviewer_tsx",
+      "_tgt": "portfolioviewer_fetchlist",
+      "source": "src_components_portfolioviewer_tsx",
+      "target": "portfolioviewer_fetchlist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L156",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_normalizenodeid",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_normalizenodeid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L170",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_tolabel",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_tolabel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L177",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_scopeid",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_scopeid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L181",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_classifynode",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_classifynode",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L189",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_canrerunnode",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_canrerunnode",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L194",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_geteventrerunseq",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_geteventrerunseq",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L214",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_getnodeorder",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_getnodeorder",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L227",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_statuscolor",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_statuscolor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L236",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_identifiercolor",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_identifiercolor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L245",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_geticon",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_geticon",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L482",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_pushedge",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_pushedge",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L728",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_tickerx",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_tickerx",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/components/AgentGraph.tsx",
+      "source_location": "L828",
+      "weight": 1.0,
+      "_src": "src_components_agentgraph_tsx",
+      "_tgt": "agentgraph_agentgraph",
+      "source": "src_components_agentgraph_tsx",
+      "target": "agentgraph_agentgraph",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "src/hooks/useAgentStream.ts",
+      "source_location": "L43",
+      "weight": 1.0,
+      "_src": "src_hooks_useagentstream_ts",
+      "_tgt": "useagentstream_useagentstream",
+      "source": "src_hooks_useagentstream_ts",
+      "target": "useagentstream_useagentstream",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 3",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_tradingagents",
+      "source": "readme_agentos_frontend",
+      "target": "readme_tradingagents"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 6",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_react",
+      "source": "readme_agentos_frontend",
+      "target": "readme_react"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 6",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_vite",
+      "source": "readme_agentos_frontend",
+      "target": "readme_vite"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 7",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_chakra_ui",
+      "source": "readme_agentos_frontend",
+      "target": "readme_chakra_ui"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 8",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_react_context_hooks",
+      "source": "readme_agentos_frontend",
+      "target": "readme_react_context_hooks"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 9",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_axios",
+      "source": "readme_agentos_frontend",
+      "target": "readme_axios"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 9",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_websockets",
+      "source": "readme_agentos_frontend",
+      "target": "readme_websockets"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 27",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_command_center",
+      "source": "readme_agentos_frontend",
+      "target": "readme_command_center"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 28",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_portfolio_component",
+      "source": "readme_agentos_frontend",
+      "target": "readme_portfolio_component"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 29",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_useagentstream",
+      "source": "readme_agentos_frontend",
+      "target": "readme_useagentstream"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 30",
+      "weight": 1.0,
+      "_src": "readme_agentos_frontend",
+      "_tgt": "readme_authcontext",
+      "source": "readme_agentos_frontend",
+      "target": "readme_authcontext"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 6",
+      "weight": 1.0,
+      "_src": "readme_react",
+      "_tgt": "readme_vite",
+      "source": "readme_react",
+      "target": "readme_vite"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 9",
+      "weight": 0.9,
+      "_src": "readme_axios",
+      "_tgt": "readme_websockets",
+      "source": "readme_axios",
+      "target": "readme_websockets"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 29",
+      "weight": 1.0,
+      "_src": "readme_useagentstream",
+      "_tgt": "readme_websockets",
+      "source": "readme_websockets",
+      "target": "readme_useagentstream"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "README.md",
+      "source_location": "line 27",
+      "weight": 0.8,
+      "_src": "readme_command_center",
+      "_tgt": "readme_tradingagents",
+      "source": "readme_command_center",
+      "target": "readme_tradingagents"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 0.75,
+      "_src": "readme_useagentstream",
+      "_tgt": "readme_command_center",
+      "source": "readme_command_center",
+      "target": "readme_useagentstream"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "README.md",
+      "source_location": "line 28",
+      "weight": 0.8,
+      "_src": "readme_portfolio_component",
+      "_tgt": "readme_tradingagents",
+      "source": "readme_portfolio_component",
+      "target": "readme_tradingagents"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 30",
+      "weight": 1.0,
+      "_src": "readme_authcontext",
+      "_tgt": "readme_mock_auth",
+      "source": "readme_authcontext",
+      "target": "readme_mock_auth"
+    },
+    {
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md",
+      "source_location": "line 30",
+      "weight": 1.0,
+      "_src": "readme_authcontext",
+      "_tgt": "readme_multi_tenant",
+      "source": "readme_authcontext",
+      "target": "readme_multi_tenant"
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "frontend_tech_stack",
+      "label": "AgentOS Frontend Tech Stack",
+      "nodes": [
+        "readme_react",
+        "readme_vite",
+        "readme_chakra_ui",
+        "readme_axios",
+        "readme_websockets",
+        "readme_react_context_hooks"
+      ],
+      "relation": "form",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md"
+    },
+    {
+      "id": "frontend_core_components",
+      "label": "AgentOS Frontend Core Components",
+      "nodes": [
+        "readme_command_center",
+        "readme_portfolio_component",
+        "readme_useagentstream",
+        "readme_authcontext"
+      ],
+      "relation": "implement",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "README.md"
+    },
+    {
+      "id": "agentos_communication_layer",
+      "label": "AgentOS Communication Layer",
+      "nodes": [
+        "readme_axios",
+        "readme_websockets",
+        "readme_useagentstream"
+      ],
+      "relation": "participate_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "README.md"
+    }
+  ]
+}
