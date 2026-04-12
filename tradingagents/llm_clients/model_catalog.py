@@ -77,6 +77,18 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
     },
+    "siliconflow": {
+        "quick": [
+            ("Qwen/Qwen3.5-35B-A3B", "Qwen/Qwen3.5-35B-A3B"),
+            ("Qwen/Qwen3.5-27B", "Qwen/Qwen3.5-27B"),
+            ("Qwen/Qwen3.5-122B-A10B", "Qwen/Qwen3.5-122B-A10B"),
+        ],
+        "deep": [
+            ("Qwen/Qwen3.5-122B-A10B", "Qwen/Qwen3.5-122B-A10B"),
+            ("Pro/zai-org/GLM-5.1", "Pro/zai-org/GLM-5.1"),
+            ("Pro/MiniMaxAI/MiniMax-M2.5", "Pro/MiniMaxAI/MiniMax-M2.5"),
+        ],
+    },
 }
 
 
