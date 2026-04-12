@@ -1,14 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   applyNodeChanges,
   Background,
   Controls,
   Edge,
   Handle,
+  MarkerType,
   Node,
   NodeChange,
   NodeProps,
+  Panel,
   Position,
+  ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Box, Text, Flex, Icon, Badge, IconButton, Tooltip } from '@chakra-ui/react';
@@ -21,6 +24,7 @@ const TOP_PADDING = 40;
 const TICKER_GAP = 80;
 const TICKER_HDR_H = 108;
 const TICKER_HDR_TO_NODE_GAP = 24;
+const NODE_WIDTH = 200;
 
 const SCAN_LEVELS: Record<string, number> = {
   gatekeeper_scanner: 0,
@@ -269,7 +273,7 @@ const AgentNode = ({ data }: NodeProps) => {
       opacity={isStale ? 0.6 : 1}
       _hover={{ borderColor: '#67e8f9', boxShadow: '0 0 18px #67e8f940' }}
     >
-      <Handle type="target" position={Position.Top} style={{ borderColor: sc }} />
+      <Handle type="target" position={data.layoutDir === 'LR' ? Position.Left : Position.Top} style={{ borderColor: sc }} />
 
       <Flex direction="column" gap={1.5}>
         <Flex align="center" gap={1.5}>
@@ -351,7 +355,7 @@ const AgentNode = ({ data }: NodeProps) => {
         )}
       </Flex>
 
-      <Handle type="source" position={Position.Bottom} style={{ borderColor: sc }} />
+      <Handle type="source" position={data.layoutDir === 'LR' ? Position.Right : Position.Bottom} style={{ borderColor: sc }} />
     </Box>
   );
 };
@@ -375,7 +379,7 @@ const TickerHeaderNode = ({ data }: NodeProps) => {
       cursor="pointer"
       _hover={{ boxShadow: `0 0 30px ${color}45` }}
     >
-      <Handle type="target" position={Position.Top} style={{ borderColor: color }} />
+      <Handle type="target" position={data.layoutDir === 'LR' ? Position.Left : Position.Top} style={{ borderColor: color }} />
 
       <Flex direction="column" gap={1.5}>
         <Flex align="center" justify="space-between">
@@ -415,7 +419,7 @@ const TickerHeaderNode = ({ data }: NodeProps) => {
         )}
       </Flex>
 
-      <Handle type="source" position={Position.Bottom} style={{ borderColor: color }} />
+      <Handle type="source" position={data.layoutDir === 'LR' ? Position.Right : Position.Bottom} style={{ borderColor: color }} />
     </Box>
   );
 };
@@ -437,11 +441,17 @@ function centeredX(index: number, count: number, maxColumns: number): number {
   return offset + index * COL_WIDTH;
 }
 
+function centeredY(index: number, count: number, maxRows: number): number {
+  const offset = ((maxRows - count) * ROW_HEIGHT) / 2;
+  return offset + index * ROW_HEIGHT;
+}
+
 function buildGraph(
   events: AgentEvent[],
   allEvents: AgentEvent[],
   runStatus?: AgentGraphProps['runStatus'],
   onNodeRerun?: AgentGraphProps['onNodeRerun'],
+  layoutDir: 'TB' | 'LR' = 'TB',
 ): GraphBuild {
   const records = new Map<string, GraphRecord>();
   const edgeKeys = new Set<string>();
@@ -488,8 +498,14 @@ function buildGraph(
       id: `e-${source}-${target}`,
       source,
       target,
+      type: 'smoothstep',
       animated: true,
-      style: dashed ? { stroke: color, strokeDasharray: '5 5' } : { stroke: color },
+      markerEnd: { type: MarkerType.ArrowClosed, color },
+      style: {
+        stroke: color,
+        strokeWidth: 1.5,
+        ...(dashed ? { strokeDasharray: '5 5' } : {}),
+      },
     });
   };
 
@@ -691,60 +707,7 @@ function buildGraph(
 
   const maxColumns = Math.max(tickerIdentifiers.length, maxScanColumns, maxPortfolioColumns, 1);
 
-  const nodes: Node[] = [];
-
-  const scanByLevel = new Map<number, GraphRecord[]>();
-  scanRecords.forEach((record) => {
-    const level = SCAN_LEVELS[record.normalizedId] ?? 0;
-    scanByLevel.set(level, [...(scanByLevel.get(level) ?? []), record]);
-  });
-
-  for (const [level, row] of [...scanByLevel.entries()].sort((a, b) => a[0] - b[0])) {
-    row.forEach((record, index) => {
-      nodes.push({
-        id: record.id,
-        type: 'agentNode',
-        position: { x: centeredX(index, row.length, maxColumns), y: TOP_PADDING + level * ROW_HEIGHT },
-        data: {
-          agent: record.rawNodeId,
-          label: record.label,
-          identifier: record.identifier,
-          node_id: record.rawNodeId,
-          status: record.status,
-          metrics: record.metrics,
-          stale: record.stale,
-          rerunSeq: record.rerunSeq,
-          onRerun: onNodeRerun && canRerunNode(record.normalizedId, record.identifier)
-            ? () => onNodeRerun(record.identifier, record.rawNodeId)
-            : undefined,
-        },
-      });
-    });
-  }
-
-  const scanRowCount = scanByLevel.size;
-  const tickerStartY = TOP_PADDING + (scanRowCount > 0 ? scanRowCount * ROW_HEIGHT + TICKER_GAP : 0);
-  const tickerColumnOffset = ((maxColumns - Math.max(tickerIdentifiers.length, 1)) * COL_WIDTH) / 2;
-  const tickerX = (index: number) => tickerColumnOffset + index * COL_WIDTH;
-
-  tickerIdentifiers.forEach((identifier, index) => {
-    const header = tickerHeaders.get(identifier)!;
-    nodes.push({
-      id: `header:${identifier}`,
-      type: 'tickerHeader',
-      position: { x: tickerX(index), y: tickerStartY },
-      data: {
-        ticker: identifier,
-        status: header.status,
-        agentCount: header.agentCount,
-        completedCount: header.completedCount,
-        staleCount: header.staleCount,
-        node_id: 'header',
-        identifier,
-      },
-    });
-  });
-
+  // Pre-compute ticker records and maxTickerRows so LR section geometry can use it
   const tickerRecords = [...records.values()]
     .filter((record) => record.kind === 'ticker')
     .sort((a, b) => {
@@ -753,30 +716,88 @@ function buildGraph(
       return (tickerRowOrder.get(a.normalizedId) ?? 999) - (tickerRowOrder.get(b.normalizedId) ?? 999) || a.firstSeen - b.firstSeen;
     });
 
+  const maxTickerRows = tickerRecords.length > 0
+    ? Math.max(...tickerRecords.map((r) => tickerRowOrder.get(r.normalizedId) ?? 0)) + 1
+    : 0;
+
+  const nodes: Node[] = [];
+
+  // ── LR geometry ──────────────────────────────────────────────────────────
+  const maxScanLevel = scanRecords.length > 0
+    ? Math.max(...scanRecords.map((r) => SCAN_LEVELS[r.normalizedId] ?? 0))
+    : -1;
+  const maxPortfolioLevel = portfolioRecords.length > 0
+    ? Math.max(...portfolioRecords.map((r) => PORTFOLIO_LEVELS[r.normalizedId] ?? 0))
+    : -1;
+
+  // LR: sections are placed left→right; scan first, then ticker, then portfolio
+  const scanSectionSpanLR = maxScanLevel >= 0 ? (maxScanLevel + 1) * COL_WIDTH : 0;
+  const tickerSectionStartLR = TOP_PADDING + (scanSectionSpanLR > 0 ? scanSectionSpanLR + TICKER_GAP : 0);
+  const tickerNodeStartLR = tickerSectionStartLR + NODE_WIDTH + TICKER_HDR_TO_NODE_GAP;
+  const tickerSectionSpanLR = tickerIdentifiers.length > 0
+    ? NODE_WIDTH + TICKER_HDR_TO_NODE_GAP + maxTickerRows * COL_WIDTH
+    : 0;
+  const portfolioSectionStartLR = tickerSectionSpanLR > 0
+    ? tickerSectionStartLR + tickerSectionSpanLR + TICKER_GAP
+    : (scanSectionSpanLR > 0 ? TOP_PADDING + scanSectionSpanLR + TICKER_GAP : TOP_PADDING);
+
+  const nodeData = (record: GraphRecord) => ({
+    agent: record.rawNodeId,
+    label: record.label,
+    identifier: record.identifier,
+    node_id: record.rawNodeId,
+    status: record.status,
+    metrics: record.metrics,
+    stale: record.stale,
+    rerunSeq: record.rerunSeq,
+    layoutDir,
+    onRerun: onNodeRerun && canRerunNode(record.normalizedId, record.identifier)
+      ? () => onNodeRerun(record.identifier, record.rawNodeId)
+      : undefined,
+  });
+
+  // ── Scan nodes ────────────────────────────────────────────────────────────
+  const scanByLevel = new Map<number, GraphRecord[]>();
+  scanRecords.forEach((record) => {
+    const level = SCAN_LEVELS[record.normalizedId] ?? 0;
+    scanByLevel.set(level, [...(scanByLevel.get(level) ?? []), record]);
+  });
+
+  for (const [level, row] of [...scanByLevel.entries()].sort((a, b) => a[0] - b[0])) {
+    row.forEach((record, index) => {
+      const position = layoutDir === 'LR'
+        ? { x: TOP_PADDING + level * COL_WIDTH, y: centeredY(index, row.length, maxColumns) }
+        : { x: centeredX(index, row.length, maxColumns), y: TOP_PADDING + level * ROW_HEIGHT };
+      nodes.push({ id: record.id, type: 'agentNode', position, data: nodeData(record) });
+    });
+  }
+
+  // ── Ticker section ────────────────────────────────────────────────────────
+  const scanRowCount = scanByLevel.size;
+  const tickerStartY = TOP_PADDING + (scanRowCount > 0 ? scanRowCount * ROW_HEIGHT + TICKER_GAP : 0);
+  const tickerColumnOffset = ((maxColumns - Math.max(tickerIdentifiers.length, 1)) * COL_WIDTH) / 2;
+  const tickerX = (index: number) => tickerColumnOffset + index * COL_WIDTH;
+
+  tickerIdentifiers.forEach((identifier, index) => {
+    const header = tickerHeaders.get(identifier)!;
+    const position = layoutDir === 'LR'
+      ? { x: tickerSectionStartLR, y: centeredY(index, tickerIdentifiers.length, maxColumns) }
+      : { x: tickerX(index), y: tickerStartY };
+    nodes.push({
+      id: `header:${identifier}`,
+      type: 'tickerHeader',
+      position,
+      data: { ticker: identifier, status: header.status, agentCount: header.agentCount, completedCount: header.completedCount, staleCount: header.staleCount, node_id: 'header', identifier, layoutDir },
+    });
+  });
+
   tickerRecords.forEach((record) => {
     const colIndex = tickerIdentifiers.indexOf(record.identifier);
     const rowIndex = tickerRowOrder.get(record.normalizedId) ?? 999;
-    nodes.push({
-      id: record.id,
-      type: 'agentNode',
-      position: {
-        x: tickerX(colIndex),
-        y: tickerStartY + TICKER_HDR_H + TICKER_HDR_TO_NODE_GAP + rowIndex * ROW_HEIGHT,
-      },
-      data: {
-        agent: record.rawNodeId,
-        label: record.label,
-        identifier: record.identifier,
-        node_id: record.rawNodeId,
-        status: record.status,
-        metrics: record.metrics,
-        stale: record.stale,
-        rerunSeq: record.rerunSeq,
-        onRerun: onNodeRerun && canRerunNode(record.normalizedId, record.identifier)
-          ? () => onNodeRerun(record.identifier, record.rawNodeId)
-          : undefined,
-      },
-    });
+    const position = layoutDir === 'LR'
+      ? { x: tickerNodeStartLR + rowIndex * COL_WIDTH, y: centeredY(colIndex, tickerIdentifiers.length, maxColumns) }
+      : { x: tickerX(colIndex), y: tickerStartY + TICKER_HDR_H + TICKER_HDR_TO_NODE_GAP + rowIndex * ROW_HEIGHT };
+    nodes.push({ id: record.id, type: 'agentNode', position, data: nodeData(record) });
   });
 
   tickerIdentifiers.forEach((identifier) => {
@@ -786,9 +807,7 @@ function buildGraph(
     }
   });
 
-  const maxTickerRows = tickerRecords.length > 0
-    ? Math.max(...tickerRecords.map((r) => tickerRowOrder.get(r.normalizedId) ?? 0)) + 1
-    : 0;
+  // ── Portfolio nodes ───────────────────────────────────────────────────────
   const portfolioStartY = tickerStartY + TICKER_HDR_H + TICKER_HDR_TO_NODE_GAP + (maxTickerRows > 0 ? maxTickerRows * ROW_HEIGHT + TICKER_GAP : 0);
 
   const portfolioByLevel = new Map<number, GraphRecord[]>();
@@ -801,10 +820,13 @@ function buildGraph(
     row
       .sort((a, b) => (PORTFOLIO_ORDER[a.normalizedId] ?? 999) - (PORTFOLIO_ORDER[b.normalizedId] ?? 999) || a.firstSeen - b.firstSeen)
       .forEach((record, index) => {
+        const position = layoutDir === 'LR'
+          ? { x: portfolioSectionStartLR + level * COL_WIDTH, y: centeredY(index, row.length, maxColumns) }
+          : { x: centeredX(index, row.length, maxColumns), y: portfolioStartY + level * ROW_HEIGHT };
         nodes.push({
           id: record.id,
           type: 'agentNode',
-          position: { x: centeredX(index, row.length, maxColumns), y: portfolioStartY + level * ROW_HEIGHT },
+          position,
           data: {
             agent: record.rawNodeId,
             label: record.label,
@@ -814,6 +836,7 @@ function buildGraph(
             metrics: record.metrics,
             stale: record.stale,
             rerunSeq: record.rerunSeq,
+            layoutDir,
             onRerun: onNodeRerun && canRerunNode(record.normalizedId, record.identifier)
               ? () => onNodeRerun(record.identifier, record.rawNodeId)
               : undefined,
@@ -826,11 +849,22 @@ function buildGraph(
 }
 
 export const AgentGraph: React.FC<AgentGraphProps> = ({ events, allEvents, runStatus, onNodeClick, onNodeRerun }) => {
-  const { nodes: layoutNodes, edges } = useMemo(
-    () => buildGraph(events, allEvents ?? events, runStatus, onNodeRerun),
-    [events, allEvents, runStatus, onNodeRerun],
-  );
+  const [layoutDir, setLayoutDir] = useState<'TB' | 'LR'>('TB');
   const [positionOverrides, setPositionOverrides] = useState<PositionOverrides>({});
+  const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
+
+  const { nodes: layoutNodes, edges } = useMemo(
+    () => buildGraph(events, allEvents ?? events, runStatus, onNodeRerun, layoutDir),
+    [events, allEvents, runStatus, onNodeRerun, layoutDir],
+  );
+
+  // Clear position overrides and re-fit when layout direction changes
+  useEffect(() => {
+    setPositionOverrides({});
+    // Delay to let ReactFlow commit the new node positions after the state update
+    const t = setTimeout(() => rfInstanceRef.current?.fitView({ padding: 0.15 }), 150);
+    return () => clearTimeout(t);
+  }, [layoutDir]);
 
   useEffect(() => {
     const validIds = new Set(layoutNodes.map((node) => node.id));
@@ -882,6 +916,7 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events, allEvents, runSt
         edges={edges}
         onNodesChange={handleNodesChange}
         onNodeClick={handleNodeClick}
+        onInit={(instance: ReactFlowInstance) => { rfInstanceRef.current = instance; }}
         nodeTypes={nodeTypes}
         nodesDraggable
         fitView
@@ -889,6 +924,27 @@ export const AgentGraph: React.FC<AgentGraphProps> = ({ events, allEvents, runSt
       >
         <Background color="#1e293b" gap={20} />
         <Controls />
+        <Panel position="top-right">
+          <Box
+            as="button"
+            onClick={() => setLayoutDir((d: 'TB' | 'LR') => (d === 'TB' ? 'LR' : 'TB'))}
+            bg="#0f172a"
+            border="1px solid"
+            borderColor="whiteAlpha.200"
+            color="whiteAlpha.700"
+            fontSize="xs"
+            fontWeight="semibold"
+            px={3}
+            py={1.5}
+            borderRadius="md"
+            cursor="pointer"
+            _hover={{ borderColor: '#4fd1c5', color: '#4fd1c5' }}
+            transition="all 0.15s"
+            title={layoutDir === 'TB' ? 'Switch to horizontal layout' : 'Switch to vertical layout'}
+          >
+            {layoutDir === 'TB' ? '⇔ Horizontal' : '⇕ Vertical'}
+          </Box>
+        </Panel>
       </ReactFlow>
     </Box>
   );

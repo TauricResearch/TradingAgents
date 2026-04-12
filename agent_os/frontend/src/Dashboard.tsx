@@ -329,9 +329,9 @@ const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent)
     {event.prompt && (
       <Box>
         <Text fontSize="xs" fontWeight="bold" color="whiteAlpha.600" mb={1}>Request / Prompt</Text>
-        <Box bg="blackAlpha.500" p={3} borderRadius="md" border="1px solid" borderColor="whiteAlpha.100" maxH="200px" overflowY="auto">
+        <Box bg="blackAlpha.500" p={3} borderRadius="md" border="1px solid" borderColor="whiteAlpha.100" maxH="350px" overflowY="auto">
           <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color="whiteAlpha.900">
-            {event.prompt.length > 1000 ? event.prompt.substring(0, 1000) + '…' : event.prompt}
+            {event.prompt}
           </Text>
         </Box>
       </Box>
@@ -341,9 +341,9 @@ const EventDetail: React.FC<{ event: AgentEvent; onOpenModal?: (evt: AgentEvent)
     {event.response && (
       <Box>
         <Text fontSize="xs" fontWeight="bold" color="whiteAlpha.600" mb={1}>Response</Text>
-        <Box bg="blackAlpha.500" p={3} borderRadius="md" border="1px solid" borderColor={event.status === 'error' ? 'red.700' : 'green.900'} maxH="200px" overflowY="auto">
+        <Box bg="blackAlpha.500" p={3} borderRadius="md" border="1px solid" borderColor={event.status === 'error' ? 'red.700' : 'green.900'} maxH="350px" overflowY="auto">
           <Text fontSize="xs" fontFamily="mono" whiteSpace="pre-wrap" wordBreak="break-word" color={event.status === 'error' ? 'red.200' : 'whiteAlpha.900'}>
-            {event.response.length > 1000 ? event.response.substring(0, 1000) + '…' : event.response}
+            {event.response}
           </Text>
         </Box>
       </Box>
@@ -449,6 +449,9 @@ export const Dashboard: React.FC = () => {
 
   // Parameter inputs
   const [showParams, setShowParams] = useState(false);
+
+  // Terminal panel visibility
+  const [showTerminal, setShowTerminal] = useState(true);
 
   // Terminal search filter
   const [terminalSearchTerm, setTerminalSearchTerm] = useState('');
@@ -1379,29 +1382,39 @@ export const Dashboard: React.FC = () => {
             </Box>
 
             {/* Right Side: Live Terminal */}
-            <VStack w="400px" bg="blackAlpha.400" align="stretch" spacing={0}>
+            <VStack w={showTerminal ? "400px" : "36px"} bg="blackAlpha.400" align="stretch" spacing={0} transition="width 0.2s ease" overflow="hidden">
               <Flex p={2} bg="whiteAlpha.50" align="center" gap={2} borderBottom="1px solid" borderColor="whiteAlpha.100">
-                 <TerminalIcon size={16} color="#4fd1c5" />
-                 <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" display={{ base: 'none', lg: 'block' }}>Terminal</Text>
-                 <InputGroup size="xs" maxW="200px" ml="auto">
+                 <IconButton
+                   aria-label={showTerminal ? "Collapse terminal" : "Expand terminal"}
+                   icon={showTerminal ? <ChevronRight size={14} /> : <TerminalIcon size={14} />}
+                   size="xs"
+                   variant="ghost"
+                   color="whiteAlpha.600"
+                   _hover={{ color: '#4fd1c5' }}
+                   onClick={() => setShowTerminal(v => !v)}
+                   flexShrink={0}
+                 />
+                 {showTerminal && <TerminalIcon size={16} color="#4fd1c5" />}
+                 {showTerminal && <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="wider">Terminal</Text>}
+                 {showTerminal && <InputGroup size="xs" maxW="200px" ml="auto">
                     <InputLeftElement pointerEvents="none">
                       <Search size={12} color="gray.500" />
                     </InputLeftElement>
-                    <Input 
-                      placeholder="Filter..." 
-                      variant="filled" 
-                      bg="whiteAlpha.100" 
+                    <Input
+                      placeholder="Filter..."
+                      variant="filled"
+                      bg="whiteAlpha.100"
                       _hover={{ bg: 'whiteAlpha.200' }}
                       value={terminalSearchTerm}
                       onChange={(e) => setTerminalSearchTerm(e.target.value)}
                     />
-                 </InputGroup>
-                 <Text fontSize="2xs" color="whiteAlpha.400" ml={2} minW="40px" textAlign="right">
+                 </InputGroup>}
+                 {showTerminal && <Text fontSize="2xs" color="whiteAlpha.400" ml={2} minW="40px" textAlign="right">
                    {filteredEvents.length} / {scopedEvents.length}
-                 </Text>
+                 </Text>}
               </Flex>
 
-              {availableIdentifiers.length > 0 && (
+              {showTerminal && availableIdentifiers.length > 0 && (
                 <Flex gap={1} px={3} py={1.5} borderBottom="1px solid" borderColor="whiteAlpha.100" flexWrap="wrap" bg="blackAlpha.300">
                   <Button size="xs" variant={tickerFilter === null ? 'solid' : 'ghost'} colorScheme="cyan" onClick={() => setTickerFilter(null)}>All</Button>
                   {availableIdentifiers.map((id) => (
@@ -1410,7 +1423,7 @@ export const Dashboard: React.FC = () => {
                 </Flex>
               )}
 
-              <Box flex="1" overflowY="auto" p={4} sx={{
+              {showTerminal && <Box flex="1" overflowY="auto" p={4} sx={{
                 '&::-webkit-scrollbar': { width: '4px' },
                 '&::-webkit-scrollbar-track': { background: 'transparent' },
                 '&::-webkit-scrollbar-thumb': { background: 'whiteAlpha.300' }
@@ -1457,7 +1470,7 @@ export const Dashboard: React.FC = () => {
                    </Flex>
                  )}
                  <div ref={terminalEndRef} />
-              </Box>
+              </Box>}
             </VStack>
           </Flex>
         </Flex>
