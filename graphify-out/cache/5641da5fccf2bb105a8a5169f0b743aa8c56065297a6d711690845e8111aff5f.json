@@ -1,0 +1,1 @@
+{"nodes": [{"id": "test_df_py", "label": "test_df.py", "file_type": "code", "source_file": "test_df.py", "source_location": "L1"}], "edges": [{"source": "test_df_py", "target": "pandas", "relation": "imports", "confidence": "EXTRACTED", "source_file": "test_df.py", "source_location": "L1", "weight": 1.0}]}
