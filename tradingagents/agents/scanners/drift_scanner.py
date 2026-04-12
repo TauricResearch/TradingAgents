@@ -93,7 +93,7 @@ def create_drift_scanner(llm):
             require_tool_result=True,
             node_name="drift_scanner",
             min_report_length=800,
-            max_tool_output_chars=1200,
+            max_tool_output_chars=5000,
         )
 
         tool_names = ", ".join(t.name for t in tools)

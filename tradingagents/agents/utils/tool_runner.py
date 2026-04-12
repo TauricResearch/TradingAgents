@@ -35,7 +35,7 @@ MAX_NUDGES = 2
 
 # Bound tool outputs fed back into the model to avoid oversized second-turn
 # prompts that can stall local tool-calling models.
-MAX_TOOL_OUTPUT_CHARS = 1800
+MAX_TOOL_OUTPUT_CHARS = 5000
 
 logger = logging.getLogger(__name__)
 

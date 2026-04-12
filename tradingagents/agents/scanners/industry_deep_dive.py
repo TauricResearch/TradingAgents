@@ -197,7 +197,7 @@ def create_industry_deep_dive(llm):
             require_tool_result=True,
             node_name="industry_deep_dive",
             min_report_length=800,
-            max_tool_output_chars=1200,
+            max_tool_output_chars=5000,
         )
 
         tool_names = ", ".join(t.name for t in tools)
