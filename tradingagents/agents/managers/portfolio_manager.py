@@ -52,7 +52,7 @@ def create_portfolio_manager(llm, memory):
 
 ---
 
-Be decisive and ground every conclusion in specific evidence from the analysts.{get_language_instruction()}"""
+Be decisive and ground every conclusion in specific evidence from the analysts. Choose Hold only if strongly justified by specific arguments from the debate — do not use it as a default fallback when perspectives conflict. Strive for clarity and decisiveness; every recommendation should advance better outcomes and avoid wrong calls that cost the trader money.{get_language_instruction()}"""
 
         response = llm.invoke(prompt)
 

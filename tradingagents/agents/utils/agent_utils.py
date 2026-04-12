@@ -35,11 +35,12 @@ def get_language_instruction() -> str:
 
 
 def build_instrument_context(ticker: str) -> str:
-    """Describe the exact instrument so agents preserve exchange-qualified tickers."""
+    """Describe the exact instrument so agents avoid cross-exchange symbol mixups."""
     return (
-        f"The instrument to analyze is `{ticker}`. "
-        "Use this exact ticker in every tool call, report, and recommendation, "
-        "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
+        f"The exact listed instrument to analyze is `{ticker}`. "
+        "Use this exact ticker in every tool call, report, and recommendation. "
+        "If it includes an exchange suffix such as `.TO`, `.L`, `.HK`, or `.T`, preserve that suffix and do not mix in companies from other exchanges that share the same root symbol. "
+        "If it does not include a suffix, do not invent one."
     )
 
 def create_msg_delete():
