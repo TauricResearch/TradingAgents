@@ -282,6 +282,48 @@ def test_take_snapshot(mock_supabase_client, report_store):
     assert snapshot.total_value == pytest.approx(5_000.0 + 50.0 * 200.0)
 
 
+def test_get_portfolio_with_holdings_uses_canonical_uuid_for_holdings_query(
+    mock_supabase_client, report_store
+):
+    canonical_id = "11111111-1111-1111-1111-111111111111"
+    mock_supabase_client.get_portfolio.return_value = _mock_portfolio(pid=canonical_id, cash=5_000.0)
+    mock_supabase_client.list_holdings.return_value = []
+
+    repo = _make_repo(mock_supabase_client, report_store)
+    repo.get_portfolio_with_holdings("main_portfolio")
+
+    mock_supabase_client.list_holdings.assert_called_once_with(canonical_id)
+
+
+def test_batch_remove_holdings_uses_canonical_uuid_for_db_calls(
+    mock_supabase_client, report_store
+):
+    canonical_id = "22222222-2222-2222-2222-222222222222"
+    portfolio = _mock_portfolio(pid=canonical_id, cash=5_000.0)
+    holding = _mock_holding(pid=canonical_id, ticker="AAPL", shares=10.0, avg_cost=100.0)
+    mock_supabase_client.get_portfolio.return_value = portfolio
+    mock_supabase_client.list_holdings.return_value = [holding]
+    mock_supabase_client.batch_delete_holdings.return_value = None
+    mock_supabase_client.batch_upsert_holdings.return_value = None
+    mock_supabase_client.batch_record_trades.return_value = None
+    mock_supabase_client.update_portfolio.side_effect = lambda p: p
+
+    repo = _make_repo(mock_supabase_client, report_store)
+    executed, failed = repo.batch_remove_holdings(
+        "main_portfolio",
+        sells=[{"ticker": "AAPL", "shares": 10.0, "price": 120.0}],
+        trade_date="2026-04-10",
+    )
+
+    assert failed == []
+    assert len(executed) == 1
+    mock_supabase_client.list_holdings.assert_called_once_with(canonical_id)
+    mock_supabase_client.batch_delete_holdings.assert_called_once_with(canonical_id, ["AAPL"])
+    trades = mock_supabase_client.batch_record_trades.call_args[0][0]
+    assert len(trades) == 1
+    assert trades[0].portfolio_id == canonical_id
+
+
 # ---------------------------------------------------------------------------
 # Supabase integration tests (auto-skip without SUPABASE_CONNECTION_STRING)
 # ---------------------------------------------------------------------------
