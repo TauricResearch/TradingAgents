@@ -1,0 +1,71 @@
+jain2@Ashish MINGW64 ~/TradingAgents (main)
+$ uv run python main.py
+Using CPython 3.11.9 interpreter at: C:\Users\jain2\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\python.exe
+Creating virtual environment at: .venv
+      Built peewee==3.18.1
+      Built tradingagents @ file:///C:/Users/jain2/TradingAgents
+Installed 110 packages in 7.43s
+C:\Users\jain2\TradingAgents\tradingagents\llm_clients\openai_client.py:56: RuntimeWarning: Model 'qwen-35b' is not in the known model list for provider 'openai'. Continuing anyway.
+  self.warn_if_unknown_model()
+================================ Human Message =================================
+
+NVDA
+Traceback (most recent call last):
+  File "C:\Users\jain2\TradingAgents\main.py", line 27, in <module>
+    _, decision = ta.propagate("NVDA", "2024-05-10")
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\tradingagents\graph\trading_graph.py", line 208, in propagate
+    for chunk in self.graph.stream(init_agent_state, **args):
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langgraph\pregel\__init__.py", line 2436, in stream
+    for _ in runner.tick(
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langgraph\pregel\runner.py", line 161, in tick
+    run_with_retry(
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langgraph\pregel\retry.py", line 40, in run_with_retry
+    return task.proc.invoke(task.input, config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langgraph\utils\runnable.py", line 623, in invoke
+    input = context.run(step.invoke, input, config, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langgraph\utils\runnable.py", line 377, in invoke
+    ret = self.func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\tradingagents\agents\analysts\market_analyst.py", line 76, in market_analyst_node
+    result = chain.invoke(state["messages"])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 3157, in invoke
+    input_ = context.run(step.invoke, input_, config)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 5695, in invoke
+    return self.bound.invoke(
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\tradingagents\llm_clients\openai_client.py", line 19, in invoke
+    return normalize_content(super().invoke(input, config, **kwargs))
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 454, in invoke
+    self.generate_prompt(
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1185, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 995, in generate
+    self._generate_with_cache(
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1297, in _generate_with_cache
+    result = self._generate(
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 1488, in _generate
+    _handle_openai_api_error(e)
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 1470, in _generate
+    raw_response = self.root_client.responses.with_raw_response.create(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\openai\_legacy_response.py", line 367, in wrapped
+    return cast(LegacyAPIResponse[R], func(*args, **kwargs))
+                                      ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\openai\resources\responses\responses.py", line 898, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\openai\_base_client.py", line 1314, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jain2\TradingAgents\.venv\Lib\site-packages\openai\_base_client.py", line 1087, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.NotFoundError: Error code: 404 - {'error': {'message': 'File Not Found', 'type': 'not_found_error', 'code': 404}}
+During task with name 'Market Analyst' and id '96e148e0-6e24-3d20-2444-8a39e0fcf413'
