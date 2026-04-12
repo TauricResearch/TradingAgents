@@ -9,9 +9,9 @@ DEFAULT_CONFIG = {
     ),
     # LLM settings
     "llm_provider": "openai",
-    "deep_think_llm": "gpt-5.4",
-    "quick_think_llm": "gpt-5.4-mini",
-    "backend_url": "https://api.openai.com/v1",
+    "deep_think_llm": "qwen-35b",
+    "quick_think_llm": "qwen-35b",
+    "backend_url": "https://ai.ghosthouse.uk/v1/chat/completions",
     # Provider-specific thinking configuration
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
