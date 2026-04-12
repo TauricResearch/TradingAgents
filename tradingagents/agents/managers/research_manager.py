@@ -3,7 +3,6 @@ from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
     build_investment_plan_structured,
-    build_research_manager_fallback,
     output_contains_scratchpad,
 )
 from tradingagents.agents.utils.summary_context import (
@@ -102,7 +101,13 @@ Debate History:
         output_content = response.content.replace("TICKER_A", ticker)
         is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
         if output_contains_scratchpad(output_content):
-            output_content = build_research_manager_fallback(state)
+            raise RuntimeError(
+                "Research Manager produced scratchpad/instructional output; refusing fallback."
+            )
+        if not str(output_content).strip():
+            raise RuntimeError(
+                "Research Manager produced empty output; refusing fallback."
+            )
 
         structured = build_investment_plan_structured(
             ticker=ticker,

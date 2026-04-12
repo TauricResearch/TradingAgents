@@ -158,33 +158,32 @@ class TestResearchManagerGroundTruth:
         assert "Scanner Context" in prompt
         assert "Do NOT invent" in prompt
 
-    def test_scratchpad_output_is_replaced_with_deterministic_fallback(self):
+    def test_scratchpad_output_raises_runtime_error(self):
         from tradingagents.agents.managers.research_manager import create_research_manager
 
         llm = _mock_llm("We need to follow instruction.\nWe can create bull arguments.")
         node = create_research_manager(llm, _mock_memory())
-        result = node(
-            _base_state(
-                news_report_structured={
-                    "claims": [
-                        {
-                            "claim": "AAPL secured a $4.10B financing package.",
-                            "source": "Reuters",
-                            "published_at": "2026-03-30",
-                        }
-                    ]
-                },
-                fundamentals_report_structured={
-                    "status": "timeout_fallback",
-                    "macro_regime": "unknown",
-                    "key_metrics": {"numeric_mentions": 0},
-                },
+        with pytest.raises(RuntimeError) as exc:
+            node(
+                _base_state(
+                    news_report_structured={
+                        "claims": [
+                            {
+                                "claim": "AAPL secured a $4.10B financing package.",
+                                "source": "Reuters",
+                                "published_at": "2026-03-30",
+                            }
+                        ]
+                    },
+                    fundamentals_report_structured={
+                        "status": "timeout_fallback",
+                        "macro_regime": "unknown",
+                        "key_metrics": {"numeric_mentions": 0},
+                    },
+                )
             )
-        )
 
-        assert "We need to" not in result["investment_plan"]
-        assert "- Recommendation: HOLD" in result["investment_plan"]
-        assert "timed out after 60s" in result["investment_plan"]
+        assert "scratchpad" in str(exc.value).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -217,21 +216,56 @@ class TestTraderGroundTruth:
         assert "ground-truth calendar data ONLY" in system_msg["content"]
         assert "Do NOT estimate or invent" in system_msg["content"]
 
-    def test_scratchpad_output_is_replaced_with_deterministic_fallback(self):
+    def test_scratchpad_output_raises_runtime_error(self):
         from tradingagents.agents.trader.trader import create_trader
 
         llm = _mock_llm("Let's craft the final answer.\nNow produce final answer.")
         node = create_trader(llm, _mock_memory())
-        result = node(
-            _base_state(
-                market_report_structured={"key_levels": []},
-                fundamentals_report_structured={"status": "timeout_fallback"},
+        with pytest.raises(RuntimeError) as exc:
+            node(
+                _base_state(
+                    market_report_structured={"key_levels": []},
+                    fundamentals_report_structured={"status": "timeout_fallback"},
+                )
             )
-        )
 
-        assert "Let's craft" not in result["trader_investment_plan"]
-        assert "FINAL TRANSACTION PROPOSAL" in result["trader_investment_plan"]
-        assert "**HOLD**" in result["trader_investment_plan"]
+        assert "scratchpad" in str(exc.value).lower()
+
+    def test_empty_upstream_plan_raises_runtime_error(self):
+        from tradingagents.agents.trader.trader import create_trader
+
+        llm = _mock_llm("- FINAL TRANSACTION PROPOSAL: **BUY**")
+        node = create_trader(llm, _mock_memory())
+        with pytest.raises(RuntimeError) as exc:
+            node(
+                _base_state(
+                    investment_plan="",
+                    investment_plan_structured={"status": "empty"},
+                )
+            )
+
+        assert "upstream Research Manager plan was empty" in str(exc.value)
+        assert llm.invoke.call_count == 0
+
+    def test_price_anchor_mismatch_raises_runtime_error(self):
+        from tradingagents.agents.trader.trader import create_trader
+
+        llm = _mock_llm(
+            "- Entry Setup: $28.50 breakout\n"
+            "- Risk Parameters: Stop-loss $24.23, take-profit $37.05\n"
+            "- FINAL TRANSACTION PROPOSAL: **BUY**"
+        )
+        node = create_trader(llm, _mock_memory())
+        with pytest.raises(RuntimeError) as exc:
+            node(
+                _base_state(
+                    investment_plan="- Recommendation: BUY",
+                    investment_plan_structured={"status": "completed"},
+                    market_report_structured={"key_levels": ["$130.49", "$128.47"]},
+                )
+            )
+
+        assert "entry $28.50 deviates from validated current price $130.49" in str(exc.value)
 
 
 # ---------------------------------------------------------------------------
@@ -398,6 +432,16 @@ class TestStructuredContractEmission:
         assert structured["status"] == "completed"
         assert structured["contract_version"] == "investment_plan_v1"
         assert structured["recommendation"] == "BUY"
+
+    def test_research_manager_empty_output_raises_runtime_error(self):
+        from tradingagents.agents.managers.research_manager import create_research_manager
+
+        llm = _mock_llm("")
+        node = create_research_manager(llm, _mock_memory())
+        with pytest.raises(RuntimeError) as exc:
+            node(_base_state())
+
+        assert "empty output" in str(exc.value).lower()
 
     def test_trader_emits_trader_plan_structured(self):
         from tradingagents.agents.trader.trader import create_trader

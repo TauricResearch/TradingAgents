@@ -426,7 +426,7 @@ export const Dashboard: React.FC = () => {
   const [streamEnabled, setStreamEnabled] = useState(true);
   const [activeRunType, setActiveRunType] = useState<RunType | null>(null);
   const [isTriggering, setIsTriggering] = useState(false);
-  const { events, status, clearEvents, replaceEvents, setTerminalStatus } = useAgentStream(activeRunId, activeRunReloadKey, streamEnabled);
+  const { events, status, error: streamError, clearEvents, replaceEvents, setTerminalStatus } = useAgentStream(activeRunId, activeRunReloadKey, streamEnabled);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const toast = useToast();
   const {
@@ -575,6 +575,21 @@ export const Dashboard: React.FC = () => {
   const selectedRetryTickers = incompletePhase3Tickers
     .filter((item: any) => phase3DecisionSelection[item.ticker])
     .map((item: any) => item.ticker);
+  const activeRunFailureReason = useMemo(() => {
+    if (activeRunRecord?.status === 'failed' && activeRunRecord?.error) return String(activeRunRecord.error);
+    if (status === 'error' && streamError) {
+      return String(streamError)
+        .replace(/^Error:\s*Run failed:\s*/i, '')
+        .replace(/^Error:\s*Phase 3 decision failed:\s*/i, '')
+        .replace(/^Error:\s*/i, '');
+    }
+    return '';
+  }, [activeRunRecord, status, streamError]);
+  const failureBannerTitle = useMemo(() => {
+    const stage = String(activeRunRecord?.error_stage || '').toLowerCase();
+    if (stage === 'phase3-decision') return 'Decision Failure Reason';
+    return 'Failure Reason';
+  }, [activeRunRecord]);
 
   useEffect(() => {
     if (activeRunRecord?.status !== 'awaiting_decision' || !pendingPhase3Decision) return;
@@ -984,6 +999,23 @@ export const Dashboard: React.FC = () => {
                
                {/* Floating Control Panel */}
                <VStack position="absolute" top={4} left={4} spacing={2} align="stretch">
+                 {activeRunFailureReason && (
+                   <Box
+                     bg="red.900"
+                     border="1px solid"
+                     borderColor="red.500"
+                     borderRadius="md"
+                     p={3}
+                     maxW="600px"
+                   >
+                     <Text fontSize="xs" fontWeight="bold" color="red.300" mb={1}>
+                       {failureBannerTitle}
+                     </Text>
+                     <Text fontSize="xs" color="red.100" fontFamily="mono" whiteSpace="pre-wrap">
+                       {activeRunFailureReason}
+                     </Text>
+                   </Box>
+                 )}
                  {/* Run buttons row */}
                  <HStack bg="blackAlpha.800" p={2} borderRadius="lg" backdropFilter="blur(10px)" border="1px solid" borderColor="whiteAlpha.200" spacing={2}>
                     {(['scan', 'pipeline', 'portfolio', 'auto'] as RunType[]).map((type) => {

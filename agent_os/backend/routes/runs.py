@@ -58,6 +58,26 @@ def _append_system_event(run_id: str, message: str) -> None:
     _checkpoint_run_events(run_id)
 
 
+def _set_failed_with_event(run_id: str, reason: str, *, log_exception: Exception | None = None) -> None:
+    """Mark run failed and append a visible system event with the failure reason."""
+    run = runs.get(run_id)
+    if not run:
+        return
+    operation = str(run.get("active_operation") or "").strip().lower()
+    if operation == "phase3-decision":
+        failure_label = "Phase 3 decision failed"
+    elif operation:
+        failure_label = f"{operation} failed"
+    else:
+        failure_label = "Run failed"
+    run["status"] = "failed"
+    run["error"] = reason
+    run["error_stage"] = operation or None
+    _append_system_event(run_id, f"{failure_label}: {reason}")
+    if log_exception is not None:
+        logger.exception("Run failed run=%s", run_id)
+
+
 def _ensure_run_events_loaded(run_id: str) -> None:
     run = runs.get(run_id)
     if not run:
@@ -194,25 +214,27 @@ async def _run_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None])
     runs[run_id]["status"] = "running"
     runs[run_id]["events"] = []
     runs[run_id].pop("error", None)
+    runs[run_id].pop("error_stage", None)
+    runs[run_id].pop("active_operation", None)
     runs[run_id].pop("pending_phase3_decision", None)
     try:
         async for event in gen:
             runs[run_id]["events"].append(event)
             _checkpoint_run_events(run_id)
         runs[run_id]["status"] = "completed"
+        runs[run_id].pop("active_operation", None)
     except AwaitPhase3Decision as exc:
         runs[run_id]["status"] = "awaiting_decision"
         runs[run_id]["pending_phase3_decision"] = exc.payload
+        runs[run_id].pop("active_operation", None)
     except asyncio.CancelledError:
-        runs[run_id]["status"] = "failed"
-        runs[run_id]["error"] = (
-            "Run stopped by user" if runs[run_id].get("stop_requested") else "Run cancelled"
+        _set_failed_with_event(
+            run_id,
+            "Run stopped by user" if runs[run_id].get("stop_requested") else "Run cancelled",
         )
         logger.warning("Run cancelled run=%s", run_id)
     except Exception as exc:
-        runs[run_id]["status"] = "failed"
-        runs[run_id]["error"] = str(exc)
-        logger.exception("Run failed run=%s", run_id)
+        _set_failed_with_event(run_id, str(exc), log_exception=exc)
     finally:
         runs[run_id].pop("stop_requested", None)
         _persist_run_to_disk(run_id)
@@ -227,6 +249,7 @@ async def _resume_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], Non
     run["rerun_seq"] = run.get("rerun_seq", 0) + 1
     run["status"] = "running"
     run.pop("error", None)
+    run.pop("error_stage", None)
     run.pop("pending_phase3_decision", None)
     try:
         async for event in gen:
@@ -234,17 +257,19 @@ async def _resume_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], Non
             run.setdefault("events", []).append(event)
             _checkpoint_run_events(run_id)
         run["status"] = "completed"
+        run.pop("active_operation", None)
     except AwaitPhase3Decision as exc:
         run["status"] = "awaiting_decision"
         run["pending_phase3_decision"] = exc.payload
+        run.pop("active_operation", None)
     except asyncio.CancelledError:
-        run["status"] = "failed"
-        run["error"] = "Run stopped by user" if run.get("stop_requested") else "Run cancelled"
+        _set_failed_with_event(
+            run_id,
+            "Run stopped by user" if run.get("stop_requested") else "Run cancelled",
+        )
         logger.warning("Run resume cancelled run=%s", run_id)
     except Exception as exc:
-        run["status"] = "failed"
-        run["error"] = str(exc)
-        logger.exception("Run resume failed run=%s", run_id)
+        _set_failed_with_event(run_id, str(exc), log_exception=exc)
     finally:
         run.pop("stop_requested", None)
         _persist_run_to_disk(run_id)
@@ -469,6 +494,7 @@ async def _append_and_store(run_id: str, gen, ticker: str = None, phase: str = N
     run["rerun_seq"] = run.get("rerun_seq", 0) + 1
     run["status"] = "running"
     run.pop("error", None)
+    run.pop("error_stage", None)
     # Preserve events for other tickers and earlier phases; remove only the stale
     # nodes that the re-run will replace.
     if ticker and phase:
@@ -481,14 +507,15 @@ async def _append_and_store(run_id: str, gen, ticker: str = None, phase: str = N
             run["events"].append(event)
             _checkpoint_run_events(run_id)
         run["status"] = "completed"
+        run.pop("active_operation", None)
     except asyncio.CancelledError:
-        run["status"] = "failed"
-        run["error"] = "Run stopped by user" if run.get("stop_requested") else "Run cancelled"
+        _set_failed_with_event(
+            run_id,
+            "Run stopped by user" if run.get("stop_requested") else "Run cancelled",
+        )
         logger.warning("Rerun cancelled run=%s", run_id)
     except Exception as exc:
-        run["status"] = "failed"
-        run["error"] = str(exc)
-        logger.exception("Rerun failed run=%s", run_id)
+        _set_failed_with_event(run_id, str(exc), log_exception=exc)
     finally:
         run.pop("stop_requested", None)
         _persist_run_to_disk(run_id)
@@ -503,6 +530,7 @@ async def _append_scan_rerun_and_store(run_id: str, gen, start_node: str) -> Non
     run["rerun_seq"] = run.get("rerun_seq", 0) + 1
     run["status"] = "running"
     run.pop("error", None)
+    run.pop("error_stage", None)
     run["events"] = _filter_scan_rerun_events(run.get("events") or [], start_node)
     try:
         async for event in gen:
@@ -510,14 +538,15 @@ async def _append_scan_rerun_and_store(run_id: str, gen, start_node: str) -> Non
             run["events"].append(event)
             _checkpoint_run_events(run_id)
         run["status"] = "completed"
+        run.pop("active_operation", None)
     except asyncio.CancelledError:
-        run["status"] = "failed"
-        run["error"] = "Run stopped by user" if run.get("stop_requested") else "Run cancelled"
+        _set_failed_with_event(
+            run_id,
+            "Run stopped by user" if run.get("stop_requested") else "Run cancelled",
+        )
         logger.warning("Scan rerun cancelled run=%s", run_id)
     except Exception as exc:
-        run["status"] = "failed"
-        run["error"] = str(exc)
-        logger.exception("Scan rerun failed run=%s", run_id)
+        _set_failed_with_event(run_id, str(exc), log_exception=exc)
     finally:
         run.pop("stop_requested", None)
         _persist_run_to_disk(run_id)
@@ -715,6 +744,8 @@ async def submit_phase3_decision(
     )
     run["status"] = "running"
     run.pop("error", None)
+    run.pop("error_stage", None)
+    run["active_operation"] = "phase3-decision"
     decision_message = (
         "Phase 2 decision received — retrying selected ticker(s): " + ", ".join(retry_tickers)
         if retry_tickers
@@ -846,8 +877,7 @@ async def get_run_status(run_id: str, user: dict = Depends(get_current_user)):
         run = runs[run_id]
         _ensure_run_events_loaded(run_id)
         if run.get("hydrated_from_disk") and run.get("status") == "running":
-            run["status"] = "failed"
-            run["error"] = "Run did not complete (server restarted)"
+            _set_failed_with_event(run_id, "Run did not complete (server restarted)")
         # Derive nodes_fired from events for client compatibility
         events = run.get("events") or []
         run["nodes_fired"] = sorted({

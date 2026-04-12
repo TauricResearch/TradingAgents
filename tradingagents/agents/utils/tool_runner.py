@@ -70,8 +70,8 @@ def run_tool_loop(
         min_report_length: Minimum acceptable length (chars) of a text-only
             first response.  Shorter responses trigger a nudge to use tools.
         require_tool_result: When True and no tool was ever successfully called,
-            return a structured ``[INSUFFICIENT_EVIDENCE]`` message instead of
-            whatever text the model produced.
+            raise ``RuntimeError`` with an ``[INSUFFICIENT_EVIDENCE]`` payload
+            instead of returning best-effort prose.
         node_name: Human-readable node identifier included in timeout and
             insufficient-evidence messages for downstream diagnostics.
 
@@ -91,7 +91,7 @@ def run_tool_loop(
         _cap,
     )
 
-    def _insufficient_evidence(reason: str) -> AIMessage:
+    def _insufficient_evidence_message(reason: str) -> str:
         required_tools = ", ".join(tool_map.keys()) or "none"
         attempted = ", ".join(attempted_tools) or "none"
         missing_tools = [
@@ -115,17 +115,15 @@ def run_tool_loop(
             # Observability should never turn a controlled fallback into a node failure.
             pass
 
-        return AIMessage(
-            content=(
-                "[INSUFFICIENT_EVIDENCE]\n"
-                f"Node: {label}\n"
-                f"Reason: {reason}\n"
-                f"Missing evidence: no successful tool results from required tools: {missing}.\n"
-                f"Required tools: {required_tools}\n"
-                f"Attempted tools: {attempted}\n"
-                "Downstream handling: treat this node as incomplete; exclude its claims "
-                "and do not infer additional unsourced candidates."
-            )
+        return (
+            "[INSUFFICIENT_EVIDENCE]\n"
+            f"Node: {label}\n"
+            f"Reason: {reason}\n"
+            f"Missing evidence: no successful tool results from required tools: {missing}.\n"
+            f"Required tools: {required_tools}\n"
+            f"Attempted tools: {attempted}\n"
+            "Downstream handling: treat this node as incomplete; exclude its claims "
+            "and do not infer additional unsourced candidates."
         )
 
     for _ in range(max_rounds):
@@ -137,9 +135,10 @@ def run_tool_loop(
             )
             if invoke_error is not None:
                 if isinstance(invoke_error, TimeoutError):
-                    return _insufficient_evidence(
+                    msg = _insufficient_evidence_message(
                         f"node timed out after {timeout_seconds:.0f}s before producing usable tool-grounded analysis"
                     )
+                    raise RuntimeError(msg) from invoke_error
                 raise invoke_error
         except Exception as exc:
             if getattr(exc, "status_code", None) == 404:
@@ -176,9 +175,10 @@ def run_tool_loop(
                 nudge_count += 1
                 continue
             if require_tool_result and not tools_ever_used:
-                return _insufficient_evidence(
+                msg = _insufficient_evidence_message(
                     "model produced final prose without any successful required tool result"
                 )
+                raise RuntimeError(msg)
             return result
 
         # Execute each requested tool call and append ToolMessages
@@ -241,11 +241,12 @@ def run_tool_loop(
     if result is None:
         raise RuntimeError("Tool loop did not produce any LLM response")
 
-    # When tools are required but none succeeded, return a structured
-    # insufficient-evidence message so downstream nodes can detect failure.
+    # When tools are required but none succeeded, fail hard so the run can
+    # stop/retry instead of silently propagating fallback text.
     if require_tool_result and not tools_ever_used:
-        return _insufficient_evidence(
+        msg = _insufficient_evidence_message(
             f"no successful tool results obtained after {max_rounds} rounds"
         )
+        raise RuntimeError(msg)
 
     return result

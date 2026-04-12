@@ -1,15 +1,54 @@
 import functools
+import re
 
 from tradingagents.agents.utils.agent_utils import build_instrument_context
 from tradingagents.agents.utils.anonymization import anonymize_ticker
 from tradingagents.agents.utils.llm_guard import invoke_with_timeout, truncate_text
 from tradingagents.agents.utils.output_validation import (
-    build_trader_plan_fallback,
     build_trader_plan_structured,
     output_contains_scratchpad,
 )
 from tradingagents.default_config import DEFAULT_CONFIG
-from langchain_core.messages import AIMessage
+
+
+def _parse_price_token(raw: str) -> float | None:
+    token = str(raw or "").strip().replace("$", "").replace(",", "")
+    if not token:
+        return None
+    try:
+        value = float(token)
+    except Exception:
+        return None
+    return value if value > 0 else None
+
+
+def _extract_current_price_from_state(state: dict) -> float | None:
+    market_structured = state.get("market_report_structured") or {}
+    levels = market_structured.get("key_levels") or []
+    if not isinstance(levels, list):
+        return None
+    for level in levels:
+        match = re.search(r"\$([0-9][0-9,]*(?:\.[0-9]+)?)", str(level))
+        if match:
+            parsed = _parse_price_token(match.group(1))
+            if parsed is not None:
+                return parsed
+    return None
+
+
+def _extract_entry_price_from_plan(plan: str) -> float | None:
+    text = str(plan or "")
+    entry_patterns = [
+        r"entry\s*(?:price|setup|point)?\s*[:\-]?\s*\$([0-9][0-9,]*(?:\.[0-9]+)?)",
+        r"buy\s+[A-Z]{1,10}\s+at\s+\$([0-9][0-9,]*(?:\.[0-9]+)?)",
+    ]
+    for pattern in entry_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            parsed = _parse_price_token(match.group(1))
+            if parsed is not None:
+                return parsed
+    return None
 
 
 def create_trader(llm, memory):
@@ -17,6 +56,7 @@ def create_trader(llm, memory):
         ticker = state["company_of_interest"]
         instrument_context = build_instrument_context(ticker)
         investment_plan = state["investment_plan"]
+        investment_plan_structured = state.get("investment_plan_structured") or {}
         market_research_report = state["market_report"]
         sentiment_report = state["sentiment_report"]
         news_report = state["news_report"]
@@ -80,6 +120,14 @@ Apply lessons from past decisions:
             context,
         ]
 
+        # Guardrail: do not fabricate an executable trader plan if the
+        # upstream research-manager decision is missing or non-terminal.
+        plan_status = str(investment_plan_structured.get("status") or "").strip().lower()
+        if not str(investment_plan or "").strip() or plan_status in {"empty", "timeout_fallback", "aborted"}:
+            raise RuntimeError(
+                "upstream Research Manager plan was empty or non-completed, so trader cannot derive entry/stop/target safely"
+            )
+
         _cap = float(DEFAULT_CONFIG.get("mid_think_llm_timeout_cap") or 240.0)
         timeout_seconds = min(
             float(DEFAULT_CONFIG.get("mid_think_llm_timeout") or DEFAULT_CONFIG.get("llm_timeout") or _cap),
@@ -99,7 +147,24 @@ Apply lessons from past decisions:
         output_content = result.content.replace("TICKER_A", ticker)
         is_timeout = isinstance(invoke_error, TimeoutError) if invoke_error else False
         if output_contains_scratchpad(output_content):
-            output_content = build_trader_plan_fallback(state)
+            raise RuntimeError(
+                "Trader produced scratchpad/instructional output; refusing fallback."
+            )
+        if not str(output_content).strip():
+            raise RuntimeError("Trader produced empty output; refusing fallback.")
+
+        # Guardrail: reject plans anchored to stale prices.
+        current_price = _extract_current_price_from_state(state)
+        entry_price = _extract_entry_price_from_plan(output_content)
+        max_entry_drift = float(DEFAULT_CONFIG.get("trader_entry_price_drift_max_pct") or 0.20)
+        if current_price and entry_price:
+            drift = abs(entry_price - current_price) / current_price
+            if drift > max_entry_drift:
+                raise RuntimeError(
+                    "Trader entry-price validation failed: "
+                    f"entry ${entry_price:.2f} deviates from validated current price ${current_price:.2f} "
+                    f"by {drift:.1%} (> {max_entry_drift:.0%} threshold)."
+                )
 
         structured = build_trader_plan_structured(
             ticker=ticker,
