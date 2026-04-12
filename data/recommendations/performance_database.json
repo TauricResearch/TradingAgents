@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-04-12 13:40:20",
-  "total_recommendations": 610,
+  "last_updated": "2026-04-12 13:43:48",
+  "total_recommendations": 616,
   "recommendations_by_date": {
     "2026-02-10": [
       {
@@ -14317,6 +14317,98 @@
         "reason": "BAC is experiencing strong sector rotation and sympathy momentum following JPM's robust results, further validated by management confirming a 10% year-to-date jump in investment banking revenue. Institutional accumulation is actively confirming the move, evidenced by a rising 5-day On-Balance Volume (OBV) trend and a fresh MACD bullish crossover. The technical structure is highly supportive, with the stock maintaining a Minervini Stage 2 uptrend, an RS Rating of 78/100, and trading 4.0% above its 50-day SMA. The most significant risk is the binary earnings event in just 4 days, compounded by an overbought Stochastic reading of 92.3 that could trigger pre-earnings profit-taking.",
         "entry_price": null,
         "discovery_date": "2026-04-11",
+        "status": "open"
+      }
+    ],
+    "2026-04-12": [
+      {
+        "ticker": "AA",
+        "rank": 1,
+        "company_name": "AA",
+        "description": "Business description not available.",
+        "strategy_match": "minervini",
+        "pipeline": "minervini",
+        "final_score": 92,
+        "confidence": 9,
+        "risk_level": "moderate",
+        "reason": "(1) AA presents a textbook Minervini setup with an elite RS Rating of 98/100, trading exactly at its 52-week high with perfect moving average alignment (P > 50 > 150 > 200). (2) Timing is urgently driven by a Morgan Stanley Overweight upgrade to an $80 price target, citing middle-east disruptions expected to boost 2026 EPS by 52%. (3) The risk/reward is highly attractive as the stock consolidates near highs with rising On-Balance Volume (38.0M), indicating strong institutional demand. (4) The primary risk is the upcoming earnings report in 4 days, which introduces binary volatility, along with an overbought Stochastic reading (85.6) that could trigger short-term profit-taking.",
+        "entry_price": null,
+        "discovery_date": "2026-04-12",
+        "status": "open"
+      },
+      {
+        "ticker": "INTC",
+        "rank": 2,
+        "company_name": "INTC",
+        "description": "Business description not available.",
+        "strategy_match": "analyst_upgrade",
+        "pipeline": "analyst_upgrade",
+        "final_score": 85,
+        "confidence": 8,
+        "risk_level": "high",
+        "reason": "(1) INTC benefits from an analyst upgrade and a massive news catalyst, being named the lead foundry partner for the $25 billion Terafab project alongside rumors of a $5 billion Apple investment. (2) This confluence of events has sparked extreme momentum, sending shares up 22.84% over the last 5 days on surging volume. (3) The setup offers high reward potential as the price sits comfortably above its 50-day SMA ($47.21) with a massive rising OBV of 3.27 billion. (4) However, the stock is currently extended with an RSI of 75.4, making it vulnerable to mean reversion or 'buy the rumor, sell the news' behavior if the Apple investment falls through.",
+        "entry_price": null,
+        "discovery_date": "2026-04-12",
+        "status": "open"
+      },
+      {
+        "ticker": "FUL",
+        "rank": 3,
+        "company_name": "FUL",
+        "description": "Business description not available.",
+        "strategy_match": "insider_buying",
+        "pipeline": "insider_buying",
+        "final_score": 75,
+        "confidence": 7,
+        "risk_level": "moderate",
+        "reason": "(1) FUL shows a strong insider buying signal, with CEO Mastin Celeste Beeks executing a targeted $295,104 open-market purchase. (2) The timing aligns with a fresh MACD bullish crossover and a 9.96% gain over the last 5 days, signaling accelerating short-term momentum. (3) The technical structure is robust, with the price holding comfortably above the 50-day SMA ($61.10) and a rising On-Balance Volume trend confirming the breakout. (4) The main risk is the lack of a strong directional trend (ADX at 14.9), meaning the stock could stall in a range if broader market sentiment wavers.",
+        "entry_price": null,
+        "discovery_date": "2026-04-12",
+        "status": "open"
+      },
+      {
+        "ticker": "FAST",
+        "rank": 4,
+        "company_name": "FAST",
+        "description": "Business description not available.",
+        "strategy_match": "earnings_play",
+        "pipeline": "earnings_play",
+        "final_score": 68,
+        "confidence": 6,
+        "risk_level": "high",
+        "reason": "(1) FAST displays strong pre-earnings accumulation, highlighted by a 7.19% 5-day gain and a rising On-Balance Volume (145.7M) heading into its Q1 report tomorrow. (2) Bullish momentum is accelerating, as evidenced by a MACD bullish crossover and a solid position above the 50-day SMA ($45.99). (3) The setup offers a compelling risk/reward if the company can alleviate expected gross margin and supply chain concerns, with price currently testing recent highs. (4) The primary risk is the binary outcome of the earnings release in 1 day; any top-line miss or weak guidance could trigger an immediate selloff given the stock's upper Bollinger Band placement.",
+        "entry_price": null,
+        "discovery_date": "2026-04-12",
+        "status": "open"
+      },
+      {
+        "ticker": "GF",
+        "rank": 5,
+        "company_name": "GF",
+        "description": "Business description not available.",
+        "strategy_match": "insider_buying",
+        "pipeline": "insider_buying",
+        "final_score": 65,
+        "confidence": 6,
+        "risk_level": "high",
+        "reason": "(1) GF exhibits significant institutional accumulation, highlighted by a $1.49 million purchase from 10% owner Saba Capital Management. (2) The stock has gained 6.39% over the past 5 days and just triggered a bullish MACD crossover, suggesting the recent downtrend is reversing. (3) With the RSI rising to 60.2 and price sitting just below the 50-day SMA ($11.33), a breakout above this key resistance level could ignite a rapid upside move. (4) However, the longer-term trend remains bearish with a recent death cross, and failure to reclaim the 50-day moving average could lead to continued downward pressure.",
+        "entry_price": null,
+        "discovery_date": "2026-04-12",
+        "status": "open"
+      },
+      {
+        "ticker": "FRT",
+        "rank": 6,
+        "company_name": "FRT",
+        "description": "Business description not available.",
+        "strategy_match": "early_accumulation",
+        "pipeline": "early_accumulation",
+        "final_score": 60,
+        "confidence": 6,
+        "risk_level": "low",
+        "reason": "(1) FRT is showing classic signs of quiet accumulation, with the price gaining 1.55% daily while On-Balance Volume rises steadily (12.3M). (2) The stock has triggered a bullish MACD crossover and trades constructively above its 50-day ($104.98) and 200-day SMAs. (3) The risk profile is low (ATR of $1.87 or 1.7%), making it an appealing slow-grind setup with minimal downside volatility. (4) The primary risk is a lack of immediate catalysts and an overbought Stochastic reading (88.7), which could cause the stock to drift sideways in the short term.",
+        "entry_price": null,
+        "discovery_date": "2026-04-12",
         "status": "open"
       }
     ]
