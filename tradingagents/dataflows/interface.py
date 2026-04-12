@@ -11,6 +11,16 @@ from .y_finance import (
     get_insider_transactions as get_yfinance_insider_transactions,
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
+from .finnhub_news import (
+    get_news as get_finnhub_news,
+    get_global_news as get_finnhub_global_news,
+    get_insider_transactions as get_finnhub_insider_transactions,
+)
+from .simfin import (
+    get_balance_sheet as get_simfin_balance_sheet,
+    get_cashflow as get_simfin_cashflow,
+    get_income_statement as get_simfin_income_statement,
+)
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
     get_indicator as get_alpha_vantage_indicator,
@@ -63,6 +73,8 @@ TOOLS_CATEGORIES = {
 VENDOR_LIST = [
     "yfinance",
     "alpha_vantage",
+    "finnhub",
+    "simfin",
 ]
 
 # Mapping of methods to their vendor-specific implementations
@@ -85,27 +97,33 @@ VENDOR_METHODS = {
     "get_balance_sheet": {
         "alpha_vantage": get_alpha_vantage_balance_sheet,
         "yfinance": get_yfinance_balance_sheet,
+        "simfin": get_simfin_balance_sheet,
     },
     "get_cashflow": {
         "alpha_vantage": get_alpha_vantage_cashflow,
         "yfinance": get_yfinance_cashflow,
+        "simfin": get_simfin_cashflow,
     },
     "get_income_statement": {
         "alpha_vantage": get_alpha_vantage_income_statement,
         "yfinance": get_yfinance_income_statement,
+        "simfin": get_simfin_income_statement,
     },
     # news_data
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "finnhub": get_finnhub_news,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "finnhub": get_finnhub_global_news,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,
         "yfinance": get_yfinance_insider_transactions,
+        "finnhub": get_finnhub_insider_transactions,
     },
 }
 
