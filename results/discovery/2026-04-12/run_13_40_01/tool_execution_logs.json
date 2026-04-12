@@ -1,0 +1,1168 @@
+[
+  {
+    "timestamp": "2026-04-12T13:40:41.501522",
+    "type": "tool",
+    "node": "filter",
+    "step": "Check average volume (batch)",
+    "tool": "get_average_volume_batch",
+    "parameters": {
+      "symbols": [
+        "ALB",
+        "AA",
+        "APA",
+        "AMAT",
+        "AMD",
+        "APH",
+        "OSCR",
+        "HMH",
+        "BETR",
+        "SCVL",
+        "FUL",
+        "XAGE",
+        "HUIZ",
+        "LPCN",
+        "VSCO",
+        "GAM",
+        "CMTV",
+        "AVGO",
+        "ADM",
+        "AME",
+        "ALOT",
+        "OTRK",
+        "GAME",
+        "ABVC",
+        "FBK",
+        "FAST",
+        "WINT",
+        "PPSI",
+        "GS",
+        "IVDA",
+        "TO",
+        "IN",
+        "EMR",
+        "BX",
+        "EQIX",
+        "TSM",
+        "INTC",
+        "AAPL",
+        "CGCT",
+        "BOT",
+        "GF",
+        "LCFY",
+        "MKZR",
+        "SWZ",
+        "XZO",
+        "NKE",
+        "BAC",
+        "FRT",
+        "TSLA",
+        "AI",
+        "GO",
+        "AMZN",
+        "COIN",
+        "BBY",
+        "BSX",
+        "CRWD",
+        "AXP",
+        "CSCO",
+        "CI",
+        "CRM",
+        "AKAM",
+        "CVNA",
+        "IMF",
+        "UK",
+        "US",
+        "PPI",
+        "VWCE",
+        "DJT",
+        "NYT",
+        "VAGF",
+        "REIT",
+        "JD",
+        "ESPP",
+        "BEING"
+      ],
+      "lookback_days": 10,
+      "curr_date": "2026-04-12",
+      "cache_key": "default"
+    },
+    "context": "",
+    "output": "{\"ALB\": {\"symbol\": \"ALB\", \"average_volume\": 1595330.0, \"latest_volume\": 1208200.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"AA\": {\"symbol\": \"AA\", \"average_volume\": 6615520.0, \"latest_volume\": 3185100.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"APA\": {\"symbol\": \"APA\", \"average_volume\": 10575160.0, \"latest_volume\": 4860000.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"AMAT\": {\"symbol\": \"AMAT\", \"average_volume\": 5706250.0, \"latest_volume\": 6397400.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"AMD\": {\"symbol\": \"AMD\", \"average_volume\": 34816850.0, \"latest_volume\": 36398600.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"APH\": {\"symbol\": \"APH\", \"average_volume\": 7166820.0, \"latest_volume\": 9736500.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"AVGO\": {\"symbol\": \"AVGO\", \"average_volume\": 24156980.0, \"latest_volume\": 29929600.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"ADM\": {\"symbol\": \"ADM\", \"average_volume\": 3587940.0, \"latest_volume\": 2918500.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"AME\": {\"symbol\": \"AME\", \"average_volume\": 1054490.0, \"latest_volume\": 966400.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"FAST\": {\"symbol\": \"FAST\", \"average_volume\": 7226100.0, \"latest_volume\": 7285400.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"GS\": {\"symbol\": \"GS\", \"average_volume\": 1875890.0, \"latest_volume\": 1639900.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"EMR\": {\"symbol\": \"EMR\", \"average_volume\": 3209790.0, \"latest_volume\": 2029400.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"EQIX\": {\"symbol\": \"EQIX\", \"average_volume\": 468410.0, \"latest_volume\": 342800.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"INTC\": {\"symbol\": \"INTC\", \"average_volume\": 114479790.0, \"latest_volume\": 98439700.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"AAPL\": {\"symbol\": \"AAPL\", \"average_volume\": 40018490.0, \"latest_volume\": 31259500.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"NKE\": {\"symbol\": \"NKE\", \"average_volume\": 38871590.0, \"latest_volume\": 26014900.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"BAC\": {\"symbol\": \"BAC\", \"average_volume\": 34039940.0, \"latest_volume\": 25223900.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"FRT\": {\"symbol\": \"FRT\", \"average_volume\": 1126240.0, \"latest_volume\": 2051700.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"TSLA\": {\"symbol\": \"TSLA\", \"average_volume\": 69153120.0, \"latest_volume\": 51045600.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"AMZN\": {\"symbol\": \"AMZN\", \"average_volume\": 46570130.0, \"latest_volume\": 56842200.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"COIN\": {\"symbol\": \"COIN\", \"average_volume\": 9766250.0, \"latest_volume\": 7898800.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"BBY\": {\"symbol\": \"BBY\", \"average_volume\": 3264290.0, \"latest_volume\": 2787600.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"BSX\": {\"symbol\": \"BSX\", \"average_volume\": 19468620.0, \"latest_volume\": 14773000.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"CRWD\": {\"symbol\": \"CRWD\", \"average_volume\": 4279790.0, \"latest_volume\": 8928400.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"AXP\": {\"symbol\": \"AXP\", \"average_volume\": 2771990.0, \"latest_volume\": 1991300.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"CSCO\": {\"symbol\": \"CSCO\", \"average_volume\": 18853230.0, \"latest_volume\": 17568700.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"CI\": {\"symbol\": \"CI\", \"average_volume\": 1366920.0, \"latest_volume\": 906700.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"CRM\": {\"symbol\": \"CRM\", \"average_volume\": 13501370.0, \"latest_volume\": 18076300.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"AKAM\": {\"symbol\": \"AKAM\", \"average_volume\": 5260720.0, \"latest_volume\": 14265800.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"CVNA\": {\"symbol\": \"CVNA\", \"average_volume\": 2761900.0, \"latest_volume\": 1921800.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"REIT\": {\"symbol\": \"REIT\", \"average_volume\": 7980.0, \"latest_volume\": 12000.0, \"lookback_days\": 10, \"source\": \"cache\", \"cache_date\": \"2026-04-12\", \"error\": null}, \"OSCR\": {\"symbol\": \"OSCR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"HMH\": {\"symbol\": \"HMH\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"BETR\": {\"symbol\": \"BETR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"SCVL\": {\"symbol\": \"SCVL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"FUL\": {\"symbol\": \"FUL\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"XAGE\": {\"symbol\": \"XAGE\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"HUIZ\": {\"symbol\": \"HUIZ\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"LPCN\": {\"symbol\": \"LPCN\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"VSCO\": {\"symbol\": \"VSCO\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"GAM\": {\"symbol\": \"GAM\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"CMTV\": {\"symbol\": \"CMTV\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"ALOT\": {\"symbol\": \"ALOT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"OTRK\": {\"symbol\": \"OTRK\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"GAME\": {\"symbol\": \"GAME\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"ABVC\": {\"symbol\": \"ABVC\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"FBK\": {\"symbol\": \"FBK\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"WINT\": {\"symbol\": \"WINT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"PPSI\": {\"symbol\": \"PPSI\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"IVDA\": {\"symbol\": \"IVDA\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"TO\": {\"symbol\": \"TO\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"IN\": {\"symbol\": \"IN\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"BX\": {\"symbol\": \"BX\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"TSM\": {\"symbol\": \"TSM\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"CGCT\": {\"symbol\": \"CGCT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"BOT\": {\"symbol\": \"BOT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"GF\": {\"symbol\": \"GF\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"LCFY\": {\"symbol\": \"LCFY\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"MKZR\": {\"symbol\": \"MKZR\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"SWZ\": {\"symbol\": \"SWZ\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"XZO\": {\"symbol\": \"XZO\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"AI\": {\"symbol\": \"AI\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"GO\": {\"symbol\": \"GO\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"IMF\": {\"symbol\": \"IMF\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"UK\": {\"symbol\": \"UK\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"US\": {\"symbol\": \"US\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"PPI\": {\"symbol\": \"PPI\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"VWCE\": {\"symbol\": \"VWCE\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"DJT\": {\"symbol\": \"DJT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"NYT\": {\"symbol\": \"NYT\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"VAGF\": {\"symbol\": \"VAGF\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"JD\": {\"symbol\": \"JD\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"ESPP\": {\"symbol\": \"ESPP\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}, \"BEING\": {\"symbol\": \"BEING\", \"average_volume\": null, \"latest_volume\": null, \"lookback_days\": 10, \"source\": \"download\", \"cache_date\": \"2026-04-12\", \"error\": \"No volume data found\"}}",
+    "output_length": 12823,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:12.747402",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "AA",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for AA\n**Date:** 2026-04-12\n**Current Price:** $73.03\n\n## Price Action\n- **Daily Change:** -0.33%\n- **5-Day Change:** +2.84%\n\n## RSI (14)\n- **Value:** 65.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 3.147\n- **Signal Line:** 1.969\n- **Histogram:** 1.177 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $62.54 (+16.8% from price)\n- **200 SMA:** $44.75 (+63.2% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $77.70\n- **Middle:** $64.88\n- **Lower:** $52.06\n- **Band Position:** 82%\n- **Bandwidth:** 39.5% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $3.73 (5.1% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $67.44 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 85.6\n- **%D:** 83.6\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 26.1 (Weakening \u2193)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $66.76 (+9.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 38.0M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $64.76\n- **Current vs VWAP:** +12.8%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $75.70\n- **Recent Low:** $54.95\n- **Next Resistance:** $75.70 (0.0% (High))\n- **Next Support:** $70.80 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1508,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:12.816335",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "AA"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for AA: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 97,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:13.010790",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "AA"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for AA\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 23\n\n**Sentiment**: 60.9% Bullish, 4.3% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 6\n- **Buy**: 7\n- **Hold**: 7\n- **Sell**: 2\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 59.1% Bullish, 9.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 6\n- **Buy**: 7\n- **Hold**: 7\n- **Sell**: 2\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 59.1% Bullish, 9.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 6\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 68.2% Bullish, 4.5% Bearish\n\n",
+    "output_length": 709,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:13.040911",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "AA",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for AA: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 93,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:14.084846",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "FUL",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for FUL\n**Date:** 2026-04-12\n**Current Price:** $63.73\n\n## Price Action\n- **Daily Change:** +0.08%\n- **5-Day Change:** +9.96%\n\n## RSI (14)\n- **Value:** 61.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.775\n- **Signal Line:** -0.265\n- **Histogram:** 1.040 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $61.10 (+4.3% from price)\n- **200 SMA:** $59.77 (+6.6% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $66.18\n- **Middle:** $57.18\n- **Lower:** $48.19\n- **Band Position:** 86%\n- **Bandwidth:** 31.5% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $2.47 (3.9% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $60.02 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 83.2\n- **%D:** 77.5\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 14.9 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $59.56 (+7.0% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -2.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $57.12\n- **Current vs VWAP:** +11.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $68.63\n- **Recent Low:** $48.71\n- **Next Resistance:** $63.93 (23.6%)\n- **Next Support:** $61.02 (38.2%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1535,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:14.154452",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "FUL"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for FUL: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 98,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:14.231483",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "FUL"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for FUL\n\n### 2026-04-01\n- **Strong Buy**: 3\n- **Buy**: 5\n- **Hold**: 2\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 72.7% Bullish, 9.1% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 3\n- **Buy**: 4\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 63.6% Bullish, 9.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 4\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 63.6% Bullish, 9.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 4\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 63.6% Bullish, 9.1% Bearish\n\n",
+    "output_length": 710,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:14.260373",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "FUL",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for FUL: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 94,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:15.456084",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "GAME",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for GAME\n**Date:** 2026-04-12\n**Current Price:** $0.37\n\n## Price Action\n- **Daily Change:** +14.55%\n- **5-Day Change:** +45.10%\n\n## RSI (14)\n- **Value:** 70.3 \u2191\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## MACD\n- **MACD Line:** -0.002\n- **Signal Line:** -0.012\n- **Histogram:** 0.011 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $0.30 (+24.1% from price)\n- **200 SMA:** $0.63 (-41.4% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $0.34\n- **Middle:** $0.28\n- **Lower:** $0.22\n- **Band Position:** 128%\n- **Bandwidth:** 42.1% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.04 (10.5% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $0.31 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 46.5\n- **%D:** 41.4\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 33.7 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $0.29 (+29.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 183.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $0.36\n- **Current vs VWAP:** +4.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $0.46\n- **Recent Low:** $0.23\n- **Next Resistance:** $0.37 (38.2%)\n- **Next Support:** $0.35 (50.0%)\n\n## Summary\n- **Key Signals:** RSI overbought, Above 50 SMA\n",
+    "output_length": 1559,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:15.528691",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "GAME"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for GAME: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:15.600021",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "GAME"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for GAME\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 8\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 8\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 8\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 8\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n",
+    "output_length": 707,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:15.629238",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "GAME",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for GAME: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:16.061416",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "ABVC",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for ABVC\n**Date:** 2026-04-12\n**Current Price:** $1.43\n\n## Price Action\n- **Daily Change:** +0.00%\n- **5-Day Change:** +2.88%\n\n## RSI (14)\n- **Value:** 57.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.017\n- **Signal Line:** -0.078\n- **Histogram:** 0.061 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $1.44 (-0.4% from price)\n- **200 SMA:** $2.44 (-41.3% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $1.55\n- **Middle:** $1.22\n- **Lower:** $0.88\n- **Band Position:** 82%\n- **Bandwidth:** 55.3% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $0.16 (11.3% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $1.19 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 60.2\n- **%D:** 52.5\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 33.6 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $1.28 (+11.5% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 6.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $1.32\n- **Current vs VWAP:** +8.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $2.10\n- **Recent Low:** $0.88\n- **Next Resistance:** $1.49 (50.0%)\n- **Next Support:** $1.35 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1509,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:16.129591",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "ABVC"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for ABVC: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:16.200053",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "ABVC"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for ABVC\n\n### 2023-10-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2023-09-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2023-08-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2023-07-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n",
+    "output_length": 707,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:16.229585",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "ABVC",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for ABVC: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:17.981458",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "FAST",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for FAST\n**Date:** 2026-04-12\n**Current Price:** $49.17\n\n## Price Action\n- **Daily Change:** +0.14%\n- **5-Day Change:** +7.19%\n\n## RSI (14)\n- **Value:** 68.6 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.692\n- **Signal Line:** 0.275\n- **Histogram:** 0.416 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $45.99 (+6.9% from price)\n- **200 SMA:** $44.45 (+10.6% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $48.79\n- **Middle:** $45.88\n- **Lower:** $42.97\n- **Band Position:** 107%\n- **Bandwidth:** 12.7% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $1.15 (2.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $47.45 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 83.3\n- **%D:** 75.7\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 22.1 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $46.46 (+5.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 145.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $45.63\n- **Current vs VWAP:** +7.8%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $49.67\n- **Recent Low:** $42.74\n- **Next Resistance:** $49.67 (0.0% (High))\n- **Next Support:** $48.03 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1543,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:18.050924",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "FAST"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for FAST: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:18.119796",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "FAST"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for FAST\n\n### 2026-04-01\n- **Strong Buy**: 5\n- **Buy**: 0\n- **Hold**: 10\n- **Sell**: 4\n- **Strong Sell**: 4\n- **Total Analysts**: 23\n\n**Sentiment**: 21.7% Bullish, 34.8% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 5\n- **Buy**: 0\n- **Hold**: 10\n- **Sell**: 4\n- **Strong Sell**: 4\n- **Total Analysts**: 23\n\n**Sentiment**: 21.7% Bullish, 34.8% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 5\n- **Buy**: 0\n- **Hold**: 10\n- **Sell**: 4\n- **Strong Sell**: 4\n- **Total Analysts**: 23\n\n**Sentiment**: 21.7% Bullish, 34.8% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 5\n- **Buy**: 0\n- **Hold**: 10\n- **Sell**: 4\n- **Strong Sell**: 4\n- **Total Analysts**: 23\n\n**Sentiment**: 21.7% Bullish, 34.8% Bearish\n\n",
+    "output_length": 719,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:18.160513",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "FAST",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for FAST: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:18.964490",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "GS",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for GS\n**Date:** 2026-04-12\n**Current Price:** $907.80\n\n## Price Action\n- **Daily Change:** +0.45%\n- **5-Day Change:** +4.82%\n\n## RSI (14)\n- **Value:** 65.4 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 10.531\n- **Signal Line:** -1.799\n- **Histogram:** 12.330 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $870.58 (+4.3% from price)\n- **200 SMA:** $808.39 (+12.3% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $914.37\n- **Middle:** $838.56\n- **Lower:** $762.75\n- **Band Position:** 96%\n- **Bandwidth:** 18.1% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $26.85 (3.0% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $867.53 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 87.6\n- **%D:** 82.4\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 12.6 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $858.50 (+5.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 65.0M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $836.03\n- **Current vs VWAP:** +8.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $963.32\n- **Recent Low:** $780.50\n- **Next Resistance:** $920.17 (23.6%)\n- **Next Support:** $893.48 (38.2%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1578,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:19.043396",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "GS"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for GS: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 97,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:19.230574",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "GS"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for GS\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 16\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 46.9% Bullish, 3.1% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 16\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 46.9% Bullish, 3.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 16\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 46.9% Bullish, 3.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 7\n- **Buy**: 8\n- **Hold**: 16\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 46.9% Bullish, 3.1% Bearish\n\n",
+    "output_length": 713,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:19.260900",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "GS",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for GS: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 93,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:20.008547",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "EMR",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for EMR\n**Date:** 2026-04-12\n**Current Price:** $143.77\n\n## Price Action\n- **Daily Change:** -0.62%\n- **5-Day Change:** +8.37%\n\n## RSI (14)\n- **Value:** 61.5 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.016\n- **Signal Line:** -2.403\n- **Histogram:** 2.419 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $141.96 (+1.3% from price)\n- **200 SMA:** $136.58 (+5.3% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $143.55\n- **Middle:** $132.25\n- **Lower:** $120.96\n- **Band Position:** 101%\n- **Bandwidth:** 17.1% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $4.50 (3.1% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $137.02 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 88.5\n- **%D:** 79.0\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 19.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $135.79 (+5.9% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 53.0M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $132.10\n- **Current vs VWAP:** +8.8%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $164.52\n- **Recent Low:** $122.64\n- **Next Resistance:** $148.52 (38.2%)\n- **Next Support:** $143.58 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1566,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:20.075816",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "EMR"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for EMR: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 98,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:20.151796",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "EMR"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for EMR\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 17\n- **Hold**: 11\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 65.7% Bullish, 2.9% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 5\n- **Buy**: 18\n- **Hold**: 11\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 65.7% Bullish, 2.9% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 5\n- **Buy**: 19\n- **Hold**: 10\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 68.6% Bullish, 2.9% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 19\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 71.4% Bullish, 2.9% Bearish\n\n",
+    "output_length": 717,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:20.179992",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "EMR",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for EMR: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 94,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:20.811672",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "INTC",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for INTC\n**Date:** 2026-04-12\n**Current Price:** $62.38\n\n## Price Action\n- **Daily Change:** +1.07%\n- **5-Day Change:** +22.84%\n\n## RSI (14)\n- **Value:** 75.4 \u2191\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## MACD\n- **MACD Line:** 3.454\n- **Signal Line:** 1.455\n- **Histogram:** 1.999 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $47.21 (+32.1% from price)\n- **200 SMA:** $36.19 (+72.4% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $60.65\n- **Middle:** $48.18\n- **Lower:** $35.71\n- **Band Position:** 107%\n- **Bandwidth:** 51.8% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $3.08 (4.9% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $57.76 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 92.2\n- **%D:** 82.3\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 44.6 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $50.41 (+23.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 3274.9M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $49.12\n- **Current vs VWAP:** +27.0%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $63.39\n- **Recent Low:** $40.63\n- **Next Resistance:** $63.39 (0.0% (High))\n- **Next Support:** $58.02 (23.6%)\n\n## Summary\n- **Key Signals:** RSI overbought, Above 50 SMA\n",
+    "output_length": 1580,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:20.914369",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "INTC"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for INTC: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:20.998104",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "INTC"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for INTC\n\n### 2026-04-01\n- **Strong Buy**: 4\n- **Buy**: 9\n- **Hold**: 35\n- **Sell**: 3\n- **Strong Sell**: 1\n- **Total Analysts**: 52\n\n**Sentiment**: 25.0% Bullish, 7.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 4\n- **Buy**: 9\n- **Hold**: 36\n- **Sell**: 3\n- **Strong Sell**: 1\n- **Total Analysts**: 53\n\n**Sentiment**: 24.5% Bullish, 7.5% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 4\n- **Buy**: 9\n- **Hold**: 34\n- **Sell**: 4\n- **Strong Sell**: 1\n- **Total Analysts**: 52\n\n**Sentiment**: 25.0% Bullish, 9.6% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 2\n- **Buy**: 4\n- **Hold**: 34\n- **Sell**: 6\n- **Strong Sell**: 4\n- **Total Analysts**: 50\n\n**Sentiment**: 12.0% Bullish, 20.0% Bearish\n\n",
+    "output_length": 716,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:21.039569",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "INTC",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for INTC: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:21.742843",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "GF",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for GF\n**Date:** 2026-04-12\n**Current Price:** $11.32\n\n## Price Action\n- **Daily Change:** +1.43%\n- **5-Day Change:** +6.39%\n\n## RSI (14)\n- **Value:** 60.2 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.080\n- **Signal Line:** -0.237\n- **Histogram:** 0.157 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $11.33 (-0.1% from price)\n- **200 SMA:** $11.38 (-0.6% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f (DEATH CROSS \u26a0\ufe0f)\n\n## Bollinger Bands (20,2)\n- **Upper:** $11.32\n- **Middle:** $10.58\n- **Lower:** $9.85\n- **Band Position:** 100%\n- **Bandwidth:** 13.9% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.35 (3.1% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $10.80 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 66.9\n- **%D:** 59.9\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 31.2 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $10.78 (+5.0% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 964.4K\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $10.75\n- **Current vs VWAP:** +5.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $12.39\n- **Recent Low:** $9.98\n- **Next Resistance:** $11.47 (38.2%)\n- **Next Support:** $11.18 (50.0%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1558,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:21.812252",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "GF"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for GF: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 97,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:21.877219",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "GF"
+    },
+    "context": "",
+    "output": "No recommendation trends data found for GF",
+    "output_length": 42,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:21.906887",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "GF",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for GF: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 93,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:22.834312",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "BAC",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for BAC\n**Date:** 2026-04-12\n**Current Price:** $52.54\n\n## Price Action\n- **Daily Change:** -0.32%\n- **5-Day Change:** +4.95%\n\n## RSI (14)\n- **Value:** 67.2 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.543\n- **Signal Line:** -0.160\n- **Histogram:** 0.703 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $50.53 (+4.0% from price)\n- **200 SMA:** $50.53 (+4.0% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $52.54\n- **Middle:** $48.69\n- **Lower:** $44.84\n- **Band Position:** 100%\n- **Bandwidth:** 15.8% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $1.24 (2.4% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $50.69 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 92.3\n- **%D:** 85.8\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 19.1 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $49.75 (+5.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 1044.2M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $48.42\n- **Current vs VWAP:** +8.5%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $56.55\n- **Recent Low:** $46.12\n- **Next Resistance:** $52.57 (38.2%)\n- **Next Support:** $51.34 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1565,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:22.902378",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "BAC"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for BAC: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 98,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:22.983538",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "BAC"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for BAC\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 20\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 83.9% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 5\n- **Buy**: 19\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 30\n\n**Sentiment**: 80.0% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 5\n- **Buy**: 19\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 30\n\n**Sentiment**: 80.0% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 18\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 29\n\n**Sentiment**: 82.8% Bullish, 0.0% Bearish\n\n",
+    "output_length": 714,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:23.012701",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "BAC",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for BAC: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 94,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:23.618916",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "FRT",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for FRT\n**Date:** 2026-04-12\n**Current Price:** $109.05\n\n## Price Action\n- **Daily Change:** +1.55%\n- **5-Day Change:** +2.13%\n\n## RSI (14)\n- **Value:** 66.7 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.821\n- **Signal Line:** 0.285\n- **Histogram:** 0.537 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $104.98 (+3.9% from price)\n- **200 SMA:** $97.84 (+11.5% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $109.21\n- **Middle:** $104.81\n- **Lower:** $100.40\n- **Band Position:** 98%\n- **Bandwidth:** 8.4% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $1.87 (1.7% of price)\n- **Level:** Low volatility\n- **Suggested Stop-Loss:** $106.24 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 88.7\n- **%D:** 80.3\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 16.3 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $105.72 (+3.2% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 12.3M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $105.31\n- **Current vs VWAP:** +3.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $109.71\n- **Recent Low:** $98.23\n- **Next Resistance:** $109.71 (0.0% (High))\n- **Next Support:** $107.00 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1573,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:23.720323",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "FRT"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for FRT: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 98,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:23.788017",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "FRT"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for FRT\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 58.3% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 58.3% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 58.3% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 23\n\n**Sentiment**: 65.2% Bullish, 0.0% Bearish\n\n",
+    "output_length": 713,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:23.817915",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "FRT",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for FRT: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 94,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:24.290344",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "TSLA",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for TSLA\n**Date:** 2026-04-12\n**Current Price:** $348.95\n\n## Price Action\n- **Daily Change:** +0.96%\n- **5-Day Change:** -1.10%\n\n## RSI (14)\n- **Value:** 37.1 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -14.473\n- **Signal Line:** -12.754\n- **Histogram:** -1.720 (Weakening \u2193)\n- **Signal:** Bearish\n\n## Moving Averages\n- **50 SMA:** $394.31 (-11.5% from price)\n- **200 SMA:** $397.35 (-12.2% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f (DEATH CROSS \u26a0\ufe0f)\n\n## Bollinger Bands (20,2)\n- **Upper:** $407.02\n- **Middle:** $370.85\n- **Lower:** $334.68\n- **Band Position:** 20%\n- **Bandwidth:** 19.5% (volatility indicator)\n- **Signal:** Near lower band\n\n## ATR (Volatility)\n- **ATR:** $14.76 (4.2% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $326.81 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 21.2\n- **%D:** 22.3\n- **Signal:** Bearish\n\n## ADX (Trend Strength)\n- **ADX:** 28.6 (Weakening \u2193)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $368.23 (-5.2% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 850.2M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $370.45\n- **Current vs VWAP:** -5.8%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $440.23\n- **Recent Low:** $337.24\n- **Next Resistance:** $359.28 (78.6%)\n- **Next Support:** $337.24 (100% (Low))\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1548,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:25.380684",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "TSLA"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for TSLA: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:25.459458",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "TSLA"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for TSLA\n\n### 2026-04-01\n- **Strong Buy**: 9\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 60\n\n**Sentiment**: 48.3% Bullish, 16.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 8\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 59\n\n**Sentiment**: 47.5% Bullish, 16.9% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 8\n- **Buy**: 19\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 58\n\n**Sentiment**: 46.6% Bullish, 17.2% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 7\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 9\n- **Strong Sell**: 2\n- **Total Analysts**: 59\n\n**Sentiment**: 45.8% Bullish, 18.6% Bearish\n\n",
+    "output_length": 723,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:25.489578",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "TSLA",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for TSLA: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:26.068856",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "AMZN",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for AMZN\n**Date:** 2026-04-12\n**Current Price:** $238.38\n\n## Price Action\n- **Daily Change:** +2.02%\n- **5-Day Change:** +12.03%\n\n## RSI (14)\n- **Value:** 71.5 \u2191\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## MACD\n- **MACD Line:** 3.621\n- **Signal Line:** 0.064\n- **Histogram:** 3.558 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $213.40 (+11.7% from price)\n- **200 SMA:** $224.86 (+6.0% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $231.06\n- **Middle:** $212.20\n- **Lower:** $193.33\n- **Band Position:** 119%\n- **Bandwidth:** 17.8% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $6.69 (2.8% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $228.35 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 89.5\n- **%D:** 79.4\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 23.5 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $215.46 (+10.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 547.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $212.82\n- **Current vs VWAP:** +12.0%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $246.35\n- **Recent Low:** $196.00\n- **Next Resistance:** $246.35 (0.0% (High))\n- **Next Support:** $234.47 (23.6%)\n\n## Summary\n- **Key Signals:** RSI overbought, Above 50 SMA\n",
+    "output_length": 1572,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:26.168017",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "AMZN"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for AMZN: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:26.244684",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "AMZN"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for AMZN\n\n### 2026-04-01\n- **Strong Buy**: 21\n- **Buy**: 50\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 76\n\n**Sentiment**: 93.4% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 21\n- **Buy**: 50\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 76\n\n**Sentiment**: 93.4% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 21\n- **Buy**: 50\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 76\n\n**Sentiment**: 93.4% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 21\n- **Buy**: 52\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 77\n\n**Sentiment**: 94.8% Bullish, 0.0% Bearish\n\n",
+    "output_length": 719,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:26.274109",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "AMZN",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for AMZN: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:26.854944",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "BSX",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for BSX\n**Date:** 2026-04-12\n**Current Price:** $61.79\n\n## Price Action\n- **Daily Change:** +0.83%\n- **5-Day Change:** -1.28%\n\n## RSI (14)\n- **Value:** 29.7 \u2191\n- **Signal:** OVERSOLD \u26a1\n\n## MACD\n- **MACD Line:** -3.388\n- **Signal Line:** -3.270\n- **Histogram:** -0.118 (Weakening \u2193)\n- **Signal:** Bearish\n\n## Moving Averages\n- **50 SMA:** $72.45 (-14.7% from price)\n- **200 SMA:** $93.20 (-33.7% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $74.20\n- **Middle:** $66.41\n- **Lower:** $58.61\n- **Band Position:** 20%\n- **Bandwidth:** 23.5% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $2.05 (3.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $58.71 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 16.0\n- **%D:** 16.1\n- **Signal:** OVERSOLD \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 49.3 (Weakening \u2193)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $65.85 (-6.2% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** -304.5M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $65.70\n- **Current vs VWAP:** -5.9%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $94.25\n- **Recent Low:** $60.59\n- **Next Resistance:** $67.79 (78.6%)\n- **Next Support:** $60.59 (100% (Low))\n\n## Summary\n- **Key Signals:** RSI oversold, Below 50 SMA\n",
+    "output_length": 1532,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:26.919816",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "BSX"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for BSX: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 98,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:26.988289",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "BSX"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for BSX\n\n### 2026-04-01\n- **Strong Buy**: 13\n- **Buy**: 25\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 41\n\n**Sentiment**: 92.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 14\n- **Buy**: 23\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 40\n\n**Sentiment**: 92.5% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 15\n- **Buy**: 22\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 40\n\n**Sentiment**: 92.5% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 15\n- **Buy**: 21\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 40\n\n**Sentiment**: 90.0% Bullish, 0.0% Bearish\n\n",
+    "output_length": 718,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:27.017019",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "BSX",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for BSX: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 94,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:27.707784",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "CSCO",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for CSCO\n**Date:** 2026-04-12\n**Current Price:** $82.22\n\n## Price Action\n- **Daily Change:** -1.14%\n- **5-Day Change:** +2.21%\n\n## RSI (14)\n- **Value:** 58.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.956\n- **Signal Line:** 0.494\n- **Histogram:** 0.462 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $79.38 (+3.6% from price)\n- **200 SMA:** $72.86 (+12.8% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $83.73\n- **Middle:** $79.48\n- **Lower:** $75.24\n- **Band Position:** 82%\n- **Bandwidth:** 10.7% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $2.20 (2.7% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $78.91 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 73.1\n- **%D:** 65.5\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 14.4 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $79.97 (+2.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 351.1M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** BEARISH DIVERGENCE \u26a0\ufe0f (distribution)\n\n## VWAP (20-period)\n- **VWAP:** $79.16\n- **Current vs VWAP:** +3.9%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $87.71\n- **Recent Low:** $73.02\n- **Next Resistance:** $84.25 (23.6%)\n- **Next Support:** $82.10 (38.2%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1516,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:27.781925",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "CSCO"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for CSCO: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:27.871966",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "CSCO"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for CSCO\n\n### 2026-04-01\n- **Strong Buy**: 7\n- **Buy**: 16\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 71.9% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 7\n- **Buy**: 15\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 71.0% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 7\n- **Buy**: 15\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 71.0% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 7\n- **Buy**: 13\n- **Hold**: 11\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 64.5% Bullish, 0.0% Bearish\n\n",
+    "output_length": 716,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:27.901792",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "CSCO",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for CSCO: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:28.444617",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "CI",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for CI\n**Date:** 2026-04-12\n**Current Price:** $271.25\n\n## Price Action\n- **Daily Change:** -2.59%\n- **5-Day Change:** -1.61%\n\n## RSI (14)\n- **Value:** 49.9 \u2193\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** 0.233\n- **Signal Line:** -1.362\n- **Histogram:** 1.596 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $275.34 (-1.5% from price)\n- **200 SMA:** $282.22 (-3.9% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $279.26\n- **Middle:** $268.11\n- **Lower:** $256.96\n- **Band Position:** 64%\n- **Bandwidth:** 8.3% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $6.65 (2.5% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $261.28 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 77.6\n- **%D:** 75.3\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 9.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $271.03 (+0.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -20.9M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $266.87\n- **Current vs VWAP:** +1.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $296.17\n- **Recent Low:** $257.85\n- **Next Resistance:** $272.49 (61.8%)\n- **Next Support:** $266.05 (78.6%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n",
+    "output_length": 1529,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:28.519223",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "CI"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for CI: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 97,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:28.603155",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "CI"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for CI\n\n### 2026-04-01\n- **Strong Buy**: 11\n- **Buy**: 18\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 34\n\n**Sentiment**: 85.3% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 10\n- **Buy**: 17\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 10\n- **Buy**: 17\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 10\n- **Buy**: 17\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n",
+    "output_length": 717,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:28.632610",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "CI",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for CI: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 93,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:29.171242",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "CVNA",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for CVNA\n**Date:** 2026-04-12\n**Current Price:** $336.31\n\n## Price Action\n- **Daily Change:** +2.87%\n- **5-Day Change:** +6.14%\n\n## RSI (14)\n- **Value:** 56.1 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.923\n- **Signal Line:** -7.393\n- **Histogram:** 6.470 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $335.27 (+0.3% from price)\n- **200 SMA:** $364.27 (-7.7% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $338.32\n- **Middle:** $308.52\n- **Lower:** $278.71\n- **Band Position:** 97%\n- **Bandwidth:** 19.3% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $20.76 (6.2% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $305.18 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 83.1\n- **%D:** 80.9\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 12.0 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $317.86 (+5.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 25.3M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $304.59\n- **Current vs VWAP:** +10.4%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $445.00\n- **Recent Low:** $272.32\n- **Next Resistance:** $338.28 (61.8%)\n- **Next Support:** $309.27 (78.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1565,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:30.249029",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "CVNA"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for CVNA: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 99,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:30.325189",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "CVNA"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for CVNA\n\n### 2026-04-01\n- **Strong Buy**: 11\n- **Buy**: 12\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 71.9% Bullish, 3.1% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 11\n- **Buy**: 12\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 71.9% Bullish, 3.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 11\n- **Buy**: 12\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 71.9% Bullish, 3.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 11\n- **Buy**: 14\n- **Hold**: 7\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 75.8% Bullish, 3.0% Bearish\n\n",
+    "output_length": 719,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:30.355351",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "CVNA",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for CVNA: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 95,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:31.423168",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get technical indicators",
+    "tool": "get_indicators",
+    "parameters": {
+      "symbol": "JD",
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "# Technical Analysis for JD\n**Date:** 2026-04-12\n**Current Price:** $28.93\n\n## Price Action\n- **Daily Change:** +2.08%\n- **5-Day Change:** +5.09%\n\n## RSI (14)\n- **Value:** 62.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.400\n- **Signal Line:** 0.306\n- **Histogram:** 0.094 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $26.95 (+7.4% from price)\n- **200 SMA:** $29.66 (-2.5% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $29.06\n- **Middle:** $27.65\n- **Lower:** $26.23\n- **Band Position:** 95%\n- **Bandwidth:** 10.2% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.71 (2.5% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $27.86 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 72.7\n- **%D:** 61.5\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 22.6 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $27.66 (+4.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -137.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $27.73\n- **Current vs VWAP:** +4.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $29.01\n- **Recent Low:** $23.66\n- **Next Resistance:** $29.01 (0.0% (High))\n- **Next Support:** $27.75 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n",
+    "output_length": 1543,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:31.491326",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get insider transactions",
+    "tool": "get_insider_transactions",
+    "parameters": {
+      "ticker": "JD"
+    },
+    "context": "",
+    "output": "Error retrieving insider transactions for JD: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 97,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:31.556109",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get recommendations",
+    "tool": "get_recommendation_trends",
+    "parameters": {
+      "ticker": "JD"
+    },
+    "context": "",
+    "output": "## Analyst Recommendation Trends for JD\n\n### 2026-04-01\n- **Strong Buy**: 9\n- **Buy**: 19\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 32\n\n**Sentiment**: 87.5% Bullish, 3.1% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 10\n- **Buy**: 18\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 32\n\n**Sentiment**: 87.5% Bullish, 3.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 10\n- **Buy**: 18\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 32\n\n**Sentiment**: 87.5% Bullish, 3.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 12\n- **Buy**: 20\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 36\n\n**Sentiment**: 88.9% Bullish, 2.8% Bearish\n\n",
+    "output_length": 716,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:42:31.586367",
+    "type": "tool",
+    "node": "filter",
+    "step": "Get options activity",
+    "tool": "get_options_activity",
+    "parameters": {
+      "ticker": "JD",
+      "num_expirations": 3,
+      "curr_date": "2026-04-12"
+    },
+    "context": "",
+    "output": "Error retrieving options activity for JD: Too Many Requests. Rate limited. Try after a while.",
+    "output_length": 93,
+    "error": ""
+  },
+  {
+    "timestamp": "2026-04-12T13:43:41.093149",
+    "type": "llm",
+    "node": "ranker",
+    "step": "Rank candidates",
+    "model": "gemini-3-pro-preview",
+    "prompt": "You are a professional stock analyst selecting the best short-term trading opportunities from a pre-filtered candidate list.\n\nCURRENT DATE: 2026-04-12\n\nGOAL: Select UP TO 15 stocks with the highest probability of generating >5.0% returns within 1-7 days. If fewer than 15 candidates meet the quality bar, return only the ones that do. Quality over quantity \u2014 never pad the list with weak picks.\n\nMINIMUM QUALITY BAR:\n- Only include candidates where you have genuine conviction (final_score >= 55).\n- If a candidate lacks a clear catalyst or has contradictory signals, SKIP it.\n- It is better to return 5 excellent picks than 15 mediocre ones.\n\nSTRATEGY-SPECIFIC EVALUATION CRITERIA:\nEach candidate was discovered by a specific scanner. Evaluate them using the criteria most relevant to their strategy:\n- **insider_buying**: Focus on insider transaction SIZE relative to market cap, insider ROLE (CEO/CFO > Director), number of distinct insiders buying, and whether the stock is near support. Large cluster buys are strongest.\n- **options_flow**: Focus on put/call ratio, absolute call VOLUME vs open interest, premium size, and whether flow aligns with the technical trend. Unusually low P/C ratios (<0.1) with high volume are strongest.\n- **momentum / technical_breakout**: Focus on volume confirmation (>2x average), trend alignment (above key SMAs), and whether momentum is accelerating or fading. Avoid chasing extended moves (RSI >80).\n- **earnings_play**: Focus on short interest (squeeze potential), pre-earnings accumulation signals, analyst estimate trends, and historical earnings surprise rate. Binary risk must be acknowledged.\n- **social_dd / social_hype**: Treat as SPECULATIVE. Require corroborating technical or fundamental evidence. Pure social sentiment without data backing should score low.\n- **short_squeeze**: Focus on short interest %, days to cover, cost to borrow, and whether a catalyst exists to trigger covering. High SI alone is not enough.\n- **contrarian_value**: Focus on oversold technicals (RSI <30), fundamental support (earnings stability), and a clear reason why the selloff is overdone.\n- **news_catalyst**: Focus on the materiality of the news, whether it's already priced in (check intraday move), and the timeline of impact.\n- **sector_rotation**: Focus on relative strength vs sector ETF, whether the stock is a laggard in an accelerating sector.\n- **minervini**: Focus on the RS Rating (top 30% = RS>=70, top 10% = RS>=90) as the primary signal. Verify all 6 trend template conditions are met (price structure above rising SMAs). Strongest setups combine RS>=85 with price consolidating near highs (within 10-15% of 52w high) \u2014 these have minimal overhead supply. Penalize if RS Rating is borderline (70-75) without other confirming signals.\n- **ml_signal**: Use the ML Win Probability as a strong quantitative signal. Scores above 65% deserve significant weight.\n\nHISTORICAL INSIGHTS:\n\"Historical 1-day win rate: 38.6% (603 tracked)\\nHistorical 7-day win rate: 41.9% (577 tracked)\\nHistorical 30-day win rate: 33.9% (472 tracked)\\n\\nBest performing strategies (7-day):\\n  - short_squeeze: 60.0% win rate (10 samples)\\n  - analyst_upgrade: 50.0% win rate (30 samples)\\n  - insider_buying: 46.4% win rate (166 samples)\"\n\nCANDIDATES FOR REVIEW:\n### AA (Priority: CRITICAL)\n- **Strategy Match**: minervini\n- **Sources**: minervini | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $73.03 | **Current Price (numeric)**: 73.02999877929688 | **Intraday**: +0.0% | **Avg Volume**: 6,615,520\n- **Short Interest**: N/A\n- **Discovery Context**: Minervini Stage 2: P>SMA50>SMA150>SMA200, +217% off 52w low, within 0% of 52w high, RS Rating 98/100\n- **Business**: AA - Business description not available.\n- **News**: Upgraded to Overweight by Morgan Stanley with an $80 price target due to structural supply tightness in the aluminum market. Middle East disruptions are expected to drive a 52% increase in EPS for 2026.\n\n**Technical Analysis**:\n# Technical Analysis for AA\n**Date:** 2026-04-12\n**Current Price:** $73.03\n\n## Price Action\n- **Daily Change:** -0.33%\n- **5-Day Change:** +2.84%\n\n## RSI (14)\n- **Value:** 65.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 3.147\n- **Signal Line:** 1.969\n- **Histogram:** 1.177 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $62.54 (+16.8% from price)\n- **200 SMA:** $44.75 (+63.2% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $77.70\n- **Middle:** $64.88\n- **Lower:** $52.06\n- **Band Position:** 82%\n- **Bandwidth:** 39.5% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $3.73 (5.1% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $67.44 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 85.6\n- **%D:** 83.6\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 26.1 (Weakening \u2193)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $66.76 (+9.4% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 38.0M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $64.76\n- **Current vs VWAP:** +12.8%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $75.70\n- **Recent Low:** $54.95\n- **Next Resistance:** $75.70 (0.0% (High))\n- **Next Support:** $70.80 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for AA: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for AA\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 23\n\n**Sentiment**: 60.9% Bullish, 4.3% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 6\n- **Buy**: 7\n- **Hold**: 7\n- **Sell**: 2\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 59.1% Bullish, 9.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 6\n- **Buy**: 7\n- **Hold**: 7\n- **Sell**: 2\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 59.1% Bullish, 9.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 6\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 22\n\n**Sentiment**: 68.2% Bullish, 4.5% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for AA: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 4 days (2026-04-16): EPS Est $1.53, Rev Est $3,410,813,523\n\n### FUL (Priority: CRITICAL)\n- **Strategy Match**: insider_buying\n- **Sources**: insider_buying | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $63.73 | **Current Price (numeric)**: 63.72999954223633 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Pres, CEO Mastin Celeste Beeks purchased +$295,104 of FUL\n- **Business**: FUL - Business description not available.\n- **News**: No specific company-breaking news was released during the April 11\u201312 window, but shares remain influenced by shifting interest rate expectations following the US CPI data.\n\n**Technical Analysis**:\n# Technical Analysis for FUL\n**Date:** 2026-04-12\n**Current Price:** $63.73\n\n## Price Action\n- **Daily Change:** +0.08%\n- **5-Day Change:** +9.96%\n\n## RSI (14)\n- **Value:** 61.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.775\n- **Signal Line:** -0.265\n- **Histogram:** 1.040 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $61.10 (+4.3% from price)\n- **200 SMA:** $59.77 (+6.6% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $66.18\n- **Middle:** $57.18\n- **Lower:** $48.19\n- **Band Position:** 86%\n- **Bandwidth:** 31.5% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $2.47 (3.9% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $60.02 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 83.2\n- **%D:** 77.5\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 14.9 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $59.56 (+7.0% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -2.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $57.12\n- **Current vs VWAP:** +11.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $68.63\n- **Recent Low:** $48.71\n- **Next Resistance:** $63.93 (23.6%)\n- **Next Support:** $61.02 (38.2%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for FUL: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for FUL\n\n### 2026-04-01\n- **Strong Buy**: 3\n- **Buy**: 5\n- **Hold**: 2\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 72.7% Bullish, 9.1% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 3\n- **Buy**: 4\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 63.6% Bullish, 9.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 3\n- **Buy**: 4\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 63.6% Bullish, 9.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 3\n- **Buy**: 4\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 11\n\n**Sentiment**: 63.6% Bullish, 9.1% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for FUL: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### GAME (Priority: HIGH)\n- **Strategy Match**: earnings_play\n- **Sources**: earnings_calendar | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $0.37 | **Current Price (numeric)**: 0.3700000047683716 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Earnings amc in 1 day(s) on 2026-04-13\n- **Business**: GAME - Business description not available.\n- **News**: No specific company-breaking news was released during the April 11\u201312 window, but shares remain influenced by shifting interest rate expectations following the US CPI data.\n\n**Technical Analysis**:\n# Technical Analysis for GAME\n**Date:** 2026-04-12\n**Current Price:** $0.37\n\n## Price Action\n- **Daily Change:** +14.55%\n- **5-Day Change:** +45.10%\n\n## RSI (14)\n- **Value:** 70.3 \u2191\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## MACD\n- **MACD Line:** -0.002\n- **Signal Line:** -0.012\n- **Histogram:** 0.011 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $0.30 (+24.1% from price)\n- **200 SMA:** $0.63 (-41.4% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $0.34\n- **Middle:** $0.28\n- **Lower:** $0.22\n- **Band Position:** 128%\n- **Bandwidth:** 42.1% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.04 (10.5% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $0.31 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 46.5\n- **%D:** 41.4\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 33.7 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $0.29 (+29.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 183.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $0.36\n- **Current vs VWAP:** +4.2%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $0.46\n- **Recent Low:** $0.23\n- **Next Resistance:** $0.37 (38.2%)\n- **Next Support:** $0.35 (50.0%)\n\n## Summary\n- **Key Signals:** RSI overbought, Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for GAME: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for GAME\n\n### 2026-04-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 8\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 8\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 8\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 2\n- **Buy**: 5\n- **Hold**: 1\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 8\n\n**Sentiment**: 87.5% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for GAME: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 1 days (2026-04-13): EPS Est $-0.02, Rev Est $20,043,000\n\n### ABVC (Priority: HIGH)\n- **Strategy Match**: earnings_play\n- **Sources**: earnings_calendar | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $1.43 | **Current Price (numeric)**: 1.4299999475479126 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Earnings amc in 1 day(s) on 2026-04-13\n- **Business**: ABVC - Business description not available.\n- **News**: No specific company-breaking news was released during the April 11\u201312 window, but shares remain influenced by shifting interest rate expectations following the US CPI data.\n\n**Technical Analysis**:\n# Technical Analysis for ABVC\n**Date:** 2026-04-12\n**Current Price:** $1.43\n\n## Price Action\n- **Daily Change:** +0.00%\n- **5-Day Change:** +2.88%\n\n## RSI (14)\n- **Value:** 57.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.017\n- **Signal Line:** -0.078\n- **Histogram:** 0.061 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $1.44 (-0.4% from price)\n- **200 SMA:** $2.44 (-41.3% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $1.55\n- **Middle:** $1.22\n- **Lower:** $0.88\n- **Band Position:** 82%\n- **Bandwidth:** 55.3% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $0.16 (11.3% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $1.19 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 60.2\n- **%D:** 52.5\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 33.6 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $1.28 (+11.5% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 6.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $1.32\n- **Current vs VWAP:** +8.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $2.10\n- **Recent Low:** $0.88\n- **Next Resistance:** $1.49 (50.0%)\n- **Next Support:** $1.35 (61.8%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for ABVC: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for ABVC\n\n### 2023-10-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2023-09-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2023-08-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n### 2023-07-01\n- **Strong Buy**: 0\n- **Buy**: 0\n- **Hold**: 3\n- **Sell**: 1\n- **Strong Sell**: 2\n- **Total Analysts**: 6\n\n**Sentiment**: 0.0% Bullish, 50.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for ABVC: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 16 days (2026-04-28): EPS Est N/A, Rev Est N/A\n\n### FAST (Priority: HIGH)\n- **Strategy Match**: earnings_play\n- **Sources**: earnings_calendar | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $49.17 | **Current Price (numeric)**: 49.16999816894531 | **Intraday**: +0.0% | **Avg Volume**: 7,226,100\n- **Short Interest**: N/A\n- **Discovery Context**: Earnings bmo in 1 day(s) on 2026-04-13\n- **Business**: FAST - Business description not available.\n- **News**: Heading into Q1 2026 earnings on April 13, analysts expect EPS of $0.30 and revenue of $2.2 billion. Investors are focused on gross margin pressure and potential supply chain disruptions.\n\n**Technical Analysis**:\n# Technical Analysis for FAST\n**Date:** 2026-04-12\n**Current Price:** $49.17\n\n## Price Action\n- **Daily Change:** +0.14%\n- **5-Day Change:** +7.19%\n\n## RSI (14)\n- **Value:** 68.6 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.692\n- **Signal Line:** 0.275\n- **Histogram:** 0.416 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $45.99 (+6.9% from price)\n- **200 SMA:** $44.45 (+10.6% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $48.79\n- **Middle:** $45.88\n- **Lower:** $42.97\n- **Band Position:** 107%\n- **Bandwidth:** 12.7% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $1.15 (2.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $47.45 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 83.3\n- **%D:** 75.7\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 22.1 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $46.46 (+5.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 145.7M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $45.63\n- **Current vs VWAP:** +7.8%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $49.67\n- **Recent Low:** $42.74\n- **Next Resistance:** $49.67 (0.0% (High))\n- **Next Support:** $48.03 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for FAST: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for FAST\n\n### 2026-04-01\n- **Strong Buy**: 5\n- **Buy**: 0\n- **Hold**: 10\n- **Sell**: 4\n- **Strong Sell**: 4\n- **Total Analysts**: 23\n\n**Sentiment**: 21.7% Bullish, 34.8% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 5\n- **Buy**: 0\n- **Hold**: 10\n- **Sell**: 4\n- **Strong Sell**: 4\n- **Total Analysts**: 23\n\n**Sentiment**: 21.7% Bullish, 34.8% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 5\n- **Buy**: 0\n- **Hold**: 10\n- **Sell**: 4\n- **Strong Sell**: 4\n- **Total Analysts**: 23\n\n**Sentiment**: 21.7% Bullish, 34.8% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 5\n- **Buy**: 0\n- **Hold**: 10\n- **Sell**: 4\n- **Strong Sell**: 4\n- **Total Analysts**: 23\n\n**Sentiment**: 21.7% Bullish, 34.8% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for FAST: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 1 days (2026-04-13): EPS Est $0.30, Rev Est $2,237,457,485\n\n### GS (Priority: HIGH)\n- **Strategy Match**: earnings_play\n- **Sources**: earnings_calendar | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $907.80 | **Current Price (numeric)**: 907.7999877929688 | **Intraday**: +0.0% | **Avg Volume**: 1,875,890\n- **Short Interest**: N/A\n- **Discovery Context**: Earnings bmo in 1 day(s) on 2026-04-13\n- **Business**: GS - Business description not available.\n- **News**: Analysts at Goldman Sachs issued downgrades for Nike (NKE), citing concerns over sales declines in China and competition, which influenced sentiment over the weekend.\n\n**Technical Analysis**:\n# Technical Analysis for GS\n**Date:** 2026-04-12\n**Current Price:** $907.80\n\n## Price Action\n- **Daily Change:** +0.45%\n- **5-Day Change:** +4.82%\n\n## RSI (14)\n- **Value:** 65.4 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 10.531\n- **Signal Line:** -1.799\n- **Histogram:** 12.330 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $870.58 (+4.3% from price)\n- **200 SMA:** $808.39 (+12.3% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $914.37\n- **Middle:** $838.56\n- **Lower:** $762.75\n- **Band Position:** 96%\n- **Bandwidth:** 18.1% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $26.85 (3.0% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $867.53 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 87.6\n- **%D:** 82.4\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 12.6 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $858.50 (+5.7% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 65.0M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $836.03\n- **Current vs VWAP:** +8.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $963.32\n- **Recent Low:** $780.50\n- **Next Resistance:** $920.17 (23.6%)\n- **Next Support:** $893.48 (38.2%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for GS: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for GS\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 16\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 46.9% Bullish, 3.1% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 16\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 46.9% Bullish, 3.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 16\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 46.9% Bullish, 3.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 7\n- **Buy**: 8\n- **Hold**: 16\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 46.9% Bullish, 3.1% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for GS: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 1 days (2026-04-13): EPS Est $16.86, Rev Est $17,397,056,678\n\n### EMR (Priority: HIGH)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $143.77 | **Current Price (numeric)**: 143.77000427246094 | **Intraday**: +0.0% | **Avg Volume**: 3,209,790\n- **Short Interest**: N/A\n- **Discovery Context**: Analyst upgrade: A Look At Emerson Electric (EMR) Valuation As Earnings Beat And Guidance Upgrade Lift Interest\n- **Business**: EMR - Business description not available.\n- **News**: The stock retreated slightly as global tensions eased with the ceasefire announcement, causing a cooling of energy-related industrial demand expectations.\n\n**Technical Analysis**:\n# Technical Analysis for EMR\n**Date:** 2026-04-12\n**Current Price:** $143.77\n\n## Price Action\n- **Daily Change:** -0.62%\n- **5-Day Change:** +8.37%\n\n## RSI (14)\n- **Value:** 61.5 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.016\n- **Signal Line:** -2.403\n- **Histogram:** 2.419 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $141.96 (+1.3% from price)\n- **200 SMA:** $136.58 (+5.3% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $143.55\n- **Middle:** $132.25\n- **Lower:** $120.96\n- **Band Position:** 101%\n- **Bandwidth:** 17.1% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $4.50 (3.1% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $137.02 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 88.5\n- **%D:** 79.0\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 19.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $135.79 (+5.9% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 53.0M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $132.10\n- **Current vs VWAP:** +8.8%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $164.52\n- **Recent Low:** $122.64\n- **Next Resistance:** $148.52 (38.2%)\n- **Next Support:** $143.58 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for EMR: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for EMR\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 17\n- **Hold**: 11\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 65.7% Bullish, 2.9% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 5\n- **Buy**: 18\n- **Hold**: 11\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 65.7% Bullish, 2.9% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 5\n- **Buy**: 19\n- **Hold**: 10\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 68.6% Bullish, 2.9% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 19\n- **Hold**: 9\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 35\n\n**Sentiment**: 71.4% Bullish, 2.9% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for EMR: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 24 days (2026-05-06): EPS Est $1.55, Rev Est $4,641,477,462\n\n### INTC (Priority: HIGH)\n- **Strategy Match**: analyst_upgrade\n- **Sources**: analyst_upgrades | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $62.38 | **Current Price (numeric)**: 62.380001068115234 | **Intraday**: +0.0% | **Avg Volume**: 114,479,790\n- **Short Interest**: N/A\n- **Discovery Context**: Analyst upgrade: Carnegie Investment Counsel Has $6.99 Million Position in Taiwan Semiconductor Manufacturing Company\n- **Business**: INTC - Business description not available.\n- **News**: Confirmed as the lead foundry partner for the $25 billion Terafab project, using its 18A process. Rumors also emerged that Apple is exploring a $5 billion investment in the company.\n\n**Technical Analysis**:\n# Technical Analysis for INTC\n**Date:** 2026-04-12\n**Current Price:** $62.38\n\n## Price Action\n- **Daily Change:** +1.07%\n- **5-Day Change:** +22.84%\n\n## RSI (14)\n- **Value:** 75.4 \u2191\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## MACD\n- **MACD Line:** 3.454\n- **Signal Line:** 1.455\n- **Histogram:** 1.999 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $47.21 (+32.1% from price)\n- **200 SMA:** $36.19 (+72.4% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $60.65\n- **Middle:** $48.18\n- **Lower:** $35.71\n- **Band Position:** 107%\n- **Bandwidth:** 51.8% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $3.08 (4.9% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $57.76 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 92.2\n- **%D:** 82.3\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 44.6 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $50.41 (+23.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 3274.9M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $49.12\n- **Current vs VWAP:** +27.0%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $63.39\n- **Recent Low:** $40.63\n- **Next Resistance:** $63.39 (0.0% (High))\n- **Next Support:** $58.02 (23.6%)\n\n## Summary\n- **Key Signals:** RSI overbought, Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for INTC: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for INTC\n\n### 2026-04-01\n- **Strong Buy**: 4\n- **Buy**: 9\n- **Hold**: 35\n- **Sell**: 3\n- **Strong Sell**: 1\n- **Total Analysts**: 52\n\n**Sentiment**: 25.0% Bullish, 7.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 4\n- **Buy**: 9\n- **Hold**: 36\n- **Sell**: 3\n- **Strong Sell**: 1\n- **Total Analysts**: 53\n\n**Sentiment**: 24.5% Bullish, 7.5% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 4\n- **Buy**: 9\n- **Hold**: 34\n- **Sell**: 4\n- **Strong Sell**: 1\n- **Total Analysts**: 52\n\n**Sentiment**: 25.0% Bullish, 9.6% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 2\n- **Buy**: 4\n- **Hold**: 34\n- **Sell**: 6\n- **Strong Sell**: 4\n- **Total Analysts**: 50\n\n**Sentiment**: 12.0% Bullish, 20.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for INTC: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 11 days (2026-04-23): EPS Est $0.00, Rev Est $12,564,040,770\n\n### GF (Priority: HIGH)\n- **Strategy Match**: insider_buying\n- **Sources**: insider_buying | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $11.32 | **Current Price (numeric)**: 11.319999694824219 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: 10% Owner Saba Capital Management,  purchased +$1,494,195 of GF\n- **Business**: GF - Business description not available.\n- **News**: No specific company-breaking news was released during the April 11\u201312 window, but shares remain influenced by shifting interest rate expectations following the US CPI data.\n\n**Technical Analysis**:\n# Technical Analysis for GF\n**Date:** 2026-04-12\n**Current Price:** $11.32\n\n## Price Action\n- **Daily Change:** +1.43%\n- **5-Day Change:** +6.39%\n\n## RSI (14)\n- **Value:** 60.2 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.080\n- **Signal Line:** -0.237\n- **Histogram:** 0.157 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $11.33 (-0.1% from price)\n- **200 SMA:** $11.38 (-0.6% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f (DEATH CROSS \u26a0\ufe0f)\n\n## Bollinger Bands (20,2)\n- **Upper:** $11.32\n- **Middle:** $10.58\n- **Lower:** $9.85\n- **Band Position:** 100%\n- **Bandwidth:** 13.9% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.35 (3.1% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $10.80 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 66.9\n- **%D:** 59.9\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 31.2 (Strengthening \u2191)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $10.78 (+5.0% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 964.4K\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $10.75\n- **Current vs VWAP:** +5.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $12.39\n- **Recent Low:** $9.98\n- **Next Resistance:** $11.47 (38.2%)\n- **Next Support:** $11.18 (50.0%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for GF: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\nNo recommendation trends data found for GF\n\n**Options Activity**:\nError retrieving options activity for GF: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: No upcoming earnings within 30 days\n\n### BAC (Priority: MEDIUM)\n- **Strategy Match**: minervini\n- **Sources**: minervini | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $52.54 | **Current Price (numeric)**: 52.540000915527344 | **Intraday**: +0.0% | **Avg Volume**: 34,039,940\n- **Short Interest**: N/A\n- **Discovery Context**: Minervini Stage 2: P>SMA50>SMA150>SMA200, +49% off 52w low, within 8% of 52w high, RS Rating 78/100\n- **Business**: BAC - Business description not available.\n- **News**: Announced a $3 billion note redemption and new note offerings. The bank also launched a new tri-branded credit card with Royal Caribbean as Q1 earnings approach on April 15.\n\n**Technical Analysis**:\n# Technical Analysis for BAC\n**Date:** 2026-04-12\n**Current Price:** $52.54\n\n## Price Action\n- **Daily Change:** -0.32%\n- **5-Day Change:** +4.95%\n\n## RSI (14)\n- **Value:** 67.2 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.543\n- **Signal Line:** -0.160\n- **Histogram:** 0.703 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $50.53 (+4.0% from price)\n- **200 SMA:** $50.53 (+4.0% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $52.54\n- **Middle:** $48.69\n- **Lower:** $44.84\n- **Band Position:** 100%\n- **Bandwidth:** 15.8% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $1.24 (2.4% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $50.69 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 92.3\n- **%D:** 85.8\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 19.1 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $49.75 (+5.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 1044.2M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $48.42\n- **Current vs VWAP:** +8.5%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $56.55\n- **Recent Low:** $46.12\n- **Next Resistance:** $52.57 (38.2%)\n- **Next Support:** $51.34 (50.0%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for BAC: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for BAC\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 20\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 83.9% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 5\n- **Buy**: 19\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 30\n\n**Sentiment**: 80.0% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 5\n- **Buy**: 19\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 30\n\n**Sentiment**: 80.0% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 18\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 29\n\n**Sentiment**: 82.8% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for BAC: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 3 days (2026-04-15): EPS Est $1.01, Rev Est $30,165,355,021\n\n### FRT (Priority: MEDIUM)\n- **Strategy Match**: early_accumulation\n- **Sources**: volume_accumulation | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 20/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $109.05 | **Current Price (numeric)**: 109.05000305175781 | **Intraday**: +0.0% | **Avg Volume**: 1,126,240\n- **Short Interest**: N/A\n- **Discovery Context**: Unusual volume detected | Price flat (+1.5%) \u2014 quiet accumulation\n- **Business**: FRT - Business description not available.\n- **News**: No specific company-breaking news was released during the April 11\u201312 window, but shares remain influenced by shifting interest rate expectations following the US CPI data.\n\n**Technical Analysis**:\n# Technical Analysis for FRT\n**Date:** 2026-04-12\n**Current Price:** $109.05\n\n## Price Action\n- **Daily Change:** +1.55%\n- **5-Day Change:** +2.13%\n\n## RSI (14)\n- **Value:** 66.7 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.821\n- **Signal Line:** 0.285\n- **Histogram:** 0.537 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $104.98 (+3.9% from price)\n- **200 SMA:** $97.84 (+11.5% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $109.21\n- **Middle:** $104.81\n- **Lower:** $100.40\n- **Band Position:** 98%\n- **Bandwidth:** 8.4% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $1.87 (1.7% of price)\n- **Level:** Low volatility\n- **Suggested Stop-Loss:** $106.24 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 88.7\n- **%D:** 80.3\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 16.3 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $105.72 (+3.2% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 12.3M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $105.31\n- **Current vs VWAP:** +3.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $109.71\n- **Recent Low:** $98.23\n- **Next Resistance:** $109.71 (0.0% (High))\n- **Next Support:** $107.00 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for FRT: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for FRT\n\n### 2026-04-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 58.3% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 58.3% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 6\n- **Buy**: 8\n- **Hold**: 10\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 24\n\n**Sentiment**: 58.3% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 6\n- **Buy**: 9\n- **Hold**: 8\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 23\n\n**Sentiment**: 65.2% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for FRT: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 19 days (2026-05-01): EPS Est $0.71, Rev Est $334,384,921\n\n### TSLA (Priority: MEDIUM)\n- **Strategy Match**: social_dd\n- **Sources**: reddit_dd | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $348.95 | **Current Price (numeric)**: 348.95001220703125 | **Intraday**: +0.0% | **Avg Volume**: 69,153,120\n- **Short Interest**: N/A\n- **Discovery Context**: Reddit DD (score: 75/100): TSLA at $190 is not a prediction, its just math. bear with me\n- **Business**: TSLA - Business description not available.\n- **News**: Announced a $25 billion 'Terafab' joint venture with SpaceX, xAI, and Intel to produce 1 terawatt of annual compute capacity. Focus is on decoupling from third-party foundry bottlenecks.\n\n**Technical Analysis**:\n# Technical Analysis for TSLA\n**Date:** 2026-04-12\n**Current Price:** $348.95\n\n## Price Action\n- **Daily Change:** +0.96%\n- **5-Day Change:** -1.10%\n\n## RSI (14)\n- **Value:** 37.1 \u2191\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** -14.473\n- **Signal Line:** -12.754\n- **Histogram:** -1.720 (Weakening \u2193)\n- **Signal:** Bearish\n\n## Moving Averages\n- **50 SMA:** $394.31 (-11.5% from price)\n- **200 SMA:** $397.35 (-12.2% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f (DEATH CROSS \u26a0\ufe0f)\n\n## Bollinger Bands (20,2)\n- **Upper:** $407.02\n- **Middle:** $370.85\n- **Lower:** $334.68\n- **Band Position:** 20%\n- **Bandwidth:** 19.5% (volatility indicator)\n- **Signal:** Near lower band\n\n## ATR (Volatility)\n- **ATR:** $14.76 (4.2% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $326.81 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 21.2\n- **%D:** 22.3\n- **Signal:** Bearish\n\n## ADX (Trend Strength)\n- **ADX:** 28.6 (Weakening \u2193)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $368.23 (-5.2% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** 850.2M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $370.45\n- **Current vs VWAP:** -5.8%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $440.23\n- **Recent Low:** $337.24\n- **Next Resistance:** $359.28 (78.6%)\n- **Next Support:** $337.24 (100% (Low))\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for TSLA: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for TSLA\n\n### 2026-04-01\n- **Strong Buy**: 9\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 60\n\n**Sentiment**: 48.3% Bullish, 16.7% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 8\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 59\n\n**Sentiment**: 47.5% Bullish, 16.9% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 8\n- **Buy**: 19\n- **Hold**: 21\n- **Sell**: 8\n- **Strong Sell**: 2\n- **Total Analysts**: 58\n\n**Sentiment**: 46.6% Bullish, 17.2% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 7\n- **Buy**: 20\n- **Hold**: 21\n- **Sell**: 9\n- **Strong Sell**: 2\n- **Total Analysts**: 59\n\n**Sentiment**: 45.8% Bullish, 18.6% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for TSLA: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 10 days (2026-04-22): EPS Est $0.40, Rev Est $23,231,543,021\n\n### AMZN (Priority: MEDIUM)\n- **Strategy Match**: options_flow\n- **Sources**: options_flow | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $238.38 | **Current Price (numeric)**: 238.3800048828125 | **Intraday**: +0.0% | **Avg Volume**: 46,570,130\n- **Short Interest**: N/A\n- **Discovery Context**: Unusual options: 13 strikes across 3 exp, P/C=999.00 (bearish), 7 unusual calls / 6 unusual puts\n- **Business**: AMZN - Business description not available.\n- **News**: CEO Andy Jassy\u2019s 2026 shareholder letter revealed an AI revenue run rate of $15 billion for Q1. Proprietary chips are sold out through year-end, and its robotics fleet has reached 1 million units.\n\n**Technical Analysis**:\n# Technical Analysis for AMZN\n**Date:** 2026-04-12\n**Current Price:** $238.38\n\n## Price Action\n- **Daily Change:** +2.02%\n- **5-Day Change:** +12.03%\n\n## RSI (14)\n- **Value:** 71.5 \u2191\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## MACD\n- **MACD Line:** 3.621\n- **Signal Line:** 0.064\n- **Histogram:** 3.558 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $213.40 (+11.7% from price)\n- **200 SMA:** $224.86 (+6.0% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $231.06\n- **Middle:** $212.20\n- **Lower:** $193.33\n- **Band Position:** 119%\n- **Bandwidth:** 17.8% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $6.69 (2.8% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $228.35 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 89.5\n- **%D:** 79.4\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 23.5 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $215.46 (+10.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 547.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $212.82\n- **Current vs VWAP:** +12.0%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $246.35\n- **Recent Low:** $196.00\n- **Next Resistance:** $246.35 (0.0% (High))\n- **Next Support:** $234.47 (23.6%)\n\n## Summary\n- **Key Signals:** RSI overbought, Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for AMZN: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for AMZN\n\n### 2026-04-01\n- **Strong Buy**: 21\n- **Buy**: 50\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 76\n\n**Sentiment**: 93.4% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 21\n- **Buy**: 50\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 76\n\n**Sentiment**: 93.4% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 21\n- **Buy**: 50\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 76\n\n**Sentiment**: 93.4% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 21\n- **Buy**: 52\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 77\n\n**Sentiment**: 94.8% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for AMZN: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 11 days (2026-04-23): EPS Est $1.66, Rev Est $180,706,661,859\n\n### BSX (Priority: MEDIUM)\n- **Strategy Match**: options_flow\n- **Sources**: options_flow | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $61.79 | **Current Price (numeric)**: 61.790000915527344 | **Intraday**: +0.0% | **Avg Volume**: 19,468,620\n- **Short Interest**: N/A\n- **Discovery Context**: Unusual options: 4 strikes across 3 exp, P/C=999.00 (bearish), 0 unusual calls / 4 unusual puts\n- **Business**: BSX - Business description not available.\n- **News**: No specific company-breaking news was released during the April 11\u201312 window, but shares remain influenced by shifting interest rate expectations following the US CPI data.\n\n**Technical Analysis**:\n# Technical Analysis for BSX\n**Date:** 2026-04-12\n**Current Price:** $61.79\n\n## Price Action\n- **Daily Change:** +0.83%\n- **5-Day Change:** -1.28%\n\n## RSI (14)\n- **Value:** 29.7 \u2191\n- **Signal:** OVERSOLD \u26a1\n\n## MACD\n- **MACD Line:** -3.388\n- **Signal Line:** -3.270\n- **Histogram:** -0.118 (Weakening \u2193)\n- **Signal:** Bearish\n\n## Moving Averages\n- **50 SMA:** $72.45 (-14.7% from price)\n- **200 SMA:** $93.20 (-33.7% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $74.20\n- **Middle:** $66.41\n- **Lower:** $58.61\n- **Band Position:** 20%\n- **Bandwidth:** 23.5% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $2.05 (3.3% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $58.71 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 16.0\n- **%D:** 16.1\n- **Signal:** OVERSOLD \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 49.3 (Weakening \u2193)\n- **Interpretation:** Strong trend\n\n## 20 EMA\n- **Value:** $65.85 (-6.2% from price)\n- **Signal:** Price BELOW 20 EMA (short-term bearish)\n\n## OBV (On-Balance Volume)\n- **Value:** -304.5M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $65.70\n- **Current vs VWAP:** -5.9%\n- **Signal:** Price BELOW VWAP (institutional selling)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $94.25\n- **Recent Low:** $60.59\n- **Next Resistance:** $67.79 (78.6%)\n- **Next Support:** $60.59 (100% (Low))\n\n## Summary\n- **Key Signals:** RSI oversold, Below 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for BSX: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for BSX\n\n### 2026-04-01\n- **Strong Buy**: 13\n- **Buy**: 25\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 41\n\n**Sentiment**: 92.7% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 14\n- **Buy**: 23\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 40\n\n**Sentiment**: 92.5% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 15\n- **Buy**: 22\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 40\n\n**Sentiment**: 92.5% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 15\n- **Buy**: 21\n- **Hold**: 4\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 40\n\n**Sentiment**: 90.0% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for BSX: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 10 days (2026-04-22): EPS Est $0.80, Rev Est $5,224,034,069\n\n### CSCO (Priority: MEDIUM)\n- **Strategy Match**: options_flow\n- **Sources**: options_flow | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $82.22 | **Current Price (numeric)**: 82.22000122070312 | **Intraday**: +0.0% | **Avg Volume**: 18,853,230\n- **Short Interest**: N/A\n- **Discovery Context**: Unusual options: 2 strikes across 3 exp, P/C=999.00 (bearish), 2 unusual calls / 0 unusual puts\n- **Business**: CSCO - Business description not available.\n- **News**: No specific company-breaking news was released during the April 11\u201312 window, but shares remain influenced by shifting interest rate expectations following the US CPI data.\n\n**Technical Analysis**:\n# Technical Analysis for CSCO\n**Date:** 2026-04-12\n**Current Price:** $82.22\n\n## Price Action\n- **Daily Change:** -1.14%\n- **5-Day Change:** +2.21%\n\n## RSI (14)\n- **Value:** 58.3 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.956\n- **Signal Line:** 0.494\n- **Histogram:** 0.462 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $79.38 (+3.6% from price)\n- **200 SMA:** $72.86 (+12.8% from price)\n- **Trend:** STRONG UPTREND \u26a1\n\n## Bollinger Bands (20,2)\n- **Upper:** $83.73\n- **Middle:** $79.48\n- **Lower:** $75.24\n- **Band Position:** 82%\n- **Bandwidth:** 10.7% (volatility indicator)\n- **Signal:** Near upper band\n\n## ATR (Volatility)\n- **ATR:** $2.20 (2.7% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $78.91 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 73.1\n- **%D:** 65.5\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 14.4 (Strengthening \u2191)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $79.97 (+2.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 351.1M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** BEARISH DIVERGENCE \u26a0\ufe0f (distribution)\n\n## VWAP (20-period)\n- **VWAP:** $79.16\n- **Current vs VWAP:** +3.9%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $87.71\n- **Recent Low:** $73.02\n- **Next Resistance:** $84.25 (23.6%)\n- **Next Support:** $82.10 (38.2%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for CSCO: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for CSCO\n\n### 2026-04-01\n- **Strong Buy**: 7\n- **Buy**: 16\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 71.9% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 7\n- **Buy**: 15\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 71.0% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 7\n- **Buy**: 15\n- **Hold**: 9\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 71.0% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 7\n- **Buy**: 13\n- **Hold**: 11\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 31\n\n**Sentiment**: 64.5% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for CSCO: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 30 days (2026-05-12): EPS Est $1.05, Rev Est $15,848,189,055\n\n### CI (Priority: MEDIUM)\n- **Strategy Match**: options_flow\n- **Sources**: options_flow | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $271.25 | **Current Price (numeric)**: 271.25 | **Intraday**: +0.0% | **Avg Volume**: 1,366,920\n- **Short Interest**: N/A\n- **Discovery Context**: Unusual options: 2 strikes across 3 exp, P/C=999.00 (bearish), 1 unusual calls / 1 unusual puts\n- **Business**: CI - Business description not available.\n- **News**: No specific company-breaking news was released during the April 11\u201312 window, but shares remain influenced by shifting interest rate expectations following the US CPI data.\n\n**Technical Analysis**:\n# Technical Analysis for CI\n**Date:** 2026-04-12\n**Current Price:** $271.25\n\n## Price Action\n- **Daily Change:** -2.59%\n- **5-Day Change:** -1.61%\n\n## RSI (14)\n- **Value:** 49.9 \u2193\n- **Signal:** Bearish\n\n## MACD\n- **MACD Line:** 0.233\n- **Signal Line:** -1.362\n- **Histogram:** 1.596 (Weakening \u2193)\n- **Signal:** Bullish\n\n## Moving Averages\n- **50 SMA:** $275.34 (-1.5% from price)\n- **200 SMA:** $282.22 (-3.9% from price)\n- **Trend:** STRONG DOWNTREND \u26a0\ufe0f\n\n## Bollinger Bands (20,2)\n- **Upper:** $279.26\n- **Middle:** $268.11\n- **Lower:** $256.96\n- **Band Position:** 64%\n- **Bandwidth:** 8.3% (volatility indicator)\n- **Signal:** Within bands\n\n## ATR (Volatility)\n- **ATR:** $6.65 (2.5% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $261.28 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 77.6\n- **%D:** 75.3\n- **Signal:** Bullish\n\n## ADX (Trend Strength)\n- **ADX:** 9.5 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $271.03 (+0.1% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -20.9M\n- **5-Day Trend:** Falling \u2193\n- **Signal:** Confirmed downtrend (price & volume falling)\n\n## VWAP (20-period)\n- **VWAP:** $266.87\n- **Current vs VWAP:** +1.6%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $296.17\n- **Recent Low:** $257.85\n- **Next Resistance:** $272.49 (61.8%)\n- **Next Support:** $266.05 (78.6%)\n\n## Summary\n- **Key Signals:** Below 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for CI: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for CI\n\n### 2026-04-01\n- **Strong Buy**: 11\n- **Buy**: 18\n- **Hold**: 5\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 34\n\n**Sentiment**: 85.3% Bullish, 0.0% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 10\n- **Buy**: 17\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 10\n- **Buy**: 17\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 10\n- **Buy**: 17\n- **Hold**: 6\n- **Sell**: 0\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 81.8% Bullish, 0.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for CI: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 18 days (2026-04-30): EPS Est $7.86, Rev Est $68,536,119,299\n\n### CVNA (Priority: MEDIUM)\n- **Strategy Match**: options_flow\n- **Sources**: options_flow | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $336.31 | **Current Price (numeric)**: 336.30999755859375 | **Intraday**: +0.0% | **Avg Volume**: 2,761,900\n- **Short Interest**: N/A\n- **Discovery Context**: Unusual options: 2 strikes across 3 exp, P/C=999.00 (bearish), 0 unusual calls / 2 unusual puts\n- **Business**: CVNA - Business description not available.\n- **News**: Identified as one of the retail-focused stocks seeing insider buying activity during the weekend market activity.\n\n**Technical Analysis**:\n# Technical Analysis for CVNA\n**Date:** 2026-04-12\n**Current Price:** $336.31\n\n## Price Action\n- **Daily Change:** +2.87%\n- **5-Day Change:** +6.14%\n\n## RSI (14)\n- **Value:** 56.1 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** -0.923\n- **Signal Line:** -7.393\n- **Histogram:** 6.470 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $335.27 (+0.3% from price)\n- **200 SMA:** $364.27 (-7.7% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $338.32\n- **Middle:** $308.52\n- **Lower:** $278.71\n- **Band Position:** 97%\n- **Bandwidth:** 19.3% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $20.76 (6.2% of price)\n- **Level:** HIGH VOLATILITY \u26a0\ufe0f\n- **Suggested Stop-Loss:** $305.18 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 83.1\n- **%D:** 80.9\n- **Signal:** OVERBOUGHT \u26a0\ufe0f\n\n## ADX (Trend Strength)\n- **ADX:** 12.0 (Weakening \u2193)\n- **Interpretation:** WEAK/NO TREND (range-bound) \u26a0\ufe0f\n\n## 20 EMA\n- **Value:** $317.86 (+5.8% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** 25.3M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $304.59\n- **Current vs VWAP:** +10.4%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $445.00\n- **Recent Low:** $272.32\n- **Next Resistance:** $338.28 (61.8%)\n- **Next Support:** $309.27 (78.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for CVNA: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for CVNA\n\n### 2026-04-01\n- **Strong Buy**: 11\n- **Buy**: 12\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 71.9% Bullish, 3.1% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 11\n- **Buy**: 12\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 71.9% Bullish, 3.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 11\n- **Buy**: 12\n- **Hold**: 8\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 32\n\n**Sentiment**: 71.9% Bullish, 3.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 11\n- **Buy**: 14\n- **Hold**: 7\n- **Sell**: 1\n- **Strong Sell**: 0\n- **Total Analysts**: 33\n\n**Sentiment**: 75.8% Bullish, 3.0% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for CVNA: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 17 days (2026-04-29): EPS Est $1.47, Rev Est $6,131,357,536\n\n### JD (Priority: LOW)\n- **Strategy Match**: social_hype\n- **Sources**: reddit_trending | **Confluence**: 1 source(s)\n- **Quant Pre-Score**: 10/100 | **ML Win Probability**: N/A | **Altman Z-Score**: None | **Piotroski F-Score**: None\n- **Price**: $28.93 | **Current Price (numeric)**: 28.93000030517578 | **Intraday**: +0.0% | **Avg Volume**: None\n- **Short Interest**: N/A\n- **Discovery Context**: Trending on Reddit: ~2 mentions\n- **Business**: JD - Business description not available.\n- **News**: Influenced by a sector-wide ripple effect following the ceasefire and US CPI data; sentiment remains tied to global macroeconomic shifts.\n\n**Technical Analysis**:\n# Technical Analysis for JD\n**Date:** 2026-04-12\n**Current Price:** $28.93\n\n## Price Action\n- **Daily Change:** +2.08%\n- **5-Day Change:** +5.09%\n\n## RSI (14)\n- **Value:** 62.8 \u2191\n- **Signal:** Bullish\n\n## MACD\n- **MACD Line:** 0.400\n- **Signal Line:** 0.306\n- **Histogram:** 0.094 (Strengthening \u2191)\n- **Signal:** BULLISH CROSSOVER \u26a1\n\n## Moving Averages\n- **50 SMA:** $26.95 (+7.4% from price)\n- **200 SMA:** $29.66 (-2.5% from price)\n- **Trend:** Uptrend\n\n## Bollinger Bands (20,2)\n- **Upper:** $29.06\n- **Middle:** $27.65\n- **Lower:** $26.23\n- **Band Position:** 95%\n- **Bandwidth:** 10.2% (volatility indicator)\n- **Signal:** AT UPPER BAND - Potential reversal \u26a0\ufe0f\n\n## ATR (Volatility)\n- **ATR:** $0.71 (2.5% of price)\n- **Level:** Moderate volatility\n- **Suggested Stop-Loss:** $27.86 (1.5x ATR)\n\n## Stochastic (14,3,3)\n- **%K:** 72.7\n- **%D:** 61.5\n- **Signal:** Bullish crossover \u26a1\n\n## ADX (Trend Strength)\n- **ADX:** 22.6 (Strengthening \u2191)\n- **Interpretation:** Trending\n\n## 20 EMA\n- **Value:** $27.66 (+4.6% from price)\n- **Signal:** Price ABOVE 20 EMA (short-term bullish)\n\n## OBV (On-Balance Volume)\n- **Value:** -137.6M\n- **5-Day Trend:** Rising \u2191\n- **Signal:** Confirmed uptrend (price & volume rising)\n\n## VWAP (20-period)\n- **VWAP:** $27.73\n- **Current vs VWAP:** +4.3%\n- **Signal:** Price ABOVE VWAP (institutional buying)\n\n## Fibonacci Levels (50-period)\n- **Recent High:** $29.01\n- **Recent Low:** $23.66\n- **Next Resistance:** $29.01 (0.0% (High))\n- **Next Support:** $27.75 (23.6%)\n\n## Summary\n- **Key Signals:** Above 50 SMA\n\n\n**Fundamentals**: N/A\n\n**Insider Transactions**:\nError retrieving insider transactions for JD: Too Many Requests. Rate limited. Try after a while.\n\n**Analyst Recommendations**:\n## Analyst Recommendation Trends for JD\n\n### 2026-04-01\n- **Strong Buy**: 9\n- **Buy**: 19\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 32\n\n**Sentiment**: 87.5% Bullish, 3.1% Bearish\n\n### 2026-03-01\n- **Strong Buy**: 10\n- **Buy**: 18\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 32\n\n**Sentiment**: 87.5% Bullish, 3.1% Bearish\n\n### 2026-02-01\n- **Strong Buy**: 10\n- **Buy**: 18\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 32\n\n**Sentiment**: 87.5% Bullish, 3.1% Bearish\n\n### 2026-01-01\n- **Strong Buy**: 12\n- **Buy**: 20\n- **Hold**: 3\n- **Sell**: 0\n- **Strong Sell**: 1\n- **Total Analysts**: 36\n\n**Sentiment**: 88.9% Bullish, 2.8% Bearish\n\n\n\n**Options Activity**:\nError retrieving options activity for JD: Too Many Requests. Rate limited. Try after a while.\n\n**Upcoming Earnings**: Earnings in 29 days (2026-05-11): EPS Est $2.60, Rev Est $313,668,815,124\n\n\nRANKING INSTRUCTIONS:\n1. Evaluate each candidate through the lens of its specific strategy (see criteria above).\n2. Cross-reference the strategy signal with Technicals, Fundamentals, and Options data for confirmation.\n3. Use the Quantitative Pre-Score as an objective baseline \u2014 scores above 50 indicate strong multi-factor alignment.\n4. The ML Win Probability is a trained model's estimate of hitting +5.0% within 7 days. Treat >60% as strong confirmation, >70% as very strong.\n5. Prioritize LEADING indicators (Insider Buying, Pre-Earnings Accumulation, Options Flow) over lagging ones (momentum chasing, social hype).\n6. Penalize contradictory signals: e.g., bullish options but heavy insider SELLING, or strong momentum but overbought RSI with declining volume.\n7. Use ONLY the information provided in the candidates section. Do NOT invent catalysts, prices, or metrics that are not explicitly stated.\n8. If a data field is missing, note it as N/A \u2014 do not fabricate values.\n9. Only rank tickers from the candidates list.\n10. Each reason MUST cite at least two specific data points from the candidate context (e.g., \"P/C ratio of 0.02\", \"Director purchased $5.2M\").\n\nOUTPUT FORMAT \u2014 JSON object with a 'rankings' list. Each item:\n- rank: sequential from 1\n- ticker: stock symbol (must be from candidate list)\n- company_name: company name\n- current_price: numeric price from candidate data\n- strategy_match: the candidate's strategy (use the value from the candidate, do not change it)\n- final_score: 0-100 (your holistic assessment: 55+ = included, 80+ = high conviction, 90+ = exceptional)\n- confidence: 1-10 (how confident are you in THIS specific trade)\n- risk_level: one of \"low\", \"moderate\", \"high\", \"speculative\"\n- reason: Investment thesis in 4-6 sentences. Structure: (1) What is the edge/catalyst, (2) Why NOW \u2014 what makes the timing urgent, (3) Risk/reward profile, (4) Key risk or what could invalidate the thesis. Cite specific numbers.\n- description: One-sentence company description\n\nIMPORTANT: Return ONLY valid JSON. No markdown wrapping, no commentary outside the JSON. All numeric fields must be numbers, not strings.",
+    "prompt_length": 66074,
+    "output": "{\n  \"rankings\": [\n    {\n      \"rank\": 1,\n      \"ticker\": \"AA\",\n      \"company_name\": \"AA\",\n      \"current_price\": 73.03,\n      \"strategy_match\": \"minervini\",\n      \"final_score\": 92,\n      \"confidence\": 9,\n      \"risk_level\": \"moderate\",\n      \"reason\": \"(1) AA presents a textbook Minervini setup with an elite RS Rating of 98/100, trading exactly at its 52-week high with perfect moving average alignment (P > 50 > 150 > 200). (2) Timing is urgently driven by a Morgan Stanley Overweight upgrade to an $80 price target, citing middle-east disruptions expected to boost 2026 EPS by 52%. (3) The risk/reward is highly attractive as the stock consolidates near highs with rising On-Balance Volume (38.0M), indicating strong institutional demand. (4) The primary risk is the upcoming earnings report in 4 days, which introduces binary volatility, along with an overbought Stochastic reading (85.6) that could trigger short-term profit-taking.\",\n      \"description\": \"Business description not available.\"\n    },\n    {\n      \"rank\": 2,\n      \"ticker\": \"INTC\",\n      \"company_name\": \"INTC\",\n      \"current_price\": 62.38,\n      \"strategy_match\": \"analyst_upgrade\",\n      \"final_score\": 85,\n      \"confidence\": 8,\n      \"risk_level\": \"high\",\n      \"reason\": \"(1) INTC benefits from an analyst upgrade and a massive news catalyst, being named the lead foundry partner for the $25 billion Terafab project alongside rumors of a $5 billion Apple investment. (2) This confluence of events has sparked extreme momentum, sending shares up 22.84% over the last 5 days on surging volume. (3) The setup offers high reward potential as the price sits comfortably above its 50-day SMA ($47.21) with a massive rising OBV of 3.27 billion. (4) However, the stock is currently extended with an RSI of 75.4, making it vulnerable to mean reversion or 'buy the rumor, sell the news' behavior if the Apple investment falls through.\",\n      \"description\": \"Business description not available.\"\n    },\n    {\n      \"rank\": 3,\n    ",
+    "output_length": 2000,
+    "error": ""
+  }
+]
