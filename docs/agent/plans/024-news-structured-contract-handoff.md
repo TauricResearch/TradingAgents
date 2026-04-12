@@ -86,11 +86,20 @@ Earlier attempts at strict structured news output failed because the model was a
 
 The better pattern is already present:
 
-1. Let the LLM produce best-effort structured claims.
+1. Let the LLM produce best-effort structured claims when it can, without making strict JSON formatting a pipeline-critical requirement.
 2. Validate and sanitize against run-scoped evidence IDs.
 3. Deterministically normalize the sanitized payload into a canonical contract.
 
 The missing piece is step 3.
+
+## Review Findings And Direction
+
+The plan must stay simple and align with four operating principles:
+
+1. **Do not make strict JSON a hard dependency.** LLMs sometimes fail to produce valid JSON. Prefer structured JSON, parse it when available, but do not fail the whole news node solely because the LLM returned markdown or malformed JSON.
+2. **Fail when evidence acquisition fails.** If all or most required news tools fail, or the LLM times out before producing a usable response, news should fail with `status: "aborted"` rather than inventing a fallback.
+3. **No news is not a failure.** If tools run successfully and there are no relevant news records, continue with `status: "empty"` and a deterministic message stating that no validated news was available.
+4. **Keep the branch logic small.** Avoid markdown salvage, secondary parsers, or extra statuses in this plan. The canonical contract should make downstream behavior obvious.
 
 ## Target Contract
 
@@ -146,6 +155,23 @@ Use `completed` for 1+ verified claims. Use `below_min_claims: true` in `key_met
 
 Do NOT use `completed_sparse` or `timeout_fallback` for news — they add ambiguity with no consumer benefit. Remove them from news documentation and code.
 
+## Branch Schema
+
+Use this branch schema for the news analyst -> fact-checker handoff. It is the implementation source of truth.
+
+| Branch | Trigger | Canonical status | Downstream evidence? | Behavior |
+|--------|---------|------------------|----------------------|----------|
+| Evidence acquisition failed | All required news prefetch sections are errors, or most required sections are errors with no usable persisted evidence | `aborted` | No | Return critical-abort markdown and canonical aborted contract. Do not synthesize fallback claims. |
+| LLM timeout | `invoke_with_timeout(...)` returns `TimeoutError` | `aborted` | No | Return critical-abort markdown and canonical aborted contract. |
+| No news found | Prefetch completed without tool failure, but no relevant persisted evidence records were created | `empty` | No | Return deterministic `"{TICKER} News Analysis\n\n- No validated news was available for this run."` and canonical empty contract. |
+| Non-JSON markdown | LLM returns markdown/plain text and no structured JSON payload can be validated | `missing_structured_payload` | No | Do not fail the pipeline. Return deterministic non-evidence message from fact-checker; keep raw LLM text out of downstream evidence. |
+| Malformed structured payload | LLM returns JSON-like payload but schema/ticker/provenance validation fails before sanitization | `invalid_structured_payload` | No | Return deterministic non-evidence message and canonical invalid contract with validation reason. |
+| All submitted claims rejected | Structured payload validates shape, but sanitization removes every submitted claim | `invalid_structured_payload` | No | Return deterministic non-evidence message and canonical invalid contract with `removed_claims > 0`. |
+| No submitted claims | Structured payload validates and contains zero claims, with no removed claims | `empty` | No | Return deterministic no-news message and canonical empty contract. |
+| Verified claims | At least one claim survives validation and sanitization | `completed` | Yes | Build canonical contract and render markdown from canonical claims. |
+
+For the current two news prefetch tools, "all or most" means both company-specific and global news prefetches fail. If only one prefetch section fails and at least one usable evidence record exists, continue with the reduced evidence set and let validation/sanitization determine whether claims are usable.
+
 ## Design Decisions
 
 ### Normalization ownership
@@ -162,6 +188,17 @@ News analyst timeout is a failure, not a fallback success. Remove the news timeo
 
 `timeout_fallback` remains valid for other contracts where already used, but it is not part of `news_report_v1`.
 
+### JSON policy
+
+The analyst prompt should prefer JSON because structured output gives the best downstream contract, but it must not say "Output ONLY valid JSON" or retry solely to force JSON formatting. The model may return markdown/plain text if it cannot produce JSON. The fact-checker will only promote claims into `news_report_structured.claims` after structured validation and evidence sanitization.
+
+Practical prompt guidance:
+
+- Ask for JSON as the preferred format.
+- Include the expected JSON shape.
+- Say that if the model cannot produce valid JSON, it should return a concise cited markdown report instead of inventing structure.
+- Do not let markdown-only output become downstream evidence in this plan.
+
 ### `_news_structured_placeholder` removal
 
 The existing `_news_structured_placeholder(...)` helper in `news_fact_checker.py` is superseded by `build_news_report_structured(...)`. It must be **deleted** once the new normalizer is in place. Do not maintain two functions that produce news contracts with different shapes.
@@ -171,6 +208,8 @@ The existing `_news_structured_placeholder(...)` helper in `news_fact_checker.py
 The fact-checker must not fail easily. If the normalizer receives a malformed payload, it must produce a valid canonical contract with an appropriate error status (`invalid_structured_payload` or `empty`) rather than raising an exception. If sanitized claims passed evidence-based provenance checks but the rendered markdown fails a secondary quality gate (`validate_news_analysis_detailed`), the fact-checker should log a warning and return the canonical contract with `status: "completed"` — not `[CRITICAL ABORT]`.
 
 Invalid structured payloads should not emit new `[CRITICAL ABORT]` markdown unless the upstream report already was a critical abort. Preserve observability, but let the canonical `status` carry structured validity.
+
+Malformed JSON, markdown output, and schema mismatches are not operational failures. They only mean there is no verified structured news evidence for downstream consumers. Operational failures are tool acquisition failure, LLM timeout, explicit critical aborts, or unexpected exceptions.
 
 ### `scan_date` cleanup
 
@@ -211,7 +250,7 @@ Inputs:
 
 - `ticker: str`
 - `as_of_date: str`
-- `payload: dict[str, Any]` — the sanitized payload from `sanitize_structured_news_payload`
+- `payload: dict[str, Any]` — normally the sanitized payload from `sanitize_structured_news_payload`; direct callers/tests may pass malformed payloads to exercise defensive behavior
 - `status: str` — one of the canonical news statuses
 - `abort_reason: str = ""`
 - `removed_claims: list[dict] | None = None`
@@ -240,6 +279,12 @@ Responsibilities:
 
 Return type: `dict[str, Any]` — always a valid canonical contract, never raises.
 
+Normalizer strictness is defensive. In the fact-checker path:
+
+- If `validate_structured_news_payload(...)` fails, do **not** pass the malformed analyst payload into the normalizer. Pass `{}` with `status: "invalid_structured_payload"` and the validation reason in `abort_reason`.
+- If validation succeeds, pass the sanitized payload returned by `sanitize_structured_news_payload(...)`.
+- If direct callers/tests pass malformed claim or table rows to the normalizer, the normalizer should return `invalid_structured_payload` rather than silently dropping those rows.
+
 ### Step 2: Delete `_news_structured_placeholder` and update `news_fact_checker.py`
 
 Delete `_news_structured_placeholder(...)`.
@@ -248,7 +293,9 @@ Update `create_news_fact_checker` so that **every return path** calls `build_new
 
 | Branch | Status | Notes |
 |--------|--------|-------|
+| No persisted evidence records and no critical abort | `empty` | Treat as no news found; return deterministic no-news message and canonical empty contract |
 | Blank `news_report` and missing payload | `missing_structured_payload` | Pass empty payload `{}` |
+| Blank `news_report` with structured payload present | Continue validation/sanitization flow | Do not early-exit before checking structured claims; if claims validate, render from canonical claims and return `completed` |
 | Existing `[CRITICAL ABORT]` report | `aborted` | Pass empty payload `{}`, extract abort reason |
 | Missing payload (`not isinstance(structured_payload, dict)`) | `missing_structured_payload` | Pass empty payload `{}` |
 | Invalid payload (validation fails) | `invalid_structured_payload` | Pass empty payload `{}`, include validation reason in `abort_reason`; do not emit a new critical-abort report |
@@ -260,6 +307,14 @@ Update `create_news_fact_checker` so that **every return path** calls `build_new
 Key resilience change: The current code (lines 109-117 of `news_fact_checker.py`) returns `[CRITICAL ABORT]` when the rendered report fails `validate_news_analysis_detailed`. This is too aggressive — the sanitized claims already passed evidence-based provenance checks. Downgrade to a warning log and return `status: "completed"`.
 
 For structured failure branches, keep untrusted markdown out of downstream evidence. The raw `news_report` may remain in state/artifacts for audit, but only completed canonical claims are evidence.
+
+Fact-checker `news_report` return policy:
+
+- `completed`: return the deterministic report rendered from the canonical payload.
+- `aborted`: preserve the upstream critical-abort markdown.
+- `empty`: return `"{TICKER} News Analysis\n\n- No validated news was available for this run."`.
+- `missing_structured_payload`, `invalid_structured_payload`: return a deterministic non-evidence message such as `"{TICKER} News Analysis\n\n- No validated structured news claims are available for this run."`; do not preserve unverified analyst markdown in the fact-checker output for these statuses.
+- Audit artifacts may still contain earlier raw analyst output elsewhere in run state/history, but downstream context must not receive it as evidence.
 
 ### Step 3: Update `news_analyst.py` timeout behavior
 
@@ -277,6 +332,19 @@ return {
 ```
 
 The fact-checker remains the sole canonical normalization point and will convert the critical abort into `status: "aborted"`.
+
+Also relax the analyst prompt and retry flow:
+
+- Replace `Output ONLY valid JSON` with `Prefer valid JSON using this shape`.
+- Replace retry instructions that say `return valid JSON only` with instructions to repair provenance and return JSON if possible; markdown is acceptable if JSON cannot be produced.
+- Do not perform extra retries solely for JSON formatting after a valid LLM response exists.
+- If JSON validation fails after the configured attempt(s), pass the raw report text and `{}` as `news_report_structured`; the fact-checker will normalize this to `missing_structured_payload` or `invalid_structured_payload` without treating it as an operational failure.
+
+Add a simple prefetch health gate before invoking the LLM:
+
+- If both required news prefetch sections are error placeholders (`"[Error fetching ...]"`) and no evidence records were persisted, return a critical-abort report and `{}`.
+- If prefetch succeeds but `evidence_records` is empty, return a deterministic no-news report and `{}`; the fact-checker will normalize it to `empty`.
+- If one prefetch section fails but usable evidence records exist, continue with the reduced evidence set.
 
 ### Step 4: Add `_format_news_structured(...)` in `summary_context.py`
 
@@ -413,37 +481,97 @@ Add a `TestNewsStructuredContract` class:
    - Pass payload with `below_min_claims: True`.
    - Assert `key_metrics.below_min_claims is True`.
 
+8. **`test_build_news_report_structured_rejects_unknown_status`**
+   - Pass a valid payload with `status="timeout_fallback"` or `status="completed_sparse"`.
+   - Assert returned `status == "invalid_structured_payload"`.
+
+9. **`test_build_news_report_structured_retains_scanner_summary_scan_date`**
+   - Pass a scanner summary row with `scan_date`.
+   - Assert the normalized row keeps `scan_date`.
+
+10. **`test_build_news_report_structured_requires_article_evidence_id`**
+    - Pass a non-scanner claim or row with blank `evidence_id`.
+    - Assert returned `status == "invalid_structured_payload"`.
+
+11. **`test_build_news_report_structured_omits_blank_scanner_optional_fields`**
+    - Pass a scanner claim with blank `published_at` and blank `evidence_id`.
+    - Assert those blank fields are omitted while `scan_date` remains.
+
+12. **`test_build_news_report_structured_does_not_mutate_input`**
+    - Pass claims/rows containing removable fields.
+    - Assert the input payload is unchanged after normalization.
+
 ### Unit tests in `tests/unit/test_news_fact_checker.py`
 
-8. **`test_fact_checker_returns_completed_contract_after_sanitization`**
+13. **`test_fact_checker_returns_completed_contract_after_sanitization`**
    - Wire mock `NewsEvidenceStore` with known records.
    - Feed state with a valid `news_report_structured` payload.
    - Assert returned `news_report_structured.status == "completed"` and `contract_version == "news_report_v1"`.
 
-9. **`test_fact_checker_returns_invalid_contract_when_all_claims_removed`**
+14. **`test_fact_checker_returns_invalid_contract_when_all_claims_removed`**
    - Feed state with claims that all fail sanitization.
    - Assert `status == "invalid_structured_payload"`, `key_metrics.claim_count == 0`, and `key_metrics.removed_claims > 0`.
 
-10. **`test_fact_checker_missing_payload_has_canonical_contract`**
+15. **`test_fact_checker_missing_payload_has_canonical_contract`**
     - Feed state with `news_report_structured=None`.
     - Assert `status == "missing_structured_payload"`, `contract_version == "news_report_v1"`.
 
-11. **`test_fact_checker_invalid_payload_has_canonical_contract`**
+16. **`test_fact_checker_invalid_payload_has_canonical_contract`**
     - Feed state with `news_report_structured={"ticker": "WRONG"}`.
-    - Assert `status == "invalid_structured_payload"`, `contract_version == "news_report_v1"`.
+    - Assert `status == "invalid_structured_payload"`, `contract_version == "news_report_v1"`, and `news_report` is a deterministic non-evidence message rather than a new `[CRITICAL ABORT]`.
 
-12. **`test_fact_checker_does_not_critical_abort_on_rendering_validation_failure`**
+17. **`test_fact_checker_does_not_critical_abort_on_rendering_validation_failure`**
     - Feed state where sanitized claims are valid but `validate_news_analysis_detailed` on the rendered report would fail (e.g., low ticker mentions).
     - Assert `status == "completed"` — NOT `[CRITICAL ABORT]`.
 
-13. **`test_fact_checker_end_to_end_contract_shape`**
+18. **`test_fact_checker_end_to_end_contract_shape`**
     - Assert final `news_report_structured` always has: `status`, `contract_version`, `as_of_date`, `abort_reason`, `key_metrics`, `claims`, `summary_table`.
 
-14. **`test_fact_checker_aborted_report_has_canonical_contract`**
+19. **`test_fact_checker_aborted_report_has_canonical_contract`**
     - Feed state with `news_report` starting with `[CRITICAL ABORT]`.
     - Assert `status == "aborted"` and the abort reason is preserved.
 
+20. **`test_fact_checker_blank_report_with_valid_structured_payload_completes`**
+    - Feed state with `news_report=""` and a valid structured payload.
+    - Assert the fact-checker validates/sanitizes the structured claims, returns `status == "completed"`, and renders a non-empty deterministic `news_report`.
+
+21. **`test_fact_checker_no_evidence_records_returns_empty_contract`**
+    - Use an evidence store that returns no records and a non-abort no-news report.
+    - Assert `status == "empty"` and `key_metrics.claim_count == 0`, not `missing_structured_payload`.
+
 Do not create a new integration test file unless a broader analyst-to-fact-checker flow is added. The fact-checker branch coverage belongs in the existing unit test file.
+
+### Unit tests in `tests/unit/test_summary_context.py`
+
+22. **`test_research_packet_includes_news_structured_for_invalid_status`**
+    - Build state with `news_report_structured.status == "invalid_structured_payload"` and raw `news_report` text.
+    - Assert `## News Structured Contract` is present and raw `## News Report` is absent.
+
+23. **`test_research_packet_includes_raw_news_only_when_completed_with_claims`**
+    - Build state with `status == "completed"` and `key_metrics.claim_count > 0`.
+    - Assert both the structured contract and raw `## News Report` are present.
+
+24. **`test_debate_evidence_brief_includes_news_metrics_without_claim_text`**
+    - Build state with completed news structured metrics and claim text.
+    - Assert the brief includes status/claim/evidence/removed counts but does not include individual claim text.
+
+25. **`test_research_manager_fallback_gates_news_claim_iteration`**
+    - Build state with non-completed news structured payload containing stale claims.
+    - Assert fallback emits a bear status warning and does not include the stale claim text.
+
+### Unit tests in `tests/unit/agents/test_analyst_agents.py`
+
+26. **`test_news_analyst_prefetch_total_failure_aborts`**
+    - Mock both required prefetch sections as errors and no persisted evidence records.
+    - Assert the analyst returns critical-abort markdown and an empty structured payload.
+
+27. **`test_news_analyst_no_prefetched_evidence_returns_no_news`**
+    - Mock successful prefetch with no persisted evidence records.
+    - Assert the analyst returns deterministic no-news markdown and an empty structured payload.
+
+28. **`test_news_analyst_invalid_json_does_not_operationally_abort`**
+    - Mock an LLM response that is non-JSON markdown.
+    - Assert the analyst returns the raw report with `{}` structured payload rather than a critical abort caused solely by JSON formatting.
 
 ### Regression assertion for latest observed bug
 
