@@ -2,7 +2,11 @@ from datetime import datetime, timedelta, timezone
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from tradingagents.agents.utils.scanner_tools import get_earnings_calendar, get_topic_news
+from tradingagents.agents.utils.scanner_tools import (
+    get_earnings_calendar,
+    get_sector_performance,
+    get_topic_news,
+)
 from tradingagents.agents.utils.tool_runner import run_tool_loop
 from tradingagents.agents.utils.report_quality import tag_report
 from tradingagents.agents.utils.scanner_idempotency import (
@@ -22,7 +26,7 @@ def create_factor_alignment_scanner(llm):
             }
 
         scan_date = state["scan_date"]
-        tools = [get_topic_news, get_earnings_calendar]
+        tools = [get_sector_performance, get_topic_news, get_earnings_calendar]
 
         sector_context = state.get("sector_performance_report", "")
         sector_section = (
@@ -42,11 +46,12 @@ def create_factor_alignment_scanner(llm):
             "Your objective is to quantify analyst sentiment and earnings revision flow at a market-wide scale. "
             "STRICT CONSTRAINTS: Output only bulleted quantitative analysis. NO conversational filler. "
             "You MUST perform these bounded searches: "
-            "1. get_topic_news for analyst recommendation deltas, "
-            "2. get_topic_news for earnings estimate and guidance revisions, "
-            f"3. get_earnings_calendar from {start_date.isoformat()} to {end_date.isoformat()}. "
+            "1. get_sector_performance to get quantitative sector return data, "
+            "2. get_topic_news for analyst recommendation deltas, "
+            "3. get_topic_news for earnings estimate and guidance revisions, "
+            f"4. get_earnings_calendar from {start_date.isoformat()} to {end_date.isoformat()}. "
             "Report must include: "
-            "(1) Sectors with maximum positive revision breadth, "
+            "(1) Sectors with maximum positive revision breadth (with exact % returns from get_sector_performance), "
             "(2) Sectors with deteriorating revision pressure, "
             "(3) 5-8 primary tickers surfaced from aggregate revision flow, "
             "(4) Factor alignment/divergence vs current sector tailwinds. "
@@ -81,14 +86,13 @@ def create_factor_alignment_scanner(llm):
             require_tool_result=True,
             node_name="factor_alignment_scanner",
             min_report_length=800,
-            max_tool_output_chars=1200,
+            max_tool_output_chars=5000,
         )
 
-        tool_names = ", ".join(t.name for t in tools)
         report = tag_report(
             result.content or "",
             node_name="factor_alignment_scanner",
-            tools_used=tool_names,
+            tools_used=", ".join(t.name for t in tools),
         )
 
         # 3. Resumability: Save after completion
