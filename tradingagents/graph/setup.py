@@ -1,6 +1,7 @@
 # TradingAgents/graph/setup.py
 
 from typing import Any, Dict
+
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 

@@ -2,7 +2,6 @@
 
 from .model_catalog import get_known_models
 
-
 VALID_MODELS = {
     provider: models
     for provider, models in get_known_models().items()
