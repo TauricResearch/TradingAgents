@@ -1,0 +1,2 @@
+class YFRateLimitError(Exception):
+    pass
