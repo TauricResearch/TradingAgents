@@ -30,6 +30,7 @@ from tradingagents.graph.analyst_execution import (
 from tradingagents.default_config import DEFAULT_CONFIG
 from cli.models import AnalystType
 from cli.utils import *
+from cli.chunk_ingest import ingest_chunk_messages
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
 
@@ -83,6 +84,7 @@ class MessageBuffer:
         self.report_sections = {}
         self.selected_analysts = []
         self._processed_message_ids = set()
+        self._processed_message_fingerprints = set()
 
     def init_for_analysis(self, selected_analysts):
         """Initialize agent status and report sections based on selected analysts.
@@ -118,6 +120,7 @@ class MessageBuffer:
         self.messages.clear()
         self.tool_calls.clear()
         self._processed_message_ids.clear()
+        self._processed_message_fingerprints.clear()
 
     def get_completed_reports_count(self):
         """Count reports that are finalized (their finalizing agent is completed).
@@ -974,6 +977,8 @@ def format_tool_args(args, max_length=80) -> str:
         return result[:max_length - 3] + "..."
     return result
 
+
+
 def run_analysis(checkpoint: bool = False):
     # First get all user selections
     selections = get_user_selections()
@@ -1111,24 +1116,7 @@ def run_analysis(checkpoint: bool = False):
         # Stream the analysis
         trace = []
         for chunk in graph.graph.stream(init_agent_state, **args):
-            # Process all messages in chunk, deduplicating by message ID
-            for message in chunk.get("messages", []):
-                msg_id = getattr(message, "id", None)
-                if msg_id is not None:
-                    if msg_id in message_buffer._processed_message_ids:
-                        continue
-                    message_buffer._processed_message_ids.add(msg_id)
-
-                msg_type, content = classify_message_type(message)
-                if content and content.strip():
-                    message_buffer.add_message(msg_type, content)
-
-                if hasattr(message, "tool_calls") and message.tool_calls:
-                    for tool_call in message.tool_calls:
-                        if isinstance(tool_call, dict):
-                            message_buffer.add_tool_call(tool_call["name"], tool_call["args"])
-                        else:
-                            message_buffer.add_tool_call(tool_call.name, tool_call.args)
+            ingest_chunk_messages(message_buffer, chunk, classify_message_type)
 
             # Update analyst statuses based on report state (runs on every chunk)
             update_analyst_statuses(
