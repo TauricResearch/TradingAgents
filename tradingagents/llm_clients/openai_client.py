@@ -60,6 +60,9 @@ class OpenAIClient(BaseLLMClient):
             llm_kwargs["api_key"] = "ollama"  # Ollama doesn't require auth
         elif self.base_url:
             llm_kwargs["base_url"] = self.base_url
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if api_key:
+                llm_kwargs["api_key"] = api_key
 
         for key in ("timeout", "max_retries", "reasoning_effort", "api_key", "callbacks"):
             if key in self.kwargs:

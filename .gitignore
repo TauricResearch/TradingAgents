@@ -218,3 +218,4 @@ __marimo__/
 # Cache
 **/data_cache/
 eval_results/
+.env.railway

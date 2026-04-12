@@ -1,5 +1,9 @@
 """FastAPI SSE backend for the structured equity ranking engine."""
 
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent / ".env")
+
 import logging
 import os
 import re
@@ -466,3 +470,23 @@ async def stream_analysis(analysis_id: str, last_event: int = 0):
 @app.get("/health")
 async def health():
     return {"status": "ok", "engine": "structured_pipeline"}
+
+
+@app.get("/api/status")
+async def get_status():
+    """Structured pipeline status — no auth required."""
+    from datetime import datetime
+    active_count = len(analyses)
+    return {
+        "service": "structured-pipeline",
+        "engine": "TradingAgents",
+        "active_analyses": active_count,
+        "analyses": {k: {"created": v["created"], "done": v["done"]} for k, v in analyses.items()},
+        "pid": __import__("os").getpid(),
+        "uptime": time.time() - __import__("os").getpid(),
+    }
+
+
+@app.get("/api/health")
+async def api_health():
+    return {"status": "ok", "service": "structured-pipeline"}
