@@ -18,7 +18,10 @@ def create_bear_researcher(llm, memory):
         fundamentals_report = state["fundamentals_report"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        past_memories = memory.get_memories(
+            curr_situation,
+            n_matches=1 if use_compact_analysis_prompt() else 2,
+        )
 
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
@@ -27,15 +30,15 @@ def create_bear_researcher(llm, memory):
         if use_compact_analysis_prompt():
             prompt = f"""You are a Bear Analyst. Make the strongest concise short case against the stock.
 
-Use only the highest-signal evidence from the reports below. Address the latest bull point directly. Keep the answer under 220 words and end with a clear stance.
+Use only the highest-signal evidence from the reports below. Address the latest bull point directly. Keep the answer under 140 words and end with a clear stance.
 
-Market report: {truncate_prompt_text(market_research_report, 800)}
-Sentiment report: {truncate_prompt_text(sentiment_report, 500)}
-News report: {truncate_prompt_text(news_report, 500)}
-Fundamentals report: {truncate_prompt_text(fundamentals_report, 700)}
-Debate history: {truncate_prompt_text(history, 600)}
-Last bull argument: {truncate_prompt_text(current_response, 400)}
-Past lessons: {truncate_prompt_text(past_memory_str, 400)}
+Market: {truncate_prompt_text(market_research_report, 420)}
+Sentiment: {truncate_prompt_text(sentiment_report, 220)}
+News: {truncate_prompt_text(news_report, 220)}
+Fundamentals: {truncate_prompt_text(fundamentals_report, 320)}
+Debate history: {truncate_prompt_text(history, 260)}
+Last bull argument: {truncate_prompt_text(current_response, 180)}
+Past lessons: {truncate_prompt_text(past_memory_str, 180)}
 """
         else:
             prompt = f"""You are a Bear Analyst making the case against investing in the stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.

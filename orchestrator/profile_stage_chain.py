@@ -5,6 +5,8 @@ import json
 import signal
 import time
 from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
 
 from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -34,6 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--analysis-prompt-style", default="compact")
     parser.add_argument("--selected-analysts", default="market")
     parser.add_argument("--overall-timeout", type=int, default=120)
+    parser.add_argument("--dump-dir", default="orchestrator/profile_runs")
     return parser
 
 
@@ -65,6 +68,10 @@ def main() -> None:
     phase_totals = defaultdict(float)
     started_at = time.monotonic()
     last_at = started_at
+    dump_dir = Path(args.dump_dir)
+    dump_dir.mkdir(parents=True, exist_ok=True)
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    dump_path = dump_dir / f"{args.ticker.replace('/', '_')}_{args.date}_{run_id}.json"
 
     def alarm_handler(signum, frame):
         raise _ProfileTimeout(f"profiling timeout after {args.overall_timeout}s")
@@ -97,6 +104,7 @@ def main() -> None:
             "analysis_prompt_style": args.analysis_prompt_style,
             "node_timings": node_timings,
             "phase_totals_seconds": {key: round(value, 3) for key, value in phase_totals.items()},
+            "dump_path": str(dump_path),
         }
     except Exception as exc:
         payload = {
@@ -108,10 +116,12 @@ def main() -> None:
             "error": str(exc),
             "node_timings": node_timings,
             "phase_totals_seconds": {key: round(value, 3) for key, value in phase_totals.items()},
+            "dump_path": str(dump_path),
         }
     finally:
         signal.alarm(0)
 
+    dump_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 

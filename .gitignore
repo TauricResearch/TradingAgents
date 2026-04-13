@@ -1,5 +1,6 @@
 # Git worktrees
 .worktrees/
+orchestrator/profile_runs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -17,7 +17,10 @@ def create_research_manager(llm, memory):
         investment_debate_state = state["investment_debate_state"]
 
         curr_situation = f"{market_research_report}\n\n{sentiment_report}\n\n{news_report}\n\n{fundamentals_report}"
-        past_memories = memory.get_memories(curr_situation, n_matches=2)
+        past_memories = memory.get_memories(
+            curr_situation,
+            n_matches=1 if use_compact_analysis_prompt() else 2,
+        )
 
         past_memory_str = ""
         for i, rec in enumerate(past_memories, 1):
@@ -32,12 +35,14 @@ Return a concise response with:
 3. Simple execution plan
 
 Past lessons:
-{truncate_prompt_text(past_memory_str, 400)}
+{truncate_prompt_text(past_memory_str, 180)}
 
 {instrument_context}
 
 Debate history:
-{truncate_prompt_text(history, 1200)}"""
+{truncate_prompt_text(history, 700)}
+
+Keep the full answer under 180 words."""
         else:
             prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
 
