@@ -20,6 +20,7 @@
 | Title | File | Date | Summary |
 |-------|------|------|---------|
 | Short Interest Squeeze Scanner | research/2026-04-12-short-interest-squeeze.md | 2026-04-12 | High SI (>20%) + DTC >5 as squeeze-risk discovery; implemented as short_squeeze scanner |
+| 52-Week High Breakout Momentum | research/2026-04-13-52-week-high-breakout.md | 2026-04-13 | George & Hwang (2004) validated: 52w high crossing + 1.5x volume = 72% win rate, +11.4% avg over 31d; implemented as high_52w_breakout scanner |
 | reddit_dd | scanners/reddit_dd.md | — | No data yet |
 | reddit_trending | scanners/reddit_trending.md | — | No data yet |
 | semantic_news | scanners/semantic_news.md | — | No data yet |
