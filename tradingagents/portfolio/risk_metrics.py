@@ -273,8 +273,9 @@ def compute_risk_metrics(
         if min_len >= MIN_PERIODS_BETA:
             mu_p = _mean(r_p)
             mu_b = _mean(r_b)
+            # Optimized: Use zip to iterate over lists directly instead of expensive indexing
             covariance = sum(
-                (r_p[i] - mu_p) * (r_b[i] - mu_b) for i in range(min_len)
+                (p - mu_p) * (b - mu_b) for p, b in zip(r_p, r_b)
             ) / (min_len - 1)
             var_b = _std(r_b) ** 2
             if var_b > 0.0:
