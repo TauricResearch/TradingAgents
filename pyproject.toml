@@ -53,13 +53,19 @@ combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-# LLM system prompt strings are intentionally long; wrapping them reduces readability.
-"tradingagents/**/*.py" = ["E501"]
+# Agent files contain LLM system prompt strings that are intentionally long.
+"tradingagents/agents/**/*.py" = ["E501"]
+# These dataflow files contain long indicator/tool description strings, not logic code.
+"tradingagents/dataflows/alpha_vantage_indicator.py" = ["E501"]
+"tradingagents/dataflows/y_finance.py" = ["E501"]
+# Reflection module contains a multi-line LLM prompt defined as a string constant.
+"tradingagents/graph/reflection.py" = ["E501"]
 
 [tool.uv]
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0.3",
+    "pytest>=8.3.0",
+    "ruff>=0.9.0",
 ]
 # Install with: uv sync

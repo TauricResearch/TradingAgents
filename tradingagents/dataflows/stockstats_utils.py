@@ -26,7 +26,10 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
         except YFRateLimitError:
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
-                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                logger.warning(
+                    f"Yahoo Finance rate limited, retrying in {delay:.0f}s"
+                    f" (attempt {attempt + 1}/{max_retries})"
+                )
                 time.sleep(delay)
             else:
                 raise
