@@ -18,6 +18,7 @@ across all runs for the date and return the latest match.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -87,6 +88,11 @@ class ReportStore:
         return sorted(self._base_dir.glob(pattern), reverse=True)
 
     @staticmethod
+    def _slug(value: str) -> str:
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", value).strip("_").lower()
+        return slug or "unknown"
+
+    @staticmethod
     def _sanitize(obj: Any) -> Any:
         if obj is None or isinstance(obj, (bool, int, float, str)):
             return obj
@@ -148,6 +154,25 @@ class ReportStore:
 
     def load_analysis(self, date: str, ticker: str) -> dict[str, Any] | None:
         return self._load_latest_from_runs(date, f"{ticker.upper()}/report", "complete_report.json")
+
+    def save_pipeline_node_snapshot(self, date: str, ticker: str, data: dict[str, Any]) -> Path:
+        root = self._date_root(date, for_write=True)
+        node_slug = self._slug(str(data.get("node_name") or "unknown"))
+        path = root / ticker.upper() / "report" / f"{ts_now()}_{node_slug}_pipeline_node_snapshot.json"
+        return self._write_json(path, data)
+
+    def load_latest_pipeline_node_snapshot(self, date: str, ticker: str) -> dict[str, Any] | None:
+        relative_dir = f"{ticker.upper()}/report"
+        for root in self._run_roots(date):
+            report_dir = root / relative_dir
+            if not report_dir.exists():
+                continue
+            candidates = sorted(report_dir.glob("*_pipeline_node_snapshot.json"), reverse=True)
+            for path in candidates:
+                data = self._read_json(path)
+                if data is not None:
+                    return data
+        return None
 
     # ------------------------------------------------------------------
     # Holding Reviews

@@ -784,29 +784,53 @@ class AgentState(MessagesState):
 
 ```json
 {
-  "ticker": "string",                           // REQUIRED
+  "ticker": "string",                           // REQUIRED — company ticker symbol
+  "as_of_date": "YYYY-MM-DD",                   // REQUIRED — report date
+  "status": "completed|empty|invalid_structured_payload|missing_structured_payload|aborted",  // REQUIRED
+  "contract_version": "news_report_v1",         // REQUIRED — canonical contract version
+  "abort_reason": "string",                     // REQUIRED — error description for non-completed statuses
   "report_title": "string",                     // REQUIRED
-  "claims": [                                   // REQUIRED
+  "claims": [                                   // REQUIRED — verified claims array
     {
       "claim": "string",                        // REQUIRED — one-sentence grounded claim
       "source": "string",                       // REQUIRED — exact source name
-      "published_at": "YYYY-MM-DD",             // REQUIRED
-      "evidence_id": "art_...",                 // REQUIRED — stable evidence handle
-      "scan_date": "YYYY-MM-DD"                 // OPTIONAL — only for Finviz scanner claims
+      "published_at": "YYYY-MM-DD",             // REQUIRED for article claims
+      "evidence_id": "art_...",                 // REQUIRED for article claims — stable evidence handle
+      "scan_date": "YYYY-MM-DD"                 // REQUIRED for Finviz scanner claims
     }
   ],
-  "summary_table": [                            // REQUIRED
+  "summary_table": [                            // REQUIRED — summary table rows
     {
       "date": "YYYY-MM-DD",                     // REQUIRED
       "event": "string",                        // REQUIRED — short label
       "metric": "string",                       // REQUIRED
       "value": "string",                        // REQUIRED — exact value
       "source": "string",                       // REQUIRED
-      "evidence_id": "art_..."                  // REQUIRED
+      "evidence_id": "art_...",                 // REQUIRED for article rows
+      "scan_date": "YYYY-MM-DD"                 // REQUIRED for scanner rows
     }
-  ]
+  ],
+  "key_metrics": {                              // REQUIRED — computed metrics
+    "claim_count": 0,                           // REQUIRED — number of claims
+    "summary_rows": 0,                          // REQUIRED — number of summary table rows
+    "evidence_ids": 0,                          // REQUIRED — count of unique evidence IDs
+    "removed_claims": 0,                        // REQUIRED — claims removed during sanitization
+    "below_min_claims": false                   // REQUIRED — flag for sparse output
+  }
 }
 ```
+
+**Status Values:**
+
+- `completed`: At least one verified claim remains after fact-checking
+- `empty`: No validated claims available (successful run with no evidence)
+- `invalid_structured_payload`: Malformed payload or all claims rejected
+- `missing_structured_payload`: Analyst produced no structured payload
+- `aborted`: Critical failure (analyst timeout or prefetch failure)
+
+**Contract Version:** `news_report_v1` is the canonical news contract. Previous non-canonical statuses (`timeout_fallback`, `completed_sparse`) are no longer used for news.
+
+**Downstream Usage:** Consumers should check `status == "completed"` and `key_metrics.claim_count > 0` before using news as evidence.
 
 #### 4.2.5 `fundamentals_report_structured` — Fundamentals Analyst Output
 
@@ -1060,21 +1084,26 @@ showing the data transformations at each stage.
 #### Stage 1 — Scanner Graph
 
 **Input:**
+
 ```json
 {"scan_date": "2026-03-31", "messages": []}
 ```
 
 **Phase 1a — Parallel Scanners execute:**
+
 - `gatekeeper_scanner` → `gatekeeper_universe_report`: "...AAPL: $220.50, Market Cap $3.4T, Avg Volume 65M..."
 - `market_movers_scanner` → `market_movers_report`: "...S&P 500 +0.4%, Nasdaq +0.6%, Risk-On regime..."
 - `sector_scanner` → `sector_performance_report`: "...Technology +1.2% 1W, +3.8% 1M, strongest rotation..."
 - `geopolitical_scanner` → `geopolitical_report`: "...US-China tariff review deadline April 15..."
 
 **Phase 1b — Smart Money detects insider accumulation:**
+
 - `smart_money_scanner` → `smart_money_report`: "...AAPL: Unusual volume +180% avg, insider buy $2.1M..."
 
 **Phase 2/3 — Industry Deep Dive and Synthesis:**
+
 - `macro_synthesis` → `macro_scan_summary`:
+
 ```json
 {
   "timeframe": "1 month",
@@ -1097,6 +1126,7 @@ showing the data transformations at each stage.
 #### Stage 2 — Per-Ticker Pipeline for AAPL
 
 **Initial State (via `Propagator.create_initial_state()`):**
+
 ```json
 {
   "run_id": "01JQWX...",
@@ -1115,6 +1145,7 @@ showing the data transformations at each stage.
 ```
 
 **Market Analyst output:**
+
 ```
 State updates:
   market_report: "- AAPL trading at $220.50, +1.2% WoW\n- RSI: 62 (neutral-bullish)..."
@@ -1123,6 +1154,7 @@ State updates:
 ```
 
 **Social Analyst output:**
+
 ```
 State updates:
   sentiment_report: "- 34 articles, 8 publishers; polarity improving +0.3→+0.6..."
@@ -1130,6 +1162,7 @@ State updates:
 ```
 
 **News Analyst output:**
+
 ```
 State updates:
   news_report_structured: {
@@ -1141,6 +1174,7 @@ State updates:
 ```
 
 **Fundamentals Analyst output:**
+
 ```
 State updates:
   fundamentals_report: "- Revenue TTM $407B, +6.2% YoY\n- Gross margin 46.8%, +120bps..."
@@ -1148,6 +1182,7 @@ State updates:
 ```
 
 **Bull/Bear Debate (2 rounds):**
+
 ```
 Round 1: Bull argues momentum + insider buying + margin expansion
 Round 1: Bear counters with China tariff risk + mature growth
@@ -1158,6 +1193,7 @@ investment_debate_state.count = 4
 ```
 
 **Research Manager decision:**
+
 ```
 State updates:
   investment_plan: "BUY — Momentum continuation thesis with insider confirmation. Risk/reward favors upside..."
@@ -1165,6 +1201,7 @@ State updates:
 ```
 
 **Trader proposal:**
+
 ```
 State updates:
   trader_investment_plan: "Entry: $220.50 | Stop-loss: $198.45 (-10%) | Take-profit: $253.58 (+15%)
@@ -1172,6 +1209,7 @@ State updates:
 ```
 
 **Risk Debate (2 parallel rounds + synthesis):**
+
 ```
 Round 1 (parallel): Aggressive, Conservative, Neutral each write initial positions
 Round 2 (parallel): Each reads others' R1, provides rebuttals
@@ -1179,6 +1217,7 @@ Risk Synthesis: Combines 6 responses into unified risk assessment
 ```
 
 **Portfolio Manager final decision:**
+
 ```
 State updates:
   final_trade_decision: "Rating: BUY | Conviction: HIGH | Entry $220.50..."
@@ -1189,6 +1228,7 @@ State updates:
 #### Stage 3 — Portfolio Graph
 
 **Initial State:**
+
 ```json
 {
   "portfolio_id": "portfolio-uuid",
@@ -1210,6 +1250,7 @@ State updates:
 **macro_summary + micro_summary (parallel) →** `macro_brief` + `micro_brief`
 
 **make_pm_decision →**
+
 ```json
 {
   "macro_regime": "risk-on",
@@ -1223,6 +1264,7 @@ State updates:
 **cash_sweep →** Excess cash above 5%: buys 250 shares SGOV
 
 **execute_trades →**
+
 ```json
 {
   "executed_trades": [
@@ -1284,6 +1326,7 @@ State updates:
 ### 6.4 Ground Truth Propagation
 
 All pipeline agents (4 analysts, Research Manager, Trader, 3 risk debaters × 2 rounds, risk synthesis) have explicit **GROUND TRUTH** instructions referencing the Scanner Context (Phase 1) section for:
+
 - Commodity prices (gold, oil, bitcoin)
 - FX rates (EUR/USD, JPY/USD, CNY/USD)
 - Calendar dates (earnings, FOMC, CPI)

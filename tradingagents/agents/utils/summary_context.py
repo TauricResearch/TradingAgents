@@ -92,6 +92,26 @@ def _format_sentiment_structured(structured: object) -> str:
     return "\n".join(line for line in lines if _has_value_after_colon(line))
 
 
+def _format_news_structured(structured: object) -> str:
+    """Format news structured contract for downstream context."""
+    if not isinstance(structured, dict):
+        return ""
+    key_metrics = structured.get("key_metrics") or {}
+    if not isinstance(key_metrics, dict):
+        key_metrics = {}
+    lines = [
+        f"- status: {structured.get('status', '')}",
+        f"- contract_version: {structured.get('contract_version', '')}",
+        f"- claim_count: {key_metrics.get('claim_count', '')}",
+        f"- summary_rows: {key_metrics.get('summary_rows', '')}",
+        f"- evidence_ids: {key_metrics.get('evidence_ids', '')}",
+        f"- removed_claims: {key_metrics.get('removed_claims', '')}",
+        f"- below_min_claims: {key_metrics.get('below_min_claims', '')}",
+    ]
+    return "\n".join(line for line in lines if _has_value_after_colon(line))
+
+
+
 
 def build_debate_evidence_brief(state: dict) -> str:
     """Build a compact evidence brief for debaters from structured contracts.
@@ -157,6 +177,27 @@ def build_debate_evidence_brief(state: dict) -> str:
             lines.append(f"- Sentiment claims: {claim_count}")
         if lines:
             sections.append(f"## Sentiment\n" + "\n".join(lines))
+    
+    # News structured: status + claim metrics (exclude claim text)
+    news_s = state.get("news_report_structured")
+    if isinstance(news_s, dict):
+        lines = []
+        status = news_s.get("status", "")
+        if status:
+            lines.append(f"- News status: {status}")
+        key_metrics = news_s.get("key_metrics") or {}
+        if isinstance(key_metrics, dict):
+            claim_count = key_metrics.get("claim_count")
+            if claim_count is not None:
+                lines.append(f"- News claims: {claim_count}")
+            evidence_ids = key_metrics.get("evidence_ids")
+            if evidence_ids is not None:
+                lines.append(f"- Evidence IDs: {evidence_ids}")
+            removed_claims = key_metrics.get("removed_claims")
+            if removed_claims is not None:
+                lines.append(f"- Removed claims: {removed_claims}")
+        if lines:
+            sections.append(f"## News\n" + "\n".join(lines))
 
     # Macro regime report (compact)
     macro_report = _compact_lines(
@@ -196,10 +237,22 @@ def build_research_packet(state: dict) -> str:
     if sentiment_structured:
         sections.append(f"## Sentiment Structured Contract\n{sentiment_structured}")
 
+    news_structured = _format_news_structured(state.get("news_report_structured"))
+    if news_structured:
+        sections.append(f"## News Structured Contract\n{news_structured}")
+    
+    # Check if news has usable evidence for gating raw report inclusion
+    news_report_structured = state.get("news_report_structured")
+    news_status = str(news_report_structured.get("status") or "").strip() if isinstance(news_report_structured, dict) else ""
+    key_metrics = news_report_structured.get("key_metrics") or {} if isinstance(news_report_structured, dict) else {}
+    claim_count = key_metrics.get("claim_count", 0) if isinstance(key_metrics, dict) else 0
+    news_has_usable_evidence = news_status == "completed" and claim_count > 0
+
+    # Build raw report blocks (gate news based on usability)
     block_specs = [
         ("## Market Report", state.get("market_report"), 10, 2200),
         ("## Sentiment Report", state.get("sentiment_report"), 8, 1600),
-        ("## News Report", state.get("news_report"), 10, 2200),
+        ("## News Report", state.get("news_report") if news_has_usable_evidence else None, 10, 2200),
         ("## Fundamentals Report", state.get("fundamentals_report"), 10, 2200),
         ("## Macro Regime Report", state.get("macro_regime_report"), 6, 1000),
     ]

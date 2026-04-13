@@ -1,0 +1,105 @@
+{
+  "source_run_artifacts": {
+    "run_meta": "reports/daily/2026-04-10/01KP0QBCXE9J6Z3GB13N14AW3Q/run_meta.json",
+    "analysts_checkpoint": "reports/daily/2026-04-10/01KP0QBCXE9J6Z3GB13N14AW3Q/MRVL/report/20260412T114211022Z_analysts_checkpoint.json",
+    "smart_money_report": "reports/daily/2026-04-10/01KP0QBCXE9J6Z3GB13N14AW3Q/market/smart_money_report.md",
+    "news_evidence_db": "reports/news_evidence.sqlite3"
+  },
+  "run_id": "01KP0QBCXE9J6Z3GB13N14AW3Q",
+  "ticker": "MRVL",
+  "trade_date": "2026-04-10",
+  "scanner_context_packet": "[QUALITY: ok | evidence=5 | tools=get_insider_buying_stocks, get_unusual_volume_stocks, get_breakout_accumulation_stocks]\nSource: Finviz Smart Money Scanner\nScan Date: 2026-04-10\n[Source: Finviz Smart Money Scanner | Scan Date: 2026-04-10]\n\n- MRVL (Technology)\n  - Footprint: Breakout accumulation on 2x+ volume at 52-week highs\n  - Rationale: Classic institutional accumulation preceding price breakout, very strong positive signal\n  - Sector context: Technology showing mixed momentum; this breakout stock signals selective sector strength from institutional players",
+  "prefetched_news_feeds": {
+    "Company-Specific News (Last 7 Days)": "{\"feed\":[{\"title\":\"Marvell Stock Gets an Upgrade. Forget AI Chips, Focus on This.\",\"source\":\"Barron's\",\"source_domain\":\"Barron's\",\"published_at\":\"2026-04-09\",\"url\":\"https://www.barrons.com/articles/marvell-stock-price-upgrade-analyst-ai-94934e8d\",\"summary\":\"Marvell Technology shares received an upgrade from Barclays analysts, who believe the company's focus on selling optical components for AI data centers will drive further growth. The stock has already seen significant gains, more than doubling in the past year.\"},{\"title\":\"Marvell Technology stock hits 52-week high at 119.86 USD\",\"source\":\"Investing.com\",\"source_domain\":\"Investing.com\",\"published_at\":\"2026-04-09\",\"url\":\"https://www.investing.com/news/company-news/marvell-technology-stock-hits-52week-high-at-11986-usd-93CH-4605887\",\"summary\":\"Marvell Technology Inc. (MRVL) stock reached a new 52-week high of $119.86, signifying a 125.87% increase over the past year and bringing its market capitalization to $104.6 billion.\"},{\"title\":\"Marvell Technology's AI XPU Product Gains Traction: What's Ahead?\",\"source\":\"qz.com\",\"source_domain\":\"qz.com\",\"published_at\":\"2026-04-09\",\"url\":\"https://qz.com/marvell-technology-s-ai-xpu-product-gains-traction-what-s-ahead\",\"summary\":\"Marvell Technology is experiencing significant traction with its AI XPU products among hyperscalers, leading to over 20 multi-generational socket wins and a design pipeline exceeding $75 billion.\"},{\"title\":\"Nvidia\\u2019s (NVDA) Deal With Competitor Marvell (MRVL) Only Strengthens Its Own Ecosystem, Here\\u2019s How\",\"source\":\"Insider Monkey\",\"source_domain\":\"Insider Monkey\",\"published_at\":\"2026-04-07\",\"url\":\"https://www.insidermonkey.com/blog/nvidias-nvda-deal-with-competitor-marvell-mrvl-only-strengthens-its-own-ecosystem-heres-how-1733065/\",\"summary\":\"NVIDIA Corporation has announced a strategic partnership with Marvell Technology, including a $2 billion investment, to integrate Marvell's custom AI accelerators (XPUs) with NVIDIA's NVLink Fusion AI infrastructure.\"},{\"title\":\"Casper Mark, Marvell Technology EVP, sells $755k in shares\",\"source\":\"Investing.com\",\"source_domain\":\"Investing.com\",\"published_at\":\"2026-04-07\",\"url\":\"https://www.investing.com/news/insider-trading-news/casper-mark-marvell-technology-evp-sells-755k-in-shares-93CH-4601294\",\"summary\":\"Casper Mark, Executive Vice President & Chief Legal Officer at Marvell Technology, sold 6,900 shares of the company's common stock for $755,205 on April 6, 2026.\"}]}",
+    "Global Macroeconomic News (Last 7 Days)": "{\"feed\":[]}"
+  },
+  "news_analyst_output": {
+    "ticker": "MRVL",
+    "report_title": "MRVL News Analysis",
+    "claims": [
+      {
+        "claim": "Marvell Technology shares received an upgrade from Barclays analysts, who believe the company's focus on selling optical components for AI data centers will drive further growth.",
+        "source": "Barron's",
+        "published_at": "2026-04-09",
+        "evidence_id": "art_7715d24cfa223b67",
+        "scan_date": null
+      },
+      {
+        "claim": "Marvell Technology Inc. (MRVL) stock reached a new 52-week high of $119.86, signifying a 125.87% increase over the past year and bringing its market capitalization to $104.6 billion.",
+        "source": "Investing.com",
+        "published_at": "2026-04-09",
+        "evidence_id": "art_7991184e8c885e44",
+        "scan_date": null
+      },
+      {
+        "claim": "Marvell Technology is experiencing significant traction with its AI XPU products among hyperscalers, leading to over 20 multi-generational socket wins and a design pipeline exceeding $75 billion.",
+        "source": "qz.com",
+        "published_at": "2026-04-09",
+        "evidence_id": "art_0ac396ac8706cf53",
+        "scan_date": null
+      },
+      {
+        "claim": "NVIDIA Corporation has announced a strategic partnership with Marvell Technology, including a $2 billion investment, to integrate Marvell's custom AI accelerators (XPUs) with NVIDIA's NVLink Fusion AI infrastructure.",
+        "source": "Insider Monkey",
+        "published_at": "2026-04-07",
+        "evidence_id": "art_617e25dfc785688d",
+        "scan_date": null
+      },
+      {
+        "claim": "Casper Mark, Executive Vice President & Chief Legal Officer at Marvell Technology, sold 6,900 shares of the company's common stock for $755,205 on April 6, 2026.",
+        "source": "Investing.com",
+        "published_at": "2026-04-07",
+        "evidence_id": "art_7ef2fcd4d2615c9b",
+        "scan_date": null
+      }
+    ],
+    "summary_table": [
+      {
+        "date": "2026-04-09",
+        "event": "Barclays Upgrade",
+        "metric": "Rating Change",
+        "value": "Overweight",
+        "source": "Barron's",
+        "evidence_id": "art_7715d24cfa223b67"
+      },
+      {
+        "date": "2026-04-09",
+        "event": "52-Week High",
+        "metric": "Stock Price",
+        "value": "$119.86",
+        "source": "Investing.com",
+        "evidence_id": "art_7991184e8c885e44"
+      },
+      {
+        "date": "2026-04-09",
+        "event": "AI XPU Traction",
+        "metric": "Design Pipeline",
+        "value": "$75 billion",
+        "source": "qz.com",
+        "evidence_id": "art_0ac396ac8706cf53"
+      },
+      {
+        "date": "2026-04-07",
+        "event": "NVIDIA Partnership",
+        "metric": "Investment Amount",
+        "value": "$2 billion",
+        "source": "Insider Monkey",
+        "evidence_id": "art_617e25dfc785688d"
+      },
+      {
+        "date": "2026-04-06",
+        "event": "Insider Sale",
+        "metric": "Shares Sold",
+        "value": "6,900",
+        "source": "Investing.com",
+        "evidence_id": "art_7ef2fcd4d2615c9b"
+      }
+    ]
+  },
+  "expected_contract": {
+    "status": "completed",
+    "claim_count": 5,
+    "summary_rows": 5,
+    "evidence_ids": 5
+  }
+}

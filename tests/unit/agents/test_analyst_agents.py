@@ -248,7 +248,189 @@ def test_news_analyst_direct_invoke(mock_state, valid_news_report):
         )
         result = node(mock_state)
     assert "AAPL News Analysis" in result["news_report"]
-    assert result["news_report_structured"]["ticker"] == "AAPL"
+
+
+def test_news_analyst_prefetch_total_failure_aborts(mock_state):
+    """News analyst: if both prefetch feeds fail, health gate should abort with critical status."""
+
+    class EmptyNewsEvidenceStore:
+        def ingest_prefetched_sections(self, *, run_id, ticker, trade_date, prefetched):
+            # Simulate total prefetch failure — no evidence records at all
+            return []
+
+        def build_prompt_context(self, records):
+            return "## Evidence Records\n\nNo evidence records available."
+
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={
+            "Company-Specific News (Last 7 Days)": "[Error fetching news] API error",
+            "Global Macroeconomic News (Last 7 Days)": "[Error fetching global news] Network timeout",
+        },
+    ):
+        node = create_news_analyst(
+            MockLLM([AIMessage(content="Should not be invoked")]),
+            evidence_store=EmptyNewsEvidenceStore(),
+        )
+        result = node(mock_state)
+
+    # Should emit critical abort in news_report
+    assert "[CRITICAL ABORT]" in result["news_report"]
+    assert "prefetch failed" in result["news_report"]
+    # Analyst returns empty dict - fact-checker will normalize it to canonical contract
+    assert result["news_report_structured"] == {}
+
+
+def test_news_analyst_no_prefetched_evidence_returns_no_news(mock_state):
+    """News analyst: if prefetch succeeds but returns zero evidence records, should return empty status."""
+
+    class NoEvidenceStore:
+        def ingest_prefetched_sections(self, *, run_id, ticker, trade_date, prefetched):
+            # Prefetch succeeded (returned sections), but no articles matched the criteria
+            return []
+
+        def build_prompt_context(self, records):
+            return "## Evidence Records\n\nNo evidence records available."
+
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={
+            "Company-Specific News (Last 7 Days)": "No articles found.",
+            "Industry-Wide News (Last 7 Days)": "No articles found.",
+        },
+    ):
+        node = create_news_analyst(
+            MockLLM([AIMessage(content="No news to report.")]),
+            evidence_store=NoEvidenceStore(),
+        )
+        result = node(mock_state)
+
+    # Should return deterministic no-news message and empty structured payload
+    assert "No news evidence was available" in result["news_report"]
+    assert result["news_report_structured"] == {}
+
+
+def test_news_analyst_uses_scanner_context_when_no_articles_ingested(mock_state):
+    """Scanner context can support news analysis even when no articles are persisted."""
+
+    class NoEvidenceStore:
+        def ingest_prefetched_sections(self, *, run_id, ticker, trade_date, prefetched):
+            return []
+
+        def build_prompt_context(self, records):
+            return "## Evidence Records\n\nNo evidence records available."
+
+    scanner_report = AIMessage(
+        content="""
+        {
+          "ticker": "AAPL",
+          "report_title": "AAPL News Analysis",
+          "claims": [
+            {
+              "claim": "AAPL appeared in the smart money scanner on 2024-05-15 with +5.0% relative volume.",
+              "source": "Finviz Smart Money Scanner",
+              "scan_date": "2024-05-15"
+            }
+          ],
+          "summary_table": [
+            {
+              "date": "2024-05-15",
+              "event": "Scanner inclusion",
+              "metric": "Relative volume",
+              "value": "+5.0%",
+              "source": "Finviz Smart Money Scanner",
+              "scan_date": "2024-05-15"
+            }
+          ]
+        }
+        """
+    )
+    state = {
+        **mock_state,
+        "scanner_context_packet": (
+            "# SCANNER CONTEXT PACKET: AAPL\n"
+            "Date: 2024-05-15\n\n"
+            "Source: Finviz Smart Money Scanner\n"
+            "Scan Date: 2024-05-15\n"
+            "[Source: Finviz Smart Money Scanner | Scan Date: 2024-05-15]\n"
+            "AAPL relative volume +5.0%."
+        ),
+    }
+
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={
+            "Company-Specific News (Last 7 Days)": "No articles found.",
+            "Global Macroeconomic News (Last 7 Days)": "No articles found.",
+        },
+    ):
+        llm = MockLLM([scanner_report])
+        node = create_news_analyst(llm, evidence_store=NoEvidenceStore())
+        result = node(state)
+
+    assert llm.runnable.call_count == 1
+    assert "Finviz Smart Money Scanner" in result["news_report"]
+    assert result["news_report_structured"]["claims"][0]["source"] == "Finviz Smart Money Scanner"
+
+
+def test_news_analyst_invalid_json_does_not_operationally_abort(mock_state):
+    """News analyst: if LLM returns invalid JSON, fact-checker normalizer handles it gracefully."""
+
+    invalid_json_msg = AIMessage(
+        content="""
+        {
+          "ticker": "AAPL",
+          "report_title": "AAPL News Analysis",
+          "claims": [
+            {
+              "claim": "AAPL supplier demand improved.",
+              "source": "Sahm",
+              # This is invalid JSON comment that breaks parsing
+              "published_at": "2024-05-15"
+            }
+          ]
+        }
+        """
+    )
+
+    # Second attempt also returns invalid JSON (analyst retries once)
+    invalid_json_msg_retry = AIMessage(
+        content="""
+        {
+          "ticker": "AAPL",
+          "report_title": "AAPL News Analysis Retry",
+          "claims": [
+            {
+              "claim": "AAPL supplier demand improved.",
+              "source": "Sahm",
+              // Invalid JSON comment again
+              "published_at": "2024-05-15"
+            }
+          ]
+        }
+        """
+    )
+
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={
+            "Company-Specific News (Last 7 Days)": "Some context",
+            "Industry-Wide News (Last 7 Days)": "More context",
+        },
+    ):
+        node = create_news_analyst(
+            MockLLM([invalid_json_msg, invalid_json_msg_retry]),
+            evidence_store=FakeNewsEvidenceStore(),
+        )
+        result = node(mock_state)
+
+    # Analyst returns empty dict for news_report_structured when JSON parsing fails on all attempts
+    assert "news_report_structured" in result
+    # Analyst returns empty dict after all retries fail
+    assert result["news_report_structured"] == {}
+    # But raw markdown report is still present (the invalid JSON text)
+    assert "news_report" in result
+    assert result["news_report"]  # Non-empty
 
 
 def test_market_analyst_macro_regime_from_prefetch(mock_state, mock_llm_direct_report):
@@ -470,7 +652,7 @@ def test_news_analyst_aborts_after_two_invalid_attempts(mock_state):
     assert result["news_report"].startswith("[CRITICAL ABORT]")
 
 
-def test_news_analyst_timeout_builds_structured_evidence_fallback(mock_state):
+def test_news_analyst_timeout_returns_critical_abort(mock_state):
     with patch(
         "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
         return_value={},
@@ -485,10 +667,9 @@ def test_news_analyst_timeout_builds_structured_evidence_fallback(mock_state):
         result = node(mock_state)
 
     structured = result["news_report_structured"]
-    assert isinstance(structured, dict)
-    assert structured["ticker"] == "AAPL"
-    assert len(structured["claims"]) >= 1
-    assert "art_aapl_001" in result["news_report"]
+    assert structured == {}
+    assert result["news_report"].startswith("[CRITICAL ABORT]")
+    assert "timed out" in result["news_report"]
 
 
 def test_news_analyst_prompt_forbids_internal_headers_as_sources():
