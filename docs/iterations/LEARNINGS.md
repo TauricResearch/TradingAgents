@@ -1,6 +1,6 @@
 # Learnings Index
 
-**Last analyzed run:** 2026-04-12
+**Last analyzed run:** 2026-04-13
 
 | Domain | File | Last Updated | One-line Summary |
 |--------|------|--------------|-----------------|
@@ -13,7 +13,7 @@
 | early_accumulation | scanners/early_accumulation.md | 2026-04-12 | Sub-threshold (score=60); no catalyst → structurally score-capped by ranker |
 | social_dd | scanners/social_dd.md | 2026-04-12 | Sub-threshold (score=56); BUT 55% 30d win rate — diverges from social_hype; ranker may be suppressing it incorrectly |
 | volume_accumulation | scanners/volume_accumulation.md | — | No data yet |
-| short_squeeze | scanners/short_squeeze.md | — | No data yet — new scanner, research: high SI (>20%) + catalyst = squeeze risk; not a directional signal alone |
+| short_squeeze | scanners/short_squeeze.md | 2026-04-13 | First real data: 60% 7d win rate, +2.15% avg 7d (n=10) — best 7d performer; DTC now surfaced in context |
 
 ## Research
 
