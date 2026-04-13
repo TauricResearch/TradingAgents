@@ -110,7 +110,7 @@ Run `git commit` with a message in the format: `learn(iterate): YYYY-MM-DD — <
 
 Then check for an existing open PR on branch `iterate/current`:
 ```bash
-EXISTING=$(gh pr list --head iterate/current --state open --json number --jq '.[0].number // empty')
+EXISTING=$(gh pr list --repo Aitous/TradingAgents --head iterate/current --state open --json number --jq '.[0].number // empty')
 ```
 
 If one exists: push to that branch and update the PR description with your findings appended.
@@ -119,6 +119,7 @@ If none exists: create branch `iterate/current`, push, open PR against `main`:
 git checkout -b iterate/current
 git push -u origin iterate/current
 gh pr create \
+  --repo Aitous/TradingAgents \
   --title "learn(iterate): automated improvements — $(date +%Y-%m-%d)" \
   --body "$(cat docs/iterations/LEARNINGS.md)" \
   --label "automated,iteration" \
