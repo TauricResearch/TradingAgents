@@ -20,7 +20,16 @@ incorrect. Setups currently score below 65 and are filtered by the score thresho
 - 0 mature recommendations from discovery pipeline (no recommendation generated from this appearance).
 - Confidence: medium (outcome data from scoring.md gives P&L context, but very few appearances in discovery pipeline)
 
+### 2026-04-13 — Statistical analysis (n=25 picks)
+- Avg score: 71.5 — most picks (22/25) already score ≥65. Ranker suppression is an outlier case, not systematic.
+- 7d win rate: 41.7%, avg 7d return: -1.92% — poor short-term.
+- 30d win rate: 60.0%, avg 30d return: +2.32% — confirmed slow-win profile.
+- High-conf (≥7, n=9): 30d win rate 55.6% — high confidence does not add meaningful edge over base rate.
+- **Key insight**: the evaluation horizon mismatch is the real issue. Downstream recommendation scoring and ranker calibration use 7d outcomes, which penalize social_dd unfairly. The scanner works — but only at 30d.
+- Confidence: high (n=25, consistent with prior 55% 30d finding)
+
 ## Pending Hypotheses
-- [ ] Does the ranker's "social_dd / social_hype → SPECULATIVE" grouping suppress social_dd scores, causing us to miss 30d winners?
-- [ ] Should social_dd get a separate ranker treatment from social_hype, given divergent 30d outcomes?
-- [ ] At what social score threshold (>75? >85?) does the setup reliably score ≥65 to generate recommendations?
+- [x] Does the ranker's "social_dd / social_hype → SPECULATIVE" grouping suppress social_dd scores? → **Partially false**: avg score is 71.5, suppression affects only 3/25 picks. Not the primary issue.
+- [ ] Should social_dd get a separate ranker treatment from social_hype, given divergent 30d outcomes? → Still open. social_hype 7d win rate 14.3% vs social_dd 30d 60% — they are fundamentally different signals.
+- [ ] Fix evaluation horizon: ranker and recommendation system should assess social_dd at 30d, not 7d. This may require a scanner-level `eval_horizon` config field.
+- [ ] At what social score threshold (>75? >85?) does the setup reliably score ≥65 to generate recommendations? → Lower priority now that suppression is not the main issue.
