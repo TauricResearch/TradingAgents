@@ -85,6 +85,24 @@ class DualReportStore:
     def load_analysis(self, date: str, ticker: str) -> dict[str, Any] | None:
         return self._try_mongo(lambda: self._mongo.load_analysis(date, ticker), None) or self._local.load_analysis(date, ticker)
 
+    def save_pipeline_node_snapshot(self, date: str, ticker: str, data: dict[str, Any]) -> Any:
+        local_result = self._local.save_pipeline_node_snapshot(date, ticker, data)
+        self._try_mongo(
+            lambda: self._mongo.save_pipeline_node_snapshot(date, ticker, data)
+            if hasattr(self._mongo, "save_pipeline_node_snapshot")
+            else None,
+            None,
+        )
+        return local_result
+
+    def load_latest_pipeline_node_snapshot(self, date: str, ticker: str) -> dict[str, Any] | None:
+        return self._try_mongo(
+            lambda: self._mongo.load_latest_pipeline_node_snapshot(date, ticker)
+            if hasattr(self._mongo, "load_latest_pipeline_node_snapshot")
+            else None,
+            None,
+        ) or self._local.load_latest_pipeline_node_snapshot(date, ticker)
+
     # ------------------------------------------------------------------
     # Holding Reviews
     # ------------------------------------------------------------------

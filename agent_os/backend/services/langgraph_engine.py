@@ -204,6 +204,19 @@ SCAN_NODE_TO_REPORT_FIELD = {
 # Keys checked when saving analyst checkpoints
 _ANALYST_KEYS = ("market_report", "sentiment_report", "news_report", "fundamentals_report")
 
+_PIPELINE_ANALYST_PHASE_NODES = frozenset({
+    "Instrument Preflight",
+    "Market Analyst",
+    "Social Analyst",
+    "News Analyst",
+    "Fundamentals Analyst",
+    "News Fact Checker",
+    "Msg Clear Market",
+    "Msg Clear Social",
+    "Msg Clear News",
+    "Msg Clear Fundamentals",
+})
+
 _PIPELINE_NODE_RESULT_FIELDS = (
     "market_report",
     "sentiment_report",
@@ -251,6 +264,89 @@ def _extract_node_results(
     }
 
 
+def _is_top_level_langgraph_node_end(event: Dict[str, Any]) -> bool:
+    if event.get("event") != "on_chain_end":
+        return False
+    metadata = event.get("metadata") or {}
+    if not metadata.get("langgraph_node"):
+        return False
+    return len(event.get("parent_ids", [])) == 1
+
+
+def _build_analysts_checkpoint(
+    state: Dict[str, Any],
+    *,
+    ticker: str,
+    date: str,
+) -> dict[str, Any] | None:
+    if not any(state.get(key) for key in _ANALYST_KEYS):
+        return None
+    return {
+        "company_of_interest": ticker,
+        "trade_date": date,
+        **{key: state.get(key, "") for key in _ANALYST_KEYS},
+        "market_report_structured": state.get("market_report_structured", {}),
+        "news_report_structured": state.get("news_report_structured", {}),
+        "fundamentals_report_structured": state.get("fundamentals_report_structured", {}),
+        "macro_regime_report": state.get("macro_regime_report", ""),
+        "portfolio_context": state.get("portfolio_context", "candidate"),
+        "messages": state.get("messages", []),
+    }
+
+
+def _build_trader_checkpoint(
+    state: Dict[str, Any],
+    *,
+    ticker: str,
+    date: str,
+) -> dict[str, Any] | None:
+    if not state.get("trader_investment_plan"):
+        return None
+    return {
+        "company_of_interest": ticker,
+        "trade_date": date,
+        **{key: state.get(key, "") for key in _ANALYST_KEYS},
+        "market_report_structured": state.get("market_report_structured", {}),
+        "news_report_structured": state.get("news_report_structured", {}),
+        "fundamentals_report_structured": state.get("fundamentals_report_structured", {}),
+        "macro_regime_report": state.get("macro_regime_report", ""),
+        "portfolio_context": state.get("portfolio_context", "candidate"),
+        "investment_debate_state": state.get("investment_debate_state", {}),
+        "investment_plan": state.get("investment_plan", ""),
+        "trader_investment_plan": state.get("trader_investment_plan", ""),
+        "messages": state.get("messages", []),
+    }
+
+
+def infer_pipeline_resume_phase(snapshot: Dict[str, Any] | None) -> str | None:
+    if not isinstance(snapshot, dict):
+        return None
+
+    state = snapshot.get("state")
+    if not isinstance(state, dict):
+        state = {}
+
+    status = normalize_analysis_status(state)
+    if status in {"completed", "aborted"}:
+        return None
+
+    node_name = str(snapshot.get("node_name") or "").strip()
+    if node_name in _PIPELINE_ANALYST_PHASE_NODES:
+        return "analysts"
+    if str(state.get("trader_investment_plan") or "").strip():
+        return "risk"
+    if any(str(state.get(key) or "").strip() for key in _ANALYST_KEYS):
+        return "debate_and_trader"
+    return "analysts"
+
+
+def _apply_resume_state(initial_state: Dict[str, Any], snapshot_state: Dict[str, Any]) -> Dict[str, Any]:
+    for key, value in snapshot_state.items():
+        if key != "messages":
+            initial_state[key] = value
+    return initial_state
+
+
 class LangGraphEngine:
     """Orchestrates LangGraph pipeline executions and streams events."""
 
@@ -259,6 +355,36 @@ class LangGraphEngine:
         self.active_runs: Dict[str, Dict[str, Any]] = {}
         self._event_mapper = EventMapper()
         self._run_loggers: Dict[str, RunLogger] = {}
+
+    def _persist_pipeline_recovery_artifacts(
+        self,
+        *,
+        store,
+        date: str,
+        ticker: str,
+        state: Dict[str, Any],
+        node_name: str,
+    ) -> None:
+        serializable_state = sanitize_for_json(state)
+        snapshot = {
+            "ticker": ticker,
+            "trade_date": date,
+            "node_name": node_name,
+            "resume_phase": infer_pipeline_resume_phase(
+                {"node_name": node_name, "state": serializable_state}
+            ),
+            "analysis_status": normalize_analysis_status(serializable_state),
+            "state": serializable_state,
+        }
+        store.save_pipeline_node_snapshot(date, ticker, snapshot)
+
+        analysts_ckpt = _build_analysts_checkpoint(serializable_state, ticker=ticker, date=date)
+        if analysts_ckpt:
+            store.save_analysts_checkpoint(date, ticker, analysts_ckpt)
+
+        trader_ckpt = _build_trader_checkpoint(serializable_state, ticker=ticker, date=date)
+        if trader_ckpt:
+            store.save_trader_checkpoint(date, ticker, trader_ckpt)
 
     # ------------------------------------------------------------------
     # Run logger lifecycle
@@ -565,9 +691,18 @@ class LangGraphEngine:
             market_report_structured=injected_market["market_report_structured"],
             macro_regime_report=injected_market["macro_regime_report"],
         )
+        if params.get("resume_from_latest_snapshot"):
+            resume_snapshot = store.load_latest_pipeline_node_snapshot(date, ticker)
+            if resume_snapshot and isinstance(resume_snapshot.get("state"), dict):
+                _apply_resume_state(initial_state, resume_snapshot["state"])
+                resume_node = str(resume_snapshot.get("node_name") or "saved state")
+                yield system_log(
+                    f"Resuming analysis for {ticker} from saved state after {resume_node}."
+                )
 
         self._event_mapper.register_run(execution_key, ticker.upper())
         final_state: Dict[str, Any] = {}
+        current_state: Dict[str, Any] = dict(initial_state)
 
         try:
             async for event in graph_wrapper.graph.astream_events(
@@ -588,6 +723,24 @@ class LangGraphEngine:
                     output = (event.get("data") or {}).get("output")
                     if isinstance(output, dict):
                         final_state = output
+                if _is_top_level_langgraph_node_end(event):
+                    output = (event.get("data") or {}).get("output")
+                    if isinstance(output, dict):
+                        current_state.update(output)
+                        try:
+                            self._persist_pipeline_recovery_artifacts(
+                                store=store,
+                                date=date,
+                                ticker=ticker,
+                                state=current_state,
+                                node_name=str((event.get("metadata") or {}).get("langgraph_node") or "unknown"),
+                            )
+                        except Exception:
+                            logger.exception(
+                                "Failed to persist pipeline node snapshot run=%s ticker=%s",
+                                root_run_id,
+                                ticker,
+                            )
                 mapped = self._event_mapper.map_event(execution_key, event)
                 if mapped:
                     yield mapped
@@ -656,36 +809,20 @@ class LangGraphEngine:
                     append_to_digest(date, "analyze", ticker, digest_content)
 
                 # Save analysts checkpoint (any analyst report populated — social is optional)
-                if any(final_state.get(k) for k in _ANALYST_KEYS):
-                    analysts_ckpt = {
-                        "company_of_interest": ticker,
-                        "trade_date": date,
-                        **{k: serializable_state.get(k, "") for k in _ANALYST_KEYS},
-                        "market_report_structured": serializable_state.get("market_report_structured", {}),
-                        "news_report_structured": serializable_state.get("news_report_structured", {}),
-                        "fundamentals_report_structured": serializable_state.get("fundamentals_report_structured", {}),
-                        "macro_regime_report": serializable_state.get("macro_regime_report", ""),
-                        "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
-                        "messages": serializable_state.get("messages", []),
-                    }
+                analysts_ckpt = _build_analysts_checkpoint(
+                    serializable_state,
+                    ticker=ticker,
+                    date=date,
+                )
+                if analysts_ckpt:
                     store.save_analysts_checkpoint(date, ticker, analysts_ckpt)
 
-                # Save trader checkpoint (trader output populated)
-                if final_state.get("trader_investment_plan"):
-                    trader_ckpt = {
-                        "company_of_interest": ticker,
-                        "trade_date": date,
-                        **{k: serializable_state.get(k, "") for k in _ANALYST_KEYS},
-                        "market_report_structured": serializable_state.get("market_report_structured", {}),
-                        "news_report_structured": serializable_state.get("news_report_structured", {}),
-                        "fundamentals_report_structured": serializable_state.get("fundamentals_report_structured", {}),
-                        "macro_regime_report": serializable_state.get("macro_regime_report", ""),
-                        "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
-                        "investment_debate_state": serializable_state.get("investment_debate_state", {}),
-                        "investment_plan": serializable_state.get("investment_plan", ""),
-                        "trader_investment_plan": serializable_state.get("trader_investment_plan", ""),
-                        "messages": serializable_state.get("messages", []),
-                    }
+                trader_ckpt = _build_trader_checkpoint(
+                    serializable_state,
+                    ticker=ticker,
+                    date=date,
+                )
+                if trader_ckpt:
                     store.save_trader_checkpoint(date, ticker, trader_ckpt)
 
                 yield system_log(f"Analysis report for {ticker} saved to {save_dir}")
@@ -1018,6 +1155,7 @@ class LangGraphEngine:
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)
                 self._event_mapper.register_run(execution_key, ticker.upper())
                 final_state: Dict[str, Any] = {}
+                current_state: Dict[str, Any] = dict(initial_state)
 
                 async for event in graph_wrapper.debate_graph.astream_events(
                     initial_state, version="v2",
@@ -1032,6 +1170,24 @@ class LangGraphEngine:
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
+                    if _is_top_level_langgraph_node_end(event):
+                        output = (event.get("data") or {}).get("output")
+                        if isinstance(output, dict):
+                            current_state.update(output)
+                            try:
+                                self._persist_pipeline_recovery_artifacts(
+                                    store=writer_store,
+                                    date=date,
+                                    ticker=ticker,
+                                    state=current_state,
+                                    node_name=str((event.get("metadata") or {}).get("langgraph_node") or "unknown"),
+                                )
+                            except Exception:
+                                logger.exception(
+                                    "Failed to persist debate rerun snapshot run=%s ticker=%s",
+                                    root_run_id,
+                                    ticker,
+                                )
                     mapped = self._event_mapper.map_event(execution_key, event)
                     if mapped:
                         yield mapped
@@ -1049,18 +1205,12 @@ class LangGraphEngine:
                         serializable_state["pipeline_node_results"] = pipeline_node_results
                     writer_store.save_analysis(date, ticker, serializable_state)
                     # Overwrite checkpoints
-                    if final_state.get("trader_investment_plan"):
-                        trader_ckpt = {
-                            "company_of_interest": ticker,
-                            "trade_date": date,
-                            **{k: serializable_state.get(k, "") for k in _ANALYST_KEYS},
-                            "macro_regime_report": serializable_state.get("macro_regime_report", ""),
-                            "portfolio_context": serializable_state.get("portfolio_context", "candidate"),
-                            "investment_debate_state": serializable_state.get("investment_debate_state", {}),
-                            "investment_plan": serializable_state.get("investment_plan", ""),
-                            "trader_investment_plan": serializable_state.get("trader_investment_plan", ""),
-                            "messages": serializable_state.get("messages", []),
-                        }
+                    trader_ckpt = _build_trader_checkpoint(
+                        serializable_state,
+                        ticker=ticker,
+                        date=date,
+                    )
+                    if trader_ckpt:
                         writer_store.save_trader_checkpoint(date, ticker, trader_ckpt)
 
                 self._finish_run_logger(execution_key, get_ticker_dir(date, ticker, root_run_id))
@@ -1092,6 +1242,7 @@ class LangGraphEngine:
                 rl = self._start_run_logger(root_run_id, logger_key=execution_key)
                 self._event_mapper.register_run(execution_key, ticker.upper())
                 final_state: Dict[str, Any] = {}
+                current_state: Dict[str, Any] = dict(initial_state)
 
                 async for event in graph_wrapper.risk_graph.astream_events(
                     initial_state, version="v2",
@@ -1106,6 +1257,24 @@ class LangGraphEngine:
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
+                    if _is_top_level_langgraph_node_end(event):
+                        output = (event.get("data") or {}).get("output")
+                        if isinstance(output, dict):
+                            current_state.update(output)
+                            try:
+                                self._persist_pipeline_recovery_artifacts(
+                                    store=writer_store,
+                                    date=date,
+                                    ticker=ticker,
+                                    state=current_state,
+                                    node_name=str((event.get("metadata") or {}).get("langgraph_node") or "unknown"),
+                                )
+                            except Exception:
+                                logger.exception(
+                                    "Failed to persist risk rerun snapshot run=%s ticker=%s",
+                                    root_run_id,
+                                    ticker,
+                                )
                     mapped = self._event_mapper.map_event(execution_key, event)
                     if mapped:
                         yield mapped
@@ -1374,6 +1543,8 @@ class LangGraphEngine:
                     failed_tickers[ticker] = reason
 
                 existing_analysis = store.load_analysis(date, ticker)
+                latest_snapshot = None if force else store.load_latest_pipeline_node_snapshot(date, ticker)
+                resume_phase = infer_pipeline_resume_phase(latest_snapshot)
                 if not force and analysis_is_terminal(existing_analysis):
                     status = analysis_status(existing_analysis)
                     await pipeline_queue.put(
@@ -1389,19 +1560,42 @@ class LangGraphEngine:
                 )
                 scanner_packet = build_scanner_context_packet(scan_state, ticker)
 
-                try:
-                    async for evt in self.run_pipeline(
-                        f"{root_run_id}:pipeline:{ticker}",
-                        {
-                            "ticker": ticker,
-                            "date": date,
-                            "run_id": root_run_id,
-                            "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
-                            "scanner_context_packet": scanner_packet,
-                            "_execution_key": f"{root_run_id}:pipeline:{ticker}",
-                        },
-                    ):
+                async def _run_ticker_pipeline(execution_label: str) -> None:
+                    base_params = {
+                        "ticker": ticker,
+                        "date": date,
+                        "run_id": root_run_id,
+                        "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
+                        "scanner_context_packet": scanner_packet,
+                        "_execution_key": execution_label,
+                    }
+                    if resume_phase == "analysts":
+                        base_params["resume_from_latest_snapshot"] = True
+                        if latest_snapshot:
+                            resume_node = str(latest_snapshot.get("node_name") or "saved state")
+                            await pipeline_queue.put(
+                                system_log(
+                                    f"Phase 2/3: Resuming {ticker} from saved state after {resume_node}."
+                                )
+                            )
+                        async for evt in self.run_pipeline(execution_label, base_params):
+                            await pipeline_queue.put(evt)
+                        return
+                    if resume_phase in {"debate_and_trader", "risk"}:
+                        resume_node = str((latest_snapshot or {}).get("node_name") or resume_phase)
+                        await pipeline_queue.put(
+                            system_log(
+                                f"Phase 2/3: Resuming {ticker} from {resume_node} via {resume_phase} checkpoint."
+                            )
+                        )
+                        async for evt in self.run_pipeline_from_phase(execution_label, base_params, resume_phase):
+                            await pipeline_queue.put(evt)
+                        return
+                    async for evt in self.run_pipeline(execution_label, base_params):
                         await pipeline_queue.put(evt)
+
+                try:
+                    await _run_ticker_pipeline(f"{root_run_id}:pipeline:{ticker}")
                     saved_analysis = store.load_analysis(date, ticker)
                     saved_status = analysis_status(saved_analysis)
                     if saved_status == "aborted":
@@ -1442,18 +1636,7 @@ class LangGraphEngine:
                             original_config = self.config
                             self.config = fallback_config
                             try:
-                                async for evt in self.run_pipeline(
-                                    f"{root_run_id}:fallback:{ticker}",
-                                    {
-                                        "ticker": ticker,
-                                        "date": date,
-                                        "run_id": root_run_id,
-                                        "portfolio_context": "holding" if instrument.instrument_key in holding_instrument_keys else "candidate",
-                                        "scanner_context_packet": scanner_packet,
-                                        "_execution_key": f"{root_run_id}:fallback:{ticker}",
-                                    },
-                                ):
-                                    await pipeline_queue.put(evt)
+                                await _run_ticker_pipeline(f"{root_run_id}:fallback:{ticker}")
                                 saved_analysis = store.load_analysis(date, ticker)
                                 saved_status = analysis_status(saved_analysis)
                                 if saved_status == "aborted":

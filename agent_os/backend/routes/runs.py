@@ -11,6 +11,7 @@ from agent_os.backend.services.langgraph_engine import (
     LangGraphEngine,
     NODE_TO_PHASE,
     SCAN_NODE_TO_REPORT_FIELD,
+    infer_pipeline_resume_phase,
 )
 from agent_os.backend.services.mock_engine import MockEngine
 from tradingagents.report_paths import generate_run_id
@@ -165,6 +166,24 @@ def _infer_scan_resume_node(events: list[dict[str, Any]]) -> str | None:
     if "macro_synthesis" not in completed:
         return "macro_synthesis"
     return None
+
+
+def _infer_pipeline_resume_phase(run_id: str, params: dict[str, Any]) -> tuple[str | None, str | None]:
+    ticker = str(params.get("ticker") or params.get("identifier") or "").strip()
+    date = str(params.get("date") or "").strip()
+    if not ticker or not date:
+        return None, None
+    try:
+        from tradingagents.portfolio.store_factory import create_report_store
+
+        store = create_report_store(run_id=run_id)
+        snapshot = store.load_latest_pipeline_node_snapshot(date, ticker)
+        if not snapshot:
+            return None, None
+        return infer_pipeline_resume_phase(snapshot), str(snapshot.get("node_name") or "")
+    except Exception:
+        logger.warning("Failed to infer pipeline resume phase run=%s ticker=%s", run_id, ticker)
+        return None, None
 
 
 def _persist_run_to_disk(run_id: str, *, include_meta: bool = True) -> None:
@@ -694,6 +713,22 @@ async def resume_run(
     run.pop("error", None)
     _append_system_event(run_id, f"Resume requested — continuing {run_type} run on the same run id.")
     resume_params = {**params, "run_id": run_id, "_execution_key": f"{run_id}:resume:{run_type}"}
+
+    if run_type == "pipeline":
+        phase, node_name = _infer_pipeline_resume_phase(run_id, params)
+        if phase:
+            _append_system_event(
+                run_id,
+                f"Resume requested — continuing pipeline from {node_name or phase} via {phase} checkpoint.",
+            )
+            resume_params = {**params, "run_id": run_id, "_execution_key": f"{run_id}:resume:{run_type}"}
+            if phase == "analysts":
+                resume_params["resume_from_latest_snapshot"] = True
+                gen = engine.run_pipeline(f"{run_id}:resume:pipeline", resume_params)
+            else:
+                gen = engine.run_pipeline_from_phase(f"{run_id}:resume:{phase}", resume_params, phase)
+            _set_run_task(run_id, _resume_and_store(run_id, gen))
+            return {"run_id": run_id, "status": "queued", "mode": "pipeline_checkpoint", "phase": phase}
 
     if run_type == "auto":
         gen = engine.run_auto(f"{run_id}:resume:auto", resume_params)
