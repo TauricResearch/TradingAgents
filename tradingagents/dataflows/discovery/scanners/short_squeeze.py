@@ -67,6 +67,7 @@ class ShortSqueezeScanner(BaseScanner):
                     continue
 
                 si_pct = item.get("short_interest_pct", 0)
+                dtc = item.get("days_to_cover", 0.0)
                 signal = item.get("signal", "low_squeeze_potential")
                 label = _SIGNAL_LABELS.get(signal, signal)
 
@@ -78,8 +79,9 @@ class ShortSqueezeScanner(BaseScanner):
                 else:
                     priority = Priority.MEDIUM.value
 
+                dtc_str = f"{dtc:.1f}" if dtc else "N/A"
                 context = (
-                    f"Short interest {si_pct:.1f}% of float — {label}"
+                    f"Short interest {si_pct:.1f}% of float, {dtc_str} days to cover — {label}"
                     " | squeeze risk elevates if catalyst arrives"
                 )
 
@@ -91,6 +93,7 @@ class ShortSqueezeScanner(BaseScanner):
                         "priority": priority,
                         "strategy": self.strategy,
                         "short_interest_pct": si_pct,
+                        "days_to_cover": dtc,
                         "squeeze_signal": signal,
                     }
                 )

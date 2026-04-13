@@ -115,6 +115,15 @@ def get_short_interest(
                     market_cap = info.get("marketCap", 0)
                     volume = info.get("volume", info.get("regularMarketVolume", 0))
 
+                    # Days to cover (short ratio): shares short / avg daily volume
+                    days_to_cover = info.get("shortRatio")
+                    if days_to_cover is None or not isinstance(days_to_cover, (int, float)):
+                        days_to_cover = 0.0
+
+                    # Apply days-to-cover filter
+                    if days_to_cover < min_days_to_cover:
+                        return None
+
                     # Categorize squeeze potential
                     if short_pct >= 30:
                         signal = "extreme_squeeze_risk"
@@ -131,6 +140,7 @@ def get_short_interest(
                         "market_cap": market_cap,
                         "volume": volume,
                         "short_interest_pct": short_pct,
+                        "days_to_cover": days_to_cover,
                         "signal": signal,
                     }
             except Exception:
