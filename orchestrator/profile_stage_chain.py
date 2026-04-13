@@ -85,9 +85,6 @@ def _extract_research_state(event: dict) -> tuple[str | None, str | None, int | 
     )
 
 
-<<<<<<< HEAD
-=======
-
 def build_trace_payload(
     *,
     status: str,
@@ -124,9 +121,6 @@ def build_trace_payload(
     if exception_type is not None:
         payload["exception_type"] = exception_type
     return payload
-
-
->>>>>>> 82e61cb (omx(team): auto-checkpoint worker-4 [unknown])
 def main() -> None:
     args = build_parser().parse_args()
     selected_analysts = [item.strip() for item in args.selected_analysts.split(",") if item.strip()]
