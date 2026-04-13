@@ -10,7 +10,7 @@ DEFAULT_EXECUTOR_TYPE = "legacy_subprocess"
 
 
 class JobService:
-    """Application-layer job state orchestrator with legacy-compatible payloads."""
+    """Application-layer job state orchestrator with contract-first public projections."""
 
     def __init__(
         self,
@@ -67,16 +67,15 @@ class JobService:
                 )
             ],
             "logs": [],
-            "decision": None,
-            "quant_signal": None,
-            "llm_signal": None,
-            "confidence": None,
             "result": None,
             "error": None,
             "request_id": request_id,
             "executor_type": executor_type,
             "contract_version": contract_version,
             "result_ref": result_ref,
+            "degradation_summary": None,
+            "data_quality_summary": None,
+            "compat": {},
         })
         self.task_results[task_id] = state
         self.processes.setdefault(task_id, None)
@@ -107,6 +106,9 @@ class JobService:
             "executor_type": executor_type,
             "contract_version": contract_version,
             "result_ref": result_ref,
+            "degradation_summary": None,
+            "data_quality_summary": None,
+            "compat": {},
         })
         self.task_results[task_id] = state
         self.processes.setdefault(task_id, None)
@@ -146,13 +148,17 @@ class JobService:
         state["current_stage"] = contract.get("current_stage", state.get("current_stage"))
         state["elapsed_seconds"] = contract.get("elapsed_seconds", state.get("elapsed_seconds", 0))
         state["elapsed"] = contract.get("elapsed", state["elapsed_seconds"])
-        state["decision"] = result.get("decision")
-        state["quant_signal"] = quant.get("rating")
-        state["llm_signal"] = llm.get("rating")
-        state["confidence"] = result.get("confidence")
         state["result"] = result
         state["error"] = contract.get("error")
         state["contract_version"] = contract.get("contract_version", state.get("contract_version"))
+        state["degradation_summary"] = self._build_degradation_summary(result)
+        state["data_quality_summary"] = contract.get("data_quality")
+        state["compat"] = {
+            "decision": result.get("decision"),
+            "quant_signal": quant.get("rating"),
+            "llm_signal": llm.get("rating"),
+            "confidence": result.get("confidence"),
+        }
         self.attach_result_contract(
             task_id,
             result_ref=result_ref,
@@ -194,6 +200,89 @@ class JobService:
         self.persist_task(task_id, state)
         return state
 
+    def to_public_task_payload(self, task_id: str, *, contract: dict | None = None) -> dict:
+        state = self.task_results[task_id]
+        payload = {
+            "contract_version": state.get("contract_version", CONTRACT_VERSION),
+            "task_id": task_id,
+            "request_id": state.get("request_id"),
+            "executor_type": state.get("executor_type", DEFAULT_EXECUTOR_TYPE),
+            "result_ref": state.get("result_ref"),
+            "status": state.get("status"),
+            "created_at": state.get("created_at"),
+            "degradation_summary": state.get("degradation_summary"),
+            "data_quality_summary": state.get("data_quality_summary"),
+            "error": self._public_error(contract, state),
+        }
+        if state.get("type") == "portfolio":
+            payload.update({
+                "type": "portfolio",
+                "total": state.get("total", 0),
+                "completed": state.get("completed", 0),
+                "failed": state.get("failed", 0),
+                "current_ticker": state.get("current_ticker"),
+                "results": state.get("results", []),
+            })
+        else:
+            payload.update({
+                "ticker": state.get("ticker"),
+                "date": state.get("date"),
+                "progress": state.get("progress", 0),
+                "current_stage": state.get("current_stage"),
+                "elapsed_seconds": state.get("elapsed_seconds", 0),
+                "stages": state.get("stages", []),
+                "result": self._public_result(contract, state),
+            })
+
+        compat = {
+            key: value
+            for key, value in (state.get("compat") or {}).items()
+            if value is not None
+        }
+        if compat:
+            payload["compat"] = compat
+        return payload
+
+    def to_task_summary(self, task_id: str, *, contract: dict | None = None) -> dict:
+        state = self.task_results[task_id]
+        payload = self.to_public_task_payload(task_id, contract=contract)
+        summary = {
+            "task_id": payload["task_id"],
+            "contract_version": payload["contract_version"],
+            "request_id": payload.get("request_id"),
+            "executor_type": payload.get("executor_type"),
+            "result_ref": payload.get("result_ref"),
+            "status": payload["status"],
+            "created_at": payload.get("created_at"),
+            "error": payload.get("error"),
+        }
+        if state.get("type") == "portfolio":
+            summary.update({
+                "type": "portfolio",
+                "total": payload.get("total", 0),
+                "completed": payload.get("completed", 0),
+                "failed": payload.get("failed", 0),
+                "current_ticker": payload.get("current_ticker"),
+            })
+            return summary
+
+        result = payload.get("result") or {}
+        summary.update({
+            "ticker": payload.get("ticker"),
+            "date": payload.get("date"),
+            "progress": payload.get("progress", 0),
+            "current_stage": payload.get("current_stage"),
+            "summary": {
+                "decision": result.get("decision"),
+                "confidence": result.get("confidence"),
+                "degraded": result.get("degraded", False),
+            },
+        })
+        compat = payload.get("compat")
+        if compat:
+            summary["compat"] = compat
+        return summary
+
     def register_background_task(self, task_id: str, task: asyncio.Task) -> None:
         self.analysis_tasks[task_id] = task
 
@@ -219,4 +308,36 @@ class JobService:
         normalized.setdefault("executor_type", DEFAULT_EXECUTOR_TYPE)
         normalized.setdefault("contract_version", CONTRACT_VERSION)
         normalized.setdefault("result_ref", None)
+        normalized.setdefault("degradation_summary", None)
+        normalized.setdefault("data_quality_summary", None)
+        compat = normalized.get("compat")
+        if not isinstance(compat, dict):
+            compat = {}
+        for key in ("decision", "quant_signal", "llm_signal", "confidence"):
+            if key in normalized and key not in compat:
+                compat[key] = normalized.get(key)
+        normalized["compat"] = compat
         return normalized
+
+    @staticmethod
+    def _build_degradation_summary(result: dict) -> dict | None:
+        if not result:
+            return None
+        degraded = bool(result.get("degraded"))
+        report = result.get("report") or {}
+        return {
+            "degraded": degraded,
+            "report_available": bool(report.get("available")),
+        }
+
+    @staticmethod
+    def _public_result(contract: dict | None, state: dict) -> dict | None:
+        if contract is not None:
+            return contract.get("result")
+        return state.get("result")
+
+    @staticmethod
+    def _public_error(contract: dict | None, state: dict) -> dict | str | None:
+        if contract is not None and "error" in contract:
+            return contract.get("error")
+        return state.get("error")

@@ -302,7 +302,7 @@ async def get_task_status(task_id: str, api_key: Optional[str] = Header(None)):
         _auth_error()
     if task_id not in app.state.task_results:
         raise HTTPException(status_code=404, detail="Task not found")
-    return app.state.task_results[task_id]
+    return _public_task_payload(task_id)
 
 
 @app.get("/api/analysis/tasks")
@@ -310,21 +310,10 @@ async def list_tasks(api_key: Optional[str] = Header(None)):
     """List all tasks (active and recent)"""
     if not _check_api_key(api_key):
         _auth_error()
-    tasks = []
-    for task_id, state in app.state.task_results.items():
-        tasks.append({
-            "task_id": task_id,
-            "ticker": state.get("ticker"),
-            "date": state.get("date"),
-            "status": state.get("status"),
-            "progress": state.get("progress", 0),
-            "decision": state.get("decision"),
-            "error": state.get("error"),
-            "created_at": state.get("created_at"),
-        })
+    tasks = [_public_task_summary(task_id) for task_id in app.state.task_results]
     # Sort by created_at descending (most recent first)
     tasks.sort(key=lambda x: x.get("created_at") or "", reverse=True)
-    return {"tasks": tasks, "total": len(tasks)}
+    return {"contract_version": "v1alpha1", "tasks": tasks, "total": len(tasks)}
 
 
 @app.delete("/api/analysis/cancel/{task_id}")
@@ -346,11 +335,16 @@ async def cancel_task(task_id: str, api_key: Optional[str] = Header(None)):
     if task:
         task.cancel()
 
-    state = app.state.task_results[task_id]
-    state["status"] = "cancelled"
-    state["error"] = "用户取消"
-    app.state.result_store.save_task_status(task_id, state)
-    await broadcast_progress(task_id, state)
+    state = app.state.job_service.cancel_job(task_id, error="用户取消")
+    if state is not None:
+        state["status"] = "cancelled"
+        state["error"] = {
+            "code": "cancelled",
+            "message": "用户取消",
+            "retryable": False,
+        }
+        app.state.result_store.save_task_status(task_id, state)
+        await broadcast_progress(task_id, state)
     app.state.result_store.delete_task_status(task_id)
 
     return {"contract_version": "v1alpha1", "task_id": task_id, "status": "cancelled"}
@@ -376,7 +370,7 @@ async def websocket_analysis(websocket: WebSocket, task_id: str):
     if task_id in app.state.task_results:
         await websocket.send_text(json.dumps({
             "type": "progress",
-            **app.state.task_results[task_id]
+            **_public_task_payload(task_id)
         }))
 
     try:
@@ -395,7 +389,8 @@ async def broadcast_progress(task_id: str, progress: dict):
     if task_id not in app.state.active_connections:
         return
 
-    message = json.dumps({"type": "progress", **progress})
+    payload = _public_task_payload(task_id, state_override=progress)
+    message = json.dumps({"type": "progress", **payload})
     dead = []
 
     for connection in app.state.active_connections[task_id]:
@@ -406,6 +401,28 @@ async def broadcast_progress(task_id: str, progress: dict):
 
     for conn in dead:
         app.state.active_connections[task_id].remove(conn)
+
+
+def _load_task_contract(task_id: str, state: Optional[dict] = None) -> Optional[dict]:
+    current_state = state or app.state.task_results.get(task_id)
+    if current_state is None:
+        return None
+    return app.state.result_store.load_result_contract(
+        result_ref=current_state.get("result_ref"),
+        task_id=task_id,
+    )
+
+
+def _public_task_payload(task_id: str, state_override: Optional[dict] = None) -> dict:
+    state = state_override or app.state.task_results[task_id]
+    contract = _load_task_contract(task_id, state)
+    return app.state.job_service.to_public_task_payload(task_id, contract=contract)
+
+
+def _public_task_summary(task_id: str, state_override: Optional[dict] = None) -> dict:
+    state = state_override or app.state.task_results[task_id]
+    contract = _load_task_contract(task_id, state)
+    return app.state.job_service.to_task_summary(task_id, contract=contract)
 
 
 # ============== Reports ==============
@@ -664,8 +681,6 @@ from api.portfolio import (
     get_watchlist, add_to_watchlist, remove_from_watchlist,
     get_positions, add_position, remove_position,
     get_accounts, create_account, delete_account,
-    get_recommendations, get_recommendation, save_recommendation,
-    RECOMMENDATIONS_DIR,
 )
 
 
@@ -795,14 +810,14 @@ async def list_recommendations(
 ):
     if not _check_api_key(api_key):
         _auth_error()
-    return get_recommendations(date, limit, offset)
+    return app.state.result_store.get_recommendations(date, limit, offset)
 
 
 @app.get("/api/portfolio/recommendations/{date}/{ticker}")
 async def get_recommendation_endpoint(date: str, ticker: str, api_key: Optional[str] = Header(None)):
     if not _check_api_key(api_key):
         _auth_error()
-    rec = get_recommendation(date, ticker)
+    rec = app.state.result_store.get_recommendation(date, ticker)
     if not rec:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     return rec
@@ -877,7 +892,10 @@ async def ws_orchestrator(websocket: WebSocket, api_key: Optional[str] = None):
             date = payload.get("date")
 
             results = await live.run_once(tickers, date)
-            await websocket.send_text(json.dumps({"signals": results}))
+            await websocket.send_text(json.dumps({
+                "contract_version": "v1alpha1",
+                "signals": results,
+            }))
     except WebSocketDisconnect:
         pass
     except Exception as e:

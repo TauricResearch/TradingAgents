@@ -284,6 +284,65 @@ DEFAULT_PAGE_SIZE = 50
 MAX_PAGE_SIZE = 500
 
 
+def _rating_to_direction(rating: Optional[str]) -> int:
+    if rating in {"BUY", "OVERWEIGHT"}:
+        return 1
+    if rating in {"SELL", "UNDERWEIGHT"}:
+        return -1
+    return 0
+
+
+def _normalize_recommendation_record(record: dict, *, date: Optional[str] = None, ticker: Optional[str] = None) -> dict:
+    normalized = dict(record)
+    if "result" in normalized and "contract_version" in normalized:
+        normalized.setdefault("ticker", ticker or normalized.get("ticker"))
+        normalized.setdefault("date", date or normalized.get("date") or normalized.get("analysis_date"))
+        return normalized
+
+    decision = normalized.get("decision", "HOLD")
+    quant_signal = normalized.get("quant_signal")
+    llm_signal = normalized.get("llm_signal")
+    confidence = normalized.get("confidence")
+    date_value = date or normalized.get("date") or normalized.get("analysis_date")
+    ticker_value = ticker or normalized.get("ticker")
+    return {
+        "contract_version": "v1alpha1",
+        "ticker": ticker_value,
+        "name": normalized.get("name", ticker_value),
+        "date": date_value,
+        "status": normalized.get("status", "completed"),
+        "created_at": normalized.get("created_at"),
+        "result": {
+            "decision": decision,
+            "confidence": confidence,
+            "signals": {
+                "merged": {
+                    "direction": _rating_to_direction(decision),
+                    "rating": decision,
+                },
+                "quant": {
+                    "direction": _rating_to_direction(quant_signal),
+                    "rating": quant_signal,
+                    "available": quant_signal is not None,
+                },
+                "llm": {
+                    "direction": _rating_to_direction(llm_signal),
+                    "rating": llm_signal,
+                    "available": llm_signal is not None,
+                },
+            },
+            "degraded": quant_signal is None or llm_signal is None,
+        },
+        "compat": {
+            "analysis_date": date_value,
+            "decision": decision,
+            "quant_signal": quant_signal,
+            "llm_signal": llm_signal,
+            "confidence": confidence,
+        },
+    }
+
+
 def get_recommendations(date: Optional[str] = None, limit: int = DEFAULT_PAGE_SIZE, offset: int = 0) -> dict:
     """List recommendations, optionally filtered by date. Returns paginated results."""
     RECOMMENDATIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -293,7 +352,7 @@ def get_recommendations(date: Optional[str] = None, limit: int = DEFAULT_PAGE_SI
         date_dir = RECOMMENDATIONS_DIR / date
         if date_dir.exists():
             all_recs = [
-                json.loads(f.read_text())
+                _normalize_recommendation_record(json.loads(f.read_text()), date=date_dir.name)
                 for f in sorted(date_dir.glob("*.json"), reverse=True)
                 if f.suffix == ".json"
             ]
@@ -302,10 +361,16 @@ def get_recommendations(date: Optional[str] = None, limit: int = DEFAULT_PAGE_SI
             if date_dir.is_dir() and date_dir.name.startswith("20"):
                 for f in sorted(date_dir.glob("*.json"), reverse=True):
                     if f.suffix == ".json":
-                        all_recs.append(json.loads(f.read_text()))
+                        all_recs.append(
+                            _normalize_recommendation_record(
+                                json.loads(f.read_text()),
+                                date=date_dir.name,
+                            )
+                        )
 
     total = len(all_recs)
     return {
+        "contract_version": "v1alpha1",
         "recommendations": all_recs[offset : offset + limit],
         "total": total,
         "limit": limit,
@@ -327,7 +392,7 @@ def get_recommendation(date: str, ticker: str) -> Optional[dict]:
         path.resolve().relative_to(RECOMMENDATIONS_DIR.resolve())
     except ValueError:
         return None
-    return json.loads(path.read_text())
+    return _normalize_recommendation_record(json.loads(path.read_text()), date=date, ticker=ticker)
 
 
 def save_recommendation(date: str, ticker: str, data: dict):

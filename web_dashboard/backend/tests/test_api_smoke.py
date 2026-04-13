@@ -32,11 +32,24 @@ def test_analysis_task_routes_smoke(monkeypatch):
     main = _load_main_module(monkeypatch)
 
     seeded_task = {
+        "contract_version": "v1alpha1",
         "task_id": "task-smoke",
+        "request_id": "req-task-smoke",
+        "executor_type": "legacy_subprocess",
+        "result_ref": None,
         "ticker": "AAPL",
         "date": "2026-04-11",
         "status": "running",
+        "progress": 10,
+        "current_stage": "analysts",
         "created_at": "2026-04-11T10:00:00",
+        "elapsed_seconds": 1,
+        "stages": [],
+        "result": None,
+        "error": None,
+        "degradation_summary": None,
+        "data_quality_summary": None,
+        "compat": {},
     }
 
     with TestClient(main.app) as client:
@@ -53,6 +66,9 @@ def test_analysis_task_routes_smoke(monkeypatch):
     assert any(task["task_id"] == "task-smoke" for task in tasks_response.json()["tasks"])
     assert status_response.status_code == 200
     assert status_response.json()["task_id"] == "task-smoke"
+    assert status_response.json()["contract_version"] == "v1alpha1"
+    assert status_response.json()["request_id"] == "req-task-smoke"
+    assert status_response.json()["result"] is None
 
 
 def test_analysis_start_route_uses_analysis_service(monkeypatch):
@@ -96,6 +112,7 @@ def test_analysis_start_route_uses_analysis_service(monkeypatch):
     assert main.app.state.task_results[task_id]["request_id"]
     assert main.app.state.task_results[task_id]["executor_type"] == "legacy_subprocess"
     assert main.app.state.task_results[task_id]["result_ref"] is None
+    assert main.app.state.task_results[task_id]["compat"] == {}
 
 
 def test_portfolio_analyze_route_uses_analysis_service_smoke(monkeypatch):
@@ -123,3 +140,41 @@ def test_portfolio_analyze_route_uses_analysis_service_smoke(monkeypatch):
     assert isinstance(captured["date"], str)
     assert captured["request_context"].api_key == "service-key"
     assert callable(captured["broadcast_progress"])
+
+
+def test_analysis_websocket_progress_is_contract_first(monkeypatch):
+    monkeypatch.delenv("DASHBOARD_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    main = _load_main_module(monkeypatch)
+
+    with TestClient(main.app) as client:
+        main.app.state.task_results["task-ws"] = {
+            "contract_version": "v1alpha1",
+            "task_id": "task-ws",
+            "request_id": "req-task-ws",
+            "executor_type": "legacy_subprocess",
+            "result_ref": None,
+            "ticker": "AAPL",
+            "date": "2026-04-11",
+            "status": "running",
+            "progress": 50,
+            "current_stage": "research",
+            "created_at": "2026-04-11T10:00:00",
+            "elapsed_seconds": 3,
+            "stages": [],
+            "result": None,
+            "error": None,
+            "degradation_summary": None,
+            "data_quality_summary": None,
+            "compat": {"decision": "HOLD"},
+        }
+        with client.websocket_connect("/ws/analysis/task-ws?api_key=test-key") as websocket:
+            message = websocket.receive_json()
+
+    assert message["type"] == "progress"
+    assert message["contract_version"] == "v1alpha1"
+    assert message["task_id"] == "task-ws"
+    assert message["request_id"] == "req-task-ws"
+    assert message["compat"]["decision"] == "HOLD"
+    assert "decision" not in message

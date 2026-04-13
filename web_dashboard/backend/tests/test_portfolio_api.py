@@ -193,6 +193,8 @@ class TestGetRecommendationsPagination:
         result = get_recommendations(limit=10, offset=0)
         assert result["total"] == 5
         assert len(result["recommendations"]) == 5
+        assert result["recommendations"][0]["contract_version"] == "v1alpha1"
+        assert result["recommendations"][0]["result"]["decision"] == "BUY"
 
         result = get_recommendations(limit=2, offset=0)
         assert result["total"] == 5
@@ -203,6 +205,42 @@ class TestGetRecommendationsPagination:
         assert len(result["recommendations"]) == 2
         assert result["offset"] == 2
         assert result["limit"] == 2
+
+    def test_single_recommendation_is_normalized_contract(self, tmp_path, monkeypatch):
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        rec_dir = data_dir / "recommendations" / "2026-01-01"
+        rec_dir.mkdir(parents=True)
+
+        import fcntl
+        monkeypatch.setattr(fcntl, "flock", lambda *args: None)
+
+        monkeypatch.setattr("api.portfolio.DATA_DIR", data_dir)
+        monkeypatch.setattr("api.portfolio.RECOMMENDATIONS_DIR", data_dir / "recommendations")
+        monkeypatch.setattr("api.portfolio.WATCHLIST_FILE", data_dir / "watchlist.json")
+        monkeypatch.setattr("api.portfolio.POSITIONS_FILE", data_dir / "positions.json")
+        monkeypatch.setattr("api.portfolio.WATCHLIST_LOCK", data_dir / "watchlist.lock")
+        monkeypatch.setattr("api.portfolio.POSITIONS_LOCK", data_dir / "positions.lock")
+
+        (rec_dir / "AAPL.json").write_text(json.dumps({
+            "ticker": "AAPL",
+            "name": "Apple",
+            "analysis_date": "2026-01-01",
+            "decision": "OVERWEIGHT",
+            "quant_signal": "BUY",
+            "llm_signal": "HOLD",
+            "confidence": 0.75,
+        }))
+
+        from api.portfolio import get_recommendation
+
+        result = get_recommendation("2026-01-01", "AAPL")
+
+        assert result["contract_version"] == "v1alpha1"
+        assert result["date"] == "2026-01-01"
+        assert result["result"]["decision"] == "OVERWEIGHT"
+        assert result["result"]["signals"]["quant"]["rating"] == "BUY"
+        assert result["compat"]["confidence"] == 0.75
 
 
 class TestConstants:

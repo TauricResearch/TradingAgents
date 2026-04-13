@@ -152,12 +152,16 @@ class AnalysisService:
                 task_id=task_id,
                 message=str(exc),
                 started_at=start_time,
+                code=exc.code,
+                retryable=exc.retryable,
             )
         except Exception as exc:
             self._fail_analysis_state(
                 task_id=task_id,
                 message=str(exc),
                 started_at=start_time,
+                code="analysis_failed",
+                retryable=False,
             )
 
         await broadcast_progress(task_id, self.job_service.task_results[task_id])
@@ -267,13 +271,25 @@ class AnalysisService:
             self.job_service.task_results[task_id]["last_error"] = last_error
         return False, None
 
-    def _fail_analysis_state(self, *, task_id: str, message: str, started_at: float) -> None:
+    def _fail_analysis_state(
+        self,
+        *,
+        task_id: str,
+        message: str,
+        started_at: float,
+        code: str,
+        retryable: bool,
+    ) -> None:
         state = self.job_service.task_results[task_id]
         state["status"] = "failed"
         state["elapsed_seconds"] = int(time.monotonic() - started_at)
         state["elapsed"] = state["elapsed_seconds"]
         state["result"] = None
-        state["error"] = message
+        state["error"] = {
+            "code": code,
+            "message": message,
+            "retryable": retryable,
+        }
         self.result_store.save_task_status(task_id, state)
 
     @staticmethod
@@ -308,12 +324,38 @@ class AnalysisService:
                     decision = line.split(":", 1)[1].strip()
 
         return {
+            "contract_version": "v1alpha1",
             "ticker": ticker,
             "name": stock.get("name", ticker),
-            "analysis_date": date,
-            "decision": decision,
-            "quant_signal": quant_signal,
-            "llm_signal": llm_signal,
-            "confidence": confidence,
+            "date": date,
+            "status": "completed",
             "created_at": datetime.now().isoformat(),
+            "result": {
+                "decision": decision,
+                "confidence": confidence,
+                "signals": {
+                    "merged": {
+                        "direction": 1 if decision in {"BUY", "OVERWEIGHT"} else -1 if decision in {"SELL", "UNDERWEIGHT"} else 0,
+                        "rating": decision,
+                    },
+                    "quant": {
+                        "direction": 1 if quant_signal in {"BUY", "OVERWEIGHT"} else -1 if quant_signal in {"SELL", "UNDERWEIGHT"} else 0,
+                        "rating": quant_signal,
+                        "available": quant_signal is not None,
+                    },
+                    "llm": {
+                        "direction": 1 if llm_signal in {"BUY", "OVERWEIGHT"} else -1 if llm_signal in {"SELL", "UNDERWEIGHT"} else 0,
+                        "rating": llm_signal,
+                        "available": llm_signal is not None,
+                    },
+                },
+                "degraded": quant_signal is None or llm_signal is None,
+            },
+            "compat": {
+                "analysis_date": date,
+                "decision": decision,
+                "quant_signal": quant_signal,
+                "llm_signal": llm_signal,
+                "confidence": confidence,
+            },
         }

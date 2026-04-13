@@ -13,7 +13,8 @@ class ResultStore:
 
     def __init__(self, task_status_dir: Path, portfolio_gateway):
         self.task_status_dir = task_status_dir
-        self.result_contract_dir = self.task_status_dir / "result_contracts"
+        self.result_contract_dir = self.task_status_dir / "results"
+        self.legacy_result_contract_dir = self.task_status_dir / "result_contracts"
         self.portfolio_gateway = portfolio_gateway
 
     def restore_task_results(self) -> dict[str, dict]:
@@ -34,13 +35,35 @@ class ResultStore:
         (self.task_status_dir / f"{task_id}.json").write_text(json.dumps(data, ensure_ascii=False))
 
     def save_result_contract(self, task_id: str, contract: dict) -> str:
-        self.result_contract_dir.mkdir(parents=True, exist_ok=True)
+        target_dir = self.result_contract_dir / task_id
+        target_dir.mkdir(parents=True, exist_ok=True)
         payload = dict(contract)
         payload.setdefault("task_id", task_id)
         payload.setdefault("contract_version", CONTRACT_VERSION)
-        file_path = self.result_contract_dir / f"{task_id}.json"
+        file_path = target_dir / "result.v1alpha1.json"
         file_path.write_text(json.dumps(payload, ensure_ascii=False))
         return file_path.relative_to(self.task_status_dir).as_posix()
+
+    def load_result_contract(
+        self,
+        *,
+        result_ref: str | None = None,
+        task_id: str | None = None,
+    ) -> dict | None:
+        candidates: list[Path] = []
+        if result_ref:
+            candidates.append(self.task_status_dir / result_ref)
+        if task_id:
+            candidates.append(self.result_contract_dir / task_id / "result.v1alpha1.json")
+            candidates.append(self.legacy_result_contract_dir / f"{task_id}.json")
+        for path in candidates:
+            if not path.exists():
+                continue
+            try:
+                return json.loads(path.read_text())
+            except Exception:
+                continue
+        return None
 
     def delete_task_status(self, task_id: str) -> None:
         (self.task_status_dir / f"{task_id}.json").unlink(missing_ok=True)

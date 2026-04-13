@@ -78,10 +78,13 @@ def test_result_store_saves_result_contract(tmp_path):
 
     saved = json.loads((tmp_path / "task_status" / result_ref).read_text())
 
-    assert result_ref == "result_contracts/task-2.json"
+    assert result_ref == "results/task-2/result.v1alpha1.json"
     assert saved["task_id"] == "task-2"
     assert saved["contract_version"] == "v1alpha1"
     assert saved["result"]["decision"] == "BUY"
+
+    loaded = store.load_result_contract(result_ref=result_ref, task_id="task-2")
+    assert loaded == saved
 
 
 def test_job_service_create_and_fail_job():
@@ -110,12 +113,13 @@ def test_job_service_create_and_fail_job():
     assert state["executor_type"] == "analysis_executor"
     assert state["contract_version"] == "v1alpha1"
     assert state["result_ref"] is None
+    assert state["compat"] == {}
 
     attached = service.attach_result_contract(
         "port_1",
-        result_ref="result_contracts/port_1.json",
+        result_ref="results/port_1/result.v1alpha1.json",
     )
-    assert attached["result_ref"] == "result_contracts/port_1.json"
+    assert attached["result_ref"] == "results/port_1/result.v1alpha1.json"
 
     failed = service.fail_job("port_1", "boom")
     assert failed["status"] == "failed"
@@ -138,6 +142,7 @@ def test_job_service_restores_legacy_tasks_with_contract_metadata():
     assert restored["executor_type"] == "legacy_subprocess"
     assert restored["contract_version"] == "v1alpha1"
     assert restored["result_ref"] is None
+    assert restored["compat"] == {}
 
 
 def test_analysis_service_build_recommendation_record():
@@ -152,10 +157,11 @@ def test_analysis_service_build_recommendation_record():
     )
 
     assert rec["ticker"] == "AAPL"
-    assert rec["decision"] == "OVERWEIGHT"
-    assert rec["quant_signal"] == "BUY"
-    assert rec["llm_signal"] == "HOLD"
-    assert rec["confidence"] == 0.75
+    assert rec["contract_version"] == "v1alpha1"
+    assert rec["result"]["decision"] == "OVERWEIGHT"
+    assert rec["result"]["signals"]["quant"]["rating"] == "BUY"
+    assert rec["result"]["signals"]["llm"]["rating"] == "HOLD"
+    assert rec["compat"]["confidence"] == 0.75
 
 
 class FakeExecutor:
@@ -219,10 +225,13 @@ def test_analysis_service_start_analysis_uses_executor(tmp_path):
         "status": "running",
     }
     assert task_results["task-1"]["status"] == "completed"
-    assert task_results["task-1"]["decision"] == "BUY"
-    assert task_results["task-1"]["result_ref"] == "result_contracts/task-1.json"
+    assert task_results["task-1"]["compat"]["decision"] == "BUY"
+    assert task_results["task-1"]["result_ref"] == "results/task-1/result.v1alpha1.json"
     assert task_results["task-1"]["result"]["signals"]["llm"]["rating"] == "BUY"
-    saved_contract = json.loads((tmp_path / "task_status" / "result_contracts" / "task-1.json").read_text())
+    public_payload = service.to_public_task_payload("task-1", contract=store.load_result_contract(task_id="task-1"))
+    assert public_payload["result_ref"] == "results/task-1/result.v1alpha1.json"
+    assert public_payload["compat"]["decision"] == "BUY"
+    saved_contract = json.loads((tmp_path / "task_status" / "results" / "task-1" / "result.v1alpha1.json").read_text())
     assert saved_contract["status"] == "completed"
     assert saved_contract["result"]["signals"]["merged"]["rating"] == "BUY"
     assert broadcasts[0] == ("task-1", "running", "analysts")
