@@ -46,13 +46,15 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
-ignore = ["E501", "E402", "E731"]
+ignore = ["E731"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+# LLM system prompt strings are intentionally long; wrapping them reduces readability.
+"tradingagents/**/*.py" = ["E501"]
 
 [tool.uv]
 
