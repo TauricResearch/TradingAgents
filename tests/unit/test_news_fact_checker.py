@@ -1,4 +1,302 @@
+"""Unit tests for news fact-checker canonical contract normalization."""
+
+import pytest
+from unittest.mock import MagicMock
 from tradingagents.agents.managers.news_fact_checker import create_news_fact_checker
+from tradingagents.memory.news_evidence import NewsEvidenceRecord
+
+
+class TestNewsFactCheckerCanonicalContract:
+    """Test fact-checker branch coverage for canonical contract normalization."""
+    
+    def test_fact_checker_returns_completed_contract_after_sanitization(self):
+        """Test fact-checker returns completed contract after successful sanitization."""
+        # Mock evidence store with known records
+        mock_store = MagicMock()
+        mock_record = NewsEvidenceRecord(
+            run_id="test_run",
+            evidence_id="art_123",
+            ticker="MRVL",
+            trade_date="2026-04-10",
+            section_label="Company News",
+            ordinal=1,
+            source="Reuters",
+            published_at="2026-04-10",
+            title="Test Article",
+            url="https://example.com/article",
+            summary="Test summary",
+            raw_json="{}",
+        )
+        mock_store.fetch_records.return_value = [mock_record]
+        
+        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        
+        state = {
+            "run_id": "test_run",
+            "company_of_interest": "MRVL",
+            "trade_date": "2026-04-10",
+            "news_report": "Some news report",
+            "news_report_structured": {
+                "ticker": "MRVL",
+                "report_title": "MRVL News Analysis",
+                "claims": [
+                    {
+                        "claim": "MRVL announced new product",
+                        "source": "Reuters",
+                        "published_at": "2026-04-10",
+                        "evidence_id": "art_123",
+                    }
+                ],
+                "summary_table": [],
+            },
+        }
+        
+        result = fact_checker(state)
+        
+        assert "news_report_structured" in result
+        structured = result["news_report_structured"]
+        assert structured["status"] == "completed"
+        assert structured["contract_version"] == "news_report_v1"
+        assert structured["key_metrics"]["claim_count"] >= 0
+        assert isinstance(structured["key_metrics"], dict)
+    
+    def test_fact_checker_returns_invalid_contract_when_all_claims_removed(self):
+        """Test fact-checker returns invalid_structured_payload when all claims are removed."""
+        # Mock evidence store with no matching records
+        mock_store = MagicMock()
+        mock_store.fetch_records.return_value = []  # No records
+        
+        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        
+        state = {
+            "run_id": "test_run",
+            "company_of_interest": "MRVL",
+            "trade_date": "2026-04-10",
+            "news_report": "Some news report",
+            "news_report_structured": {
+                "ticker": "MRVL",
+                "claims": [
+                    {
+                        "claim": "Unverified claim",
+                        "source": "UnknownSource",
+                        "published_at": "2026-04-10",
+                        "evidence_id": "bad_id",
+                    }
+                ],
+                "summary_table": [],
+            },
+        }
+        
+        result = fact_checker(state)
+        
+        assert "news_report_structured" in result
+        structured = result["news_report_structured"]
+        # All claims removed should result in invalid or empty status
+        assert structured["status"] in ["invalid_structured_payload", "empty"]
+        assert structured["contract_version"] == "news_report_v1"
+    
+    def test_fact_checker_missing_payload_has_canonical_contract(self):
+        """Test fact-checker returns canonical contract when payload is missing but evidence exists."""
+        # Mock evidence store with records (so it doesn't return empty due to no evidence)
+        mock_store = MagicMock()
+        mock_record = NewsEvidenceRecord(
+            run_id="test_run",
+            evidence_id="art_456",
+            ticker="MRVL",
+            trade_date="2026-04-10",
+            section_label="Company News",
+            ordinal=1,
+            source="Reuters",
+            published_at="2026-04-10",
+            title="Test Article",
+            url="https://example.com/article",
+            summary="Test summary",
+            raw_json="{}",
+        )
+        mock_store.fetch_records.return_value = [mock_record]
+        
+        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        
+        state = {
+            "run_id": "test_run",
+            "company_of_interest": "MRVL",
+            "trade_date": "2026-04-10",
+            "news_report": "Some report",
+            "news_report_structured": None,  # Missing
+        }
+        
+        result = fact_checker(state)
+        
+        assert "news_report_structured" in result
+        structured = result["news_report_structured"]
+        assert structured["status"] == "missing_structured_payload"
+        assert structured["contract_version"] == "news_report_v1"
+    
+    def test_fact_checker_invalid_payload_has_canonical_contract(self):
+        """Test fact-checker returns canonical contract for invalid payload without critical abort."""
+        # Provide evidence records to avoid early empty return
+        mock_store = MagicMock()
+        mock_record = NewsEvidenceRecord(
+            run_id="test_run",
+            evidence_id="art_789",
+            ticker="MRVL",
+            trade_date="2026-04-10",
+            section_label="Company News",
+            ordinal=1,
+            source="Reuters",
+            published_at="2026-04-10",
+            title="Test Article",
+            url="https://example.com/article",
+            summary="Test summary",
+            raw_json="{}",
+        )
+        mock_store.fetch_records.return_value = [mock_record]
+        
+        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        
+        state = {
+            "run_id": "test_run",
+            "company_of_interest": "MRVL",
+            "trade_date": "2026-04-10",
+            "news_report": "Some report",
+            "news_report_structured": {
+                "ticker": "WRONG",  # Wrong ticker
+                "claims": [],
+            },
+        }
+        
+        result = fact_checker(state)
+        
+        # Should return canonical contract, NOT [CRITICAL ABORT]
+        assert "news_report_structured" in result
+        structured = result["news_report_structured"]
+        assert structured["status"] == "invalid_structured_payload"
+        assert structured["contract_version"] == "news_report_v1"
+        # News report should be deterministic non-evidence message, not critical abort
+        assert not result["news_report"].startswith("[CRITICAL ABORT]")
+    
+    def test_fact_checker_end_to_end_contract_shape(self):
+        """Test fact-checker always returns complete contract shape."""
+        mock_store = MagicMock()
+        mock_store.fetch_records.return_value = []
+        
+        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        
+        state = {
+            "run_id": "test_run",
+            "company_of_interest": "TEST",
+            "trade_date": "2026-04-10",
+            "news_report": "",
+            "news_report_structured": {},
+        }
+        
+        result = fact_checker(state)
+        
+        structured = result["news_report_structured"]
+        # All required fields must be present
+        assert "status" in structured
+        assert "contract_version" in structured
+        assert "as_of_date" in structured
+        assert "abort_reason" in structured
+        assert "key_metrics" in structured
+        assert "claims" in structured
+        assert "summary_table" in structured
+    
+    def test_fact_checker_aborted_report_has_canonical_contract(self):
+        """Test fact-checker preserves critical abort and returns canonical contract."""
+        mock_store = MagicMock()
+        mock_store.fetch_records.return_value = []
+        
+        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        
+        state = {
+            "run_id": "test_run",
+            "company_of_interest": "TEST",
+            "trade_date": "2026-04-10",
+            "news_report": "[CRITICAL ABORT] Reason: Analyst timeout",
+            "news_report_structured": {},
+        }
+        
+        result = fact_checker(state)
+        
+        # Should preserve the critical abort markdown
+        assert result["news_report"].startswith("[CRITICAL ABORT]")
+        
+        structured = result["news_report_structured"]
+        assert structured["status"] == "aborted"
+        assert structured["contract_version"] == "news_report_v1"
+        assert "timeout" in structured["abort_reason"].lower() or "abort" in structured["abort_reason"].lower()
+    
+    def test_fact_checker_blank_report_with_valid_structured_payload_completes(self):
+        """Test fact-checker validates structured payload even when markdown report is blank."""
+        mock_store = MagicMock()
+        mock_record = NewsEvidenceRecord(
+            run_id="test_run",
+            evidence_id="art_999",
+            ticker="TEST",
+            trade_date="2026-04-10",
+            section_label="News",
+            ordinal=1,
+            source="Reuters",
+            published_at="2026-04-10",
+            title="Valid Article",
+            url="https://example.com/article",
+            summary="Summary",
+            raw_json="{}",
+        )
+        mock_store.fetch_records.return_value = [mock_record]
+        
+        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        
+        state = {
+            "run_id": "test_run",
+            "company_of_interest": "TEST",
+            "trade_date": "2026-04-10",
+            "news_report": "",  # Blank markdown
+            "news_report_structured": {
+                "ticker": "TEST",
+                "claims": [
+                    {
+                        "claim": "Valid claim",
+                        "source": "Reuters",
+                        "published_at": "2026-04-10",
+                        "evidence_id": "art_999",
+                    }
+                ],
+                "summary_table": [],
+            },
+        }
+        
+        result = fact_checker(state)
+        
+        # Should validate and render from canonical claims
+        structured = result["news_report_structured"]
+        assert structured["status"] == "completed"
+        assert structured["contract_version"] == "news_report_v1"
+        # Should have rendered a non-empty report
+        assert result["news_report"] != ""
+    
+    def test_fact_checker_no_evidence_records_returns_empty_contract(self):
+        """Test fact-checker returns empty contract when no evidence records exist."""
+        mock_store = MagicMock()
+        mock_store.fetch_records.return_value = []
+        
+        fact_checker = create_news_fact_checker(evidence_store=mock_store)
+        
+        state = {
+            "run_id": "test_run",
+            "company_of_interest": "TEST",
+            "trade_date": "2026-04-10",
+            "news_report": "Some non-abort report",
+            "news_report_structured": {},
+        }
+        
+        result = fact_checker(state)
+        
+        structured = result["news_report_structured"]
+        assert structured["status"] == "empty"
+        assert structured["contract_version"] == "news_report_v1"
+        assert structured["key_metrics"]["claim_count"] == 0
 from tradingagents.memory.news_evidence import NewsEvidenceRecord
 
 
@@ -117,7 +415,7 @@ def test_news_fact_checker_returns_placeholder_when_only_fake_structured_claims_
 
     assert result["sender"] == "news_fact_checker"
     assert not result["news_report"].startswith("[CRITICAL ABORT]")
-    assert "No validated news claims remained" in result["news_report"]
+    assert "No validated structured news claims are available" in result["news_report"]
 
 
 def test_news_fact_checker_returns_structured_placeholder_when_payload_missing():
@@ -137,7 +435,7 @@ def test_news_fact_checker_returns_structured_placeholder_when_payload_missing()
     assert structured["claims"] == []
     assert structured["summary_table"] == []
     assert structured["status"] == "missing_structured_payload"
-    assert "No validated news claims were produced" in result["news_report"]
+    assert "No validated structured news claims are available" in result["news_report"]
 
 
 def test_news_fact_checker_returns_structured_placeholder_when_payload_invalid():
@@ -169,4 +467,6 @@ def test_news_fact_checker_returns_structured_placeholder_when_payload_invalid()
     assert structured["claims"] == []
     assert structured["summary_table"] == []
     assert structured["status"] == "invalid_structured_payload"
-    assert result["news_report"].startswith("[CRITICAL ABORT]")
+    # Should NOT emit critical abort - returns deterministic non-evidence message
+    assert not result["news_report"].startswith("[CRITICAL ABORT]")
+    assert "No validated structured news claims are available" in result["news_report"]

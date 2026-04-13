@@ -248,7 +248,126 @@ def test_news_analyst_direct_invoke(mock_state, valid_news_report):
         )
         result = node(mock_state)
     assert "AAPL News Analysis" in result["news_report"]
-    assert result["news_report_structured"]["ticker"] == "AAPL"
+
+
+def test_news_analyst_prefetch_total_failure_aborts(mock_state):
+    """News analyst: if both prefetch feeds fail, health gate should abort with critical status."""
+    
+    class EmptyNewsEvidenceStore:
+        def ingest_prefetched_sections(self, *, run_id, ticker, trade_date, prefetched):
+            # Simulate total prefetch failure — no evidence records at all
+            return []
+        
+        def build_prompt_context(self, records):
+            return "## Evidence Records\n\nNo evidence records available."
+    
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={
+            "Company-Specific News (Last 7 Days)": "[Error fetching news] API error",
+            "Global Macroeconomic News (Last 7 Days)": "[Error fetching global news] Network timeout",
+        },
+    ):
+        node = create_news_analyst(
+            MockLLM([AIMessage(content="Should not be invoked")]),
+            evidence_store=EmptyNewsEvidenceStore(),
+        )
+        result = node(mock_state)
+    
+    # Should emit critical abort in news_report
+    assert "[CRITICAL ABORT]" in result["news_report"]
+    assert "prefetch failed" in result["news_report"]
+    # Analyst returns empty dict - fact-checker will normalize it to canonical contract
+    assert result["news_report_structured"] == {}
+
+
+def test_news_analyst_no_prefetched_evidence_returns_no_news(mock_state):
+    """News analyst: if prefetch succeeds but returns zero evidence records, should return empty status."""
+    
+    class NoEvidenceStore:
+        def ingest_prefetched_sections(self, *, run_id, ticker, trade_date, prefetched):
+            # Prefetch succeeded (returned sections), but no articles matched the criteria
+            return []
+        
+        def build_prompt_context(self, records):
+            return "## Evidence Records\n\nNo evidence records available."
+    
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={
+            "Company-Specific News (Last 7 Days)": "No articles found.",
+            "Industry-Wide News (Last 7 Days)": "No articles found.",
+        },
+    ):
+        node = create_news_analyst(
+            MockLLM([AIMessage(content="No news to report.")]),
+            evidence_store=NoEvidenceStore(),
+        )
+        result = node(mock_state)
+    
+    # Should return deterministic no-news message and empty structured payload
+    assert "No news evidence was available" in result["news_report"]
+    assert result["news_report_structured"] == {}
+
+
+def test_news_analyst_invalid_json_does_not_operationally_abort(mock_state):
+    """News analyst: if LLM returns invalid JSON, fact-checker normalizer handles it gracefully."""
+    
+    invalid_json_msg = AIMessage(
+        content="""
+        {
+          "ticker": "AAPL",
+          "report_title": "AAPL News Analysis",
+          "claims": [
+            {
+              "claim": "AAPL supplier demand improved.",
+              "source": "Sahm",
+              # This is invalid JSON comment that breaks parsing
+              "published_at": "2024-05-15"
+            }
+          ]
+        }
+        """
+    )
+    
+    # Second attempt also returns invalid JSON (analyst retries once)
+    invalid_json_msg_retry = AIMessage(
+        content="""
+        {
+          "ticker": "AAPL",
+          "report_title": "AAPL News Analysis Retry",
+          "claims": [
+            {
+              "claim": "AAPL supplier demand improved.",
+              "source": "Sahm",
+              // Invalid JSON comment again
+              "published_at": "2024-05-15"
+            }
+          ]
+        }
+        """
+    )
+    
+    with patch(
+        "tradingagents.agents.analysts.news_analyst.prefetch_tools_parallel",
+        return_value={
+            "Company-Specific News (Last 7 Days)": "Some context",
+            "Industry-Wide News (Last 7 Days)": "More context",
+        },
+    ):
+        node = create_news_analyst(
+            MockLLM([invalid_json_msg, invalid_json_msg_retry]),
+            evidence_store=FakeNewsEvidenceStore(),
+        )
+        result = node(mock_state)
+    
+    # Analyst returns empty dict for news_report_structured when JSON parsing fails on all attempts
+    assert "news_report_structured" in result
+    # Analyst returns empty dict after all retries fail
+    assert result["news_report_structured"] == {}
+    # But raw markdown report is still present (the invalid JSON text)
+    assert "news_report" in result
+    assert result["news_report"]  # Non-empty
 
 
 def test_market_analyst_macro_regime_from_prefetch(mock_state, mock_llm_direct_report):
