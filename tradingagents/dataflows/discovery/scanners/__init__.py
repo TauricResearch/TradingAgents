@@ -4,6 +4,7 @@
 from . import (
     analyst_upgrades,  # noqa: F401
     earnings_calendar,  # noqa: F401
+    high_52w_breakout,  # noqa: F401
     insider_buying,  # noqa: F401
     market_movers,  # noqa: F401
     minervini,  # noqa: F401
