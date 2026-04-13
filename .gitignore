@@ -12,3 +12,11 @@ eval_data/
 .env
 memory_db/
 .worktrees/
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
