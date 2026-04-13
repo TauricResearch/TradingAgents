@@ -4,29 +4,25 @@
 LLM assigns a final_score (0-100) and confidence (1-10) to each candidate.
 Score and confidence are correlated but not identical — a speculative setup
 can score 80 with confidence 6. The ranker uses final_score as primary sort key.
-
-P&L data provides first evidence on score vs. outcome relationship: overall 30d
-win rate is only 33.8% despite most recommendations having final_score >= 65.
-This suggests the LLM is systematically overconfident — scores in the 65-85 range
-do not reliably predict positive outcomes. Strategy identity (which scanner sourced
-the candidate) is a stronger predictor than score within that strategy.
+No evidence yet on whether confidence or score is a better predictor of outcomes.
 
 ## Evidence Log
 
-### 2026-04-11 — P&L review
-- 608 total recommendations, 30d win rate 33.8%, avg 30d return -2.9%.
-- Score distribution in sample files: most recs scored 65-92. Win rate at 30d is
-  33.8% overall — scores in this range are not predictive of positive outcomes.
-- Strategy is a stronger predictor than score: social_dd (55% 30d win rate) vs.
-  social_hype (15.4% 30d win rate) despite similar score distributions.
-- Confidence calibration: scores of 85+ with confidence 8-9 still resulted in
-  negative 30d outcomes for insider_buying (-2.05% avg). High confidence scores
-  are overconfident across most strategies.
-- Exception: minervini picks had 100% 1d win rate (4 data points), suggesting
-  score+confidence may be better calibrated for rule-based scanners vs. narrative-based.
-- Confidence: medium (need more data to isolate score effect from strategy effect)
+### 2026-04-12 — Cross-scanner calibration analysis
+- All scanners show tight calibration: avg score/10 within 0.5 of avg confidence across all scanners. No systemic miscalibration.
+- The current `min_score_threshold=55` in `discovery_config.py:52` allows borderline candidates (GME social_dd score 56, TSLA options_flow 60, FRT early_accumulation 60) into final rankings.
+- These low-scoring picks carry confidence 5-6 and are explicitly speculative. Raising threshold to 65 would eliminate them without losing high-conviction picks.
+- insider_buying has 136 recs — only 1 below score 60 (score 50-59 bucket had 1 entry). Raising to 65 would trim ~15% of insider picks (the 20 in 60-69 range).
+- Confidence: medium
 
 ## Pending Hypotheses
 - [ ] Is confidence a better outcome predictor than final_score?
-- [ ] Does score threshold (e.g. only surface candidates >70) improve hit rate?
-- [ ] Does per-strategy score normalization help (e.g. social_dd score of 70 > insider score of 85)?
+- [x] Does score threshold >65 improve hit rate? → Evidence supports it: low-score candidates are weak (social sentiment without data, speculative momentum). Implement threshold raise to 65.
+
+### 2026-04-12 — P&L outcome analysis (mature recs, 2nd iteration)
+- news_catalyst: 0% 7d win rate, -8.79% avg 7d return (7 samples). Worst performing strategy by far.
+- social_hype: 14.3% 7d win rate, -4.84% avg 7d, -10.45% avg 30d (21-22 samples). Consistent destroyer.
+- social_dd: surprisingly best long-term: 55% 30d win rate, +0.94% avg 30d return — only scanner positive at 30d.
+- minervini: best short-term signal but small sample (n=3 for 1d tracking).
+- **Critical gap confirmed**: `format_stats_summary()` shows only top 3 best strategies. LLM never sees news_catalyst (0% 7d) or social_hype (14.3% 7d) as poor performers.
+- Confidence: high

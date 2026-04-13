@@ -49,7 +49,7 @@ class RankerConfig:
     max_candidates_to_analyze: int = 200
     analyze_all_candidates: bool = False
     final_recommendations: int = 15
-    min_score_threshold: int = 55
+    min_score_threshold: int = 65
     return_target_pct: float = 5.0
     holding_period_days: str = "1-7"
     truncate_ranking_context: bool = False
