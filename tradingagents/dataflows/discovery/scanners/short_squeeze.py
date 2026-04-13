@@ -42,9 +42,7 @@ class ShortSqueezeScanner(BaseScanner):
         if not self.is_enabled():
             return []
 
-        logger.info(
-            f"📉 Scanning short interest (SI >{self.min_short_interest_pct}%)..."
-        )
+        logger.info(f"📉 Scanning short interest (SI >{self.min_short_interest_pct}%)...")
 
         try:
             from tradingagents.dataflows.finviz_scraper import get_short_interest
