@@ -13,6 +13,7 @@ from . import (
     reddit_trending,  # noqa: F401
     sector_rotation,  # noqa: F401
     semantic_news,  # noqa: F401
+    short_squeeze,  # noqa: F401
     technical_breakout,  # noqa: F401
     volume_accumulation,  # noqa: F401
 )
