@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from tradingagents.ui.theme import COLORS, page_header
+from tradingagents.ui.theme import page_header
 
 _REPO_ROOT = Path(__file__).parent.parent.parent.parent
 _ACTIVE_JSON = _REPO_ROOT / "docs/iterations/hypotheses/active.json"
@@ -50,13 +50,15 @@ def load_concluded_hypotheses(concluded_dir: str = str(_CONCLUDED_DIR)) -> List[
             scanner = _extract_md_field(text, r"^\*\*Scanner:\*\* (.+)$")
             period = _extract_md_field(text, r"^\*\*Period:\*\* (.+)$")
             outcome = _extract_md_field(text, r"^\*\*Outcome:\*\* (.+)$")
-            results.append({
-                "filename": md_file.name,
-                "title": title or md_file.stem,
-                "scanner": scanner or "—",
-                "period": period or "—",
-                "outcome": outcome or "—",
-            })
+            results.append(
+                {
+                    "filename": md_file.name,
+                    "title": title or md_file.stem,
+                    "scanner": scanner or "—",
+                    "period": period or "—",
+                    "outcome": outcome or "—",
+                }
+            )
         except Exception:
             continue
     return results
@@ -85,7 +87,7 @@ def render() -> None:
 
     if not hypotheses and not concluded:
         st.info(
-            "No hypotheses yet. Run `/backtest-hypothesis \"<description>\"` to start an experiment."
+            'No hypotheses yet. Run `/backtest-hypothesis "<description>"` to start an experiment.'
         )
         return
 
@@ -100,20 +102,23 @@ def render() -> None:
 
     if running or pending:
         import pandas as pd
+
         active_rows = []
         for h in sorted(running + pending, key=lambda x: -x.get("priority", 0)):
             days_left = days_until_ready(h)
             ready_str = "concluding soon" if days_left == 0 else f"{days_left}d left"
-            active_rows.append({
-                "ID": h["id"],
-                "Title": h.get("title", "—"),
-                "Scanner": h.get("scanner", "—"),
-                "Status": h["status"],
-                "Progress": f"{h.get('days_elapsed', 0)}/{h.get('min_days', 14)}d",
-                "Picks": len(h.get("picks_log", [])),
-                "Ready": ready_str,
-                "Priority": h.get("priority", "—"),
-            })
+            active_rows.append(
+                {
+                    "ID": h["id"],
+                    "Title": h.get("title", "—"),
+                    "Scanner": h.get("scanner", "—"),
+                    "Status": h["status"],
+                    "Progress": f"{h.get('days_elapsed', 0)}/{h.get('min_days', 14)}d",
+                    "Picks": len(h.get("picks_log", [])),
+                    "Ready": ready_str,
+                    "Priority": h.get("priority", "—"),
+                }
+            )
         df = pd.DataFrame(active_rows)
         st.dataframe(
             df,
@@ -143,17 +148,20 @@ def render() -> None:
 
     if concluded:
         import pandas as pd
+
         concluded_rows = []
         for c in concluded:
             outcome = c["outcome"]
             emoji = "✅" if "accepted" in outcome else "❌"
-            concluded_rows.append({
-                "Date": c["filename"][:10],
-                "Title": c["title"],
-                "Scanner": c["scanner"],
-                "Period": c["period"],
-                "Outcome": emoji,
-            })
+            concluded_rows.append(
+                {
+                    "Date": c["filename"][:10],
+                    "Title": c["title"],
+                    "Scanner": c["scanner"],
+                    "Period": c["period"],
+                    "Outcome": emoji,
+                }
+            )
         cdf = pd.DataFrame(concluded_rows)
         st.dataframe(
             cdf,
