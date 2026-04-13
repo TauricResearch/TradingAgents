@@ -409,9 +409,89 @@ def _delta_str(hyp_val, base_val, unit: str) -> str:
     return f"{sign}{delta:.1f}{unit}"
 
 
+def conclude_statistical_hypothesis(hyp: dict) -> None:
+    """
+    Conclude a statistical hypothesis immediately using existing performance data.
+
+    Statistical hypotheses don't require worktrees or code changes — they answer
+    a question against already-collected pick data. This runs synchronously and
+    writes a markdown report to docs/iterations/hypotheses/concluded/.
+    """
+    hid = hyp["id"]
+    scanner = hyp["scanner"]
+    print(f"\n── Statistical hypothesis: {hid} ──", flush=True)
+
+    # Load performance database
+    picks = []
+    if DB_PATH.exists():
+        try:
+            with open(DB_PATH) as f:
+                db = json.load(f)
+            picks = [p for p in db if p.get("scanner") == scanner or p.get("strategy_match") == scanner]
+        except Exception as e:
+            print(f"    Could not read performance database: {e}", flush=True)
+
+    n = len(picks)
+    print(f"    Found {n} picks for scanner '{scanner}'", flush=True)
+
+    # Compute basic stats
+    scores = [p["final_score"] for p in picks if p.get("final_score") is not None]
+    avg_score = round(sum(scores) / len(scores), 1) if scores else None
+
+    returns_7d = [p["return_7d"] for p in picks if p.get("return_7d") is not None]
+    win_rate = round(100 * sum(1 for r in returns_7d if r > 0) / len(returns_7d), 1) if returns_7d else None
+    avg_return = round(sum(returns_7d) / len(returns_7d), 2) if returns_7d else None
+
+    stats_block = (
+        f"- Total picks: {n}\n"
+        f"- Avg score: {avg_score if avg_score is not None else '—'}\n"
+        f"- 7d win rate: {win_rate if win_rate is not None else '—'}%\n"
+        f"- Avg 7d return: {avg_return if avg_return is not None else '—'}%\n"
+    )
+
+    # Read scanner domain for LLM context
+    scanner_domain = ""
+    domain_file = ROOT / "docs" / "iterations" / "scanners" / f"{scanner}.md"
+    if domain_file.exists():
+        scanner_domain = domain_file.read_text()[:3000]
+
+    # LLM analysis — reuse llm_analysis() with a synthetic conclusion dict
+    conclusion = {
+        "decision": "statistical",
+        "reason": hyp.get("description", "Statistical analysis of existing pick data"),
+        "hypothesis": {"count": n, "win_rate": win_rate, "avg_return": avg_return},
+        "baseline": {},
+    }
+    llm_insight = llm_analysis(hyp, conclusion, scanner_domain)
+
+    # Write concluded report
+    CONCLUDED_DIR.mkdir(parents=True, exist_ok=True)
+    report_path = CONCLUDED_DIR / f"{hid}.md"
+    insight_block = f"\n## LLM Analysis\n\n{llm_insight}\n" if llm_insight else ""
+    report_path.write_text(
+        f"# Statistical Hypothesis: {hyp.get('title', hid)}\n\n"
+        f"**ID:** {hid}\n"
+        f"**Scanner:** {scanner}\n"
+        f"**Description:** {hyp.get('description', '')}\n"
+        f"**Concluded:** {TODAY}\n\n"
+        f"## Data Summary\n\n{stats_block}"
+        f"{insight_block}"
+    )
+    print(f"    Report written to {report_path}", flush=True)
+
+    hyp["status"] = "concluded"
+    hyp["conclusion"] = "statistical"
+    hyp["days_elapsed"] = 0
+
+
 def promote_pending(registry: dict) -> None:
-    """Promote the highest-priority pending hypothesis to running if a slot is open."""
-    running_count = sum(1 for h in registry["hypotheses"] if h["status"] == "running")
+    """Promote the highest-priority pending implementation hypothesis to running if a slot is open."""
+    # Only implementation/forward_test hypotheses count toward max_active.
+    # Statistical hypotheses are concluded immediately and never occupy runner slots.
+    running_count = sum(
+        1 for h in registry["hypotheses"]
+        if h["status"] == "running" and h.get("hypothesis_type", "implementation") == "implementation"
+    )
     max_active = registry.get("max_active", 5)
     if running_count >= max_active:
         return
@@ -434,6 +514,19 @@ def main():
 
     registry = load_registry()
     filter_id = os.environ.get("FILTER_ID", "").strip()
+
+    # Fast-path: conclude all pending statistical hypotheses immediately.
+    # They answer questions from existing data — no cap, no worktree, no waiting.
+    statistical_pending = [
+        h for h in registry.get("hypotheses", [])
+        if h["status"] == "pending" and h.get("hypothesis_type") == "statistical"
+        and (not filter_id or h["id"] == filter_id)
+    ]
+    for hyp in statistical_pending:
+        try:
+            conclude_statistical_hypothesis(hyp)
+        except Exception as e:
+            print(f"  Error concluding statistical hypothesis {hyp['id']}: {e}", flush=True)
 
     hypotheses = registry.get("hypotheses", [])
     running = [

@@ -35,13 +35,41 @@ without any code change. Examples:
 
 If statistical: run the analysis now against `data/recommendations/performance_database.json`.
 Write the finding to the relevant scanner domain file under **Evidence Log**. Print a summary.
-Done — no branch needed.
+
+Then register the hypothesis in `docs/iterations/hypotheses/active.json` as `status: "pending"`
+so the runner picks it up on the next cycle and attaches LLM analysis to the report:
+
+```json
+{
+  "id": "<scanner>-<slug>",
+  "scanner": "<scanner>",
+  "title": "<title>",
+  "description": "<description>",
+  "branch": null,
+  "pr_number": null,
+  "status": "pending",
+  "priority": 0,
+  "expected_impact": "low",
+  "hypothesis_type": "statistical",
+  "created_at": "<YYYY-MM-DD>",
+  "min_days": 0,
+  "days_elapsed": 0,
+  "picks_log": [],
+  "baseline_scanner": "<scanner>",
+  "conclusion": null
+}
+```
+
+Commit and push the updated `active.json` to `main`. Done — no branch or worktree needed.
 
 ## Step 3b: Implementation Path
 
 ### 3b-i: Capacity check
 
-Count running hypotheses from `active.json`. If fewer than `max_active` running, proceed.
+Count running hypotheses where `hypothesis_type == "implementation"` from `active.json`.
+Statistical hypotheses do not consume runner slots and are excluded from this count.
+
+If fewer than `max_active` implementation hypotheses are running, proceed.
 If at capacity: add the new hypothesis as `status: "pending"` — running experiments are NEVER
 paused mid-streak. Inform the user which slot it is queued behind and when it will likely start.
 
