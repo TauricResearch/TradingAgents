@@ -99,3 +99,29 @@ def test_get_signal_returns_provider_mismatch_before_graph_init(tmp_path):
     assert signal.degraded is True
     assert signal.reason_code == ReasonCode.PROVIDER_MISMATCH.value
     assert signal.metadata["data_quality"]["state"] == "provider_mismatch"
+
+
+def test_get_signal_persists_research_provenance_on_success(monkeypatch, tmp_path):
+    class SuccessfulGraph:
+        def propagate(self, ticker, date):
+            return {
+                "investment_debate_state": {
+                    "research_status": "degraded",
+                    "research_mode": "degraded_synthesis",
+                    "timed_out_nodes": ["Bull Researcher"],
+                    "degraded_reason": "bull_researcher_timeout",
+                    "covered_dimensions": ["market"],
+                    "manager_confidence": None,
+                }
+            }, "BUY"
+
+    cfg = OrchestratorConfig(cache_dir=str(tmp_path))
+    runner = LLMRunner(cfg)
+    monkeypatch.setattr(runner, "_get_graph", lambda: SuccessfulGraph())
+
+    signal = runner.get_signal("AAPL", "2024-01-02")
+
+    assert signal.degraded is False
+    assert signal.metadata["research"]["research_status"] == "degraded"
+    assert signal.metadata["sample_quality"] == "degraded_research"
+    assert signal.metadata["data_quality"]["state"] == "research_degraded"

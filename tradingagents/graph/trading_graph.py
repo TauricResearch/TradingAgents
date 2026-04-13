@@ -144,6 +144,7 @@ class TradingAgentsGraph:
             self.invest_judge_memory,
             self.portfolio_manager_memory,
             self.conditional_logic,
+            research_node_timeout_secs=float(self.config.get("research_node_timeout_secs", 30.0)),
         )
 
         self.propagator = Propagator()

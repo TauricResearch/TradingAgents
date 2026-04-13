@@ -16,6 +16,24 @@ def _build_data_quality(state: str, **details):
     return payload
 
 
+def _extract_research_metadata(final_state: dict | None) -> dict | None:
+    if not isinstance(final_state, dict):
+        return None
+    debate_state = final_state.get("investment_debate_state") or {}
+    if not isinstance(debate_state, dict):
+        return None
+    keys = (
+        "research_status",
+        "research_mode",
+        "timed_out_nodes",
+        "degraded_reason",
+        "covered_dimensions",
+        "manager_confidence",
+    )
+    metadata = {key: debate_state.get(key) for key in keys if key in debate_state}
+    return metadata or None
+
+
 class LLMRunner:
     def __init__(self, config: OrchestratorConfig):
         self._config = config
@@ -91,6 +109,17 @@ class LLMRunner:
             rating = processed_signal if isinstance(processed_signal, str) else str(processed_signal)
             direction, confidence = self._map_rating(rating)
             now = datetime.now(timezone.utc)
+            research_metadata = _extract_research_metadata(_final_state)
+            if research_metadata and research_metadata.get("research_status") != "full":
+                data_quality = _build_data_quality(
+                    "research_degraded",
+                    research_status=research_metadata.get("research_status"),
+                    research_mode=research_metadata.get("research_mode"),
+                    degraded_reason=research_metadata.get("degraded_reason"),
+                    timed_out_nodes=research_metadata.get("timed_out_nodes"),
+                )
+            else:
+                data_quality = _build_data_quality("ok")
 
             cache_data = {
                 "rating": rating,
@@ -99,7 +128,13 @@ class LLMRunner:
                 "timestamp": now.isoformat(),
                 "ticker": ticker,
                 "date": date,
-                "data_quality": _build_data_quality("ok"),
+                "data_quality": data_quality,
+                "research": research_metadata,
+                "sample_quality": (
+                    "degraded_research"
+                    if research_metadata and research_metadata.get("research_status") != "full"
+                    else "full_research"
+                ),
             }
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f, ensure_ascii=False, indent=2)

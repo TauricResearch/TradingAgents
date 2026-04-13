@@ -1,10 +1,10 @@
-from typing import Annotated
-from typing_extensions import TypedDict
+from typing import Annotated, Optional
+from typing_extensions import NotRequired, TypedDict
 from langgraph.graph import MessagesState
 
 
 # Researcher team state
-class InvestDebateState(TypedDict):
+class InvestDebateState(TypedDict, total=False):
     bull_history: Annotated[
         str, "Bullish Conversation history"
     ]  # Bullish Conversation history
@@ -15,6 +15,12 @@ class InvestDebateState(TypedDict):
     current_response: Annotated[str, "Latest response"]  # Last response
     judge_decision: Annotated[str, "Final judge decision"]  # Last response
     count: Annotated[int, "Length of the current conversation"]  # Conversation length
+    research_status: NotRequired[Annotated[str, "Research stage status: full/degraded/failed"]]
+    research_mode: NotRequired[Annotated[str, "Research mode: debate/degraded_synthesis"]]
+    timed_out_nodes: NotRequired[Annotated[list[str], "Research nodes that timed out"]]
+    degraded_reason: NotRequired[Annotated[Optional[str], "Research degradation reason"]]
+    covered_dimensions: NotRequired[Annotated[list[str], "Research dimensions covered so far"]]
+    manager_confidence: NotRequired[Annotated[Optional[float], "Research manager confidence"]]
 
 
 # Risk management team state

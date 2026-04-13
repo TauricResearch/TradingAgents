@@ -23,6 +23,18 @@ _PHASE_MAP = {
     "Portfolio Manager": "portfolio",
 }
 
+_LLM_KIND_MAP = {
+    "Market Analyst": "quick",
+    "Bull Researcher": "quick",
+    "Bear Researcher": "quick",
+    "Research Manager": "deep",
+    "Trader": "quick",
+    "Aggressive Analyst": "quick",
+    "Conservative Analyst": "quick",
+    "Neutral Analyst": "quick",
+    "Portfolio Manager": "deep",
+}
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Profile TradingAgents graph stage timings.")
@@ -37,11 +49,39 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--selected-analysts", default="market")
     parser.add_argument("--overall-timeout", type=int, default=120)
     parser.add_argument("--dump-dir", default="orchestrator/profile_runs")
+    parser.add_argument("--dump-raw-on-failure", action="store_true")
     return parser
 
 
 class _ProfileTimeout(Exception):
     pass
+
+
+def _jsonable(value):
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(item) for item in value]
+    return repr(value)
+
+
+def _extract_research_state(event: dict) -> tuple[str | None, str | None, int | None, int | None]:
+    node_payload = next(iter(event.values()), {})
+    if not isinstance(node_payload, dict):
+        return None, None, None, None
+    debate_state = node_payload.get("investment_debate_state") or {}
+    if not isinstance(debate_state, dict):
+        return None, None, None, None
+    history = debate_state.get("history") or ""
+    current = debate_state.get("current_response") or ""
+    return (
+        debate_state.get("research_status"),
+        debate_state.get("degraded_reason"),
+        len(history),
+        len(current),
+    )
 
 
 def main() -> None:
@@ -66,11 +106,12 @@ def main() -> None:
 
     node_timings = []
     phase_totals = defaultdict(float)
+    raw_events = []
     started_at = time.monotonic()
     last_at = started_at
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     dump_dir = Path(args.dump_dir)
     dump_dir.mkdir(parents=True, exist_ok=True)
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     dump_path = dump_dir / f"{args.ticker.replace('/', '_')}_{args.date}_{run_id}.json"
 
     def alarm_handler(signum, frame):
@@ -84,14 +125,26 @@ def main() -> None:
             now = time.monotonic()
             nodes = list(event.keys())
             phases = sorted({_PHASE_MAP.get(node, "unknown") for node in nodes})
+            llm_kinds = sorted({_LLM_KIND_MAP.get(node, "unknown") for node in nodes})
             delta = round(now - last_at, 3)
+            research_status, degraded_reason, history_len, response_len = _extract_research_state(event)
             entry = {
+                "run_id": run_id,
                 "nodes": nodes,
                 "phases": phases,
-                "delta_seconds": delta,
-                "elapsed_seconds": round(now - started_at, 3),
+                "llm_kinds": llm_kinds,
+                "start_at": round(last_at - started_at, 3),
+                "end_at": round(now - started_at, 3),
+                "elapsed_ms": int(delta * 1000),
+                "selected_analysts": selected_analysts,
+                "analysis_prompt_style": args.analysis_prompt_style,
+                "research_status": research_status,
+                "degraded_reason": degraded_reason,
+                "history_len": history_len,
+                "response_len": response_len,
             }
             node_timings.append(entry)
+            raw_events.append(_jsonable(event))
             for phase in phases:
                 phase_totals[phase] += delta
             last_at = now
@@ -105,18 +158,22 @@ def main() -> None:
             "node_timings": node_timings,
             "phase_totals_seconds": {key: round(value, 3) for key, value in phase_totals.items()},
             "dump_path": str(dump_path),
+            "raw_events": raw_events if args.dump_raw_on_failure else [],
         }
     except Exception as exc:
         payload = {
+            "run_id": run_id,
             "status": "error",
             "ticker": args.ticker,
             "date": args.date,
             "selected_analysts": selected_analysts,
             "analysis_prompt_style": args.analysis_prompt_style,
             "error": str(exc),
+            "exception_type": type(exc).__name__,
             "node_timings": node_timings,
             "phase_totals_seconds": {key: round(value, 3) for key, value in phase_totals.items()},
             "dump_path": str(dump_path),
+            "raw_events": raw_events,
         }
     finally:
         signal.alarm(0)

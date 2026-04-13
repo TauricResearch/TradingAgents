@@ -42,6 +42,14 @@ def test_live_mode_serializes_degraded_contract_shape():
                     metadata={
                         "contract_version": "v1alpha1",
                         "data_quality": {"state": "stale_data", "source": "quant"},
+                        "research": {
+                            "research_status": "degraded",
+                            "research_mode": "degraded_synthesis",
+                            "timed_out_nodes": ["Bull Researcher"],
+                            "degraded_reason": "bull_researcher_timeout",
+                            "covered_dimensions": ["market"],
+                            "manager_confidence": None,
+                        },
                         "source_diagnostics": {
                             "quant": {"reason_code": ReasonCode.STALE_DATA.value}
                         },
@@ -75,6 +83,14 @@ def test_live_mode_serializes_degraded_contract_shape():
                 },
             },
             "data_quality": {"state": "stale_data", "source": "quant"},
+            "research": {
+                "research_status": "degraded",
+                "research_mode": "degraded_synthesis",
+                "timed_out_nodes": ["Bull Researcher"],
+                "degraded_reason": "bull_researcher_timeout",
+                "covered_dimensions": ["market"],
+                "manager_confidence": None,
+            },
         }
     ]
 
@@ -86,7 +102,19 @@ def test_live_mode_serializes_failure_contract_shape():
                 ("AAPL", "2026-04-11"): CombinedSignalFailure(
                     "both quant and llm signals are None",
                     reason_codes=(ReasonCode.BOTH_SIGNALS_UNAVAILABLE.value, ReasonCode.PROVIDER_MISMATCH.value),
-                    source_diagnostics={"llm": {"reason_code": ReasonCode.PROVIDER_MISMATCH.value}},
+                    source_diagnostics={
+                        "llm": {
+                            "reason_code": ReasonCode.PROVIDER_MISMATCH.value,
+                            "research": {
+                                "research_status": "failed",
+                                "research_mode": "degraded_synthesis",
+                                "timed_out_nodes": ["Bull Researcher"],
+                                "degraded_reason": "bull_researcher_connectionerror",
+                                "covered_dimensions": ["market"],
+                                "manager_confidence": None,
+                            },
+                        }
+                    },
                     data_quality={"state": "provider_mismatch", "source": "llm"},
                 )
             }
@@ -114,9 +142,27 @@ def test_live_mode_serializes_failure_contract_shape():
                     ReasonCode.PROVIDER_MISMATCH.value,
                 ],
                 "source_diagnostics": {
-                    "llm": {"reason_code": ReasonCode.PROVIDER_MISMATCH.value},
+                    "llm": {
+                        "reason_code": ReasonCode.PROVIDER_MISMATCH.value,
+                        "research": {
+                            "research_status": "failed",
+                            "research_mode": "degraded_synthesis",
+                            "timed_out_nodes": ["Bull Researcher"],
+                            "degraded_reason": "bull_researcher_connectionerror",
+                            "covered_dimensions": ["market"],
+                            "manager_confidence": None,
+                        },
+                    },
                 },
             },
             "data_quality": {"state": "provider_mismatch", "source": "llm"},
+            "research": {
+                "research_status": "failed",
+                "research_mode": "degraded_synthesis",
+                "timed_out_nodes": ["Bull Researcher"],
+                "degraded_reason": "bull_researcher_connectionerror",
+                "covered_dimensions": ["market"],
+                "manager_confidence": None,
+            },
         }
     ]

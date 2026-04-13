@@ -1,0 +1,127 @@
+import time
+
+import tradingagents.graph.setup as graph_setup_module
+from tradingagents.graph.setup import GraphSetup
+
+
+def _setup() -> GraphSetup:
+    return GraphSetup(
+        quick_thinking_llm=None,
+        deep_thinking_llm=None,
+        tool_nodes={},
+        bull_memory=None,
+        bear_memory=None,
+        trader_memory=None,
+        invest_judge_memory=None,
+        portfolio_manager_memory=None,
+        conditional_logic=None,
+        research_node_timeout_secs=0.01,
+    )
+
+
+def test_manager_guard_fallback_marks_degraded_synthesis():
+    setup = _setup()
+    state = {
+        "investment_debate_state": {
+            "history": "Bull Analyst: case",
+            "bull_history": "Bull Analyst: case",
+            "bear_history": "",
+            "current_response": "Bull Analyst: case",
+            "judge_decision": "",
+            "count": 1,
+            "research_status": "full",
+            "research_mode": "debate",
+            "timed_out_nodes": [],
+            "degraded_reason": None,
+            "covered_dimensions": ["bull"],
+            "manager_confidence": None,
+        }
+    }
+
+    result = setup._apply_research_fallback(
+        state,
+        node_name="Research Manager",
+        dimension="manager",
+        reason="research_manager_timeout",
+        started_at=0.0,
+    )
+
+    debate = result["investment_debate_state"]
+    assert debate["research_status"] == "degraded"
+    assert debate["research_mode"] == "degraded_synthesis"
+    assert debate["timed_out_nodes"] == ["Research Manager"]
+    assert result["investment_plan"].startswith("Recommendation: HOLD")
+
+
+def test_bull_guard_success_records_coverage():
+    setup = _setup()
+    state = {
+        "investment_debate_state": {
+            "history": "",
+            "bull_history": "",
+            "bear_history": "",
+            "current_response": "",
+            "judge_decision": "",
+            "count": 0,
+            "research_status": "full",
+            "research_mode": "debate",
+            "timed_out_nodes": [],
+            "degraded_reason": None,
+            "covered_dimensions": [],
+            "manager_confidence": None,
+        }
+    }
+    result = {
+        "investment_debate_state": {
+            "history": "Bull Analyst: ok",
+            "bull_history": "Bull Analyst: ok",
+            "bear_history": "",
+            "current_response": "Bull Analyst: ok",
+            "judge_decision": "",
+            "count": 1,
+        }
+    }
+
+    updated = setup._apply_research_success(state, result, dimension="bull")
+    debate = updated["investment_debate_state"]
+    assert debate["research_status"] == "full"
+    assert debate["research_mode"] == "debate"
+    assert debate["covered_dimensions"] == ["bull"]
+
+
+def test_guard_timeout_returns_without_waiting_for_node_completion(monkeypatch):
+    def slow_bull(_llm, _memory):
+        def node(_state):
+            time.sleep(0.2)
+            return {"investment_debate_state": {"history": "", "bull_history": "", "bear_history": "", "current_response": "", "judge_decision": "", "count": 1}}
+        return node
+
+    monkeypatch.setattr(graph_setup_module, "create_bull_researcher", slow_bull)
+    setup = _setup()
+    wrapped = setup._guard_research_node("Bull Researcher", None, None)
+    state = {
+        "investment_debate_state": {
+            "history": "",
+            "bull_history": "",
+            "bear_history": "",
+            "current_response": "",
+            "judge_decision": "",
+            "count": 0,
+            "research_status": "full",
+            "research_mode": "debate",
+            "timed_out_nodes": [],
+            "degraded_reason": None,
+            "covered_dimensions": [],
+            "manager_confidence": None,
+        }
+    }
+
+    started = time.monotonic()
+    result = wrapped(state)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 0.1
+    debate = result["investment_debate_state"]
+    assert debate["research_status"] == "degraded"
+    assert debate["research_mode"] == "degraded_synthesis"
+    assert debate["timed_out_nodes"] == ["Bull Researcher"]

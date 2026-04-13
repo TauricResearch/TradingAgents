@@ -31,6 +31,12 @@ class Propagator:
                     "current_response": "",
                     "judge_decision": "",
                     "count": 0,
+                    "research_status": "full",
+                    "research_mode": "debate",
+                    "timed_out_nodes": [],
+                    "degraded_reason": None,
+                    "covered_dimensions": [],
+                    "manager_confidence": None,
                 }
             ),
             "risk_debate_state": RiskDebateState(

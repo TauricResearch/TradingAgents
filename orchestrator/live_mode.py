@@ -45,6 +45,7 @@ class LiveMode:
     def _serialize_signal(self, *, ticker: str, date: str, signal) -> dict:
         metadata = getattr(signal, "metadata", {}) or {}
         data_quality = metadata.get("data_quality")
+        research = metadata.get("research")
         degradation = self._serialize_degradation(signal, data_quality)
         return {
             "contract_version": self._contract_version(signal),
@@ -55,6 +56,7 @@ class LiveMode:
             "error": None,
             "degradation": degradation,
             "data_quality": data_quality,
+            "research": research,
         }
 
     @staticmethod
@@ -64,6 +66,11 @@ class LiveMode:
             reason_codes.append(ReasonCode.BOTH_SIGNALS_UNAVAILABLE.value)
         source_diagnostics = dict(getattr(exc, "source_diagnostics", {}) or {})
         data_quality = getattr(exc, "data_quality", None)
+        research = None
+        for diagnostic in source_diagnostics.values():
+            if isinstance(diagnostic, dict) and diagnostic.get("research") is not None:
+                research = diagnostic["research"]
+                break
         return {
             "contract_version": CONTRACT_VERSION,
             "ticker": ticker,
@@ -81,6 +88,7 @@ class LiveMode:
                 "source_diagnostics": source_diagnostics,
             },
             "data_quality": data_quality,
+            "research": research,
         }
 
     async def run_once(self, tickers: List[str], date: Optional[str] = None) -> List[dict]:

@@ -113,6 +113,8 @@ class TradingOrchestrator:
             metadata["source_diagnostics"] = source_diagnostics
         if data_quality:
             metadata["data_quality"] = data_quality
+        if llm_sig is not None and llm_sig.metadata.get("research") is not None:
+            metadata["research"] = llm_sig.metadata.get("research")
         final_signal.metadata = metadata
         return final_signal
 
@@ -125,6 +127,9 @@ class TradingOrchestrator:
         error = signal.metadata.get("error")
         if error:
             diagnostic["error"] = error
+        research = signal.metadata.get("research")
+        if research is not None:
+            diagnostic["research"] = research
         return diagnostic
 
     @staticmethod
