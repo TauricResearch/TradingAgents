@@ -175,22 +175,22 @@ def run_hypothesis(hyp: dict) -> bool:
 
 def llm_analysis(hyp: dict, conclusion: dict, scanner_domain: str) -> Optional[str]:
     """
-    Ask Claude to interpret the experiment results and provide richer context.
+    Ask Gemini to interpret the experiment results and provide richer context.
 
     Returns a markdown string to embed in the PR comment, or None if the API
-    call fails or ANTHROPIC_API_KEY is not set.
+    call fails or GOOGLE_API_KEY is not set.
 
     The LLM does NOT override the programmatic decision — it adds nuance:
     sample-size caveats, market-condition context, follow-up hypotheses.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("GOOGLE_API_KEY")
     if not api_key:
         return None
 
     try:
-        import anthropic
+        from google import genai
     except ImportError:
-        print("    anthropic SDK not installed, skipping LLM analysis", flush=True)
+        print("    google-genai SDK not installed, skipping LLM analysis", flush=True)
         return None
 
     hyp_metrics = conclusion["hypothesis"]
@@ -230,13 +230,12 @@ Provide a concise analysis (3–5 sentences) covering:
 Be direct. Do not restate the numbers — interpret them. Do not recommend merging or closing the PR."""
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=512,
-            messages=[{"role": "user", "content": prompt}],
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=prompt,
         )
-        return message.content[0].text.strip()
+        return response.text.strip()
     except Exception as e:
         print(f"    LLM analysis failed: {e}", flush=True)
         return None
