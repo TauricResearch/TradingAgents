@@ -13,6 +13,13 @@
 | early_accumulation | scanners/early_accumulation.md | 2026-04-12 | Sub-threshold (score=60); no catalyst → structurally score-capped by ranker |
 | social_dd | scanners/social_dd.md | 2026-04-12 | Sub-threshold (score=56); BUT 55% 30d win rate — diverges from social_hype; ranker may be suppressing it incorrectly |
 | volume_accumulation | scanners/volume_accumulation.md | — | No data yet |
+| short_squeeze | scanners/short_squeeze.md | — | No data yet — new scanner, research: high SI (>20%) + catalyst = squeeze risk; not a directional signal alone |
+
+## Research
+
+| Title | File | Date | Summary |
+|-------|------|------|---------|
+| Short Interest Squeeze Scanner | research/2026-04-12-short-interest-squeeze.md | 2026-04-12 | High SI (>20%) + DTC >5 as squeeze-risk discovery; implemented as short_squeeze scanner |
 | reddit_dd | scanners/reddit_dd.md | — | No data yet |
 | reddit_trending | scanners/reddit_trending.md | — | No data yet |
 | semantic_news | scanners/semantic_news.md | — | No data yet |
