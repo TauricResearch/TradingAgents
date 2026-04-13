@@ -59,9 +59,11 @@ class LiveMode:
 
     @staticmethod
     def _serialize_error(*, ticker: str, date: str, exc: Exception) -> dict:
-        reason_codes = []
-        if isinstance(exc, ValueError) and "both quant and llm signals are None" in str(exc):
+        reason_codes = list(getattr(exc, "reason_codes", ()) or ())
+        if not reason_codes and isinstance(exc, ValueError) and "both quant and llm signals are None" in str(exc):
             reason_codes.append(ReasonCode.BOTH_SIGNALS_UNAVAILABLE.value)
+        source_diagnostics = dict(getattr(exc, "source_diagnostics", {}) or {})
+        data_quality = getattr(exc, "data_quality", None)
         return {
             "contract_version": CONTRACT_VERSION,
             "ticker": ticker,
@@ -76,9 +78,9 @@ class LiveMode:
             "degradation": {
                 "degraded": bool(reason_codes),
                 "reason_codes": reason_codes,
-                "source_diagnostics": {},
+                "source_diagnostics": source_diagnostics,
             },
-            "data_quality": None,
+            "data_quality": data_quality,
         }
 
     async def run_once(self, tickers: List[str], date: Optional[str] = None) -> List[dict]:
