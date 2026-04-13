@@ -375,20 +375,38 @@ class DiscoveryAnalytics:
                 f"Historical 30-day win rate: {overall_30d.get('win_rate', 0)}% ({overall_30d.get('count')} tracked)"
             )
 
-        # Top performing strategies
+        # Top and bottom performing strategies
         by_strategy = stats.get("by_strategy", {})
         if by_strategy:
-            lines.append("\nBest performing strategies (7-day):")
+            qualified = [
+                (k, v)
+                for k, v in by_strategy.items()
+                if v.get("win_rate_7d") is not None
+                and (v.get("wins_7d", 0) + v.get("losses_7d", 0)) >= 5
+            ]
             sorted_strats = sorted(
-                [(k, v) for k, v in by_strategy.items() if v.get("win_rate_7d")],
-                key=lambda x: x[1].get("win_rate_7d", 0),
-                reverse=True,
-            )[:3]
+                qualified, key=lambda x: x[1].get("win_rate_7d", 0), reverse=True
+            )
 
-            for strategy, data in sorted_strats:
+            lines.append("\nBest performing strategies (7-day):")
+            for strategy, data in sorted_strats[:3]:
                 wr = data.get("win_rate_7d", 0)
+                avg_ret = data.get("avg_return_7d", 0)
                 count = data.get("wins_7d", 0) + data.get("losses_7d", 0)
-                lines.append(f"  - {strategy}: {wr}% win rate ({count} samples)")
+                lines.append(
+                    f"  - {strategy}: {wr}% win rate, avg {avg_ret:+.1f}% return ({count} samples)"
+                )
+
+            lines.append(
+                "\nWORST performing strategies (7-day) — penalize these heavily in scoring:"
+            )
+            for strategy, data in sorted_strats[-3:]:
+                wr = data.get("win_rate_7d", 0)
+                avg_ret = data.get("avg_return_7d", 0)
+                count = data.get("wins_7d", 0) + data.get("losses_7d", 0)
+                lines.append(
+                    f"  - {strategy}: {wr}% win rate, avg {avg_ret:+.1f}% return ({count} samples)"
+                )
 
         return "\n".join(lines) if lines else "No historical data available yet"
 
