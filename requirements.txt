@@ -1,23 +1,55 @@
-typing-extensions
-langchain-core
-langchain-openai
-langchain-experimental
-pandas
-yfinance
-stockstats
-langgraph
-rank-bm25
-setuptools
-requests
-alpaca-py
-tqdm
-pytz
-fastapi
-uvicorn[standard]
-sse-starlette
-langchain_anthropic
-langchain-google-genai
-typer
-rich
-python-dotenv
-questionary
+# TradingAgents - Production Requirements
+# Core
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+sse-starlette>=2.1.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+httpx>=0.27.0
+
+# LLM Clients
+openai>=1.0.0
+anthropic>=0.40.0
+ollama>=0.4.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+langchain-anthropic>=0.2.0
+langchain-google-genai>=2.0.0
+langgraph>=0.2.0
+
+# Data
+pandas>=2.1.0
+numpy>=1.26.0
+yfinance>=0.2.0
+alpaca-py>=0.20.0
+
+# Analysis
+scikit-learn>=1.4.0
+scipy>=1.12.0
+stockstats>=0.5.0
+rank-bm25>=0.2.2
+
+# Database (runtime + migrations)
+alembic>=1.13.0
+SQLAlchemy>=2.0.0
+asyncpg>=0.30.0
+psycopg2-binary>=2.9.9
+
+# Circuit breaker support
+redis>=5.0.0
+requests>=2.31.0
+
+# CLI & UI
+typer>=0.12.0
+rich>=13.0.0
+questionary>=2.0.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+
+# Utilities
+tqdm>=4.66.0
+pytz>=2024.0
+setuptools>=69.0.0
