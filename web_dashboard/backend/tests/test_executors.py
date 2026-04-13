@@ -110,3 +110,29 @@ def test_executor_kills_subprocess_on_timeout(monkeypatch):
 
     assert process.kill_called is True
     assert process.wait_called is True
+
+
+def test_executor_marks_degraded_success_when_result_meta_reports_data_quality():
+    output = LegacySubprocessAnalysisExecutor._parse_output(
+        stdout_lines=[
+            'SIGNAL_DETAIL:{"quant_signal":"HOLD","llm_signal":"BUY","confidence":0.6}',
+            'RESULT_META:{"degrade_reason_codes":["non_trading_day"],"data_quality":{"state":"non_trading_day","requested_date":"2026-04-12"}}',
+            "ANALYSIS_COMPLETE:OVERWEIGHT",
+        ],
+        ticker="AAPL",
+        date="2026-04-12",
+        contract_version="v1alpha1",
+        executor_type="legacy_subprocess",
+    )
+
+    contract = output.to_result_contract(
+        task_id="task-3",
+        ticker="AAPL",
+        date="2026-04-12",
+        created_at="2026-04-12T10:00:00",
+        elapsed_seconds=3,
+    )
+
+    assert contract["status"] == "degraded_success"
+    assert contract["data_quality"]["state"] == "non_trading_day"
+    assert contract["degradation"]["reason_codes"] == ["non_trading_day"]

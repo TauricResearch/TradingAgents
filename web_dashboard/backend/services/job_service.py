@@ -151,7 +151,7 @@ class JobService:
         state["result"] = result
         state["error"] = contract.get("error")
         state["contract_version"] = contract.get("contract_version", state.get("contract_version"))
-        state["degradation_summary"] = self._build_degradation_summary(result)
+        state["degradation_summary"] = contract.get("degradation") or self._build_degradation_summary(result)
         state["data_quality_summary"] = contract.get("data_quality")
         state["compat"] = {
             "decision": result.get("decision"),
@@ -255,6 +255,8 @@ class JobService:
             "status": payload["status"],
             "created_at": payload.get("created_at"),
             "error": payload.get("error"),
+            "data_quality_summary": payload.get("data_quality_summary"),
+            "degradation_summary": payload.get("degradation_summary"),
         }
         if state.get("type") == "portfolio":
             summary.update({
@@ -310,6 +312,8 @@ class JobService:
         normalized.setdefault("result_ref", None)
         normalized.setdefault("degradation_summary", None)
         normalized.setdefault("data_quality_summary", None)
+        if "data_quality" in normalized and normalized.get("data_quality_summary") is None:
+            normalized["data_quality_summary"] = normalized.get("data_quality")
         compat = normalized.get("compat")
         if not isinstance(compat, dict):
             compat = {}

@@ -82,3 +82,20 @@ def test_get_signal_returns_reason_code_on_propagate_failure(monkeypatch, tmp_pa
     assert signal.degraded is True
     assert signal.reason_code == ReasonCode.LLM_SIGNAL_FAILED.value
     assert signal.metadata["error"] == "graph unavailable"
+
+
+def test_get_signal_returns_provider_mismatch_before_graph_init(tmp_path):
+    cfg = OrchestratorConfig(
+        cache_dir=str(tmp_path),
+        trading_agents_config={
+            "llm_provider": "anthropic",
+            "backend_url": "https://api.openai.com/v1",
+        },
+    )
+    runner = LLMRunner(cfg)
+
+    signal = runner.get_signal("AAPL", "2024-01-02")
+
+    assert signal.degraded is True
+    assert signal.reason_code == ReasonCode.PROVIDER_MISMATCH.value
+    assert signal.metadata["data_quality"]["state"] == "provider_mismatch"

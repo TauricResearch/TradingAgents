@@ -3,6 +3,7 @@ import { Table, Button, Progress, Result, Card, message, Popconfirm, Tooltip } f
 import { DeleteOutlined, CopyOutlined, SyncOutlined } from '@ant-design/icons'
 import DecisionBadge from '../components/DecisionBadge'
 import { StatusIcon, StatusTag } from '../components/StatusIcon'
+import { getDecision, getErrorMessage } from '../utils/contractView'
 
 export default function BatchManager() {
   const [tasks, setTasks] = useState([])
@@ -105,10 +106,9 @@ export default function BatchManager() {
     },
     {
       title: '决策',
-      dataIndex: 'decision',
       key: 'decision',
       width: 80,
-      render: (decision) => <DecisionBadge decision={decision} />,
+      render: (_, record) => <DecisionBadge decision={getDecision(record)} />,
     },
     {
       title: '任务ID',
@@ -132,16 +132,17 @@ export default function BatchManager() {
     },
     {
       title: '错误',
-      dataIndex: 'error',
       key: 'error',
       width: 180,
       ellipsis: { showTitle: false },
-      render: (error) =>
-        error ? (
+      render: (_, record) => {
+        const error = getErrorMessage(record)
+        return error ? (
           <Tooltip title={error} placement="topLeft">
             <span style={{ color: 'var(--sell)', fontSize: 12, display: 'block' }}>{error}</span>
           </Tooltip>
-        ) : null,
+        ) : null
+      },
     },
     {
       title: '操作',
@@ -174,7 +175,7 @@ export default function BatchManager() {
   const stats = useMemo(() => ({
     pending: tasks.filter(t => t.status === 'pending').length,
     running: tasks.filter(t => t.status === 'running').length,
-    completed: tasks.filter(t => t.status === 'completed').length,
+    completed: tasks.filter(t => t.status === 'completed' || t.status === 'degraded_success').length,
     failed: tasks.filter(t => t.status === 'failed').length,
   }), [tasks])
 

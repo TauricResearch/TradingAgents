@@ -333,6 +333,11 @@ def _normalize_recommendation_record(record: dict, *, date: Optional[str] = None
             },
             "degraded": quant_signal is None or llm_signal is None,
         },
+        "degradation": normalized.get("degradation") or {
+            "degraded": quant_signal is None or llm_signal is None,
+            "reason_codes": [],
+        },
+        "data_quality": normalized.get("data_quality"),
         "compat": {
             "analysis_date": date_value,
             "decision": decision,

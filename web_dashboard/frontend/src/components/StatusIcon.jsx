@@ -4,6 +4,7 @@ const STATUS_TAG_MAP = {
   pending:   { text: '等待',  bg: 'var(--bg-elevated)',  color: 'var(--text-muted)' },
   running:   { text: '分析中', bg: 'var(--running-dim)', color: 'var(--running)' },
   completed: { text: '完成',  bg: 'var(--buy-dim)',     color: 'var(--buy)' },
+  degraded_success: { text: '降级完成', bg: 'var(--hold-dim)', color: 'var(--hold)' },
   failed:    { text: '失败',  bg: 'var(--sell-dim)',   color: 'var(--sell)' },
 }
 
@@ -11,6 +12,8 @@ export function StatusIcon({ status }) {
   switch (status) {
     case 'completed':
       return <CheckCircleOutlined style={{ color: 'var(--buy)', fontSize: 16 }} />
+    case 'degraded_success':
+      return <CheckCircleOutlined style={{ color: 'var(--hold)', fontSize: 16 }} />
     case 'failed':
       return <CloseCircleOutlined style={{ color: 'var(--sell)', fontSize: 16 }} />
     case 'running':

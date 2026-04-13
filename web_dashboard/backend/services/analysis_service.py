@@ -306,11 +306,15 @@ class AnalysisService:
             quant_signal = output.quant_signal
             llm_signal = output.llm_signal
             confidence = output.confidence
+            data_quality = output.data_quality
+            degrade_reason_codes = list(output.degrade_reason_codes)
         else:
             decision = "HOLD"
             quant_signal = None
             llm_signal = None
             confidence = None
+            data_quality = None
+            degrade_reason_codes = []
             for line in (stdout or "").splitlines():
                 if line.startswith("SIGNAL_DETAIL:"):
                     try:
@@ -328,7 +332,7 @@ class AnalysisService:
             "ticker": ticker,
             "name": stock.get("name", ticker),
             "date": date,
-            "status": "completed",
+            "status": "degraded_success" if (degrade_reason_codes or data_quality or quant_signal is None or llm_signal is None) else "completed",
             "created_at": datetime.now().isoformat(),
             "result": {
                 "decision": decision,
@@ -351,6 +355,11 @@ class AnalysisService:
                 },
                 "degraded": quant_signal is None or llm_signal is None,
             },
+            "degradation": {
+                "degraded": bool(degrade_reason_codes) or quant_signal is None or llm_signal is None,
+                "reason_codes": degrade_reason_codes,
+            },
+            "data_quality": data_quality,
             "compat": {
                 "analysis_date": date,
                 "decision": decision,

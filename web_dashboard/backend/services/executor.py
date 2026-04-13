@@ -41,6 +41,25 @@ trading_config["project_dir"] = os.path.join(repo_root, "tradingagents")
 trading_config["results_dir"] = os.path.join(repo_root, "results")
 trading_config["max_debate_rounds"] = 1
 trading_config["max_risk_discuss_rounds"] = 1
+if os.environ.get("TRADINGAGENTS_LLM_PROVIDER"):
+    trading_config["llm_provider"] = os.environ["TRADINGAGENTS_LLM_PROVIDER"]
+elif os.environ.get("ANTHROPIC_BASE_URL"):
+    trading_config["llm_provider"] = "anthropic"
+elif os.environ.get("OPENAI_BASE_URL"):
+    trading_config["llm_provider"] = "openai"
+if os.environ.get("TRADINGAGENTS_BACKEND_URL"):
+    trading_config["backend_url"] = os.environ["TRADINGAGENTS_BACKEND_URL"]
+elif os.environ.get("ANTHROPIC_BASE_URL"):
+    trading_config["backend_url"] = os.environ["ANTHROPIC_BASE_URL"]
+elif os.environ.get("OPENAI_BASE_URL"):
+    trading_config["backend_url"] = os.environ["OPENAI_BASE_URL"]
+if os.environ.get("TRADINGAGENTS_MODEL"):
+    trading_config["deep_think_llm"] = os.environ["TRADINGAGENTS_MODEL"]
+    trading_config["quick_think_llm"] = os.environ["TRADINGAGENTS_MODEL"]
+if os.environ.get("TRADINGAGENTS_DEEP_MODEL"):
+    trading_config["deep_think_llm"] = os.environ["TRADINGAGENTS_DEEP_MODEL"]
+if os.environ.get("TRADINGAGENTS_QUICK_MODEL"):
+    trading_config["quick_think_llm"] = os.environ["TRADINGAGENTS_QUICK_MODEL"]
 
 print("STAGE:analysts", flush=True)
 print("STAGE:research", flush=True)
@@ -105,7 +124,13 @@ report_path.write_text(report_content)
 
 print("STAGE:portfolio", flush=True)
 signal_detail = json.dumps({"llm_signal": llm_signal, "quant_signal": quant_signal, "confidence": confidence})
+result_meta = json.dumps({
+    "degrade_reason_codes": list(getattr(result, "degrade_reason_codes", ())),
+    "data_quality": (result.metadata or {}).get("data_quality"),
+    "source_diagnostics": (result.metadata or {}).get("source_diagnostics"),
+})
 print("SIGNAL_DETAIL:" + signal_detail, flush=True)
+print("RESULT_META:" + result_meta, flush=True)
 print("ANALYSIS_COMPLETE:" + signal, flush=True)
 """
 
@@ -125,6 +150,9 @@ class AnalysisExecutionOutput:
     llm_signal: Optional[str]
     confidence: Optional[float]
     report_path: Optional[str] = None
+    degrade_reason_codes: tuple[str, ...] = ()
+    data_quality: Optional[dict] = None
+    source_diagnostics: Optional[dict] = None
     contract_version: str = CONTRACT_VERSION
     executor_type: str = DEFAULT_EXECUTOR_TYPE
 
@@ -138,17 +166,24 @@ class AnalysisExecutionOutput:
         elapsed_seconds: int,
         current_stage: str = "portfolio",
     ) -> dict:
+        degraded = bool(self.degrade_reason_codes) or bool(self.data_quality) or self.quant_signal is None or self.llm_signal is None
         return {
             "contract_version": self.contract_version,
             "task_id": task_id,
             "ticker": ticker,
             "date": date,
-            "status": "completed",
+            "status": "degraded_success" if degraded else "completed",
             "progress": 100,
             "current_stage": current_stage,
             "created_at": created_at,
             "elapsed_seconds": elapsed_seconds,
             "elapsed": elapsed_seconds,
+            "degradation": {
+                "degraded": degraded,
+                "reason_codes": list(self.degrade_reason_codes),
+                "source_diagnostics": self.source_diagnostics or {},
+            },
+            "data_quality": self.data_quality,
             "result": {
                 "decision": self.decision,
                 "confidence": self.confidence,
@@ -168,7 +203,7 @@ class AnalysisExecutionOutput:
                         "available": self.llm_signal is not None,
                     },
                 },
-                "degraded": self.quant_signal is None or self.llm_signal is None,
+                "degraded": degraded,
                 "report": {
                     "path": self.report_path,
                     "available": bool(self.report_path),
@@ -325,7 +360,11 @@ class LegacySubprocessAnalysisExecutor:
         quant_signal = None
         llm_signal = None
         confidence = None
+        degrade_reason_codes: tuple[str, ...] = ()
+        data_quality = None
+        source_diagnostics = None
         seen_signal_detail = False
+        seen_result_meta = False
         seen_complete = False
 
         for line in stdout_lines:
@@ -338,6 +377,15 @@ class LegacySubprocessAnalysisExecutor:
                 quant_signal = detail.get("quant_signal")
                 llm_signal = detail.get("llm_signal")
                 confidence = detail.get("confidence")
+            elif line.startswith("RESULT_META:"):
+                seen_result_meta = True
+                try:
+                    detail = json.loads(line.split(":", 1)[1].strip())
+                except Exception as exc:
+                    raise AnalysisExecutorError("failed to parse RESULT_META payload") from exc
+                degrade_reason_codes = tuple(detail.get("degrade_reason_codes") or ())
+                data_quality = detail.get("data_quality")
+                source_diagnostics = detail.get("source_diagnostics")
             elif line.startswith("ANALYSIS_COMPLETE:"):
                 seen_complete = True
                 decision = line.split(":", 1)[1].strip()
@@ -360,6 +408,9 @@ class LegacySubprocessAnalysisExecutor:
             llm_signal=llm_signal,
             confidence=confidence,
             report_path=report_path,
+            degrade_reason_codes=degrade_reason_codes,
+            data_quality=data_quality,
+            source_diagnostics=source_diagnostics,
             contract_version=contract_version,
             executor_type=executor_type,
         )

@@ -3,6 +3,15 @@ import { useSearchParams } from 'react-router-dom'
 import { Card, Progress, Badge, Empty, Button, Result, message } from 'antd'
 import DecisionBadge from '../components/DecisionBadge'
 import { StatusIcon } from '../components/StatusIcon'
+import {
+  getConfidence,
+  getDecision,
+  getDisplayDate,
+  getErrorMessage,
+  getLlmSignal,
+  getQuantSignal,
+  isCompletedLikeStatus,
+} from '../utils/contractView'
 
 const ANALYSIS_STAGES = [
   { key: 'analysts', label: '分析师团队' },
@@ -20,6 +29,13 @@ export default function AnalysisMonitor() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const wsRef = useRef(null)
+  const decision = getDecision(task)
+  const llmSignal = getLlmSignal(task)
+  const quantSignal = getQuantSignal(task)
+  const confidence = getConfidence(task)
+  const displayDate = getDisplayDate(task)
+  const dataQuality = task?.data_quality_summary
+  const errorMessage = getErrorMessage(task)
 
   const fetchInitialState = useCallback(async () => {
     if (!taskId) return
@@ -155,21 +171,36 @@ export default function AnalysisMonitor() {
                 <span style={{ fontFamily: 'var(--font-ui)', fontSize: 28, fontWeight: 600, letterSpacing: 0.196, lineHeight: 1.14 }}>
                   {task.ticker}
                 </span>
-                <DecisionBadge decision={task.decision} />
+                <DecisionBadge decision={decision} />
               </div>
+              {displayDate && (
+                <div style={{ marginBottom: 10, fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+                  分析日期: {displayDate}
+                </div>
+              )}
 
               {/* Signal Detail Row */}
-              {task.status === 'completed' && (task.llm_signal || task.quant_signal || task.confidence != null) && (
+              {isCompletedLikeStatus(task.status) && (llmSignal || quantSignal || confidence != null) && (
                 <div style={{ display: 'flex', gap: 24, marginBottom: 12, fontSize: 'var(--text-sm)', fontFamily: 'var(--font-ui)', color: 'var(--text-secondary)' }}>
-                  {task.llm_signal && (
-                    <span>LLM: <DecisionBadge decision={task.llm_signal} /></span>
+                  {llmSignal && (
+                    <span>LLM: <DecisionBadge decision={llmSignal} /></span>
                   )}
-                  {task.quant_signal && (
-                    <span>Quant: <DecisionBadge decision={task.quant_signal} /></span>
+                  {quantSignal && (
+                    <span>Quant: <DecisionBadge decision={quantSignal} /></span>
                   )}
-                  {task.confidence != null && (
-                    <span>置信度: <strong style={{ color: 'var(--text-primary)' }}>{(task.confidence * 100).toFixed(0)}%</strong></span>
+                  {confidence != null && (
+                    <span>置信度: <strong style={{ color: 'var(--text-primary)' }}>{(confidence * 100).toFixed(0)}%</strong></span>
                   )}
+                </div>
+              )}
+              {dataQuality?.state && (
+                <div style={{ marginBottom: 12, fontSize: 'var(--text-sm)', color: 'var(--hold)' }}>
+                  数据质量: <strong>{dataQuality.state}</strong>
+                </div>
+              )}
+              {errorMessage && (
+                <div style={{ marginBottom: 12, fontSize: 'var(--text-sm)', color: 'var(--sell)' }}>
+                  错误: {errorMessage}
                 </div>
               )}
 

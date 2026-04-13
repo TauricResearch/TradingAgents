@@ -10,6 +10,12 @@ from orchestrator.contracts.result_contract import Signal, build_error_signal
 logger = logging.getLogger(__name__)
 
 
+def _build_data_quality(state: str, **details):
+    payload = {"state": state}
+    payload.update({key: value for key, value in details.items() if value is not None})
+    return payload
+
+
 class LLMRunner:
     def __init__(self, config: OrchestratorConfig):
         self._config = config
@@ -27,6 +33,24 @@ class LLMRunner:
                 graph_kwargs["selected_analysts"] = trading_cfg["selected_analysts"]
             self._graph = TradingAgentsGraph(**graph_kwargs)
         return self._graph
+
+    def _detect_provider_mismatch(self):
+        trading_cfg = self._config.trading_agents_config or {}
+        provider = str(trading_cfg.get("llm_provider", "")).lower()
+        base_url = str(trading_cfg.get("backend_url", "") or "").lower()
+        if not provider or not base_url:
+            return None
+        if provider == "anthropic" and "/anthropic" not in base_url:
+            return {
+                "provider": provider,
+                "backend_url": trading_cfg.get("backend_url"),
+            }
+        if provider in {"openai", "openrouter", "ollama", "xai"} and "/anthropic" in base_url:
+            return {
+                "provider": provider,
+                "backend_url": trading_cfg.get("backend_url"),
+            }
+        return None
 
     def get_signal(self, ticker: str, date: str) -> Signal:
         """获取指定股票在指定日期的 LLM 信号，带缓存。"""
@@ -47,6 +71,21 @@ class LLMRunner:
                 metadata=data,
             )
 
+        mismatch = self._detect_provider_mismatch()
+        if mismatch is not None:
+            return build_error_signal(
+                ticker=ticker,
+                source="llm",
+                reason_code=ReasonCode.PROVIDER_MISMATCH.value,
+                message=(
+                    f"provider '{mismatch['provider']}' does not match backend_url "
+                    f"'{mismatch['backend_url']}'"
+                ),
+                metadata={
+                    "data_quality": _build_data_quality("provider_mismatch", **mismatch),
+                },
+            )
+
         try:
             _final_state, processed_signal = self._get_graph().propagate(ticker, date)
             rating = processed_signal if isinstance(processed_signal, str) else str(processed_signal)
@@ -60,6 +99,7 @@ class LLMRunner:
                 "timestamp": now.isoformat(),
                 "ticker": ticker,
                 "date": date,
+                "data_quality": _build_data_quality("ok"),
             }
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(cache_data, f, ensure_ascii=False, indent=2)
@@ -74,11 +114,21 @@ class LLMRunner:
             )
         except Exception as e:
             logger.error("LLMRunner: propagate failed for %s %s: %s", ticker, date, e)
+            reason_code = ReasonCode.LLM_SIGNAL_FAILED.value
+            if "Unsupported LLM provider" in str(e):
+                reason_code = ReasonCode.PROVIDER_MISMATCH.value
             return build_error_signal(
                 ticker=ticker,
                 source="llm",
-                reason_code=ReasonCode.LLM_SIGNAL_FAILED.value,
+                reason_code=reason_code,
                 message=str(e),
+                metadata={
+                    "data_quality": _build_data_quality(
+                        "provider_mismatch" if reason_code == ReasonCode.PROVIDER_MISMATCH.value else "unknown",
+                        provider=(self._config.trading_agents_config or {}).get("llm_provider"),
+                        backend_url=(self._config.trading_agents_config or {}).get("backend_url"),
+                    ),
+                },
             )
 
     def _map_rating(self, rating: str) -> tuple[int, float]:

@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import { portfolioApi } from '../services/portfolioApi'
 import DecisionBadge from '../components/DecisionBadge'
+import { getDecision, getDisplayDate, isCompletedLikeStatus } from '../utils/contractView'
 
 const { Text } = Typography
 
@@ -316,7 +317,7 @@ function RecommendationsTab() {
       const res = await portfolioApi.getRecommendations(date)
       setData(res.recommendations || [])
       if (!date) {
-        const d = [...new Set((res.recommendations || []).map(r => r.analysis_date))].sort().reverse()
+        const d = [...new Set((res.recommendations || []).map(r => getDisplayDate(r)).filter(Boolean))].sort().reverse()
         setDates(d)
       }
     } catch {
@@ -338,7 +339,7 @@ function RecommendationsTab() {
       const d = JSON.parse(e.data)
       if (d.type === 'progress') {
         setProgress(d)
-        if (d.status === 'completed' || d.status === 'failed') {
+        if (isCompletedLikeStatus(d.status) || d.status === 'failed') {
           setAnalyzing(false)
           setTaskId(null)
           setProgress(null)
@@ -377,10 +378,10 @@ function RecommendationsTab() {
       render: t => <span className="text-data">{t}</span> },
     { title: '名称', dataIndex: 'name', key: 'name', render: t => <span style={{ fontWeight: 500 }}>{t}</span> },
     {
-      title: '决策', dataIndex: 'decision', key: 'decision', width: 80,
-      render: d => <DecisionBadge decision={d} />,
+      title: '决策', key: 'decision', width: 80,
+      render: (_, record) => <DecisionBadge decision={getDecision(record)} />,
     },
-    { title: '分析日期', dataIndex: 'analysis_date', key: 'analysis_date', width: 120 },
+    { title: '分析日期', key: 'analysis_date', width: 120, render: (_, record) => getDisplayDate(record) || '—' },
   ]
 
   return (

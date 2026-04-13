@@ -5,6 +5,7 @@ import sys
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
+import pandas as pd
 import yfinance as yf
 
 from orchestrator.config import OrchestratorConfig
@@ -12,6 +13,12 @@ from orchestrator.contracts.error_taxonomy import ReasonCode
 from orchestrator.contracts.result_contract import Signal, build_error_signal
 
 logger = logging.getLogger(__name__)
+
+
+def _build_data_quality(state: str, **details: Any) -> dict[str, Any]:
+    payload = {"state": state}
+    payload.update({key: value for key, value in details.items() if value is not None})
+    return payload
 
 
 class QuantRunner:
@@ -39,19 +46,98 @@ class QuantRunner:
         start_dt = end_dt - timedelta(days=60)
         start_str = start_dt.strftime("%Y-%m-%d")
 
-        df = yf.download(ticker, start=start_str, end=date, progress=False, auto_adjust=True)
+        end_exclusive = (end_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+        df = yf.download(ticker, start=start_str, end=end_exclusive, progress=False, auto_adjust=True)
         if df.empty:
             logger.warning("No price data for %s between %s and %s", ticker, start_str, date)
+            if end_dt.weekday() >= 5:
+                return build_error_signal(
+                    ticker=ticker,
+                    source="quant",
+                    reason_code=ReasonCode.NON_TRADING_DAY.value,
+                    message=f"{date} is not a trading day",
+                    metadata={
+                        "start_date": start_str,
+                        "end_date": date,
+                        "data_quality": _build_data_quality(
+                            "non_trading_day",
+                            requested_date=date,
+                        ),
+                    },
+                )
             return build_error_signal(
                 ticker=ticker,
                 source="quant",
                 reason_code=ReasonCode.QUANT_NO_DATA.value,
                 message=f"no price data between {start_str} and {date}",
-                metadata={"start_date": start_str, "end_date": date},
+                metadata={
+                    "start_date": start_str,
+                    "end_date": date,
+                },
             )
 
         # 标准化列名为小写
         df.columns = [c[0].lower() if isinstance(c, tuple) else c.lower() for c in df.columns]
+
+        required_columns = {"open", "high", "low", "close"}
+        missing_columns = sorted(required_columns - set(df.columns))
+        if missing_columns:
+            return build_error_signal(
+                ticker=ticker,
+                source="quant",
+                reason_code=ReasonCode.PARTIAL_DATA.value,
+                message=f"missing price columns: {', '.join(missing_columns)}",
+                metadata={
+                    "start_date": start_str,
+                    "end_date": date,
+                    "data_quality": _build_data_quality(
+                        "partial_data",
+                        missing_fields=missing_columns,
+                    ),
+                },
+            )
+
+        df.index = pd.to_datetime(df.index)
+        available_dates = df.index.normalize()
+        requested_date = pd.Timestamp(end_dt.date())
+        if requested_date not in available_dates:
+            last_available_ts = df.index.max()
+            last_available_date = (
+                last_available_ts.strftime("%Y-%m-%d")
+                if hasattr(last_available_ts, "strftime")
+                else str(last_available_ts)
+            )
+            if end_dt.weekday() >= 5:
+                return build_error_signal(
+                    ticker=ticker,
+                    source="quant",
+                    reason_code=ReasonCode.NON_TRADING_DAY.value,
+                    message=f"{date} is not a trading day",
+                    metadata={
+                        "start_date": start_str,
+                        "end_date": date,
+                        "data_quality": _build_data_quality(
+                            "non_trading_day",
+                            requested_date=date,
+                            last_available_date=last_available_date,
+                        ),
+                    },
+                )
+            return build_error_signal(
+                ticker=ticker,
+                source="quant",
+                reason_code=ReasonCode.STALE_DATA.value,
+                message=f"latest price data stops at {last_available_date}",
+                metadata={
+                    "start_date": start_str,
+                    "end_date": date,
+                    "data_quality": _build_data_quality(
+                        "stale_data",
+                        requested_date=date,
+                        last_available_date=last_available_date,
+                    ),
+                },
+            )
 
         # 用最佳参数创建 BollingerStrategy 实例
         # Lazy import: requires quant_backtest_path to be in sys.path (set in __init__)
@@ -117,7 +203,16 @@ class QuantRunner:
             confidence=confidence,
             source="quant",
             timestamp=datetime.now(timezone.utc),
-            metadata={"params": params, "sharpe_ratio": sharpe, "max_sharpe": max_sharpe},
+            metadata={
+                "params": params,
+                "sharpe_ratio": sharpe,
+                "max_sharpe": max_sharpe,
+                "data_quality": _build_data_quality(
+                    "ok",
+                    requested_date=date,
+                    last_available_date=date,
+                ),
+            },
         )
 
     def _load_best_params(self) -> dict:
