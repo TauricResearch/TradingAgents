@@ -6,11 +6,8 @@ import asyncio
 import hmac
 import json
 import os
-import subprocess
 import sys
-import tempfile
 import time
-import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -23,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from services import AnalysisService, JobService, ResultStore, build_request_context, load_migration_flags
+from services.executor import LegacySubprocessAnalysisExecutor
 
 # Path to TradingAgents repo root
 REPO_ROOT = Path(__file__).parent.parent.parent
@@ -54,10 +52,12 @@ async def lifespan(app: FastAPI):
         delete_task=app.state.result_store.delete_task_status,
     )
     app.state.analysis_service = AnalysisService(
-        analysis_python=ANALYSIS_PYTHON,
-        repo_root=REPO_ROOT,
-        analysis_script_template=ANALYSIS_SCRIPT_TEMPLATE,
-        api_key_resolver=_get_analysis_api_key,
+        executor=LegacySubprocessAnalysisExecutor(
+            analysis_python=ANALYSIS_PYTHON,
+            repo_root=REPO_ROOT,
+            api_key_resolver=_get_analysis_api_key,
+            process_registry=app.state.job_service.register_process,
+        ),
         result_store=app.state.result_store,
         job_service=app.state.job_service,
         retry_count=MAX_RETRY_COUNT,
@@ -229,23 +229,6 @@ def _save_to_cache(mode: str, data: dict):
         pass
 
 
-def _save_task_status(task_id: str, data: dict):
-    """Persist task state to disk"""
-    try:
-        TASK_STATUS_DIR.mkdir(parents=True, exist_ok=True)
-        (TASK_STATUS_DIR / f"{task_id}.json").write_text(json.dumps(data, ensure_ascii=False))
-    except Exception:
-        pass
-
-
-def _delete_task_status(task_id: str):
-    """Remove persisted task state from disk"""
-    try:
-        (TASK_STATUS_DIR / f"{task_id}.json").unlink(missing_ok=True)
-    except Exception:
-        pass
-
-
 # ============== SEPA Screening ==============
 
 def _run_sepa_screening(mode: str) -> dict:
@@ -282,288 +265,34 @@ async def screen_stocks(mode: str = Query("china_strict"), refresh: bool = Query
 
 # ============== Analysis Execution ==============
 
-# Script template for subprocess-based analysis
-# api_key is passed via environment variable (not CLI) for security
-ANALYSIS_SCRIPT_TEMPLATE = """
-import sys
-import os
-import json
-ticker = sys.argv[1]
-date = sys.argv[2]
-repo_root = sys.argv[3]
-
-sys.path.insert(0, repo_root)
-os.environ["ANTHROPIC_BASE_URL"] = "https://api.minimaxi.com/anthropic"
-import py_mini_racer
-sys.modules["mini_racer"] = py_mini_racer
-from pathlib import Path
-
-print("STAGE:analysts", flush=True)
-
-from orchestrator.config import OrchestratorConfig
-from orchestrator.orchestrator import TradingOrchestrator
-
-config = OrchestratorConfig(
-    quant_backtest_path=os.environ.get("QUANT_BACKTEST_PATH", ""),
-    trading_agents_config={
-        "llm_provider": "anthropic",
-        "deep_think_llm": "MiniMax-M2.7-highspeed",
-        "quick_think_llm": "MiniMax-M2.7-highspeed",
-        "backend_url": "https://api.minimaxi.com/anthropic",
-        "max_debate_rounds": 1,
-        "max_risk_discuss_rounds": 1,
-        "project_dir": os.path.join(repo_root, "tradingagents"),
-        "results_dir": os.path.join(repo_root, "results"),
-    }
-)
-
-print("STAGE:research", flush=True)
-
-orchestrator = TradingOrchestrator(config)
-
-print("STAGE:trading", flush=True)
-
-try:
-    result = orchestrator.get_combined_signal(ticker, date)
-except ValueError as _e:
-    print("ANALYSIS_ERROR:" + str(_e), file=sys.stderr, flush=True)
-    sys.exit(1)
-
-print("STAGE:risk", flush=True)
-
-# Map direction + confidence to 5-level signal
-# FinalSignal is a dataclass, access via attributes not .get()
-direction = result.direction
-confidence = result.confidence
-llm_sig_obj = result.llm_signal
-quant_sig_obj = result.quant_signal
-# LLM metadata has "rating" field; quant metadata does not — derive from direction
-llm_signal = llm_sig_obj.metadata.get("rating", "HOLD") if llm_sig_obj else "HOLD"
-if quant_sig_obj is None:
-    quant_signal = "HOLD"
-elif quant_sig_obj.direction == 1:
-    quant_signal = "BUY" if quant_sig_obj.confidence >= 0.7 else "OVERWEIGHT"
-elif quant_sig_obj.direction == -1:
-    quant_signal = "SELL" if quant_sig_obj.confidence >= 0.7 else "UNDERWEIGHT"
-else:
-    quant_signal = "HOLD"
-
-if direction == 1:
-    signal = "BUY" if confidence >= 0.7 else "OVERWEIGHT"
-elif direction == -1:
-    signal = "SELL" if confidence >= 0.7 else "UNDERWEIGHT"
-else:
-    signal = "HOLD"
-
-results_dir = Path(repo_root) / "results" / ticker / date
-results_dir.mkdir(parents=True, exist_ok=True)
-
-report_content = (
-    "# TradingAgents 分析报告\\n\\n"
-    "**股票**: " + ticker + "\\n"
-    "**日期**: " + date + "\\n\\n"
-    "## 最终决策\\n\\n"
-    "**" + signal + "**\\n\\n"
-    "## 信号详情\\n\\n"
-    "- LLM 信号: " + llm_signal + "\\n"
-    "- Quant 信号: " + quant_signal + "\\n"
-    "- 置信度: " + f"{confidence:.1%}" + "\\n\\n"
-    "## 分析摘要\\n\\n"
-    "N/A\\n"
-)
-
-report_path = results_dir / "complete_report.md"
-report_path.write_text(report_content)
-
-print("STAGE:portfolio", flush=True)
-signal_detail = json.dumps({"llm_signal": llm_signal, "quant_signal": quant_signal, "confidence": confidence})
-print("SIGNAL_DETAIL:" + signal_detail, flush=True)
-print("ANALYSIS_COMPLETE:" + signal, flush=True)
-"""
-
-
 @app.post("/api/analysis/start")
-async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Header(None)):
-    """Start a new analysis task"""
+async def start_analysis(
+    payload: AnalysisRequest,
+    http_request: Request,
+    api_key: Optional[str] = Header(None),
+):
+    """Start a new analysis task."""
     import uuid
-    task_id = f"{request.ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
-    date = request.date or datetime.now().strftime("%Y-%m-%d")
 
-    # Check dashboard API key (opt-in auth)
     if not _check_api_key(api_key):
         _auth_error()
 
-    # Validate ANTHROPIC_API_KEY for the analysis subprocess
-    anthropic_key = _get_analysis_api_key()
-    if not anthropic_key:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY environment variable not set")
+    task_id = f"{payload.ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+    date = payload.date or datetime.now().strftime("%Y-%m-%d")
+    request_context = build_request_context(http_request, api_key=api_key)
 
-    # Initialize task state
-    app.state.task_results[task_id] = {
-        "task_id": task_id,
-        "ticker": request.ticker,
-        "date": date,
-        "status": "running",
-        "progress": 0,
-        "current_stage": "analysts",
-        "created_at": datetime.now().isoformat(),
-        "elapsed": 0,
-        "stages": [
-            {"status": "running", "completed_at": None},
-            {"status": "pending", "completed_at": None},
-            {"status": "pending", "completed_at": None},
-            {"status": "pending", "completed_at": None},
-            {"status": "pending", "completed_at": None},
-        ],
-        "logs": [],
-        "decision": None,
-        "quant_signal": None,
-        "llm_signal": None,
-        "confidence": None,
-        "error": None,
-    }
-    await broadcast_progress(task_id, app.state.task_results[task_id])
-
-    # Write analysis script to temp file with restrictive permissions (avoids subprocess -c quoting issues)
-    fd, script_path_str = tempfile.mkstemp(suffix=".py", prefix=f"analysis_{task_id}_")
-    script_path = Path(script_path_str)
-    os.chmod(script_path, 0o600)
-    with os.fdopen(fd, "w") as f:
-        f.write(ANALYSIS_SCRIPT_TEMPLATE)
-
-    # Store process reference for cancellation
-    app.state.processes = getattr(app.state, 'processes', {})
-    app.state.processes[task_id] = None
-
-    # Cancellation event for the monitor coroutine
-    cancel_event = asyncio.Event()
-
-    # Stage name to index mapping
-    STAGE_NAMES = ["analysts", "research", "trading", "risk", "portfolio"]
-
-    def _update_task_stage(stage_name: str):
-        """Update task state for a completed stage and mark next as running."""
-        try:
-            idx = STAGE_NAMES.index(stage_name)
-        except ValueError:
-            return
-        # Mark all previous stages as completed
-        for i in range(idx):
-            if app.state.task_results[task_id]["stages"][i]["status"] != "completed":
-                app.state.task_results[task_id]["stages"][i]["status"] = "completed"
-                app.state.task_results[task_id]["stages"][i]["completed_at"] = datetime.now().strftime("%H:%M:%S")
-        # Mark current as completed
-        if app.state.task_results[task_id]["stages"][idx]["status"] != "completed":
-            app.state.task_results[task_id]["stages"][idx]["status"] = "completed"
-            app.state.task_results[task_id]["stages"][idx]["completed_at"] = datetime.now().strftime("%H:%M:%S")
-        # Mark next as running
-        if idx + 1 < 5:
-            if app.state.task_results[task_id]["stages"][idx + 1]["status"] == "pending":
-                app.state.task_results[task_id]["stages"][idx + 1]["status"] = "running"
-        # Update progress
-        app.state.task_results[task_id]["progress"] = int((idx + 1) / 5 * 100)
-        app.state.task_results[task_id]["current_stage"] = stage_name
-
-    async def run_analysis():
-        """Run analysis subprocess and broadcast progress"""
-        try:
-            # Use clean environment - don't inherit parent env
-            clean_env = {k: v for k, v in os.environ.items()
-                        if not k.startswith(("PYTHON", "CONDA", "VIRTUAL"))}
-            clean_env["ANTHROPIC_API_KEY"] = anthropic_key
-            clean_env["ANTHROPIC_BASE_URL"] = "https://api.minimaxi.com/anthropic"
-
-            proc = await asyncio.create_subprocess_exec(
-                str(ANALYSIS_PYTHON),
-                str(script_path),
-                request.ticker,
-                date,
-                str(REPO_ROOT),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=clean_env,
-            )
-            app.state.processes[task_id] = proc
-
-            # Read stdout line-by-line for real-time stage updates
-            stdout_lines = []
-            while True:
-                try:
-                    line_bytes = await asyncio.wait_for(proc.stdout.readline(), timeout=300.0)
-                except asyncio.TimeoutError:
-                    break
-                if not line_bytes:
-                    break
-                line = line_bytes.decode(errors="replace").rstrip()
-                stdout_lines.append(line)
-                if line.startswith("STAGE:"):
-                    stage = line.split(":", 1)[1].strip()
-                    _update_task_stage(stage)
-                    await broadcast_progress(task_id, app.state.task_results[task_id])
-                if cancel_event.is_set():
-                    break
-
-            await proc.wait()
-            stderr_bytes = await proc.stderr.read()
-
-            # Clean up script file
-            try:
-                script_path.unlink()
-            except Exception:
-                pass
-
-            if proc.returncode == 0:
-                output = "\n".join(stdout_lines)
-                decision = "HOLD"
-                for line in stdout_lines:
-                    if line.startswith("SIGNAL_DETAIL:"):
-                        try:
-                            detail = json.loads(line.split(":", 1)[1].strip())
-                            app.state.task_results[task_id]["quant_signal"] = detail.get("quant_signal")
-                            app.state.task_results[task_id]["llm_signal"] = detail.get("llm_signal")
-                            app.state.task_results[task_id]["confidence"] = detail.get("confidence")
-                        except Exception:
-                            pass
-                    if line.startswith("ANALYSIS_COMPLETE:"):
-                        decision = line.split(":", 1)[1].strip()
-
-                app.state.task_results[task_id]["status"] = "completed"
-                app.state.task_results[task_id]["progress"] = 100
-                app.state.task_results[task_id]["decision"] = decision
-                app.state.task_results[task_id]["current_stage"] = "portfolio"
-                for i in range(5):
-                    app.state.task_results[task_id]["stages"][i]["status"] = "completed"
-                    if not app.state.task_results[task_id]["stages"][i].get("completed_at"):
-                        app.state.task_results[task_id]["stages"][i]["completed_at"] = datetime.now().strftime("%H:%M:%S")
-            else:
-                error_msg = stderr_bytes.decode(errors="replace")[-1000:] if stderr_bytes else "Unknown error"
-                app.state.task_results[task_id]["status"] = "failed"
-                app.state.task_results[task_id]["error"] = error_msg
-
-            _save_task_status(task_id, app.state.task_results[task_id])
-
-        except Exception as e:
-            cancel_event.set()
-            app.state.task_results[task_id]["status"] = "failed"
-            app.state.task_results[task_id]["error"] = str(e)
-            try:
-                script_path.unlink()
-            except Exception:
-                pass
-
-            _save_task_status(task_id, app.state.task_results[task_id])
-
-        await broadcast_progress(task_id, app.state.task_results[task_id])
-
-    task = asyncio.create_task(run_analysis())
-    app.state.analysis_tasks[task_id] = task
-
-    return {
-        "task_id": task_id,
-        "ticker": request.ticker,
-        "date": date,
-        "status": "running",
-    }
+    try:
+        return await app.state.analysis_service.start_analysis(
+            task_id=task_id,
+            ticker=payload.ticker,
+            date=date,
+            request_context=request_context,
+            broadcast_progress=broadcast_progress,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.get("/api/analysis/status/{task_id}")
@@ -600,13 +329,12 @@ async def list_tasks(api_key: Optional[str] = Header(None)):
 
 @app.delete("/api/analysis/cancel/{task_id}")
 async def cancel_task(task_id: str, api_key: Optional[str] = Header(None)):
-    """Cancel a running task"""
+    """Cancel a running task."""
     if not _check_api_key(api_key):
         _auth_error()
     if task_id not in app.state.task_results:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # Kill the subprocess if it's still running
     proc = app.state.processes.get(task_id)
     if proc and proc.returncode is None:
         try:
@@ -614,26 +342,18 @@ async def cancel_task(task_id: str, api_key: Optional[str] = Header(None)):
         except Exception:
             pass
 
-    # Cancel the asyncio task
     task = app.state.analysis_tasks.get(task_id)
     if task:
         task.cancel()
-        app.state.task_results[task_id]["status"] = "failed"
-        app.state.task_results[task_id]["error"] = "用户取消"
-        _save_task_status(task_id, app.state.task_results[task_id])
-        await broadcast_progress(task_id, app.state.task_results[task_id])
 
-    # Clean up temp script (may use tempfile.mkstemp with random suffix)
-    for p in Path("/tmp").glob(f"analysis_{task_id}_*.py"):
-        try:
-            p.unlink()
-        except Exception:
-            pass
+    state = app.state.task_results[task_id]
+    state["status"] = "cancelled"
+    state["error"] = "用户取消"
+    app.state.result_store.save_task_status(task_id, state)
+    await broadcast_progress(task_id, state)
+    app.state.result_store.delete_task_status(task_id)
 
-    # Remove persisted task state
-    _delete_task_status(task_id)
-
-    return {"task_id": task_id, "status": "cancelled"}
+    return {"contract_version": "v1alpha1", "task_id": task_id, "status": "cancelled"}
 
 
 # ============== WebSocket ==============
@@ -1091,169 +811,31 @@ async def get_recommendation_endpoint(date: str, ticker: str, api_key: Optional[
 # --- Batch Analysis ---
 
 @app.post("/api/portfolio/analyze")
-async def start_portfolio_analysis(api_key: Optional[str] = Header(None)):
-    """
-    Trigger batch analysis for all watchlist tickers.
-    Runs serially, streaming progress via WebSocket (task_id prefixed with 'port_').
-    """
+async def start_portfolio_analysis(
+    http_request: Request,
+    api_key: Optional[str] = Header(None),
+):
+    """Trigger batch analysis for all watchlist tickers."""
     if not _check_api_key(api_key):
         _auth_error()
+
     import uuid
+
     date = datetime.now().strftime("%Y-%m-%d")
     task_id = f"port_{date}_{uuid.uuid4().hex[:6]}"
+    request_context = build_request_context(http_request, api_key=api_key)
 
-    if app.state.migration_flags.use_application_services:
-        request_context = build_request_context(api_key=api_key)
-        try:
-            return await app.state.analysis_service.start_portfolio_analysis(
-                task_id=task_id,
-                date=date,
-                request_context=request_context,
-                broadcast_progress=broadcast_progress,
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc))
-        except RuntimeError as exc:
-            raise HTTPException(status_code=500, detail=str(exc))
-
-    watchlist = get_watchlist()
-    if not watchlist:
-        raise HTTPException(status_code=400, detail="自选股为空，请先添加股票")
-
-    total = len(watchlist)
-    app.state.task_results[task_id] = {
-        "task_id": task_id,
-        "type": "portfolio",
-        "status": "running",
-        "total": total,
-        "completed": 0,
-        "failed": 0,
-        "current_ticker": None,
-        "results": [],
-        "error": None,
-    }
-
-    api_key = _get_analysis_api_key()
-    if not api_key:
-        raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY environment variable not set")
-
-    await broadcast_progress(task_id, app.state.task_results[task_id])
-
-    async def run_portfolio_analysis():
-        max_retries = MAX_RETRY_COUNT
-
-        async def run_single_analysis(ticker: str, stock: dict) -> tuple[bool, str, dict | None]:
-            """Run analysis for one ticker. Returns (success, decision, rec_or_error)."""
-            last_error = None
-            for attempt in range(max_retries + 1):
-                script_path = None
-                try:
-                    fd, script_path_str = tempfile.mkstemp(suffix=".py", prefix=f"analysis_{task_id}_{stock['_idx']}_")
-                    script_path = Path(script_path_str)
-                    os.chmod(script_path, 0o600)
-                    with os.fdopen(fd, "w") as f:
-                        f.write(ANALYSIS_SCRIPT_TEMPLATE)
-
-                    clean_env = {k: v for k, v in os.environ.items()
-                                if not k.startswith(("PYTHON", "CONDA", "VIRTUAL"))}
-                    clean_env["ANTHROPIC_API_KEY"] = api_key
-                    clean_env["ANTHROPIC_BASE_URL"] = "https://api.minimaxi.com/anthropic"
-
-                    proc = await asyncio.create_subprocess_exec(
-                        str(ANALYSIS_PYTHON), str(script_path), ticker, date, str(REPO_ROOT),
-                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                        env=clean_env,
-                    )
-                    app.state.processes[task_id] = proc
-
-                    stdout, stderr = await proc.communicate()
-
-                    try:
-                        script_path.unlink()
-                    except Exception:
-                        pass
-
-                    if proc.returncode == 0:
-                        output = stdout.decode()
-                        decision = "HOLD"
-                        quant_signal = None
-                        llm_signal = None
-                        confidence = None
-                        for line in output.splitlines():
-                            if line.startswith("SIGNAL_DETAIL:"):
-                                try:
-                                    detail = json.loads(line.split(":", 1)[1].strip())
-                                    quant_signal = detail.get("quant_signal")
-                                    llm_signal = detail.get("llm_signal")
-                                    confidence = detail.get("confidence")
-                                except Exception:
-                                    pass
-                            if line.startswith("ANALYSIS_COMPLETE:"):
-                                decision = line.split(":", 1)[1].strip()
-                        rec = {
-                            "ticker": ticker,
-                            "name": stock.get("name", ticker),
-                            "analysis_date": date,
-                            "decision": decision,
-                            "quant_signal": quant_signal,
-                            "llm_signal": llm_signal,
-                            "confidence": confidence,
-                            "created_at": datetime.now().isoformat(),
-                        }
-                        save_recommendation(date, ticker, rec)
-                        return True, decision, rec
-                    else:
-                        last_error = stderr.decode()[-500:] if stderr else f"exit {proc.returncode}"
-                except Exception as e:
-                    last_error = str(e)
-                finally:
-                    if script_path:
-                        try:
-                            script_path.unlink()
-                        except Exception:
-                            pass
-                if attempt < max_retries:
-                    await asyncio.sleep(RETRY_BASE_DELAY_SECS ** attempt)  # exponential backoff: 1s, 2s
-
-            return False, "HOLD", None
-
-        try:
-            for i, stock in enumerate(watchlist):
-                stock["_idx"] = i  # used in temp file name
-                ticker = stock["ticker"]
-                app.state.task_results[task_id]["current_ticker"] = ticker
-                app.state.task_results[task_id]["status"] = "running"
-                app.state.task_results[task_id]["completed"] = i
-                await broadcast_progress(task_id, app.state.task_results[task_id])
-
-                success, decision, rec = await run_single_analysis(ticker, stock)
-                if success:
-                    app.state.task_results[task_id]["completed"] = i + 1
-                    app.state.task_results[task_id]["results"].append(rec)
-                else:
-                    app.state.task_results[task_id]["failed"] += 1
-
-                await broadcast_progress(task_id, app.state.task_results[task_id])
-
-            app.state.task_results[task_id]["status"] = "completed"
-            app.state.task_results[task_id]["current_ticker"] = None
-            _save_task_status(task_id, app.state.task_results[task_id])
-
-        except Exception as e:
-            app.state.task_results[task_id]["status"] = "failed"
-            app.state.task_results[task_id]["error"] = str(e)
-            _save_task_status(task_id, app.state.task_results[task_id])
-
-        await broadcast_progress(task_id, app.state.task_results[task_id])
-
-    task = asyncio.create_task(run_portfolio_analysis())
-    app.state.analysis_tasks[task_id] = task
-
-    return {
-        "task_id": task_id,
-        "total": total,
-        "status": "running",
-    }
+    try:
+        return await app.state.analysis_service.start_portfolio_analysis(
+            task_id=task_id,
+            date=date,
+            request_context=request_context,
+            broadcast_progress=broadcast_progress,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 

@@ -5,11 +5,15 @@ from pathlib import Path
 from typing import Optional
 
 
+CONTRACT_VERSION = "v1alpha1"
+
+
 class ResultStore:
     """Storage boundary for persisted task state and portfolio results."""
 
     def __init__(self, task_status_dir: Path, portfolio_gateway):
         self.task_status_dir = task_status_dir
+        self.result_contract_dir = self.task_status_dir / "result_contracts"
         self.portfolio_gateway = portfolio_gateway
 
     def restore_task_results(self) -> dict[str, dict]:
@@ -28,6 +32,15 @@ class ResultStore:
     def save_task_status(self, task_id: str, data: dict) -> None:
         self.task_status_dir.mkdir(parents=True, exist_ok=True)
         (self.task_status_dir / f"{task_id}.json").write_text(json.dumps(data, ensure_ascii=False))
+
+    def save_result_contract(self, task_id: str, contract: dict) -> str:
+        self.result_contract_dir.mkdir(parents=True, exist_ok=True)
+        payload = dict(contract)
+        payload.setdefault("task_id", task_id)
+        payload.setdefault("contract_version", CONTRACT_VERSION)
+        file_path = self.result_contract_dir / f"{task_id}.json"
+        file_path.write_text(json.dumps(payload, ensure_ascii=False))
+        return file_path.relative_to(self.task_status_dir).as_posix()
 
     def delete_task_status(self, task_id: str) -> None:
         (self.task_status_dir / f"{task_id}.json").unlink(missing_ok=True)

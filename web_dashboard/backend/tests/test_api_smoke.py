@@ -53,3 +53,73 @@ def test_analysis_task_routes_smoke(monkeypatch):
     assert any(task["task_id"] == "task-smoke" for task in tasks_response.json()["tasks"])
     assert status_response.status_code == 200
     assert status_response.json()["task_id"] == "task-smoke"
+
+
+def test_analysis_start_route_uses_analysis_service(monkeypatch):
+    monkeypatch.delenv("DASHBOARD_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    main = _load_main_module(monkeypatch)
+    created: dict[str, object] = {}
+
+    class DummyTask:
+        def cancel(self):
+            return None
+
+    def fake_create_task(coro):
+        created["scheduled_coro"] = coro.cr_code.co_name
+        coro.close()
+        task = DummyTask()
+        created["task"] = task
+        return task
+
+    monkeypatch.setattr(main.asyncio, "create_task", fake_create_task)
+
+    with TestClient(main.app) as client:
+        response = client.post(
+            "/api/analysis/start",
+            json={"ticker": "AAPL", "date": "2026-04-11"},
+            headers={"api-key": "test-key"},
+        )
+
+    payload = response.json()
+    task_id = payload["task_id"]
+
+    assert response.status_code == 200
+    assert payload["ticker"] == "AAPL"
+    assert payload["date"] == "2026-04-11"
+    assert payload["status"] == "running"
+    assert created["scheduled_coro"] == "_run_analysis"
+    assert main.app.state.analysis_tasks[task_id] is created["task"]
+    assert main.app.state.task_results[task_id]["current_stage"] == "analysts"
+    assert main.app.state.task_results[task_id]["status"] == "running"
+    assert main.app.state.task_results[task_id]["request_id"]
+    assert main.app.state.task_results[task_id]["executor_type"] == "legacy_subprocess"
+    assert main.app.state.task_results[task_id]["result_ref"] is None
+
+
+def test_portfolio_analyze_route_uses_analysis_service_smoke(monkeypatch):
+    monkeypatch.delenv("DASHBOARD_API_KEY", raising=False)
+    monkeypatch.setenv("TRADINGAGENTS_USE_APPLICATION_SERVICES", "1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "service-key")
+
+    main = _load_main_module(monkeypatch)
+    captured: dict[str, object] = {}
+
+    async def fake_start_portfolio_analysis(*, task_id, date, request_context, broadcast_progress):
+        captured["task_id"] = task_id
+        captured["date"] = date
+        captured["request_context"] = request_context
+        captured["broadcast_progress"] = broadcast_progress
+        return {"task_id": task_id, "status": "running", "total": 3}
+
+    with TestClient(main.app) as client:
+        monkeypatch.setattr(main.app.state.analysis_service, "start_portfolio_analysis", fake_start_portfolio_analysis)
+        response = client.post("/api/portfolio/analyze", headers={"api-key": "service-key"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "running"
+    assert str(captured["task_id"]).startswith("port_")
+    assert isinstance(captured["date"], str)
+    assert captured["request_context"].api_key == "service-key"
+    assert callable(captured["broadcast_progress"])
