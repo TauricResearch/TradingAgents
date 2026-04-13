@@ -1,12 +1,13 @@
-import time
 import logging
+import os
+import time
+from typing import Annotated
 
 import pandas as pd
 import yfinance as yf
-from yfinance.exceptions import YFRateLimitError
 from stockstats import wrap
-from typing import Annotated
-import os
+from yfinance.exceptions import YFRateLimitError
+
 from .config import get_config
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,10 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
         except YFRateLimitError:
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
-                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                logger.warning(
+                    f"Yahoo Finance rate limited, retrying in {delay:.0f}s"
+                    f" (attempt {attempt + 1}/{max_retries})"
+                )
                 time.sleep(delay)
             else:
                 raise

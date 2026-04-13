@@ -1,6 +1,6 @@
-import questionary
-from typing import List, Optional, Tuple, Dict
+from typing import List, Tuple
 
+import questionary
 from rich.console import Console
 
 from cli.models import AnalystType
@@ -83,7 +83,11 @@ def select_analysts() -> List[AnalystType]:
         choices=[
             questionary.Choice(display, value=value) for display, value in ANALYST_ORDER
         ],
-        instruction="\n- Press Space to select/unselect analysts\n- Press 'a' to select/unselect all\n- Press Enter when done",
+        instruction=(
+            "\n- Press Space to select/unselect analysts"
+            "\n- Press 'a' to select/unselect all"
+            "\n- Press Enter when done"
+        ),
         validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
         style=questionary.Style(
             [

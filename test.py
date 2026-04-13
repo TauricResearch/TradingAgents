@@ -1,5 +1,6 @@
 import time
-from tradingagents.dataflows.y_finance import get_YFin_data_online, get_stock_stats_indicators_window, get_balance_sheet as get_yfinance_balance_sheet, get_cashflow as get_yfinance_cashflow, get_income_statement as get_yfinance_income_statement, get_insider_transactions as get_yfinance_insider_transactions
+
+from tradingagents.dataflows.y_finance import get_stock_stats_indicators_window
 
 print("Testing optimized implementation with 30-day lookback:")
 start_time = time.time()
