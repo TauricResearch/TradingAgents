@@ -147,8 +147,10 @@ def create_news_analyst(llm, evidence_store: NewsEvidenceStore | None = None):
                 "news_report_structured": {},
             }
         
-        # If prefetch succeeded but no evidence records were persisted, return deterministic no-news
-        if not evidence_records:
+        # If prefetch succeeded but neither article evidence nor scanner context is
+        # available, return deterministic no-news. Scanner context is not persisted
+        # in NewsEvidenceStore, but it can still support Finviz scanner claims.
+        if not evidence_records and not scanner_context:
             report = f"{ticker} News Analysis\n\n- No news evidence was available for this run."
             return {
                 "messages": [AIMessage(content=report)],

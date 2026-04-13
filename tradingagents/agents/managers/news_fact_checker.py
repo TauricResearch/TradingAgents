@@ -16,6 +16,23 @@ from tradingagents.memory.news_evidence import NewsEvidenceStore
 logger = logging.getLogger(__name__)
 
 
+def _has_scanner_structured_claims(payload: object) -> bool:
+    """Return True when a structured payload contains scanner-backed claims."""
+    if not isinstance(payload, dict):
+        return False
+    claims = payload.get("claims")
+    if not isinstance(claims, list):
+        return False
+    for claim in claims:
+        if not isinstance(claim, dict):
+            continue
+        source = str(claim.get("source") or "").strip()
+        scan_date = str(claim.get("scan_date") or "").strip()
+        if source == "Finviz Smart Money Scanner" and scan_date:
+            return True
+    return False
+
+
 def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
     store = evidence_store or NewsEvidenceStore()
 
@@ -24,6 +41,7 @@ def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
         trade_date = str(state.get("trade_date") or "")
         run_id = str(state["run_id"])
         report = str(state.get("news_report") or "").strip()
+        structured_payload = state.get("news_report_structured")
         
         # Fetch persisted evidence records
         records = store.fetch_records(run_id=run_id, ticker=ticker, trade_date=trade_date)
@@ -33,7 +51,11 @@ def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
         
         # Branch: No persisted evidence records and no critical abort
         # (Evidence acquisition succeeded but no news found, or all prefetch failed)
-        if not records and not report_has_critical_abort(report):
+        if (
+            not records
+            and not report_has_critical_abort(report)
+            and not _has_scanner_structured_claims(structured_payload)
+        ):
             return {
                 "news_report": f"{ticker} News Analysis\n\n- No validated news was available for this run.",
                 "news_report_structured": build_news_report_structured(
@@ -62,7 +84,6 @@ def create_news_fact_checker(evidence_store: NewsEvidenceStore | None = None):
             }
         
         # Branch: Blank report with missing payload
-        structured_payload = state.get("news_report_structured")
         if not report and (not isinstance(structured_payload, dict) or not structured_payload):
             return {
                 "news_report": f"{ticker} News Analysis\n\n- No validated structured news claims are available for this run.",
