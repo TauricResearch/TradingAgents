@@ -100,6 +100,16 @@ MODEL_OPTIONS: ProviderModeOptions = {
         ],
     },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
+    "bedrock": {
+        "quick": [
+            ("Claude Haiku 4.5 via Bedrock - Fast", "us.anthropic.claude-haiku-4-5-20251001-v1:0"),
+            ("Claude Sonnet 4.6 via Bedrock - Balanced", "us.anthropic.claude-sonnet-4-6"),
+        ],
+        "deep": [
+            ("Claude Sonnet 4.6 via Bedrock - Balanced", "us.anthropic.claude-sonnet-4-6"),
+            ("Claude Opus 4.6 via Bedrock - Most capable", "us.anthropic.claude-opus-4-6-v1"),
+        ],
+    },
     "ollama": {
         "quick": [
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
