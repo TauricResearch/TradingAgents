@@ -24,7 +24,17 @@ from rich.text import Text
 
 from cli.announcements import display_announcements, fetch_announcements
 from cli.stats_handler import StatsCallbackHandler
-from cli.utils import *
+from cli.utils import (
+    ask_anthropic_effort,
+    ask_gemini_thinking_config,
+    ask_openai_reasoning_effort,
+    ask_output_language,
+    select_analysts,
+    select_deep_thinking_agent,
+    select_llm_provider,
+    select_research_depth,
+    select_shallow_thinking_agent,
+)
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
@@ -1013,7 +1023,7 @@ def run_analysis():
     # Now start the display layout
     layout = create_layout()
 
-    with Live(layout, refresh_per_second=4) as live:
+    with Live(layout, refresh_per_second=4):
         # Initial display
         update_display(layout, stats_handler=stats_handler, start_time=start_time)
 
@@ -1154,7 +1164,7 @@ def run_analysis():
 
         # Get final state and decision
         final_state = trace[-1]
-        decision = graph.process_signal(final_state["final_trade_decision"])
+        graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
         for agent in message_buffer.agent_status:

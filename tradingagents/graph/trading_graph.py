@@ -7,8 +7,6 @@ from typing import Any, Dict, List, Optional
 
 from langgraph.prebuilt import ToolNode
 
-from tradingagents.agents import *
-
 # Import the new abstract tool methods from agent_utils
 from tradingagents.agents.utils.agent_utils import (
     get_balance_sheet,
