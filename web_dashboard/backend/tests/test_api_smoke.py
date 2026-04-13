@@ -2,7 +2,9 @@ import importlib
 import sys
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 
 def _load_main_module(monkeypatch):
@@ -178,3 +180,82 @@ def test_analysis_websocket_progress_is_contract_first(monkeypatch):
     assert message["request_id"] == "req-task-ws"
     assert message["compat"]["decision"] == "HOLD"
     assert "decision" not in message
+
+
+def test_orchestrator_websocket_smoke_is_contract_first(monkeypatch):
+    monkeypatch.delenv("DASHBOARD_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    main = _load_main_module(monkeypatch)
+
+    import orchestrator.config as config_module
+    import orchestrator.live_mode as live_mode_module
+    import orchestrator.orchestrator as orchestrator_module
+
+    class DummyConfig:
+        def __init__(self, *args, **kwargs):
+            self.args = args
+            self.kwargs = kwargs
+
+    class DummyOrchestrator:
+        def __init__(self, config):
+            self.config = config
+
+    class DummyLiveMode:
+        def __init__(self, orchestrator):
+            self.orchestrator = orchestrator
+
+        async def run_once(self, tickers, date=None):
+            assert tickers == ["AAPL"]
+            assert date == "2026-04-11"
+            return [
+                {
+                    "contract_version": "v1alpha1",
+                    "ticker": "AAPL",
+                    "date": "2026-04-11",
+                    "status": "degraded_success",
+                    "result": {
+                        "direction": 1,
+                        "confidence": 0.55,
+                        "quant_direction": None,
+                        "llm_direction": 1,
+                        "timestamp": "2026-04-11T12:00:00+00:00",
+                    },
+                    "error": None,
+                    "degradation": {
+                        "degraded": True,
+                        "reason_codes": ["quant_signal_failed"],
+                        "source_diagnostics": {"quant": {"reason_code": "quant_signal_failed"}},
+                    },
+                    "data_quality": {"state": "partial_data", "source": "quant"},
+                }
+            ]
+
+    monkeypatch.setattr(config_module, "OrchestratorConfig", DummyConfig)
+    monkeypatch.setattr(orchestrator_module, "TradingOrchestrator", DummyOrchestrator)
+    monkeypatch.setattr(live_mode_module, "LiveMode", DummyLiveMode)
+
+    with TestClient(main.app) as client:
+        with client.websocket_connect("/ws/orchestrator?api_key=test-key") as websocket:
+            websocket.send_json({"tickers": ["AAPL"], "date": "2026-04-11"})
+            message = websocket.receive_json()
+
+    assert message["contract_version"] == "v1alpha1"
+    assert message["signals"][0]["contract_version"] == "v1alpha1"
+    assert message["signals"][0]["status"] == "degraded_success"
+    assert message["signals"][0]["degradation"]["reason_codes"] == ["quant_signal_failed"]
+    assert message["signals"][0]["data_quality"]["state"] == "partial_data"
+
+
+def test_orchestrator_websocket_rejects_unauthorized(monkeypatch):
+    monkeypatch.delenv("DASHBOARD_API_KEY", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+    main = _load_main_module(monkeypatch)
+
+    with TestClient(main.app) as client:
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect("/ws/orchestrator"):
+                pass
+
+    assert exc_info.value.code == 4401

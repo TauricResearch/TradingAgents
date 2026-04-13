@@ -5,6 +5,8 @@ import DecisionBadge from '../components/DecisionBadge'
 import { StatusIcon } from '../components/StatusIcon'
 import {
   getConfidence,
+  getDataQualitySummary,
+  getDegradationSummary,
   getDecision,
   getDisplayDate,
   getErrorMessage,
@@ -34,7 +36,8 @@ export default function AnalysisMonitor() {
   const quantSignal = getQuantSignal(task)
   const confidence = getConfidence(task)
   const displayDate = getDisplayDate(task)
-  const dataQuality = task?.data_quality_summary
+  const dataQuality = getDataQualitySummary(task)
+  const degradation = getDegradationSummary(task)
   const errorMessage = getErrorMessage(task)
 
   const fetchInitialState = useCallback(async () => {
@@ -196,6 +199,11 @@ export default function AnalysisMonitor() {
               {dataQuality?.state && (
                 <div style={{ marginBottom: 12, fontSize: 'var(--text-sm)', color: 'var(--hold)' }}>
                   数据质量: <strong>{dataQuality.state}</strong>
+                </div>
+              )}
+              {degradation?.degraded && degradation?.reason_codes?.length > 0 && (
+                <div style={{ marginBottom: 12, fontSize: 'var(--text-sm)', color: 'var(--hold)' }}>
+                  降级原因: <strong>{degradation.reason_codes.join(', ')}</strong>
                 </div>
               )}
               {errorMessage && (

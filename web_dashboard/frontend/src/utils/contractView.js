@@ -6,6 +6,26 @@ export function getResult(payload) {
   return payload?.result || {}
 }
 
+export function getDegradationSummary(payload) {
+  if (payload?.degradation_summary) return payload.degradation_summary
+  if (payload?.degradation) return payload.degradation
+
+  const result = getResult(payload)
+  if (typeof result.degraded === 'boolean') {
+    return {
+      degraded: result.degraded,
+      reason_codes: [],
+      report_available: Boolean(result.report?.available),
+    }
+  }
+
+  return null
+}
+
+export function getDataQualitySummary(payload) {
+  return payload?.data_quality_summary ?? payload?.data_quality ?? null
+}
+
 export function getDecision(payload) {
   return getResult(payload).decision ?? getCompat(payload).decision ?? null
 }
@@ -24,6 +44,10 @@ export function getConfidence(payload) {
 
 export function getDisplayDate(payload) {
   return payload?.date ?? getCompat(payload).analysis_date ?? null
+}
+
+export function isDegradedPayload(payload) {
+  return Boolean(getDegradationSummary(payload)?.degraded)
 }
 
 export function getErrorMessage(payload) {

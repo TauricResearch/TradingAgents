@@ -11,6 +11,7 @@ import yfinance as yf
 from orchestrator.config import OrchestratorConfig
 from orchestrator.contracts.error_taxonomy import ReasonCode
 from orchestrator.contracts.result_contract import Signal, build_error_signal
+from orchestrator.market_calendar import is_non_trading_day
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class QuantRunner:
         df = yf.download(ticker, start=start_str, end=end_exclusive, progress=False, auto_adjust=True)
         if df.empty:
             logger.warning("No price data for %s between %s and %s", ticker, start_str, date)
-            if end_dt.weekday() >= 5:
+            if is_non_trading_day(ticker, end_dt.date()):
                 return build_error_signal(
                     ticker=ticker,
                     source="quant",
@@ -107,7 +108,7 @@ class QuantRunner:
                 if hasattr(last_available_ts, "strftime")
                 else str(last_available_ts)
             )
-            if end_dt.weekday() >= 5:
+            if is_non_trading_day(ticker, end_dt.date()):
                 return build_error_signal(
                     ticker=ticker,
                     source="quant",

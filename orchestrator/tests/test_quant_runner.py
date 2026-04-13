@@ -77,6 +77,32 @@ def test_get_signal_returns_reason_code_when_no_data(runner, monkeypatch):
     assert signal.reason_code == ReasonCode.QUANT_NO_DATA.value
 
 
+def test_get_signal_marks_non_trading_day_on_a_share_holiday(runner, monkeypatch):
+    monkeypatch.setattr(
+        "orchestrator.quant_runner.yf.download",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    signal = runner.get_signal("600519.SS", "2024-10-02")
+
+    assert signal.degraded is True
+    assert signal.reason_code == ReasonCode.NON_TRADING_DAY.value
+    assert signal.metadata["data_quality"]["state"] == "non_trading_day"
+
+
+def test_get_signal_marks_non_trading_day_on_market_holiday(runner, monkeypatch):
+    monkeypatch.setattr(
+        "orchestrator.quant_runner.yf.download",
+        lambda *args, **kwargs: pd.DataFrame(),
+    )
+
+    signal = runner.get_signal("AAPL", "2024-03-29")
+
+    assert signal.degraded is True
+    assert signal.reason_code == ReasonCode.NON_TRADING_DAY.value
+    assert signal.metadata["data_quality"]["state"] == "non_trading_day"
+
+
 def test_get_signal_marks_non_trading_day_on_weekend(runner, monkeypatch):
     monkeypatch.setattr(
         "orchestrator.quant_runner.yf.download",
@@ -88,6 +114,30 @@ def test_get_signal_marks_non_trading_day_on_weekend(runner, monkeypatch):
     assert signal.degraded is True
     assert signal.reason_code == ReasonCode.NON_TRADING_DAY.value
     assert signal.metadata["data_quality"]["state"] == "non_trading_day"
+
+
+def test_get_signal_marks_non_trading_day_on_market_holiday(runner, monkeypatch):
+    holiday_frame = pd.DataFrame(
+        {
+            "Open": [10.0],
+            "High": [11.0],
+            "Low": [9.0],
+            "Close": [10.5],
+            "Volume": [1000],
+        },
+        index=pd.to_datetime(["2024-07-03"]),
+    )
+    monkeypatch.setattr(
+        "orchestrator.quant_runner.yf.download",
+        lambda *args, **kwargs: holiday_frame,
+    )
+
+    signal = runner.get_signal("AAPL", "2024-07-04")
+
+    assert signal.degraded is True
+    assert signal.reason_code == ReasonCode.NON_TRADING_DAY.value
+    assert signal.metadata["data_quality"]["state"] == "non_trading_day"
+    assert signal.metadata["data_quality"]["last_available_date"] == "2024-07-03"
 
 
 def test_get_signal_marks_stale_data_when_requested_day_missing(runner, monkeypatch):

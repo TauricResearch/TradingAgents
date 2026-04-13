@@ -111,3 +111,54 @@ def test_trading_orchestrator_raises_when_both_sources_degrade(monkeypatch):
         orchestrator_module.TradingOrchestrator(
             OrchestratorConfig(quant_backtest_path="/tmp/quant")
         ).get_combined_signal("AAPL", "2026-04-11")
+
+
+def test_trading_orchestrator_surfaces_provider_mismatch_summary_when_llm_degrades(monkeypatch):
+    class FakeQuantRunner:
+        def __init__(self, _config):
+            pass
+
+        def get_signal(self, _ticker, _date):
+            return _signal("quant", direction=1, confidence=0.8)
+
+    class FakeLLMRunner:
+        def __init__(self, _config):
+            pass
+
+        def get_signal(self, _ticker, _date):
+            return _signal(
+                "llm",
+                direction=0,
+                confidence=0.0,
+                metadata={
+                    "error": "provider mismatch",
+                    "data_quality": {
+                        "state": "provider_mismatch",
+                        "provider": "anthropic",
+                        "backend_url": "https://api.openai.com/v1",
+                    },
+                },
+                reason_code=ReasonCode.PROVIDER_MISMATCH.value,
+            )
+
+    monkeypatch.setattr(orchestrator_module, "QuantRunner", FakeQuantRunner)
+    monkeypatch.setattr(orchestrator_module, "LLMRunner", FakeLLMRunner)
+
+    result = orchestrator_module.TradingOrchestrator(
+        OrchestratorConfig(quant_backtest_path="/tmp/quant")
+    ).get_combined_signal("AAPL", "2026-04-11")
+
+    assert result.direction == 1
+    assert result.quant_signal is not None
+    assert result.llm_signal is None
+    assert result.degrade_reason_codes == (ReasonCode.PROVIDER_MISMATCH.value,)
+    assert result.metadata["data_quality"]["state"] == "provider_mismatch"
+    assert result.metadata["data_quality"]["source"] == "llm"
+    assert result.metadata["data_quality"]["issues"] == [
+        {
+            "source": "llm",
+            "state": "provider_mismatch",
+            "provider": "anthropic",
+            "backend_url": "https://api.openai.com/v1",
+        }
+    ]
