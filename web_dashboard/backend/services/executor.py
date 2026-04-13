@@ -75,7 +75,13 @@ print("STAGE:trading", flush=True)
 
 try:
     result = orchestrator.get_combined_signal(ticker, date)
-except ValueError as exc:
+except Exception as exc:
+    result_meta = {
+        "degrade_reason_codes": list(getattr(exc, "reason_codes", ()) or ()),
+        "data_quality": getattr(exc, "data_quality", None),
+        "source_diagnostics": getattr(exc, "source_diagnostics", None),
+    }
+    print("RESULT_META:" + json.dumps(result_meta), file=sys.stderr, flush=True)
     print("ANALYSIS_ERROR:" + str(exc), file=sys.stderr, flush=True)
     sys.exit(1)
 
@@ -214,10 +220,22 @@ class AnalysisExecutionOutput:
 
 
 class AnalysisExecutorError(RuntimeError):
-    def __init__(self, message: str, *, code: str = "analysis_failed", retryable: bool = False):
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "analysis_failed",
+        retryable: bool = False,
+        degrade_reason_codes: tuple[str, ...] = (),
+        data_quality: Optional[dict] = None,
+        source_diagnostics: Optional[dict] = None,
+    ):
         super().__init__(message)
         self.code = code
         self.retryable = retryable
+        self.degrade_reason_codes = degrade_reason_codes
+        self.data_quality = data_quality
+        self.source_diagnostics = source_diagnostics
 
 
 class AnalysisExecutor(Protocol):
@@ -240,7 +258,7 @@ class LegacySubprocessAnalysisExecutor:
         *,
         analysis_python: Path,
         repo_root: Path,
-        api_key_resolver: Callable[[], Optional[str]],
+        api_key_resolver: Callable[..., Optional[str]],
         process_registry: Optional[ProcessRegistry] = None,
         script_template: str = LEGACY_ANALYSIS_SCRIPT_TEMPLATE,
         stdout_timeout_secs: float = 300.0,
@@ -261,9 +279,10 @@ class LegacySubprocessAnalysisExecutor:
         request_context: RequestContext,
         on_stage: Optional[StageCallback] = None,
     ) -> AnalysisExecutionOutput:
-        analysis_api_key = request_context.api_key or self.api_key_resolver()
-        if not analysis_api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY environment variable not set")
+        llm_provider = (request_context.llm_provider or "anthropic").lower()
+        analysis_api_key = request_context.provider_api_key or self._resolve_provider_api_key(llm_provider)
+        if llm_provider != "ollama" and not analysis_api_key:
+            raise RuntimeError(f"{llm_provider} provider API key not configured")
 
         script_path: Optional[Path] = None
         proc: asyncio.subprocess.Process | None = None
@@ -279,7 +298,16 @@ class LegacySubprocessAnalysisExecutor:
                 for key, value in os.environ.items()
                 if not key.startswith(("PYTHON", "CONDA", "VIRTUAL"))
             }
-            clean_env["ANTHROPIC_API_KEY"] = analysis_api_key
+            clean_env["TRADINGAGENTS_LLM_PROVIDER"] = llm_provider
+            if request_context.backend_url:
+                clean_env["TRADINGAGENTS_BACKEND_URL"] = request_context.backend_url
+            if request_context.deep_think_llm:
+                clean_env["TRADINGAGENTS_DEEP_MODEL"] = request_context.deep_think_llm
+            if request_context.quick_think_llm:
+                clean_env["TRADINGAGENTS_QUICK_MODEL"] = request_context.quick_think_llm
+            for env_name in self._provider_api_env_names(llm_provider):
+                if analysis_api_key:
+                    clean_env[env_name] = analysis_api_key
 
             proc = await asyncio.create_subprocess_exec(
                 str(self.analysis_python),
@@ -317,9 +345,22 @@ class LegacySubprocessAnalysisExecutor:
 
             await proc.wait()
             stderr_bytes = await proc.stderr.read() if proc.stderr is not None else b""
+            stderr_lines = stderr_bytes.decode(errors="replace").splitlines() if stderr_bytes else []
             if proc.returncode != 0:
-                message = stderr_bytes.decode(errors="replace")[-1000:] if stderr_bytes else f"exit {proc.returncode}"
-                raise AnalysisExecutorError(message)
+                failure_meta = self._parse_failure_metadata(stdout_lines, stderr_lines)
+                message = self._extract_error_message(stderr_lines) or (stderr_bytes.decode(errors="replace")[-1000:] if stderr_bytes else f"exit {proc.returncode}")
+                if failure_meta is None:
+                    raise AnalysisExecutorError(
+                        "analysis subprocess failed without required markers: RESULT_META",
+                        code="analysis_protocol_failed",
+                    )
+                raise AnalysisExecutorError(
+                    message,
+                    code="analysis_failed",
+                    degrade_reason_codes=failure_meta["degrade_reason_codes"],
+                    data_quality=failure_meta["data_quality"],
+                    source_diagnostics=failure_meta["source_diagnostics"],
+                )
 
             return self._parse_output(
                 stdout_lines=stdout_lines,
@@ -346,6 +387,48 @@ class LegacySubprocessAnalysisExecutor:
         except ProcessLookupError:
             return
         await proc.wait()
+
+    def _resolve_provider_api_key(self, provider: str) -> Optional[str]:
+        try:
+            return self.api_key_resolver(provider)  # type: ignore[misc]
+        except TypeError:
+            return self.api_key_resolver()
+
+    @staticmethod
+    def _provider_api_env_names(provider: str) -> tuple[str, ...]:
+        return {
+            "anthropic": ("ANTHROPIC_API_KEY",),
+            "openai": ("OPENAI_API_KEY",),
+            "openrouter": ("OPENROUTER_API_KEY",),
+            "xai": ("XAI_API_KEY",),
+            "google": ("GOOGLE_API_KEY",),
+            "ollama": tuple(),
+        }.get(provider, tuple())
+
+    @staticmethod
+    def _parse_failure_metadata(stdout_lines: list[str], stderr_lines: list[str]) -> Optional[dict]:
+        for line in [*stdout_lines, *stderr_lines]:
+            if line.startswith("RESULT_META:"):
+                try:
+                    detail = json.loads(line.split(":", 1)[1].strip())
+                except Exception as exc:
+                    raise AnalysisExecutorError(
+                        "failed to parse RESULT_META payload",
+                        code="analysis_protocol_failed",
+                    ) from exc
+                return {
+                    "degrade_reason_codes": tuple(detail.get("degrade_reason_codes") or ()),
+                    "data_quality": detail.get("data_quality"),
+                    "source_diagnostics": detail.get("source_diagnostics"),
+                }
+        return None
+
+    @staticmethod
+    def _extract_error_message(stderr_lines: list[str]) -> Optional[str]:
+        for line in stderr_lines:
+            if line.startswith("ANALYSIS_ERROR:"):
+                return line.split(":", 1)[1].strip()
+        return None
 
     @staticmethod
     def _parse_output(
@@ -393,6 +476,8 @@ class LegacySubprocessAnalysisExecutor:
         missing_markers = []
         if not seen_signal_detail:
             missing_markers.append("SIGNAL_DETAIL")
+        if not seen_result_meta:
+            missing_markers.append("RESULT_META")
         if not seen_complete:
             missing_markers.append("ANALYSIS_COMPLETE")
         if missing_markers:

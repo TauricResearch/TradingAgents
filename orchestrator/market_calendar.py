@@ -1,49 +1,80 @@
 from __future__ import annotations
 
+import json
+import os
 from datetime import date, timedelta
+from pathlib import Path
 
 _A_SHARE_SUFFIXES = {"SH", "SS", "SZ"}
-
-# Mainland exchanges close on weekends plus the annual State Council public-holiday windows.
-# Weekend make-up workdays do not become exchange trading days.
-_A_SHARE_HOLIDAYS = {
-    date(2024, 1, 1),
-    *[date(2024, 2, day) for day in range(10, 18)],
-    *[date(2024, 4, day) for day in range(4, 7)],
-    *[date(2024, 5, day) for day in range(1, 6)],
-    *[date(2024, 6, day) for day in range(8, 11)],
-    *[date(2024, 9, day) for day in range(15, 18)],
-    *[date(2024, 10, day) for day in range(1, 8)],
-    date(2025, 1, 1),
-    *[date(2025, 1, day) for day in range(28, 32)],
-    *[date(2025, 2, day) for day in range(1, 5)],
-    *[date(2025, 4, day) for day in range(4, 7)],
-    *[date(2025, 5, day) for day in range(1, 6)],
-    *[date(2025, 5, day) for day in range(31, 32)],
-    *[date(2025, 6, day) for day in range(1, 3)],
-    *[date(2025, 10, day) for day in range(1, 9)],
-    *[date(2026, 1, day) for day in range(1, 4)],
-    *[date(2026, 2, day) for day in range(15, 24)],
-    *[date(2026, 4, day) for day in range(4, 7)],
-    *[date(2026, 5, day) for day in range(1, 6)],
-    *[date(2026, 6, day) for day in range(19, 22)],
-    *[date(2026, 9, day) for day in range(25, 28)],
-    *[date(2026, 10, day) for day in range(1, 8)],
-}
+_DEFAULT_MARKET_HOLIDAYS_PATH = Path(__file__).with_name("data") / "market_holidays.json"
 
 
-def is_non_trading_day(ticker: str, day: date) -> bool:
+def is_non_trading_day(ticker: str, day: date, *, data_path: Path | None = None) -> bool:
     """Return whether the requested date is a known non-trading day for the ticker's market."""
     if day.weekday() >= 5:
         return True
-    if _is_a_share_ticker(ticker):
-        return day in _A_SHARE_HOLIDAYS
-    return _is_nyse_holiday(day)
+    market = market_for_ticker(ticker)
+    if market == "a_share":
+        return day in get_market_holidays(market, day.year, data_path=data_path)
+    if market == "nyse":
+        return _is_nyse_holiday(day)
+    return False
 
 
-def _is_a_share_ticker(ticker: str) -> bool:
+def market_for_ticker(ticker: str) -> str:
     suffix = ticker.rsplit(".", 1)[-1].upper() if "." in ticker else ""
-    return suffix in _A_SHARE_SUFFIXES
+    if suffix in _A_SHARE_SUFFIXES:
+        return "a_share"
+    return "nyse"
+
+
+def get_market_holidays(market: str, year: int, *, data_path: Path | None = None) -> set[date]:
+    holidays_by_market = load_market_holidays(data_path=data_path)
+    market_data = holidays_by_market.get(market, {})
+    values = market_data.get(str(year), [])
+    return {date.fromisoformat(raw) for raw in values}
+
+
+def load_market_holidays(*, data_path: Path | None = None) -> dict[str, dict[str, list[str]]]:
+    path = _resolve_market_holidays_path(data_path)
+    if not path.exists():
+        return {}
+    payload = json.loads(path.read_text())
+    return {
+        str(market): {str(year): list(days) for year, days in years.items()}
+        for market, years in payload.items()
+    }
+
+
+def update_market_holidays(
+    *,
+    market: str,
+    year: int,
+    holiday_dates: list[date | str],
+    data_path: Path | None = None,
+) -> Path:
+    path = _resolve_market_holidays_path(data_path)
+    payload = load_market_holidays(data_path=path)
+    payload.setdefault(market, {})
+    normalized_days = sorted(
+        {
+            item.isoformat() if isinstance(item, date) else date.fromisoformat(item).isoformat()
+            for item in holiday_dates
+        }
+    )
+    payload[market][str(year)] = normalized_days
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return path
+
+
+def _resolve_market_holidays_path(data_path: Path | None = None) -> Path:
+    if data_path is not None:
+        return data_path
+    env_path = os.environ.get("TRADINGAGENTS_MARKET_HOLIDAYS_PATH")
+    if env_path:
+        return Path(env_path)
+    return _DEFAULT_MARKET_HOLIDAYS_PATH
 
 
 def _is_nyse_holiday(day: date) -> bool:
@@ -66,7 +97,6 @@ def _is_nyse_holiday(day: date) -> bool:
     if day.year >= 2022:
         holidays.add(observed_juneteenth)
 
-    # When Jan 1 falls on Saturday, NYSE observes New Year's Day on the prior Friday.
     if day.month == 12 and day.day == 31:
         next_new_year = _observed_fixed_holiday(day.year + 1, 1, 1)
         if next_new_year.year == day.year:

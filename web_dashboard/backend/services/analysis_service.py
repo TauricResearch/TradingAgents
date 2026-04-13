@@ -154,6 +154,12 @@ class AnalysisService:
                 started_at=start_time,
                 code=exc.code,
                 retryable=exc.retryable,
+                degradation={
+                    "degraded": bool(exc.degrade_reason_codes) or bool(exc.data_quality),
+                    "reason_codes": list(exc.degrade_reason_codes),
+                    "source_diagnostics": exc.source_diagnostics or {},
+                } if (exc.degrade_reason_codes or exc.data_quality or exc.source_diagnostics) else None,
+                data_quality=exc.data_quality,
             )
         except Exception as exc:
             self._fail_analysis_state(
@@ -162,6 +168,8 @@ class AnalysisService:
                 started_at=start_time,
                 code="analysis_failed",
                 retryable=False,
+                degradation=None,
+                data_quality=None,
             )
 
         await broadcast_progress(task_id, self.job_service.task_results[task_id])
@@ -279,12 +287,16 @@ class AnalysisService:
         started_at: float,
         code: str,
         retryable: bool,
+        degradation: Optional[dict],
+        data_quality: Optional[dict],
     ) -> None:
         state = self.job_service.task_results[task_id]
         state["status"] = "failed"
         state["elapsed_seconds"] = int(time.monotonic() - started_at)
         state["elapsed"] = state["elapsed_seconds"]
         state["result"] = None
+        state["degradation_summary"] = degradation
+        state["data_quality_summary"] = data_quality
         state["error"] = {
             "code": code,
             "message": message,

@@ -5,6 +5,7 @@ import pytest
 import orchestrator.orchestrator as orchestrator_module
 from orchestrator.config import OrchestratorConfig
 from orchestrator.contracts.error_taxonomy import ReasonCode
+from orchestrator.contracts.result_contract import CombinedSignalFailure
 from orchestrator.signals import Signal
 
 
@@ -107,10 +108,15 @@ def test_trading_orchestrator_raises_when_both_sources_degrade(monkeypatch):
     monkeypatch.setattr(orchestrator_module, "QuantRunner", FakeQuantRunner)
     monkeypatch.setattr(orchestrator_module, "LLMRunner", FakeLLMRunner)
 
-    with pytest.raises(ValueError, match="both quant and llm signals are None"):
+    with pytest.raises(CombinedSignalFailure) as exc_info:
         orchestrator_module.TradingOrchestrator(
             OrchestratorConfig(quant_backtest_path="/tmp/quant")
         ).get_combined_signal("AAPL", "2026-04-11")
+
+    assert str(exc_info.value) == "both quant and llm signals are None"
+    assert exc_info.value.reason_codes[0] == ReasonCode.QUANT_NO_DATA.value
+    assert exc_info.value.reason_codes[-1] == ReasonCode.BOTH_SIGNALS_UNAVAILABLE.value
+    assert exc_info.value.source_diagnostics["quant"]["reason_code"] == ReasonCode.QUANT_NO_DATA.value
 
 
 def test_trading_orchestrator_surfaces_provider_mismatch_summary_when_llm_degrades(monkeypatch):

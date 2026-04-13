@@ -18,7 +18,12 @@ class RequestContext:
     request_id: str
     contract_version: str = CONTRACT_VERSION
     executor_type: str = DEFAULT_EXECUTOR_TYPE
-    api_key: Optional[str] = None
+    auth_key: Optional[str] = None
+    provider_api_key: Optional[str] = None
+    llm_provider: Optional[str] = None
+    backend_url: Optional[str] = None
+    deep_think_llm: Optional[str] = None
+    quick_think_llm: Optional[str] = None
     client_host: Optional[str] = None
     is_local: bool = False
     metadata: dict[str, str] = field(default_factory=dict)
@@ -27,7 +32,12 @@ class RequestContext:
 def build_request_context(
     request: Optional[Request] = None,
     *,
-    api_key: Optional[str] = None,
+    auth_key: Optional[str] = None,
+    provider_api_key: Optional[str] = None,
+    llm_provider: Optional[str] = None,
+    backend_url: Optional[str] = None,
+    deep_think_llm: Optional[str] = None,
+    quick_think_llm: Optional[str] = None,
     request_id: Optional[str] = None,
     contract_version: str = CONTRACT_VERSION,
     executor_type: str = DEFAULT_EXECUTOR_TYPE,
@@ -40,7 +50,12 @@ def build_request_context(
         request_id=request_id or uuid4().hex,
         contract_version=contract_version,
         executor_type=executor_type,
-        api_key=api_key,
+        auth_key=auth_key,
+        provider_api_key=provider_api_key,
+        llm_provider=llm_provider,
+        backend_url=backend_url,
+        deep_think_llm=deep_think_llm,
+        quick_think_llm=quick_think_llm,
         client_host=client_host,
         is_local=is_local,
         metadata=dict(metadata or {}),

@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from orchestrator.contracts.error_taxonomy import ReasonCode
-from orchestrator.contracts.result_contract import FinalSignal, Signal
+from orchestrator.contracts.result_contract import CombinedSignalFailure, FinalSignal, Signal
 from orchestrator.live_mode import LiveMode
 
 
@@ -83,7 +83,12 @@ def test_live_mode_serializes_failure_contract_shape():
     live_mode = LiveMode(
         _StubOrchestrator(
             {
-                ("AAPL", "2026-04-11"): ValueError("both quant and llm signals are None")
+                ("AAPL", "2026-04-11"): CombinedSignalFailure(
+                    "both quant and llm signals are None",
+                    reason_codes=(ReasonCode.BOTH_SIGNALS_UNAVAILABLE.value, ReasonCode.PROVIDER_MISMATCH.value),
+                    source_diagnostics={"llm": {"reason_code": ReasonCode.PROVIDER_MISMATCH.value}},
+                    data_quality={"state": "provider_mismatch", "source": "llm"},
+                )
             }
         )
     )
@@ -104,9 +109,14 @@ def test_live_mode_serializes_failure_contract_shape():
             },
             "degradation": {
                 "degraded": True,
-                "reason_codes": [ReasonCode.BOTH_SIGNALS_UNAVAILABLE.value],
-                "source_diagnostics": {},
+                "reason_codes": [
+                    ReasonCode.BOTH_SIGNALS_UNAVAILABLE.value,
+                    ReasonCode.PROVIDER_MISMATCH.value,
+                ],
+                "source_diagnostics": {
+                    "llm": {"reason_code": ReasonCode.PROVIDER_MISMATCH.value},
+                },
             },
-            "data_quality": None,
+            "data_quality": {"state": "provider_mismatch", "source": "llm"},
         }
     ]

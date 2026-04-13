@@ -10,6 +10,7 @@ from orchestrator.contracts.config_schema import (
 )
 from orchestrator.contracts.error_taxonomy import ReasonCode
 from orchestrator.contracts.result_contract import (
+    CombinedSignalFailure,
     FinalSignal,
     Signal,
     build_error_signal,
@@ -18,6 +19,7 @@ from orchestrator.contracts.result_contract import (
 
 __all__ = [
     "CONTRACT_VERSION",
+    "CombinedSignalFailure",
     "FinalSignal",
     "OrchestratorConfigSchema",
     "ReasonCode",

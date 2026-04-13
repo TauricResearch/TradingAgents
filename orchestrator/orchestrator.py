@@ -3,8 +3,8 @@ from typing import Optional
 
 from orchestrator.config import OrchestratorConfig
 from orchestrator.contracts.error_taxonomy import ReasonCode
-from orchestrator.contracts.result_contract import FinalSignal, Signal, signal_reason_code
-from orchestrator.signals import Signal, FinalSignal, SignalMerger
+from orchestrator.contracts.result_contract import CombinedSignalFailure, FinalSignal, Signal, signal_reason_code
+from orchestrator.signals import SignalMerger
 from orchestrator.quant_runner import QuantRunner
 from orchestrator.llm_runner import LLMRunner
 
@@ -92,9 +92,16 @@ class TradingOrchestrator:
                 source_diagnostics["llm"] = {"reason_code": ReasonCode.LLM_SIGNAL_FAILED.value}
                 llm_sig = None
 
-        # merge raises ValueError if both None
+        # Preserve diagnostics even when both lanes degrade and no FinalSignal can be produced.
         if quant_sig is None and llm_sig is None:
             degradation_reasons.append(ReasonCode.BOTH_SIGNALS_UNAVAILABLE.value)
+            raise CombinedSignalFailure(
+                "both quant and llm signals are None",
+                reason_codes=tuple(dict.fromkeys(degradation_reasons)),
+                source_diagnostics=source_diagnostics,
+                data_quality=self._summarize_data_quality(source_diagnostics),
+            )
+
         final_signal = self._merger.merge(
             quant_sig,
             llm_sig,

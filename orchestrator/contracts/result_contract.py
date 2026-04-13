@@ -97,3 +97,20 @@ def signal_reason_code(signal: Optional[Signal]) -> Optional[str]:
     if signal is None:
         return None
     return signal.reason_code or signal.metadata.get("reason_code")
+
+
+class CombinedSignalFailure(ValueError):
+    """Structured failure for cases where no merged signal can be produced."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason_codes: tuple[str, ...] = (),
+        source_diagnostics: Optional[dict[str, Any]] = None,
+        data_quality: Optional[dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(message)
+        self.reason_codes = tuple(reason_codes)
+        self.source_diagnostics = dict(source_diagnostics or {})
+        self.data_quality = dict(data_quality) if data_quality is not None else None

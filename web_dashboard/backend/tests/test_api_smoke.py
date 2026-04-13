@@ -140,7 +140,7 @@ def test_portfolio_analyze_route_uses_analysis_service_smoke(monkeypatch):
     assert response.json()["status"] == "running"
     assert str(captured["task_id"]).startswith("port_")
     assert isinstance(captured["date"], str)
-    assert captured["request_context"].api_key == "service-key"
+    assert captured["request_context"].auth_key == "service-key"
     assert callable(captured["broadcast_progress"])
 
 
@@ -248,7 +248,7 @@ def test_orchestrator_websocket_smoke_is_contract_first(monkeypatch):
 
 
 def test_orchestrator_websocket_rejects_unauthorized(monkeypatch):
-    monkeypatch.delenv("DASHBOARD_API_KEY", raising=False)
+    monkeypatch.setenv("DASHBOARD_API_KEY", "dashboard-secret")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
     main = _load_main_module(monkeypatch)

@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from tradingagents.default_config import get_default_config
 
 from services import AnalysisService, JobService, ResultStore, build_request_context, load_migration_flags
 from services.executor import LegacySubprocessAnalysisExecutor
@@ -55,7 +56,7 @@ async def lifespan(app: FastAPI):
         executor=LegacySubprocessAnalysisExecutor(
             analysis_python=ANALYSIS_PYTHON,
             repo_root=REPO_ROOT,
-            api_key_resolver=_get_analysis_api_key,
+            api_key_resolver=_get_analysis_provider_api_key,
             process_registry=app.state.job_service.register_process,
         ),
         result_store=app.state.result_store,
@@ -103,10 +104,8 @@ class ScreenRequest(BaseModel):
 
 @app.get("/api/config/check")
 async def check_config():
-    """Check if the app is configured (API key is set).
-    The FastAPI backend receives ANTHROPIC_API_KEY as an env var when spawned by Tauri.
-    """
-    configured = bool(_get_analysis_api_key())
+    """Check if the analysis provider is configured with a callable API key."""
+    configured = bool(_resolve_analysis_runtime_settings().get("provider_api_key"))
     return {"configured": configured}
 
 
@@ -151,7 +150,7 @@ _api_key: Optional[str] = None
 def _get_api_key() -> Optional[str]:
     global _api_key
     if _api_key is None:
-        _api_key = os.environ.get("DASHBOARD_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+        _api_key = os.environ.get("DASHBOARD_API_KEY")
     return _api_key
 
 def _check_api_key(api_key: Optional[str]) -> bool:
@@ -181,15 +180,73 @@ def _persist_analysis_api_key(api_key_value: str):
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(json.dumps({"api_key": api_key_value}, ensure_ascii=False))
     os.chmod(CONFIG_PATH, 0o600)
-    os.environ["ANTHROPIC_API_KEY"] = api_key_value
     _api_key = None
 
 
-def _get_analysis_api_key() -> Optional[str]:
-    return (
-        os.environ.get("ANTHROPIC_API_KEY")
-        or os.environ.get("MINIMAX_API_KEY")
-        or _load_saved_config().get("api_key")
+def _get_analysis_provider_api_key(provider: str, saved_api_key: Optional[str] = None) -> Optional[str]:
+    env_names = {
+        "anthropic": ("ANTHROPIC_API_KEY", "MINIMAX_API_KEY"),
+        "openai": ("OPENAI_API_KEY",),
+        "openrouter": ("OPENROUTER_API_KEY",),
+        "xai": ("XAI_API_KEY",),
+        "google": ("GOOGLE_API_KEY",),
+        "ollama": tuple(),
+    }.get(provider.lower(), tuple())
+    for env_name in env_names:
+        value = os.environ.get(env_name)
+        if value:
+            return value
+    return saved_api_key
+
+
+def _resolve_analysis_runtime_settings() -> dict:
+    saved = _load_saved_config()
+    defaults = get_default_config()
+
+    provider = os.environ.get("TRADINGAGENTS_LLM_PROVIDER")
+    if not provider:
+        if os.environ.get("ANTHROPIC_BASE_URL"):
+            provider = "anthropic"
+        elif os.environ.get("OPENAI_BASE_URL"):
+            provider = "openai"
+        else:
+            provider = defaults.get("llm_provider", "anthropic")
+
+    backend_url = (
+        os.environ.get("TRADINGAGENTS_BACKEND_URL")
+        or os.environ.get("ANTHROPIC_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
+        or defaults.get("backend_url")
+    )
+    deep_model = (
+        os.environ.get("TRADINGAGENTS_DEEP_MODEL")
+        or os.environ.get("TRADINGAGENTS_MODEL")
+        or defaults.get("deep_think_llm")
+    )
+    quick_model = (
+        os.environ.get("TRADINGAGENTS_QUICK_MODEL")
+        or os.environ.get("TRADINGAGENTS_MODEL")
+        or defaults.get("quick_think_llm")
+    )
+    return {
+        "llm_provider": provider,
+        "backend_url": backend_url,
+        "deep_think_llm": deep_model,
+        "quick_think_llm": quick_model,
+        "provider_api_key": _get_analysis_provider_api_key(provider, saved.get("api_key")),
+    }
+
+
+def _build_analysis_request_context(request: Request, auth_key: Optional[str]):
+    settings = _resolve_analysis_runtime_settings()
+    return build_request_context(
+        request,
+        auth_key=auth_key,
+        provider_api_key=settings["provider_api_key"],
+        llm_provider=settings["llm_provider"],
+        backend_url=settings["backend_url"],
+        deep_think_llm=settings["deep_think_llm"],
+        quick_think_llm=settings["quick_think_llm"],
     )
 
 
@@ -279,7 +336,7 @@ async def start_analysis(
 
     task_id = f"{payload.ticker}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
     date = payload.date or datetime.now().strftime("%Y-%m-%d")
-    request_context = build_request_context(http_request, api_key=api_key)
+    request_context = _build_analysis_request_context(http_request, api_key)
 
     try:
         return await app.state.analysis_service.start_analysis(
@@ -838,7 +895,7 @@ async def start_portfolio_analysis(
 
     date = datetime.now().strftime("%Y-%m-%d")
     task_id = f"port_{date}_{uuid.uuid4().hex[:6]}"
-    request_context = build_request_context(http_request, api_key=api_key)
+    request_context = _build_analysis_request_context(http_request, api_key)
 
     try:
         return await app.state.analysis_service.start_portfolio_analysis(

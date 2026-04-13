@@ -45,9 +45,20 @@ def test_load_migration_flags_from_env(monkeypatch):
 
 
 def test_build_request_context_defaults():
-    context = build_request_context(api_key="secret", metadata={"source": "test"})
+    context = build_request_context(
+        auth_key="dashboard-secret",
+        provider_api_key="provider-secret",
+        llm_provider="anthropic",
+        backend_url="https://api.minimaxi.com/anthropic",
+        deep_think_llm="MiniMax-M2.7-highspeed",
+        quick_think_llm="MiniMax-M2.7-highspeed",
+        metadata={"source": "test"},
+    )
 
-    assert context.api_key == "secret"
+    assert context.auth_key == "dashboard-secret"
+    assert context.provider_api_key == "provider-secret"
+    assert context.llm_provider == "anthropic"
+    assert context.backend_url == "https://api.minimaxi.com/anthropic"
     assert context.request_id
     assert context.contract_version == "v1alpha1"
     assert context.executor_type == "legacy_subprocess"
@@ -209,7 +220,12 @@ def test_analysis_service_start_analysis_uses_executor(tmp_path):
             task_id="task-1",
             ticker="AAPL",
             date="2026-04-13",
-            request_context=build_request_context(api_key="secret"),
+            request_context=build_request_context(
+                auth_key="dashboard-secret",
+                provider_api_key="provider-secret",
+                llm_provider="anthropic",
+                backend_url="https://api.minimaxi.com/anthropic",
+            ),
             broadcast_progress=_broadcast,
         )
         await analysis_tasks["task-1"]
