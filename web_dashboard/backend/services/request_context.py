@@ -24,6 +24,10 @@ class RequestContext:
     backend_url: Optional[str] = None
     deep_think_llm: Optional[str] = None
     quick_think_llm: Optional[str] = None
+    selected_analysts: tuple[str, ...] = ()
+    analysis_prompt_style: Optional[str] = None
+    llm_timeout: Optional[float] = None
+    llm_max_retries: Optional[int] = None
     client_host: Optional[str] = None
     is_local: bool = False
     metadata: dict[str, str] = field(default_factory=dict)
@@ -38,6 +42,10 @@ def build_request_context(
     backend_url: Optional[str] = None,
     deep_think_llm: Optional[str] = None,
     quick_think_llm: Optional[str] = None,
+    selected_analysts: Optional[list[str] | tuple[str, ...]] = None,
+    analysis_prompt_style: Optional[str] = None,
+    llm_timeout: Optional[float] = None,
+    llm_max_retries: Optional[int] = None,
     request_id: Optional[str] = None,
     contract_version: str = CONTRACT_VERSION,
     executor_type: str = DEFAULT_EXECUTOR_TYPE,
@@ -56,6 +64,10 @@ def build_request_context(
         backend_url=backend_url,
         deep_think_llm=deep_think_llm,
         quick_think_llm=quick_think_llm,
+        selected_analysts=tuple(selected_analysts or ()),
+        analysis_prompt_style=analysis_prompt_style,
+        llm_timeout=llm_timeout,
+        llm_max_retries=llm_max_retries,
         client_host=client_host,
         is_local=is_local,
         metadata=dict(metadata or {}),

@@ -197,6 +197,10 @@ def test_executor_injects_provider_specific_env(monkeypatch):
                 backend_url="https://api.openai.com/v1",
                 deep_think_llm="gpt-5.4",
                 quick_think_llm="gpt-5.4-mini",
+                selected_analysts=["market"],
+                analysis_prompt_style="compact",
+                llm_timeout=45,
+                llm_max_retries=0,
             ),
         )
 
@@ -205,6 +209,10 @@ def test_executor_injects_provider_specific_env(monkeypatch):
     assert captured["env"]["TRADINGAGENTS_LLM_PROVIDER"] == "openai"
     assert captured["env"]["TRADINGAGENTS_BACKEND_URL"] == "https://api.openai.com/v1"
     assert captured["env"]["OPENAI_API_KEY"] == "provider-key"
+    assert captured["env"]["TRADINGAGENTS_SELECTED_ANALYSTS"] == "market"
+    assert captured["env"]["TRADINGAGENTS_ANALYSIS_PROMPT_STYLE"] == "compact"
+    assert captured["env"]["TRADINGAGENTS_LLM_TIMEOUT"] == "45"
+    assert captured["env"]["TRADINGAGENTS_LLM_MAX_RETRIES"] == "0"
     assert "ANTHROPIC_API_KEY" not in captured["env"]
 
 

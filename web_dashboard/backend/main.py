@@ -228,11 +228,20 @@ def _resolve_analysis_runtime_settings() -> dict:
         or os.environ.get("TRADINGAGENTS_MODEL")
         or defaults.get("quick_think_llm")
     )
+    selected_analysts_raw = os.environ.get("TRADINGAGENTS_SELECTED_ANALYSTS", "market")
+    selected_analysts = [item.strip() for item in selected_analysts_raw.split(",") if item.strip()]
+    analysis_prompt_style = os.environ.get("TRADINGAGENTS_ANALYSIS_PROMPT_STYLE", "compact")
+    llm_timeout = float(os.environ.get("TRADINGAGENTS_LLM_TIMEOUT", "45"))
+    llm_max_retries = int(os.environ.get("TRADINGAGENTS_LLM_MAX_RETRIES", "0"))
     return {
         "llm_provider": provider,
         "backend_url": backend_url,
         "deep_think_llm": deep_model,
         "quick_think_llm": quick_model,
+        "selected_analysts": selected_analysts,
+        "analysis_prompt_style": analysis_prompt_style,
+        "llm_timeout": llm_timeout,
+        "llm_max_retries": llm_max_retries,
         "provider_api_key": _get_analysis_provider_api_key(provider, saved.get("api_key")),
     }
 
@@ -247,6 +256,10 @@ def _build_analysis_request_context(request: Request, auth_key: Optional[str]):
         backend_url=settings["backend_url"],
         deep_think_llm=settings["deep_think_llm"],
         quick_think_llm=settings["quick_think_llm"],
+        selected_analysts=settings["selected_analysts"],
+        analysis_prompt_style=settings["analysis_prompt_style"],
+        llm_timeout=settings["llm_timeout"],
+        llm_max_retries=settings["llm_max_retries"],
     )
 
 

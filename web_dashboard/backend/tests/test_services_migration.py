@@ -52,6 +52,10 @@ def test_build_request_context_defaults():
         backend_url="https://api.minimaxi.com/anthropic",
         deep_think_llm="MiniMax-M2.7-highspeed",
         quick_think_llm="MiniMax-M2.7-highspeed",
+        selected_analysts=["market"],
+        analysis_prompt_style="compact",
+        llm_timeout=45,
+        llm_max_retries=0,
         metadata={"source": "test"},
     )
 
@@ -59,6 +63,10 @@ def test_build_request_context_defaults():
     assert context.provider_api_key == "provider-secret"
     assert context.llm_provider == "anthropic"
     assert context.backend_url == "https://api.minimaxi.com/anthropic"
+    assert context.selected_analysts == ("market",)
+    assert context.analysis_prompt_style == "compact"
+    assert context.llm_timeout == 45
+    assert context.llm_max_retries == 0
     assert context.request_id
     assert context.contract_version == "v1alpha1"
     assert context.executor_type == "legacy_subprocess"
@@ -225,6 +233,10 @@ def test_analysis_service_start_analysis_uses_executor(tmp_path):
                 provider_api_key="provider-secret",
                 llm_provider="anthropic",
                 backend_url="https://api.minimaxi.com/anthropic",
+                selected_analysts=["market"],
+                analysis_prompt_style="compact",
+                llm_timeout=45,
+                llm_max_retries=0,
             ),
             broadcast_progress=_broadcast,
         )

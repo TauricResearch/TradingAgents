@@ -60,7 +60,16 @@ if os.environ.get("TRADINGAGENTS_DEEP_MODEL"):
     trading_config["deep_think_llm"] = os.environ["TRADINGAGENTS_DEEP_MODEL"]
 if os.environ.get("TRADINGAGENTS_QUICK_MODEL"):
     trading_config["quick_think_llm"] = os.environ["TRADINGAGENTS_QUICK_MODEL"]
-
+if os.environ.get("TRADINGAGENTS_SELECTED_ANALYSTS"):
+    trading_config["selected_analysts"] = [
+        item.strip() for item in os.environ["TRADINGAGENTS_SELECTED_ANALYSTS"].split(",") if item.strip()
+    ]
+if os.environ.get("TRADINGAGENTS_ANALYSIS_PROMPT_STYLE"):
+    trading_config["analysis_prompt_style"] = os.environ["TRADINGAGENTS_ANALYSIS_PROMPT_STYLE"]
+if os.environ.get("TRADINGAGENTS_LLM_TIMEOUT"):
+    trading_config["llm_timeout"] = float(os.environ["TRADINGAGENTS_LLM_TIMEOUT"])
+if os.environ.get("TRADINGAGENTS_LLM_MAX_RETRIES"):
+    trading_config["llm_max_retries"] = int(os.environ["TRADINGAGENTS_LLM_MAX_RETRIES"])
 print("STAGE:analysts", flush=True)
 print("STAGE:research", flush=True)
 
@@ -305,6 +314,14 @@ class LegacySubprocessAnalysisExecutor:
                 clean_env["TRADINGAGENTS_DEEP_MODEL"] = request_context.deep_think_llm
             if request_context.quick_think_llm:
                 clean_env["TRADINGAGENTS_QUICK_MODEL"] = request_context.quick_think_llm
+            if request_context.selected_analysts:
+                clean_env["TRADINGAGENTS_SELECTED_ANALYSTS"] = ",".join(request_context.selected_analysts)
+            if request_context.analysis_prompt_style:
+                clean_env["TRADINGAGENTS_ANALYSIS_PROMPT_STYLE"] = request_context.analysis_prompt_style
+            if request_context.llm_timeout is not None:
+                clean_env["TRADINGAGENTS_LLM_TIMEOUT"] = str(request_context.llm_timeout)
+            if request_context.llm_max_retries is not None:
+                clean_env["TRADINGAGENTS_LLM_MAX_RETRIES"] = str(request_context.llm_max_retries)
             for env_name in self._provider_api_env_names(llm_provider):
                 if analysis_api_key:
                     clean_env[env_name] = analysis_api_key
