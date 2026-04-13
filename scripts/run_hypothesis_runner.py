@@ -232,7 +232,7 @@ Be direct. Do not restate the numbers — interpret them. Do not recommend mergi
     try:
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-3-flash-preview",
             contents=prompt,
         )
         return response.text.strip()
