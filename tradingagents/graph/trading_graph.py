@@ -38,6 +38,7 @@ from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
+from .portfolio_analysis import PortfolioAnalyzer
 
 
 class TradingAgentsGraph:
@@ -122,6 +123,7 @@ class TradingAgentsGraph:
         self.propagator = Propagator()
         self.reflector = Reflector(self.quick_thinking_llm)
         self.signal_processor = SignalProcessor(self.quick_thinking_llm)
+        self.portfolio_analyzer = PortfolioAnalyzer(self.deep_thinking_llm, self.config)
 
         # State tracking
         self.curr_state = None
@@ -263,6 +265,26 @@ class TradingAgentsGraph:
         log_path = directory / f"full_states_log_{trade_date}.json"
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
+
+    def propagate_portfolio(
+        self, tickers: List[str], trade_date: str
+    ) -> Dict[str, Any]:
+        """Run analysis on multiple stocks and produce a comparative portfolio summary.
+
+        Delegates to PortfolioAnalyzer.analyze — see that class for full details.
+
+        This method preserves the instance's ticker and curr_state attributes,
+        restoring them after the portfolio analysis is complete.
+        """
+        original_ticker = self.ticker
+        original_curr_state = self.curr_state
+        try:
+            return self.portfolio_analyzer.analyze(
+                tickers, trade_date, self.propagate, debug=self.debug
+            )
+        finally:
+            self.ticker = original_ticker
+            self.curr_state = original_curr_state
 
     def reflect_and_remember(self, returns_losses):
         """Reflect on decisions and update memory based on returns."""
