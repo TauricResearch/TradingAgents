@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from orchestrator.profile_trace_utils import TRACE_KIND, TRACE_SCHEMA_VERSION, build_trace_summary
 from tradingagents.graph.propagation import Propagator
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 
@@ -84,6 +85,48 @@ def _extract_research_state(event: dict) -> tuple[str | None, str | None, int | 
     )
 
 
+<<<<<<< HEAD
+=======
+
+def build_trace_payload(
+    *,
+    status: str,
+    run_id: str,
+    ticker: str,
+    date: str,
+    selected_analysts: list[str],
+    analysis_prompt_style: str,
+    variant_label: str,
+    node_timings: list[dict],
+    phase_totals: dict[str, float],
+    dump_path: Path,
+    raw_events: list[dict],
+    error: str | None = None,
+    exception_type: str | None = None,
+) -> dict:
+    payload = {
+        "trace_schema_version": TRACE_SCHEMA_VERSION,
+        "trace_kind": TRACE_KIND,
+        "run_id": run_id,
+        "status": status,
+        "ticker": ticker,
+        "date": date,
+        "variant_label": variant_label,
+        "selected_analysts": selected_analysts,
+        "analysis_prompt_style": analysis_prompt_style,
+        "node_timings": node_timings,
+        "summary": build_trace_summary(node_timings, phase_totals),
+        "dump_path": str(dump_path),
+        "raw_events": raw_events,
+    }
+    if error is not None:
+        payload["error"] = error
+    if exception_type is not None:
+        payload["exception_type"] = exception_type
+    return payload
+
+
+>>>>>>> 82e61cb (omx(team): auto-checkpoint worker-4 [unknown])
 def main() -> None:
     args = build_parser().parse_args()
     selected_analysts = [item.strip() for item in args.selected_analysts.split(",") if item.strip()]
