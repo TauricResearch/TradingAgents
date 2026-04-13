@@ -10,6 +10,7 @@
 Plan 024 added comprehensive **unit test coverage** for news contract normalization with fully mocked components (mock evidence stores, mock LLM responses). These unit tests validate individual component behavior in isolation.
 
 We now need **integration tests** that validate the **end-to-end pipeline** using:
+
 - Real scanner report artifacts from past runs (as fixtures)
 - Real tool execution (prefetch, evidence store operations, rendering)
 - Real state propagation through analyst → fact-checker → context formatter
@@ -89,6 +90,7 @@ evidence_records = scanner_artifact["news_evidence_records"]
 ```
 
 This validates:
+
 - Real-world complexity (varied claim structures, multiple sources, edge cases)
 - Actual prefetch context shapes from production tools
 - Evidence store behavior with realistic record counts
@@ -101,6 +103,7 @@ This validates:
 **Goal**: Establish reusable scanner artifact fixtures
 
 **Tasks**:
+
 1. Create `tests/integration/fixtures/scanner_artifacts/` directory
 2. Copy representative scanner outputs from `artifacts/live-tests/` or `reports/daily/`:
    - **Happy path**: MRVL 2026-04-02 (3+ claims, valid evidence)
@@ -108,6 +111,7 @@ This validates:
    - **Edge case**: Ticker with all claims removed during sanitization
    - **Complex case**: 10+ claims with multiple sources
 3. Create fixture loader utility `tests/integration/conftest.py`:
+
    ```python
    @pytest.fixture
    def scanner_artifact_mrvl_2026_04_02():
@@ -124,12 +128,14 @@ This validates:
    ```
 
 **Files to create**:
+
 - `tests/integration/fixtures/scanner_artifacts/mrvl_2026_04_02.json`
 - `tests/integration/fixtures/scanner_artifacts/nvda_2026_03_31.json`
 - `tests/integration/fixtures/scanner_artifacts/partial_evidence_failure.json`
 - `tests/integration/conftest.py` (fixture loader utilities)
 
 **Expected fixture structure**:
+
 ```json
 {
   "run_id": "scan_2026_04_02_12_34_56",
@@ -249,6 +255,7 @@ class TestNewsContractIntegration:
 ```
 
 **Files to create**:
+
 - `tests/integration/test_news_contract_integration.py` (~200 lines)
 
 **Expected test count**: 6-8 integration tests
@@ -292,6 +299,7 @@ class TestNewsAnalystPrefetchIntegration:
 ```
 
 **Files to create**:
+
 - `tests/integration/test_news_analyst_prefetch_integration.py` (~150 lines)
 
 **Expected test count**: 3-4 integration tests
@@ -301,6 +309,7 @@ class TestNewsAnalystPrefetchIntegration:
 **Goal**: Create reusable fixture files from actual scanner runs
 
 **Tasks**:
+
 1. Run scanner on known dates: `python -m cli.main scan --date 2026-04-02`
 2. Extract artifacts from `reports/daily/2026-04-02/`:
    - Load `scan_results.json`
@@ -310,6 +319,7 @@ class TestNewsAnalystPrefetchIntegration:
      - `news_analyst_output` (raw LLM response)
      - `fact_checker_output` (canonical contract)
 3. Sanitize and save as fixture JSON:
+
    ```bash
    python scripts/extract_scanner_fixtures.py \
        --run-date 2026-04-02 \
@@ -318,6 +328,7 @@ class TestNewsAnalystPrefetchIntegration:
    ```
 
 **Files to create**:
+
 - `scripts/extract_scanner_fixtures.py` (~100 lines)
   - Load scanner run artifacts
   - Extract relevant fields for fixture
@@ -331,10 +342,12 @@ class TestNewsAnalystPrefetchIntegration:
 **Goal**: Document integration test patterns for future contributors
 
 **Files to update**:
+
 - `docs/testing.md`: Add section on "Integration Tests with Scanner Artifacts"
 - `tests/integration/README.md`: Create if doesn't exist, document fixture structure
 
 **Content**:
+
 ```markdown
 ## Integration Tests with Scanner Artifacts
 
@@ -366,6 +379,7 @@ pytest tests/integration/ -v
 # Run news contract integration tests
 pytest tests/integration/test_news_contract_integration.py -v
 ```
+
 ```
 
 ## Testing Strategy
@@ -410,6 +424,7 @@ store = NewsEvidenceStore(db_path=":memory:")
 ## Acceptance Criteria
 
 **Implementation complete when**:
+
 - ✅ 6-8 integration tests added to `tests/integration/test_news_contract_integration.py`
 - ✅ 3-4 prefetch integration tests added to `tests/integration/test_news_analyst_prefetch_integration.py`
 - ✅ 3-5 scanner artifact fixtures created from real runs
@@ -486,6 +501,7 @@ Each fixture should include expected outputs for validation:
 ## Success Metrics
 
 **After implementation**:
+
 - Integration tests catch realistic edge cases missed by unit tests
 - Scanner artifacts provide regression protection for production payloads
 - Tests run in <5 seconds (using in-memory stores, mocked LLMs)
