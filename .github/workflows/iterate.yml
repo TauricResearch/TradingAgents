@@ -81,6 +81,7 @@ jobs:
           SEPARATOR="---"
 
           EXISTING_PR=$(gh pr list \
+            --repo Aitous/TradingAgents \
             --head "$BRANCH" \
             --state open \
             --json number \
@@ -96,7 +97,7 @@ jobs:
               echo "$SEPARATOR"
               echo "*Last updated: ${DATE} by automated iterate workflow*"
             } > /tmp/pr_body.md
-            gh pr edit "$EXISTING_PR" --body-file /tmp/pr_body.md
+            gh pr edit "$EXISTING_PR" --repo Aitous/TradingAgents --body-file /tmp/pr_body.md
             echo "Updated existing PR #${EXISTING_PR}"
           else
             git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
@@ -108,9 +109,10 @@ jobs:
               echo "*Opened: ${DATE} by automated iterate workflow*"
               echo "*Merge to apply learnings and reset the iteration cycle.*"
             } > /tmp/pr_body.md
-            gh label create "automated" --color "0075ca" --description "Automated workflow" 2>/dev/null || true
-            gh label create "iteration" --color "e4e669" --description "Iteration system" 2>/dev/null || true
+            gh label create "automated" --color "0075ca" --description "Automated workflow" --repo Aitous/TradingAgents 2>/dev/null || true
+            gh label create "iteration" --color "e4e669" --description "Iteration system" --repo Aitous/TradingAgents 2>/dev/null || true
             gh pr create \
+              --repo Aitous/TradingAgents \
               --title "learn(iterate): automated improvements — ${DATE}" \
               --body-file /tmp/pr_body.md \
               --label "automated,iteration" \

@@ -160,13 +160,13 @@ Run `git commit` with a message in the format:
 
 Then check for an existing open PR on branch `research/current`:
 ```bash
-EXISTING=$(gh pr list --head research/current --state open --json number --jq '.[0].number // empty')
+EXISTING=$(gh pr list --repo Aitous/TradingAgents --head research/current --state open --json number --jq '.[0].number // empty')
 ```
 
 If one exists:
 ```bash
 git push origin HEAD:research/current
-gh pr edit "$EXISTING" \
+gh pr edit "$EXISTING" --repo Aitous/TradingAgents \
   --body "$(cat docs/iterations/LEARNINGS.md | head -30)"
 ```
 
@@ -175,6 +175,7 @@ If none exists:
 git checkout -b research/current
 git push -u origin research/current
 gh pr create \
+  --repo Aitous/TradingAgents \
   --title "research: new strategy findings — $(date +%Y-%m-%d)" \
   --body "$(cat docs/iterations/LEARNINGS.md | head -30)" \
   --label "automated,research" \
