@@ -213,14 +213,13 @@ def beta(
     if n != len(benchmark_returns) or n < 2:
         return None
 
-    sum_a = 0.0
-    sum_b = 0.0
+    sum_a = sum(asset_returns)
+    sum_b = sum(benchmark_returns)
+
     sum_ab = 0.0
     sum_b2 = 0.0
 
     for a, b in zip(asset_returns, benchmark_returns):
-        sum_a += a
-        sum_b += b
         sum_ab += a * b
         sum_b2 += b * b
 
