@@ -10,6 +10,7 @@ load_dotenv()
 config = DEFAULT_CONFIG.copy()
 config["deep_think_llm"] = "gpt-5.4-mini"  # Use a different model
 config["quick_think_llm"] = "gpt-5.4-mini"  # Use a different model
+config["llm_provider"] = "openai"  # openai, google, anthropic, xai, deepseek, kimi, openrouter, ollama
 config["max_debate_rounds"] = 1  # Increase debate rounds
 
 # Configure data vendors (default uses yfinance, no extra API keys needed)
@@ -23,8 +24,8 @@ config["data_vendors"] = {
 # Initialize with custom config
 ta = TradingAgentsGraph(debug=True, config=config)
 
-# forward propagate
-_, decision = ta.propagate("NVDA", "2024-05-10")
+# forward propagate (equity or crypto symbol)
+_, decision = ta.propagate("BTC-USD", "2024-05-10")
 print(decision)
 
 # Memorize mistakes and reflect

@@ -7,7 +7,7 @@ DEFAULT_CONFIG = {
     "results_dir": os.getenv("TRADINGAGENTS_RESULTS_DIR", os.path.join(_TRADINGAGENTS_HOME, "logs")),
     "data_cache_dir": os.getenv("TRADINGAGENTS_CACHE_DIR", os.path.join(_TRADINGAGENTS_HOME, "cache")),
     # LLM settings
-    "llm_provider": "openai",
+    "llm_provider": "openai",  # openai, google, anthropic, xai, deepseek, kimi, openrouter, ollama
     "deep_think_llm": "gpt-5.4",
     "quick_think_llm": "gpt-5.4-mini",
     "backend_url": "https://api.openai.com/v1",

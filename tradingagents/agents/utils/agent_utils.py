@@ -1,6 +1,7 @@
 from langchain_core.messages import HumanMessage, RemoveMessage
 
 # Import tools from separate utility files
+from tradingagents.instruments import get_asset_class
 from tradingagents.agents.utils.core_stock_tools import (
     get_stock_data
 )
@@ -35,11 +36,34 @@ def get_language_instruction() -> str:
 
 
 def build_instrument_context(ticker: str) -> str:
-    """Describe the exact instrument so agents preserve exchange-qualified tickers."""
+    """Describe the instrument format so agents preserve the exact symbol."""
+    asset_class = get_asset_class(ticker)
+    if asset_class == "crypto":
+        return (
+            f"The instrument to analyze is `{ticker}` (cryptocurrency). "
+            "Use this exact symbol in every tool call, report, and recommendation, "
+            "preserving the base/quote pair format (e.g. `BTC-USD`, `ETH-USD`). "
+            "Crypto markets trade 24/7, so do not assume weekends are closed."
+        )
+
     return (
         f"The instrument to analyze is `{ticker}`. "
         "Use this exact ticker in every tool call, report, and recommendation, "
         "preserving any exchange suffix (e.g. `.TO`, `.L`, `.HK`, `.T`)."
+    )
+
+
+def build_fundamentals_context(ticker: str) -> str:
+    """Return asset-aware guidance for the fundamentals analyst."""
+    if get_asset_class(ticker) == "crypto":
+        return (
+            "For cryptocurrency instruments, interpret fundamentals as tokenomics and market structure: "
+            "supply dynamics, liquidity, exchange coverage, adoption indicators, and macro/regulatory drivers. "
+            "If company financial statements or insider filings are unavailable, explicitly mark those sections as N/A."
+        )
+    return (
+        "For equities, prioritize corporate fundamentals such as business profile, profitability, "
+        "cash flow quality, leverage, and financial statement trends."
     )
 
 def create_msg_delete():

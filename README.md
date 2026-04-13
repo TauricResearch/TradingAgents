@@ -141,6 +141,8 @@ export GOOGLE_API_KEY=...          # Google (Gemini)
 export ANTHROPIC_API_KEY=...       # Anthropic (Claude)
 export XAI_API_KEY=...             # xAI (Grok)
 export OPENROUTER_API_KEY=...      # OpenRouter
+export DEEPSEEK_API_KEY=...        # DeepSeek
+export KIMI_API_KEY=...            # Kimi (Moonshot)
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
@@ -159,6 +161,7 @@ tradingagents          # installed command
 python -m cli.main     # alternative: run directly from source
 ```
 You will see a screen where you can select your desired tickers, analysis date, LLM provider, research depth, and more.
+Ticker input supports both equities and crypto symbols (for example: `SPY`, `7203.T`, `BTC-USD`, `ETH/USDT`, `BTCUSDT`).
 
 <p align="center">
   <img src="assets/cli/cli_init.png" width="100%" style="display: inline-block; margin: 0 2%;">
@@ -178,7 +181,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, OpenRouter, and Ollama.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Kimi, OpenRouter, and Ollama.
 
 ### Python Usage
 
@@ -193,6 +196,10 @@ ta = TradingAgentsGraph(debug=True, config=DEFAULT_CONFIG.copy())
 # forward propagate
 _, decision = ta.propagate("NVDA", "2026-01-15")
 print(decision)
+
+# crypto example
+_, crypto_decision = ta.propagate("BTC-USD", "2026-01-15")
+print(crypto_decision)
 ```
 
 You can also adjust the default configuration to set your own choice of LLMs, debate rounds, etc.
@@ -202,7 +209,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, openrouter, ollama
+config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, kimi, openrouter, ollama
 config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2

@@ -26,19 +26,21 @@ _PASSTHROUGH_KWARGS = (
 
 # Provider base URLs and API key env vars
 _PROVIDER_CONFIG = {
-    "xai": ("https://api.x.ai/v1", "XAI_API_KEY"),
-    "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
-    "ollama": ("http://localhost:11434/v1", None),
+    "xai": ("https://api.x.ai/v1", ("XAI_API_KEY",)),
+    "openrouter": ("https://openrouter.ai/api/v1", ("OPENROUTER_API_KEY",)),
+    "deepseek": ("https://api.deepseek.com/v1", ("DEEPSEEK_API_KEY",)),
+    "kimi": ("https://api.moonshot.cn/v1", ("KIMI_API_KEY", "MOONSHOT_API_KEY")),
+    "ollama": ("http://localhost:11434/v1", ()),
 }
 
 
 class OpenAIClient(BaseLLMClient):
-    """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
+    """Client for OpenAI-compatible providers.
 
     For native OpenAI models, uses the Responses API (/v1/responses) which
     supports reasoning_effort with function tools across all model families
     (GPT-4.1, GPT-5). Third-party compatible providers (xAI, OpenRouter,
-    Ollama) use standard Chat Completions.
+    DeepSeek, Kimi, Ollama) use standard Chat Completions.
     """
 
     def __init__(
@@ -58,12 +60,24 @@ class OpenAIClient(BaseLLMClient):
 
         # Provider-specific base URL and auth
         if self.provider in _PROVIDER_CONFIG:
-            base_url, api_key_env = _PROVIDER_CONFIG[self.provider]
-            llm_kwargs["base_url"] = base_url
-            if api_key_env:
-                api_key = os.environ.get(api_key_env)
-                if api_key:
-                    llm_kwargs["api_key"] = api_key
+            default_base_url, api_key_envs = _PROVIDER_CONFIG[self.provider]
+            llm_kwargs["base_url"] = self.base_url or default_base_url
+            if api_key_envs:
+                resolved_api_key = self.kwargs.get("api_key")
+                for api_key_env in api_key_envs:
+                    if resolved_api_key:
+                        break
+                    api_key = os.environ.get(api_key_env)
+                    if api_key:
+                        resolved_api_key = api_key
+                        break
+                if not resolved_api_key:
+                    api_key_env_list = ", ".join(api_key_envs)
+                    raise ValueError(
+                        f"Missing API key for provider '{self.provider}'. "
+                        f"Set one of: {api_key_env_list}, or pass api_key explicitly."
+                    )
+                llm_kwargs["api_key"] = resolved_api_key
             else:
                 llm_kwargs["api_key"] = "ollama"
         elif self.base_url:

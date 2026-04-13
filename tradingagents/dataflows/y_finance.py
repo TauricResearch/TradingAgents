@@ -3,8 +3,9 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
-import os
+import pandas as pd
 from .stockstats_utils import StockstatsUtils, _clean_dataframe, yf_retry, load_ohlcv, filter_financials_by_date
+from tradingagents.instruments import get_asset_class
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -24,7 +25,7 @@ def get_YFin_data_online(
     # Check if data is empty
     if data.empty:
         return (
-            f"No data found for symbol '{symbol}' between {start_date} and {end_date}"
+            f"No market data found for symbol '{symbol}' between {start_date} and {end_date}"
         )
 
     # Remove timezone info from index for cleaner output
@@ -41,7 +42,7 @@ def get_YFin_data_online(
     csv_string = data.to_csv()
 
     # Add header information
-    header = f"# Stock data for {symbol.upper()} from {start_date} to {end_date}\n"
+    header = f"# Market data for {symbol.upper()} from {start_date} to {end_date}\n"
     header += f"# Total records: {len(data)}\n"
     header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
@@ -153,7 +154,7 @@ def get_stock_stats_indicators_window(
             if date_str in indicator_data:
                 indicator_value = indicator_data[date_str]
             else:
-                indicator_value = "N/A: Not a trading day (weekend or holiday)"
+                indicator_value = "N/A: No market data available for this date"
             
             date_values.append((date_str, indicator_value))
             current_dt = current_dt - relativedelta(days=1)
@@ -249,7 +250,7 @@ def get_fundamentals(
     ticker: Annotated[str, "ticker symbol of the company"],
     curr_date: Annotated[str, "current date (not used for yfinance)"] = None
 ):
-    """Get company fundamentals overview from yfinance."""
+    """Get asset fundamentals overview from yfinance."""
     try:
         ticker_obj = yf.Ticker(ticker.upper())
         info = yf_retry(lambda: ticker_obj.info)
@@ -257,44 +258,68 @@ def get_fundamentals(
         if not info:
             return f"No fundamentals data found for symbol '{ticker}'"
 
-        fields = [
-            ("Name", info.get("longName")),
-            ("Sector", info.get("sector")),
-            ("Industry", info.get("industry")),
-            ("Market Cap", info.get("marketCap")),
-            ("PE Ratio (TTM)", info.get("trailingPE")),
-            ("Forward PE", info.get("forwardPE")),
-            ("PEG Ratio", info.get("pegRatio")),
-            ("Price to Book", info.get("priceToBook")),
-            ("EPS (TTM)", info.get("trailingEps")),
-            ("Forward EPS", info.get("forwardEps")),
-            ("Dividend Yield", info.get("dividendYield")),
-            ("Beta", info.get("beta")),
-            ("52 Week High", info.get("fiftyTwoWeekHigh")),
-            ("52 Week Low", info.get("fiftyTwoWeekLow")),
-            ("50 Day Average", info.get("fiftyDayAverage")),
-            ("200 Day Average", info.get("twoHundredDayAverage")),
-            ("Revenue (TTM)", info.get("totalRevenue")),
-            ("Gross Profit", info.get("grossProfits")),
-            ("EBITDA", info.get("ebitda")),
-            ("Net Income", info.get("netIncomeToCommon")),
-            ("Profit Margin", info.get("profitMargins")),
-            ("Operating Margin", info.get("operatingMargins")),
-            ("Return on Equity", info.get("returnOnEquity")),
-            ("Return on Assets", info.get("returnOnAssets")),
-            ("Debt to Equity", info.get("debtToEquity")),
-            ("Current Ratio", info.get("currentRatio")),
-            ("Book Value", info.get("bookValue")),
-            ("Free Cash Flow", info.get("freeCashflow")),
-        ]
+        asset_class = get_asset_class(ticker)
+        if asset_class == "crypto":
+            fields = [
+                ("Asset Name", info.get("longName") or info.get("shortName")),
+                ("Symbol", ticker.upper()),
+                ("Quote Currency", info.get("currency")),
+                ("Market Cap", info.get("marketCap")),
+                ("24h Volume", info.get("volume24Hr") or info.get("volume")),
+                ("Circulating Supply", info.get("circulatingSupply")),
+                ("Total Supply", info.get("totalSupply")),
+                ("Max Supply", info.get("maxSupply")),
+                ("52 Week High", info.get("fiftyTwoWeekHigh")),
+                ("52 Week Low", info.get("fiftyTwoWeekLow")),
+                ("50 Day Average", info.get("fiftyDayAverage")),
+                ("200 Day Average", info.get("twoHundredDayAverage")),
+            ]
+            header = f"# Crypto Fundamentals for {ticker.upper()}\n"
+        else:
+            fields = [
+                ("Name", info.get("longName")),
+                ("Sector", info.get("sector")),
+                ("Industry", info.get("industry")),
+                ("Market Cap", info.get("marketCap")),
+                ("PE Ratio (TTM)", info.get("trailingPE")),
+                ("Forward PE", info.get("forwardPE")),
+                ("PEG Ratio", info.get("pegRatio")),
+                ("Price to Book", info.get("priceToBook")),
+                ("EPS (TTM)", info.get("trailingEps")),
+                ("Forward EPS", info.get("forwardEps")),
+                ("Dividend Yield", info.get("dividendYield")),
+                ("Beta", info.get("beta")),
+                ("52 Week High", info.get("fiftyTwoWeekHigh")),
+                ("52 Week Low", info.get("fiftyTwoWeekLow")),
+                ("50 Day Average", info.get("fiftyDayAverage")),
+                ("200 Day Average", info.get("twoHundredDayAverage")),
+                ("Revenue (TTM)", info.get("totalRevenue")),
+                ("Gross Profit", info.get("grossProfits")),
+                ("EBITDA", info.get("ebitda")),
+                ("Net Income", info.get("netIncomeToCommon")),
+                ("Profit Margin", info.get("profitMargins")),
+                ("Operating Margin", info.get("operatingMargins")),
+                ("Return on Equity", info.get("returnOnEquity")),
+                ("Return on Assets", info.get("returnOnAssets")),
+                ("Debt to Equity", info.get("debtToEquity")),
+                ("Current Ratio", info.get("currentRatio")),
+                ("Book Value", info.get("bookValue")),
+                ("Free Cash Flow", info.get("freeCashflow")),
+            ]
+            header = f"# Company Fundamentals for {ticker.upper()}\n"
 
         lines = []
         for label, value in fields:
             if value is not None:
                 lines.append(f"{label}: {value}")
 
-        header = f"# Company Fundamentals for {ticker.upper()}\n"
         header += f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+        if not lines:
+            return (
+                header
+                + "No structured fundamentals were returned by yfinance for this symbol.\n"
+            )
 
         return header + "\n".join(lines)
 
@@ -308,6 +333,10 @@ def get_balance_sheet(
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
     """Get balance sheet data from yfinance."""
+    if get_asset_class(ticker) == "crypto":
+        return (
+            f"N/A for cryptocurrency symbol '{ticker}': balance sheet is only available for companies."
+        )
     try:
         ticker_obj = yf.Ticker(ticker.upper())
 
@@ -340,6 +369,10 @@ def get_cashflow(
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
     """Get cash flow data from yfinance."""
+    if get_asset_class(ticker) == "crypto":
+        return (
+            f"N/A for cryptocurrency symbol '{ticker}': cash flow statement is only available for companies."
+        )
     try:
         ticker_obj = yf.Ticker(ticker.upper())
 
@@ -372,6 +405,10 @@ def get_income_statement(
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None
 ):
     """Get income statement data from yfinance."""
+    if get_asset_class(ticker) == "crypto":
+        return (
+            f"N/A for cryptocurrency symbol '{ticker}': income statement is only available for companies."
+        )
     try:
         ticker_obj = yf.Ticker(ticker.upper())
 
@@ -402,6 +439,10 @@ def get_insider_transactions(
     ticker: Annotated[str, "ticker symbol of the company"]
 ):
     """Get insider transactions data from yfinance."""
+    if get_asset_class(ticker) == "crypto":
+        return (
+            f"N/A for cryptocurrency symbol '{ticker}': insider transactions are not applicable."
+        )
     try:
         ticker_obj = yf.Ticker(ticker.upper())
         data = yf_retry(lambda: ticker_obj.insider_transactions)
