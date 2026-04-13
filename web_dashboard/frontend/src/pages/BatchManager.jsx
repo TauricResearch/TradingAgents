@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Table, Button, Progress, Result, Card, message, Popconfirm, Tooltip } from 'antd'
 import { DeleteOutlined, CopyOutlined, SyncOutlined } from '@ant-design/icons'
+import ContractCues from '../components/ContractCues'
 import DecisionBadge from '../components/DecisionBadge'
 import { StatusIcon, StatusTag } from '../components/StatusIcon'
 import { getDecision, getErrorMessage } from '../utils/contractView'
@@ -107,8 +108,13 @@ export default function BatchManager() {
     {
       title: '决策',
       key: 'decision',
-      width: 80,
-      render: (_, record) => <DecisionBadge decision={getDecision(record)} />,
+      width: 180,
+      render: (_, record) => (
+        <div>
+          <DecisionBadge decision={getDecision(record)} />
+          <ContractCues payload={record} style={{ marginTop: 6 }} />
+        </div>
+      ),
     },
     {
       title: '任务ID',

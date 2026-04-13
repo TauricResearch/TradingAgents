@@ -8,6 +8,7 @@ import {
   DownloadOutlined, SyncOutlined, AccountBookOutlined,
 } from '@ant-design/icons'
 import { portfolioApi } from '../services/portfolioApi'
+import ContractCues from '../components/ContractCues'
 import DecisionBadge from '../components/DecisionBadge'
 import { getDecision, getDisplayDate, isCompletedLikeStatus } from '../utils/contractView'
 
@@ -378,8 +379,13 @@ function RecommendationsTab() {
       render: t => <span className="text-data">{t}</span> },
     { title: '名称', dataIndex: 'name', key: 'name', render: t => <span style={{ fontWeight: 500 }}>{t}</span> },
     {
-      title: '决策', key: 'decision', width: 80,
-      render: (_, record) => <DecisionBadge decision={getDecision(record)} />,
+      title: '决策', key: 'decision', width: 180,
+      render: (_, record) => (
+        <div>
+          <DecisionBadge decision={getDecision(record)} />
+          <ContractCues payload={record} style={{ marginTop: 6 }} />
+        </div>
+      ),
     },
     { title: '分析日期', key: 'analysis_date', width: 120, render: (_, record) => getDisplayDate(record) || '—' },
   ]
