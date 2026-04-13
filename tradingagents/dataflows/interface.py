@@ -1,4 +1,5 @@
-from typing import Annotated
+from dataclasses import dataclass
+from typing import Annotated, Any
 
 # Import from vendor-specific modules
 from .y_finance import (
@@ -183,32 +184,62 @@ def get_vendor(category: str, method: str = None) -> str:
     return config.get("data_vendors", {}).get(category, "default")
 
 
+@dataclass(frozen=True)
+class VendorSelection:
+    """Resolved vendor routing metadata for one dataflow method call."""
+
+    method: str
+    category: str
+    configured_vendors: tuple[str, ...]
+    fallback_chain: tuple[str, ...]
+
+
+class DataflowAdapter:
+    """Thin adapter boundary over legacy vendor routing logic."""
+
+    def resolve(self, method: str) -> VendorSelection:
+        category = get_category_for_method(method)
+        vendor_config = get_vendor(category, method)
+        configured_vendors = tuple(v.strip() for v in vendor_config.split(",") if v.strip())
+
+        if method not in VENDOR_METHODS:
+            raise ValueError(f"Method '{method}' not supported")
+
+        all_available_vendors = list(VENDOR_METHODS[method].keys())
+        fallback_chain = list(configured_vendors)
+        for vendor in all_available_vendors:
+            if vendor not in fallback_chain:
+                fallback_chain.append(vendor)
+
+        return VendorSelection(
+            method=method,
+            category=category,
+            configured_vendors=configured_vendors,
+            fallback_chain=tuple(fallback_chain),
+        )
+
+    def execute(self, method: str, *args: Any, **kwargs: Any):
+        """Route the call through the configured vendor chain with legacy fallback behavior."""
+        selection = self.resolve(method)
+
+        for vendor in selection.fallback_chain:
+            if vendor not in VENDOR_METHODS[method]:
+                continue
+
+            vendor_impl = VENDOR_METHODS[method][vendor]
+            impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
+
+            try:
+                return impl_func(*args, **kwargs)
+            except AlphaVantageRateLimitError:
+                continue  # Only rate limits trigger fallback
+
+        raise RuntimeError(f"No available vendor for '{method}'")
+
+
+DEFAULT_DATAFLOW_ADAPTER = DataflowAdapter()
+
+
 def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
-    category = get_category_for_method(method)
-    vendor_config = get_vendor(category, method)
-    primary_vendors = [v.strip() for v in vendor_config.split(",")]
-
-    if method not in VENDOR_METHODS:
-        raise ValueError(f"Method '{method}' not supported")
-
-    # Build fallback chain: primary vendors first, then remaining available vendors
-    all_available_vendors = list(VENDOR_METHODS[method].keys())
-    fallback_vendors = primary_vendors.copy()
-    for vendor in all_available_vendors:
-        if vendor not in fallback_vendors:
-            fallback_vendors.append(vendor)
-
-    for vendor in fallback_vendors:
-        if vendor not in VENDOR_METHODS[method]:
-            continue
-
-        vendor_impl = VENDOR_METHODS[method][vendor]
-        impl_func = vendor_impl[0] if isinstance(vendor_impl, list) else vendor_impl
-
-        try:
-            return impl_func(*args, **kwargs)
-        except AlphaVantageRateLimitError:
-            continue  # Only rate limits trigger fallback
-
-    raise RuntimeError(f"No available vendor for '{method}'")
+    return DEFAULT_DATAFLOW_ADAPTER.execute(method, *args, **kwargs)

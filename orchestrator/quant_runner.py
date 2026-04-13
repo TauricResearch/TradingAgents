@@ -8,7 +8,8 @@ from typing import Any
 import yfinance as yf
 
 from orchestrator.config import OrchestratorConfig
-from orchestrator.signals import Signal
+from orchestrator.contracts.error_taxonomy import ReasonCode
+from orchestrator.contracts.result_contract import Signal, build_error_signal
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +42,12 @@ class QuantRunner:
         df = yf.download(ticker, start=start_str, end=date, progress=False, auto_adjust=True)
         if df.empty:
             logger.warning("No price data for %s between %s and %s", ticker, start_str, date)
-            return Signal(
+            return build_error_signal(
                 ticker=ticker,
-                direction=0,
-                confidence=0.0,
                 source="quant",
-                timestamp=datetime.now(timezone.utc),
-                metadata={"reason": "no_data"},
+                reason_code=ReasonCode.QUANT_NO_DATA.value,
+                message=f"no price data between {start_str} and {date}",
+                metadata={"start_date": start_str, "end_date": date},
             )
 
         # 标准化列名为小写

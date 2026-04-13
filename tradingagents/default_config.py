@@ -1,3 +1,4 @@
+import copy
 import os
 
 DEFAULT_CONFIG = {
@@ -36,3 +37,7 @@ DEFAULT_CONFIG = {
         # Example: "get_stock_data": "alpha_vantage",  # Override category default
     },
 }
+
+
+def get_default_config():
+    return copy.deepcopy(DEFAULT_CONFIG)

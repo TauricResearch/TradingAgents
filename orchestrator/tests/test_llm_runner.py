@@ -1,8 +1,11 @@
-"""Tests for LLMRunner._map_rating()."""
-import tempfile
+"""Tests for LLMRunner."""
+import sys
+from types import ModuleType
+
 import pytest
 
 from orchestrator.config import OrchestratorConfig
+from orchestrator.contracts.error_taxonomy import ReasonCode
 from orchestrator.llm_runner import LLMRunner
 
 
@@ -39,3 +42,43 @@ def test_map_rating_lowercase(runner):
 # Empty string → (0, 0.5)
 def test_map_rating_empty_string(runner):
     assert runner._map_rating("") == (0, 0.5)
+
+
+def test_get_graph_preserves_explicit_empty_selected_analysts(monkeypatch, tmp_path):
+    captured_kwargs = {}
+
+    class FakeTradingAgentsGraph:
+        def __init__(self, **kwargs):
+            captured_kwargs.update(kwargs)
+
+    fake_module = ModuleType("tradingagents.graph.trading_graph")
+    fake_module.TradingAgentsGraph = FakeTradingAgentsGraph
+    monkeypatch.setitem(sys.modules, "tradingagents.graph.trading_graph", fake_module)
+
+    cfg = OrchestratorConfig(
+        cache_dir=str(tmp_path),
+        trading_agents_config={"selected_analysts": [], "llm_provider": "anthropic"},
+    )
+
+    runner = LLMRunner(cfg)
+    graph = runner._get_graph()
+
+    assert isinstance(graph, FakeTradingAgentsGraph)
+    assert captured_kwargs["config"] == cfg.trading_agents_config
+    assert captured_kwargs["selected_analysts"] == []
+
+
+def test_get_signal_returns_reason_code_on_propagate_failure(monkeypatch, tmp_path):
+    class BrokenGraph:
+        def propagate(self, ticker, date):
+            raise RuntimeError("graph unavailable")
+
+    cfg = OrchestratorConfig(cache_dir=str(tmp_path))
+    runner = LLMRunner(cfg)
+    monkeypatch.setattr(runner, "_get_graph", lambda: BrokenGraph())
+
+    signal = runner.get_signal("AAPL", "2024-01-02")
+
+    assert signal.degraded is True
+    assert signal.reason_code == ReasonCode.LLM_SIGNAL_FAILED.value
+    assert signal.metadata["error"] == "graph unavailable"

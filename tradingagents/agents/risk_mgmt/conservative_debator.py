@@ -1,4 +1,9 @@
 
+from tradingagents.agents.utils.agent_utils import (
+    truncate_prompt_text,
+    use_compact_analysis_prompt,
+)
+
 
 def create_conservative_debator(llm):
     def conservative_node(state) -> dict:
@@ -16,7 +21,21 @@ def create_conservative_debator(llm):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains. Here is the trader's decision:
+        if use_compact_analysis_prompt():
+            prompt = f"""You are the Conservative Risk Analyst. Focus on downside protection and capital preservation.
+
+Trader decision: {truncate_prompt_text(trader_decision, 500)}
+Market report: {truncate_prompt_text(market_research_report, 500)}
+Sentiment report: {truncate_prompt_text(sentiment_report, 350)}
+News report: {truncate_prompt_text(news_report, 350)}
+Fundamentals report: {truncate_prompt_text(fundamentals_report, 450)}
+Debate history: {truncate_prompt_text(history, 500)}
+Last aggressive: {truncate_prompt_text(current_aggressive_response, 300)}
+Last neutral: {truncate_prompt_text(current_neutral_response, 300)}
+
+Keep it under 180 words and focus on 2-3 main risks."""
+        else:
+            prompt = f"""As the Conservative Risk Analyst, your primary objective is to protect assets, minimize volatility, and ensure steady, reliable growth. You prioritize stability, security, and risk mitigation, carefully assessing potential losses, economic downturns, and market volatility. When evaluating the trader's decision or plan, critically examine high-risk elements, pointing out where the decision may expose the firm to undue risk and where more cautious alternatives could secure long-term gains. Here is the trader's decision:
 
 {trader_decision}
 

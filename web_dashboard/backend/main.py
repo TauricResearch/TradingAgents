@@ -3,7 +3,6 @@ TradingAgents Web Dashboard Backend
 FastAPI REST API + WebSocket for real-time analysis progress
 """
 import asyncio
-import fcntl
 import hmac
 import json
 import os
@@ -17,12 +16,13 @@ from pathlib import Path
 from typing import Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, Header
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import os
+
+from services import AnalysisService, JobService, ResultStore, build_request_context, load_migration_flags
 
 # Path to TradingAgents repo root
 REPO_ROOT = Path(__file__).parent.parent.parent
@@ -30,6 +30,7 @@ REPO_ROOT = Path(__file__).parent.parent.parent
 ANALYSIS_PYTHON = Path(sys.executable)
 # Task state persistence directory
 TASK_STATUS_DIR = Path(__file__).parent / "data" / "task_status"
+CONFIG_PATH = Path(__file__).parent / "data" / "config.json"
 
 
 # ============== Lifespan ==============
@@ -40,15 +41,31 @@ async def lifespan(app: FastAPI):
     app.state.active_connections: dict[str, list[WebSocket]] = {}
     app.state.task_results: dict[str, dict] = {}
     app.state.analysis_tasks: dict[str, asyncio.Task] = {}
+    app.state.processes: dict[str, asyncio.subprocess.Process | None] = {}
+    app.state.migration_flags = load_migration_flags()
+
+    portfolio_gateway = create_legacy_portfolio_gateway()
+    app.state.result_store = ResultStore(TASK_STATUS_DIR, portfolio_gateway)
+    app.state.job_service = JobService(
+        task_results=app.state.task_results,
+        analysis_tasks=app.state.analysis_tasks,
+        processes=app.state.processes,
+        persist_task=app.state.result_store.save_task_status,
+        delete_task=app.state.result_store.delete_task_status,
+    )
+    app.state.analysis_service = AnalysisService(
+        analysis_python=ANALYSIS_PYTHON,
+        repo_root=REPO_ROOT,
+        analysis_script_template=ANALYSIS_SCRIPT_TEMPLATE,
+        api_key_resolver=_get_analysis_api_key,
+        result_store=app.state.result_store,
+        job_service=app.state.job_service,
+        retry_count=MAX_RETRY_COUNT,
+        retry_base_delay_secs=RETRY_BASE_DELAY_SECS,
+    )
 
     # Restore persisted task states from disk
-    TASK_STATUS_DIR.mkdir(parents=True, exist_ok=True)
-    for f in TASK_STATUS_DIR.glob("*.json"):
-        try:
-            data = json.loads(f.read_text())
-            app.state.task_results[data["task_id"]] = data
-        except Exception:
-            pass
+    app.state.job_service.restore_task_results(app.state.result_store.restore_task_results())
 
     yield
 
@@ -89,13 +106,19 @@ async def check_config():
     """Check if the app is configured (API key is set).
     The FastAPI backend receives ANTHROPIC_API_KEY as an env var when spawned by Tauri.
     """
-    configured = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MINIMAX_API_KEY"))
+    configured = bool(_get_analysis_api_key())
     return {"configured": configured}
 
 
 @app.post("/api/config/apikey")
-async def save_apikey(body: dict = None, api_key: Optional[str] = Header(None)):
-    """Save API key via Tauri command. Used by the setup wizard."""
+async def save_apikey(request: Request, body: dict = None, api_key: Optional[str] = Header(None)):
+    """Persist API key for local desktop/backend use."""
+    if _get_api_key():
+        if not _check_api_key(api_key):
+            _auth_error()
+    elif not _is_local_request(request):
+        raise HTTPException(status_code=403, detail="API key setup is only allowed from localhost")
+
     if not body or "api_key" not in body:
         raise HTTPException(status_code=400, detail="api_key is required")
 
@@ -104,8 +127,7 @@ async def save_apikey(body: dict = None, api_key: Optional[str] = Header(None)):
         raise HTTPException(status_code=400, detail="api_key cannot be empty")
 
     try:
-        result = _tauri_invoke("set_config", {"key": "api_key", "value": apikey})
-        # If we get here without error, the key was saved
+        _persist_analysis_api_key(apikey)
         return {"ok": True, "saved": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save API key: {e}")
@@ -143,6 +165,39 @@ def _check_api_key(api_key: Optional[str]) -> bool:
 
 def _auth_error():
     raise HTTPException(status_code=401, detail="Unauthorized: valid X-API-Key header required")
+
+
+def _load_saved_config() -> dict:
+    try:
+        if CONFIG_PATH.exists():
+            return json.loads(CONFIG_PATH.read_text())
+    except Exception:
+        pass
+    return {}
+
+
+def _persist_analysis_api_key(api_key_value: str):
+    global _api_key
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps({"api_key": api_key_value}, ensure_ascii=False))
+    os.chmod(CONFIG_PATH, 0o600)
+    os.environ["ANTHROPIC_API_KEY"] = api_key_value
+    _api_key = None
+
+
+def _get_analysis_api_key() -> Optional[str]:
+    return (
+        os.environ.get("ANTHROPIC_API_KEY")
+        or os.environ.get("MINIMAX_API_KEY")
+        or _load_saved_config().get("api_key")
+    )
+
+
+def _is_local_request(request: Request) -> bool:
+    client = request.client
+    if client is None:
+        return False
+    return client.host in {"127.0.0.1", "::1", "localhost", "testclient"}
 
 
 def _get_cache_path(mode: str) -> Path:
@@ -258,6 +313,7 @@ config = OrchestratorConfig(
         "max_debate_rounds": 1,
         "max_risk_discuss_rounds": 1,
         "project_dir": os.path.join(repo_root, "tradingagents"),
+        "results_dir": os.path.join(repo_root, "results"),
     }
 )
 
@@ -267,7 +323,11 @@ orchestrator = TradingOrchestrator(config)
 
 print("STAGE:trading", flush=True)
 
-result = orchestrator.get_combined_signal(ticker, date)
+try:
+    result = orchestrator.get_combined_signal(ticker, date)
+except ValueError as _e:
+    print("ANALYSIS_ERROR:" + str(_e), file=sys.stderr, flush=True)
+    sys.exit(1)
 
 print("STAGE:risk", flush=True)
 
@@ -334,7 +394,7 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
         _auth_error()
 
     # Validate ANTHROPIC_API_KEY for the analysis subprocess
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MINIMAX_API_KEY")
+    anthropic_key = _get_analysis_api_key()
     if not anthropic_key:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY environment variable not set")
 
@@ -404,31 +464,6 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
         app.state.task_results[task_id]["progress"] = int((idx + 1) / 5 * 100)
         app.state.task_results[task_id]["current_stage"] = stage_name
 
-    async def monitor_subprocess(task_id: str, proc: asyncio.subprocess.Process, cancel_evt: asyncio.Event):
-        """Monitor subprocess stdout for stage markers and broadcast progress."""
-        # Set stdout to non-blocking
-        fd = proc.stdout.fileno()
-        fl = fcntl.fcntl(fd, fcntl.GETFL)
-        fcntl.fcntl(fd, fcntl.SETFL, fl | os.O_NONBLOCK)
-
-        while not cancel_evt.is_set():
-            if proc.returncode is not None:
-                break
-            await asyncio.sleep(5)
-            if cancel_evt.is_set():
-                break
-            try:
-                chunk = os.read(fd, 32768)
-                if chunk:
-                    for line in chunk.decode().splitlines():
-                        if line.startswith("STAGE:"):
-                            stage = line.split(":", 1)[1].strip()
-                            _update_task_stage(stage)
-                            await broadcast_progress(task_id, app.state.task_results[task_id])
-            except (BlockingIOError, OSError):
-                # No data available yet
-                pass
-
     async def run_analysis():
         """Run analysis subprocess and broadcast progress"""
         try:
@@ -450,17 +485,26 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
             )
             app.state.processes[task_id] = proc
 
-            # Start monitor coroutine alongside subprocess
-            monitor_task = asyncio.create_task(monitor_subprocess(task_id, proc, cancel_event))
+            # Read stdout line-by-line for real-time stage updates
+            stdout_lines = []
+            while True:
+                try:
+                    line_bytes = await asyncio.wait_for(proc.stdout.readline(), timeout=300.0)
+                except asyncio.TimeoutError:
+                    break
+                if not line_bytes:
+                    break
+                line = line_bytes.decode(errors="replace").rstrip()
+                stdout_lines.append(line)
+                if line.startswith("STAGE:"):
+                    stage = line.split(":", 1)[1].strip()
+                    _update_task_stage(stage)
+                    await broadcast_progress(task_id, app.state.task_results[task_id])
+                if cancel_event.is_set():
+                    break
 
-            stdout, stderr = await proc.communicate()
-
-            # Signal monitor to stop and wait for it
-            cancel_event.set()
-            try:
-                await asyncio.wait_for(monitor_task, timeout=1.0)
-            except asyncio.TimeoutError:
-                monitor_task.cancel()
+            await proc.wait()
+            stderr_bytes = await proc.stderr.read()
 
             # Clean up script file
             try:
@@ -469,9 +513,9 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
                 pass
 
             if proc.returncode == 0:
-                output = stdout.decode()
+                output = "\n".join(stdout_lines)
                 decision = "HOLD"
-                for line in output.splitlines():
+                for line in stdout_lines:
                     if line.startswith("SIGNAL_DETAIL:"):
                         try:
                             detail = json.loads(line.split(":", 1)[1].strip())
@@ -492,7 +536,7 @@ async def start_analysis(request: AnalysisRequest, api_key: Optional[str] = Head
                     if not app.state.task_results[task_id]["stages"][i].get("completed_at"):
                         app.state.task_results[task_id]["stages"][i]["completed_at"] = datetime.now().strftime("%H:%M:%S")
             else:
-                error_msg = stderr.decode()[-1000:] if stderr else "Unknown error"
+                error_msg = stderr_bytes.decode(errors="replace")[-1000:] if stderr_bytes else "Unknown error"
                 app.state.task_results[task_id]["status"] = "failed"
                 app.state.task_results[task_id]["error"] = error_msg
 
@@ -896,6 +940,7 @@ async def export_report_pdf(ticker: str, date: str, api_key: Optional[str] = Hea
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from api.portfolio import (
+    create_legacy_portfolio_gateway,
     get_watchlist, add_to_watchlist, remove_from_watchlist,
     get_positions, add_position, remove_position,
     get_accounts, create_account, delete_account,
@@ -968,7 +1013,9 @@ async def delete_account_endpoint(account_name: str, api_key: Optional[str] = He
 async def list_positions(account: Optional[str] = Query(None), api_key: Optional[str] = Header(None)):
     if not _check_api_key(api_key):
         _auth_error()
-    return {"positions": get_positions(account)}
+    if app.state.migration_flags.use_result_store:
+        return {"positions": await app.state.result_store.get_positions(account)}
+    return {"positions": await get_positions(account)}
 
 
 @app.post("/api/portfolio/positions")
@@ -1003,7 +1050,10 @@ async def delete_position(ticker: str, position_id: Optional[str] = Query(None),
 async def export_positions_csv(account: Optional[str] = Query(None), api_key: Optional[str] = Header(None)):
     if not _check_api_key(api_key):
         _auth_error()
-    positions = get_positions(account)
+    if app.state.migration_flags.use_result_store:
+        positions = await app.state.result_store.get_positions(account)
+    else:
+        positions = await get_positions(account)
     import csv
     import io
     output = io.StringIO()
@@ -1052,6 +1102,20 @@ async def start_portfolio_analysis(api_key: Optional[str] = Header(None)):
     date = datetime.now().strftime("%Y-%m-%d")
     task_id = f"port_{date}_{uuid.uuid4().hex[:6]}"
 
+    if app.state.migration_flags.use_application_services:
+        request_context = build_request_context(api_key=api_key)
+        try:
+            return await app.state.analysis_service.start_portfolio_analysis(
+                task_id=task_id,
+                date=date,
+                request_context=request_context,
+                broadcast_progress=broadcast_progress,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except RuntimeError as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+
     watchlist = get_watchlist()
     if not watchlist:
         raise HTTPException(status_code=400, detail="自选股为空，请先添加股票")
@@ -1069,7 +1133,7 @@ async def start_portfolio_analysis(api_key: Optional[str] = Header(None)):
         "error": None,
     }
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("MINIMAX_API_KEY")
+    api_key = _get_analysis_api_key()
     if not api_key:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY environment variable not set")
 

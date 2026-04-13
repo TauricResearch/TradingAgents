@@ -34,6 +34,27 @@ def get_language_instruction() -> str:
     return f" Write your entire response in {lang}."
 
 
+def use_compact_analysis_prompt() -> bool:
+    """Return whether analysts should use shorter prompts/reports.
+
+    This is helpful for OpenAI-compatible or Anthropic-compatible backends
+    that support the API surface but struggle with the repository's original,
+    very verbose analyst instructions.
+    """
+    from tradingagents.dataflows.config import get_config
+
+    mode = str(get_config().get("analysis_prompt_style", "standard")).strip().lower()
+    return mode in {"compact", "fast", "minimax"}
+
+
+def truncate_prompt_text(text: str, max_chars: int = 1200) -> str:
+    """Trim long reports/history before feeding them into compact prompts."""
+    text = (text or "").strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rstrip() + "\n...[truncated]..."
+
+
 def build_instrument_context(ticker: str) -> str:
     """Describe the exact instrument so agents preserve exchange-qualified tickers."""
     return (

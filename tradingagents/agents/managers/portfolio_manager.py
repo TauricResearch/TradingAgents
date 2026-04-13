@@ -1,4 +1,9 @@
-from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
+from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    get_language_instruction,
+    truncate_prompt_text,
+    use_compact_analysis_prompt,
+)
 
 
 def create_portfolio_manager(llm, memory):
@@ -22,7 +27,24 @@ def create_portfolio_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
+        if use_compact_analysis_prompt():
+            prompt = f"""As the Portfolio Manager, synthesize the risk debate and deliver the final rating.
+
+{instrument_context}
+
+Use exactly one rating: Buy / Overweight / Hold / Underweight / Sell.
+
+Return only:
+1. Rating
+2. Executive summary
+3. Key risks
+
+Research plan: {truncate_prompt_text(research_plan, 500)}
+Trader plan: {truncate_prompt_text(trader_plan, 500)}
+Past lessons: {truncate_prompt_text(past_memory_str, 400)}
+Risk debate: {truncate_prompt_text(history, 1400)}{get_language_instruction()}"""
+        else:
+            prompt = f"""As the Portfolio Manager, synthesize the risk analysts' debate and deliver the final trading decision.
 
 {instrument_context}
 

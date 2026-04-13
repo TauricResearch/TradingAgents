@@ -1,31 +1,11 @@
 import logging
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
 from orchestrator.config import OrchestratorConfig
+from orchestrator.contracts.result_contract import FinalSignal, Signal
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class Signal:
-    ticker: str
-    direction: int        # +1 买入, -1 卖出, 0 持有
-    confidence: float     # 0.0 ~ 1.0
-    source: str           # "quant" | "llm"
-    timestamp: datetime
-    metadata: dict = field(default_factory=dict)  # 原始输出，用于调试
-
-
-@dataclass
-class FinalSignal:
-    ticker: str
-    direction: int        # sign(quant_dir×quant_conf + llm_dir×llm_conf)，sign(0)→0(HOLD)
-    confidence: float     # abs(weighted_sum) / total_conf
-    quant_signal: Optional[Signal]
-    llm_signal: Optional[Signal]
-    timestamp: datetime
 
 
 def _sign(x: float) -> int:
@@ -41,8 +21,14 @@ class SignalMerger:
     def __init__(self, config: OrchestratorConfig) -> None:
         self._config = config
 
-    def merge(self, quant: Optional[Signal], llm: Optional[Signal]) -> FinalSignal:
+    def merge(
+        self,
+        quant: Optional[Signal],
+        llm: Optional[Signal],
+        degradation_reasons: Optional[list[str]] = None,
+    ) -> FinalSignal:
         now = datetime.now(timezone.utc)
+        reasons = tuple(dict.fromkeys(code for code in (degradation_reasons or []) if code))
 
         # 两者均失败
         if quant is None and llm is None:
@@ -60,6 +46,7 @@ class SignalMerger:
                 quant_signal=None,
                 llm_signal=llm,
                 timestamp=now,
+                degrade_reason_codes=reasons,
             )
 
         # 只有 Quant（llm 失败）
@@ -72,6 +59,7 @@ class SignalMerger:
                 quant_signal=quant,
                 llm_signal=None,
                 timestamp=now,
+                degrade_reason_codes=reasons,
             )
 
         # 两者都有：加权合并
@@ -98,4 +86,5 @@ class SignalMerger:
             quant_signal=quant,
             llm_signal=llm,
             timestamp=now,
+            degrade_reason_codes=reasons,
         )

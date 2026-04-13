@@ -12,20 +12,37 @@ from .config import get_config
 logger = logging.getLogger(__name__)
 
 
+def _is_transient_yfinance_error(exc: Exception) -> bool:
+    """Heuristic for flaky yfinance transport/parser failures."""
+    if isinstance(exc, YFRateLimitError):
+        return True
+    message = str(exc)
+    return isinstance(exc, TypeError) and "'NoneType' object is not subscriptable" in message
+
+
 def yf_retry(func, max_retries=3, base_delay=2.0):
     """Execute a yfinance call with exponential backoff on rate limits.
 
     yfinance raises YFRateLimitError on HTTP 429 responses but does not
     retry them internally. This wrapper adds retry logic specifically
-    for rate limits. Other exceptions propagate immediately.
+    for rate limits and observed transient parser failures. Other
+    exceptions propagate immediately.
     """
     for attempt in range(max_retries + 1):
         try:
             return func()
-        except YFRateLimitError:
+        except Exception as exc:
+            if not _is_transient_yfinance_error(exc):
+                raise
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
-                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                logger.warning(
+                    "Yahoo Finance transient failure (%s), retrying in %.0fs (attempt %s/%s)",
+                    exc,
+                    delay,
+                    attempt + 1,
+                    max_retries,
+                )
                 time.sleep(delay)
             else:
                 raise

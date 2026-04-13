@@ -1,4 +1,9 @@
 
+from tradingagents.agents.utils.agent_utils import (
+    truncate_prompt_text,
+    use_compact_analysis_prompt,
+)
+
 
 def create_neutral_debator(llm):
     def neutral_node(state) -> dict:
@@ -16,7 +21,21 @@ def create_neutral_debator(llm):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
+        if use_compact_analysis_prompt():
+            prompt = f"""You are the Neutral Risk Analyst. Balance upside and downside and prefer robust execution.
+
+Trader decision: {truncate_prompt_text(trader_decision, 500)}
+Market report: {truncate_prompt_text(market_research_report, 500)}
+Sentiment report: {truncate_prompt_text(sentiment_report, 350)}
+News report: {truncate_prompt_text(news_report, 350)}
+Fundamentals report: {truncate_prompt_text(fundamentals_report, 450)}
+Debate history: {truncate_prompt_text(history, 500)}
+Last aggressive: {truncate_prompt_text(current_aggressive_response, 300)}
+Last conservative: {truncate_prompt_text(current_conservative_response, 300)}
+
+Keep it under 180 words and argue for the most balanced path."""
+        else:
+            prompt = f"""As the Neutral Risk Analyst, your role is to provide a balanced perspective, weighing both the potential benefits and risks of the trader's decision or plan. You prioritize a well-rounded approach, evaluating the upsides and downsides while factoring in broader market trends, potential economic shifts, and diversification strategies.Here is the trader's decision:
 
 {trader_decision}
 

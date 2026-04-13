@@ -334,3 +334,56 @@ def save_recommendation(date: str, ticker: str, data: dict):
     date_dir = RECOMMENDATIONS_DIR / date
     date_dir.mkdir(parents=True, exist_ok=True)
     (date_dir / f"{ticker}.json").write_text(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+class LegacyPortfolioGateway:
+    """Compatibility gateway that exposes the current portfolio API as a service boundary."""
+
+    def get_watchlist(self) -> list:
+        return get_watchlist()
+
+    def add_to_watchlist(self, ticker: str, name: str) -> dict:
+        return add_to_watchlist(ticker, name)
+
+    def remove_from_watchlist(self, ticker: str) -> bool:
+        return remove_from_watchlist(ticker)
+
+    def get_accounts(self) -> dict:
+        return get_accounts()
+
+    def create_account(self, account_name: str) -> dict:
+        return create_account(account_name)
+
+    def delete_account(self, account_name: str) -> bool:
+        return delete_account(account_name)
+
+    async def get_positions(self, account: Optional[str] = None) -> list:
+        return await get_positions(account)
+
+    def add_position(
+        self,
+        ticker: str,
+        shares: float,
+        cost_price: float,
+        purchase_date: Optional[str],
+        notes: str,
+        account: str,
+    ) -> dict:
+        return add_position(ticker, shares, cost_price, purchase_date, notes, account)
+
+    def remove_position(self, ticker: str, position_id: str, account: Optional[str]) -> bool:
+        return remove_position(ticker, position_id, account)
+
+    def get_recommendations(self, date: Optional[str] = None, limit: int = DEFAULT_PAGE_SIZE, offset: int = 0) -> dict:
+        return get_recommendations(date, limit, offset)
+
+    def get_recommendation(self, date: str, ticker: str) -> Optional[dict]:
+        return get_recommendation(date, ticker)
+
+    def save_recommendation(self, date: str, ticker: str, data: dict):
+        save_recommendation(date, ticker, data)
+
+
+def create_legacy_portfolio_gateway() -> LegacyPortfolioGateway:
+    """Create a gateway instance for service-layer migration."""
+    return LegacyPortfolioGateway()

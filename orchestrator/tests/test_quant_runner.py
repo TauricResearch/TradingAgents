@@ -1,11 +1,10 @@
 """Tests for QuantRunner._calc_confidence()."""
 import json
 import sqlite3
-import tempfile
-import os
 import pytest
 
 from orchestrator.config import OrchestratorConfig
+from orchestrator.contracts.error_taxonomy import ReasonCode
 from orchestrator.quant_runner import QuantRunner
 
 
@@ -63,3 +62,15 @@ def test_calc_confidence_clamped_above(runner):
 def test_calc_confidence_clamped_below(runner):
     result = runner._calc_confidence(-1.0, 2.0)
     assert result == pytest.approx(0.0)
+
+
+def test_get_signal_returns_reason_code_when_no_data(runner, monkeypatch):
+    monkeypatch.setattr(
+        "orchestrator.quant_runner.yf.download",
+        lambda *args, **kwargs: type("EmptyFrame", (), {"empty": True})(),
+    )
+
+    signal = runner.get_signal("AAPL", "2024-01-02")
+
+    assert signal.degraded is True
+    assert signal.reason_code == ReasonCode.QUANT_NO_DATA.value

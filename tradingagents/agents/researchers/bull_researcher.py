@@ -1,4 +1,9 @@
 
+from tradingagents.agents.utils.agent_utils import (
+    truncate_prompt_text,
+    use_compact_analysis_prompt,
+)
+
 
 def create_bull_researcher(llm, memory):
     def bull_node(state) -> dict:
@@ -19,7 +24,21 @@ def create_bull_researcher(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
+        if use_compact_analysis_prompt():
+            prompt = f"""You are a Bull Analyst. Make the strongest concise long case for the stock.
+
+Use only the highest-signal evidence from the reports below. Address the latest bear point directly. Keep the answer under 220 words and end with a clear stance.
+
+Market report: {truncate_prompt_text(market_research_report, 800)}
+Sentiment report: {truncate_prompt_text(sentiment_report, 500)}
+News report: {truncate_prompt_text(news_report, 500)}
+Fundamentals report: {truncate_prompt_text(fundamentals_report, 700)}
+Debate history: {truncate_prompt_text(history, 600)}
+Last bear argument: {truncate_prompt_text(current_response, 400)}
+Past lessons: {truncate_prompt_text(past_memory_str, 400)}
+"""
+        else:
+            prompt = f"""You are a Bull Analyst advocating for investing in the stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 
 Key points to focus on:
 - Growth Potential: Highlight the company's market opportunities, revenue projections, and scalability.

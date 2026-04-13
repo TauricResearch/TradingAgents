@@ -1,4 +1,9 @@
 
+from tradingagents.agents.utils.agent_utils import (
+    truncate_prompt_text,
+    use_compact_analysis_prompt,
+)
+
 
 def create_aggressive_debator(llm):
     def aggressive_node(state) -> dict:
@@ -16,7 +21,21 @@ def create_aggressive_debator(llm):
 
         trader_decision = state["trader_investment_plan"]
 
-        prompt = f"""As the Aggressive Risk Analyst, your role is to actively champion high-reward, high-risk opportunities, emphasizing bold strategies and competitive advantages. When evaluating the trader's decision or plan, focus intently on the potential upside, growth potential, and innovative benefits—even when these come with elevated risk. Use the provided market data and sentiment analysis to strengthen your arguments and challenge the opposing views. Specifically, respond directly to each point made by the conservative and neutral analysts, countering with data-driven rebuttals and persuasive reasoning. Highlight where their caution might miss critical opportunities or where their assumptions may be overly conservative. Here is the trader's decision:
+        if use_compact_analysis_prompt():
+            prompt = f"""You are the Aggressive Risk Analyst. Defend upside and attack excessive caution.
+
+Trader decision: {truncate_prompt_text(trader_decision, 500)}
+Market report: {truncate_prompt_text(market_research_report, 500)}
+Sentiment report: {truncate_prompt_text(sentiment_report, 350)}
+News report: {truncate_prompt_text(news_report, 350)}
+Fundamentals report: {truncate_prompt_text(fundamentals_report, 450)}
+Debate history: {truncate_prompt_text(history, 500)}
+Last conservative: {truncate_prompt_text(current_conservative_response, 300)}
+Last neutral: {truncate_prompt_text(current_neutral_response, 300)}
+
+Keep it under 180 words and focus on 2-3 high-upside arguments."""
+        else:
+            prompt = f"""As the Aggressive Risk Analyst, your role is to actively champion high-reward, high-risk opportunities, emphasizing bold strategies and competitive advantages. When evaluating the trader's decision or plan, focus intently on the potential upside, growth potential, and innovative benefits—even when these come with elevated risk. Use the provided market data and sentiment analysis to strengthen your arguments and challenge the opposing views. Specifically, respond directly to each point made by the conservative and neutral analysts, countering with data-driven rebuttals and persuasive reasoning. Highlight where their caution might miss critical opportunities or where their assumptions may be overly conservative. Here is the trader's decision:
 
 {trader_decision}
 

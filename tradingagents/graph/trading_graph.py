@@ -1,5 +1,6 @@
 # TradingAgents/graph/trading_graph.py
 
+import copy
 import os
 from pathlib import Path
 import json
@@ -40,6 +41,30 @@ from .reflection import Reflector
 from .signal_processing import SignalProcessor
 
 
+def _merge_with_default_config(config: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Merge a partial user config onto DEFAULT_CONFIG.
+
+    Orchestrator callers often override only a few LLM/vendor fields. Without a
+    merge step, required defaults such as ``project_dir`` disappear and the
+    graph fails during initialization.
+    """
+    merged = copy.deepcopy(DEFAULT_CONFIG)
+    if not config:
+        return merged
+
+    for key, value in config.items():
+        if (
+            key in ("data_vendors", "tool_vendors")
+            and isinstance(value, dict)
+            and isinstance(merged.get(key), dict)
+        ):
+            merged[key].update(value)
+        else:
+            merged[key] = value
+
+    return merged
+
+
 class TradingAgentsGraph:
     """Main class that orchestrates the trading agents framework."""
 
@@ -59,7 +84,7 @@ class TradingAgentsGraph:
             callbacks: Optional list of callback handlers (e.g., for tracking LLM/tool stats)
         """
         self.debug = debug
-        self.config = config or DEFAULT_CONFIG
+        self.config = _merge_with_default_config(config)
         self.callbacks = callbacks or []
 
         # Update the interface's config
@@ -137,6 +162,17 @@ class TradingAgentsGraph:
         """Get provider-specific kwargs for LLM client creation."""
         kwargs = {}
         provider = self.config.get("llm_provider", "").lower()
+
+        common_passthrough = {
+            "timeout": ("llm_timeout", "timeout"),
+            "max_retries": ("llm_max_retries", "max_retries"),
+        }
+        for out_key, config_keys in common_passthrough.items():
+            for config_key in config_keys:
+                value = self.config.get(config_key)
+                if value is not None:
+                    kwargs[out_key] = value
+                    break
 
         if provider == "google":
             thinking_level = self.config.get("google_thinking_level")

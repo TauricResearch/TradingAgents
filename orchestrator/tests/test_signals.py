@@ -54,12 +54,13 @@ def test_merge_quant_only_capped(merger):
 def test_merge_llm_only(merger):
     cfg = OrchestratorConfig()
     l = _make_signal(direction=-1, confidence=0.9, source="llm")
-    result = merger.merge(None, l)
+    result = merger.merge(None, l, degradation_reasons=["quant_signal_failed"])
     assert result.direction == -1
     expected_conf = min(0.9 * cfg.llm_solo_penalty, cfg.llm_weight_cap)
     assert math.isclose(result.confidence, expected_conf)
     assert result.llm_signal is l
     assert result.quant_signal is None
+    assert result.degrade_reason_codes == ("quant_signal_failed",)
 
 
 def test_merge_llm_only_capped(merger):

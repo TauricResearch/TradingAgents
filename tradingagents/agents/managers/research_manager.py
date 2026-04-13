@@ -1,5 +1,8 @@
-
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_utils import (
+    build_instrument_context,
+    truncate_prompt_text,
+    use_compact_analysis_prompt,
+)
 
 
 def create_research_manager(llm, memory):
@@ -20,7 +23,23 @@ def create_research_manager(llm, memory):
         for i, rec in enumerate(past_memories, 1):
             past_memory_str += rec["recommendation"] + "\n\n"
 
-        prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
+        if use_compact_analysis_prompt():
+            prompt = f"""You are the research manager. Decide Buy, Sell, or Hold based on the debate.
+
+Return a concise response with:
+1. Recommendation
+2. Top reasons
+3. Simple execution plan
+
+Past lessons:
+{truncate_prompt_text(past_memory_str, 400)}
+
+{instrument_context}
+
+Debate history:
+{truncate_prompt_text(history, 1200)}"""
+        else:
+            prompt = f"""As the portfolio manager and debate facilitator, your role is to critically evaluate this round of debate and make a definitive decision: align with the bear analyst, the bull analyst, or choose Hold only if it is strongly justified based on the arguments presented.
 
 Summarize the key points from both sides concisely, focusing on the most compelling evidence or reasoning. Your recommendation—Buy, Sell, or Hold—must be clear and actionable. Avoid defaulting to Hold simply because both sides have valid points; commit to a stance grounded in the debate's strongest arguments.
 

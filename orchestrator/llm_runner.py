@@ -4,7 +4,8 @@ import os
 from datetime import datetime, timezone
 
 from orchestrator.config import OrchestratorConfig
-from orchestrator.signals import Signal
+from orchestrator.contracts.error_taxonomy import ReasonCode
+from orchestrator.contracts.result_contract import Signal, build_error_signal
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,10 @@ class LLMRunner:
         if self._graph is None:
             from tradingagents.graph.trading_graph import TradingAgentsGraph
             trading_cfg = self._config.trading_agents_config if self._config.trading_agents_config else None
-            self._graph = TradingAgentsGraph(config=trading_cfg)
+            graph_kwargs = {"config": trading_cfg}
+            if trading_cfg and "selected_analysts" in trading_cfg:
+                graph_kwargs["selected_analysts"] = trading_cfg["selected_analysts"]
+            self._graph = TradingAgentsGraph(**graph_kwargs)
         return self._graph
 
     def get_signal(self, ticker: str, date: str) -> Signal:
@@ -70,13 +74,11 @@ class LLMRunner:
             )
         except Exception as e:
             logger.error("LLMRunner: propagate failed for %s %s: %s", ticker, date, e)
-            return Signal(
+            return build_error_signal(
                 ticker=ticker,
-                direction=0,
-                confidence=0.0,
                 source="llm",
-                timestamp=datetime.now(timezone.utc),
-                metadata={"error": str(e)},
+                reason_code=ReasonCode.LLM_SIGNAL_FAILED.value,
+                message=str(e),
             )
 
     def _map_rating(self, rating: str) -> tuple[int, float]:

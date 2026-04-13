@@ -4,13 +4,20 @@ on:
   push:
     branches: [main, feat/**, fix/**]
     paths:
+      - 'orchestrator/**/*.py'
+      - 'tradingagents/**/*.py'
+      - 'orchestrator/tests/**/*.py'
       - 'web_dashboard/backend/**/*.py'
       - 'web_dashboard/frontend/**/*.js'
       - '.github/workflows/dashboard-tests.yml'
   pull_request:
     paths:
+      - 'orchestrator/**/*.py'
+      - 'tradingagents/**/*.py'
+      - 'orchestrator/tests/**/*.py'
       - 'web_dashboard/backend/**/*.py'
       - 'web_dashboard/frontend/**/*.js'
+      - '.github/workflows/dashboard-tests.yml'
 
 jobs:
   test-backend:
@@ -28,6 +35,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio httpx
           pip install -e . 2>/dev/null || true
+
+      - name: Run orchestrator tests
+        run: |
+          python -m pytest orchestrator/tests/ -v --tb=short
 
       - name: Run backend tests
         working-directory: web_dashboard/backend
