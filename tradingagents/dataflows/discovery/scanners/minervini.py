@@ -216,7 +216,7 @@ class MinerviniScanner(BaseScanner):
             }
 
         except Exception as e:
-            logger.debug(f"Minervini check failed for {ticker}: {e}")
+            logger.debug(f"Minervini check failed: {e}")
             return None
 
     def _compute_return(self, df: pd.DataFrame) -> Optional[float]:
