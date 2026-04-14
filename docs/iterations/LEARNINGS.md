@@ -1,19 +1,19 @@
 # Learnings Index
 
-**Last analyzed run:** 2026-04-13
+**Last analyzed run:** 2026-04-14
 
 | Domain | File | Last Updated | One-line Summary |
 |--------|------|--------------|-----------------|
-| options_flow | scanners/options_flow.md | 2026-04-12 | Premium filter confirmed applied; CSCO cross-scanner confluence detected; 45.6% 7d win rate |
-| insider_buying | scanners/insider_buying.md | 2026-04-12 | Staleness pattern (HMH 4 consecutive days); 38.1% 1d, 46.4% 7d win rates — worst volume-to-quality ratio |
+| options_flow | scanners/options_flow.md | 2026-04-12 | Premium filter confirmed applied; CSCO cross-scanner confluence detected; 45.1% 7d win rate (94 recs) |
+| insider_buying | scanners/insider_buying.md | 2026-04-14 | Staleness suppression filter added (PAGS/ZBIO/HMH 3-4 day repeats confirmed); 45.9% 7d, negative avg returns |
 | minervini | scanners/minervini.md | 2026-04-12 | Best performer: 100% 1d win rate (n=3), +3.68% avg; 7 candidates in Apr 6-12 week |
-| analyst_upgrades | scanners/analyst_upgrades.md | 2026-04-12 | 50% 7d win rate (breakeven); cross-scanner confluence with options_flow is positive signal |
+| analyst_upgrades | scanners/analyst_upgrades.md | 2026-04-12 | 51.6% 7d win rate (marginal positive); cross-scanner confluence with options_flow is positive signal |
 | earnings_calendar | scanners/earnings_calendar.md | 2026-04-12 | Appears as earnings_play; 38.1% 1d, 37.7% 7d — poor; best setups require high short interest |
-| pipeline/scoring | pipeline/scoring.md | 2026-04-12 | stats summary now surfaces worst performers; news_catalyst 0% 7d, social_hype 14.3% 7d — worst strategies |
+| pipeline/scoring | pipeline/scoring.md | 2026-04-14 | news_catalyst 0% 7d now explicit in ranker criteria; insider staleness filter implemented; 41.9% overall 7d win rate |
 | early_accumulation | scanners/early_accumulation.md | 2026-04-12 | Sub-threshold (score=60); no catalyst → structurally score-capped by ranker |
-| social_dd | scanners/social_dd.md | 2026-04-12 | Sub-threshold (score=56); BUT 55% 30d win rate — diverges from social_hype; ranker may be suppressing it incorrectly |
+| social_dd | scanners/social_dd.md | 2026-04-14 | 57.1% 30d win rate (+1.41% avg 30d, n=26) — only scanner positive at 30d; eval horizon mismatch persists |
 | volume_accumulation | scanners/volume_accumulation.md | — | No data yet |
-| short_squeeze | scanners/short_squeeze.md | 2026-04-13 | First real data: 60% 7d win rate, +2.15% avg 7d (n=10) — best 7d performer; DTC now surfaced in context |
+| short_squeeze | scanners/short_squeeze.md | 2026-04-14 | 60% 7d win rate (n=11), best 7d performer; BUT 30% 30d — short-term signal only, degrades at 30d |
 
 ## Research
 

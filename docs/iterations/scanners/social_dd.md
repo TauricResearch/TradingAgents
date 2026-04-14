@@ -28,8 +28,16 @@ incorrect. Setups currently score below 65 and are filtered by the score thresho
 - **Key insight**: the evaluation horizon mismatch is the real issue. Downstream recommendation scoring and ranker calibration use 7d outcomes, which penalize social_dd unfairly. The scanner works — but only at 30d.
 - Confidence: high (n=25, consistent with prior 55% 30d finding)
 
+### 2026-04-14 — P&L review (updated statistics, n=26)
+- 30d win rate: 57.1% (12/21 wins), avg 30d return: +1.41% — confirmed improvement from prior 55%/+0.94% reading.
+- 7d win rate: 44.0%, avg 7d return: -1.47% — poor at shorter horizon as expected.
+- 1d win rate: 46.2%, avg 1d return: +0.66% — slight positive 1d signal (new observation).
+- social_dd remains the **only scanner positive at 30d** across all strategies.
+- Apr 3-9 mature recs: GME (Apr 8, score=56, conf=5) was the only social_dd pick. Sub-threshold, no recommendation generated. Score reflects weak fundamentals (-13.9% rev growth, insider selling) — appropriate.
+- Confidence: high (n=26, consistent 30d outperformance confirmed across two analysis cycles)
+
 ## Pending Hypotheses
 - [x] Does the ranker's "social_dd / social_hype → SPECULATIVE" grouping suppress social_dd scores? → **Partially false**: avg score is 71.5, suppression affects only 3/25 picks. Not the primary issue.
-- [ ] Should social_dd get a separate ranker treatment from social_hype, given divergent 30d outcomes? → Still open. social_hype 7d win rate 14.3% vs social_dd 30d 60% — they are fundamentally different signals.
+- [ ] Should social_dd get a separate ranker treatment from social_hype, given divergent 30d outcomes? → Still open. social_hype 7d win rate 18.2% vs social_dd 30d 57.1% — they are fundamentally different signals.
 - [ ] Fix evaluation horizon: ranker and recommendation system should assess social_dd at 30d, not 7d. This may require a scanner-level `eval_horizon` config field.
 - [ ] At what social score threshold (>75? >85?) does the setup reliably score ≥65 to generate recommendations? → Lower priority now that suppression is not the main issue.

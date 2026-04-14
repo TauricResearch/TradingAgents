@@ -28,7 +28,16 @@ and included in candidate context — dropping them loses signal clarity.
 - High confidence (avg 7.1) combined with poor actual win rates = miscalibration — scanner assigns scores optimistically but real outcomes are below 50%.
 - Confidence: high
 
+### 2026-04-14 — P&L review (Apr 3-9 mature recs) + staleness filter implementation
+- Staleness pattern confirmed at scale: PAGS appeared 4 consecutive days (Apr 3-6, identical $10.34 entry, same Director Frias $4.96M purchase). ZBIO appeared 4 consecutive days (Apr 3-6, same $5.59M cluster buy). HMH appeared 3 consecutive days (Apr 7-9, same CFO $1M purchase).
+- 11 of 22 insider_buying picks in Apr 3-9 (50%) were stale repeats — same Form 4 filing surfaced daily within the 7-day lookback window.
+- Root cause: `lookback_days=7` causes any filing made on day D to appear every day from D through D+6. The deduplication is within a single fetch, not across runs.
+- Code fix: Added `_load_recent_insider_tickers(suppress_days=2)` in `insider_buying.py`. Loads the past 2 days of recommendation files and filters out tickers already recommended as `insider_buying`. This directly suppresses the PAGS/ZBIO/HMH pattern.
+- Updated statistics: 184 recs total (+48 since last analysis). 7d win rate 45.9% (was 46.4%), 30d win rate 32.8%. Avg returns negative at all horizons: -0.01% 1d, -0.44% 7d, -1.62% 30d.
+- Confidence: high (staleness pattern now confirmed across 3 distinct tickers in a single week)
+
 ## Pending Hypotheses
 - [x] Does cluster detection (2+ insiders in 14 days) outperform single-insider signals? → **Already implemented**: cluster detection assigns CRITICAL priority. Code verified at `insider_buying.py:73-74`. Cannot assess outcome vs single-insider yet (all statuses 'open').
-- [ ] Is there a minimum transaction size below which signal quality degrades sharply? (current min: $25K — candidates with $25K-$50K transactions show up at lower scores but still make final ranking)
-- [ ] Does filtering out repeat appearances of the same ticker from the same scanner within 3 days improve precision?
+- [x] Does filtering out repeat appearances of the same ticker from the same scanner within 3 days improve precision? → **Implemented 2026-04-14**: staleness suppression added, uses 2-day lookback against recommendation history.
+- [ ] Is there a minimum transaction size below which signal quality degrades sharply? (current min: $100K raised from $25K as of 2026-04-07)
+- [ ] Does the staleness suppression (2-day lookback) measurably improve 7d win rate? Track over next 2 weeks.
