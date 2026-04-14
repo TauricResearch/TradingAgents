@@ -1,5 +1,6 @@
 import time
 
+from tradingagents.agents.utils.agent_states import extract_research_provenance
 import tradingagents.graph.setup as graph_setup_module
 from tradingagents.graph.setup import GraphSetup
 
@@ -207,3 +208,31 @@ def test_guard_timeout_returns_without_waiting_for_node_completion(monkeypatch):
     assert debate["research_status"] == "degraded"
     assert debate["research_mode"] == "degraded_synthesis"
     assert debate["timed_out_nodes"] == ["Bull Researcher"]
+
+
+def test_extract_research_provenance_returns_subset():
+    payload = extract_research_provenance(
+        {
+            "research_status": "degraded",
+            "research_mode": "degraded_synthesis",
+            "timed_out_nodes": ["Bull Researcher"],
+            "degraded_reason": "bull_researcher_timeout",
+            "covered_dimensions": ["market", "bull"],
+            "manager_confidence": 0.0,
+            "history": "ignored",
+        }
+    )
+
+    assert payload == {
+        "research_status": "degraded",
+        "research_mode": "degraded_synthesis",
+        "timed_out_nodes": ["Bull Researcher"],
+        "degraded_reason": "bull_researcher_timeout",
+        "covered_dimensions": ["market", "bull"],
+        "manager_confidence": 0.0,
+    }
+
+
+def test_extract_research_provenance_ignores_non_mapping():
+    assert extract_research_provenance(None) is None
+    assert extract_research_provenance("bad") is None

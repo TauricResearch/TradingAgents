@@ -1,6 +1,29 @@
-from typing import Annotated, Optional
+from typing import Annotated, Any, Mapping, Optional
 from typing_extensions import NotRequired, TypedDict
 from langgraph.graph import MessagesState
+
+
+RESEARCH_PROVENANCE_FIELDS = (
+    "research_status",
+    "research_mode",
+    "timed_out_nodes",
+    "degraded_reason",
+    "covered_dimensions",
+    "manager_confidence",
+)
+
+
+def extract_research_provenance(
+    debate_state: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not isinstance(debate_state, Mapping):
+        return None
+    metadata = {
+        key: debate_state.get(key)
+        for key in RESEARCH_PROVENANCE_FIELDS
+        if key in debate_state
+    }
+    return metadata or None
 
 
 # Researcher team state

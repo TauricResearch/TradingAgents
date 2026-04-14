@@ -18,6 +18,7 @@ from tradingagents.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
     RiskDebateState,
+    extract_research_provenance,
 )
 from tradingagents.dataflows.config import set_config
 
@@ -285,6 +286,12 @@ class TradingAgentsGraph:
                 "judge_decision": final_state["investment_debate_state"][
                     "judge_decision"
                 ],
+                **(
+                    extract_research_provenance(
+                        final_state.get("investment_debate_state")
+                    )
+                    or {}
+                ),
             },
             "trader_investment_decision": final_state["trader_investment_plan"],
             "risk_debate_state": {

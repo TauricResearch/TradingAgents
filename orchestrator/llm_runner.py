@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from orchestrator.config import OrchestratorConfig
 from orchestrator.contracts.error_taxonomy import ReasonCode
 from orchestrator.contracts.result_contract import Signal, build_error_signal
+from tradingagents.agents.utils.agent_states import extract_research_provenance
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +21,7 @@ def _extract_research_metadata(final_state: dict | None) -> dict | None:
     if not isinstance(final_state, dict):
         return None
     debate_state = final_state.get("investment_debate_state") or {}
-    if not isinstance(debate_state, dict):
-        return None
-    keys = (
-        "research_status",
-        "research_mode",
-        "timed_out_nodes",
-        "degraded_reason",
-        "covered_dimensions",
-        "manager_confidence",
-    )
-    metadata = {key: debate_state.get(key) for key in keys if key in debate_state}
-    return metadata or None
+    return extract_research_provenance(debate_state)
 
 
 class LLMRunner:
