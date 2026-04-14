@@ -23,7 +23,11 @@ from typing import Any, Dict, List
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-from tradingagents.llm_clients.claude_agent_client import ChatClaudeAgent
+from tradingagents.llm_clients.claude_agent_client import (
+    ChatClaudeAgent,
+    extract_usage,
+    fire_llm_callbacks,
+)
 from tradingagents.llm_clients.mcp_tool_adapter import build_mcp_server
 
 
@@ -109,7 +113,8 @@ async def _run(
     lc_tools: List[Any],
     server_name: str,
     model: str,
-) -> str:
+    callbacks: List[Any],
+) -> tuple[str, Dict[str, int]]:
     from claude_agent_sdk import (
         AssistantMessage,
         ClaudeAgentOptions,
@@ -119,7 +124,7 @@ async def _run(
 
     _log(f"[{server_name}] building MCP server with {len(lc_tools)} tools: "
          f"{[t.name for t in lc_tools]}")
-    server, allowed = build_mcp_server(server_name, lc_tools)
+    server, allowed = build_mcp_server(server_name, lc_tools, callbacks=callbacks)
     _log(f"[{server_name}] allowed_tools={allowed}")
 
     options = ClaudeAgentOptions(
@@ -140,6 +145,7 @@ async def _run(
     start = time.monotonic()
 
     text_parts: List[str] = []
+    final_usage: Dict[str, int] = {}
     msg_count = 0
     async for msg in query(prompt=user_prompt, options=options):
         msg_count += 1
@@ -149,11 +155,15 @@ async def _run(
             for block in msg.content:
                 if isinstance(block, TextBlock):
                     text_parts.append(block.text)
+        sdk_usage = getattr(msg, "usage", None)
+        if isinstance(sdk_usage, dict) and sdk_usage:
+            final_usage = extract_usage(sdk_usage)
 
     elapsed = time.monotonic() - start
     _log(f"[{server_name}] query complete after {elapsed:.1f}s, "
-         f"{msg_count} messages, {sum(len(t) for t in text_parts)} chars")
-    return "\n".join(text_parts).strip()
+         f"{msg_count} messages, {sum(len(t) for t in text_parts)} chars, "
+         f"usage={final_usage}")
+    return "\n".join(text_parts).strip(), final_usage
 
 
 def run_sdk_analyst(
@@ -169,20 +179,23 @@ def run_sdk_analyst(
     _log(f"=== run_sdk_analyst start: server={server_name} report_field={report_field} "
          f"ticker={state.get('company_of_interest')!r} date={state.get('trade_date')!r} ===")
     try:
-        report = asyncio.run(
+        report, usage = asyncio.run(
             _run(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 lc_tools=lc_tools,
                 server_name=server_name,
                 model=llm.model,
+                callbacks=llm.callbacks,
             )
         )
     except Exception as e:
         _log(f"[{server_name}] EXCEPTION: {type(e).__name__}: {e}")
         raise
-    _log(f"=== run_sdk_analyst done: {report_field}={len(report)} chars ===")
+    _log(f"=== run_sdk_analyst done: {report_field}={len(report)} chars usage={usage} ===")
+    message = AIMessage(content=report, usage_metadata=usage or None)
+    fire_llm_callbacks(llm.callbacks, message, user_prompt)
     return {
-        "messages": [AIMessage(content=report)],
+        "messages": [message],
         report_field: report,
     }
