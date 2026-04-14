@@ -1,0 +1,417 @@
+# Discovery Analysis - 2026-04-14
+
+**LLM Provider**: GOOGLE
+**Models**: Shallow=gemini-2.5-flash-lite, Deep=gemini-3-pro-preview
+
+## Top Investment Opportunities
+
+### #1: ALB
+
+**Company:** Albemarle Corporation
+
+**Current Price:** $186.02
+
+**Strategy:** minervini
+
+**Score:** 92 | **Confidence:** 9/10 | **Risk:** Moderate
+
+**Description:**
+
+> Albemarle Corporation is a specialty chemicals manufacturing company highly focused on lithium and bromine.
+
+**Investment Thesis:**
+
+(1) Albemarle boasts a perfect Minervini RS Rating of 100/100, consolidating within 4% of its 52-week high with a 261% gain off its lows.
+
+(2) The timing is urgent as a recent MACD bullish crossover (histogram at 0.508) and rising OBV (151.4M) suggest an imminent breakout from this high-tight flag structure.
+
+(3) The risk/reward is favorable as it trades above its 50-day SMA of $170.91, providing a clear support level for a tight stop.
+
+(4) The primary risk is a potential rejection at resistance or macro volatility, especially given the high ATR of 5.1% ($9.46) which could trigger premature stop-outs.
+
+---
+
+### #2: AMAT
+
+**Company:** Applied Materials, Inc.
+
+**Current Price:** $394.71
+
+**Strategy:** minervini
+
+**Score:** 89 | **Confidence:** 9/10 | **Risk:** Moderate
+
+**Description:**
+
+> Applied Materials is a global leader in materials engineering solutions for the semiconductor and display industries.
+
+**Investment Thesis:**
+
+(1) Applied Materials exhibits a textbook Minervini Stage 2 setup with an RS Rating of 96/100 and price action within 1% of its 52-week high.
+
+(2) The immediate catalyst is the tech sector rebound coupled with a fresh MACD bullish crossover (histogram strengthening to 5.459) and rising volume (OBV at 223.7M).
+
+(3) The setup offers asymmetric upside, supported heavily by the 20-period EMA at $364.66 and strong institutional buying (price 10.3% above VWAP).
+
+(4) The primary risk is market-wide tech weakness or a false breakout at 52-week highs, making a strict stop below the 20 EMA prudent.
+
+---
+
+### #3: COE
+
+**Company:** China Online Education Group
+
+**Current Price:** $23.39
+
+**Strategy:** insider_buying
+
+**Score:** 85 | **Confidence:** 8/10 | **Risk:** Speculative
+
+**Description:**
+
+> China Online Education Group provides online English language education services to students in China.
+
+**Investment Thesis:**
+
+(1) COE features an exceptionally large insider cluster buy, highlighted by the CEO's massive $35.3 million stock purchase.
+
+(2) Action is urgent because the technicals have just aligned with this insider conviction, printing a MACD bullish crossover (histogram at 0.532) and rising RSI of 53.2.
+
+(3) The risk/reward profile is highly attractive as the stock is heavily oversold relative to its 200 SMA, leaving significant upside runway for reversion.
+
+(4) A key risk is that the stock remains in a longer-term downtrend (price is 5.9% below its 50 SMA), and failure to reclaim this level could result in further downside.
+
+---
+
+### #4: ACHC
+
+**Company:** Acadia Healthcare Company, Inc.
+
+**Current Price:** $26.69
+
+**Strategy:** short_squeeze
+
+**Score:** 85 | **Confidence:** 8/10 | **Risk:** High
+
+**Description:**
+
+> Acadia Healthcare Company is a leading provider of behavioral healthcare services across the United States.
+
+**Investment Thesis:**
+
+(1) ACHC is a prime short squeeze candidate with a massive 42.1% short interest and 6.5 days to cover, setting the stage for a rapid short covering rally.
+
+(2) Squeeze pressure is mounting immediately as the stock just printed a Golden Cross and a MACD bullish crossover, with OBV rising to 75.2M.
+
+(3) The trade offers a high-reward dynamic, supported by a 50-day SMA at $20.98 that is well below current levels, acting as a structural floor.
+
+(4) The main risk is the upcoming earnings in 15 days, which introduces binary risk that could either ignite the squeeze or crush the momentum.
+
+---
+
+### #5: RKLB
+
+**Company:** Rocket Lab USA, Inc.
+
+**Current Price:** $72.64
+
+**Strategy:** social_dd
+
+**Score:** 83 | **Confidence:** 8/10 | **Risk:** High
+
+**Description:**
+
+> Rocket Lab USA provides launch services and space systems solutions for the space industry.
+
+**Investment Thesis:**
+
+(1) Rocket Lab combines exceptional social sentiment (75/100 score) with a fundamental catalyst as the CEO cancels stock plans and the company unveils the 'Gauss' thruster system.
+
+(2) The timing is urgent because the stock is experiencing explosive accumulation, with OBV surging to 781.0M and a MACD bullish crossover (histogram at 0.647) confirming the momentum.
+
+(3) The risk/reward is skewed highly to the upside given the confluence of news and a strong uptrend above the 50-day SMA of $70.00.
+
+(4) The primary risk is the high volatility (ATR of 7.7%), meaning broader market selling could easily trigger a 1.5x ATR stop-loss around $62.43.
+
+---
+
+### #6: BLK
+
+**Company:** BlackRock, Inc.
+
+**Current Price:** $1059.73
+
+**Strategy:** earnings_play
+
+**Score:** 81 | **Confidence:** 8/10 | **Risk:** Low
+
+**Description:**
+
+> BlackRock is the world's largest asset manager, providing investment management, risk management, and advisory services.
+
+**Investment Thesis:**
+
+(1) BlackRock provides a strong earnings play, having just reported a 27% YoY revenue increase and record AUM of $13.9 trillion.
+
+(2) The timing is optimal as the post-earnings reaction triggered a sharp MACD bullish crossover (histogram at 10.698) alongside rising on-balance volume.
+
+(3) The risk/reward profile is compelling for a momentum continuation trade, with the stock trading comfortably above its 50-day SMA of $1015.24.
+
+(4) The main risk is an overextended move as the stock nears the upper Bollinger Band, which could lead to mean reversion if broader financial sector sentiment weakens.
+
+---
+
+### #7: AMT
+
+**Company:** American Tower Corporation
+
+**Current Price:** $175.14
+
+**Strategy:** options_flow
+
+**Score:** 79 | **Confidence:** 7/10 | **Risk:** Low
+
+**Description:**
+
+> American Tower Corporation is a leading independent owner, operator, and developer of multitenant communications real estate.
+
+**Investment Thesis:**
+
+(1) American Tower is signaling institutional accumulation through unusual options flow featuring 2 bullish calls and 0 puts.
+
+(2) The timing for entry is precise as the stock just formed a MACD bullish crossover (histogram at 1.171) and trades 2.9% above VWAP.
+
+(3) The risk/reward is favorable with the stock in a steady uptrend, anchored by support at the 50-day SMA of $180.68.
+
+(4) A key risk is REIT sector sensitivity to interest rate expectations, which could invalidate the technical breakout if yields unexpectedly spike.
+
+---
+
+### #8: JPM
+
+**Company:** JPMorgan Chase & Co.
+
+**Current Price:** $311.71
+
+**Strategy:** earnings_play
+
+**Score:** 78 | **Confidence:** 7/10 | **Risk:** Low
+
+**Description:**
+
+> JPMorgan Chase is a leading global financial services firm and one of the largest banking institutions in the United States.
+
+**Investment Thesis:**
+
+(1) JPMorgan is a premium post-earnings momentum play after beating expectations with a $16.5 billion profit and positive CEO commentary.
+
+(2) Momentum is accelerating right now, evidenced by a strong MACD bullish crossover (histogram strengthening to 3.325) and OBV rising to 138.5M.
+
+(3) The setup presents an attractive risk/reward profile as institutional buying keeps the price 7.4% above VWAP with a moderate ATR of 2.2%.
+
+(4) The key risk is that the stock is bumping against its upper Bollinger Band at $313.03, which may prompt short-term profit-taking.
+
+---
+
+### #9: AMD
+
+**Company:** Advanced Micro Devices, Inc.
+
+**Current Price:** $248.65
+
+**Strategy:** minervini
+
+**Score:** 77 | **Confidence:** 7/10 | **Risk:** Moderate
+
+**Description:**
+
+> Advanced Micro Devices is a global semiconductor company that develops computer processors and related technologies for business and consumer markets.
+
+**Investment Thesis:**
+
+(1) AMD demonstrates elite Minervini characteristics with an RS Rating of 92/100 and price consolidating just 6% off its 52-week high.
+
+(2) The trade demands attention now due to a fresh MACD bullish crossover (histogram at 4.807) and strong OBV accumulation of 1.2 billion.
+
+(3) Risk/reward remains highly asymmetric in the direction of the underlying trend, with price well above its 50-day SMA of $209.24.
+
+(4) The primary risk is its overbought status (RSI at 70.8, Stochastic at 90.5) and proximity to the upper Bollinger Band, increasing the probability of a short-term pullback.
+
+---
+
+### #10: HYMC
+
+**Company:** Hycroft Mining Holding Corporation
+
+**Current Price:** $41.83
+
+**Strategy:** insider_buying
+
+**Score:** 75 | **Confidence:** 7/10 | **Risk:** High
+
+**Description:**
+
+> Hycroft Mining Holding Corporation operates as a gold and silver development company.
+
+**Investment Thesis:**
+
+(1) Hycroft Mining is bolstered by significant insider buying, specifically a $7.7 million purchase by a 10% owner, aligning with record gold prices.
+
+(2) The technical timing is ripe as the stock recently posted a MACD bullish crossover (histogram at 0.791) and OBV has risen to 109.7M.
+
+(3) The risk/reward is speculative but highly explosive, trading in a strong uptrend above its 50-day SMA of $38.79.
+
+(4) High volatility (ATR of 10.3%) is the major risk, making position sizing critical to avoid being shaken out by normal daily fluctuations.
+
+---
+
+### #11: CSCO
+
+**Company:** Cisco Systems, Inc.
+
+**Current Price:** $81.79
+
+**Strategy:** options_flow
+
+**Score:** 74 | **Confidence:** 7/10 | **Risk:** Low
+
+**Description:**
+
+> Cisco Systems designs, manufactures, and sells networking hardware, software, and telecommunications equipment.
+
+**Investment Thesis:**
+
+(1) Cisco shows hidden bullish intent through an unusual options flow consisting of 2 bullish calls and 0 puts against a backdrop of steady accumulation.
+
+(2) The setup is timely as the price rides a strong uptrend and maintains positive momentum above the 20-period EMA of $80.20.
+
+(3) It offers a low-risk profile with a modest ATR of 2.6% ($2.13) and solid structural support at the 50-day SMA of $79.47.
+
+(4) The primary risk is a weakening ADX of 13.9, which signals a lack of strong directional trend and could result in range-bound chop rather than a breakout.
+
+---
+
+### #12: MDAI
+
+**Company:** Spectral AI, Inc.
+
+**Current Price:** $1.92
+
+**Strategy:** social_dd
+
+**Score:** 72 | **Confidence:** 6/10 | **Risk:** Speculative
+
+**Description:**
+
+> Spectral AI is a predictive AI company focused on medical diagnostics for faster and more accurate treatment decisions.
+
+**Investment Thesis:**
+
+(1) MDAI provides a compelling social catalyst setup with a 75/100 Reddit score centered around an upcoming FDA De Novo catalyst and their new DeepView System.
+
+(2) Action is urgent as the technicals confirm the hype with a MACD bullish crossover and the price pushing 17.2% above its 20-period EMA.
+
+(3) The risk/reward is highly skewed for a speculative play, supported by institutional buying pushing the price 28.7% above VWAP.
+
+(4) The main risk is the extreme volatility (ATR of 6.9%) and the fact that it is a micro-cap FDA play, meaning any delay in the catalyst could trigger an immediate gap down.
+
+---
+
+### #13: TER
+
+**Company:** Teradyne, Inc.
+
+**Current Price:** $366.56
+
+**Strategy:** analyst_upgrade
+
+**Score:** 71 | **Confidence:** 6/10 | **Risk:** Moderate
+
+**Description:**
+
+> Teradyne is a leading supplier of automatic test equipment used to test semiconductors, wireless products, and electronic systems.
+
+**Investment Thesis:**
+
+(1) Teradyne benefits from a fresh analyst upgrade by Patton Fund Management and alignment with a broader tech sector AI relief rally.
+
+(2) The timing is excellent due to a massive MACD bullish crossover (histogram at 7.326) and a 15.49% 5-day surge confirming strong momentum.
+
+(3) The risk/reward profile is strong for trend-followers, with the stock positioned 16.8% above VWAP indicating relentless institutional bidding.
+
+(4) The key risk is technical overextension; with an RSI of 69.4 and price at the upper Bollinger Band, the stock is vulnerable to mean reversion.
+
+---
+
+### #14: ANAB
+
+**Company:** AnaptysBio, Inc.
+
+**Current Price:** $70.50
+
+**Strategy:** short_squeeze
+
+**Score:** 70 | **Confidence:** 6/10 | **Risk:** High
+
+**Description:**
+
+> AnaptysBio is a clinical-stage biopharmaceutical company developing immunology therapeutics.
+
+**Investment Thesis:**
+
+(1) AnaptysBio offers extreme short squeeze potential with short interest at 30.6% of the float and 9.8 days to cover.
+
+(2) The squeeze is primed to trigger immediately as technical momentum accelerates, shown by a MACD bullish crossover and an expanding ADX of 35.7.
+
+(3) Risk/reward is compelling as the stock is in a strong uptrend, 18.1% above its 50-day SMA of $58.18, providing a wide buffer against trend changes.
+
+(4) The primary risk is the high ATR of 6.0%, meaning a failed breakout attempt could lead to a rapid and punishing reversal before a stop can be cleanly executed.
+
+---
+
+### #15: APH
+
+**Company:** Amphenol Corporation
+
+**Current Price:** $147.66
+
+**Strategy:** minervini
+
+**Score:** 68 | **Confidence:** 6/10 | **Risk:** Moderate
+
+**Description:**
+
+> Amphenol is one of the world's largest designers, manufacturers, and marketers of electrical, electronic, and fiber optic connectors.
+
+**Investment Thesis:**
+
+(1) Amphenol displays strong Minervini Stage 2 characteristics with an RS Rating of 90/100 and price just 11% below its 52-week high.
+
+(2) The immediate entry is justified by a MACD bullish crossover (histogram at 2.541) and rising OBV of 252.7M.
+
+(3) The trade presents a favorable risk/reward structure, well-supported by the 50-day SMA at $136.66 and a manageable ATR of 4.1%.
+
+(4) A potential risk is the weakening ADX (14.4), suggesting the trend may lose momentum and consolidate before it can successfully challenge the recent highs.
+
+---
+
+
+## All Candidates Analyzed
+
+Total candidates analyzed: 15
+
+- **ALB** (minervini)
+- **AMAT** (minervini)
+- **COE** (insider_buying)
+- **ACHC** (short_squeeze)
+- **RKLB** (social_dd)
+- **BLK** (earnings_play)
+- **AMT** (options_flow)
+- **JPM** (earnings_play)
+- **AMD** (minervini)
+- **HYMC** (insider_buying)
+- **CSCO** (options_flow)
+- **MDAI** (social_dd)
+- **TER** (analyst_upgrade)
+- **ANAB** (short_squeeze)
+- **APH** (minervini)
