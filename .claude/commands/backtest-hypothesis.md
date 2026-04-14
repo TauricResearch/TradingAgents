@@ -89,9 +89,9 @@ Assign a `priority` score (1–9) using these factors:
 ### 3b-iii: Determine min_days
 
 Set `min_days` based on the scanner's typical picks-per-day rate:
-- ≥2 picks/day → 14 days
-- 1 pick/day → 21 days
-- <1 pick/day → 30 days
+- ≥2 picks/day → 10 days
+- 1 pick/day → 14 days
+- <1 pick/day → 21 days
 
 ### 3b-iv: Create the branch and implement the code change
 

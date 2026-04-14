@@ -13,7 +13,7 @@
       "expected_impact": "medium",
       "hypothesis_type": "implementation",
       "created_at": "2026-04-10",
-      "min_days": 21,
+      "min_days": 14,
       "days_elapsed": 3,
       "picks_log": [
         "2026-04-10",
