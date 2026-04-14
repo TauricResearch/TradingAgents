@@ -109,20 +109,20 @@ def sortino_ratio(
         Annualized Sortino ratio, or None when there are no downside returns
         or fewer than 2 observations.
     """
-    # Optimized: Compute mean of excess and stddev of downside returns in a single pass O(N)
+    # Optimized: Compute mean of excess returns outside loop, evaluate downside condition directly on raw values, and use epsilon check for variance
     n = len(returns)
     if n < 2:
         return None
 
-    sum_ex = 0.0
+    mean_ex = (sum(returns) / n) - risk_free_daily
+
     downside_sum = 0.0
     downside_sum2 = 0.0
     downside_count = 0
 
     for r in returns:
-        ex = r - risk_free_daily
-        sum_ex += ex
-        if ex < 0:
+        if r < risk_free_daily:
+            ex = r - risk_free_daily
             downside_sum += ex
             downside_sum2 += ex * ex
             downside_count += 1
@@ -130,12 +130,10 @@ def sortino_ratio(
     if downside_count < 2:
         return None
 
-    mean_ex = sum_ex / n
     downside_mean = downside_sum / downside_count
-
     downside_variance = (downside_sum2 - downside_sum * downside_mean) / (downside_count - 1)
 
-    if downside_variance <= 0.0:
+    if downside_variance <= 1e-15:
         return None
 
     downside_std = math.sqrt(downside_variance)
