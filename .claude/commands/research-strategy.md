@@ -154,12 +154,26 @@ If the finding meets the auto-implement threshold from Step 4:
 3. Create `tradingagents/dataflows/discovery/scanners/<name>.py` following
    the same structure:
    - Class decorated with `@SCANNER_REGISTRY.register()`
-   - `name` and `pipeline` class attributes
+   - `name`, `pipeline`, and `strategy` class attributes
    - `scan(self, state)` method returning `List[Dict]`
    - Each dict must have keys: `ticker`, `source`, `context`, `priority`
    - Priority values: `"CRITICAL"`, `"HIGH"`, `"MEDIUM"`, `"LOW"`
-4. Check `tradingagents/dataflows/discovery/scanners/__init__.py` — if it
-   imports scanners explicitly, add an import for the new one.
+   - All tunable parameters must use `self.scanner_config.get("param", default)`
+     so they can be overridden from config without touching scanner code
+4. Add an import in `tradingagents/dataflows/discovery/scanners/__init__.py`:
+   `from . import <name>  # noqa: F401`
+5. **Add a config entry to `tradingagents/default_config.py`** under
+   `discovery.scanners.<name>`. This is mandatory — without it the scanner
+   cannot be enabled/disabled or tuned from config, and is invisible to the
+   settings UI. Include every parameter that `self.scanner_config.get()` reads:
+   ```python
+   "<name>": {
+       "enabled": True,
+       "pipeline": "<pipeline>",
+       "limit": 10,
+       "<param>": <default>,  # one entry per scanner_config.get() call
+   },
+   ```
 
 If threshold is NOT met: write the research file only. Add this note at the
 top of the research file:

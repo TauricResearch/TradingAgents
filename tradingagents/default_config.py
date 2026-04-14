@@ -209,6 +209,13 @@ DEFAULT_CONFIG = {
                 "min_short_interest_pct": 15.0,  # Minimum short interest %
                 "min_days_to_cover": 5.0,  # Minimum days to cover ratio
             },
+            "earnings_beat": {
+                "enabled": True,
+                "pipeline": "events",
+                "limit": 10,
+                "lookback_days": 14,  # Days to look back for recent EPS beats
+                "min_surprise_pct": 5.0,  # Minimum EPS surprise % to surface
+            },
             "ml_signal": {
                 "enabled": True,
                 "pipeline": "momentum",
@@ -230,6 +237,18 @@ DEFAULT_CONFIG = {
                 "min_pct_off_low": 30,  # Must be 30%+ above 52w low
                 "max_pct_from_high": 25,  # Must be within 25% of 52w high
                 "max_tickers": 50,  # Cap universe to keep download under scanner timeout (~75s for 50 tickers x 1y)
+            },
+            "high_52w_breakout": {
+                "enabled": True,
+                "pipeline": "momentum",
+                "limit": 10,
+                "max_tickers": 150,          # Cap universe for scan speed
+                "min_volume_multiple": 1.5,  # Min volume vs 20d avg to confirm breakout
+                "vol_avg_days": 20,          # Days for volume average baseline
+                "freshness_days": 5,         # Max days since 52w high was set
+                "freshness_threshold": 0.97, # Price must be within X% of 52w high
+                "min_price": 5.0,            # Filter penny stocks
+                "min_avg_volume": 100_000,   # Min avg daily volume for liquidity
             },
         },
     },
