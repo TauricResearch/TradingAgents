@@ -4,11 +4,14 @@ All scanners that need a list of tickers should call load_universe(config).
 Do NOT hardcode "data/tickers.txt" in scanner files — import this module instead.
 
 Priority order:
-  1. config["discovery"]["universe"] — explicit list (tests / overrides)
-  2. config["tickers_file"]          — path from top-level config
-  3. Default: data/tickers.txt resolved relative to repo root
+  1. config["discovery"]["universe"]        — explicit list (tests / overrides)
+  2. config["discovery"]["universe_source"] — dynamic index ("russell1000")
+  3. config["tickers_file"]                 — path from top-level config
+  4. Default: data/tickers.txt resolved relative to repo root
 """
 
+import json
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -19,6 +22,8 @@ logger = get_logger(__name__)
 # Resolved once at import time — works regardless of cwd
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_TICKERS_FILE = str(_REPO_ROOT / "data" / "tickers.txt")
+_UNIVERSE_CACHE_FILE = _REPO_ROOT / "data" / "universe_cache.json"
+_CACHE_TTL_SECONDS = 7 * 24 * 3600  # refresh weekly
 
 
 def load_universe(config: Optional[Dict[str, Any]] = None) -> List[str]:
@@ -28,7 +33,7 @@ def load_universe(config: Optional[Dict[str, Any]] = None) -> List[str]:
         config: Top-level app config dict. If None, falls back to default file.
 
     Returns:
-        Deduplicated list of ticker symbols in the order they appear in the file.
+        Deduplicated list of ticker symbols in the order they appear in the source.
     """
     cfg = config or {}
 
@@ -39,9 +44,98 @@ def load_universe(config: Optional[Dict[str, Any]] = None) -> List[str]:
         logger.info(f"Universe: {len(tickers)} tickers from config override")
         return tickers
 
-    # 2. Config-specified file path, falling back to repo-relative default
+    # 2. Dynamic index source
+    source = cfg.get("discovery", {}).get("universe_source", "")
+    if source == "russell1000":
+        tickers = _load_russell1000()
+        if tickers:
+            return tickers
+        logger.warning("Russell 1000 fetch failed — falling back to tickers.txt")
+
+    # 3. Config-specified file path, falling back to repo-relative default
     file_path = cfg.get("tickers_file", DEFAULT_TICKERS_FILE)
     return _load_from_file(file_path)
+
+
+def _load_russell1000() -> List[str]:
+    """Fetch Russell 1000 constituents from iShares IWB ETF holdings, with weekly disk cache."""
+    # Return cached copy if fresh
+    cached = _read_universe_cache("russell1000")
+    if cached:
+        return cached
+
+    logger.info("Fetching Russell 1000 constituents from iShares IWB holdings...")
+    try:
+        import io
+        import urllib.request
+
+        import pandas as pd
+
+        url = (
+            "https://www.ishares.com/us/products/239707/ISHARES-RUSSELL-1000-ETF"
+            "/1467271812596.ajax?fileType=csv&fileName=IWB_holdings&dataType=fund"
+        )
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            content = r.read().decode("utf-8", errors="ignore")
+
+        # iShares CSV has a few header rows before the actual data
+        df = pd.read_csv(io.StringIO(content), skiprows=9)
+
+        if "Ticker" not in df.columns:
+            logger.warning("Could not find Ticker column in iShares IWB CSV")
+            return []
+
+        tickers = []
+        for t in df["Ticker"].dropna():
+            s = str(t).strip().upper().replace(".", "-")
+            # Valid tickers: 1-5 alpha chars, optionally one hyphen (e.g. BRK-B)
+            if s and len(s) <= 6 and s.replace("-", "").isalpha():
+                tickers.append(s)
+
+        # Deduplicate while preserving order (by weight — iShares sorts by weight desc)
+        seen: set = set()
+        tickers = [t for t in tickers if not (t in seen or seen.add(t))]
+
+        if not tickers:
+            logger.warning("No tickers parsed from iShares IWB CSV")
+            return []
+
+        _write_universe_cache("russell1000", tickers)
+        logger.info(f"Universe: {len(tickers)} Russell 1000 tickers (cached)")
+        return tickers
+
+    except Exception as e:
+        logger.warning(f"Failed to fetch Russell 1000 from iShares: {e}")
+        return []
+
+
+def _read_universe_cache(key: str) -> List[str]:
+    """Return cached ticker list if it exists and is within TTL."""
+    try:
+        if not _UNIVERSE_CACHE_FILE.exists():
+            return []
+        data = json.loads(_UNIVERSE_CACHE_FILE.read_text())
+        entry = data.get(key, {})
+        if time.time() - entry.get("ts", 0) < _CACHE_TTL_SECONDS:
+            tickers = entry.get("tickers", [])
+            logger.info(f"Universe: {len(tickers)} {key} tickers (from disk cache)")
+            return tickers
+    except Exception:
+        pass
+    return []
+
+
+def _write_universe_cache(key: str, tickers: List[str]) -> None:
+    """Persist ticker list to disk cache."""
+    try:
+        data: dict = {}
+        if _UNIVERSE_CACHE_FILE.exists():
+            data = json.loads(_UNIVERSE_CACHE_FILE.read_text())
+        data[key] = {"ts": time.time(), "tickers": tickers}
+        _UNIVERSE_CACHE_FILE.write_text(json.dumps(data))
+    except Exception as e:
+        logger.debug(f"Failed to write universe cache: {e}")
 
 
 def _load_from_file(path: str) -> List[str]:

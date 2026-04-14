@@ -28,6 +28,7 @@ DEFAULT_CONFIG = {
         "final_recommendations": 15,  # Number of final opportunities to recommend
         "deep_dive_max_workers": 1,  # Parallel workers for deep-dive analysis (1 = sequential)
         "discovery_mode": "hybrid",  # "traditional", "semantic", or "hybrid"
+        "universe_source": "russell1000",  # "russell1000" or "" (uses tickers_file)
         # Ranking context truncation
         "truncate_ranking_context": False,  # True = truncate to save tokens, False = full context
         "max_news_chars": 500,  # Only used if truncate_ranking_context=True
