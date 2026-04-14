@@ -12,6 +12,7 @@ from .y_finance import (
 )
 from .yfinance_news import get_news_yfinance, get_global_news_yfinance
 from .akshare_news import get_news_akshare
+from .akshare_stock import get_stock_data_akshare
 from .alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
     get_indicator as get_alpha_vantage_indicator,
@@ -73,6 +74,7 @@ VENDOR_METHODS = {
     "get_stock_data": {
         "alpha_vantage": get_alpha_vantage_stock,
         "yfinance": get_YFin_data_online,
+        "akshare": get_stock_data_akshare,
     },
     # technical_indicators
     "get_indicators": {
@@ -138,7 +140,6 @@ def route_to_vendor(method: str, *args, **kwargs):
     """Route method calls to appropriate vendor implementation with fallback support."""
     category = get_category_for_method(method)
     if len(args) > 0 and isinstance(args[0], str):
-        print(f"AAAAAA args: {args}")
         ticker = args[0].upper()
         # 如果带有上海(.SS)或深圳(.SZ)后缀，强制优先使用 akshare
         if ticker.endswith(".SS") or ticker.endswith(".SZ"):
