@@ -45,8 +45,29 @@ modes, data requirements.
 - SSRN: search quantitative finance papers on the topic
 - arXiv q-fin section
 
-Use WebSearch and WebFetch to retrieve actual content. Read at least 3-5
-distinct sources before forming a conclusion.
+**Fetching content — always use Jina Reader:**
+
+For every URL you want to read, prepend `https://r.jina.ai/` to get clean,
+LLM-ready markdown with JS rendering included. Examples:
+
+```
+# Instead of fetching a URL directly:
+WebFetch("https://r.jina.ai/https://www.reddit.com/r/algotrading/search/?q=momentum&sort=top")
+WebFetch("https://r.jina.ai/https://alphaarchitect.com/2023/01/momentum-investing/")
+WebFetch("https://r.jina.ai/https://arxiv.org/abs/2401.12345")
+```
+
+For arXiv, prefer the structured API for discovery, then Jina for full text:
+```
+WebFetch("https://export.arxiv.org/api/query?search_query=ti:<topic>+cat:q-fin&max_results=5")
+```
+
+For Reddit, after finding post URLs via WebSearch, fetch the full thread via Jina:
+```
+WebFetch("https://r.jina.ai/https://www.reddit.com/r/algotrading/comments/<id>/")
+```
+
+Read at least 3-5 distinct sources before forming a conclusion.
 
 ## Step 3: Cross-Reference Existing Knowledge
 
