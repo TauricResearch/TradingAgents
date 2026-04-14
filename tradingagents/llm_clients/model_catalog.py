@@ -36,6 +36,16 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Claude Sonnet 4.5 - Agents and coding", "claude-sonnet-4-5"),
         ],
     },
+    "claude_agent": {
+        "quick": [
+            ("Claude Sonnet (via Claude Code, Max subscription)", "sonnet"),
+            ("Claude Haiku (via Claude Code, Max subscription)", "haiku"),
+        ],
+        "deep": [
+            ("Claude Opus (via Claude Code, Max subscription)", "opus"),
+            ("Claude Sonnet (via Claude Code, Max subscription)", "sonnet"),
+        ],
+    },
     "google": {
         "quick": [
             ("Gemini 3 Flash - Next-gen fast", "gemini-3-flash-preview"),

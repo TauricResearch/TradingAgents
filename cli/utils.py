@@ -235,6 +235,7 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("OpenAI", "openai", "https://api.openai.com/v1"),
         ("Google", "google", None),
         ("Anthropic", "anthropic", "https://api.anthropic.com/"),
+        ("Claude Agent (Max subscription, no API key)", "claude_agent", None),
         ("xAI", "xai", "https://api.x.ai/v1"),
         ("DeepSeek", "deepseek", "https://api.deepseek.com"),
         ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
