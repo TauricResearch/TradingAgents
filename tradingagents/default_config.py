@@ -159,6 +159,16 @@ DEFAULT_CONFIG = {
                 "compression_bb_width_max": 6.0,  # Max Bollinger bandwidth for compression
                 "compression_min_volume_ratio": 1.3,  # Min volume ratio for compression
             },
+            "obv_divergence": {
+                "enabled": True,
+                "pipeline": "momentum",
+                "limit": 10,
+                "lookback_days": 20,          # Days to measure price/OBV change over
+                "min_obv_pct_gain": 8.0,      # Min OBV gain as % of avg_vol × lookback_days
+                "max_price_change_pct": 2.0,  # Max price change % over lookback (divergence window)
+                "volume_cache_key": "default", # Shares cache with volume_accumulation scanner
+                "max_tickers": 2000,          # Universe size cap
+            },
             "market_movers": {
                 "enabled": False,
                 "pipeline": "momentum",
