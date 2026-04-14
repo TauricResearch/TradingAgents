@@ -86,12 +86,39 @@ def _load_russell1000() -> List[str]:
             logger.warning("Could not find Ticker column in iShares IWB CSV")
             return []
 
+        # Only take equity rows — excludes cash collateral, money market, etc.
+        if "Asset Class" in df.columns:
+            df = df[df["Asset Class"].astype(str).str.strip() == "Equity"]
+
+        # iShares uses compact tickers for some dual-class shares (no hyphen).
+        # Map the compact form → canonical yfinance symbol.
+        _ISHARES_REMAP = {
+            "BRKB": "BRK-B",
+            "BFA": "BF-A",
+            "BFB": "BF-B",
+            "HEIA": "HEI-A",
+            "LENB": "LEN-B",
+            "UHALB": "UHAL-B",
+            "CWENA": "CWEN-A",
+            "FWONA": "FWON-A",
+            "LBTYA": "LBTY-A",
+            "LBTYK": "LBTY-K",
+            "LLYVA": "LLYV-A",
+            "LBRDA": "LBRD-A",
+            "LBRDK": "LBRD-K",
+            "GLIBA": "GLIB-A",
+            "NWSA": "NWS-A",
+            "FOXA": "FOX-A",
+        }
+
         tickers = []
         for t in df["Ticker"].dropna():
             s = str(t).strip().upper().replace(".", "-")
-            # Valid tickers: 1-5 alpha chars, optionally one hyphen (e.g. BRK-B)
-            if s and len(s) <= 6 and s.replace("-", "").isalpha():
-                tickers.append(s)
+            # Valid tickers: 1-6 alpha chars only
+            if not (s and len(s) <= 7 and s.replace("-", "").isalpha()):
+                continue
+            s = _ISHARES_REMAP.get(s, s)
+            tickers.append(s)
 
         # Deduplicate while preserving order (by weight — iShares sorts by weight desc)
         seen: set = set()
