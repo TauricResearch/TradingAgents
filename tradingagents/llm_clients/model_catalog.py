@@ -37,13 +37,18 @@ MODEL_OPTIONS: ProviderModeOptions = {
         ],
     },
     "claude_agent": {
+        # Values are the short aliases Claude Code accepts on the CLI
+        # (`claude --model sonnet`). They auto-track the latest version for
+        # each tier, so no dated model IDs to maintain here.
         "quick": [
-            ("Claude Sonnet (via Claude Code, Max subscription)", "sonnet"),
-            ("Claude Haiku (via Claude Code, Max subscription)", "haiku"),
+            ("Claude Sonnet - Balanced speed and intelligence", "sonnet"),
+            ("Claude Haiku - Fastest, cheapest", "haiku"),
+            ("Claude Opus - Most capable (slower)", "opus"),
         ],
         "deep": [
-            ("Claude Opus (via Claude Code, Max subscription)", "opus"),
-            ("Claude Sonnet (via Claude Code, Max subscription)", "sonnet"),
+            ("Claude Opus - Most intelligent, deepest reasoning", "opus"),
+            ("Claude Sonnet - Balanced speed and intelligence", "sonnet"),
+            ("Claude Haiku - Fastest (lower quality)", "haiku"),
         ],
     },
     "google": {
