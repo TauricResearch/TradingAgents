@@ -4,6 +4,20 @@ Status: draft
 Audience: orchestrator, TradingAgents graph, verification
 Scope: document the Phase 1-4 provenance fields, Bull/Bear/Manager guard behavior, trace schema, and the smallest safe A/B workflow for verification
 
+## Current implementation snapshot (2026-04)
+
+Mainline now has four distinct but connected pieces in place:
+
+1. `research provenance` fields are carried in `investment_debate_state`;
+2. the same provenance is reused by:
+   - `orchestrator/llm_runner.py`
+   - `orchestrator/live_mode.py`
+   - `tradingagents/graph/trading_graph.py` full-state logs;
+3. `orchestrator/profile_stage_chain.py` emits node-level traces for offline analysis;
+4. `orchestrator/profile_ab.py` compares two trace cohorts offline without changing the production execution path.
+
+This document describes the **current mainline behavior**, not a future structured-memo design.
+
 ## 1. Why this document exists
 
 Phase 1-4 convergence added three closely related behaviors:
@@ -84,6 +98,10 @@ This is intentionally **string-first**, not schema-first, so the downstream plan
 - `metadata.data_quality`
 - `metadata.sample_quality`
 
+The extraction path is now centralized through:
+
+- `tradingagents/agents/utils/agent_states.py::extract_research_provenance()`
+
 Current conventions:
 
 - normal path: `data_quality.state = "ok"`, `sample_quality = "full_research"`;
@@ -98,13 +116,22 @@ Current conventions:
 
 This means consumers can inspect research degradation without parsing raw debate text.
 
+### 4.3 Full-state log projection
+
+`tradingagents/graph/trading_graph.py::_log_state()` now also persists the same provenance subset into:
+
+- `results/<ticker>/TradingAgentsStrategy_logs/full_states_log_<trade_date>.json`
+
+This keeps the post-run JSON logs aligned with the runner/live metadata instead of silently dropping the structured fields.
+
 ## 5. Profiling trace schema
 
-`orchestrator/profile_stage_chain.py` is the current timing/provenance trace tool.
+`orchestrator/profile_stage_chain.py` is the current timing/provenance trace generator.
+`orchestrator/profile_trace_utils.py` holds the shared summary helper used by the offline A/B comparison path.
 
 ### 5.1 Top-level payload
 
-Successful runs write a JSON payload with:
+Successful runs currently write a JSON payload with:
 
 - `status`
 - `ticker`
@@ -124,7 +151,7 @@ Error payloads add:
 
 ### 5.2 `node_timings[]` entry schema
 
-Each node timing entry currently contains:
+Each `node_timings[]` entry currently contains:
 
 | Field | Meaning |
 | --- | --- |
@@ -143,9 +170,26 @@ Each node timing entry currently contains:
 
 This schema is intentionally **trace-oriented**, not a replacement for the application result contract.
 
-## 6. Minimal A/B harness guidance
+## 6. Offline A/B comparison helper
 
-Use `orchestrator/profile_stage_chain.py` when you want a small, explicit comparison harness without changing the production default path.
+`orchestrator/profile_ab.py` is the current offline comparison helper.
+
+It consumes one or more trace JSON files from cohort `A` and cohort `B`, then reports:
+
+- `median_total_elapsed_ms`
+- `median_event_count`
+- `median_phase_elapsed_ms`
+- `degraded_run_count`
+- `error_count`
+- `trace_schema_versions`
+- `source_files`
+- recommendation tie-breaks across elapsed time, degradation count, and error count
+
+This helper is intentionally offline-only: it does **not** re-run live providers or change the production runtime path.
+
+## 7. Minimal A/B harness guidance
+
+Use `python -m orchestrator.profile_stage_chain` to generate traces, then `python -m orchestrator.profile_ab` to compare them.
 
 ### 6.1 Safe comparison knobs
 
@@ -167,7 +211,7 @@ Keep these fixed when doing an A/B comparison:
 - the same `--overall-timeout`
 - `max_debate_rounds = 1` and `max_risk_discuss_rounds = 1` as currently baked into the harness
 
-### 6.3 Example commands
+### 7.3 Example commands
 
 ```bash
 python -m orchestrator.profile_stage_chain \
@@ -181,6 +225,12 @@ python -m orchestrator.profile_stage_chain \
   --date 2026-04-11 \
   --selected-analysts market \
   --analysis-prompt-style detailed
+
+python -m orchestrator.profile_ab \
+  --a orchestrator/profile_runs/compact \
+  --b orchestrator/profile_runs/detailed \
+  --label-a compact \
+  --label-b detailed
 ```
 
 Compare the generated JSON dumps by focusing on:
@@ -190,7 +240,7 @@ Compare the generated JSON dumps by focusing on:
 - provenance changes (`research_status`, `degraded_reason`)
 - history/response growth (`history_len`, `response_len`)
 
-## 7. Review guardrails
+## 8. Review guardrails
 
 When modifying this area, keep these invariants intact unless a broader migration explicitly approves otherwise:
 

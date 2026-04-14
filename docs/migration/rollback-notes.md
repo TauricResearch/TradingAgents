@@ -4,6 +4,23 @@ Status: draft
 Audience: backend/application maintainers
 Scope: migrate toward application-service boundary and result-contract-v1alpha1 with rollback safety
 
+## Current progress snapshot (2026-04)
+
+Mainline has moved beyond pure planning, but it has not finished the full boundary migration:
+
+- `Phase 0` is effectively done: contract and architecture drafts exist.
+- `Phase 1-4` are **partially landed**:
+  - backend services now project `v1alpha1`-style public payloads;
+  - result contracts are persisted via `result_store.py`;
+  - `/ws/analysis/{task_id}` and `/ws/orchestrator` already wrap payloads with `contract_version`;
+  - recommendation and task-status reads already depend on application-layer shaping more than route-local reconstruction.
+- `Phase 5` is **not complete**:
+  - `web_dashboard/backend/main.py` is still too large;
+  - route-local orchestration has not been fully deleted;
+  - compatibility fields still coexist with the newer contract-first path.
+
+Also note that research provenance / node guard / profiling work is now landed on the orchestrator side. That effort complements the backend migration but should not be confused with “application boundary fully complete.”
+
 ## 1. Migration objective
 
 Move backend delivery code from route-local orchestration to an application-service layer without changing the quant+LLM merge kernel behavior.
@@ -60,6 +77,11 @@ Rollback:
 
 - route handlers can call old inline functions directly via feature flag or import switch
 
+Current status:
+
+- partially complete on mainline via `analysis_service.py`, `job_service.py`, and `result_store.py`
+- not complete enough yet to claim `main.py` is only a thin adapter
+
 ## Phase 2: dual-read for task status
 
 Why:
@@ -115,6 +137,12 @@ Rollback:
 
 - restore websocket serializer to legacy shape
 - keep application service intact behind adapter
+
+Current status:
+
+- partially complete on mainline
+- `/ws/orchestrator` already emits `contract_version`, `data_quality`, `degradation`, and `research`
+- `/ws/analysis/{task_id}` already reads application-shaped task state
 
 ## Phase 5: remove route-local orchestration
 
@@ -186,3 +214,13 @@ A migration plan is acceptable only if it:
 - introduces feature-flagged cutover points
 - supports dual-read/dual-write only at application/persistence boundary
 - provides a one-step rollback path at each release phase
+
+## 10. Maintainer note
+
+When updating migration status, keep these three documents aligned:
+
+- `docs/architecture/application-boundary.md`
+- `docs/contracts/result-contract-v1alpha1.md`
+- `docs/architecture/research-provenance.md`
+
+The first two describe backend/application convergence; the third describes orchestrator-side research degradation and profiling semantics that now feed those contracts.

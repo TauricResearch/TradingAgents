@@ -4,6 +4,17 @@ Status: draft
 Audience: backend, desktop, frontend, verification
 Format: JSON-oriented contract notes with examples
 
+## Current implementation snapshot (2026-04)
+
+Mainline backend behavior now partially matches this draft already:
+
+- `web_dashboard/backend/services/job_service.py` emits public task/job payloads with `contract_version = "v1alpha1"`;
+- `web_dashboard/backend/services/result_store.py` persists result contracts under `results/<task_id>/result.v1alpha1.json`;
+- `web_dashboard/backend/api/portfolio.py` and `/ws/orchestrator` already expose `v1alpha1` envelopes by default;
+- live signal payloads currently carry `data_quality`, `degradation`, and `research` as top-level contract fields in addition to `result` / `error`.
+
+This document is therefore a **working contract doc**, not a pure future sketch.
+
 ## 1. Goals
 
 `result-contract-v1alpha1` defines the stable shapes exchanged across:
@@ -169,6 +180,9 @@ This covers `/ws/orchestrator` style responses currently produced by `LiveMode`.
         "llm_direction": 1,
         "timestamp": "2026-04-13T12:00:11Z"
       },
+      "degradation": null,
+      "data_quality": {"state": "ok"},
+      "research": null,
       "error": null
     },
     {
@@ -176,6 +190,19 @@ This covers `/ws/orchestrator` style responses currently produced by `LiveMode`.
       "date": "2026-04-13",
       "status": "failed",
       "result": null,
+      "degradation": {
+        "degraded": true,
+        "reason_code": "provider_mismatch"
+      },
+      "data_quality": {"state": "provider_mismatch", "source": "llm"},
+      "research": {
+        "research_status": "failed",
+        "research_mode": "degraded_synthesis",
+        "timed_out_nodes": ["Bull Researcher"],
+        "degraded_reason": "bull_researcher_connectionerror",
+        "covered_dimensions": ["market"],
+        "manager_confidence": null
+      },
       "error": {
         "code": "live_signal_failed",
         "message": "both quant and llm signals are None",
@@ -216,6 +243,7 @@ Current backend fields in `web_dashboard/backend/main.py` map roughly as follows
 - `quant_signal` -> `result.signals.quant.rating`
 - `llm_signal` -> `result.signals.llm.rating`
 - `confidence` -> `result.confidence`
+- `result_ref` -> persisted result contract location under `results/<task_id>/result.v1alpha1.json`
 - top-level `error` string -> structured `error`
 - positional `stages[]` -> named `stages[]`
 
@@ -236,6 +264,10 @@ Do not freeze these until config-schema work lands:
 - provider-specific configuration echo fields
 - raw metadata blobs from quant/LLM internals
 - report summary extraction fields
+
+Additional note:
+
+- trace/profiling payloads are **not** part of `result-contract-v1alpha1`; they use separate offline trace/A-B helper files under `orchestrator/`.
 
 ## 10. Open review questions
 

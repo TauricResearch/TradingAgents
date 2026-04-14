@@ -4,6 +4,21 @@ Status: draft
 Audience: backend/dashboard/orchestrator maintainers
 Scope: define the boundary between HTTP/WebSocket delivery, application service orchestration, and the quant+LLM merge kernel
 
+## Current status snapshot (2026-04)
+
+This document is still the **target boundary** document, but several convergence pieces are already landed on the mainline:
+
+- `web_dashboard/backend/services/job_service.py` now owns public task/job projection logic;
+- `web_dashboard/backend/services/result_store.py` persists result contracts under `results/<task_id>/result.v1alpha1.json`;
+- `web_dashboard/backend/services/analysis_service.py` and `api/portfolio.py` already expose contract-first result payloads by default;
+- `/ws/analysis/{task_id}` and `/ws/orchestrator` already carry `contract_version = "v1alpha1"` and include result/degradation/data-quality metadata.
+
+What is **not** fully finished yet:
+
+- `web_dashboard/backend/main.py` still contains too much orchestration glue and transport-local logic;
+- route handlers are thinner than before, but the application layer has not fully absorbed every lifecycle branch;
+- migration flags/modes still coexist with legacy compatibility paths.
+
 ## 1. Why this document exists
 
 The current backend mixes three concerns inside `web_dashboard/backend/main.py`:
@@ -39,6 +54,12 @@ This is the correct place for quant/LLM merge semantics.
 - report materialization into `results/<ticker>/<date>/complete_report.md`.
 
 This makes the transport layer hard to replace and makes result contracts implicit.
+
+At the same time, current mainline no longer matches the oldest “all logic sits in routes” description exactly. The codebase now sits in a **mid-migration** state:
+
+- merge semantics remain in `orchestrator/`;
+- public payload shaping has started moving into backend services;
+- legacy compatibility fields still exist for UI safety.
 
 ## 3. Target boundary
 
@@ -193,3 +214,14 @@ A change respects this boundary if all are true:
 - application service owns task lifecycle and contract mapping;
 - `orchestrator/` remains the only owner of merge semantics;
 - domain dataclasses can still be tested without FastAPI or WebSocket context.
+
+## 9. Current maintainer guidance
+
+When touching backend convergence code, treat these files as the current application-facing boundary:
+
+- `web_dashboard/backend/services/job_service.py`
+- `web_dashboard/backend/services/result_store.py`
+- `web_dashboard/backend/services/analysis_service.py`
+- `web_dashboard/backend/api/portfolio.py`
+
+If a change adds or removes externally visible fields, update `docs/contracts/result-contract-v1alpha1.md` in the same change set.
