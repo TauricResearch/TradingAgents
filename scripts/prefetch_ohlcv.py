@@ -13,7 +13,6 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 import time
 from pathlib import Path
@@ -59,9 +58,9 @@ def main():
     # Summary
     n_tickers = len(data)
     total_rows = sum(len(df) for df in data.values())
-    cache_size_mb = sum(
-        p.stat().st_size for p in Path(args.cache_dir).glob("*.parquet")
-    ) / 1024 / 1024
+    cache_size_mb = (
+        sum(p.stat().st_size for p in Path(args.cache_dir).glob("*.parquet")) / 1024 / 1024
+    )
 
     print(f"\nDone in {elapsed:.1f}s", flush=True)
     print(f"  Tickers cached : {n_tickers}/{len(tickers)}", flush=True)

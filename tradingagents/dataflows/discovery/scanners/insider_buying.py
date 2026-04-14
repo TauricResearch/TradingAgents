@@ -138,7 +138,6 @@ class InsiderBuyingScanner(BaseScanner):
             logger.error(f"Insider buying scan failed: {e}", exc_info=True)
             return []
 
-
     def _load_recent_insider_tickers(self, suppress_days: int = 2) -> Set[str]:
         """Return tickers recommended as insider_buying in the past N days.
 

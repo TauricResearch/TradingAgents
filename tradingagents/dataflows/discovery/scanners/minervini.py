@@ -60,7 +60,9 @@ class MinerviniScanner(BaseScanner):
             tickers = tickers[: self.max_tickers]
 
         cache_dir = self.config.get("discovery", {}).get("ohlcv_cache_dir", "data/ohlcv_cache")
-        logger.info(f"Loading OHLCV for {len(tickers)} tickers from cache ({self.lookback_period})...")
+        logger.info(
+            f"Loading OHLCV for {len(tickers)} tickers from cache ({self.lookback_period})..."
+        )
         data = download_ohlcv_cached(tickers, period=self.lookback_period, cache_dir=cache_dir)
 
         if not data:

@@ -26,6 +26,7 @@ SECTOR_ETFS = {
     "XLC": "Communication Services",
 }
 
+
 class SectorRotationScanner(BaseScanner):
     """Detect sector momentum shifts and find laggards in accelerating sectors."""
 
