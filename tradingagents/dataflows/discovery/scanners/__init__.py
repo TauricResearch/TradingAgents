@@ -10,6 +10,7 @@ from . import (
     market_movers,  # noqa: F401
     minervini,  # noqa: F401
     ml_signal,  # noqa: F401
+    obv_divergence,  # noqa: F401
     options_flow,  # noqa: F401
     reddit_dd,  # noqa: F401
     reddit_trending,  # noqa: F401
