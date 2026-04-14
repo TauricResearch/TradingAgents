@@ -2,8 +2,8 @@ name: Weekly Research Strategy
 
 on:
   schedule:
-    # 7:00 AM UTC every Monday — runs autonomous research on trading strategies
-    - cron: "0 7 * * 1"
+    # 7:00 AM UTC daily — runs autonomous research on trading strategies
+    - cron: "0 7 * * *"
   workflow_dispatch:
     inputs:
       topic:

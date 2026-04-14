@@ -59,6 +59,11 @@ For each mature recommendation:
 
 ## Step 4: Write Learnings
 
+**CRITICAL: All file writes in this step must be performed using file-writing tools.
+Do not narrate or describe what you would write — actually write it. Every scanner
+you mention in your analysis MUST have its domain file updated on disk before
+proceeding to Step 5.**
+
 For each scanner that appeared in the analysis, update its domain file in
 `docs/iterations/scanners/<scanner_name>.md`:
 
@@ -76,7 +81,7 @@ For each scanner that appeared in the analysis, update its domain file in
 3. **Update Pending Hypotheses**: Check off any hypotheses that are now answered.
    Add new ones that your analysis surfaced.
 
-Update `docs/iterations/LEARNINGS.md`:
+Update `docs/iterations/LEARNINGS.md` (write to disk):
 - Set **Last analyzed run** to today's date
 - Update the one-line summary and Last Updated date for each scanner you touched
 
@@ -95,7 +100,65 @@ For each change:
 2. Make the minimal change that encodes the learning
 3. Do not refactor surrounding code — change only what the learning motivates
 
-Implement all changes before committing.
+Implement all changes before proceeding to Step 5.5.
+
+## Step 5.5: Register Hypotheses for Actionable Learnings
+
+After implementing direct code changes, check if any learnings require
+**forward-testing validation** — i.e. a code change was made but its effect
+can only be confirmed with live data over multiple days.
+
+For each such learning (max 1 new hypothesis per run to avoid flooding the queue):
+
+1. Read `docs/iterations/hypotheses/active.json`.
+2. Skip if a hypothesis for this scanner+change already exists (status: running or pending).
+3. Count running implementation hypotheses. If at `max_active`, add as `status: "pending"`.
+   Otherwise add as `status: "running"` and create the branch:
+   ```bash
+   git checkout -b "hypothesis/<scanner>-<slug>"
+   git push -u origin "hypothesis/<scanner>-<slug>"
+   ```
+   Open a draft PR:
+   ```bash
+   gh pr create --repo Aitous/TradingAgents \
+     --title "hypothesis(<scanner>): <title>" \
+     --body "<description>" \
+     --draft --base main
+   ```
+4. Add the entry to `docs/iterations/hypotheses/active.json` on `main`:
+   ```json
+   {
+     "id": "<scanner>-<slug>",
+     "scanner": "<scanner>",
+     "title": "<title>",
+     "description": "<description>",
+     "branch": "hypothesis/<scanner>-<slug>",
+     "pr_number": <N>,
+     "status": "running",
+     "priority": <1-9>,
+     "expected_impact": "<high|medium|low>",
+     "hypothesis_type": "implementation",
+     "created_at": "<YYYY-MM-DD>",
+     "min_days": 14,
+     "days_elapsed": 0,
+     "picks_log": [],
+     "baseline_scanner": "<scanner>",
+     "conclusion": null
+   }
+   ```
+5. Create the picks tracker file on the hypothesis branch:
+   ```bash
+   git checkout "hypothesis/<scanner>-<slug>"
+   mkdir -p docs/iterations/hypotheses/<id>
+   echo '{"hypothesis_id":"<id>","scanner":"<scanner>","picks":[]}' \
+     > docs/iterations/hypotheses/<id>/picks.json
+   git add docs/iterations/hypotheses/<id>/picks.json
+   git commit -m "hypothesis(<scanner>): add picks tracker"
+   git push origin "hypothesis/<scanner>-<slug>"
+   git checkout main
+   ```
+
+If no learnings require forward-testing, skip this step entirely.
 
 ## Step 6: Commit (skip if CI=true)
 
