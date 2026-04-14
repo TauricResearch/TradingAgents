@@ -4,32 +4,13 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from tradingagents.dataflows.data_cache.ohlcv_cache import download_ohlcv_cached
 from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY, BaseScanner
 from tradingagents.dataflows.discovery.utils import Priority
+from tradingagents.dataflows.universe import load_universe
 from tradingagents.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-DEFAULT_TICKER_FILE = "data/tickers.txt"
-
-
-def _load_tickers_from_file(path: str) -> List[str]:
-    """Load ticker symbols from a text file."""
-    try:
-        with open(path) as f:
-            tickers = [
-                line.strip().upper()
-                for line in f
-                if line.strip() and not line.strip().startswith("#")
-            ]
-        if tickers:
-            logger.info(f"Breakout scanner: loaded {len(tickers)} tickers from {path}")
-            return tickers
-    except FileNotFoundError:
-        logger.warning(f"Ticker file not found: {path}")
-    except Exception as e:
-        logger.warning(f"Failed to load ticker file {path}: {e}")
-    return []
 
 
 class TechnicalBreakoutScanner(BaseScanner):
@@ -41,10 +22,6 @@ class TechnicalBreakoutScanner(BaseScanner):
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.ticker_file = self.scanner_config.get(
-            "ticker_file",
-            config.get("tickers_file", DEFAULT_TICKER_FILE),
-        )
         self.max_tickers = self.scanner_config.get("max_tickers", 150)
         self.min_volume_multiple = self.scanner_config.get("min_volume_multiple", 2.0)
         self.lookback_days = self.scanner_config.get("lookback_days", 20)
@@ -55,34 +32,23 @@ class TechnicalBreakoutScanner(BaseScanner):
 
         logger.info("📈 Scanning for technical breakouts...")
 
-        tickers = _load_tickers_from_file(self.ticker_file)
+        tickers = load_universe(self.config)
         if not tickers:
             logger.warning("No tickers loaded for breakout scan")
             return []
 
         tickers = tickers[: self.max_tickers]
 
-        # Batch download OHLCV
-        from tradingagents.dataflows.y_finance import download_history
+        cache_dir = self.config.get("discovery", {}).get("ohlcv_cache_dir", "data/ohlcv_cache")
+        logger.info(f"Loading OHLCV for {len(tickers)} tickers from cache (3mo)...")
+        data = download_ohlcv_cached(tickers, period="3mo", cache_dir=cache_dir)
 
-        try:
-            data = download_history(
-                tickers,
-                period="3mo",
-                interval="1d",
-                auto_adjust=True,
-                progress=False,
-            )
-        except Exception as e:
-            logger.error(f"Batch download failed: {e}")
-            return []
-
-        if data is None or data.empty:
+        if not data:
             return []
 
         candidates = []
-        for ticker in tickers:
-            result = self._check_breakout(ticker, data)
+        for ticker, df in data.items():
+            result = self._check_breakout(ticker, df)
             if result:
                 candidates.append(result)
 
@@ -92,16 +58,10 @@ class TechnicalBreakoutScanner(BaseScanner):
         logger.info(f"Technical breakouts: {len(candidates)} candidates")
         return candidates
 
-    def _check_breakout(self, ticker: str, data: pd.DataFrame) -> Optional[Dict[str, Any]]:
+    def _check_breakout(self, ticker: str, df: pd.DataFrame) -> Optional[Dict[str, Any]]:
         """Check if ticker has a volume-confirmed breakout."""
         try:
-            # Extract single-ticker data from multi-ticker download
-            if isinstance(data.columns, pd.MultiIndex):
-                if ticker not in data.columns.get_level_values(1):
-                    return None
-                df = data.xs(ticker, axis=1, level=1).dropna()
-            else:
-                df = data.dropna()
+            df = df.dropna()
 
             if len(df) < self.lookback_days + 5:
                 return None

@@ -6,6 +6,7 @@ import pandas as pd
 
 from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY, BaseScanner
 from tradingagents.dataflows.discovery.utils import Priority
+from tradingagents.dataflows.universe import load_universe
 from tradingagents.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -25,22 +26,6 @@ SECTOR_ETFS = {
     "XLC": "Communication Services",
 }
 
-DEFAULT_TICKER_FILE = "data/tickers.txt"
-
-
-def _load_tickers_from_file(path: str) -> List[str]:
-    """Load ticker symbols from a text file."""
-    try:
-        with open(path) as f:
-            return [
-                line.strip().upper()
-                for line in f
-                if line.strip() and not line.strip().startswith("#")
-            ]
-    except Exception:
-        return []
-
-
 class SectorRotationScanner(BaseScanner):
     """Detect sector momentum shifts and find laggards in accelerating sectors."""
 
@@ -50,10 +35,6 @@ class SectorRotationScanner(BaseScanner):
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.ticker_file = self.scanner_config.get(
-            "ticker_file",
-            config.get("tickers_file", DEFAULT_TICKER_FILE),
-        )
         self.max_tickers = self.scanner_config.get("max_tickers", 100)
         self.min_sector_accel = self.scanner_config.get("min_sector_acceleration", 2.0)
 
@@ -89,7 +70,7 @@ class SectorRotationScanner(BaseScanner):
         # Step 2: Batch-download 5-day close prices for all candidate tickers at once.
         # This replaces the previous serial get_ticker_info() + download_history() loop
         # which made up to max_tickers individual HTTP requests and would time out.
-        tickers = _load_tickers_from_file(self.ticker_file)
+        tickers = load_universe(self.config)
         if not tickers:
             return []
 

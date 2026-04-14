@@ -14,32 +14,13 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
+from tradingagents.dataflows.data_cache.ohlcv_cache import download_ohlcv_cached
 from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY, BaseScanner
 from tradingagents.dataflows.discovery.utils import Priority
+from tradingagents.dataflows.universe import load_universe
 from tradingagents.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-DEFAULT_TICKER_FILE = "data/tickers.txt"
-
-
-def _load_tickers_from_file(path: str) -> List[str]:
-    """Load ticker symbols from a text file."""
-    try:
-        with open(path) as f:
-            tickers = [
-                line.strip().upper()
-                for line in f
-                if line.strip() and not line.strip().startswith("#")
-            ]
-        if tickers:
-            logger.info(f"52w-high scanner: loaded {len(tickers)} tickers from {path}")
-            return tickers
-    except FileNotFoundError:
-        logger.warning(f"Ticker file not found: {path}")
-    except Exception as e:
-        logger.warning(f"Failed to load ticker file {path}: {e}")
-    return []
 
 
 class High52wBreakoutScanner(BaseScanner):
@@ -59,10 +40,6 @@ class High52wBreakoutScanner(BaseScanner):
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.ticker_file = self.scanner_config.get(
-            "ticker_file",
-            config.get("tickers_file", DEFAULT_TICKER_FILE),
-        )
         self.max_tickers = self.scanner_config.get("max_tickers", 150)
         # Academic threshold: 1.5x eliminates 63% of false signals
         self.min_volume_multiple = self.scanner_config.get("min_volume_multiple", 1.5)
@@ -80,34 +57,25 @@ class High52wBreakoutScanner(BaseScanner):
 
         logger.info("🏔️  Scanning for 52-week high breakouts...")
 
-        tickers = _load_tickers_from_file(self.ticker_file)
+        tickers = load_universe(self.config)
         if not tickers:
             logger.warning("No tickers loaded for 52w-high breakout scan")
             return []
 
         tickers = tickers[: self.max_tickers]
 
-        from tradingagents.dataflows.y_finance import download_history
+        cache_dir = self.config.get("discovery", {}).get("ohlcv_cache_dir", "data/ohlcv_cache")
+        logger.info(f"Loading OHLCV for {len(tickers)} tickers from cache...")
+        data = download_ohlcv_cached(tickers, period="1y", cache_dir=cache_dir)
 
-        try:
-            data = download_history(
-                tickers,
-                period="1y",
-                interval="1d",
-                auto_adjust=True,
-                progress=False,
-            )
-        except Exception as e:
-            logger.error(f"Batch download failed: {e}")
-            return []
-
-        if data is None or data.empty:
+        if not data:
             return []
 
         candidates = []
-        for ticker in tickers:
-            result = self._check_52w_breakout(ticker, data)
+        for ticker, df in data.items():
+            result = self._check_52w_breakout_df(df)
             if result:
+                result["ticker"] = ticker
                 candidates.append(result)
 
         # Sort by strongest signal: fresh critical first, then by volume multiple
@@ -119,18 +87,10 @@ class High52wBreakoutScanner(BaseScanner):
         logger.info(f"52-week high breakouts: {len(candidates)} candidates")
         return candidates
 
-    def _check_52w_breakout(
-        self, ticker: str, data: pd.DataFrame
-    ) -> Optional[Dict[str, Any]]:
-        """Check if ticker is making a new 52-week high with volume confirmation."""
+    def _check_52w_breakout_df(self, df: pd.DataFrame) -> Optional[Dict[str, Any]]:
+        """Check if a pre-extracted ticker DataFrame is making a new 52-week high with volume confirmation."""
         try:
-            # Extract single-ticker series from multi-ticker download
-            if isinstance(data.columns, pd.MultiIndex):
-                if ticker not in data.columns.get_level_values(1):
-                    return None
-                df = data.xs(ticker, axis=1, level=1).dropna()
-            else:
-                df = data.dropna()
+            df = df.dropna()
 
             # Need at least 260 days for a proper 52-week window
             min_rows = self.vol_avg_days + self.freshness_days + 5
@@ -195,7 +155,6 @@ class High52wBreakoutScanner(BaseScanner):
                 context += " | Fresh crossing — first time at new high this week"
 
             return {
-                "ticker": ticker,
                 "source": self.name,
                 "context": context,
                 "priority": priority,
@@ -207,7 +166,7 @@ class High52wBreakoutScanner(BaseScanner):
             }
 
         except Exception as e:
-            logger.debug(f"52w-high check failed for {ticker}: {e}")
+            logger.debug(f"52w-high check failed: {e}")
             return None
 
 

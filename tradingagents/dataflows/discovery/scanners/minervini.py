@@ -11,32 +11,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from tradingagents.dataflows.data_cache.ohlcv_cache import download_ohlcv_cached
 from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY, BaseScanner
 from tradingagents.dataflows.discovery.utils import Priority
+from tradingagents.dataflows.universe import load_universe
 from tradingagents.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-DEFAULT_TICKER_FILE = "data/tickers.txt"
-
-
-def _load_tickers_from_file(path: str) -> List[str]:
-    """Load ticker symbols from a text file."""
-    try:
-        with open(path) as f:
-            tickers = [
-                line.strip().upper()
-                for line in f
-                if line.strip() and not line.strip().startswith("#")
-            ]
-        if tickers:
-            logger.info(f"Minervini scanner: loaded {len(tickers)} tickers from {path}")
-            return tickers
-    except FileNotFoundError:
-        logger.warning(f"Ticker file not found: {path}")
-    except Exception as e:
-        logger.warning(f"Failed to load ticker file {path}: {e}")
-    return []
 
 
 class MinerviniScanner(BaseScanner):
@@ -56,10 +37,6 @@ class MinerviniScanner(BaseScanner):
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.ticker_file = self.scanner_config.get(
-            "ticker_file",
-            config.get("tickers_file", DEFAULT_TICKER_FILE),
-        )
         self.min_rs_rating = self.scanner_config.get("min_rs_rating", 70)
         self.lookback_period = self.scanner_config.get("lookback_period", "1y")
         self.sma_200_slope_days = self.scanner_config.get("sma_200_slope_days", 20)
@@ -73,7 +50,7 @@ class MinerviniScanner(BaseScanner):
 
         logger.info("📊 Scanning for Minervini Stage 2 uptrends...")
 
-        tickers = _load_tickers_from_file(self.ticker_file)
+        tickers = load_universe(self.config)
         if not tickers:
             logger.warning("No tickers loaded for Minervini scan")
             return []
@@ -82,24 +59,12 @@ class MinerviniScanner(BaseScanner):
             logger.info(f"Limiting Minervini scan to {self.max_tickers}/{len(tickers)} tickers")
             tickers = tickers[: self.max_tickers]
 
-        # Batch download OHLCV — 1y needed for SMA200
-        import yfinance as yf
+        cache_dir = self.config.get("discovery", {}).get("ohlcv_cache_dir", "data/ohlcv_cache")
+        logger.info(f"Loading OHLCV for {len(tickers)} tickers from cache ({self.lookback_period})...")
+        data = download_ohlcv_cached(tickers, period=self.lookback_period, cache_dir=cache_dir)
 
-        try:
-            logger.info(f"Batch-downloading {len(tickers)} tickers ({self.lookback_period})...")
-            raw = yf.download(
-                tickers,
-                period=self.lookback_period,
-                interval="1d",
-                auto_adjust=True,
-                progress=False,
-            )
-        except Exception as e:
-            logger.error(f"Batch download failed: {e}")
-            return []
-
-        if raw is None or raw.empty:
-            logger.warning("Minervini scanner: batch download returned empty data")
+        if not data:
+            logger.warning("Minervini scanner: no OHLCV data available")
             return []
 
         # Compute 12-month returns for RS Rating (need all tickers' data)
@@ -107,10 +72,12 @@ class MinerviniScanner(BaseScanner):
         passing_tickers: List[Tuple[str, Dict[str, Any]]] = []
 
         for ticker in tickers:
-            result = self._check_minervini(ticker, raw)
+            df = data.get(ticker)
+            if df is None or df.empty:
+                continue
+            result = self._check_minervini_df(df)
             if result is not None:
                 ticker_df, metrics = result
-                # Compute 12-month cumulative return for RS rating
                 ret = self._compute_return(ticker_df)
                 if ret is not None:
                     universe_returns[ticker] = ret
@@ -119,13 +86,10 @@ class MinerviniScanner(BaseScanner):
         # Also compute returns for tickers that DIDN'T pass (for RS percentile ranking)
         for ticker in tickers:
             if ticker not in universe_returns:
+                df = data.get(ticker)
+                if df is None or df.empty:
+                    continue
                 try:
-                    if isinstance(raw.columns, pd.MultiIndex):
-                        if ticker not in raw.columns.get_level_values(1):
-                            continue
-                        df = raw.xs(ticker, axis=1, level=1).dropna()
-                    else:
-                        df = raw.dropna()
                     ret = self._compute_return(df)
                     if ret is not None:
                         universe_returns[ticker] = ret
@@ -197,21 +161,15 @@ class MinerviniScanner(BaseScanner):
         )
         return candidates
 
-    def _check_minervini(
-        self, ticker: str, raw: pd.DataFrame
+    def _check_minervini_df(
+        self, df: pd.DataFrame
     ) -> Optional[Tuple[pd.DataFrame, Dict[str, Any]]]:
-        """Apply the 6-condition Minervini trend template to one ticker.
+        """Apply the 6-condition Minervini trend template to a pre-extracted ticker DataFrame.
 
         Returns (df, metrics) if all conditions pass, None otherwise.
         """
         try:
-            # Extract single-ticker slice
-            if isinstance(raw.columns, pd.MultiIndex):
-                if ticker not in raw.columns.get_level_values(1):
-                    return None
-                df = raw.xs(ticker, axis=1, level=1).dropna()
-            else:
-                df = raw.dropna()
+            df = df.dropna()
 
             # Need at least 200 rows for SMA200
             if len(df) < 200:

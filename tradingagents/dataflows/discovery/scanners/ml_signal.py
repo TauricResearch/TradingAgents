@@ -11,31 +11,10 @@ import pandas as pd
 
 from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY, BaseScanner
 from tradingagents.dataflows.discovery.utils import Priority
+from tradingagents.dataflows.universe import load_universe
 from tradingagents.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-# Default ticker file path (relative to project root)
-DEFAULT_TICKER_FILE = "data/tickers.txt"
-
-
-def _load_tickers_from_file(path: str) -> List[str]:
-    """Load ticker symbols from a text file (one per line, # comments allowed)."""
-    try:
-        with open(path) as f:
-            tickers = [
-                line.strip().upper()
-                for line in f
-                if line.strip() and not line.strip().startswith("#")
-            ]
-        if tickers:
-            logger.info(f"ML scanner: loaded {len(tickers)} tickers from {path}")
-            return tickers
-    except FileNotFoundError:
-        logger.warning(f"Ticker file not found: {path}")
-    except Exception as e:
-        logger.warning(f"Failed to load ticker file {path}: {e}")
-    return []
 
 
 class MLSignalScanner(BaseScanner):
@@ -64,17 +43,13 @@ class MLSignalScanner(BaseScanner):
         self.max_workers = self.scanner_config.get("max_workers", 8)
         self.fetch_market_cap = self.scanner_config.get("fetch_market_cap", False)
 
-        # Load universe: config list > config file > default tickers file
+        # Load universe: explicit config list overrides the shared universe file
         if "ticker_universe" in self.scanner_config:
             self.universe = self.scanner_config["ticker_universe"]
         else:
-            ticker_file = self.scanner_config.get(
-                "ticker_file",
-                config.get("tickers_file", DEFAULT_TICKER_FILE),
-            )
-            self.universe = _load_tickers_from_file(ticker_file)
+            self.universe = load_universe(config)
             if not self.universe:
-                logger.warning(f"No tickers loaded from {ticker_file} — scanner will be empty")
+                logger.warning("No tickers loaded — ML scanner will be empty")
 
     def scan(self, state: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not self.is_enabled():

@@ -10,31 +10,11 @@ from typing import Any, Dict, List, Optional
 
 from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY, BaseScanner
 from tradingagents.dataflows.discovery.utils import Priority
+from tradingagents.dataflows.universe import load_universe
 from tradingagents.dataflows.y_finance import get_option_chain, get_ticker_options
 from tradingagents.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-DEFAULT_TICKER_FILE = "data/tickers.txt"
-
-
-def _load_tickers_from_file(path: str) -> List[str]:
-    """Load ticker symbols from a text file (one per line, # comments allowed)."""
-    try:
-        with open(path) as f:
-            tickers = [
-                line.strip().upper()
-                for line in f
-                if line.strip() and not line.strip().startswith("#")
-            ]
-        if tickers:
-            logger.info(f"Options scanner: loaded {len(tickers)} tickers from {path}")
-            return tickers
-    except FileNotFoundError:
-        logger.warning(f"Ticker file not found: {path}")
-    except Exception as e:
-        logger.warning(f"Failed to load ticker file {path}: {e}")
-    return []
 
 
 class OptionsFlowScanner(BaseScanner):
@@ -52,15 +32,11 @@ class OptionsFlowScanner(BaseScanner):
         self.max_tickers = self.scanner_config.get("max_tickers", 150)
         self.max_workers = self.scanner_config.get("max_workers", 8)
 
-        # Load universe: explicit list > ticker_file > default file
+        # Load universe: explicit config list overrides the shared universe file
         if "ticker_universe" in self.scanner_config:
             self.ticker_universe = self.scanner_config["ticker_universe"]
         else:
-            ticker_file = self.scanner_config.get(
-                "ticker_file",
-                config.get("tickers_file", DEFAULT_TICKER_FILE),
-            )
-            self.ticker_universe = _load_tickers_from_file(ticker_file)
+            self.ticker_universe = load_universe(config)
             if not self.ticker_universe:
                 logger.warning("No tickers loaded — options scanner will be empty")
 

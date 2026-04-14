@@ -1,0 +1,2 @@
+# Treat parquet cache files as binary — skip text diffs
+data/ohlcv_cache/*.parquet binary

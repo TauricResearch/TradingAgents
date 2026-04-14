@@ -111,6 +111,10 @@ DEFAULT_CONFIG = {
             "events": {"enabled": True, "priority": 5, "deep_dive_budget": 3},
         },
         # ========================================
+        # OHLCV CACHE (populated nightly by prefetch workflow)
+        # ========================================
+        "ohlcv_cache_dir": "data/ohlcv_cache",  # Shared cache read by all OHLCV-based scanners
+        # ========================================
         # SCANNER EXECUTION SETTINGS
         # ========================================
         "scanner_execution": {
@@ -137,8 +141,7 @@ DEFAULT_CONFIG = {
                 "unusual_volume_multiple": 2.0,  # Min volume/OI ratio for unusual activity
                 "min_premium": 25000,  # Minimum premium ($) to filter noise
                 "min_volume": 1000,  # Minimum option volume to consider
-                # ticker_file: path to ticker list (defaults to tickers_file from root config)
-                # ticker_universe: explicit list overrides ticker_file if set
+                # ticker_universe: explicit list overrides the shared universe (data/tickers.txt)
                 "max_tickers": 1000,  # Max tickers to scan (from start of file)
                 "max_workers": 8,  # Parallel option chain fetch threads
             },
@@ -222,8 +225,7 @@ DEFAULT_CONFIG = {
                 "limit": 15,
                 "min_win_prob": 0.35,  # Minimum P(WIN) to surface as candidate
                 "lookback_period": "6mo",  # OHLCV history to fetch (needs ~130 trading days)
-                # ticker_file: path to ticker list (defaults to tickers_file from root config)
-                # ticker_universe: explicit list overrides ticker_file if set
+                # ticker_universe: explicit list overrides the shared universe (data/tickers.txt)
                 "fetch_market_cap": False,  # Skip for speed (1 NaN out of 30 features)
                 "max_workers": 8,  # Parallel feature computation threads
             },
@@ -242,13 +244,13 @@ DEFAULT_CONFIG = {
                 "enabled": True,
                 "pipeline": "momentum",
                 "limit": 10,
-                "max_tickers": 150,          # Cap universe for scan speed
+                "max_tickers": 150,  # Cap universe for scan speed
                 "min_volume_multiple": 1.5,  # Min volume vs 20d avg to confirm breakout
-                "vol_avg_days": 20,          # Days for volume average baseline
-                "freshness_days": 5,         # Max days since 52w high was set
-                "freshness_threshold": 0.97, # Price must be within X% of 52w high
-                "min_price": 5.0,            # Filter penny stocks
-                "min_avg_volume": 100_000,   # Min avg daily volume for liquidity
+                "vol_avg_days": 20,  # Days for volume average baseline
+                "freshness_days": 5,  # Max days since 52w high was set
+                "freshness_threshold": 0.97,  # Price must be within X% of 52w high
+                "min_price": 5.0,  # Filter penny stocks
+                "min_avg_volume": 100_000,  # Min avg daily volume for liquidity
             },
         },
     },
