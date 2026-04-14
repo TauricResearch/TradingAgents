@@ -162,17 +162,11 @@ class ReportStore:
         return self._write_json(path, data)
 
     def load_latest_pipeline_node_snapshot(self, date: str, ticker: str) -> dict[str, Any] | None:
-        relative_dir = f"{ticker.upper()}/report"
-        for root in self._run_roots(date):
-            report_dir = root / relative_dir
-            if not report_dir.exists():
-                continue
-            candidates = sorted(report_dir.glob("*_pipeline_node_snapshot.json"), reverse=True)
-            for path in candidates:
-                data = self._read_json(path)
-                if data is not None:
-                    return data
-        return None
+        return self._load_latest_from_runs(
+            date,
+            f"{ticker.upper()}/report",
+            "pipeline_node_snapshot.json",
+        )
 
     # ------------------------------------------------------------------
     # Holding Reviews

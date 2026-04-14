@@ -88,18 +88,14 @@ class DualReportStore:
     def save_pipeline_node_snapshot(self, date: str, ticker: str, data: dict[str, Any]) -> Any:
         local_result = self._local.save_pipeline_node_snapshot(date, ticker, data)
         self._try_mongo(
-            lambda: self._mongo.save_pipeline_node_snapshot(date, ticker, data)
-            if hasattr(self._mongo, "save_pipeline_node_snapshot")
-            else None,
+            lambda: self._mongo.save_pipeline_node_snapshot(date, ticker, data),
             None,
         )
         return local_result
 
     def load_latest_pipeline_node_snapshot(self, date: str, ticker: str) -> dict[str, Any] | None:
         return self._try_mongo(
-            lambda: self._mongo.load_latest_pipeline_node_snapshot(date, ticker)
-            if hasattr(self._mongo, "load_latest_pipeline_node_snapshot")
-            else None,
+            lambda: self._mongo.load_latest_pipeline_node_snapshot(date, ticker),
             None,
         ) or self._local.load_latest_pipeline_node_snapshot(date, ticker)
 

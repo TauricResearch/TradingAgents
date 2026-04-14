@@ -143,7 +143,7 @@ def tmp_reports(tmp_path: Path) -> Path:
 @pytest.fixture
 def report_store(tmp_reports: Path) -> ReportStore:
     """ReportStore instance backed by a temporary directory."""
-    return ReportStore(base_dir=tmp_reports)
+    return ReportStore(base_dir=tmp_reports, run_id="test-run")
 
 
 # ---------------------------------------------------------------------------

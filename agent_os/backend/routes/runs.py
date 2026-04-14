@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
-from typing import Dict, Any, List, AsyncGenerator
 import asyncio
 import logging
 import time
+from collections.abc import AsyncGenerator
+from typing import Any
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+
 from agent_os.backend.store import runs
 from agent_os.backend.dependencies import get_current_user
 from agent_os.backend.run_metadata import normalize_run_params
@@ -14,6 +17,8 @@ from agent_os.backend.services.langgraph_engine import (
     infer_pipeline_resume_phase,
 )
 from agent_os.backend.services.mock_engine import MockEngine
+from tradingagents.portfolio.exceptions import ReportStoreError
+from tradingagents.portfolio.store_factory import create_report_store
 from tradingagents.report_paths import generate_run_id
 from tradingagents.default_config import DEFAULT_CONFIG
 from tradingagents.graph.scanner_setup import (
@@ -30,7 +35,7 @@ mock_engine = MockEngine()
 run_tasks: dict[str, asyncio.Task] = {}
 
 
-def _set_run_task(run_id: str, coro) -> None:
+def _set_run_task(run_id: str, coro: AsyncGenerator[Any, None] | asyncio.Future[Any] | Any) -> None:
     existing = run_tasks.get(run_id)
     if existing and not existing.done():
         existing.cancel()
@@ -174,15 +179,25 @@ def _infer_pipeline_resume_phase(run_id: str, params: dict[str, Any]) -> tuple[s
     if not ticker or not date:
         return None, None
     try:
-        from tradingagents.portfolio.store_factory import create_report_store
-
         store = create_report_store(run_id=run_id)
         snapshot = store.load_latest_pipeline_node_snapshot(date, ticker)
         if not snapshot:
             return None, None
         return infer_pipeline_resume_phase(snapshot), str(snapshot.get("node_name") or "")
+    except ReportStoreError:
+        logger.exception(
+            "Failed to infer pipeline resume phase run=%s ticker=%s",
+            run_id,
+            ticker,
+        )
+        return None, None
     except Exception:
-        logger.warning("Failed to infer pipeline resume phase run=%s ticker=%s", run_id, ticker)
+        # Resume inference is best-effort; unexpected errors should not block resuming.
+        logger.exception(
+            "Unexpected error inferring pipeline resume phase run=%s ticker=%s",
+            run_id,
+            ticker,
+        )
         return None, None
 
 
@@ -228,7 +243,7 @@ def _checkpoint_run_events(run_id: str) -> None:
         _persist_run_to_disk(run_id, include_meta=False)
 
 
-async def _run_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None]) -> None:
+async def _run_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], None]) -> None:
     """Drive an engine generator, updating run status and caching events."""
     runs[run_id]["status"] = "running"
     runs[run_id]["events"] = []
@@ -260,7 +275,7 @@ async def _run_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None])
         _clear_run_task(run_id)
 
 
-async def _resume_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], None]) -> None:
+async def _resume_and_store(run_id: str, gen: AsyncGenerator[dict[str, Any], None]) -> None:
     """Drive a whole-run resume while preserving already-streamed events."""
     run = runs.get(run_id)
     if not run:
@@ -298,7 +313,7 @@ async def _resume_and_store(run_id: str, gen: AsyncGenerator[Dict[str, Any], Non
 @router.post("/scan")
 async def trigger_scan(
     background_tasks: BackgroundTasks,
-    params: Dict[str, Any] = None,
+    params: dict[str, Any] | None = None,
     user: dict = Depends(get_current_user)
 ):
     p = normalize_run_params("scan", params or {})
@@ -320,7 +335,7 @@ async def trigger_scan(
 @router.post("/pipeline")
 async def trigger_pipeline(
     background_tasks: BackgroundTasks,
-    params: Dict[str, Any] = None,
+    params: dict[str, Any] | None = None,
     user: dict = Depends(get_current_user)
 ):
     p = normalize_run_params("pipeline", params or {})
@@ -342,7 +357,7 @@ async def trigger_pipeline(
 @router.post("/portfolio")
 async def trigger_portfolio(
     background_tasks: BackgroundTasks,
-    params: Dict[str, Any] = None,
+    params: dict[str, Any] | None = None,
     user: dict = Depends(get_current_user)
 ):
     p = normalize_run_params("portfolio", params or {})
@@ -364,7 +379,7 @@ async def trigger_portfolio(
 @router.post("/auto")
 async def trigger_auto(
     background_tasks: BackgroundTasks,
-    params: Dict[str, Any] = None,
+    params: dict[str, Any] | None = None,
     user: dict = Depends(get_current_user)
 ):
     p = normalize_run_params("auto", params or {})
@@ -386,7 +401,7 @@ async def trigger_auto(
 @router.post("/mock")
 async def trigger_mock(
     background_tasks: BackgroundTasks,
-    params: Dict[str, Any] = None,
+    params: dict[str, Any] | None = None,
     user: dict = Depends(get_current_user),
 ):
     """Start a mock run that streams scripted events — no real LLM calls.
@@ -482,7 +497,7 @@ def _filter_scan_rerun_events(events: list, start_node: str) -> list:
     return kept
 
 
-def _build_scan_rerun_state(events: list) -> Dict[str, Any]:
+def _build_scan_rerun_state(events: list) -> dict[str, Any]:
     """Reconstruct the latest market-scan state from cached run events."""
     state = {
         "messages": [],
@@ -575,7 +590,7 @@ async def _append_scan_rerun_and_store(run_id: str, gen, start_node: str) -> Non
 @router.post("/rerun-node")
 async def trigger_rerun_node(
     background_tasks: BackgroundTasks,
-    params: Dict[str, Any],
+    params: dict[str, Any],
     user: dict = Depends(get_current_user),
 ):
     """Re-run a phase of the trading pipeline for a specific ticker.
@@ -721,12 +736,23 @@ async def resume_run(
                 run_id,
                 f"Resume requested — continuing pipeline from {node_name or phase} via {phase} checkpoint.",
             )
-            resume_params = {**params, "run_id": run_id, "_execution_key": f"{run_id}:resume:{run_type}"}
+            modified_resume_params = {
+                **params,
+                "run_id": run_id,
+                "_execution_key": f"{run_id}:resume:{run_type}",
+            }
             if phase == "analysts":
-                resume_params["resume_from_latest_snapshot"] = True
-                gen = engine.run_pipeline(f"{run_id}:resume:pipeline", resume_params)
+                modified_resume_params["resume_from_latest_snapshot"] = True
+                gen = engine.run_pipeline(
+                    f"{run_id}:resume:pipeline",
+                    modified_resume_params,
+                )
             else:
-                gen = engine.run_pipeline_from_phase(f"{run_id}:resume:{phase}", resume_params, phase)
+                gen = engine.run_pipeline_from_phase(
+                    f"{run_id}:resume:{phase}",
+                    modified_resume_params,
+                    phase,
+                )
             _set_run_task(run_id, _resume_and_store(run_id, gen))
             return {"run_id": run_id, "status": "queued", "mode": "pipeline_checkpoint", "phase": phase}
 
@@ -748,7 +774,7 @@ async def resume_run(
 @router.post("/{run_id}/phase3-decision")
 async def submit_phase3_decision(
     run_id: str,
-    params: Dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
     user: dict = Depends(get_current_user),
 ):
     run = runs.get(run_id)
@@ -834,7 +860,7 @@ async def stop_run(
 
 @router.delete("/portfolio-stage")
 async def reset_portfolio_stage(
-    params: Dict[str, Any],
+    params: dict[str, Any],
     user: dict = Depends(get_current_user),
 ):
     """Delete PM decision and execution result for a given date/portfolio_id.

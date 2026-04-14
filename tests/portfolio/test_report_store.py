@@ -13,7 +13,6 @@ Run::
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -54,12 +53,31 @@ def test_save_and_load_analysis(report_store):
     assert loaded == data
 
 
+def test_save_and_load_latest_pipeline_node_snapshot(report_store, tmp_reports):
+    """Latest snapshot load should return the newest timestamped snapshot."""
+    first = {"node_name": "Market Analyst", "state": {"market_report": "one"}}
+    second = {"node_name": "Trader", "state": {"trader_investment_plan": "two"}}
+
+    first_path = report_store.save_pipeline_node_snapshot("2026-03-20", "AAPL", first)
+    second_path = report_store.save_pipeline_node_snapshot("2026-03-20", "AAPL", second)
+
+    assert first_path != second_path
+    assert first_path.name.endswith("_pipeline_node_snapshot.json")
+    assert second_path.name.endswith("_pipeline_node_snapshot.json")
+    loaded = report_store.load_latest_pipeline_node_snapshot("2026-03-20", "AAPL")
+    assert loaded == second
+
+
 def test_analysis_ticker_stored_as_uppercase(report_store, tmp_reports):
     """Ticker symbol must be stored as uppercase in the directory path."""
     data = {"ticker": "aapl"}
     report_store.save_analysis("2026-03-20", "aapl", data)
-    expected = tmp_reports / "daily" / "2026-03-20" / "AAPL" / "complete_report.json"
-    assert expected.exists()
+    matches = list(
+        (
+            tmp_reports / "daily" / "2026-03-20" / "test-run" / "AAPL" / "report"
+        ).glob("*_complete_report.json")
+    )
+    assert len(matches) == 1
     # load with lowercase should still work
     loaded = report_store.load_analysis("2026-03-20", "aapl")
     assert loaded == data
@@ -115,17 +133,22 @@ def test_save_pm_decision_writes_markdown_when_provided(report_store, tmp_report
     decision = {"sells": [], "buys": []}
     md_text = "# Decision\n\nHold everything."
     report_store.save_pm_decision("2026-03-20", "pid-123", decision, markdown=md_text)
-    md_path = tmp_reports / "daily" / "2026-03-20" / "portfolio" / "pid-123_pm_decision.md"
-    assert md_path.exists()
-    assert md_path.read_text(encoding="utf-8") == md_text
+    report_dir = (
+        tmp_reports / "daily" / "2026-03-20" / "test-run" / "portfolio" / "report"
+    )
+    matches = list(report_dir.glob("*_pid-123_pm_decision.md"))
+    assert len(matches) == 1
+    assert matches[0].read_text(encoding="utf-8") == md_text
 
 
 def test_save_pm_decision_no_markdown_file_when_not_provided(report_store, tmp_reports):
     """When markdown=None, no .md file should be written."""
     decision = {"sells": [], "buys": []}
     report_store.save_pm_decision("2026-03-20", "pid-123", decision, markdown=None)
-    md_path = tmp_reports / "daily" / "2026-03-20" / "portfolio" / "pid-123_pm_decision.md"
-    assert not md_path.exists()
+    report_dir = (
+        tmp_reports / "daily" / "2026-03-20" / "test-run" / "portfolio" / "report"
+    )
+    assert not list(report_dir.glob("*_pid-123_pm_decision.md"))
 
 
 def test_load_pm_decision_returns_none_for_missing(report_store):
@@ -142,7 +165,7 @@ def test_list_pm_decisions(report_store):
     paths = report_store.list_pm_decisions("pid-abc")
     assert len(paths) == 3
     # Sorted newest first by ISO date string ordering
-    date_parts = [p.parent.parent.name for p in paths]
+    date_parts = [p.parents[3].name for p in paths]
     assert date_parts == sorted(dates, reverse=True)
 
 
@@ -153,7 +176,7 @@ def test_list_pm_decisions(report_store):
 
 def test_directories_created_on_write(report_store, tmp_reports):
     """Directories must be created automatically on first write."""
-    target_dir = tmp_reports / "daily" / "2026-03-20" / "portfolio"
+    target_dir = tmp_reports / "daily" / "2026-03-20" / "test-run" / "portfolio"
     assert not target_dir.exists()
     report_store.save_risk_metrics("2026-03-20", "pid-123", {"sharpe": 1.2})
     assert target_dir.is_dir()

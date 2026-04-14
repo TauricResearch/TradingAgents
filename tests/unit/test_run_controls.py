@@ -160,6 +160,75 @@ def test_resume_run_auto_reuses_same_run_id(monkeypatch):
     assert captured["run_id"] == run_id
 
 
+def test_resume_run_pipeline_uses_checkpoint_phase(monkeypatch):
+    run_id = "run-pipeline-resume"
+    captured: dict[str, object] = {}
+
+    async def _gen():
+        if False:
+            yield {}
+
+    def _fake_set_run_task(target_run_id: str, coro) -> None:
+        captured["run_id"] = target_run_id
+        coro.close()
+
+    def _fake_run_pipeline(execution_run_id: str, params: dict):
+        captured["execution_run_id"] = execution_run_id
+        captured["params"] = params
+        return _gen()
+
+    monkeypatch.setattr(runs_route, "_set_run_task", _fake_set_run_task)
+    monkeypatch.setattr(runs_route, "_append_system_event", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        runs_route,
+        "_infer_pipeline_resume_phase",
+        lambda run_id, params: ("analysts", "Market Analyst"),
+    )
+    monkeypatch.setattr(runs_route.engine, "run_pipeline", _fake_run_pipeline)
+
+    runs_route.runs[run_id] = {
+        "id": run_id,
+        "type": "pipeline",
+        "status": "failed",
+        "created_at": 1,
+        "user_id": "u",
+        "params": {"date": "2026-03-31", "ticker": "AAPL"},
+        "events": [],
+        "rerun_seq": 0,
+    }
+
+    try:
+        result = asyncio.run(
+            runs_route.resume_run(run_id, background_tasks=None, user={"user_id": "u"})
+        )
+    finally:
+        runs_route.runs.pop(run_id, None)
+
+    assert result == {
+        "run_id": run_id,
+        "status": "queued",
+        "mode": "pipeline_checkpoint",
+        "phase": "analysts",
+    }
+    assert captured["run_id"] == run_id
+    assert captured["execution_run_id"] == f"{run_id}:resume:pipeline"
+    assert captured["params"]["resume_from_latest_snapshot"] is True
+
+
+def test_infer_pipeline_resume_phase_unexpected_error_falls_back(monkeypatch):
+    def _raise_unexpected(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(runs_route, "create_report_store", _raise_unexpected)
+    phase, node_name = runs_route._infer_pipeline_resume_phase(
+        "run-pipeline-resume",
+        {"ticker": "AAPL", "date": "2026-03-31"},
+    )
+
+    assert phase is None
+    assert node_name is None
+
+
 def test_submit_phase3_decision_retries_selected_tickers(monkeypatch):
     run_id = "run-phase3"
     captured: dict[str, object] = {}

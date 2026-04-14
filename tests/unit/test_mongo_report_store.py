@@ -135,6 +135,33 @@ def test_load_analysis_filters_by_ticker(mongo_store, mock_col):
     assert result == {"score": 0.9}
 
 
+def test_save_pipeline_node_snapshot_uses_snapshot_report_type(mongo_store, mock_col):
+    """Pipeline snapshots should persist as a dedicated report type."""
+    mock_col.insert_one.return_value = MagicMock(inserted_id="abc")
+
+    mongo_store.save_pipeline_node_snapshot(
+        "2026-03-20",
+        "aapl",
+        {"node_name": "Market Analyst", "state": {"market_report": "ok"}},
+    )
+
+    doc = mock_col.insert_one.call_args[0][0]
+    assert doc["ticker"] == "AAPL"
+    assert doc["report_type"] == "pipeline_node_snapshot"
+
+
+def test_load_latest_pipeline_node_snapshot_filters_by_ticker(mongo_store, mock_col):
+    """Latest pipeline snapshot lookup should filter by ticker."""
+    mock_col.find_one.return_value = {"data": {"node_name": "Trader"}}
+
+    result = mongo_store.load_latest_pipeline_node_snapshot("2026-03-20", "aapl")
+
+    query = mock_col.find_one.call_args[0][0]
+    assert query["ticker"] == "AAPL"
+    assert query["report_type"] == "pipeline_node_snapshot"
+    assert result == {"node_name": "Trader"}
+
+
 # ---------------------------------------------------------------------------
 # PM decision
 # ---------------------------------------------------------------------------

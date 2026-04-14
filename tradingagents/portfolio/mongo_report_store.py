@@ -196,6 +196,28 @@ class MongoReportStore:
     ) -> dict[str, Any] | None:
         return self._load(date, "analysis", ticker=ticker, run_id=run_id)
 
+    def save_pipeline_node_snapshot(
+        self,
+        date: str,
+        ticker: str,
+        data: dict[str, Any],
+    ) -> str:
+        return self._save(date, "pipeline_node_snapshot", data, ticker=ticker)
+
+    def load_latest_pipeline_node_snapshot(
+        self,
+        date: str,
+        ticker: str,
+        *,
+        run_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        return self._load(
+            date,
+            "pipeline_node_snapshot",
+            ticker=ticker,
+            run_id=run_id,
+        )
+
     # ------------------------------------------------------------------
     # Holding Reviews
     # ------------------------------------------------------------------

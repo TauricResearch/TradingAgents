@@ -10,7 +10,7 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict
+from typing import Any, AsyncGenerator, Dict, Protocol
 
 from tradingagents.agents.utils.json_utils import extract_json
 from tradingagents.agents.utils.output_validation import build_market_report_structured
@@ -41,7 +41,6 @@ from agent_os.backend.services.event_mapper import (
 )
 from agent_os.backend.services.report_helpers import (
     extract_pipeline_instruments_from_scan_data,
-    extract_tickers_from_scan_data,
     normalize_scan_summary,
     sanitize_for_json,
     write_complete_report_md,
@@ -217,6 +216,49 @@ _PIPELINE_ANALYST_PHASE_NODES = frozenset({
     "Msg Clear Fundamentals",
 })
 
+_RESUMABLE_PIPELINE_STATE_KEYS = frozenset({
+    "run_id",
+    "company_of_interest",
+    "trade_date",
+    "portfolio_context",
+    "instrument_key",
+    "asset_class",
+    "instrument_type",
+    "is_etf",
+    "is_inverse",
+    "is_leveraged",
+    "scanner_context_packet",
+    "sender",
+    "market_report",
+    "market_report_structured",
+    "sentiment_report",
+    "sentiment_report_structured",
+    "news_report",
+    "news_report_structured",
+    "fundamentals_report",
+    "fundamentals_report_structured",
+    "research_packet_summary",
+    "investment_debate_state",
+    "investment_plan",
+    "investment_plan_structured",
+    "trader_investment_plan",
+    "trader_plan_structured",
+    "risk_debate_state",
+    "risk_r1_aggressive",
+    "risk_r1_conservative",
+    "risk_r1_neutral",
+    "risk_r2_aggressive",
+    "risk_r2_conservative",
+    "risk_r2_neutral",
+    "final_trade_decision",
+    "final_trade_decision_structured",
+    "risk_synthesis_structured",
+    "analysis_status",
+    "terminal_action",
+    "critical_abort_reason",
+    "macro_regime_report",
+})
+
 _PIPELINE_NODE_RESULT_FIELDS = (
     "market_report",
     "sentiment_report",
@@ -264,7 +306,37 @@ def _extract_node_results(
     }
 
 
+class PipelineRecoveryStore(Protocol):
+    def save_pipeline_node_snapshot(
+        self,
+        date: str,
+        ticker: str,
+        data: dict[str, Any],
+    ) -> Any: ...
+
+    def save_analysts_checkpoint(
+        self,
+        date: str,
+        ticker: str,
+        data: dict[str, Any],
+    ) -> Any: ...
+
+    def save_trader_checkpoint(
+        self,
+        date: str,
+        ticker: str,
+        data: dict[str, Any],
+    ) -> Any: ...
+
+    def load_latest_pipeline_node_snapshot(
+        self,
+        date: str,
+        ticker: str,
+    ) -> dict[str, Any] | None: ...
+
+
 def _is_top_level_langgraph_node_end(event: Dict[str, Any]) -> bool:
+    """Return True for terminal events emitted by top-level LangGraph nodes."""
     if event.get("event") != "on_chain_end":
         return False
     metadata = event.get("metadata") or {}
@@ -279,6 +351,7 @@ def _build_analysts_checkpoint(
     ticker: str,
     date: str,
 ) -> dict[str, Any] | None:
+    """Return the persisted analysts checkpoint payload when analyst output exists."""
     if not any(state.get(key) for key in _ANALYST_KEYS):
         return None
     return {
@@ -300,6 +373,7 @@ def _build_trader_checkpoint(
     ticker: str,
     date: str,
 ) -> dict[str, Any] | None:
+    """Return the persisted trader checkpoint payload when trader output exists."""
     if not state.get("trader_investment_plan"):
         return None
     return {
@@ -319,6 +393,7 @@ def _build_trader_checkpoint(
 
 
 def infer_pipeline_resume_phase(snapshot: Dict[str, Any] | None) -> str | None:
+    """Infer the earliest safe pipeline phase to resume from a saved snapshot."""
     if not isinstance(snapshot, dict):
         return None
 
@@ -340,10 +415,14 @@ def infer_pipeline_resume_phase(snapshot: Dict[str, Any] | None) -> str | None:
     return "analysts"
 
 
-def _apply_resume_state(initial_state: Dict[str, Any], snapshot_state: Dict[str, Any]) -> Dict[str, Any]:
-    for key, value in snapshot_state.items():
-        if key != "messages":
-            initial_state[key] = value
+def _apply_resume_state(
+    initial_state: dict[str, Any],
+    snapshot_state: dict[str, Any],
+) -> dict[str, Any]:
+    """Merge the resumable subset of a saved snapshot into an initial pipeline state."""
+    for key in _RESUMABLE_PIPELINE_STATE_KEYS:
+        if key in snapshot_state:
+            initial_state[key] = snapshot_state[key]
     return initial_state
 
 
@@ -359,12 +438,13 @@ class LangGraphEngine:
     def _persist_pipeline_recovery_artifacts(
         self,
         *,
-        store,
+        store: PipelineRecoveryStore,
         date: str,
         ticker: str,
         state: Dict[str, Any],
         node_name: str,
     ) -> None:
+        """Persist the latest resumable pipeline snapshot and derived checkpoints."""
         serializable_state = sanitize_for_json(state)
         snapshot = {
             "ticker": ticker,
@@ -385,6 +465,42 @@ class LangGraphEngine:
         trader_ckpt = _build_trader_checkpoint(serializable_state, ticker=ticker, date=date)
         if trader_ckpt:
             store.save_trader_checkpoint(date, ticker, trader_ckpt)
+
+    def _maybe_persist_pipeline_recovery_artifacts(
+        self,
+        *,
+        event: Dict[str, Any],
+        current_state: Dict[str, Any],
+        store: PipelineRecoveryStore,
+        date: str,
+        ticker: str,
+        root_run_id: str,
+        error_context: str,
+    ) -> None:
+        """Update the rolling pipeline snapshot from a top-level LangGraph node event."""
+        if not _is_top_level_langgraph_node_end(event):
+            return
+        output = (event.get("data") or {}).get("output")
+        if not isinstance(output, dict):
+            return
+        current_state.update(output)
+        try:
+            self._persist_pipeline_recovery_artifacts(
+                store=store,
+                date=date,
+                ticker=ticker,
+                state=current_state,
+                node_name=str(
+                    (event.get("metadata") or {}).get("langgraph_node") or "unknown"
+                ),
+            )
+        except Exception:
+            logger.exception(
+                "Failed to persist %s snapshot run=%s ticker=%s",
+                error_context,
+                root_run_id,
+                ticker,
+            )
 
     # ------------------------------------------------------------------
     # Run logger lifecycle
@@ -723,24 +839,15 @@ class LangGraphEngine:
                     output = (event.get("data") or {}).get("output")
                     if isinstance(output, dict):
                         final_state = output
-                if _is_top_level_langgraph_node_end(event):
-                    output = (event.get("data") or {}).get("output")
-                    if isinstance(output, dict):
-                        current_state.update(output)
-                        try:
-                            self._persist_pipeline_recovery_artifacts(
-                                store=store,
-                                date=date,
-                                ticker=ticker,
-                                state=current_state,
-                                node_name=str((event.get("metadata") or {}).get("langgraph_node") or "unknown"),
-                            )
-                        except Exception:
-                            logger.exception(
-                                "Failed to persist pipeline node snapshot run=%s ticker=%s",
-                                root_run_id,
-                                ticker,
-                            )
+                self._maybe_persist_pipeline_recovery_artifacts(
+                    event=event,
+                    current_state=current_state,
+                    store=store,
+                    date=date,
+                    ticker=ticker,
+                    root_run_id=root_run_id,
+                    error_context="pipeline node",
+                )
                 mapped = self._event_mapper.map_event(execution_key, event)
                 if mapped:
                     yield mapped
@@ -1170,24 +1277,15 @@ class LangGraphEngine:
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
-                    if _is_top_level_langgraph_node_end(event):
-                        output = (event.get("data") or {}).get("output")
-                        if isinstance(output, dict):
-                            current_state.update(output)
-                            try:
-                                self._persist_pipeline_recovery_artifacts(
-                                    store=writer_store,
-                                    date=date,
-                                    ticker=ticker,
-                                    state=current_state,
-                                    node_name=str((event.get("metadata") or {}).get("langgraph_node") or "unknown"),
-                                )
-                            except Exception:
-                                logger.exception(
-                                    "Failed to persist debate rerun snapshot run=%s ticker=%s",
-                                    root_run_id,
-                                    ticker,
-                                )
+                    self._maybe_persist_pipeline_recovery_artifacts(
+                        event=event,
+                        current_state=current_state,
+                        store=writer_store,
+                        date=date,
+                        ticker=ticker,
+                        root_run_id=root_run_id,
+                        error_context="debate rerun",
+                    )
                     mapped = self._event_mapper.map_event(execution_key, event)
                     if mapped:
                         yield mapped
@@ -1257,24 +1355,15 @@ class LangGraphEngine:
                         output = (event.get("data") or {}).get("output")
                         if isinstance(output, dict):
                             final_state = output
-                    if _is_top_level_langgraph_node_end(event):
-                        output = (event.get("data") or {}).get("output")
-                        if isinstance(output, dict):
-                            current_state.update(output)
-                            try:
-                                self._persist_pipeline_recovery_artifacts(
-                                    store=writer_store,
-                                    date=date,
-                                    ticker=ticker,
-                                    state=current_state,
-                                    node_name=str((event.get("metadata") or {}).get("langgraph_node") or "unknown"),
-                                )
-                            except Exception:
-                                logger.exception(
-                                    "Failed to persist risk rerun snapshot run=%s ticker=%s",
-                                    root_run_id,
-                                    ticker,
-                                )
+                    self._maybe_persist_pipeline_recovery_artifacts(
+                        event=event,
+                        current_state=current_state,
+                        store=writer_store,
+                        date=date,
+                        ticker=ticker,
+                        root_run_id=root_run_id,
+                        error_context="risk rerun",
+                    )
                     mapped = self._event_mapper.map_event(execution_key, event)
                     if mapped:
                         yield mapped
