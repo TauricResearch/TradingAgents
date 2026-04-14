@@ -427,7 +427,9 @@ def conclude_statistical_hypothesis(hyp: dict) -> None:
         try:
             with open(DB_PATH) as f:
                 db = json.load(f)
-            picks = [p for p in db if p.get("scanner") == scanner or p.get("strategy_match") == scanner]
+            picks = [
+                p for p in db if p.get("scanner") == scanner or p.get("strategy_match") == scanner
+            ]
         except Exception as e:
             print(f"    Could not read performance database: {e}", flush=True)
 
@@ -439,7 +441,11 @@ def conclude_statistical_hypothesis(hyp: dict) -> None:
     avg_score = round(sum(scores) / len(scores), 1) if scores else None
 
     returns_7d = [p["return_7d"] for p in picks if p.get("return_7d") is not None]
-    win_rate = round(100 * sum(1 for r in returns_7d if r > 0) / len(returns_7d), 1) if returns_7d else None
+    win_rate = (
+        round(100 * sum(1 for r in returns_7d if r > 0) / len(returns_7d), 1)
+        if returns_7d
+        else None
+    )
     avg_return = round(sum(returns_7d) / len(returns_7d), 2) if returns_7d else None
 
     stats_block = (
@@ -489,8 +495,10 @@ def promote_pending(registry: dict) -> None:
     # Only implementation/forward_test hypotheses count toward max_active.
     # Statistical hypotheses are concluded immediately and never occupy runner slots.
     running_count = sum(
-        1 for h in registry["hypotheses"]
-        if h["status"] == "running" and h.get("hypothesis_type", "implementation") == "implementation"
+        1
+        for h in registry["hypotheses"]
+        if h["status"] == "running"
+        and h.get("hypothesis_type", "implementation") == "implementation"
     )
     max_active = registry.get("max_active", 5)
     if running_count >= max_active:
@@ -518,8 +526,10 @@ def main():
     # Fast-path: conclude all pending statistical hypotheses immediately.
     # They answer questions from existing data — no cap, no worktree, no waiting.
     statistical_pending = [
-        h for h in registry.get("hypotheses", [])
-        if h["status"] == "pending" and h.get("hypothesis_type") == "statistical"
+        h
+        for h in registry.get("hypotheses", [])
+        if h["status"] == "pending"
+        and h.get("hypothesis_type") == "statistical"
         and (not filter_id or h["id"] == filter_id)
     ]
     for hyp in statistical_pending:
@@ -546,6 +556,14 @@ def main():
                 print(f"  Error processing {hyp['id']}: {e}", flush=True)
 
     promote_pending(registry)
+
+    # Prune concluded hypotheses from active.json — they live in concluded/ already.
+    before = len(registry["hypotheses"])
+    registry["hypotheses"] = [h for h in registry["hypotheses"] if h["status"] != "concluded"]
+    pruned = before - len(registry["hypotheses"])
+    if pruned:
+        print(f"\n  Pruned {pruned} concluded hypothesis/hypotheses from active.json.", flush=True)
+
     save_registry(registry)
     print("\nRegistry updated.", flush=True)
 
