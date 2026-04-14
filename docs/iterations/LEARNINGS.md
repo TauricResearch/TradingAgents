@@ -14,6 +14,7 @@
 | social_dd | scanners/social_dd.md | 2026-04-14 | 57.1% 30d win rate (+1.41% avg 30d, n=26) — only scanner positive at 30d; eval horizon mismatch persists |
 | volume_accumulation | scanners/volume_accumulation.md | — | No data yet |
 | short_squeeze | scanners/short_squeeze.md | 2026-04-14 | 60% 7d win rate (n=11), best 7d performer; BUT 30% 30d — short-term signal only, degrades at 30d |
+| earnings_beat | scanners/earnings_beat.md | 2026-04-14 | New PEAD scanner: recent EPS beats ≥5% surprise; 15% annualized academic edge; distinct from earnings_calendar |
 
 ## Research
 
@@ -21,6 +22,7 @@
 |-------|------|------|---------|
 | Short Interest Squeeze Scanner | research/2026-04-12-short-interest-squeeze.md | 2026-04-12 | High SI (>20%) + DTC >5 as squeeze-risk discovery; implemented as short_squeeze scanner |
 | 52-Week High Breakout Momentum | research/2026-04-13-52-week-high-breakout.md | 2026-04-13 | George & Hwang (2004) validated: 52w high crossing + 1.5x volume = 72% win rate, +11.4% avg over 31d; implemented as high_52w_breakout scanner |
+| PEAD Post-Earnings Drift | research/2026-04-14-pead-earnings-beat.md | 2026-04-14 | Bernard & Thomas (1989): 18% annualized PEAD; QuantPedia: 15% annualized (1987-2004); implemented as earnings_beat scanner (distinct from earnings_calendar's upcoming-only scope) |
 | reddit_dd | scanners/reddit_dd.md | — | No data yet |
 | reddit_trending | scanners/reddit_trending.md | — | No data yet |
 | semantic_news | scanners/semantic_news.md | — | No data yet |
