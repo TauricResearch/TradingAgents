@@ -1,4 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from tradingagents.agents.analysts._claude_agent_runner import run_sdk_analyst
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
     get_global_news,
@@ -6,6 +7,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_news,
 )
 from tradingagents.dataflows.config import get_config
+from tradingagents.llm_clients.claude_agent_client import ChatClaudeAgent
 
 
 def create_news_analyst(llm):
@@ -45,6 +47,23 @@ def create_news_analyst(llm):
         prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
         prompt = prompt.partial(current_date=current_date)
         prompt = prompt.partial(instrument_context=instrument_context)
+
+        if isinstance(llm, ChatClaudeAgent):
+            full_system = (
+                "You are a helpful AI assistant. Use the provided tools to progress towards "
+                "producing the requested report. "
+                f"You have access to the following tools: {', '.join(t.name for t in tools)}. "
+                f"For your reference, the current date is {current_date}. {instrument_context}\n\n"
+                f"{system_message}"
+            )
+            return run_sdk_analyst(
+                llm=llm,
+                state=state,
+                system_prompt=full_system,
+                lc_tools=tools,
+                server_name="news_analyst",
+                report_field="news_report",
+            )
 
         chain = prompt | llm.bind_tools(tools)
         result = chain.invoke(state["messages"])
