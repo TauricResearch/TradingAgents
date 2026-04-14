@@ -14,22 +14,23 @@
       "hypothesis_type": "implementation",
       "created_at": "2026-04-10",
       "min_days": 21,
-      "days_elapsed": 2,
+      "days_elapsed": 3,
       "picks_log": [
         "2026-04-10",
-        "2026-04-13"
+        "2026-04-13",
+        "2026-04-14"
       ],
       "baseline_scanner": "insider_buying",
       "conclusion": null
-    }
-    ,{
+    },
+    {
       "id": "social_dd-ranker-suppression",
       "scanner": "social_dd",
       "title": "Does ranker suppression cause us to miss social_dd 30d winners?",
-      "description": "social_dd shows 60% 30d win rate (+2.32% avg) but only 41.7% 7d (-1.92%). Hypothesis: the ranker and recommendation system evaluate at 7d horizon, unfairly penalizing a slow-win scanner. Most picks (22/25) already score >=65, so score suppression is not the primary issue — horizon mismatch is.",
+      "description": "social_dd shows 60% 30d win rate (+2.32% avg) but only 41.7% 7d (-1.92%). Hypothesis: the ranker and recommendation system evaluate at 7d horizon, unfairly penalizing a slow-win scanner. Most picks (22/25) already score >=65, so score suppression is not the primary issue \u2014 horizon mismatch is.",
       "branch": null,
       "pr_number": null,
-      "status": "pending",
+      "status": "concluded",
       "priority": 0,
       "expected_impact": "medium",
       "hypothesis_type": "statistical",
@@ -38,7 +39,7 @@
       "days_elapsed": 0,
       "picks_log": [],
       "baseline_scanner": "social_dd",
-      "conclusion": null
+      "conclusion": "statistical"
     }
   ]
 }
