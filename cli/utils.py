@@ -174,17 +174,30 @@ def select_openrouter_model() -> str:
     return choice
 
 
-def select_shallow_thinking_agent(provider) -> str:
-    """Select shallow thinking llm engine using an interactive selection."""
+def _prompt_custom_model_id() -> str:
+    """Prompt user to type a custom model ID."""
+    return questionary.text(
+        "Enter model ID:",
+        validate=lambda x: len(x.strip()) > 0 or "Please enter a model ID.",
+    ).ask().strip()
 
+
+def _select_model(provider: str, mode: str) -> str:
+    """Select a model for the given provider and mode (quick/deep)."""
     if provider.lower() == "openrouter":
         return select_openrouter_model()
 
+    if provider.lower() == "azure":
+        return questionary.text(
+            f"Enter Azure deployment name ({mode}-thinking):",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a deployment name.",
+        ).ask().strip()
+
     choice = questionary.select(
-        "Select Your [Quick-Thinking LLM Engine]:",
+        f"Select Your [{mode.title()}-Thinking LLM Engine]:",
         choices=[
             questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, "quick")
+            for display, value in get_model_options(provider, mode)
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -197,41 +210,23 @@ def select_shallow_thinking_agent(provider) -> str:
     ).ask()
 
     if choice is None:
-        console.print(
-            "\n[red]No shallow thinking llm engine selected. Exiting...[/red]"
-        )
+        console.print(f"\n[red]No {mode} thinking llm engine selected. Exiting...[/red]")
         exit(1)
 
+    if choice == "custom":
+        return _prompt_custom_model_id()
+
     return choice
+
+
+def select_shallow_thinking_agent(provider) -> str:
+    """Select shallow thinking llm engine using an interactive selection."""
+    return _select_model(provider, "quick")
 
 
 def select_deep_thinking_agent(provider) -> str:
     """Select deep thinking llm engine using an interactive selection."""
-
-    if provider.lower() == "openrouter":
-        return select_openrouter_model()
-
-    choice = questionary.select(
-        "Select Your [Deep-Thinking LLM Engine]:",
-        choices=[
-            questionary.Choice(display, value=value)
-            for display, value in get_model_options(provider, "deep")
-        ],
-        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
-        style=questionary.Style(
-            [
-                ("selected", "fg:magenta noinherit"),
-                ("highlighted", "fg:magenta noinherit"),
-                ("pointer", "fg:magenta noinherit"),
-            ]
-        ),
-    ).ask()
-
-    if choice is None:
-        console.print("\n[red]No deep thinking llm engine selected. Exiting...[/red]")
-        exit(1)
-
-    return choice
+    return _select_model(provider, "deep")
 
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
@@ -244,12 +239,12 @@ def select_llm_provider() -> tuple[str, str | None]:
         ("Ollama", "http://localhost:11434/v1"),
         ("SiliconFlow", "https://api.siliconflow.cn/v1"),
     ]
-    
+
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
-            questionary.Choice(display, value=(display, value))
-            for display, value in BASE_URLS
+            questionary.Choice(display, value=(provider_key, url))
+            for display, provider_key, url in PROVIDERS
         ],
         instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
         style=questionary.Style(
@@ -262,13 +257,11 @@ def select_llm_provider() -> tuple[str, str | None]:
     ).ask()
     
     if choice is None:
-        console.print("\n[red]no OpenAI backend selected. Exiting...[/red]")
+        console.print("\n[red]No LLM provider selected. Exiting...[/red]")
         exit(1)
-    
-    display_name, url = choice
-    print(f"You selected: {display_name}\tURL: {url}")
 
-    return display_name, url
+    provider, url = choice
+    return provider, url
 
 
 def ask_openai_reasoning_effort() -> str:

@@ -78,7 +78,7 @@ class FinancialSituationMemory:
 
         # Build results
         results = []
-        max_score = max(scores) if max(scores) > 0 else 1  # Normalize scores
+        max_score = float(scores.max()) if len(scores) > 0 and scores.max() > 0 else 1.0
 
         for idx in top_indices:
             # Normalize score to 0-1 range for consistency
