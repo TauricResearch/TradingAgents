@@ -1,6 +1,9 @@
 """SEC Form 4 insider buying scanner."""
 
-from typing import Any, Dict, List
+import json
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Set
 
 from tradingagents.dataflows.discovery.scanner_registry import SCANNER_REGISTRY, BaseScanner
 from tradingagents.dataflows.discovery.utils import Priority
@@ -115,12 +118,59 @@ class InsiderBuyingScanner(BaseScanner):
             candidates.sort(key=lambda c: c.get("insider_score", 0), reverse=True)
             candidates = candidates[: self.limit]
 
+            # Staleness suppression: filter tickers already recommended as insider_buying
+            # in the past 2 days (same Form 4 filing appears daily within lookback_days window)
+            recently_seen = self._load_recent_insider_tickers(suppress_days=2)
+            if recently_seen:
+                before_tickers = {c["ticker"] for c in candidates}
+                candidates = [c for c in candidates if c["ticker"] not in recently_seen]
+                suppressed = before_tickers - {c["ticker"] for c in candidates}
+                if suppressed:
+                    logger.info(
+                        f"Staleness filter: suppressed {len(suppressed)} ticker(s) already "
+                        f"recommended as insider_buying in the past 2 days: {suppressed}"
+                    )
+
             logger.info(f"Insider buying: {len(candidates)} candidates")
             return candidates
 
         except Exception as e:
             logger.error(f"Insider buying scan failed: {e}", exc_info=True)
             return []
+
+
+    def _load_recent_insider_tickers(self, suppress_days: int = 2) -> Set[str]:
+        """Return tickers recommended as insider_buying in the past N days.
+
+        Used to suppress stale Form 4 filings that re-appear daily within the
+        lookback_days window.  P&L review (Apr 3-9 2026) confirmed 3 tickers
+        (PAGS, ZBIO, HMH) each repeated 3-4 consecutive days from the same filing.
+        """
+        seen: Set[str] = set()
+        data_dir = Path(self.config.get("data_dir", "data"))
+        recs_dir = data_dir / "recommendations"
+
+        if not recs_dir.exists():
+            return seen
+
+        today = date.today()
+        for i in range(1, suppress_days + 1):
+            check_date = today - timedelta(days=i)
+            rec_file = recs_dir / f"{check_date.isoformat()}.json"
+            if not rec_file.exists():
+                continue
+            try:
+                with open(rec_file) as f:
+                    data = json.load(f)
+                for rec in data.get("recommendations", []):
+                    if rec.get("strategy_match") == "insider_buying":
+                        ticker = rec.get("ticker", "").upper()
+                        if ticker:
+                            seen.add(ticker)
+            except Exception:
+                pass
+
+        return seen
 
 
 SCANNER_REGISTRY.register(InsiderBuyingScanner)

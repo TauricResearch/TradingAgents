@@ -29,9 +29,17 @@ alone and is the primary confluence hypothesis under test.
 - Updated `short_squeeze.py` context string to include DTC value so ranker can use "days to cover" criterion.
 - Confidence: high (this is a clear context gap between ranker criteria and available data)
 
+### 2026-04-14 — P&L review (updated statistics, n=11)
+- 7d win rate: 60% (6/10 wins), avg 7d return: +2.15% — still best 7d performer. No change from prior analysis.
+- **NEW: 30d win rate: 30% (3/10), avg 30d return: -1.1%** — signal degrades sharply at 30d. The squeeze resolves (or fails) within 7 days; holding longer is harmful.
+- This confirms short_squeeze is a **short-term-only signal**. The 7d alpha is real; the 30d outcome is poor.
+- Pattern: WTI and TSLA appeared in Apr 3-9 mature recs as short_squeeze plays — high SI but no clear catalyst timing to trigger covering.
+- Confidence: medium (n=11 still small; 30d degradation pattern is consistent with academic squeeze literature)
+
 ## Pending Hypotheses
 - [ ] Does short_squeeze + options_flow confluence produce better 7d win rate than either scanner alone?
 - [ ] Does short_squeeze + earnings_calendar (SI>20%) produce better outcomes than earnings alone? (See earnings_calendar.md pending hypothesis)
 - [ ] Is there a volume threshold (e.g., market cap <$2B small-cap) that sharpens the signal?
 - [ ] Does DTC >5 (now surfaced in context) predict better outcomes than DTC 2-5 within the scanner?
 - [ ] Does standalone short_squeeze (no cross-scanner confluence) continue to outperform at 7d as sample grows?
+- [ ] Should max holding period for short_squeeze be capped at 7 days in ranker guidance? 30d win rate 30% supports this.

@@ -26,3 +26,11 @@ No evidence yet on whether confidence or score is a better predictor of outcomes
 - minervini: best short-term signal but small sample (n=3 for 1d tracking).
 - **Critical gap confirmed**: `format_stats_summary()` shows only top 3 best strategies. LLM never sees news_catalyst (0% 7d) or social_hype (14.3% 7d) as poor performers.
 - Confidence: high
+
+### 2026-04-14 — P&L update (mature recs, 3rd iteration: Apr 3-9)
+- news_catalyst: still 0% 7d win rate, -8.37% avg 7d (8 samples, +1). WTI appeared Apr 3 (score=72) and Apr 6 (score=78) despite 0% track record. Ranker prompt updated: news_catalyst now explicitly flagged as "AVOID by default" with 0% win rate stated in criteria section.
+- social_hype: 18.2% 7d win rate (updated from 14.3%), -4.58% avg 7d (22 samples). LLY scored 82 and AI scored 80 from social_hype in Apr 3-9 — overconfident. Ranker prompt already warns "SPECULATIVE" for social_hype.
+- short_squeeze: 7d 60% win rate confirmed; **30d 30%** — signal degrades sharply. Noted in short_squeeze.md.
+- insider_buying staleness: 50% of insider_buying picks in Apr 3-9 were stale repeats (PAGS×4, ZBIO×4, HMH×3). Staleness suppression filter implemented in `insider_buying.py`.
+- Overall pipeline: 626 tracked recs, 41.9% 7d win rate, 34.7% 30d win rate, -2.79% avg 30d return.
+- Confidence: high
