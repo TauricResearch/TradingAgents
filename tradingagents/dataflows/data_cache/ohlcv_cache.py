@@ -51,7 +51,7 @@ PERIOD_TO_DAYS: Dict[str, Optional[int]] = {
 
 def _cache_key(tickers: List[str]) -> str:
     """Stable 12-char hash of the (sorted, uppercase) ticker set."""
-    canonical = ",".join(sorted(set(t.upper() for t in tickers)))
+    canonical = ",".join(sorted({t.upper() for t in tickers}))
     return hashlib.md5(canonical.encode()).hexdigest()[:12]
 
 
