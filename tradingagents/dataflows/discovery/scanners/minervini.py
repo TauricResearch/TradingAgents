@@ -42,7 +42,7 @@ class MinerviniScanner(BaseScanner):
         self.sma_200_slope_days = self.scanner_config.get("sma_200_slope_days", 20)
         self.min_pct_off_low = self.scanner_config.get("min_pct_off_low", 30)
         self.max_pct_from_high = self.scanner_config.get("max_pct_from_high", 25)
-        self.max_tickers = self.scanner_config.get("max_tickers", 50)
+        self.max_tickers = self.scanner_config.get("max_tickers", 0)  # 0 = no cap
 
     def scan(self, state: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not self.is_enabled():

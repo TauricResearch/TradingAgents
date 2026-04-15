@@ -22,7 +22,7 @@ class TechnicalBreakoutScanner(BaseScanner):
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.max_tickers = self.scanner_config.get("max_tickers", 150)
+        self.max_tickers = self.scanner_config.get("max_tickers", 0)  # 0 = no cap
         self.min_volume_multiple = self.scanner_config.get("min_volume_multiple", 2.0)
         self.lookback_days = self.scanner_config.get("lookback_days", 20)
 
@@ -37,7 +37,8 @@ class TechnicalBreakoutScanner(BaseScanner):
             logger.warning("No tickers loaded for breakout scan")
             return []
 
-        tickers = tickers[: self.max_tickers]
+        if self.max_tickers:
+            tickers = tickers[: self.max_tickers]
 
         cache_dir = self.config.get("discovery", {}).get("ohlcv_cache_dir", "data/ohlcv_cache")
         logger.info(f"Loading OHLCV for {len(tickers)} tickers from cache (3mo)...")

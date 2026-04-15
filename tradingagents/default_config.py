@@ -240,6 +240,14 @@ DEFAULT_CONFIG = {
                 "fetch_market_cap": False,  # Skip for speed (1 NaN out of 30 features)
                 "max_workers": 8,  # Parallel feature computation threads
             },
+            "technical_breakout": {
+                "enabled": True,
+                "pipeline": "momentum",
+                "limit": 10,
+                "max_tickers": 0,  # 0 = no cap (reads from OHLCV cache)
+                "min_volume_multiple": 2.0,  # Min volume vs 20d avg to confirm breakout
+                "lookback_days": 20,  # Days for volume/price lookback
+            },
             "minervini": {
                 "enabled": True,
                 "pipeline": "momentum",
