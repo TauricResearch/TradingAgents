@@ -271,6 +271,18 @@ DEFAULT_CONFIG = {
                 "min_price": 5.0,  # Filter penny stocks
                 "min_avg_volume": 100_000,  # Min avg daily volume for liquidity
             },
+            "rsi_oversold": {
+                "enabled": True,
+                "pipeline": "momentum",
+                "limit": 10,
+                "max_tickers": 0,  # 0 = no cap (nightly cache makes full universe fast)
+                "rsi_period": 2,  # Connors RSI(2): most sensitive to short-term pullbacks
+                "max_rsi": 10.0,  # Entry threshold: RSI(2) < 10 (aggressive: < 5)
+                "sma_period": 200,  # Trend filter SMA period; critical falling-knife guard
+                "min_price": 5.0,  # Filter penny stocks
+                "min_avg_volume": 100_000,  # Min avg daily volume for liquidity
+                "vol_avg_days": 20,  # Days for volume average baseline
+            },
         },
     },
     # Memory settings

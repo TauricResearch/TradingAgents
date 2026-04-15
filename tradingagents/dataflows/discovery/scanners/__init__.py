@@ -14,6 +14,7 @@ from . import (
     options_flow,  # noqa: F401
     reddit_dd,  # noqa: F401
     reddit_trending,  # noqa: F401
+    rsi_oversold,  # noqa: F401
     sector_rotation,  # noqa: F401
     semantic_news,  # noqa: F401
     short_squeeze,  # noqa: F401
